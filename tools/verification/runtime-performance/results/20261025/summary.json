@@ -1,0 +1,3356 @@
+[
+  {
+    "case": [
+      "codex",
+      "reasoning",
+      64
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "measuredChunks": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 7.895354,
+          "min": 7.424958,
+          "max": 8.313208
+        },
+        "parentUserCpuMs": {
+          "median": 7.783,
+          "min": 7.447,
+          "max": 8.328
+        },
+        "parentSystemCpuMs": {
+          "median": 1.162,
+          "min": 0.924,
+          "max": 1.562
+        },
+        "parentAllocatedBytes": {
+          "median": 4029504.0,
+          "min": 3996008,
+          "max": 4060528
+        },
+        "parentAllocations": {
+          "median": 31730.5,
+          "min": 31666,
+          "max": 31849
+        },
+        "commits": {
+          "median": 131.0,
+          "min": 131,
+          "max": 131
+        },
+        "committedBytes": {
+          "median": 549506.0,
+          "min": 549506,
+          "max": 549506
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "measuredChunks": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 2.2927495,
+          "min": 2.096709,
+          "max": 2.841125
+        },
+        "parentUserCpuMs": {
+          "median": 1.57,
+          "min": 1.342,
+          "max": 1.622
+        },
+        "parentSystemCpuMs": {
+          "median": 0.5680000000000001,
+          "min": 0.344,
+          "max": 0.762
+        },
+        "parentAllocatedBytes": {
+          "median": 1303608.0,
+          "min": 1298040,
+          "max": 1304360
+        },
+        "parentAllocations": {
+          "median": 8543.0,
+          "min": 8522,
+          "max": 8547
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 43732.0,
+          "min": 43732,
+          "max": 43732
+        }
+      }
+    },
+    "finalStateHashes": [
+      "07015f94c81b5ac905566b5512d1a08abe3d8bfa71b522db39852f558b17819e"
+    ]
+  },
+  {
+    "case": [
+      "codex",
+      "reasoning",
+      512
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 512.0,
+          "min": 512,
+          "max": 512
+        },
+        "measuredChunks": {
+          "median": 511.0,
+          "min": 511,
+          "max": 511
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 30.4016245,
+          "min": 29.829333,
+          "max": 30.729625
+        },
+        "parentUserCpuMs": {
+          "median": 42.212,
+          "min": 41.546,
+          "max": 43.202
+        },
+        "parentSystemCpuMs": {
+          "median": 6.2925,
+          "min": 5.114,
+          "max": 7.846
+        },
+        "parentAllocatedBytes": {
+          "median": 41014552.0,
+          "min": 41007976,
+          "max": 41144912
+        },
+        "parentAllocations": {
+          "median": 57038.5,
+          "min": 56994,
+          "max": 57071
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 301780.0,
+          "min": 301780,
+          "max": 301780
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 512.0,
+          "min": 512,
+          "max": 512
+        },
+        "measuredChunks": {
+          "median": 511.0,
+          "min": 511,
+          "max": 511
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 155.916271,
+          "min": 153.605417,
+          "max": 323.235833
+        },
+        "parentUserCpuMs": {
+          "median": 198.248,
+          "min": 194.575,
+          "max": 227.328
+        },
+        "parentSystemCpuMs": {
+          "median": 17.7965,
+          "min": 17.058,
+          "max": 28.086
+        },
+        "parentAllocatedBytes": {
+          "median": 138799040.0,
+          "min": 136672632,
+          "max": 139430120
+        },
+        "parentAllocations": {
+          "median": 250387.0,
+          "min": 248507,
+          "max": 250704
+        },
+        "commits": {
+          "median": 1027.0,
+          "min": 1027,
+          "max": 1027
+        },
+        "committedBytes": {
+          "median": 26388354.0,
+          "min": 26388354,
+          "max": 26388354
+        }
+      }
+    },
+    "finalStateHashes": [
+      "d22388a787b93edf204e4d56504cb75ef16b01f87b4af844ceb03df8bbb6410c"
+    ]
+  },
+  {
+    "case": [
+      "codex",
+      "text",
+      64
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "measuredChunks": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 2.233438,
+          "min": 1.840542,
+          "max": 2.684166
+        },
+        "parentUserCpuMs": {
+          "median": 1.38,
+          "min": 1.234,
+          "max": 1.459
+        },
+        "parentSystemCpuMs": {
+          "median": 0.377,
+          "min": 0.268,
+          "max": 0.441
+        },
+        "parentAllocatedBytes": {
+          "median": 989832.0,
+          "min": 985032,
+          "max": 999808
+        },
+        "parentAllocations": {
+          "median": 7616.0,
+          "min": 7593,
+          "max": 7665
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 43029.0,
+          "min": 43029,
+          "max": 43029
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "measuredChunks": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 1.963896,
+          "min": 1.647958,
+          "max": 6.562208
+        },
+        "parentUserCpuMs": {
+          "median": 1.4565000000000001,
+          "min": 1.245,
+          "max": 2.188
+        },
+        "parentSystemCpuMs": {
+          "median": 0.4495,
+          "min": 0.323,
+          "max": 0.684
+        },
+        "parentAllocatedBytes": {
+          "median": 919492.0,
+          "min": 916376,
+          "max": 937528
+        },
+        "parentAllocations": {
+          "median": 7545.5,
+          "min": 7542,
+          "max": 7612
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 43029.0,
+          "min": 43029,
+          "max": 43029
+        }
+      }
+    },
+    "finalStateHashes": [
+      "3a26bcd74de628a44dbb5cc6dad4328ed07767f533794eceec737f4c2b029b9d"
+    ]
+  },
+  {
+    "case": [
+      "codex",
+      "text",
+      512
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 512.0,
+          "min": 512,
+          "max": 512
+        },
+        "measuredChunks": {
+          "median": 511.0,
+          "min": 511,
+          "max": 511
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 18.245229000000002,
+          "min": 17.563166,
+          "max": 19.151291
+        },
+        "parentUserCpuMs": {
+          "median": 23.0995,
+          "min": 22.324,
+          "max": 23.752
+        },
+        "parentSystemCpuMs": {
+          "median": 2.7199999999999998,
+          "min": 2.413,
+          "max": 2.983
+        },
+        "parentAllocatedBytes": {
+          "median": 14304616.0,
+          "min": 14243752,
+          "max": 14371480
+        },
+        "parentAllocations": {
+          "median": 50242.0,
+          "min": 50198,
+          "max": 50261
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 301077.0,
+          "min": 301077,
+          "max": 301077
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "chunks": {
+          "median": 512.0,
+          "min": 512,
+          "max": 512
+        },
+        "measuredChunks": {
+          "median": 511.0,
+          "min": 511,
+          "max": 511
+        },
+        "fragmentBytes": {
+          "median": 32.0,
+          "min": 32,
+          "max": 32
+        },
+        "wallMs": {
+          "median": 22.2070205,
+          "min": 19.081333,
+          "max": 41.487041
+        },
+        "parentUserCpuMs": {
+          "median": 27.124000000000002,
+          "min": 25.477,
+          "max": 31.62
+        },
+        "parentSystemCpuMs": {
+          "median": 3.7175000000000002,
+          "min": 3.103,
+          "max": 5.457
+        },
+        "parentAllocatedBytes": {
+          "median": 18757676.0,
+          "min": 18677096,
+          "max": 18826576
+        },
+        "parentAllocations": {
+          "median": 50764.0,
+          "min": 50721,
+          "max": 50858
+        },
+        "commits": {
+          "median": 6.0,
+          "min": 6,
+          "max": 6
+        },
+        "committedBytes": {
+          "median": 301077.0,
+          "min": 301077,
+          "max": 301077
+        }
+      }
+    },
+    "finalStateHashes": [
+      "a80c97a9e6ec509bfde80f6cdf4962ddbddb00590be6db0e765d60773aa7a415"
+    ]
+  },
+  {
+    "case": [
+      "moku",
+      "context-explicit-directory"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 72798605.5,
+          "min": 70406873,
+          "max": 80796539
+        },
+        "nsPerOp": {
+          "median": 3639930.275,
+          "min": 3520343.65,
+          "max": 4039826.95
+        },
+        "allocs": {
+          "median": 46711.5,
+          "min": 46600,
+          "max": 46800
+        },
+        "allocsPerOp": {
+          "median": 2335.575,
+          "min": 2330,
+          "max": 2340
+        },
+        "bytes": {
+          "median": 109049176.0,
+          "min": 109036216,
+          "max": 109066216
+        },
+        "bytesPerOp": {
+          "median": 5452458.8,
+          "min": 5451810.8,
+          "max": 5453310.8
+        },
+        "threadReads": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 4181687.0,
+          "min": 3710792,
+          "max": 4431250
+        },
+        "nsPerOp": {
+          "median": 209084.35,
+          "min": 185539.6,
+          "max": 221562.5
+        },
+        "allocs": {
+          "median": 33108.5,
+          "min": 33074,
+          "max": 33141
+        },
+        "allocsPerOp": {
+          "median": 1655.425,
+          "min": 1653.7,
+          "max": 1657.05
+        },
+        "bytes": {
+          "median": 2274968.0,
+          "min": 2270520,
+          "max": 2279352
+        },
+        "bytesPerOp": {
+          "median": 113748.4,
+          "min": 113526,
+          "max": 113967.6
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "context-no-directory"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 73228356.0,
+          "min": 71392373,
+          "max": 74483291
+        },
+        "nsPerOp": {
+          "median": 3661417.8,
+          "min": 3569618.65,
+          "max": 3724164.55
+        },
+        "allocs": {
+          "median": 45689.5,
+          "min": 45622,
+          "max": 48524
+        },
+        "allocsPerOp": {
+          "median": 2284.475,
+          "min": 2281.1,
+          "max": 2426.2
+        },
+        "bytes": {
+          "median": 108944728.0,
+          "min": 108934032,
+          "max": 120159576
+        },
+        "bytesPerOp": {
+          "median": 5447236.4,
+          "min": 5446701.6,
+          "max": 6007978.8
+        },
+        "threadReads": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 4076958.0,
+          "min": 3571625,
+          "max": 4343415
+        },
+        "nsPerOp": {
+          "median": 203847.90000000002,
+          "min": 178581.25,
+          "max": 217170.75
+        },
+        "allocs": {
+          "median": 32093.5,
+          "min": 32014,
+          "max": 32099
+        },
+        "allocsPerOp": {
+          "median": 1604.6750000000002,
+          "min": 1600.7,
+          "max": 1604.95
+        },
+        "bytes": {
+          "median": 2169400.0,
+          "min": 2160776,
+          "max": 2169456
+        },
+        "bytesPerOp": {
+          "median": 108470.0,
+          "min": 108038.8,
+          "max": 108472.8
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "context-selected-directory"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 73385187.0,
+          "min": 72616084,
+          "max": 74644628
+        },
+        "nsPerOp": {
+          "median": 3669259.3499999996,
+          "min": 3630804.2,
+          "max": 3732231.4
+        },
+        "allocs": {
+          "median": 51106.5,
+          "min": 50970,
+          "max": 51222
+        },
+        "allocsPerOp": {
+          "median": 2555.325,
+          "min": 2548.5,
+          "max": 2561.1
+        },
+        "bytes": {
+          "median": 109665908.0,
+          "min": 109644424,
+          "max": 109679224
+        },
+        "bytesPerOp": {
+          "median": 5483295.4,
+          "min": 5482221.2,
+          "max": 5483961.2
+        },
+        "threadReads": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "threads": {
+          "median": 64.0,
+          "min": 64,
+          "max": 64
+        },
+        "threadBytes": {
+          "median": 32768.0,
+          "min": 32768,
+          "max": 32768
+        },
+        "latencyNs": {
+          "median": 73436291.0,
+          "min": 71817459,
+          "max": 74003083
+        },
+        "nsPerOp": {
+          "median": 3671814.55,
+          "min": 3590872.95,
+          "max": 3700154.15
+        },
+        "allocs": {
+          "median": 51213.0,
+          "min": 51031,
+          "max": 54092
+        },
+        "allocsPerOp": {
+          "median": 2560.65,
+          "min": 2551.55,
+          "max": 2704.6
+        },
+        "bytes": {
+          "median": 109678428.0,
+          "min": 109650752,
+          "max": 120864920
+        },
+        "bytesPerOp": {
+          "median": 5483921.4,
+          "min": 5482537.6,
+          "max": 6043246
+        },
+        "threadReads": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "submit-precancel"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 252337437.5,
+          "min": 251989542,
+          "max": 253206250
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 0,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "pre-cancel"
+        ]
+      },
+      "after": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 2292.0,
+          "min": 1792,
+          "max": 5667
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 6,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "pre-cancel"
+        ]
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "submit-queued-cancel"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 252387624.5,
+          "min": 250951416,
+          "max": 252765958
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 0,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "sync.Mutex.Lock"
+        ]
+      },
+      "after": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 5520.5,
+          "min": 3542,
+          "max": 9292
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 6,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "select"
+        ]
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "tool-rejected"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "latencyNs": {
+          "median": 4301979.0,
+          "min": 4149915,
+          "max": 4423917
+        },
+        "nsPerOp": {
+          "median": 215098.95,
+          "min": 207495.75,
+          "max": 221195.85
+        },
+        "allocs": {
+          "median": 33254.5,
+          "min": 33203,
+          "max": 33379
+        },
+        "allocsPerOp": {
+          "median": 1662.725,
+          "min": 1660.15,
+          "max": 1668.95
+        },
+        "bytes": {
+          "median": 2287444.0,
+          "min": 2279624,
+          "max": 2301832
+        },
+        "bytesPerOp": {
+          "median": 114372.20000000001,
+          "min": 113981.2,
+          "max": 115091.6
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "latencyNs": {
+          "median": 3854208.0,
+          "min": 3706418,
+          "max": 3973125
+        },
+        "nsPerOp": {
+          "median": 192710.4,
+          "min": 185320.9,
+          "max": 198656.25
+        },
+        "allocs": {
+          "median": 27476.5,
+          "min": 27416,
+          "max": 27644
+        },
+        "allocsPerOp": {
+          "median": 1373.8249999999998,
+          "min": 1370.8,
+          "max": 1382.2
+        },
+        "bytes": {
+          "median": 1892988.0,
+          "min": 1882384,
+          "max": 1906200
+        },
+        "bytesPerOp": {
+          "median": 94649.4,
+          "min": 94119.2,
+          "max": 95310
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "tool-valid"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "latencyNs": {
+          "median": 3997416.0,
+          "min": 3751168,
+          "max": 4220462
+        },
+        "nsPerOp": {
+          "median": 199870.8,
+          "min": 187558.4,
+          "max": 211023.1
+        },
+        "allocs": {
+          "median": 32121.0,
+          "min": 32042,
+          "max": 32191
+        },
+        "allocsPerOp": {
+          "median": 1606.0500000000002,
+          "min": 1602.1,
+          "max": 1609.55
+        },
+        "bytes": {
+          "median": 2230900.0,
+          "min": 2217664,
+          "max": 2237816
+        },
+        "bytesPerOp": {
+          "median": 111545.0,
+          "min": 110883.2,
+          "max": 111890.8
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "latencyNs": {
+          "median": 3591499.0,
+          "min": 3337376,
+          "max": 3876375
+        },
+        "nsPerOp": {
+          "median": 179574.95,
+          "min": 166868.8,
+          "max": 193818.75
+        },
+        "allocs": {
+          "median": 26273.5,
+          "min": 26220,
+          "max": 26293
+        },
+        "allocsPerOp": {
+          "median": 1313.675,
+          "min": 1311,
+          "max": 1314.65
+        },
+        "bytes": {
+          "median": 1826632.0,
+          "min": 1813576,
+          "max": 1831552
+        },
+        "bytesPerOp": {
+          "median": 91331.6,
+          "min": 90678.8,
+          "max": 91577.6
+        },
+        "threadReads": {
+          "median": 0.0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "voice-prepare-precancel"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 356351792.0,
+          "min": 354876542,
+          "max": 357508791
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "mediaHoldWindowNs": {
+          "median": 100000000.0,
+          "min": 100000000,
+          "max": 100000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 0,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "pre-cancel"
+        ]
+      },
+      "after": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 102102125.0,
+          "min": 100747666,
+          "max": 102120541
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "mediaHoldWindowNs": {
+          "median": 100000000.0,
+          "min": 100000000,
+          "max": 100000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 6,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "pre-cancel"
+        ]
+      }
+    }
+  },
+  {
+    "case": [
+      "moku",
+      "voice-prepare-queued-cancel"
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 255044666.5,
+          "min": 254254750,
+          "max": 257072333
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 0,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "sync.Mutex.Lock"
+        ]
+      },
+      "after": {
+        "samples": 6,
+        "cancelLatencyNs": {
+          "median": 27312.0,
+          "min": 23500,
+          "max": 36875
+        },
+        "observationWindowNs": {
+          "median": 250000000.0,
+          "min": 250000000,
+          "max": 250000000
+        },
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "iterations": {
+          "median": 1.0,
+          "min": 1,
+          "max": 1
+        },
+        "releasedBeforeOwner": {
+          "true": 6,
+          "total": 6
+        },
+        "queueWaitStates": [
+          "select"
+        ]
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "application-list",
+      1000
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 24095958.5,
+          "min": 23897458,
+          "max": 24703125
+        },
+        "userCpuNs": {
+          "median": 25098000.0,
+          "min": 24667000,
+          "max": 25426000
+        },
+        "systemCpuNs": {
+          "median": 760500.0,
+          "min": 670000,
+          "max": 1670000
+        },
+        "nsPerOperation": {
+          "median": 2409595.8499999996,
+          "min": 2389745.8,
+          "max": 2470312.5
+        },
+        "operationsPerSecond": {
+          "median": 415.01470055276354,
+          "min": 404.8070841239722,
+          "max": 418.4545485967587
+        },
+        "medianNs": {
+          "median": 2317208.0,
+          "min": 2295167,
+          "max": 2346167
+        },
+        "p95Ns": {
+          "median": 2786500.0,
+          "min": 2582042,
+          "max": 3191250
+        },
+        "allocatedBytes": {
+          "median": 7994508.0,
+          "min": 7860912,
+          "max": 8048104
+        },
+        "allocations": {
+          "median": 70867.5,
+          "min": 70830,
+          "max": 70891
+        },
+        "bytesPerOperation": {
+          "median": 799450.8,
+          "min": 786091.2,
+          "max": 804810.4
+        },
+        "allocsPerOperation": {
+          "median": 7086.75,
+          "min": 7083,
+          "max": 7089.1
+        },
+        "liveHeapDeltaBytes": {
+          "median": 1912.0,
+          "min": -24200,
+          "max": 10832
+        },
+        "processHighWaterRSSBytes": {
+          "median": 29286400.0,
+          "min": 28164096,
+          "max": 29818880
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 10846541.5,
+          "min": 10449208,
+          "max": 11985291
+        },
+        "userCpuNs": {
+          "median": 11396000.0,
+          "min": 11111000,
+          "max": 11905000
+        },
+        "systemCpuNs": {
+          "median": 708500.0,
+          "min": 529000,
+          "max": 1046000
+        },
+        "nsPerOperation": {
+          "median": 1084654.15,
+          "min": 1044920.8,
+          "max": 1198529.1
+        },
+        "operationsPerSecond": {
+          "median": 922.0484885275777,
+          "min": 834.3560452558056,
+          "max": 957.01033035231
+        },
+        "medianNs": {
+          "median": 1007791.5,
+          "min": 971583,
+          "max": 1025166
+        },
+        "p95Ns": {
+          "median": 1434646.0,
+          "min": 1316250,
+          "max": 2491959
+        },
+        "allocatedBytes": {
+          "median": 6518536.0,
+          "min": 6421816,
+          "max": 6603640
+        },
+        "allocations": {
+          "median": 70580.0,
+          "min": 70540,
+          "max": 70599
+        },
+        "bytesPerOperation": {
+          "median": 651853.6000000001,
+          "min": 642181.6,
+          "max": 660364
+        },
+        "allocsPerOperation": {
+          "median": 7058.0,
+          "min": 7054,
+          "max": 7059.9
+        },
+        "liveHeapDeltaBytes": {
+          "median": -1568.0,
+          "min": -6664,
+          "max": 10664
+        },
+        "processHighWaterRSSBytes": {
+          "median": 28884992.0,
+          "min": 28147712,
+          "max": 29376512
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "application-list",
+      10000
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 1361266770.5,
+          "min": 1352517417,
+          "max": 1372811584
+        },
+        "userCpuNs": {
+          "median": 1372745000.0,
+          "min": 1358000000,
+          "max": 1384219000
+        },
+        "systemCpuNs": {
+          "median": 19498500.0,
+          "min": 15409000,
+          "max": 21608000
+        },
+        "nsPerOperation": {
+          "median": 136126677.05,
+          "min": 135251741.7,
+          "max": 137281158.4
+        },
+        "operationsPerSecond": {
+          "median": 7.346098702777944,
+          "min": 7.284320817619208,
+          "max": 7.393620129625288
+        },
+        "medianNs": {
+          "median": 135851208.0,
+          "min": 134180208,
+          "max": 136395792
+        },
+        "p95Ns": {
+          "median": 139055583.0,
+          "min": 137130625,
+          "max": 143735333
+        },
+        "allocatedBytes": {
+          "median": 104287016.0,
+          "min": 102452224,
+          "max": 104296224
+        },
+        "allocations": {
+          "median": 702024.5,
+          "min": 701956,
+          "max": 702037
+        },
+        "bytesPerOperation": {
+          "median": 10428701.6,
+          "min": 10245222.4,
+          "max": 10429622.4
+        },
+        "allocsPerOperation": {
+          "median": 70202.45000000001,
+          "min": 70195.6,
+          "max": 70203.7
+        },
+        "liveHeapDeltaBytes": {
+          "median": 4268.0,
+          "min": 72,
+          "max": 228280
+        },
+        "processHighWaterRSSBytes": {
+          "median": 41951232.0,
+          "min": 41435136,
+          "max": 42188800
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 127891750.5,
+          "min": 116278709,
+          "max": 138945500
+        },
+        "userCpuNs": {
+          "median": 146721500.0,
+          "min": 132273000,
+          "max": 154755000
+        },
+        "systemCpuNs": {
+          "median": 6706000.0,
+          "min": 5557000,
+          "max": 7762000
+        },
+        "nsPerOperation": {
+          "median": 12789175.05,
+          "min": 11627870.9,
+          "max": 13894550
+        },
+        "operationsPerSecond": {
+          "median": 78.23495788359708,
+          "min": 71.97066475704503,
+          "max": 86.00026682442785
+        },
+        "medianNs": {
+          "median": 12278312.5,
+          "min": 11473459,
+          "max": 13857125
+        },
+        "p95Ns": {
+          "median": 15249938.0,
+          "min": 12433958,
+          "max": 18593000
+        },
+        "allocatedBytes": {
+          "median": 76773032.0,
+          "min": 75861168,
+          "max": 77705536
+        },
+        "allocations": {
+          "median": 701291.0,
+          "min": 701260,
+          "max": 701341
+        },
+        "bytesPerOperation": {
+          "median": 7677303.199999999,
+          "min": 7586116.8,
+          "max": 7770553.6
+        },
+        "allocsPerOperation": {
+          "median": 70129.1,
+          "min": 70126,
+          "max": 70134.1
+        },
+        "liveHeapDeltaBytes": {
+          "median": 111200.0,
+          "min": -221960,
+          "max": 222104
+        },
+        "processHighWaterRSSBytes": {
+          "median": 41902080.0,
+          "min": 41435136,
+          "max": 42270720
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "runtime-list",
+      1000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 32869937.5,
+          "min": 32140625,
+          "max": 36876541
+        },
+        "userCpuNs": {
+          "median": 38587000.0,
+          "min": 37954000,
+          "max": 42677000
+        },
+        "systemCpuNs": {
+          "median": 2586000.0,
+          "min": 1950000,
+          "max": 2997000
+        },
+        "nsPerOperation": {
+          "median": 3286993.75,
+          "min": 3214062.5,
+          "max": 3687654.1
+        },
+        "operationsPerSecond": {
+          "median": 304.30283694149944,
+          "min": 271.17510831615147,
+          "max": 311.13271754982986
+        },
+        "medianNs": {
+          "median": 3241167.0,
+          "min": 3211000,
+          "max": 3319167
+        },
+        "p95Ns": {
+          "median": 3637000.0,
+          "min": 3526375,
+          "max": 7022000
+        },
+        "allocatedBytes": {
+          "median": 27103912.0,
+          "min": 27091016,
+          "max": 27122072
+        },
+        "allocations": {
+          "median": 90694.0,
+          "min": 90594,
+          "max": 90732
+        },
+        "bytesPerOperation": {
+          "median": 2710391.2,
+          "min": 2709101.6,
+          "max": 2712207.2
+        },
+        "allocsPerOperation": {
+          "median": 9069.4,
+          "min": 9059.4,
+          "max": 9073.2
+        },
+        "liveHeapDeltaBytes": {
+          "median": 120.0,
+          "min": -5432,
+          "max": 5416
+        },
+        "processHighWaterRSSBytes": {
+          "median": 38469632.0,
+          "min": 37961728,
+          "max": 38830080
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 43404437.5,
+          "min": 42203292,
+          "max": 44005292
+        },
+        "userCpuNs": {
+          "median": 49000000.0,
+          "min": 47266000,
+          "max": 50064000
+        },
+        "systemCpuNs": {
+          "median": 2716000.0,
+          "min": 2051000,
+          "max": 2914000
+        },
+        "nsPerOperation": {
+          "median": 4340443.75,
+          "min": 4220329.2,
+          "max": 4400529.2
+        },
+        "operationsPerSecond": {
+          "median": 230.39727257229794,
+          "min": 227.2453958492083,
+          "max": 236.94834042804052
+        },
+        "medianNs": {
+          "median": 4315187.5,
+          "min": 4223209,
+          "max": 4465000
+        },
+        "p95Ns": {
+          "median": 4706041.5,
+          "min": 4516500,
+          "max": 5051042
+        },
+        "allocatedBytes": {
+          "median": 27104452.0,
+          "min": 27080392,
+          "max": 27116696
+        },
+        "allocations": {
+          "median": 90619.5,
+          "min": 90577,
+          "max": 90723
+        },
+        "bytesPerOperation": {
+          "median": 2710445.2,
+          "min": 2708039.2,
+          "max": 2711669.6
+        },
+        "allocsPerOperation": {
+          "median": 9061.95,
+          "min": 9057.7,
+          "max": 9072.3
+        },
+        "liveHeapDeltaBytes": {
+          "median": 3736.0,
+          "min": -5288,
+          "max": 478320
+        },
+        "processHighWaterRSSBytes": {
+          "median": 38338560.0,
+          "min": 37306368,
+          "max": 38797312
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "runtime-list",
+      10000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 333757062.5,
+          "min": 327582292,
+          "max": 375616000
+        },
+        "userCpuNs": {
+          "median": 516857500.0,
+          "min": 512383000,
+          "max": 561800000
+        },
+        "systemCpuNs": {
+          "median": 19644500.0,
+          "min": 17957000,
+          "max": 23104000
+        },
+        "nsPerOperation": {
+          "median": 33375706.25,
+          "min": 32758229.2,
+          "max": 37561600
+        },
+        "operationsPerSecond": {
+          "median": 29.961917107925892,
+          "min": 26.62293406031692,
+          "max": 30.526680605800266
+        },
+        "medianNs": {
+          "median": 33182042.0,
+          "min": 32457209,
+          "max": 35556333
+        },
+        "p95Ns": {
+          "median": 36274291.5,
+          "min": 35825666,
+          "max": 46100458
+        },
+        "allocatedBytes": {
+          "median": 416435016.0,
+          "min": 416418248,
+          "max": 416483592
+        },
+        "allocations": {
+          "median": 1082781.0,
+          "min": 1082621,
+          "max": 1083096
+        },
+        "bytesPerOperation": {
+          "median": 41643501.599999994,
+          "min": 41641824.8,
+          "max": 41648359.2
+        },
+        "allocsPerOperation": {
+          "median": 108278.1,
+          "min": 108262.1,
+          "max": 108309.6
+        },
+        "liveHeapDeltaBytes": {
+          "median": 3464.0,
+          "min": -64,
+          "max": 8992
+        },
+        "processHighWaterRSSBytes": {
+          "median": 122789888.0,
+          "min": 111984640,
+          "max": 124010496
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 1516299667.0,
+          "min": 1464199625,
+          "max": 1606857875
+        },
+        "userCpuNs": {
+          "median": 1553349500.0,
+          "min": 1519838000,
+          "max": 1625995000
+        },
+        "systemCpuNs": {
+          "median": 22617500.0,
+          "min": 20174000,
+          "max": 27103000
+        },
+        "nsPerOperation": {
+          "median": 151629966.7,
+          "min": 146419962.5,
+          "max": 160685787.5
+        },
+        "operationsPerSecond": {
+          "median": 6.595055565875059,
+          "min": 6.22332575617492,
+          "max": 6.829669827295578
+        },
+        "medianNs": {
+          "median": 149064583.5,
+          "min": 146092958,
+          "max": 156884917
+        },
+        "p95Ns": {
+          "median": 160577937.5,
+          "min": 148274125,
+          "max": 184135291
+        },
+        "allocatedBytes": {
+          "median": 329168012.0,
+          "min": 327637888,
+          "max": 334272672
+        },
+        "allocations": {
+          "median": 903278.5,
+          "min": 902180,
+          "max": 914425
+        },
+        "bytesPerOperation": {
+          "median": 32916801.2,
+          "min": 32763788.8,
+          "max": 33427267.2
+        },
+        "allocsPerOperation": {
+          "median": 90327.85,
+          "min": 90218,
+          "max": 91442.5
+        },
+        "liveHeapDeltaBytes": {
+          "median": -14174668.0,
+          "min": -15776560,
+          "max": -11264
+        },
+        "processHighWaterRSSBytes": {
+          "median": 113336320.0,
+          "min": 105824256,
+          "max": 119865344
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "runtime-notify",
+      1000
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 36083250.0,
+          "min": 32777958,
+          "max": 46209292
+        },
+        "userCpuNs": {
+          "median": 30896500.0,
+          "min": 29079000,
+          "max": 34009000
+        },
+        "systemCpuNs": {
+          "median": 6654500.0,
+          "min": 6211000,
+          "max": 8729000
+        },
+        "nsPerOperation": {
+          "median": 3608325.0,
+          "min": 3277795.8,
+          "max": 4620929.2
+        },
+        "operationsPerSecond": {
+          "median": 277.3299947923034,
+          "min": 216.40669153727782,
+          "max": 305.083068322926
+        },
+        "medianNs": {
+          "median": 3547437.5,
+          "min": 3073792,
+          "max": 3635750
+        },
+        "p95Ns": {
+          "median": 4738354.0,
+          "min": 3440375,
+          "max": 10982334
+        },
+        "allocatedBytes": {
+          "median": 46695604.0,
+          "min": 42541296,
+          "max": 54633184
+        },
+        "allocations": {
+          "median": 1674.5,
+          "min": 1508,
+          "max": 1863
+        },
+        "bytesPerOperation": {
+          "median": 4669560.4,
+          "min": 4254129.6,
+          "max": 5463318.4
+        },
+        "allocsPerOperation": {
+          "median": 167.45,
+          "min": 150.8,
+          "max": 186.3
+        },
+        "liveHeapDeltaBytes": {
+          "median": 8032.0,
+          "min": -317768,
+          "max": 1718536
+        },
+        "processHighWaterRSSBytes": {
+          "median": 37822464.0,
+          "min": 37109760,
+          "max": 38240256
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 24777770.5,
+          "min": 24243334,
+          "max": 25383333
+        },
+        "userCpuNs": {
+          "median": 19986500.0,
+          "min": 18290000,
+          "max": 20943000
+        },
+        "systemCpuNs": {
+          "median": 5023500.0,
+          "min": 4153000,
+          "max": 6201000
+        },
+        "nsPerOperation": {
+          "median": 2477777.05,
+          "min": 2424333.4,
+          "max": 2538333.3
+        },
+        "operationsPerSecond": {
+          "median": 403.5953878981531,
+          "min": 393.9592960467406,
+          "max": 412.48452048715745
+        },
+        "medianNs": {
+          "median": 2382895.5,
+          "min": 2277208,
+          "max": 2514625
+        },
+        "p95Ns": {
+          "median": 2901896.0,
+          "min": 2727583,
+          "max": 3188500
+        },
+        "allocatedBytes": {
+          "median": 33618748.0,
+          "min": 28227104,
+          "max": 35452280
+        },
+        "allocations": {
+          "median": 1473.5,
+          "min": 1305,
+          "max": 1570
+        },
+        "bytesPerOperation": {
+          "median": 3361874.8,
+          "min": 2822710.4,
+          "max": 3545228
+        },
+        "allocsPerOperation": {
+          "median": 147.35000000000002,
+          "min": 130.5,
+          "max": 157
+        },
+        "liveHeapDeltaBytes": {
+          "median": 2220.0,
+          "min": -744,
+          "max": 5568
+        },
+        "processHighWaterRSSBytes": {
+          "median": 36372480.0,
+          "min": 35815424,
+          "max": 36814848
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "runtime-notify",
+      10000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 142922875.0,
+          "min": 140177458,
+          "max": 143372042
+        },
+        "userCpuNs": {
+          "median": 169081000.0,
+          "min": 168553000,
+          "max": 171833000
+        },
+        "systemCpuNs": {
+          "median": 23172500.0,
+          "min": 21334000,
+          "max": 26267000
+        },
+        "nsPerOperation": {
+          "median": 14292287.5,
+          "min": 14017745.8,
+          "max": 14337204.2
+        },
+        "operationsPerSecond": {
+          "median": 69.96783054484408,
+          "min": 69.74860551961727,
+          "max": 71.33814625173186
+        },
+        "medianNs": {
+          "median": 13923520.5,
+          "min": 13610958,
+          "max": 14265292
+        },
+        "p95Ns": {
+          "median": 16933333.0,
+          "min": 16773625,
+          "max": 17747458
+        },
+        "allocatedBytes": {
+          "median": 519163616.0,
+          "min": 479143064,
+          "max": 545889912
+        },
+        "allocations": {
+          "median": 2412.0,
+          "min": 2312,
+          "max": 2797
+        },
+        "bytesPerOperation": {
+          "median": 51916361.599999994,
+          "min": 47914306.4,
+          "max": 54588991.2
+        },
+        "allocsPerOperation": {
+          "median": 241.2,
+          "min": 231.2,
+          "max": 279.7
+        },
+        "liveHeapDeltaBytes": {
+          "median": 3844276.0,
+          "min": 2433280,
+          "max": 5250552
+        },
+        "processHighWaterRSSBytes": {
+          "median": 90152960.0,
+          "min": 85377024,
+          "max": 91619328
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 224616417.0,
+          "min": 220643209,
+          "max": 227200000
+        },
+        "userCpuNs": {
+          "median": 270362500.0,
+          "min": 263109000,
+          "max": 275327000
+        },
+        "systemCpuNs": {
+          "median": 32436000.0,
+          "min": 30184000,
+          "max": 35822000
+        },
+        "nsPerOperation": {
+          "median": 22461641.7,
+          "min": 22064320.9,
+          "max": 22720000
+        },
+        "operationsPerSecond": {
+          "median": 44.52043500173469,
+          "min": 44.01408450704225,
+          "max": 45.32203844080241
+        },
+        "medianNs": {
+          "median": 21799375.0,
+          "min": 21040083,
+          "max": 22624375
+        },
+        "p95Ns": {
+          "median": 25100104.0,
+          "min": 24039750,
+          "max": 26061334
+        },
+        "allocatedBytes": {
+          "median": 800880872.0,
+          "min": 707473352,
+          "max": 867614528
+        },
+        "allocations": {
+          "median": 3180.5,
+          "min": 2855,
+          "max": 3632
+        },
+        "bytesPerOperation": {
+          "median": 80088087.2,
+          "min": 70747335.2,
+          "max": 86761452.8
+        },
+        "allocsPerOperation": {
+          "median": 318.05,
+          "min": 285.5,
+          "max": 363.2
+        },
+        "liveHeapDeltaBytes": {
+          "median": 2447752.0,
+          "min": 2433120,
+          "max": 5187112
+        },
+        "processHighWaterRSSBytes": {
+          "median": 97206272.0,
+          "min": 93175808,
+          "max": 99860480
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-lifecycle-append",
+      1000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "wallNs": {
+          "median": 18001604.0,
+          "min": 9435000,
+          "max": 69939625
+        },
+        "userCpuNs": {
+          "median": 1760500.0,
+          "min": 1458000,
+          "max": 2084000
+        },
+        "systemCpuNs": {
+          "median": 3139500.0,
+          "min": 2597000,
+          "max": 3385000
+        },
+        "nsPerOperation": {
+          "median": 900080.2,
+          "min": 471750,
+          "max": 3496981.25
+        },
+        "operationsPerSecond": {
+          "median": 1116.483892184966,
+          "min": 285.96092701383515,
+          "max": 2119.7668256491784
+        },
+        "medianNs": {
+          "median": 838625.0,
+          "min": 440458,
+          "max": 949958
+        },
+        "p95Ns": {
+          "median": 1188395.5,
+          "min": 723250,
+          "max": 21556000
+        },
+        "allocatedBytes": {
+          "median": 1142172.0,
+          "min": 1138904,
+          "max": 1151800
+        },
+        "allocations": {
+          "median": 738.5,
+          "min": 727,
+          "max": 770
+        },
+        "bytesPerOperation": {
+          "median": 57108.600000000006,
+          "min": 56945.2,
+          "max": 57590
+        },
+        "allocsPerOperation": {
+          "median": 36.925,
+          "min": 36.35,
+          "max": 38.5
+        },
+        "liveHeapDeltaBytes": {
+          "median": 5348.0,
+          "min": 3056,
+          "max": 9928
+        },
+        "processHighWaterRSSBytes": {
+          "median": 28000256.0,
+          "min": 27262976,
+          "max": 28459008
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "wallNs": {
+          "median": 53289333.0,
+          "min": 51530250,
+          "max": 79060834
+        },
+        "userCpuNs": {
+          "median": 36981000.0,
+          "min": 36105000,
+          "max": 39206000
+        },
+        "systemCpuNs": {
+          "median": 4734000.0,
+          "min": 4345000,
+          "max": 6610000
+        },
+        "nsPerOperation": {
+          "median": 2664466.65,
+          "min": 2576512.5,
+          "max": 3953041.7
+        },
+        "operationsPerSecond": {
+          "median": 375.5200862337028,
+          "min": 252.96975744020105,
+          "max": 388.12154026033255
+        },
+        "medianNs": {
+          "median": 2586875.0,
+          "min": 2504750,
+          "max": 2879583
+        },
+        "p95Ns": {
+          "median": 3242021.0,
+          "min": 2842291,
+          "max": 6216625
+        },
+        "allocatedBytes": {
+          "median": 10777116.0,
+          "min": 10767168,
+          "max": 10797872
+        },
+        "allocations": {
+          "median": 82284.0,
+          "min": 82265,
+          "max": 82322
+        },
+        "bytesPerOperation": {
+          "median": 538855.8,
+          "min": 538358.4,
+          "max": 539893.6
+        },
+        "allocsPerOperation": {
+          "median": 4114.200000000001,
+          "min": 4113.25,
+          "max": 4116.1
+        },
+        "liveHeapDeltaBytes": {
+          "median": 9924.0,
+          "min": 3808,
+          "max": 12048
+        },
+        "processHighWaterRSSBytes": {
+          "median": 29474816.0,
+          "min": 28655616,
+          "max": 30195712
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-lifecycle-append",
+      10000
+    ],
+    "versions": {
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "wallNs": {
+          "median": 372408458.5,
+          "min": 362041458,
+          "max": 385157250
+        },
+        "userCpuNs": {
+          "median": 380748500.0,
+          "min": 370478000,
+          "max": 395502000
+        },
+        "systemCpuNs": {
+          "median": 13830500.0,
+          "min": 11430000,
+          "max": 15606000
+        },
+        "nsPerOperation": {
+          "median": 18620422.925,
+          "min": 18102072.9,
+          "max": 19257862.5
+        },
+        "operationsPerSecond": {
+          "median": 53.73479624480881,
+          "min": 51.926842867426224,
+          "max": 55.242292168649925
+        },
+        "medianNs": {
+          "median": 18526416.5,
+          "min": 17965417,
+          "max": 19127625
+        },
+        "p95Ns": {
+          "median": 19593229.0,
+          "min": 18713208,
+          "max": 20841167
+        },
+        "allocatedBytes": {
+          "median": 113221040.0,
+          "min": 113208168,
+          "max": 113243856
+        },
+        "allocations": {
+          "median": 805100.5,
+          "min": 805071,
+          "max": 805163
+        },
+        "bytesPerOperation": {
+          "median": 5661052.0,
+          "min": 5660408.4,
+          "max": 5662192.8
+        },
+        "allocsPerOperation": {
+          "median": 40255.025,
+          "min": 40253.55,
+          "max": 40258.15
+        },
+        "liveHeapDeltaBytes": {
+          "median": 18060.0,
+          "min": -2656,
+          "max": 22152
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39944192.0,
+          "min": 39436288,
+          "max": 40124416
+        }
+      },
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 20.0,
+          "min": 20,
+          "max": 20
+        },
+        "wallNs": {
+          "median": 23825771.0,
+          "min": 22777000,
+          "max": 24390333
+        },
+        "userCpuNs": {
+          "median": 9339000.0,
+          "min": 8827000,
+          "max": 12099000
+        },
+        "systemCpuNs": {
+          "median": 4004500.0,
+          "min": 3824000,
+          "max": 4332000
+        },
+        "nsPerOperation": {
+          "median": 1191288.5499999998,
+          "min": 1138850,
+          "max": 1219516.65
+        },
+        "operationsPerSecond": {
+          "median": 839.4298217641539,
+          "min": 819.9970045509424,
+          "max": 878.0787636651008
+        },
+        "medianNs": {
+          "median": 1125729.0,
+          "min": 1074667,
+          "max": 1172875
+        },
+        "p95Ns": {
+          "median": 1558146.0,
+          "min": 1307917,
+          "max": 1908458
+        },
+        "allocatedBytes": {
+          "median": 8796784.0,
+          "min": 8787272,
+          "max": 8799024
+        },
+        "allocations": {
+          "median": 1332.5,
+          "min": 1307,
+          "max": 1337
+        },
+        "bytesPerOperation": {
+          "median": 439839.19999999995,
+          "min": 439363.6,
+          "max": 439951.2
+        },
+        "allocsPerOperation": {
+          "median": 66.625,
+          "min": 65.35,
+          "max": 66.85
+        },
+        "liveHeapDeltaBytes": {
+          "median": -1744.0,
+          "min": -12304,
+          "max": 2912
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39469056.0,
+          "min": 38633472,
+          "max": 39845888
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-noop",
+      1000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 200.0,
+          "min": 200,
+          "max": 200
+        },
+        "wallNs": {
+          "median": 177083.5,
+          "min": 98584,
+          "max": 328792
+        },
+        "userCpuNs": {
+          "median": 159000.0,
+          "min": 107000,
+          "max": 196000
+        },
+        "systemCpuNs": {
+          "median": 91000.0,
+          "min": 13000,
+          "max": 150000
+        },
+        "nsPerOperation": {
+          "median": 885.4175,
+          "min": 492.92,
+          "max": 1643.96
+        },
+        "operationsPerSecond": {
+          "median": 1164035.7880357245,
+          "min": 608287.306260493,
+          "max": 2028726.771078471
+        },
+        "medianNs": {
+          "median": 375.0,
+          "min": 375,
+          "max": 417
+        },
+        "p95Ns": {
+          "median": 1625.0,
+          "min": 584,
+          "max": 4417
+        },
+        "allocatedBytes": {
+          "median": 52800.0,
+          "min": 52800,
+          "max": 58376
+        },
+        "allocations": {
+          "median": 1000.0,
+          "min": 1000,
+          "max": 1007
+        },
+        "bytesPerOperation": {
+          "median": 264.0,
+          "min": 264,
+          "max": 291.88
+        },
+        "allocsPerOperation": {
+          "median": 5.0,
+          "min": 5,
+          "max": 5.035
+        },
+        "liveHeapDeltaBytes": {
+          "median": -11512.0,
+          "min": -11512,
+          "max": -5952
+        },
+        "processHighWaterRSSBytes": {
+          "median": 28082176.0,
+          "min": 26886144,
+          "max": 28377088
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 200.0,
+          "min": 200,
+          "max": 200
+        },
+        "wallNs": {
+          "median": 6699042.0,
+          "min": 6350042,
+          "max": 11153500
+        },
+        "userCpuNs": {
+          "median": 7697000.0,
+          "min": 7394000,
+          "max": 9961000
+        },
+        "systemCpuNs": {
+          "median": 1899500.0,
+          "min": 1343000,
+          "max": 2464000
+        },
+        "nsPerOperation": {
+          "median": 33495.21,
+          "min": 31750.21,
+          "max": 55767.5
+        },
+        "operationsPerSecond": {
+          "median": 29862.51541511876,
+          "min": 17931.590980409735,
+          "max": 31495.8546730872
+        },
+        "medianNs": {
+          "median": 25562.5,
+          "min": 24416,
+          "max": 26917
+        },
+        "p95Ns": {
+          "median": 46896.0,
+          "min": 36500,
+          "max": 198083
+        },
+        "allocatedBytes": {
+          "median": 10998632.0,
+          "min": 10998560,
+          "max": 11004216
+        },
+        "allocations": {
+          "median": 2603.0,
+          "min": 2602,
+          "max": 2610
+        },
+        "bytesPerOperation": {
+          "median": 54993.16,
+          "min": 54992.8,
+          "max": 55021.08
+        },
+        "allocsPerOperation": {
+          "median": 13.015,
+          "min": 13.01,
+          "max": 13.05
+        },
+        "liveHeapDeltaBytes": {
+          "median": -11272.0,
+          "min": -11360,
+          "max": -5688
+        },
+        "processHighWaterRSSBytes": {
+          "median": 28540928.0,
+          "min": 27803648,
+          "max": 28950528
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-noop",
+      10000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 200.0,
+          "min": 200,
+          "max": 200
+        },
+        "wallNs": {
+          "median": 147729.5,
+          "min": 113833,
+          "max": 245625
+        },
+        "userCpuNs": {
+          "median": 148500.0,
+          "min": 115000,
+          "max": 219000
+        },
+        "systemCpuNs": {
+          "median": 106000.0,
+          "min": 56000,
+          "max": 236000
+        },
+        "nsPerOperation": {
+          "median": 738.6475,
+          "min": 569.165,
+          "max": 1228.125
+        },
+        "operationsPerSecond": {
+          "median": 1362291.226122735,
+          "min": 814249.3638676844,
+          "max": 1756959.7568367696
+        },
+        "medianNs": {
+          "median": 375.0,
+          "min": 375,
+          "max": 417
+        },
+        "p95Ns": {
+          "median": 1979.0,
+          "min": 1542,
+          "max": 4041
+        },
+        "allocatedBytes": {
+          "median": 52800.0,
+          "min": 52800,
+          "max": 52928
+        },
+        "allocations": {
+          "median": 1000.0,
+          "min": 1000,
+          "max": 1002
+        },
+        "bytesPerOperation": {
+          "median": 264.0,
+          "min": 264,
+          "max": 264.64
+        },
+        "allocsPerOperation": {
+          "median": 5.0,
+          "min": 5,
+          "max": 5.01
+        },
+        "liveHeapDeltaBytes": {
+          "median": -9484.0,
+          "min": -23520,
+          "max": -16
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39239680.0,
+          "min": 38715392,
+          "max": 39436288
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 200.0,
+          "min": 200,
+          "max": 200
+        },
+        "wallNs": {
+          "median": 62699979.0,
+          "min": 60568833,
+          "max": 64275000
+        },
+        "userCpuNs": {
+          "median": 83754000.0,
+          "min": 77593000,
+          "max": 86929000
+        },
+        "systemCpuNs": {
+          "median": 6221500.0,
+          "min": 5395000,
+          "max": 7320000
+        },
+        "nsPerOperation": {
+          "median": 313499.895,
+          "min": 302844.165,
+          "max": 321375
+        },
+        "operationsPerSecond": {
+          "median": 3189.837271319893,
+          "min": 3111.6297160637887,
+          "max": 3302.028289037697
+        },
+        "medianNs": {
+          "median": 237791.5,
+          "min": 232084,
+          "max": 239083
+        },
+        "p95Ns": {
+          "median": 1000708.0,
+          "min": 919958,
+          "max": 1045625
+        },
+        "allocatedBytes": {
+          "median": 87449824.0,
+          "min": 87449600,
+          "max": 87455624
+        },
+        "allocations": {
+          "median": 8202.0,
+          "min": 8200,
+          "max": 8211
+        },
+        "bytesPerOperation": {
+          "median": 437249.12,
+          "min": 437248,
+          "max": 437278.12
+        },
+        "allocsPerOperation": {
+          "median": 41.01,
+          "min": 41,
+          "max": 41.055
+        },
+        "liveHeapDeltaBytes": {
+          "median": -6056.0,
+          "min": -21032,
+          "max": 6024
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39682048.0,
+          "min": 39190528,
+          "max": 40321024
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-work-read",
+      1000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 354292.0,
+          "min": 330875,
+          "max": 425042
+        },
+        "userCpuNs": {
+          "median": 339500.0,
+          "min": 319000,
+          "max": 381000
+        },
+        "systemCpuNs": {
+          "median": 54500.0,
+          "min": 32000,
+          "max": 115000
+        },
+        "nsPerOperation": {
+          "median": 35429.2,
+          "min": 33087.5,
+          "max": 42504.2
+        },
+        "operationsPerSecond": {
+          "median": 28231.40598811602,
+          "min": 23527.086734957957,
+          "max": 30222.893842085377
+        },
+        "medianNs": {
+          "median": 31354.0,
+          "min": 30459,
+          "max": 33750
+        },
+        "p95Ns": {
+          "median": 61313.0,
+          "min": 42792,
+          "max": 120209
+        },
+        "allocatedBytes": {
+          "median": 103652.0,
+          "min": 100968,
+          "max": 106336
+        },
+        "allocations": {
+          "median": 2298.5,
+          "min": 2294,
+          "max": 2303
+        },
+        "bytesPerOperation": {
+          "median": 10365.2,
+          "min": 10096.8,
+          "max": 10633.6
+        },
+        "allocsPerOperation": {
+          "median": 229.85000000000002,
+          "min": 229.4,
+          "max": 230.3
+        },
+        "liveHeapDeltaBytes": {
+          "median": -3916.0,
+          "min": -5096,
+          "max": -2736
+        },
+        "processHighWaterRSSBytes": {
+          "median": 27910144.0,
+          "min": 27099136,
+          "max": 28360704
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 9926875.0,
+          "min": 9595292,
+          "max": 10288583
+        },
+        "userCpuNs": {
+          "median": 12292000.0,
+          "min": 11859000,
+          "max": 13054000
+        },
+        "systemCpuNs": {
+          "median": 1206000.0,
+          "min": 1132000,
+          "max": 1348000
+        },
+        "nsPerOperation": {
+          "median": 992687.5,
+          "min": 959529.2,
+          "max": 1028858.3
+        },
+        "operationsPerSecond": {
+          "median": 1007.3761374235199,
+          "min": 971.9511423487568,
+          "max": 1042.17776801373
+        },
+        "medianNs": {
+          "median": 999708.0,
+          "min": 983334,
+          "max": 1030167
+        },
+        "p95Ns": {
+          "median": 1184854.0,
+          "min": 1105834,
+          "max": 1220000
+        },
+        "allocatedBytes": {
+          "median": 18222576.0,
+          "min": 18195608,
+          "max": 18234008
+        },
+        "allocations": {
+          "median": 5055.5,
+          "min": 5009,
+          "max": 5074
+        },
+        "bytesPerOperation": {
+          "median": 1822257.6,
+          "min": 1819560.8,
+          "max": 1823400.8
+        },
+        "allocsPerOperation": {
+          "median": 505.55,
+          "min": 500.9,
+          "max": 507.4
+        },
+        "liveHeapDeltaBytes": {
+          "median": -8.0,
+          "min": -5144,
+          "max": 6104
+        },
+        "processHighWaterRSSBytes": {
+          "median": 29982720.0,
+          "min": 29065216,
+          "max": 30720000
+        }
+      }
+    }
+  },
+  {
+    "case": [
+      "runtime",
+      "store-work-read",
+      10000
+    ],
+    "versions": {
+      "after": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 368625.0,
+          "min": 323708,
+          "max": 420417
+        },
+        "userCpuNs": {
+          "median": 355000.0,
+          "min": 330000,
+          "max": 400000
+        },
+        "systemCpuNs": {
+          "median": 51500.0,
+          "min": 35000,
+          "max": 147000
+        },
+        "nsPerOperation": {
+          "median": 36862.5,
+          "min": 32370.8,
+          "max": 42041.7
+        },
+        "operationsPerSecond": {
+          "median": 27178.7750535338,
+          "min": 23785.90780106418,
+          "max": 30892.03850383679
+        },
+        "medianNs": {
+          "median": 31229.0,
+          "min": 29375,
+          "max": 34250
+        },
+        "p95Ns": {
+          "median": 62166.5,
+          "min": 55375,
+          "max": 76791
+        },
+        "allocatedBytes": {
+          "median": 106288.0,
+          "min": 100968,
+          "max": 106336
+        },
+        "allocations": {
+          "median": 2302.5,
+          "min": 2294,
+          "max": 2303
+        },
+        "bytesPerOperation": {
+          "median": 10628.8,
+          "min": 10096.8,
+          "max": 10633.6
+        },
+        "allocsPerOperation": {
+          "median": 230.25,
+          "min": 229.4,
+          "max": 230.3
+        },
+        "liveHeapDeltaBytes": {
+          "median": -16.0,
+          "min": -6120,
+          "max": -16
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39452672.0,
+          "min": 38469632,
+          "max": 40140800
+        }
+      },
+      "before": {
+        "samples": 6,
+        "sample": {
+          "median": 2.0,
+          "min": 1,
+          "max": 3
+        },
+        "operations": {
+          "median": 10.0,
+          "min": 10,
+          "max": 10
+        },
+        "wallNs": {
+          "median": 106044708.0,
+          "min": 103031583,
+          "max": 143531458
+        },
+        "userCpuNs": {
+          "median": 141642000.0,
+          "min": 133716000,
+          "max": 170145000
+        },
+        "systemCpuNs": {
+          "median": 9394500.0,
+          "min": 7726000,
+          "max": 13748000
+        },
+        "nsPerOperation": {
+          "median": 10604470.8,
+          "min": 10303158.3,
+          "max": 14353145.8
+        },
+        "operationsPerSecond": {
+          "median": 94.31975703982063,
+          "min": 69.67113787696631,
+          "max": 97.05761775978925
+        },
+        "medianNs": {
+          "median": 10468729.5,
+          "min": 10090166,
+          "max": 11833292
+        },
+        "p95Ns": {
+          "median": 11523416.5,
+          "min": 11177959,
+          "max": 23574333
+        },
+        "allocatedBytes": {
+          "median": 144466540.0,
+          "min": 144444224,
+          "max": 144492312
+        },
+        "allocations": {
+          "median": 14512.5,
+          "min": 14477,
+          "max": 14556
+        },
+        "bytesPerOperation": {
+          "median": 14446654.0,
+          "min": 14444422.4,
+          "max": 14449231.2
+        },
+        "allocsPerOperation": {
+          "median": 1451.25,
+          "min": 1447.7,
+          "max": 1455.6
+        },
+        "liveHeapDeltaBytes": {
+          "median": 216.0,
+          "min": -5640,
+          "max": 5448
+        },
+        "processHighWaterRSSBytes": {
+          "median": 39100416.0,
+          "min": 38518784,
+          "max": 39600128
+        }
+      }
+    }
+  }
+]

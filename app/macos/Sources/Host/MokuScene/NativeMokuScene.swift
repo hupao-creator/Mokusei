@@ -1,0 +1,40 @@
+import MokuseiPluginUI
+import SwiftUI
+
+public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings: View>: View {
+    public let state: NativeMokuSceneState
+    private let outside: Outside
+    private let thread: Thread
+    private let dock: Dock
+    private let settings: Settings
+    public init(state: NativeMokuSceneState, @ViewBuilder outside: () -> Outside,
+                @ViewBuilder thread: () -> Thread, @ViewBuilder dock: () -> Dock,
+                @ViewBuilder settings: () -> Settings) {
+        self.state = state; self.outside = outside(); self.thread = thread(); self.dock = dock(); self.settings = settings()
+    }
+    public var body: some View {
+        ZStack {
+            outside.opacity(state.mokuOpen ? 0 : 1)
+                .disabled(state.mokuOpen || state.settingsOpen)
+                .allowsHitTesting(!state.mokuOpen && !state.settingsOpen)
+                .accessibilityHidden(state.mokuOpen || state.settingsOpen)
+            if state.mokuOpen { thread.transition(.opacity.combined(with: .scale(scale: 0.97))).disabled(state.settingsOpen) }
+            // Shared shell slot. Covered routes already omit the dock; a selected
+            // thread or application is not Overview, so the capsule must not stay mounted.
+            if !state.dockCovered {
+                Group {
+                    if state.overviewVisible { dock.transition(.opacity) }
+                }
+                .allowsHitTesting(state.overviewVisible)
+                .accessibilityHidden(!state.overviewVisible)
+                .disabled(!state.overviewVisible)
+                .animation(.smooth(duration: 0.42, extraBounce: 0), value: state.overviewVisible)
+            }
+            NativeSettingsOverlay(state: state, content: settings)
+        }
+        .environment(\.nativeCanvasInputRegions, state.canvasInputRegions)
+        .animation(.smooth(duration: 0.3), value: state.mokuOpen)
+        .onAppear { state.setWindowVisible(true) }
+        .onDisappear { state.setWindowVisible(false) }
+    }
+}

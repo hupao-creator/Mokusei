@@ -1,0 +1,45 @@
+from pathlib import Path
+from statistics import median
+import collections, json
+root = Path("tools/verification/runtime-performance/results/20261025")
+groups = collections.defaultdict(lambda: collections.defaultdict(list))
+for path in root.glob("r*.json"):
+    version = path.stem.rsplit("-", 1)[1]
+    raw = path.read_text()
+    if "-moku-" in path.name:
+        for value in map(json.loads, raw.splitlines()):
+            groups[("moku", value["case"])][version].append(value)
+    elif "-codex-" in path.name:
+        for value in map(json.loads, raw.splitlines()):
+            groups[("codex", value["kind"], value["chunks"])][version].append(value)
+    else:
+        value = json.loads(raw)
+        groups[("runtime", value["scenario"], value["records"])][version].extend(value["measurements"])
+summary=[]
+for key, versions in sorted(groups.items()):
+    row={"case":key,"versions":{}}
+    for version, values in versions.items():
+        measurements={"samples":len(values)}
+        numeric_keys = [field for field in values[0] if isinstance(values[0][field],(int,float)) and not isinstance(values[0][field],bool)]
+        for field in numeric_keys:
+            data=[value[field] for value in values]
+            measurements[field]={"median":median(data),"min":min(data),"max":max(data)}
+        if "releasedBeforeOwner" in values[0]:
+            measurements["releasedBeforeOwner"]={"true":sum(v["releasedBeforeOwner"] for v in values),"total":len(values)}
+            measurements["queueWaitStates"]=sorted(set(v.get("queueWaitState", "pre-cancel") for v in values))
+        row["versions"][version]=measurements
+    if key[0]=="codex":
+        hashes={value["finalStateSha256"] for values in versions.values() for value in values}
+        row["finalStateHashes"]=sorted(hashes)
+        assert len(hashes)==1, (key,"final states differ",hashes)
+    summary.append(row)
+(root/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
+for row in summary:
+    key=row["case"]
+    metric="wallMs" if key[0]=="codex" else "nsPerOp" if key[0]=="moku" else "nsPerOperation"
+    versions=row["versions"]
+    if metric not in versions["before"]:
+        print(key, {v:x["releasedBeforeOwner"] for v,x in versions.items()}); continue
+    before=versions["before"][metric]["median"]; after=versions["after"][metric]["median"]
+    print(key,metric,"before",round(before,2),"after",round(after,2),"ratio",round(after/before,4))
+print("Wrote",root/"summary.json")

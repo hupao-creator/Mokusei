@@ -1,0 +1,26 @@
+== Standard Templates ==
+Activity Monitor
+Allocations
+Animation Hitches
+App Launch
+Audio System Trace
+CPU Counters
+CPU Profiler
+Core ML
+Data Persistence
+File Activity
+Game Memory
+Game Performance
+Game Performance Overview
+Leaks
+Logging
+Metal System Trace
+Network
+Power Profiler
+Processor Trace
+RealityKit Trace
+Swift Concurrency
+SwiftUI
+System Trace
+Tailspin
+Time Profiler

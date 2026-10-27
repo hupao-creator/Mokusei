@@ -1,0 +1,55 @@
+node_modules
+__pycache__/
+/out
+dist/
+/release
+.build/
+.swiftpm/
+# Disposable local replay evidence and compiler caches.
+/.scratch/
+/.claude/*
+!/.claude/skills
+/.husky/_
+*.log
+.DS_Store
+coverage
+/output
+.playwright-cli
+*.tsbuildinfo
+/.agents/local/
+/.zcode/
+
+.turbo/
+/native/codex-voice/out/
+
+# Local environment secrets; keep redacted templates trackable.
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+!.env.template
+!.env.*.template
+
+# Private keys, signing identities and provisioning profiles.
+*.key
+*.pem
+*.p8
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
+*.keystore
+*.jks
+id_rsa
+id_dsa
+id_ecdsa
+id_ecdsa_sk
+id_ed25519
+id_ed25519_sk
+
+# Local credentials for network and package tools.
+.netrc
+.npmrc
+.pypirc

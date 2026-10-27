@@ -1,0 +1,33 @@
+source=working-tree harness=claude sample=1
+Claude settings cold: readers=8 nativeStartsTotal=1 elapsedMs=243.78
+Claude settings warm: readers=8 nativeStartsTotal=1 elapsedMs=1.83
+source=working-tree harness=claude sample=2
+Claude settings cold: readers=8 nativeStartsTotal=1 elapsedMs=243.37
+Claude settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.58
+source=working-tree harness=claude sample=3
+Claude settings cold: readers=8 nativeStartsTotal=1 elapsedMs=243.49
+Claude settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.64
+source=working-tree harness=codex sample=1
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=1 elapsedMs=235.55
+Codex settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.15
+source=working-tree harness=codex sample=2
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=1 elapsedMs=240.50
+Codex settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.16
+source=working-tree harness=codex sample=3
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=1 elapsedMs=236.39
+Codex settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.21
+source=working-tree harness=pi sample=1
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=1 elapsedMs=429.46
+Pi settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.42
+source=working-tree harness=pi sample=2
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=1 elapsedMs=427.87
+Pi settings warm: readers=8 nativeStartsTotal=1 elapsedMs=1.06
+source=working-tree harness=pi sample=3
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=1 elapsedMs=428.39
+Pi settings warm: readers=8 nativeStartsTotal=1 elapsedMs=0.38

@@ -1,0 +1,99 @@
+{
+  "productionBaseline": "e7afacc212aec9b30c280440b1c6ac48ea21fc4b",
+  "runs": {
+    "run-4": {
+      "archive": "run-4-raw.tar.gz",
+      "archiveSHA256": "98a5db3eebb173e1dd6a35fcf56048ff2f246dab95e3ddda89b49e25e2589195",
+      "revision": "9eb0bfff822e59770c92190b281b1b7acc2a08ad",
+      "executableSHA256": "9b4540d6505c791b3082b9b1616e693cfe571c618600fba448216d0f03bc6eb5",
+      "sourceDiffSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceFiles": {
+        "build.json": "70c055b4146f4e4968bdfbf59128551cf9a2661c859fa6337ce3876c01e300fa",
+        "host-processes.jsonl": "c2214029032328bd70cef8ee3ab0a611c1a4d08ae3d6025aef77e5ba76de26ca",
+        "launch.json": "10ce429006a796c1771f3486c4789d78225d8ce045f2049508e009175188fa68",
+        "metadata.json": "e040b75eee61517b2c063ff7e76bfd81629cb2e552d47c23a8138e057d672995",
+        "native/native-1792914599996-59163-85D7D5AB-4610-47AE-BBF1-64C84163C9B7.jsonl": "f553a6139aa0172e613da46667669d8b2794bb22624f333b2a9f1732332b5ad3",
+        "power-end.txt": "4d523f38703b7447d38f8aec3dd5f213beb3ac90ad454ab656291092e3d5c39c",
+        "power-start.txt": "4d523f38703b7447d38f8aec3dd5f213beb3ac90ad454ab656291092e3d5c39c",
+        "prelaunch.json": "04204b072e8a154212022c857fc4579141cf8b73070d00224ed2549fbf106e0f",
+        "readiness.json": "9f0de3f870939c97c3a9d3c2addd1895e32c6147c9f73c50399636fa757315e2",
+        "result.txt": "7ae76277de29a2ed379fa60707b4efb5b4e7ac52f9118d6454b8bf8a5f138318",
+        "run-status.json": "013e20cb23bede8bce7feec0e0427ed91fbe491e43add5c507d30dccc10ef9bd",
+        "startup-environment.json": "cf3075b2a6f1d09bd74eea0f00493057b76d3620c326a1f87227600bd9cfb6f3"
+      },
+      "status": {
+        "phase": "launched",
+        "bundle": "/private/tmp/mokusei-overview-0nw3n1zt/OverviewInputReplay.app",
+        "startedAt": 1792914567.6417909,
+        "nativeResult": "FAIL No continuous 30-second stable window/load interval within 180 seconds; readiness.json retained\n",
+        "error": "FAIL No continuous 30-second stable window/load interval within 180 seconds; readiness.json retained",
+        "endedAt": 1792914786.7705321
+      },
+      "measuredConditions": 0
+    },
+    "run-5": {
+      "archive": "run-5-raw.tar.gz",
+      "archiveSHA256": "be6c0edc89b289b3649f3770990c95920d8d214853fbe17ce3d8d0f94be8c509",
+      "revision": "b8b2bc5c04fcd7f348466fc46e2755f671b27570",
+      "executableSHA256": "de2350f2fc04db2f3ee99a5e59f374af8100f6da11caa73992f2251b0453e3d1",
+      "sourceDiffSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceFiles": {
+        "build.json": "870fe8b1cee2ce0edbdf31887d26d829814069250bd22eed8d58ecc6ab3e3ba5",
+        "host-processes.jsonl": "45f556b8163b19f8af9c21fc4f24b1c868c1865df3a65795c911d3954951c0dc",
+        "launch.json": "bce7e1104f7f4f92ed975a5eb2bad486a8407ecacdd183711f254cef533bf761",
+        "metadata.json": "2783f18c254d815cb31ed1b1bba5cc39e25cf8bc48980b85601af00263b50580",
+        "native/native-1792915852655-74180-172CE67E-A14C-42BD-B2E6-AC35328E0EC1.jsonl": "489bd740074732ba17e886416a1b09853f79410c44b10fa558986b006756421f",
+        "power-end.txt": "4d523f38703b7447d38f8aec3dd5f213beb3ac90ad454ab656291092e3d5c39c",
+        "power-start.txt": "4d523f38703b7447d38f8aec3dd5f213beb3ac90ad454ab656291092e3d5c39c",
+        "prelaunch.json": "b547e5ec67b8909238eab9172e7a5a3131d5db18163721c914528b68f5ab39af",
+        "r1-dark-static-off.json": "9f47e06caad52ecefd7597bf2d019876f5094d4dcac6e045298457a39af6b7ba",
+        "r1-dark-static-on.json": "9ec8d3e39f47a6234ab7144dd98826720bf73b79c46ac894b1d574d29ddaf39d",
+        "r1-light-pan-zoom-off.json": "86da7556554d9f7ad77ac2ec01bf66d67234ced1fa057f07e75898cb36e285d2",
+        "r1-light-pan-zoom-on.json": "1bfaf40775d2810cbf039a608be3fd02e0e5671b14fe1d34a8b72c355ef8e195",
+        "r1-light-static-off.json": "242e0e60b696b93f3410a127cf92429c716f86202c9ecc3d3d79e9e273d6a249",
+        "r1-light-static-on.json": "5969d23daa5fd48ee61373a1fb6958bbf23346bab1e62424c742d4c008cb89cd",
+        "readiness.json": "23d700b8c1efc4ada96156e6d228f0f095917315013cbba967d74c1c352f55b0",
+        "result.txt": "5f2feea9c94d86fd688d832faf35d0a9cb7b0ddc577cdd11ec3a8088d161c730",
+        "run-status.json": "e456b7bdfcfc77afc4f4e25606140ae65b23276337bae3deb7dd24a87b4d81ee",
+        "samples.csv": "d191b43c847fc40e454d11cc5bd92b5e57717669b8c24006ad1d665902eb9b28",
+        "startup-environment.json": "b705be51fe3e54f1e49c98a3bc04195c229f232c15f380c6d2d20142a98250f6",
+        "summary.json": "886ffaa0c0a445329b0ff3fa4e300ffec94e05849840e19516cf8602e97b81d1",
+        "summary.md": "30f98c462feff3611de8f2fdf593b2c2227d2d0733ed650fa7d9e840214eea88",
+        "warmups/initial-off.json": "d11caa28426a41d41c1ca1fd79a0e2626725d9faceae5c750244a79d3fd23be9",
+        "warmups/initial-on.json": "97a33e396c1e14bda0fdeeb541b97574dba0dfef13954241e5271f20a144b193",
+        "warmups/r1-dark-static-off.json": "78a324c1c4fe82c497eb5ca5edde6d1948699c0c9c7c731249bf931d590c372a",
+        "warmups/r1-dark-static-on.json": "a7c2d6ee73620429b851c83df8554f797ff0fdacd8349db8f387293eef56451a",
+        "warmups/r1-light-pan-zoom-off.json": "09838c4aa2747fa0951e69fa27aeb68a0eda51850f1adc514a46f90024cf7677",
+        "warmups/r1-light-pan-zoom-on.json": "d66e3bbb238a43642368cfe81e6e3edf84bacf595b5e762c11b11cb88e2e748a",
+        "warmups/r1-light-static-off.json": "19b4efd4a5d5b0d3ceed950bd6676ae27398278ffbdb02d347624bbe43bba422",
+        "warmups/r1-light-static-on.json": "735a895262f5c4ebb8eac794f28a0bc6dddfb9c98bbd3ac67436747f40a07151"
+      },
+      "status": {
+        "phase": "launched",
+        "bundle": "/private/tmp/mokusei-overview-ks3ltq7i/OverviewInputReplay.app",
+        "startedAt": 1792915820.2006881,
+        "nativeResult": "FAIL Contaminated r1-dark-static-off.json: host-busy-over-40-percent; retained without retry\n",
+        "error": "FAIL Contaminated r1-dark-static-off.json: host-busy-over-40-percent; retained without retry",
+        "endedAt": 1792916014.759935
+      },
+      "measuredConditions": 6
+    }
+  },
+  "preservedEarlierArchives": {
+    "run-3": "6811b5839b8c41fdf69158098383783a3102917b3ad6c3bb3436e5464b9a40a2",
+    "glass-performance-20261025-130015-INCOMPLETE.tar.gz": "23afeeb2d0702fc0db45a87b6bb40d8092d414ca361764fe0fed75aa18047513"
+  },
+  "captureReplay": {
+    "archiveStorage": "private-backup-not-in-source-release",
+    "archiveSHA256": "2f6d08ec2c10548be4c4efbe58d366b6367a73807ddbcebc88fa06b8b344e320",
+    "reproduceCommand": "python3 tools/verification/overview-input/run.py --glass-world .build/glass-world",
+    "sourceFiles": {
+      "captures.json": "2a28aa8bcba63f35cfbaa91c62bc9a643803be9d54ae669b9ddf70ec654c840c",
+      "dark-off.png": "a5efb372b8ed916732a944660f2668d1f94cbbee1ba2b1bd7a45d202b7051707",
+      "dark-on.png": "a967c35deaea2382b584196838753e74d6836465a5e1751f191dc0312cfad5c1",
+      "inspection.json": "6d5b9928d4913f3853a45c0b47257efeec1587cc7f0a6d97b769fc1f9efad196",
+      "light-off.png": "3993b57801ba55d2a0de401c3c783181e773f452009ade4344afe9042d000f29",
+      "light-on.png": "0140a505f5a15993b2f7b709af44eb1ac05b0d2af5356c739dd859eab8becdbc"
+    }
+  }
+}

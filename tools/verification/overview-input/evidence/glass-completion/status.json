@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "productionBaseline": "e7afacc212aec9b30c280440b1c6ac48ea21fc4b",
+  "toolRevision": "22656ba95808e3ac4b45c189d51f75d067da3779",
+  "comparisonCompleted": false,
+  "activeMeasurement": false,
+  "runs": {
+    "run-3": {
+      "revision": "8dac39decad5f8df57f68ea139d7b3547b64a02c",
+      "analyzerExitCode": 1,
+      "complete": true,
+      "comparisonValid": false,
+      "nativeRecorderHealthy": true,
+      "conditions": 32,
+      "validConditions": 6,
+      "invalidConditions": 26,
+      "validPairs": 3,
+      "conditionOrder": [
+        "r1-light-static-on",
+        "r1-light-static-off",
+        "r1-light-pan-zoom-on",
+        "r1-light-pan-zoom-off",
+        "r1-dark-static-on",
+        "r1-dark-static-off",
+        "r1-dark-pan-zoom-on",
+        "r1-dark-pan-zoom-off",
+        "r2-dark-pan-zoom-off",
+        "r2-dark-pan-zoom-on",
+        "r2-dark-static-off",
+        "r2-dark-static-on",
+        "r2-light-pan-zoom-off",
+        "r2-light-pan-zoom-on",
+        "r2-light-static-off",
+        "r2-light-static-on",
+        "r3-light-static-on",
+        "r3-light-static-off",
+        "r3-light-pan-zoom-on",
+        "r3-light-pan-zoom-off",
+        "r3-dark-static-on",
+        "r3-dark-static-off",
+        "r3-dark-pan-zoom-on",
+        "r3-dark-pan-zoom-off",
+        "r4-dark-pan-zoom-off",
+        "r4-dark-pan-zoom-on",
+        "r4-dark-static-off",
+        "r4-dark-static-on",
+        "r4-light-pan-zoom-off",
+        "r4-light-pan-zoom-on",
+        "r4-light-static-off",
+        "r4-light-static-on"
+      ],
+      "protocolErrors": []
+    },
+    "run-4": {
+      "revision": "9eb0bfff822e59770c92190b281b1b7acc2a08ad",
+      "analyzerExitCode": 1,
+      "complete": false,
+      "comparisonValid": false,
+      "nativeRecorderHealthy": true,
+      "conditions": 0,
+      "validConditions": 0,
+      "invalidConditions": 0,
+      "validPairs": 0,
+      "conditionOrder": [],
+      "protocolErrors": [
+        "driver-did-not-complete",
+        "native-replay-did-not-pass",
+        "warmup-coverage-mismatch"
+      ]
+    },
+    "run-5": {
+      "revision": "b8b2bc5c04fcd7f348466fc46e2755f671b27570",
+      "analyzerExitCode": 1,
+      "complete": false,
+      "comparisonValid": false,
+      "nativeRecorderHealthy": true,
+      "conditions": 6,
+      "validConditions": 5,
+      "invalidConditions": 1,
+      "validPairs": 2,
+      "conditionOrder": [
+        "r1-light-static-on",
+        "r1-light-static-off",
+        "r1-light-pan-zoom-on",
+        "r1-light-pan-zoom-off",
+        "r1-dark-static-on",
+        "r1-dark-static-off"
+      ],
+      "protocolErrors": [
+        "driver-did-not-complete",
+        "native-replay-did-not-pass",
+        "warmup-coverage-mismatch"
+      ]
+    }
+  },
+  "preparedTrial": {
+    "bundle": "/private/tmp/mokusei-overview-qd1vg5yj/OverviewInputReplay.app",
+    "revision": "22656ba95808e3ac4b45c189d51f75d067da3779",
+    "executableSHA256": "221e8c8397aacdc3d210507fb905f61f598007d377daf45cd0ee7223a184c034",
+    "sourceDiffSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "destination": "/Users/example/.worktrees/worktree-02/.build/verification/glass-world-completion/run-6",
+    "launched": false
+  },
+  "remainingDependency": "A sustained low-background-load interval coordinated across development threads, without user/session input or competing native replays. Do not suspend foreign applications without authorization.",
+  "run5FailureDiagnosis": {
+    "intervalUnix": [
+      1792916002.541219,
+      1792916014.543634
+    ],
+    "hostBusyPercent": 41.294698936437484,
+    "fixtureCPUPercentOneCore": 0.49204638565644476,
+    "firstFocusLoss": {},
+    "minimumSessionInputIdleSeconds": 7211.630495459,
+    "externalInterferenceFilePresent": false,
+    "psRollingCPUPercentRangesNotIntervalAttribution": {
+      "CodexBar": {
+        "min": 98.3,
+        "max": 195.2,
+        "observationCount": 5
+      },
+      "Mokusei": {
+        "min": 53.7,
+        "max": 149.5,
+        "observationCount": 5
+      },
+      "mokusei-runtime": {
+        "min": 8.3,
+        "max": 99.2,
+        "observationCount": 5
+      },
+      "WindowServer": {
+        "min": 54.0,
+        "max": 76.3,
+        "observationCount": 5
+      }
+    }
+  },
+  "validation": {
+    "makeCheckExitCode": 0,
+    "analyzerRegressionExitCode": 0,
+    "overviewInputExitCode": 0,
+    "glassCapturesAndPixelChecksExitCode": 0,
+    "mountingTestCount": 6,
+    "complete32ConditionSuccessPathVerified": false
+  }
+}

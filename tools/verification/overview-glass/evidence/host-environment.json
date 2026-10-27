@@ -1,0 +1,30 @@
+{
+  "accessibilityAlreadyAuthorized" : false,
+  "capturedAt" : "2026-10-27T06:48:07Z",
+  "foregroundBundle" : "com.apple.Safari",
+  "inputIdleSeconds" : 37.270125458000003,
+  "loginDone" : true,
+  "onConsole" : true,
+  "reduceMotion" : false,
+  "reduceTransparency" : false,
+  "screenCaptureAlreadyAuthorized" : false,
+  "screens" : [
+    {
+      "frame" : "{{0, 0}, {2560, 1440}}",
+      "nominalHzNotFPS" : 60,
+      "pixelHeight" : 2880,
+      "pixelWidth" : 5120,
+      "scale" : 2,
+      "visibleFrame" : "{{0, 0}, {2560, 1410}}"
+    },
+    {
+      "frame" : "{{427, -982}, {1512, 982}}",
+      "nominalHzNotFPS" : 120,
+      "pixelHeight" : 1964,
+      "pixelWidth" : 3024,
+      "scale" : 2,
+      "visibleFrame" : "{{427, -891}, {1512, 859}}"
+    }
+  ],
+  "thermal" : 0
+}

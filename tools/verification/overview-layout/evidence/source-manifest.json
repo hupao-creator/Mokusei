@@ -1,0 +1,9 @@
+{
+  "baseline": "3ad8be6c1ea113b214bdf27b3ba3c7b8c0693b3c",
+  "sha256": {
+    "NativeOverviewLayout.swift": "f9159c52b9b21e6ab41cce216f2ef158b661a7c82214bdd8986a1ae9bfc76ef2",
+    "NativeOverviewCamera.swift": "c22c4977dff007fc6b5f9d86c284a05a187d59e5e3d1e40c75c641376d6937d2",
+    "NativeOverviewCanvas.swift": "879213257759e88f1c25267fb6dc6869d973152e6ae47d5d97c8532988e6bfae",
+    "NativeOverviewCardMotion.swift": "248ab751a04a514f1074665f85e77232217f6ef5c31f2e1492870e22108fa8f2"
+  }
+}

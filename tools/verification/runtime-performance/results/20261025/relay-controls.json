@@ -1,0 +1,17 @@
+{
+  "entrypoint": "Same relay_queue.go integration fixture, narrowed entrypoint; production differs only in voiceController.delegate.",
+  "variants": [
+    {
+      "variant": "unfixed",
+      "binarySHA256": "d34f76d4f3cc7ba2be2a6a62a1b07bb0f2ed0af39476e87bf611753b98f398a3",
+      "exitCode": 1,
+      "output": "relay-control-unfixed.log.txt"
+    },
+    {
+      "variant": "fixed",
+      "binarySHA256": "87303c5022a9c085d1db8219581af959d00796d03f103ccf2c1db61342962a8b",
+      "exitCode": 0,
+      "output": "relay-control-fixed.log.txt"
+    }
+  ]
+}

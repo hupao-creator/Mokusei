@@ -1,0 +1,44 @@
+[
+  {
+    "binary": "moku-before",
+    "sha256": "7fdb262ee1993b6e53b309af1be4159331d9eaf402250f872b124f6545a2f091",
+    "command": [
+      ".build/runtime-performance/moku-before",
+      "-performance",
+      "-performance-case",
+      "queue",
+      "-samples",
+      "2"
+    ],
+    "exitCode": 0,
+    "result": "final-moku-before-queue-control.jsonl"
+  },
+  {
+    "binary": "moku-precheck-only",
+    "sha256": "3cf54400dcff6d13c2b0e0646cf7c5678194b50644cc30d63b42a54a7c229a2e",
+    "command": [
+      ".build/runtime-performance/moku-precheck-only",
+      "-performance",
+      "-performance-case",
+      "queue",
+      "-samples",
+      "2"
+    ],
+    "exitCode": 0,
+    "result": "final-moku-precheck-only-queue-control.jsonl"
+  },
+  {
+    "binary": "moku-after",
+    "sha256": "cf101973b771e1b8151d0865531c441d746cc70a1079d953ff87f9ed13090e68",
+    "command": [
+      ".build/runtime-performance/moku-after",
+      "-performance",
+      "-performance-case",
+      "queue",
+      "-samples",
+      "2"
+    ],
+    "exitCode": 0,
+    "result": "final-moku-after-queue-control.jsonl"
+  }
+]

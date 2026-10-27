@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "ordinary-subdirectory",
+      "directories": ["workspace/Repo/.git", "workspace/Repo/app"],
+      "cwd": "$ROOT/workspace/Repo/app",
+      "want": "app"
+    },
+    {
+      "name": "ordinary-repository-root",
+      "directories": ["workspace/Repo/.git"],
+      "cwd": "$ROOT/workspace/Repo",
+      "want": "Repo"
+    },
+    {
+      "name": "standard-linked-worktree",
+      "directories": [
+        "workspace/Repo/.git/worktrees/task-abcdef012345",
+        "workspace/.Repo-mokusei-worktrees/task-abcdef012345"
+      ],
+      "files": {
+        "workspace/Repo/.git/worktrees/task-abcdef012345/commondir": "../..\n",
+        "workspace/.Repo-mokusei-worktrees/task-abcdef012345/.git": "gitdir: $ROOT/workspace/Repo/.git/worktrees/task-abcdef012345\n"
+      },
+      "cwd": "$ROOT/workspace/.Repo-mokusei-worktrees/task-abcdef012345",
+      "want": "Repo"
+    },
+    {
+      "name": "nested-linked-worktree",
+      "directories": [
+        "workspace/Repo/.git/worktrees/task-abcdef012345",
+        "workspace/.Repo-mokusei-worktrees/task-abcdef012345/internal/runtime"
+      ],
+      "files": {
+        "workspace/Repo/.git/worktrees/task-abcdef012345/commondir": "../..\n",
+        "workspace/.Repo-mokusei-worktrees/task-abcdef012345/.git": "gitdir: $ROOT/workspace/Repo/.git/worktrees/task-abcdef012345\n"
+      },
+      "cwd": "$ROOT/workspace/.Repo-mokusei-worktrees/task-abcdef012345/internal/runtime",
+      "want": "Repo"
+    },
+    {
+      "name": "plain-linked-worktree",
+      "directories": [
+        "workspace/PlainRepo/.git/worktrees/plain-checkout",
+        "workspace/plain-checkout"
+      ],
+      "files": {
+        "workspace/PlainRepo/.git/worktrees/plain-checkout/commondir": "../..\n",
+        "workspace/plain-checkout/.git": "gitdir: $ROOT/workspace/PlainRepo/.git/worktrees/plain-checkout\n"
+      },
+      "cwd": "$ROOT/workspace/plain-checkout",
+      "want": "PlainRepo"
+    },
+    {
+      "name": "managed-convention-without-metadata",
+      "directories": ["workspace/.FallbackRepo-mokusei-worktrees/task-abcdef012345"],
+      "cwd": "$ROOT/workspace/.FallbackRepo-mokusei-worktrees/task-abcdef012345",
+      "want": "FallbackRepo"
+    },
+    {
+      "name": "plain-user-directory-keeps-own-tag",
+      "directories": ["workspace/foo-mokusei-worktrees"],
+      "cwd": "$ROOT/workspace/foo-mokusei-worktrees",
+      "want": "foo-mokusei-worktrees"
+    },
+    {
+      "name": "nested-repo-staging-root-prefers-sibling-repository",
+      "directories": [
+        "workspace/Mokusei/.git",
+        "workspace/.Mokusei-internal-runtime-mokusei-worktrees/task-abcdef012345"
+      ],
+      "cwd": "$ROOT/workspace/.Mokusei-internal-runtime-mokusei-worktrees/task-abcdef012345",
+      "want": "Mokusei"
+    },
+    {
+      "name": "prefix-sharing-siblings-use-worktree-metadata",
+      "directories": [
+        "workspace/foo/.git/worktrees/task-abcdef012345",
+        "workspace/foo-bar/.git",
+        "workspace/.foo-bar-baz-mokusei-worktrees/task-abcdef012345"
+      ],
+      "files": {
+        "workspace/.foo-bar-baz-mokusei-worktrees/task-abcdef012345/.git": "gitdir: $ROOT/workspace/foo/.git/worktrees/task-abcdef012345\n"
+      },
+      "cwd": "$ROOT/workspace/.foo-bar-baz-mokusei-worktrees/task-abcdef012345",
+      "want": "foo"
+    },
+    {
+      "name": "prefix-sharing-siblings-without-metadata-keep-slug",
+      "directories": [
+        "workspace/foo/.git",
+        "workspace/foo-bar/.git",
+        "workspace/.foo-bar-baz-mokusei-worktrees/task-abcdef012345"
+      ],
+      "cwd": "$ROOT/workspace/.foo-bar-baz-mokusei-worktrees/task-abcdef012345",
+      "want": "foo-bar-baz"
+    },
+    {
+      "name": "corrupt-managed-worktree-inside-repository",
+      "directories": [
+        "workspace/parent/.git",
+        "workspace/parent/.Repo-mokusei-worktrees/task-abcdef012345"
+      ],
+      "files": {
+        "workspace/parent/.Repo-mokusei-worktrees/task-abcdef012345/.git": "gitdir: missing\n"
+      },
+      "cwd": "$ROOT/workspace/parent/.Repo-mokusei-worktrees/task-abcdef012345",
+      "want": "Repo"
+    },
+    {
+      "name": "submodule-keeps-own-name",
+      "directories": [
+        "workspace/super/.git/modules/sub",
+        "workspace/super/sub"
+      ],
+      "files": {
+        "workspace/super/sub/.git": "gitdir: ../.git/modules/sub\n",
+        "workspace/super/.git/modules/sub/HEAD": "ref: refs/heads/main\n",
+        "workspace/super/.git/modules/sub/config": "[core]\n\tbare = false\n"
+      },
+      "cwd": "$ROOT/workspace/super/sub",
+      "want": "sub"
+    },
+    {
+      "name": "submodule-subdirectory-keeps-its-own-name",
+      "directories": [
+        "workspace/super/.git/modules/sub",
+        "workspace/super/sub/src"
+      ],
+      "files": {
+        "workspace/super/sub/.git": "gitdir: ../.git/modules/sub\n",
+        "workspace/super/.git/modules/sub/HEAD": "ref: refs/heads/main\n",
+        "workspace/super/.git/modules/sub/config": "[core]\n\tbare = false\n"
+      },
+      "cwd": "$ROOT/workspace/super/sub/src",
+      "want": "src"
+    },
+    {
+      "name": "separate-git-dir-main-checkout",
+      "directories": ["workspace/SepRepo", "sep-git-storage"],
+      "files": {
+        "workspace/SepRepo/.git": "gitdir: $ROOT/sep-git-storage\n",
+        "sep-git-storage/HEAD": "ref: refs/heads/main\n",
+        "sep-git-storage/config": "[core]\n\tbare = false\n"
+      },
+      "cwd": "$ROOT/workspace/SepRepo",
+      "want": "SepRepo"
+    },
+    {
+      "name": "separate-git-dir-worktree-uses-core-worktree",
+      "directories": [
+        "workspace/SepRepo",
+        "sep-git-storage/worktrees/sep-wt",
+        "workspace/sep-wt"
+      ],
+      "files": {
+        "sep-git-storage/HEAD": "ref: refs/heads/main\n",
+        "sep-git-storage/config": "[core]\n\tbare = false\n\tworktree = $ROOT/workspace/SepRepo\n",
+        "sep-git-storage/worktrees/sep-wt/commondir": "../..\n",
+        "workspace/sep-wt/.git": "gitdir: $ROOT/sep-git-storage/worktrees/sep-wt\n"
+      },
+      "cwd": "$ROOT/workspace/sep-wt",
+      "want": "SepRepo"
+    },
+    {
+      "name": "separate-git-dir-worktree-crlf-config-uses-core-worktree",
+      "directories": [
+        "workspace/SepRepo",
+        "sep-git-storage/worktrees/sep-wt",
+        "workspace/sep-wt"
+      ],
+      "files": {
+        "sep-git-storage/HEAD": "ref: refs/heads/main\r\n",
+        "sep-git-storage/config": "[core]\r\n\tbare = false\r\n\tworktree = $ROOT/workspace/SepRepo\r\n",
+        "sep-git-storage/worktrees/sep-wt/commondir": "../..\r\n",
+        "workspace/sep-wt/.git": "gitdir: $ROOT/sep-git-storage/worktrees/sep-wt\r\n"
+      },
+      "cwd": "$ROOT/workspace/sep-wt",
+      "want": "SepRepo"
+    },
+    {
+      "name": "separate-git-dir-worktree-never-uses-storage-name",
+      "directories": [
+        "sep-git-storage/worktrees/sep-wt",
+        "workspace/sep-wt"
+      ],
+      "files": {
+        "sep-git-storage/HEAD": "ref: refs/heads/main\n",
+        "sep-git-storage/config": "[core]\n\tbare = false\n",
+        "sep-git-storage/worktrees/sep-wt/commondir": "../..\n",
+        "workspace/sep-wt/.git": "gitdir: $ROOT/sep-git-storage/worktrees/sep-wt\n"
+      },
+      "cwd": "$ROOT/workspace/sep-wt",
+      "want": "sep-wt"
+    },
+    {
+      "name": "bare-repository-worktree-never-uses-git-dir-name",
+      "directories": [
+        "Bare.git/worktrees/bare-wt",
+        "workspace/bare-wt"
+      ],
+      "files": {
+        "Bare.git/HEAD": "ref: refs/heads/main\n",
+        "Bare.git/config": "[core]\n\tbare = true\n",
+        "Bare.git/worktrees/bare-wt/commondir": "../..\n",
+        "workspace/bare-wt/.git": "gitdir: $ROOT/Bare.git/worktrees/bare-wt\n"
+      },
+      "cwd": "$ROOT/workspace/bare-wt",
+      "want": "bare-wt"
+    },
+    {
+      "name": "gitdir-under-worktrees-named-parent-is-not-a-worktree",
+      "directories": ["workspace/checkout", "review-fixtures/worktrees/fixture"],
+      "files": {
+        "review-fixtures/worktrees/fixture/commondir": "../..\n",
+        "workspace/checkout/.git": "gitdir: $ROOT/review-fixtures/worktrees/fixture\n"
+      },
+      "cwd": "$ROOT/workspace/checkout",
+      "want": "checkout"
+    },
+    {
+      "name": "unicode-nfd-subdirectory",
+      "directories": ["workspace/Repo/.git", "workspace/Repo/Cafe\u0301"],
+      "cwd": "$ROOT/workspace/Repo/Cafe\u0301",
+      "want": "Cafe\u0301"
+    },
+    {
+      "name": "trailing-separators",
+      "directories": ["workspace/Repo/.git", "workspace/Repo/app"],
+      "cwd": "$ROOT/workspace/Repo/app///",
+      "want": "app"
+    },
+    {
+      "name": "relative-path",
+      "directories": ["workspace/Repo/.git", "workspace/Repo/app"],
+      "cwd": "$ROOT/workspace/Repo/app",
+      "relative": true,
+      "want": "app"
+    },
+    {
+      "name": "temporary-workspace",
+      "cwd": "/tmp/mokusei-directorytag-fixture/project",
+      "want": ""
+    },
+    {
+      "name": "windows-temporary-workspace",
+      "cwd": "C:\\Users\\fixture\\AppData\\Local\\Temp\\mokusei-example\\project",
+      "want": ""
+    },
+    {
+      "name": "vanished-generated-task",
+      "cwd": "$ROOT/workspace/task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb",
+      "want": ""
+    },
+    {
+      "name": "existing-generated-task",
+      "directories": ["workspace/task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb"],
+      "cwd": "$ROOT/workspace/task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb",
+      "want": "task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb"
+    }
+  ]
+}

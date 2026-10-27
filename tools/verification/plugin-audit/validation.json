@@ -1,0 +1,584 @@
+{
+  "baseline": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+  "date": "2026-10-25",
+  "log_directory": "/private/tmp/plugin-audit-max-validation-20261025",
+  "native_versions": {
+    "opencode": "2.0.25",
+    "pi": "1.3.0"
+  },
+  "checks": [
+    {
+      "phase": "check",
+      "name": "make-check",
+      "command": [
+        "make",
+        "check",
+        "ARGS="
+      ],
+      "started": "2026-10-25T14:14:12.585499+08:00",
+      "seconds": 1.36,
+      "exit": 2,
+      "log": "make-check.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "failed"
+    },
+    {
+      "phase": "check",
+      "name": "make-check",
+      "command": [
+        "make",
+        "check",
+        "ARGS="
+      ],
+      "started": "2026-10-25T14:15:01.729205+08:00",
+      "seconds": 4.59,
+      "exit": 2,
+      "log": "make-check-attempt-2.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "failed"
+    },
+    {
+      "phase": "check",
+      "name": "make-check",
+      "command": [
+        "make",
+        "check",
+        "ARGS="
+      ],
+      "started": "2026-10-25T14:15:25.425204+08:00",
+      "seconds": 187.6,
+      "exit": 0,
+      "log": "make-check-attempt-3.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "thread-metadata",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/thread-metadata"
+      ],
+      "started": "2026-10-25T14:18:41.120585+08:00",
+      "seconds": 27.2,
+      "exit": 0,
+      "log": "thread-metadata.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "applicationhost",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/applicationhost"
+      ],
+      "started": "2026-10-25T14:19:08.353436+08:00",
+      "seconds": 3.47,
+      "exit": 0,
+      "log": "applicationhost.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "runtime",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/runtime"
+      ],
+      "started": "2026-10-25T14:19:11.846174+08:00",
+      "seconds": 5.17,
+      "exit": 0,
+      "log": "runtime.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "artificialanalysis",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/artificialanalysis"
+      ],
+      "started": "2026-10-25T14:19:17.034158+08:00",
+      "seconds": 3.11,
+      "exit": 0,
+      "log": "artificialanalysis.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "artificialanalysis/lifecycle",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/artificialanalysis/lifecycle"
+      ],
+      "started": "2026-10-25T14:19:20.168104+08:00",
+      "seconds": 2.52,
+      "exit": 0,
+      "log": "artificialanalysis-lifecycle.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "git",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/git"
+      ],
+      "started": "2026-10-25T14:19:22.707822+08:00",
+      "seconds": 87.39,
+      "exit": 0,
+      "log": "git.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "codex",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/codex"
+      ],
+      "started": "2026-10-25T14:20:50.144450+08:00",
+      "seconds": 209.87,
+      "exit": 0,
+      "log": "codex.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "claude",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/claude"
+      ],
+      "started": "2026-10-25T14:24:20.041936+08:00",
+      "seconds": 5.81,
+      "exit": 0,
+      "log": "claude.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "pi",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/pi"
+      ],
+      "started": "2026-10-25T14:24:25.869158+08:00",
+      "seconds": 9.01,
+      "exit": 0,
+      "log": "pi.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "replays",
+      "name": "opencode",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/opencode"
+      ],
+      "started": "2026-10-25T14:24:34.902844+08:00",
+      "seconds": 29.14,
+      "exit": 0,
+      "log": "opencode.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "opencode-native",
+      "name": "opencode-native-native",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "./tools/verification/opencode",
+        "-native-cli",
+        "/Users/example/.npm-global/bin/opencode",
+        "-case",
+        "native"
+      ],
+      "started": "2026-10-25T14:25:17.464186+08:00",
+      "seconds": 19.34,
+      "exit": 0,
+      "log": "opencode-native-native.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "opencode-native",
+      "name": "opencode-native-thread",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "./tools/verification/opencode",
+        "-native-cli",
+        "/Users/example/.npm-global/bin/opencode",
+        "-case",
+        "thread"
+      ],
+      "started": "2026-10-25T14:25:36.832127+08:00",
+      "seconds": 46.5,
+      "exit": 0,
+      "log": "opencode-native-thread.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "opencode-native",
+      "name": "opencode-native-foreground",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "./tools/verification/opencode",
+        "-native-cli",
+        "/Users/example/.npm-global/bin/opencode",
+        "-case",
+        "foreground"
+      ],
+      "started": "2026-10-25T14:26:23.356380+08:00",
+      "seconds": 6.4,
+      "exit": 0,
+      "log": "opencode-native-foreground.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "pi-native",
+      "name": "pi-native",
+      "command": [
+        "./scripts/go.sh",
+        "run",
+        "-race",
+        "./tools/verification/pi",
+        "-mode",
+        "native"
+      ],
+      "started": "2026-10-25T14:26:42.840531+08:00",
+      "seconds": 34.87,
+      "exit": 0,
+      "log": "pi-native.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "browser",
+      "name": "browser-dialogs",
+      "command": [
+        "xcrun",
+        "swift",
+        "test",
+        "--no-parallel",
+        "--skip-build",
+        "--package-path",
+        "app/macos",
+        "--filter",
+        "NativeBrowserDialogTests"
+      ],
+      "started": "2026-10-25T14:28:22.835909+08:00",
+      "seconds": 15.56,
+      "exit": 0,
+      "log": "browser-dialogs.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "incomplete"
+    },
+    {
+      "phase": "browser",
+      "name": "browser-related",
+      "command": [
+        "xcrun",
+        "swift",
+        "test",
+        "--no-parallel",
+        "--skip-build",
+        "--package-path",
+        "app/macos",
+        "--filter",
+        "NativeBrowserViewportTests|NativeBrowserAnnotationTests|NativeSidecardNavigationTests"
+      ],
+      "started": "2026-10-25T14:28:38.416771+08:00",
+      "seconds": 14.33,
+      "exit": 0,
+      "log": "browser-related.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "browser-native",
+      "name": "browser-dialogs-appkit",
+      "command": [
+        "python3",
+        "tools/verification/reading-presentation/run.py",
+        "--browser-dialogs"
+      ],
+      "started": "2026-10-25T14:33:14.245065+08:00",
+      "seconds": 39.46,
+      "exit": 0,
+      "log": "browser-dialogs-appkit.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "check",
+      "name": "make-check",
+      "command": [
+        "make",
+        "check",
+        "ARGS="
+      ],
+      "started": "2026-10-25T14:35:31.896946+08:00",
+      "seconds": 40.84,
+      "exit": 0,
+      "log": "make-check-attempt-4.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "browser-native",
+      "name": "browser-dialogs-appkit",
+      "command": [
+        "python3",
+        "tools/verification/reading-presentation/run.py",
+        "--browser-dialogs"
+      ],
+      "started": "2026-10-25T14:36:47.141641+08:00",
+      "seconds": 32.58,
+      "exit": 0,
+      "log": "browser-dialogs-appkit-attempt-2.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "passed"
+    },
+    {
+      "phase": "browser",
+      "name": "browser-dialogs",
+      "command": [
+        "xcrun",
+        "swift",
+        "test",
+        "--no-parallel",
+        "--skip-build",
+        "--package-path",
+        "app/macos",
+        "--filter",
+        "NativeBrowserDialogTests"
+      ],
+      "started": "2026-10-25T14:37:38.445928+08:00",
+      "seconds": 7.87,
+      "exit": 0,
+      "log": "browser-dialogs-attempt-2.log",
+      "head": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+      "status": "expected_skip"
+    }
+  ],
+  "checked_source_sha256": {
+    "app/macos/Tests/Integration/Host/NativeBrowserDialogTests.swift": "b6b72a59dcf9442dc1fe5273623b2a076e8749e9efb1d47b3bc74c456ac8c8b1",
+    "internal/hosts/applicationhost/registry_test.go": "a26a7e1565e99f17dcd55a89d6dbdc9af765f63801b4eccbc8609fe61649eec8",
+    "internal/plugins/applications/background/runner_test.go": "3019add8696d2fdda27abfadcc621031d688934adab041e3dc77f789b066f99f",
+    "internal/plugins/applications/tag/tools.go": "b2f30f596d5ded2c88a6e1cd89f037b5aa7e59437ec909e3ae0d61cf185b79c2",
+    "internal/plugins/applications/tag/tools_test.go": "760fcbdedbf3a1e5690306888577fe9e1c06bd2c46f5aed08c4761a29a5a64e8",
+    "internal/plugins/harness/claude/mcp_lifecycle_test.go": "000f0a9ad2bf10c4c67090dd5f6e484cd17957e6eef38a7b7b5e00229ce6a39f",
+    "internal/plugins/harness/claude/transport_lifecycle_test.go": "345d0b445753dcdec3cd4a6203e4f3c43578cae329fe654331d6d151a18f2ed3",
+    "internal/plugins/harness/codex/interactions_boundary_test.go": "7b32b5bc139fe16f824250821df95595066cbcda9a47077b8db5de5b3febf79c",
+    "internal/plugins/harness/codex/state_boundary_test.go": "545469d0a828dbe7d7f800667576aafdb9633c4457ccfd30805f106b8e0b1540",
+    "internal/plugins/harness/codex/tools_boundary_test.go": "c682dbd2378b91778028137db5b0aa5075f941f816b48d3d967284cf80221d29",
+    "internal/plugins/harness/codex/transport_boundary_test.go": "295ebbf2b35a4ccc92543c8c6033b16da9f2fa560235b9c3b536ac8ec229b7e6",
+    "internal/plugins/harness/opencode/environment_config_test.go": "5149f8bbe3ddbccf246b6f2af9b01035d02cd0a109ae9b2ba2d0e94ced214406",
+    "internal/plugins/harness/opencode/prompt_cleanup_test.go": "8bf6bad2ed86f01a3e82c2351a3697e555f65d3bc4a41b4197fe2b03a92e299a",
+    "internal/plugins/harness/opencode/runtime_events_test.go": "141b05cd6e2267e0d1adf1a37afb4dd29e44cfcf47dad99e01c03c797eb1440c",
+    "internal/plugins/harness/opencode/thread_lifecycle_test.go": "61d64a4fdf19563a40d87ac49bb35714d29c05ce73a39d196902a0453c590940",
+    "internal/plugins/harness/opencode/version_test.go": "9535f72cc4163f88e43731c632398aa3fd4879bea24e112ba447bb769bfb68ce",
+    "internal/plugins/harness/pi/bridge_lifecycle_test.go": "8c930ca0fcef87bd08623ab9aab935e0d774c5b40b902ab56f458cb12d34b402",
+    "internal/plugins/harness/pi/rpc_lifecycle_test.go": "225925bc83ce9bcbf7a97309ab18f6a6671c3660de58045e5bc2b0b9861c45d2",
+    "tools/verification/artificialanalysis/cache.go": "8f072198c5b5bfd4ebf2abcd66f66e5341014d701955921f524afe76b5e68d56",
+    "tools/verification/thread-metadata/admission.go": "7dd793996e80bc679f888a209406413da556d6f00b29274c64b5a4f1b5f5a450",
+    "tools/verification/thread-metadata/intent.go": "6905f78fc6f5af8078fc92d9651a39e564dc7e5e990ce3e22ef5bbe73f66d3b0",
+    "app/macos/Sources/Plugins/Sidecards/Browser/BrowserWebSession.swift": "4b9ed990df46cb93849518d63d972a0d0fd49e345366e8e2329071e241b23b37",
+    "internal/core/plugin/metadata.go": "215011a8f190f7d1c7726587a79dc4e051d23655a15abe1cf8bc520e4747fde8",
+    "internal/core/plugin/metadata_completion.go": "b9b795a108e1dcd2f310e3750a289fea45e1919a3aca6fc4dbecdddb1289aafb",
+    "internal/hosts/applicationhost/host.go": "5d808be61a048e51f315981d404e5725c17b97e11a09384b592bad6b315048bf",
+    "internal/hosts/applicationhost/registry.go": "6c8565bbe02fc60562ec2bf811f93ab593ad617e247bbdc56601517ded037c3f",
+    "internal/hosts/contexthost/collect.go": "d37481700ec4591b23c33beaf17748f00cf26b0613f64ac964d24e7bd21d29fc",
+    "internal/plugins/applications/background/evidence.go": "6c0c393c4e40b082f098a663c5cf018e7d60fc23e942d3a548a7f207d89a3129",
+    "internal/plugins/applications/background/evidence_test.go": "3f8eddfe5dcd010e1bab087986bbf1c2c212d13a404482642c8a57d0ef7e049b",
+    "internal/plugins/applications/background/runner.go": "7f5287936ea13c70df6d2d28fe31133737344625652599767c9eaa41c12c062f",
+    "internal/plugins/applications/git/monitor.go": "dec50db24cb012ef8ea960a2bc40f4783d1b865b40afccf149e44e50132e2013",
+    "internal/plugins/applications/tag/plugin.go": "012426e1f019a3ae24cace6c010a557b1e53077b8e8dcc71e4dac0a6922ac5c4",
+    "internal/plugins/contexts/artificialanalysis/plugin.go": "114c139342f726b7fd54ff6498b064a0a711d6f60fc58f73bdadcb26a029482f",
+    "internal/plugins/contexts/artificialanalysis/source.go": "0099357f96a0d18635416369f7f6732ef143084ecea61779ef686f28d5e3534c",
+    "internal/plugins/harness/claude/mcp.go": "865b517fcb9beb606c6d16aadae8c8a53a3b440a9bc9a2a3b3d41bcaf9084db5",
+    "internal/plugins/harness/claude/transport.go": "f95906cd38676497fb2c3aad6fadc0fa01e05fdfec23ea1901ebc9055a982417",
+    "internal/plugins/harness/codex/interactions.go": "292a9005ba8c0659beee50c6bcb30a285de50adc838e48ab27cd2518ad0d1549",
+    "internal/plugins/harness/codex/native.go": "2604fea1c697b26539b49d183827244472ad5ec19afedae40a27b5ab64ad01b3",
+    "internal/plugins/harness/codex/state.go": "a5c5fd403a94d8174e7769d173adb605ee8710dbd2b049bda445720040864b4f",
+    "internal/plugins/harness/codex/tools.go": "4453c8a6e58ef5e3fdac120d6a6a5f63807af7e347ba7defd9077340c01d0d66",
+    "internal/plugins/harness/codex/transport.go": "12268995c01651458e95a94c81c8d6162075bbd19b7d3bdd9ddeb2e0e18d35e9",
+    "internal/plugins/harness/opencode/assets/index.mjs": "ce1248a53c2f4c27652cfc585b021b5c51c670ecc5a061c90d3d98434b70445c",
+    "internal/plugins/harness/opencode/bridge.go": "e77dd987458179ad7d6465bc3c9d6a422c0bf94987b77b2e7e98e8ffcb44c829",
+    "internal/plugins/harness/opencode/bridge_test.go": "26de72f0eb7b6c4097e6fe90e6dee1db93627f6243f0e53f52d1fab32b5f605c",
+    "internal/plugins/harness/opencode/config.go": "d52345ead09ce809c52e79369266247597a8165129c9eaaa55babecb4349b41f",
+    "internal/plugins/harness/opencode/environment.go": "bf3b41d2451985e52302cd6f8ba7979fdcedc1f04c5b4a2c18057566206e478e",
+    "internal/plugins/harness/opencode/prompt.go": "69ce4aee701211b2a5a389c6f9ad14fb5ad30e07a8bf3f3dcdf9b60b17667d32",
+    "internal/plugins/harness/opencode/runtime.go": "0c0c9d5aeabf6b0830738a4b8a35c7f669edc6969b85f403622ddcc4a7732516",
+    "internal/plugins/harness/opencode/thread.go": "29331bd2957a10d2be6dbb14f9b19dbf95ea8d34fc4e664b318b5efa3146c131",
+    "internal/plugins/harness/opencode/usage.go": "14bbcb6084245ca523ee9223cbb83d9baad2832d606f6ae80a9faede054c785e",
+    "internal/plugins/harness/pi/bridge.go": "e8d09d11313f5a02a16d8f880bb4edc07c001655741e7fee82e79fa1fc192be5",
+    "internal/plugins/harness/pi/rpc.go": "9a7d3787cf08d162507b87cbb6069c020c4d9d562c3eecc98a9f188d1166e130",
+    "internal/tooling/architecture/check.go": "789c438eded611547fb66a81d5142c1822af386c51906ac431cb9e39458e269c",
+    "tools/verification/artificialanalysis/lifecycle/host.go": "dbae5fb28de97d5b6c6a7ca460824da903604ad705e83a9ef79c736bd119fda2",
+    "tools/verification/artificialanalysis/lifecycle/main.go": "781c330128a7e842fc6f2222fe766af7b137a60ad832288d92881f599dfcdca9",
+    "tools/verification/artificialanalysis/main.go": "4fee65170fc4bd73f53bc83b707088acfe7354e322072dc21312bee9a2093a21",
+    "tools/verification/git/main.go": "f781646b4fb9ee1e9b32f3e6f4814aa2c1799139e9a8e43c3c019f71792034a0",
+    "tools/verification/opencode/cases/thread/main.go": "b7c5ae04f84ff84cea55a1f90493dfae5367aa893993e624d283e893bfe3a8c9",
+    "tools/verification/reading-presentation/run.py": "e4ad52f6d370bb96dd39c7b9dc9087c5c81df5e4c01101994d31558794dad967",
+    "tools/verification/thread-metadata/main.go": "c6a1f556c0d9543b1c8c84cfe053eac04ca23f9ccd2b539d1cceb3c17e021171"
+  },
+  "code_commits": [
+    {
+      "batch": "applications",
+      "sha": "97961e62f258bd586d1782b463819e384d3b0256",
+      "files": [
+        "internal/hosts/applicationhost/README.md",
+        "internal/hosts/applicationhost/host.go",
+        "internal/hosts/applicationhost/registry.go",
+        "internal/hosts/applicationhost/registry_test.go",
+        "internal/plugins/applications/background/evidence.go",
+        "internal/plugins/applications/background/evidence_test.go",
+        "internal/plugins/applications/background/runner.go",
+        "internal/plugins/applications/background/runner_test.go",
+        "internal/plugins/applications/tag/README.md",
+        "internal/plugins/applications/tag/plugin.go",
+        "internal/plugins/applications/tag/tools.go",
+        "internal/plugins/applications/tag/tools_test.go",
+        "internal/tooling/architecture/check.go"
+      ]
+    },
+    {
+      "batch": "metadata",
+      "sha": "f094f5333c4bd8bca7bc32e509c7ed0cb40589e5",
+      "files": [
+        "internal/core/plugin/README.md",
+        "internal/core/plugin/metadata.go",
+        "internal/core/plugin/metadata_completion.go",
+        "tools/verification/thread-metadata/admission.go",
+        "tools/verification/thread-metadata/intent.go",
+        "tools/verification/thread-metadata/main.go"
+      ]
+    },
+    {
+      "batch": "context",
+      "sha": "137d59d0c18c38951539e897782e4cd6ad830bc1",
+      "files": [
+        "internal/hosts/contexthost/README.md",
+        "internal/hosts/contexthost/collect.go",
+        "internal/plugins/contexts/artificialanalysis/README.md",
+        "internal/plugins/contexts/artificialanalysis/plugin.go",
+        "internal/plugins/contexts/artificialanalysis/source.go",
+        "tools/verification/artificialanalysis/cache.go",
+        "tools/verification/artificialanalysis/lifecycle/host.go",
+        "tools/verification/artificialanalysis/lifecycle/main.go",
+        "tools/verification/artificialanalysis/main.go"
+      ]
+    },
+    {
+      "batch": "git",
+      "sha": "2adc1c8d172e89737158cb15cbbabb14931d5629",
+      "files": [
+        "internal/plugins/applications/git/README.md",
+        "internal/plugins/applications/git/monitor.go",
+        "tools/verification/git/main.go"
+      ]
+    },
+    {
+      "batch": "codex",
+      "sha": "f6ec50f3fea0453094569f19a553334b7ac252f8",
+      "files": [
+        "internal/plugins/harness/codex/README.md",
+        "internal/plugins/harness/codex/interactions.go",
+        "internal/plugins/harness/codex/interactions_boundary_test.go",
+        "internal/plugins/harness/codex/native.go",
+        "internal/plugins/harness/codex/state.go",
+        "internal/plugins/harness/codex/state_boundary_test.go",
+        "internal/plugins/harness/codex/tools.go",
+        "internal/plugins/harness/codex/tools_boundary_test.go",
+        "internal/plugins/harness/codex/transport.go",
+        "internal/plugins/harness/codex/transport_boundary_test.go"
+      ]
+    },
+    {
+      "batch": "native_io",
+      "sha": "188ba950d5f6b706291aaada8dd9288c3f8d8b6f",
+      "files": [
+        "internal/plugins/harness/claude/README.md",
+        "internal/plugins/harness/claude/mcp.go",
+        "internal/plugins/harness/claude/mcp_lifecycle_test.go",
+        "internal/plugins/harness/claude/transport.go",
+        "internal/plugins/harness/claude/transport_lifecycle_test.go",
+        "internal/plugins/harness/pi/README.md",
+        "internal/plugins/harness/pi/bridge.go",
+        "internal/plugins/harness/pi/bridge_lifecycle_test.go",
+        "internal/plugins/harness/pi/rpc.go",
+        "internal/plugins/harness/pi/rpc_lifecycle_test.go"
+      ]
+    },
+    {
+      "batch": "opencode",
+      "sha": "ad9d2b4094e0847c93d98e62939313639bbda52b",
+      "files": [
+        "internal/plugins/harness/opencode/README.md",
+        "internal/plugins/harness/opencode/assets/index.mjs",
+        "internal/plugins/harness/opencode/bridge.go",
+        "internal/plugins/harness/opencode/bridge_test.go",
+        "internal/plugins/harness/opencode/config.go",
+        "internal/plugins/harness/opencode/environment.go",
+        "internal/plugins/harness/opencode/environment_config_test.go",
+        "internal/plugins/harness/opencode/prompt.go",
+        "internal/plugins/harness/opencode/prompt_cleanup_test.go",
+        "internal/plugins/harness/opencode/runtime.go",
+        "internal/plugins/harness/opencode/runtime_events_test.go",
+        "internal/plugins/harness/opencode/thread.go",
+        "internal/plugins/harness/opencode/thread_lifecycle_test.go",
+        "internal/plugins/harness/opencode/usage.go",
+        "internal/plugins/harness/opencode/version_test.go",
+        "tools/verification/opencode/README.md",
+        "tools/verification/opencode/cases/thread/main.go"
+      ]
+    },
+    {
+      "batch": "browser",
+      "sha": "f7f11d401ae3771132b4f476f7cb976e56e867a9",
+      "files": [
+        "app/macos/Sources/Plugins/Sidecards/Browser/BrowserWebSession.swift",
+        "app/macos/Sources/Plugins/Sidecards/README.md",
+        "app/macos/Tests/Integration/Host/NativeBrowserDialogTests.swift",
+        "tools/verification/reading-presentation/README.md",
+        "tools/verification/reading-presentation/run.py"
+      ]
+    }
+  ]
+}

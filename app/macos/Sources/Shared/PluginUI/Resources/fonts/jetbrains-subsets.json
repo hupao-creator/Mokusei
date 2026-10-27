@@ -1,0 +1,22 @@
+{
+  "cyrillic-ext": {
+    "sourceSHA256": "593ccd6fe36e299e151aeae4521be9bfe83ac487d96d7cdb44f50be4a04041c7",
+    "postScriptName": "MokuseiJetBrainsMonoCyrillicExt-Regular"
+  },
+  "cyrillic": {
+    "sourceSHA256": "d274604c40757f98f07df623a8b8fb5194508a6fa4f5413a7a107f09e3b7452a",
+    "postScriptName": "MokuseiJetBrainsMonoCyrillic-Regular"
+  },
+  "greek": {
+    "sourceSHA256": "ee863198077f3093ffa81c072581cc4bd608a04e60a8a9c0b846396ce4f14109",
+    "postScriptName": "MokuseiJetBrainsMonoGreek-Regular"
+  },
+  "vietnamese": {
+    "sourceSHA256": "2288795da89dd97e648954b96e22b4501bd85dfc453264460b252f888b582ca2",
+    "postScriptName": "MokuseiJetBrainsMonoVietnamese-Regular"
+  },
+  "latin-ext": {
+    "sourceSHA256": "79bfdab9ba467e26eea4122e6f2567e188dd8a09a8c730d501fc487c4ab99c6e",
+    "postScriptName": "MokuseiJetBrainsMonoLatinExt-Regular"
+  }
+}

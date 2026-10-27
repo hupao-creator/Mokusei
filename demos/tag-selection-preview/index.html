@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>标签选中样式预览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20211e;
+      --muted: #6d706c;
+      --chip: rgb(255 255 255 / 48%);
+      --chip-border: rgb(255 255 255 / 72%);
+      --chip-shadow: rgb(255 255 255 / 66%);
+      --accent: #19725f;
+      --accent-soft: #e3f0eb;
+      --accent-edge: rgb(25 114 95 / 48%);
+      --accent-hairline: rgb(255 255 255 / 72%);
+      --count: rgb(32 33 30 / 8%);
+      --count-selected: rgb(25 114 95 / 6%);
+      --selected-ink: var(--accent);
+      --stage: linear-gradient(116deg, #a8c5f4 0%, #f1b4c1 50%, #8cd9e9 100%);
+      --switch-bg: rgb(255 255 255 / 42%);
+      --switch-border: rgb(255 255 255 / 66%);
+      --switch-selected: rgb(255 255 255 / 84%);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 28px;
+      color: var(--ink);
+      background: var(--stage);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      transition: background 280ms ease, color 220ms ease;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --ink: #ffffff;
+      --muted: #c0c4be;
+      --chip: rgb(24 29 32 / 40%);
+      --chip-border: rgb(255 255 255 / 30%);
+      --chip-shadow: rgb(255 255 255 / 22%);
+      --accent: #78cdb3;
+      --selected-ink: var(--accent);
+      --accent-soft: #283e35;
+      --accent-edge: rgb(120 205 179 / 48%);
+      --accent-hairline: rgb(255 255 255 / 18%);
+      --count: rgb(255 255 255 / 8%);
+      --count-selected: rgb(120 205 179 / 6%);
+      --stage: linear-gradient(116deg, #27344f 0%, #503b52 50%, #174953 100%);
+      --switch-bg: rgb(14 21 29 / 30%);
+      --switch-border: rgb(255 255 255 / 23%);
+      --switch-selected: rgb(255 255 255 / 17%);
+    }
+
+    .preview {
+      min-width: 0;
+      width: min(100%, 940px);
+      padding: clamp(20px, 4vw, 34px);
+      border: 1px solid rgb(255 255 255 / 38%);
+      border-radius: 28px;
+      background: rgb(255 255 255 / 14%);
+      box-shadow: 0 24px 70px rgb(49 57 83 / 14%), inset 0 1px rgb(255 255 255 / 30%);
+      backdrop-filter: blur(18px) saturate(1.12);
+      -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: clamp(26px, 6vw, 48px);
+    }
+
+    .heading { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+    .hint { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .theme-switch {
+      display: inline-flex;
+      gap: 3px;
+      padding: 4px;
+      border: 1px solid var(--switch-border);
+      border-radius: 999px;
+      background: var(--switch-bg);
+      box-shadow: inset 0 1px rgb(255 255 255 / 24%);
+      backdrop-filter: blur(14px);
+    }
+
+    .theme-button {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 13px;
+      color: var(--muted);
+      background: transparent;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 180ms ease, color 180ms ease, transform 160ms ease;
+    }
+
+    .theme-button[aria-pressed="true"] {
+      color: var(--ink);
+      background: var(--switch-selected);
+      box-shadow: 0 1px 4px rgb(30 39 48 / 10%), inset 0 1px rgb(255 255 255 / 70%);
+    }
+
+    .theme-button:active { transform: scale(.97); }
+    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+    .tag-rail {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      margin: -6px;
+      padding: 8px;
+      scrollbar-width: none;
+    }
+    .tag-rail::-webkit-scrollbar { display: none; }
+
+    .tag {
+      min-height: 56px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 22px;
+      border: 1px solid var(--chip-border);
+      border-radius: 999px;
+      color: var(--ink);
+      background: var(--chip);
+      box-shadow: inset 0 1px var(--chip-shadow), 0 5px 16px rgb(53 64 92 / 5%);
+      backdrop-filter: blur(16px) saturate(1.16);
+      -webkit-backdrop-filter: blur(16px) saturate(1.16);
+      font: inherit;
+      font-size: 17px;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 190ms ease, border-color 190ms ease, color 190ms ease, box-shadow 190ms ease, transform 160ms ease;
+    }
+
+    .tag:hover { transform: translateY(-1px); }
+    .tag:active { transform: translateY(0) scale(.985); }
+    .tag[aria-pressed="true"] {
+      color: var(--selected-ink);
+      border-color: var(--accent-edge);
+      background: var(--accent-soft);
+      box-shadow: inset 0 1px var(--accent-hairline), 0 5px 16px rgb(36 66 60 / 8%);
+    }
+
+    .folder { width: 19px; height: 16px; flex: 0 0 auto; }
+    .label { line-height: 1; }
+    .count {
+      min-width: 22px;
+      height: 22px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0 6px;
+      border-radius: 999px;
+      color: inherit;
+      background: var(--count);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tag[aria-pressed="true"] .count { background: var(--count-selected); }
+
+    .bottomline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 26px 2px 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+    .selection { color: var(--ink); font-weight: 600; }
+
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+      .preview { padding: 20px 16px 18px; border-radius: 24px; }
+      .topline { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+      .tag-rail { gap: 7px; margin-right: -16px; padding-right: 16px; }
+      .tag { min-height: 50px; padding: 0 16px; gap: 7px; font-size: 15px; }
+      .bottomline { margin-top: 22px; }
+    }
+
+    @media (prefers-contrast: more) {
+      :root {
+        --selected-ink: #20211e;
+        --accent-edge: rgb(25 114 95 / 82%);
+        --count-selected: rgb(32 33 30 / 6%);
+      }
+      body[data-theme="dark"] {
+        --selected-ink: #ffffff;
+        --accent-edge: rgb(120 205 179 / 82%);
+        --count-selected: rgb(255 255 255 / 6%);
+      }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      :root { --chip: #f0f0f0; }
+      body[data-theme="dark"] { --chip: #292929; }
+      .tag { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <main class="preview" aria-label="标签样式预览">
+    <header class="topline">
+      <div>
+        <h1 class="heading">标签筛选</h1>
+        <p class="hint">点击标签，查看选中效果</p>
+      </div>
+      <div class="theme-switch" role="group" aria-label="切换明暗主题">
+        <button class="theme-button" type="button" data-set-theme="light" aria-pressed="true">浅色</button>
+        <button class="theme-button" type="button" data-set-theme="dark" aria-pressed="false">深色</button>
+      </div>
+    </header>
+
+    <nav class="tag-rail" aria-label="按标签筛选">
+      <button class="tag" type="button" data-tag="全部" aria-pressed="false"><span class="label">全部</span></button>
+      <button class="tag" type="button" data-tag="Mokusei" aria-pressed="true">
+        <svg class="folder" viewBox="0 0 20 16" fill="none" aria-hidden="true">
+          <path d="M1.5 3.25c0-.83.67-1.5 1.5-1.5h4.1l1.72 2.1H17c.83 0 1.5.67 1.5 1.5v7.4c0 .83-.67 1.5-1.5 1.5H3c-.83 0-1.5-.67-1.5-1.5v-9.5Z" stroke="currentColor" stroke-width="1.55" stroke-linejoin="round"/>
+        </svg>
+        <span class="label">Mokusei</span><span class="count">9</span>
+      </button>
+      <button class="tag" type="button" data-tag="界面搜索" aria-pressed="false"><span class="label">界面搜索</span><span class="count">1</span></button>
+      <button class="tag" type="button" data-tag="项目清理" aria-pressed="false"><span class="label">项目清理</span><span class="count">2</span></button>
+    </nav>
+
+    <footer class="bottomline" aria-live="polite">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>当前选中</span><span class="selection" id="selected-name">Mokusei</span>
+    </footer>
+  </main>
+
+  <script>
+    const tags = [...document.querySelectorAll('.tag')];
+    const selectedName = document.querySelector('#selected-name');
+    const themeButtons = [...document.querySelectorAll('[data-set-theme]')];
+
+    tags.forEach((tag) => tag.addEventListener('click', () => {
+      tags.forEach((item) => item.setAttribute('aria-pressed', String(item === tag)));
+      selectedName.textContent = tag.dataset.tag;
+    }));
+
+    themeButtons.forEach((button) => button.addEventListener('click', () => {
+      const theme = button.dataset.setTheme;
+      document.body.dataset.theme = theme;
+      themeButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+    }));
+  </script>
+</body>
+</html>

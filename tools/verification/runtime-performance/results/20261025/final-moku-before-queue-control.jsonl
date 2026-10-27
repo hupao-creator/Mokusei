@@ -1,0 +1,8 @@
+{"case":"submit-precancel","releasedBeforeOwner":false,"cancelLatencyNs":252650167,"observationWindowNs":250000000,"sample":1,"iterations":1}
+{"case":"submit-queued-cancel","releasedBeforeOwner":false,"cancelLatencyNs":252360708,"observationWindowNs":250000000,"queueWaitState":"sync.Mutex.Lock","sample":1,"iterations":1}
+{"case":"voice-prepare-precancel","releasedBeforeOwner":false,"cancelLatencyNs":356723875,"observationWindowNs":250000000,"mediaHoldWindowNs":100000000,"sample":1,"iterations":1}
+{"case":"voice-prepare-queued-cancel","releasedBeforeOwner":false,"cancelLatencyNs":253461458,"observationWindowNs":250000000,"queueWaitState":"sync.Mutex.Lock","sample":1,"iterations":1}
+{"case":"submit-precancel","releasedBeforeOwner":false,"cancelLatencyNs":252115875,"observationWindowNs":250000000,"sample":2,"iterations":1}
+{"case":"submit-queued-cancel","releasedBeforeOwner":false,"cancelLatencyNs":251951417,"observationWindowNs":250000000,"queueWaitState":"sync.Mutex.Lock","sample":2,"iterations":1}
+{"case":"voice-prepare-precancel","releasedBeforeOwner":false,"cancelLatencyNs":356438917,"observationWindowNs":250000000,"mediaHoldWindowNs":100000000,"sample":2,"iterations":1}
+{"case":"voice-prepare-queued-cancel","releasedBeforeOwner":false,"cancelLatencyNs":255384834,"observationWindowNs":250000000,"queueWaitState":"sync.Mutex.Lock","sample":2,"iterations":1}

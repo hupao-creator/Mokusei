@@ -1,0 +1,2 @@
+# Unified patches require a leading space on empty context lines.
+native/codex-voice/*.patch whitespace=-blank-at-eol

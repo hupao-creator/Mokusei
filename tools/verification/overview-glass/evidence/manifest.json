@@ -1,0 +1,16 @@
+{
+  "power.txt": "d632e6d36ac0890c6ecd46bba3edc73c07eafdcddb6e39a9c8173e923b7fbb36",
+  "geometry.json": "31f1e5cc009bbf2dea7a2fd3ed87606fe421d938369b5be7f43c96b62f48cdd8",
+  "count-5-prelaunch.tar.gz": "d3164ae256335b154a0fc55dec8a620ea7db685d02e2b108d7782b4556700e4d",
+  "instruments-templates.txt": "93eeae90861c44f3682a086d06ef9644a669bc71dd6350a8aff052f907bebe0a",
+  "validation.tar.gz": "ffd67e0f12572e8b2eeff31180b4bfda8c588ce5a7398f1ec5fcb3b4eb34e388",
+  "xcode-version.txt": "5f6350250c6f298d06e1435819ddd1539d6c84785aaa8d824c2ac74f57914d03",
+  "host-environment.json": "985b0a81ff8c6af4725eda65ad9f39ceee1c18ab94128e2ef4c4e9cf32ddfeae",
+  "validation.json": "57f82a355902f65e4dd3ca21d7f07395cf4569082d309af09a7f3e4fb7c66522",
+  "swift-version.txt": "6b37a5114255f9ddfe79851091ba00d07a78e827a9a9ae69fe925bac4d03d36f",
+  "developer-mode.txt": "6b0b50655a6c77982eb3b673ec0e8eab027f980084a62fea3c65f445862e4fff",
+  "status.json": "480ca36229ff0c17d3ac92293f92897ca3f09997d3be2b620c1dc69a52b04192",
+  "macos-version.txt": "e369ac71ae1ffdf3230a664aee3f2258f8786b9262a715c677cd1ab59d0b615b",
+  "baseline-five-status.json": "1a2b5124115f89bd7fee35c6be69de2a78e4a6e92f2ff489af10e659b089ec0c",
+  "baseline-five-prelaunch.tar.gz": "ff8565e60725ba8e4fc7f2147ded5f51c8f44df7721a39ba458027aa0979ba33"
+}

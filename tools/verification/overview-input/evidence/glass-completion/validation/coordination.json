@@ -1,0 +1,19 @@
+{
+  "timezone": "Asia/Shanghai",
+  "date": "2026-10-25",
+  "previousWindow": "15:40-15:55",
+  "actualPlannedWindow": "16:10-16:25",
+  "notifiedThreads": [
+    "a58dea80-1682-48a1-b022-6468028d5534",
+    "4bbc7bb0-2d47-4d0f-a520-b64eae13306b"
+  ],
+  "notificationChannel": "parent commentary; cross-thread API unavailable",
+  "explicitAcknowledgementReceived": false,
+  "entryGates": "observed input idle and compiler/replay silence; then real key/active/visible readiness",
+  "reasonForReschedule": "run-4 had no initial foreground ownership and zero measured conditions; switched from background launch to one gated ordinary launch",
+  "frozenRevision": "b8b2bc5c04fcd7f348466fc46e2755f671b27570",
+  "productionBaseline": "e7afacc212aec9b30c280440b1c6ac48ea21fc4b",
+  "releasedAt": "2026-10-25T16:13:34.760+08:00",
+  "releaseReason": "run-5 stopped after sixth condition exceeded original host-load gate",
+  "activeMeasurement": false
+}

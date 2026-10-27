@@ -1,0 +1,54 @@
+{
+  "base": "e70ca9877603d978d9910d73a4a1b32a614837dc",
+  "speedParent": "a451b80f94ea454c7d5d684c5d601de6f90932ab",
+  "productionOpeningMs": 220,
+  "extraBounce": 0,
+  "controlledNegative": {
+    "baseline320ms": {
+      "childAX": false,
+      "openScope": null,
+      "mounted": true,
+      "hoverScheduleToCloseMs": 188.2
+    },
+    "speed220ms": {
+      "childAX": false,
+      "openScope": null,
+      "mounted": true,
+      "hoverScheduleToCloseMs": 193.74
+    }
+  },
+  "offscreenBaseline": {
+    "exit": 0,
+    "seconds": 5.553
+  },
+  "finalGlassSuite": {
+    "cases": 7,
+    "exit": 0,
+    "seconds": 33.603
+  },
+  "finalSerialTargeted": [
+    {
+      "run": 1,
+      "exit": 0,
+      "seconds": 5.572
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "seconds": 5.615
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "seconds": 5.704
+    }
+  ],
+  "originalReviewTimelineRecoverable": false,
+  "productionHoverChanged": false,
+  "AXSearchChanged": false,
+  "TimeoutsChanged": false,
+  "makeCheck": {
+    "exit": 0,
+    "nativeDirectoryTagCases": 13
+  }
+}

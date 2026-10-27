@@ -1,0 +1,3705 @@
+{
+  "labels": [
+    "round2-scopes",
+    "round3-tag-keys"
+  ],
+  "rows": [
+    {
+      "scenario": "fresh-model",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.033958,
+            "maxMs": 1.145709,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.02375,
+            "maxMs": 0.365042,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.036708,
+            "maxMs": 0.357875,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.039,
+            "maxMs": 0.374625,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.030916,
+            "maxMs": 0.344125,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.029584,
+            "maxMs": 0.884959,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.023958,
+            "maxMs": 0.328917,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.03525,
+            "maxMs": 0.338459,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.02375,
+            "maxMs": 0.357375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0405,
+            "maxMs": 0.34775,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -12.880617233052604,
+        0.8757894736842076,
+        -3.971886237332467,
+        -39.102564102564095,
+        31.000129382843845
+      ]
+    },
+    {
+      "scenario": "catalog-admission",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.005625,
+            "maxMs": 0.005917,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.005292,
+            "maxMs": 0.005458,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0056045,
+            "maxMs": 0.006042,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0055835,
+            "maxMs": 0.021959,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.005625,
+            "maxMs": 0.005875,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.005583,
+            "maxMs": 0.006125,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.005542,
+            "maxMs": 0.005875,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.005667,
+            "maxMs": 0.005958,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0055625,
+            "maxMs": 0.005792,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.005583,
+            "maxMs": 0.006083,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -0.7466666666666621,
+        4.724111866969016,
+        1.115175305558025,
+        -0.37610817587534484,
+        -0.7466666666666621
+      ]
+    },
+    {
+      "scenario": "status-update",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.01025,
+            "maxMs": 0.010625,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.010208499999999999,
+            "maxMs": 0.02025,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.010562499999999999,
+            "maxMs": 0.011375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.010542,
+            "maxMs": 0.011666,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.010458,
+            "maxMs": 0.010916,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.01075,
+            "maxMs": 0.011375,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.010459,
+            "maxMs": 0.011125,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.010625,
+            "maxMs": 0.011042,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.010667,
+            "maxMs": 0.053084,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0105205,
+            "maxMs": 0.011,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        4.878048780487787,
+        2.4538374883675385,
+        0.5917159763313862,
+        1.1857332574463975,
+        0.5976286096768035
+      ]
+    },
+    {
+      "scenario": "unchanged-delivery",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.009792,
+            "maxMs": 0.010292,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.010083499999999999,
+            "maxMs": 0.020917,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.01025,
+            "maxMs": 0.011166,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.01025,
+            "maxMs": 0.0105,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.010292,
+            "maxMs": 0.013708,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.010395999999999999,
+            "maxMs": 0.016,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.010208,
+            "maxMs": 0.010458,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.01025,
+            "maxMs": 0.0105,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.010458,
+            "maxMs": 0.010917,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.010687499999999999,
+            "maxMs": 0.011791,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        6.168300653594749,
+        1.2346903356969419,
+        0.0,
+        2.0292682926829286,
+        3.842790516906325
+      ]
+    },
+    {
+      "scenario": "warm-reconcile",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.004084,
+            "maxMs": 0.004708,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.004042,
+            "maxMs": 0.004417,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.004042,
+            "maxMs": 0.00425,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0042085000000000004,
+            "maxMs": 0.004375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.004333,
+            "maxMs": 0.004584,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0041455,
+            "maxMs": 0.004417,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0040835,
+            "maxMs": 0.004375,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.004125,
+            "maxMs": 0.004292,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.004041,
+            "maxMs": 0.004458,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.004334,
+            "maxMs": 0.004584,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.5058765915768824,
+        1.0267194458189133,
+        2.0534388916378266,
+        -3.980040394439821,
+        0.023078698361422845
+      ]
+    },
+    {
+      "scenario": "filter-switch",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.006229500000000001,
+            "maxMs": 0.011041,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.006375,
+            "maxMs": 0.012834,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.006604499999999999,
+            "maxMs": 0.011375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.006708,
+            "maxMs": 0.012875,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.006625,
+            "maxMs": 0.011791,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0066455,
+            "maxMs": 0.010917,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.006396,
+            "maxMs": 0.011583,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.006625,
+            "maxMs": 0.009333,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0062710000000000005,
+            "maxMs": 0.009208,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.006916500000000001,
+            "maxMs": 0.010042,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        6.67790352355726,
+        0.3294117647058892,
+        0.31039442804150497,
+        -6.51460942158616,
+        4.400000000000004
+      ]
+    },
+    {
+      "scenario": "leave-return",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.010375,
+            "maxMs": 0.016667,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0099795,
+            "maxMs": 0.02025,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.009208,
+            "maxMs": 0.013833,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.010542,
+            "maxMs": 0.01375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0105625,
+            "maxMs": 0.046334,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0097085,
+            "maxMs": 0.015,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.009729,
+            "maxMs": 0.033583,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.009062500000000001,
+            "maxMs": 0.013208,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0099585,
+            "maxMs": 0.013708,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.010646,
+            "maxMs": 0.155917,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -6.424096385542177,
+        -2.5101457988877307,
+        -1.5801476976541884,
+        -5.535002845759807,
+        0.7905325443786859
+      ]
+    },
+    {
+      "scenario": "keyword-search",
+      "count": 0,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.006833499999999999,
+            "maxMs": 0.007334,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.006562500000000001,
+            "maxMs": 0.007125,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.006791500000000001,
+            "maxMs": 0.007417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.007,
+            "maxMs": 0.007417,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.007,
+            "maxMs": 0.007833,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.007042,
+            "maxMs": 0.059084,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.006771,
+            "maxMs": 0.007959,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0066040000000000005,
+            "maxMs": 0.00725,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.006667,
+            "maxMs": 0.007292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.007125,
+            "maxMs": 0.007708,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        3.051145094022112,
+        3.177142857142856,
+        -2.760803946109114,
+        -4.75714285714286,
+        1.7857142857142794
+      ]
+    },
+    {
+      "scenario": "fresh-model",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.71475,
+            "maxMs": 5.473,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.710542,
+            "maxMs": 3.427208,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.650292,
+            "maxMs": 3.417417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.693583,
+            "maxMs": 3.460542,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.640166,
+            "maxMs": 3.800541,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.646125,
+            "maxMs": 4.001292,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.616458,
+            "maxMs": 3.559792,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.649875,
+            "maxMs": 3.436459,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.595875,
+            "maxMs": 3.389459,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.655917,
+            "maxMs": 3.52875,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -9.601259181532008,
+        -13.241159565514781,
+        -0.06412503921315871,
+        -14.087427171657884,
+        2.4604555693366947
+      ]
+    },
+    {
+      "scenario": "catalog-admission",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.03425,
+            "maxMs": 0.0535,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.032771,
+            "maxMs": 0.036041,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.034770999999999996,
+            "maxMs": 0.063917,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0314375,
+            "maxMs": 0.039458,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0333755,
+            "maxMs": 0.037625,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.03425,
+            "maxMs": 0.098875,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0326875,
+            "maxMs": 0.035791,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.033542,
+            "maxMs": 0.061417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0304165,
+            "maxMs": 0.037791,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.030667,
+            "maxMs": 0.035708,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.0,
+        -0.2547984498489475,
+        -3.5345546576169617,
+        -3.2477137176938453,
+        -8.115234228700697
+      ]
+    },
+    {
+      "scenario": "status-update",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.126542,
+            "maxMs": 0.205792,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.120646,
+            "maxMs": 0.172,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.1215,
+            "maxMs": 0.374959,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.12102099999999999,
+            "maxMs": 0.177625,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.12327099999999999,
+            "maxMs": 0.131625,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.1224165,
+            "maxMs": 0.248875,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.1229585,
+            "maxMs": 0.215083,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.12297949999999999,
+            "maxMs": 0.208084,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.118896,
+            "maxMs": 0.126083,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.118542,
+            "maxMs": 0.128375,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -3.2601823900365035,
+        1.9167647497637663,
+        1.2176954732510348,
+        -1.7558936052420537,
+        -3.836263192478362
+      ]
+    },
+    {
+      "scenario": "unchanged-delivery",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.056771,
+            "maxMs": 0.058125,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.058937500000000004,
+            "maxMs": 0.106917,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.059208,
+            "maxMs": 0.141792,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.056333,
+            "maxMs": 0.062,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.059,
+            "maxMs": 0.112458,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.059708,
+            "maxMs": 0.149416,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.059125,
+            "maxMs": 0.1645,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.058833,
+            "maxMs": 0.143,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.058124999999999996,
+            "maxMs": 0.092625,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0588335,
+            "maxMs": 0.120167,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        5.173416004650244,
+        0.31813361611876534,
+        -0.6333603567085455,
+        3.1810839117391243,
+        -0.2822033898305043
+      ]
+    },
+    {
+      "scenario": "warm-reconcile",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.04025,
+            "maxMs": 0.111958,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0395625,
+            "maxMs": 0.056167,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.040416,
+            "maxMs": 0.041666,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.040083,
+            "maxMs": 0.041417,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.040291,
+            "maxMs": 0.041958,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0415205,
+            "maxMs": 0.094292,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.041417,
+            "maxMs": 0.041833,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0415,
+            "maxMs": 0.08025,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.039959,
+            "maxMs": 0.041791,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.040521,
+            "maxMs": 0.095125,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        3.1565217391304357,
+        4.687519747235402,
+        2.6821060965954047,
+        -0.30935808197989356,
+        0.570847087438886
+      ]
+    },
+    {
+      "scenario": "filter-switch",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0494165,
+            "maxMs": 0.1395,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.045479,
+            "maxMs": 0.064542,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0473125,
+            "maxMs": 0.131417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0454375,
+            "maxMs": 0.058958,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0446455,
+            "maxMs": 0.057292,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.044521,
+            "maxMs": 0.056458,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.048979,
+            "maxMs": 0.166042,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.045354,
+            "maxMs": 0.066291,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.047521,
+            "maxMs": 0.081792,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.04375,
+            "maxMs": 0.059291,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -9.906610140337746,
+        7.695859627520396,
+        -4.139498018494059,
+        4.5854195323246305,
+        -2.005801256565609
+      ]
+    },
+    {
+      "scenario": "leave-return",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.012542,
+            "maxMs": 0.049584,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.012,
+            "maxMs": 0.022083,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0122915,
+            "maxMs": 0.058,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.01325,
+            "maxMs": 0.015542,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.013208,
+            "maxMs": 0.01575,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.011708,
+            "maxMs": 0.0155,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.012333,
+            "maxMs": 0.014708,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.012771,
+            "maxMs": 0.018583,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0126455,
+            "maxMs": 0.037375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.012125,
+            "maxMs": 0.017584,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -6.649657151969379,
+        2.774999999999994,
+        3.9010698450148373,
+        -4.562264150943385,
+        -8.199576014536635
+      ]
+    },
+    {
+      "scenario": "keyword-search",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.060396000000000005,
+            "maxMs": 0.088583,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0642505,
+            "maxMs": 0.179708,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0650005,
+            "maxMs": 0.143,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.059208,
+            "maxMs": 0.1555,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.058687,
+            "maxMs": 0.108958,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.052021,
+            "maxMs": 0.0695,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.06689600000000001,
+            "maxMs": 0.156209,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.062708,
+            "maxMs": 0.151292,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0632085,
+            "maxMs": 0.131041,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0643125,
+            "maxMs": 0.110833,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -13.86681237168026,
+        4.117477684998572,
+        -3.526895946954256,
+        6.756688285366841,
+        9.585598173360355
+      ]
+    },
+    {
+      "scenario": "fresh-model",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 3.314334,
+            "maxMs": 3.4305,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 3.122709,
+            "maxMs": 3.21275,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 3.331334,
+            "maxMs": 3.440291,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 3.422417,
+            "maxMs": 3.610791,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 3.331542,
+            "maxMs": 3.523208,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 2.753,
+            "maxMs": 3.152292,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 2.886208,
+            "maxMs": 2.9815,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 2.847542,
+            "maxMs": 2.993708,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 2.901916,
+            "maxMs": 3.017084,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 2.871208,
+            "maxMs": 3.160084,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -16.9365549760525,
+        -7.57358434615586,
+        -14.522470577852598,
+        -15.2085792000215,
+        -13.817445495209114
+      ]
+    },
+    {
+      "scenario": "catalog-admission",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.09008350000000001,
+            "maxMs": 0.169458,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.0972505,
+            "maxMs": 0.136833,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0769585,
+            "maxMs": 0.104166,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.084896,
+            "maxMs": 0.160084,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0779165,
+            "maxMs": 0.1045,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.075521,
+            "maxMs": 0.104458,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.07575,
+            "maxMs": 0.102667,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.092313,
+            "maxMs": 0.112916,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.074354,
+            "maxMs": 0.101167,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.09968750000000001,
+            "maxMs": 0.343792,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -16.165557510531904,
+        -22.10836962277829,
+        19.951662259529492,
+        -12.41754617414248,
+        27.941450142139356
+      ]
+    },
+    {
+      "scenario": "status-update",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.37179150000000005,
+            "maxMs": 0.536791,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.3726455,
+            "maxMs": 0.607667,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.39431249999999995,
+            "maxMs": 1.625333,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.37806249999999997,
+            "maxMs": 0.566334,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.400354,
+            "maxMs": 0.580709,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.3736875,
+            "maxMs": 0.66075,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.37383299999999997,
+            "maxMs": 0.550083,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.382333,
+            "maxMs": 0.653416,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.3813125,
+            "maxMs": 0.567667,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.37283350000000004,
+            "maxMs": 0.540791,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.5099632455287217,
+        0.31866747351032565,
+        -3.038072594705965,
+        0.8596462225161305,
+        -6.874041473296122
+      ]
+    },
+    {
+      "scenario": "unchanged-delivery",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.2705,
+            "maxMs": 0.460417,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.274604,
+            "maxMs": 0.395458,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.2877495,
+            "maxMs": 14.320333,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.2796245,
+            "maxMs": 0.412583,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.2864165,
+            "maxMs": 0.393542,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.28925,
+            "maxMs": 0.435333,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.27304150000000005,
+            "maxMs": 0.414292,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.28489549999999997,
+            "maxMs": 0.397625,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.2799165,
+            "maxMs": 0.435708,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.27875,
+            "maxMs": 0.413375,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        6.931608133086864,
+        -0.5690011798808348,
+        -0.9918349119633629,
+        0.10442575668441201,
+        -2.676696349546903
+      ]
+    },
+    {
+      "scenario": "warm-reconcile",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.2173335,
+            "maxMs": 0.321708,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.21839550000000002,
+            "maxMs": 0.346334,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.233979,
+            "maxMs": 6.586792,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.22441650000000002,
+            "maxMs": 0.378875,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.215646,
+            "maxMs": 0.346333,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.219771,
+            "maxMs": 0.328416,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.214708,
+            "maxMs": 0.374166,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.2200835,
+            "maxMs": 0.357584,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.215854,
+            "maxMs": 0.35525,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.219625,
+            "maxMs": 0.311125,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.1215482196716087,
+        -1.6884505404186512,
+        -5.938780830758317,
+        -3.8154502899742315,
+        1.8451536314144423
+      ]
+    },
+    {
+      "scenario": "filter-switch",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.16368749999999999,
+            "maxMs": 0.314375,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.16722900000000002,
+            "maxMs": 0.348333,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.1792085,
+            "maxMs": 0.681167,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.176729,
+            "maxMs": 0.339,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.17325000000000002,
+            "maxMs": 0.343208,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.170271,
+            "maxMs": 0.311,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.16654200000000002,
+            "maxMs": 0.341166,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.173979,
+            "maxMs": 0.359917,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.1659585,
+            "maxMs": 0.3215,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.17395850000000002,
+            "maxMs": 0.305417,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        4.021993127147772,
+        -0.4108139138546463,
+        -2.918109353071985,
+        -6.094359160069929,
+        0.4089466089466143
+      ]
+    },
+    {
+      "scenario": "leave-return",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.02875,
+            "maxMs": 0.067292,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.028312,
+            "maxMs": 0.1085,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.030292,
+            "maxMs": 0.034125,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.029833,
+            "maxMs": 0.03275,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0295,
+            "maxMs": 0.033958,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.028188,
+            "maxMs": 0.037042,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.027667,
+            "maxMs": 0.04025,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.028708499999999998,
+            "maxMs": 0.071083,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0283545,
+            "maxMs": 0.032458,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.028708,
+            "maxMs": 0.034,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -1.9547826086956488,
+        -2.2781859282283157,
+        -5.227452792816589,
+        -4.955921295209997,
+        -2.68474576271186
+      ]
+    },
+    {
+      "scenario": "keyword-search",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.3300415,
+            "maxMs": 0.447917,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.328646,
+            "maxMs": 0.4725,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.34275,
+            "maxMs": 0.411292,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.3203535,
+            "maxMs": 0.564959,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.350958,
+            "maxMs": 0.4625,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.320521,
+            "maxMs": 0.506166,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.2875415,
+            "maxMs": 0.530834,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.329584,
+            "maxMs": 0.548166,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.27912499999999996,
+            "maxMs": 0.507667,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.295479,
+            "maxMs": 0.501417,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -2.8846372350143756,
+        -12.507226620740852,
+        -3.841283734500367,
+        -12.869689265139927,
+        -15.807874446514969
+      ]
+    },
+    {
+      "scenario": "fresh-model",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 10.764875,
+            "maxMs": 11.370417,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 10.678541,
+            "maxMs": 11.305709,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 10.499084,
+            "maxMs": 10.910959,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 11.012792,
+            "maxMs": 11.130791,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 11.626375,
+            "maxMs": 11.826875,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 9.456541,
+            "maxMs": 9.588625,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 9.170083,
+            "maxMs": 9.441208,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 10.413875,
+            "maxMs": 11.3305,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 9.179041,
+            "maxMs": 9.997292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 8.958333,
+            "maxMs": 9.354459,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -12.153731464601314,
+        -14.126068345853604,
+        -0.8115850868513741,
+        -16.651099920891987,
+        -22.94818462332412
+      ]
+    },
+    {
+      "scenario": "catalog-admission",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.199854,
+            "maxMs": 0.293667,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.26675,
+            "maxMs": 0.357958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.203979,
+            "maxMs": 0.376334,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.20127099999999998,
+            "maxMs": 0.284792,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.23331249999999998,
+            "maxMs": 0.571625,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.217229,
+            "maxMs": 0.46625,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.224104,
+            "maxMs": 0.481167,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.27437500000000004,
+            "maxMs": 0.441791,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.24920799999999999,
+            "maxMs": 0.436084,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.2466665,
+            "maxMs": 0.400667,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        8.693846507950798,
+        -15.987253983130268,
+        34.511395780938244,
+        23.817142062194762,
+        5.723653897669445
+      ]
+    },
+    {
+      "scenario": "status-update",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 1.1263125,
+            "maxMs": 1.47625,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 1.098708,
+            "maxMs": 1.5145,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 1.135021,
+            "maxMs": 1.394875,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 1.084937,
+            "maxMs": 1.34125,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 1.176083,
+            "maxMs": 1.487459,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 1.10775,
+            "maxMs": 1.43925,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 1.0920415,
+            "maxMs": 1.30575,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 1.1291665,
+            "maxMs": 1.440958,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 1.0929585,
+            "maxMs": 1.467875,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 1.0885625,
+            "maxMs": 1.451208,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -1.6480772432162505,
+        -0.6067581195367544,
+        -0.5158054344369001,
+        0.7393516858582583,
+        -7.441694166143032
+      ]
+    },
+    {
+      "scenario": "unchanged-delivery",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.9185,
+            "maxMs": 1.113125,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.8866875000000001,
+            "maxMs": 1.125209,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.932625,
+            "maxMs": 1.047167,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.873896,
+            "maxMs": 1.120541,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.8878125,
+            "maxMs": 1.137917,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.9345,
+            "maxMs": 1.053541,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.8946665,
+            "maxMs": 1.1385,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.9552295,
+            "maxMs": 2.169,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.8856045,
+            "maxMs": 1.076292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.9008125,
+            "maxMs": 1.07675,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.741970604246057,
+        0.8998660745753062,
+        2.4237501675378637,
+        1.3398047364903798,
+        1.4642731432594092
+      ]
+    },
+    {
+      "scenario": "warm-reconcile",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.7093125,
+            "maxMs": 0.924458,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.7237290000000001,
+            "maxMs": 0.944292,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.7288749999999999,
+            "maxMs": 0.955125,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.707625,
+            "maxMs": 0.754208,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.7693125000000001,
+            "maxMs": 0.97875,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.7420415,
+            "maxMs": 0.944041,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.73125,
+            "maxMs": 0.873,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.7503335,
+            "maxMs": 0.95075,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.7456665,
+            "maxMs": 0.883416,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.7297290000000001,
+            "maxMs": 0.926291,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        4.61418627191823,
+        1.0392011374423138,
+        2.9440576230492344,
+        5.375940646528887,
+        -5.145308310991958
+      ]
+    },
+    {
+      "scenario": "filter-switch",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.4521255,
+            "maxMs": 0.864083,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.46462499999999995,
+            "maxMs": 0.939209,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.452,
+            "maxMs": 0.703917,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.4657915,
+            "maxMs": 0.923292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.462917,
+            "maxMs": 0.88,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.483229,
+            "maxMs": 0.885,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.4801875,
+            "maxMs": 0.996833,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.485375,
+            "maxMs": 0.931667,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.461563,
+            "maxMs": 0.873584,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.442708,
+            "maxMs": 0.732916,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        6.87939521217007,
+        3.34947538337369,
+        7.383849557522115,
+        -0.9078096100937905,
+        -4.365577414525723
+      ]
+    },
+    {
+      "scenario": "leave-return",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0760625,
+            "maxMs": 0.078541,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.07143749999999999,
+            "maxMs": 0.078458,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.070333,
+            "maxMs": 0.07275,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.077542,
+            "maxMs": 0.082584,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0781875,
+            "maxMs": 0.082833,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0750005,
+            "maxMs": 0.116542,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.075292,
+            "maxMs": 0.079625,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.0765005,
+            "maxMs": 0.138584,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.0765415,
+            "maxMs": 0.135417,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.073042,
+            "maxMs": 0.150083,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -1.3962202136401092,
+        5.395625546806659,
+        8.76899890520808,
+        -1.2902684996518032,
+        -6.580975219824136
+      ]
+    },
+    {
+      "scenario": "keyword-search",
+      "count": 100,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.945958,
+            "maxMs": 1.35025,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 1.0367295,
+            "maxMs": 1.324666,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.9374165,
+            "maxMs": 1.376375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 1.0254379999999998,
+            "maxMs": 1.387292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.9286460000000001,
+            "maxMs": 1.404,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 1.1929375000000002,
+            "maxMs": 1.598708,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.990208,
+            "maxMs": 1.390041,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.96875,
+            "maxMs": 1.50975,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.910771,
+            "maxMs": 1.39825,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.8837705,
+            "maxMs": 1.412666,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        26.108928726222548,
+        -4.48733252019935,
+        3.3425377086919283,
+        -11.182246025600751,
+        -4.832358078320487
+      ]
+    },
+    {
+      "scenario": "fresh-model",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 54.092958,
+            "maxMs": 56.03625,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 53.440458,
+            "maxMs": 54.122,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 53.973,
+            "maxMs": 55.4385,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 53.735167,
+            "maxMs": 53.978292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 54.54125,
+            "maxMs": 59.288792,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 48.660167,
+            "maxMs": 50.729167,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 46.579458,
+            "maxMs": 46.910541,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 46.918917,
+            "maxMs": 48.537959,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 46.035708,
+            "maxMs": 46.639042,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 46.327583,
+            "maxMs": 47.253625,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -10.043434858933031,
+        -12.83858757348224,
+        -13.06965149241287,
+        -14.328529024577142,
+        -15.059550340338735
+      ]
+    },
+    {
+      "scenario": "catalog-admission",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 1.1282285,
+            "maxMs": 1.917,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 1.004958,
+            "maxMs": 1.42275,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 1.193771,
+            "maxMs": 2.326417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 1.016,
+            "maxMs": 1.838916,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 1.038292,
+            "maxMs": 1.805666,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 1.2279375,
+            "maxMs": 1.803334,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 1.185896,
+            "maxMs": 1.908791,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 1.0437500000000002,
+            "maxMs": 1.81825,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 1.2626249999999999,
+            "maxMs": 1.799417,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 1.1047704999999999,
+            "maxMs": 2.022542,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        8.83766010165492,
+        18.004533522793984,
+        -12.566983114851993,
+        24.274114173228334,
+        6.402678629903713
+      ]
+    },
+    {
+      "scenario": "status-update",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 5.5420625,
+            "maxMs": 6.281209,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 5.4718125,
+            "maxMs": 6.486042,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 5.7681045,
+            "maxMs": 7.214084,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 5.495333499999999,
+            "maxMs": 6.368209,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 5.7503329999999995,
+            "maxMs": 6.5075,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 5.615437,
+            "maxMs": 6.571291,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 5.4827495,
+            "maxMs": 6.54875,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 5.3520625,
+            "maxMs": 6.428167,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 5.432084,
+            "maxMs": 6.123375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 5.433042,
+            "maxMs": 6.385417,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.3239565594938663,
+        0.19987892494488513,
+        -7.212802750019531,
+        -1.1509674526577807,
+        -5.517784796115266
+      ]
+    },
+    {
+      "scenario": "unchanged-delivery",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 5.0121245000000005,
+            "maxMs": 5.478667,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 4.92775,
+            "maxMs": 5.274541,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 5.0742705,
+            "maxMs": 5.762875,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 5.24025,
+            "maxMs": 8.135834,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 4.951979,
+            "maxMs": 5.50725,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 5.1080835,
+            "maxMs": 6.022291,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 4.7757915,
+            "maxMs": 5.587625,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 4.930667,
+            "maxMs": 5.398,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 5.0062505,
+            "maxMs": 5.577417,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 4.8537289999999995,
+            "maxMs": 5.656333,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.9145374381661862,
+        -3.0837298970118,
+        -2.8300324154969747,
+        -4.465426267830718,
+        -1.984055263562312
+      ]
+    },
+    {
+      "scenario": "warm-reconcile",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 4.035083,
+            "maxMs": 4.604208,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 3.856625,
+            "maxMs": 4.629042,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 3.975917,
+            "maxMs": 4.381417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 3.9706455,
+            "maxMs": 4.517208,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 4.087333,
+            "maxMs": 4.70075,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 4.057124999999999,
+            "maxMs": 4.562375,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 3.8888545,
+            "maxMs": 4.629917,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 3.932146,
+            "maxMs": 4.455417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 3.9686665,
+            "maxMs": 4.607959,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 4.062563,
+            "maxMs": 4.524708,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.5462588997549478,
+        0.835691828995544,
+        -1.10090326332265,
+        -0.049840762666930605,
+        -0.6060186434528325
+      ]
+    },
+    {
+      "scenario": "filter-switch",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 2.039146,
+            "maxMs": 4.42525,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 2.131063,
+            "maxMs": 4.428333,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 2.177333,
+            "maxMs": 4.327542,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 2.028604,
+            "maxMs": 4.092542,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 2.189104,
+            "maxMs": 4.537042,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 2.3498545,
+            "maxMs": 4.617709,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 2.1850414999999996,
+            "maxMs": 4.218833,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 2.2693125,
+            "maxMs": 4.212583,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 2.043646,
+            "maxMs": 4.403083,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 2.2743545000000003,
+            "maxMs": 4.248292,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        15.237187528504581,
+        2.5329377873859027,
+        4.224411240724302,
+        0.7414951365569467,
+        3.89431018352715
+      ]
+    },
+    {
+      "scenario": "leave-return",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.325708,
+            "maxMs": 0.408125,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.33387449999999996,
+            "maxMs": 0.453625,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.33797900000000003,
+            "maxMs": 0.534042,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.3169585,
+            "maxMs": 0.449916,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.318917,
+            "maxMs": 0.398167,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.3294165,
+            "maxMs": 0.549125,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.31514600000000004,
+            "maxMs": 0.409083,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.31014549999999996,
+            "maxMs": 0.434042,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.3183335,
+            "maxMs": 0.425041,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.32060449999999996,
+            "maxMs": 0.439792,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        1.1385965343190918,
+        -5.609443069177167,
+        -8.235274972705419,
+        0.4338107354748377,
+        0.5291345397077984
+      ]
+    },
+    {
+      "scenario": "keyword-search",
+      "count": 500,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 4.9425625,
+            "maxMs": 6.716333,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 4.833334000000001,
+            "maxMs": 6.715958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 4.9305835,
+            "maxMs": 6.801208,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 5.838083,
+            "maxMs": 11.79225,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 4.857146,
+            "maxMs": 7.301,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 4.6058959999999995,
+            "maxMs": 6.636792,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 4.783875,
+            "maxMs": 7.141125,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 4.9129585,
+            "maxMs": 7.411375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 4.769812999999999,
+            "maxMs": 7.076292,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 5.1059165,
+            "maxMs": 6.639333,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -6.811578002301455,
+        -1.0232895140290466,
+        -0.3574627627744187,
+        -18.298301000516794,
+        5.121742274166774
+      ]
+    },
+    {
+      "scenario": "layout-initial",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.023833,
+            "maxMs": 0.024291,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.024167,
+            "maxMs": 0.032958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.023792,
+            "maxMs": 0.024417,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.023292,
+            "maxMs": 0.024125,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.022542,
+            "maxMs": 0.023458,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.02225,
+            "maxMs": 0.022791,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.022,
+            "maxMs": 0.023958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.022792,
+            "maxMs": 0.023708,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.022917,
+            "maxMs": 0.023708,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.023375,
+            "maxMs": 0.026709,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -6.642050937775357,
+        -8.966772872098328,
+        -4.203093476798925,
+        -1.6099948480164827,
+        3.6953242835595868
+      ]
+    },
+    {
+      "scenario": "layout-resize",
+      "count": 5,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.030917,
+            "maxMs": 0.035708,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.030167,
+            "maxMs": 0.035958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.03,
+            "maxMs": 0.030125,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.030625,
+            "maxMs": 0.030708,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.029959,
+            "maxMs": 0.030333,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.029708,
+            "maxMs": 0.029875,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.031083,
+            "maxMs": 0.052416,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.029875,
+            "maxMs": 0.03025,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.029959,
+            "maxMs": 0.031041,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.031125,
+            "maxMs": 0.03425,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -3.9104699679787913,
+        3.0364305366791466,
+        -0.4166666666666652,
+        -2.174693877551015,
+        3.8919857138088654
+      ]
+    },
+    {
+      "scenario": "layout-initial",
+      "count": 6,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.0345,
+            "maxMs": 0.036,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.03425,
+            "maxMs": 0.034541,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.034042,
+            "maxMs": 0.034334,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.037292,
+            "maxMs": 0.03975,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.03325,
+            "maxMs": 0.033416,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.034708,
+            "maxMs": 0.03575,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.034458,
+            "maxMs": 0.034708,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.033917,
+            "maxMs": 0.035625,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.034958,
+            "maxMs": 0.035167,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.035083,
+            "maxMs": 0.036167,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.6028985507246398,
+        0.6072992700729918,
+        -0.3671934668938337,
+        -6.258715005899374,
+        5.512781954887225
+      ]
+    },
+    {
+      "scenario": "layout-resize",
+      "count": 6,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.932917,
+            "maxMs": 0.94275,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.9245,
+            "maxMs": 0.945208,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 1.007917,
+            "maxMs": 1.151375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.9765,
+            "maxMs": 0.993,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.937,
+            "maxMs": 0.94975,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.963833,
+            "maxMs": 0.991542,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.933666,
+            "maxMs": 0.947042,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.979125,
+            "maxMs": 1.035041,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.962791,
+            "maxMs": 0.978666,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.957125,
+            "maxMs": 0.963875,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        3.31390681057373,
+        0.9914548404543089,
+        -2.856584421137842,
+        -1.403891449052752,
+        2.147812166488783
+      ]
+    },
+    {
+      "scenario": "layout-initial",
+      "count": 12,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.028209,
+            "maxMs": 0.028375,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.027959,
+            "maxMs": 0.028208,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.028833,
+            "maxMs": 0.028959,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.028792,
+            "maxMs": 0.029375,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.027625,
+            "maxMs": 0.028042,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.028459,
+            "maxMs": 0.028917,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.028291,
+            "maxMs": 0.028958,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.02825,
+            "maxMs": 0.0285,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.029208,
+            "maxMs": 0.0295,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.029167,
+            "maxMs": 0.029417,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.8862419795100829,
+        1.1874530562609564,
+        -2.021988693510912,
+        1.444845790497351,
+        5.581900452488675
+      ]
+    },
+    {
+      "scenario": "layout-resize",
+      "count": 12,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.044959,
+            "maxMs": 0.045459,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.047208,
+            "maxMs": 0.047375,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.047167,
+            "maxMs": 0.0485,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.047791,
+            "maxMs": 0.048125,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.0465,
+            "maxMs": 0.046916,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.046667,
+            "maxMs": 0.06575,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.045459,
+            "maxMs": 0.045583,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.04625,
+            "maxMs": 0.047125,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.046125,
+            "maxMs": 0.048125,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.04625,
+            "maxMs": 0.046375,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        3.7990168820480896,
+        -3.7048805287239417,
+        -1.9441558716899565,
+        -3.4860120106296133,
+        -0.5376344086021501
+      ]
+    },
+    {
+      "scenario": "layout-initial",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.093,
+            "maxMs": 0.0955,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.09275,
+            "maxMs": 0.09325,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.092459,
+            "maxMs": 0.096375,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.095417,
+            "maxMs": 0.096125,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.089833,
+            "maxMs": 0.095417,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.090583,
+            "maxMs": 0.103375,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.090708,
+            "maxMs": 0.122125,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.092625,
+            "maxMs": 0.093166,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.094,
+            "maxMs": 0.096541,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.091583,
+            "maxMs": 0.095375,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        -2.5989247311827945,
+        -2.2016172506738596,
+        0.17953903892535816,
+        -1.485060314199782,
+        1.9480591764718946
+      ]
+    },
+    {
+      "scenario": "layout-resize",
+      "count": 30,
+      "samples": {
+        "round2-scopes": [
+          {
+            "repetition": 1,
+            "medianMs": 0.139584,
+            "maxMs": 0.14225,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.14325,
+            "maxMs": 0.143625,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.148166,
+            "maxMs": 0.21175,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.153667,
+            "maxMs": 0.2095,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.137,
+            "maxMs": 0.137458,
+            "valid": true
+          }
+        ],
+        "round3-tag-keys": [
+          {
+            "repetition": 1,
+            "medianMs": 0.139792,
+            "maxMs": 0.14025,
+            "valid": true
+          },
+          {
+            "repetition": 2,
+            "medianMs": 0.144417,
+            "maxMs": 0.147334,
+            "valid": true
+          },
+          {
+            "repetition": 3,
+            "medianMs": 0.145042,
+            "maxMs": 0.14575,
+            "valid": true
+          },
+          {
+            "repetition": 4,
+            "medianMs": 0.141584,
+            "maxMs": 0.145834,
+            "valid": true
+          },
+          {
+            "repetition": 5,
+            "medianMs": 0.166417,
+            "maxMs": 0.203084,
+            "valid": true
+          }
+        ]
+      },
+      "pairedPercentChanges": [
+        0.14901421366344536,
+        0.8146596858638722,
+        -2.108445932265157,
+        -7.863106587621294,
+        21.472262773722626
+      ]
+    }
+  ],
+  "exclusions": []
+}

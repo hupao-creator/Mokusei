@@ -1,0 +1,1028 @@
+{
+  "schema": 2,
+  "smoke": false,
+  "nativeRecorderHealthy": true,
+  "complete": true,
+  "missingConditions": [],
+  "protocolErrors": [],
+  "validTrial": false,
+  "comparisonValid": false,
+  "hostMonitorErrors": [],
+  "missingMetrics": [
+    "GPU time/utilization attributable to fixture",
+    "rendered frame times/FPS",
+    "presentation hitches",
+    "energy"
+  ],
+  "rows": [
+    {
+      "name": "r1-dark-pan-zoom-off",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 1,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;host-busy-over-40-percent;pair-oracle-mismatch:pointerStart;pair-oracle-mismatch:pointerEnd",
+      "cpuPercentOneCore": 47.03845894056956,
+      "footprintMiBMedian": 40.86035919189453,
+      "footprintMiBPeak": 40.92285919189453,
+      "rssMiBMedian": 95.984375,
+      "wakeLatenessP95Ms": 1.5178916499999997,
+      "wakeLatenessMaxMs": 10.297917,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 70.34659820282414,
+      "seconds": 12.001224375,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r1-dark-pan-zoom-on",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 1,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;pointer-moved-over-window;pair-oracle-mismatch:pointerStart;pair-oracle-mismatch:pointerEnd",
+      "cpuPercentOneCore": 42.56807071812758,
+      "footprintMiBMedian": 40.71973419189453,
+      "footprintMiBPeak": 44.64160919189453,
+      "rssMiBMedian": 98.3125,
+      "wakeLatenessP95Ms": 1.6154568999999996,
+      "wakeLatenessMaxMs": 14.484792,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 32.89539748953975,
+      "seconds": 12.001236875,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r1-dark-static-off",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 0.4814980050623287,
+      "footprintMiBMedian": 41.61035919189453,
+      "footprintMiBPeak": 41.61035919189453,
+      "rssMiBMedian": 96.546875,
+      "wakeLatenessP95Ms": 3.42821285,
+      "wakeLatenessMaxMs": 3.609084,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 24.543780344885317,
+      "seconds": 12.000880459,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": true
+    },
+    {
+      "name": "r1-dark-static-on",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 0.49696728089079717,
+      "footprintMiBMedian": 41.56348419189453,
+      "footprintMiBPeak": 41.57910919189453,
+      "rssMiBMedian": 96.5,
+      "wakeLatenessP95Ms": 3.42549165,
+      "wakeLatenessMaxMs": 3.648458,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 26.531637094074323,
+      "seconds": 12.003405917,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": true
+    },
+    {
+      "name": "r1-light-pan-zoom-off",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 38.09261706889177,
+      "footprintMiBMedian": 40.54785919189453,
+      "footprintMiBPeak": 40.56348419189453,
+      "rssMiBMedian": 90.296875,
+      "wakeLatenessP95Ms": 1.3793822,
+      "wakeLatenessMaxMs": 3.720417,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 24.732262382864793,
+      "seconds": 12.001231083,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": true
+    },
+    {
+      "name": "r1-light-pan-zoom-on",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 39.31168714950132,
+      "footprintMiBMedian": 40.59473419189453,
+      "footprintMiBPeak": 40.59473419189453,
+      "rssMiBMedian": 90.21875,
+      "wakeLatenessP95Ms": 1.32201735,
+      "wakeLatenessMaxMs": 3.410584,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 27.818227466733617,
+      "seconds": 12.001354666,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": true
+    },
+    {
+      "name": "r1-light-static-off",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 0.478706008017298,
+      "footprintMiBMedian": 40.56348419189453,
+      "footprintMiBPeak": 40.56348419189453,
+      "rssMiBMedian": 90.21875,
+      "wakeLatenessP95Ms": 3.4323374999999996,
+      "wakeLatenessMaxMs": 3.639291,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 23.3821682712432,
+      "seconds": 12.000476083,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": true
+    },
+    {
+      "name": "r1-light-static-on",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 1,
+      "valid": true,
+      "invalidReasons": "",
+      "cpuPercentOneCore": 0.5480625185084416,
+      "footprintMiBMedian": 40.50098419189453,
+      "footprintMiBPeak": 40.51660919189453,
+      "rssMiBMedian": 90.015625,
+      "wakeLatenessP95Ms": 3.4402961999999997,
+      "wakeLatenessMaxMs": 3.552833,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 33.69328645571739,
+      "seconds": 12.003557583,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": true
+    },
+    {
+      "name": "r2-dark-pan-zoom-off",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;pointer-moved-over-window;host-busy-over-40-percent;pair-oracle-mismatch:pointerStart;pair-oracle-mismatch:pointerEnd",
+      "cpuPercentOneCore": 45.796450662636516,
+      "footprintMiBMedian": 40.93848419189453,
+      "footprintMiBPeak": 40.96973419189453,
+      "rssMiBMedian": 76.84375,
+      "wakeLatenessP95Ms": 1.6742794999999997,
+      "wakeLatenessMaxMs": 16.234,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 64.74579110478264,
+      "seconds": 12.003148542,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-dark-pan-zoom-on",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;pair-oracle-mismatch:pointerStart;pair-oracle-mismatch:pointerEnd",
+      "cpuPercentOneCore": 44.19241312666173,
+      "footprintMiBMedian": 40.70410919189453,
+      "footprintMiBPeak": 40.70410919189453,
+      "rssMiBMedian": 72.015625,
+      "wakeLatenessP95Ms": 1.4443107499999999,
+      "wakeLatenessMaxMs": 13.506918,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 34.776204893216594,
+      "seconds": 12.001403917,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-dark-static-off",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.48438167538417565,
+      "footprintMiBMedian": 40.70410919189453,
+      "footprintMiBPeak": 40.70410919189453,
+      "rssMiBMedian": 71.609375,
+      "wakeLatenessP95Ms": 3.4299809499999996,
+      "wakeLatenessMaxMs": 3.863333,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 24.925764192139738,
+      "seconds": 12.002518459,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-dark-static-on",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.48058275846234616,
+      "footprintMiBMedian": 40.65723419189453,
+      "footprintMiBPeak": 40.65723419189453,
+      "rssMiBMedian": 71.765625,
+      "wakeLatenessP95Ms": 3.45329615,
+      "wakeLatenessMaxMs": 4.695083,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 23.752929360562437,
+      "seconds": 12.001679,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-light-pan-zoom-off",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 45.03925050861309,
+      "footprintMiBMedian": 40.89160919189453,
+      "footprintMiBPeak": 40.92285919189453,
+      "rssMiBMedian": 78.296875,
+      "wakeLatenessP95Ms": 1.2982180999999997,
+      "wakeLatenessMaxMs": 5.405833,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 37.749895441237975,
+      "seconds": 12.001325375,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-light-pan-zoom-on",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 51.80940426249596,
+      "footprintMiBMedian": 40.90723419189453,
+      "footprintMiBPeak": 40.93848419189453,
+      "rssMiBMedian": 78.328125,
+      "wakeLatenessP95Ms": 1.3374666999999996,
+      "wakeLatenessMaxMs": 11.336459,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 28.430388219544845,
+      "seconds": 12.000856,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-light-static-off",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;host-busy-over-40-percent",
+      "cpuPercentOneCore": 0.49007746424698756,
+      "footprintMiBMedian": 40.90723419189453,
+      "footprintMiBPeak": 40.90723419189453,
+      "rssMiBMedian": 78.34375,
+      "wakeLatenessP95Ms": 3.4342333,
+      "wakeLatenessMaxMs": 3.619875,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 40.703223105902055,
+      "seconds": 12.0034085,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r2-light-static-on",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 2,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.46326427381705654,
+      "footprintMiBMedian": 40.90723419189453,
+      "footprintMiBPeak": 40.90723419189453,
+      "rssMiBMedian": 78.34375,
+      "wakeLatenessP95Ms": 3.4193306,
+      "wakeLatenessMaxMs": 3.580958,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 27.679692075976906,
+      "seconds": 12.003299875,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-dark-pan-zoom-off",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 46.4279181583718,
+      "footprintMiBMedian": 40.98535919189453,
+      "footprintMiBPeak": 40.98535919189453,
+      "rssMiBMedian": 78.828125,
+      "wakeLatenessP95Ms": 1.3043916499999997,
+      "wakeLatenessMaxMs": 5.95375,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 27.91164658634538,
+      "seconds": 12.001001167,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-dark-pan-zoom-on",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 47.880384986654896,
+      "footprintMiBMedian": 40.98535919189453,
+      "footprintMiBPeak": 40.98535919189453,
+      "rssMiBMedian": 78.8125,
+      "wakeLatenessP95Ms": 1.343567649999999,
+      "wakeLatenessMaxMs": 11.578,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 25.75466176101681,
+      "seconds": 12.001286125,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-dark-static-off",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;pair-oracle-mismatch:pointerStart",
+      "cpuPercentOneCore": 0.45795036049815546,
+      "footprintMiBMedian": 40.95410919189453,
+      "footprintMiBPeak": 40.95410919189453,
+      "rssMiBMedian": 78.8125,
+      "wakeLatenessP95Ms": 3.43749795,
+      "wakeLatenessMaxMs": 3.58075,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 33.137977227059615,
+      "seconds": 12.001082375,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-dark-static-on",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost;pointer-moved-over-window;pair-oracle-mismatch:pointerStart",
+      "cpuPercentOneCore": 0.4513901191457704,
+      "footprintMiBMedian": 40.98535919189453,
+      "footprintMiBPeak": 40.98535919189453,
+      "rssMiBMedian": 78.796875,
+      "wakeLatenessP95Ms": 3.4212271,
+      "wakeLatenessMaxMs": 4.733167,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 29.010381781647688,
+      "seconds": 12.003364208,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-light-pan-zoom-off",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 49.48132098076784,
+      "footprintMiBMedian": 40.84473419189453,
+      "footprintMiBPeak": 40.84473419189453,
+      "rssMiBMedian": 78.453125,
+      "wakeLatenessP95Ms": 1.2988714999999997,
+      "wakeLatenessMaxMs": 10.3305,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 24.22038291112783,
+      "seconds": 12.001357042,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-light-pan-zoom-on",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 45.123315941932226,
+      "footprintMiBMedian": 40.89160919189453,
+      "footprintMiBPeak": 40.89160919189453,
+      "rssMiBMedian": 78.453125,
+      "wakeLatenessP95Ms": 1.4466795,
+      "wakeLatenessMaxMs": 4.786334,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 26.028428093645484,
+      "seconds": 12.003643542,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-light-static-off",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.49305214067062464,
+      "footprintMiBMedian": 40.86035919189453,
+      "footprintMiBPeak": 40.86035919189453,
+      "rssMiBMedian": 78.453125,
+      "wakeLatenessP95Ms": 3.4179190999999998,
+      "wakeLatenessMaxMs": 3.524209,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 22.246401071309005,
+      "seconds": 12.001976083,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r3-light-static-on",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 3,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.46463213849410573,
+      "footprintMiBMedian": 40.90723419189453,
+      "footprintMiBPeak": 40.90723419189453,
+      "rssMiBMedian": 78.453125,
+      "wakeLatenessP95Ms": 3.44250625,
+      "wakeLatenessMaxMs": 3.595584,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 23.236549242741194,
+      "seconds": 12.000246083,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-dark-pan-zoom-off",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 47.16215137365362,
+      "footprintMiBMedian": 40.98535919189453,
+      "footprintMiBPeak": 40.98535919189453,
+      "rssMiBMedian": 78.828125,
+      "wakeLatenessP95Ms": 1.32644105,
+      "wakeLatenessMaxMs": 12.069708,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 25.31137674496364,
+      "seconds": 12.001320625,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-dark-pan-zoom-on",
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 45.37858857228944,
+      "footprintMiBMedian": 40.95410919189453,
+      "footprintMiBPeak": 40.95410919189453,
+      "rssMiBMedian": 78.828125,
+      "wakeLatenessP95Ms": 1.4168461499999998,
+      "wakeLatenessMaxMs": 6.76125,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 28.11140849782536,
+      "seconds": 12.001356083,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-dark-static-off",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.4513751521586518,
+      "footprintMiBMedian": 40.98535919189453,
+      "footprintMiBPeak": 40.98535919189453,
+      "rssMiBMedian": 78.828125,
+      "wakeLatenessP95Ms": 3.3615607499999998,
+      "wakeLatenessMaxMs": 3.51825,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 24.495604855588113,
+      "seconds": 12.0002175,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-dark-static-on",
+      "appearance": "dark",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.48453227701248236,
+      "footprintMiBMedian": 40.95410919189453,
+      "footprintMiBPeak": 40.95410919189453,
+      "rssMiBMedian": 78.828125,
+      "wakeLatenessP95Ms": 3.42620865,
+      "wakeLatenessMaxMs": 3.634,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 30.615384615384617,
+      "seconds": 12.001058084,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-light-pan-zoom-off",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "off",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 45.17863424126362,
+      "footprintMiBMedian": 41.01660919189453,
+      "footprintMiBPeak": 41.01660919189453,
+      "rssMiBMedian": 79.171875,
+      "wakeLatenessP95Ms": 1.2504482499999998,
+      "wakeLatenessMaxMs": 2.066251,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 34.622316893331146,
+      "seconds": 12.001387583,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-light-pan-zoom-on",
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "material": "on",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 49.0169352897957,
+      "footprintMiBMedian": 41.03223419189453,
+      "footprintMiBPeak": 41.03223419189453,
+      "rssMiBMedian": 79.203125,
+      "wakeLatenessP95Ms": 1.3523399,
+      "wakeLatenessMaxMs": 11.636459,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 26.751965211573843,
+      "seconds": 12.001392917,
+      "deliveredActions": 720,
+      "expectedActions": 720,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-light-static-off",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "off",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.47282280708890284,
+      "footprintMiBMedian": 41.03223419189453,
+      "footprintMiBPeak": 41.03223419189453,
+      "rssMiBMedian": 79.203125,
+      "wakeLatenessP95Ms": 3.3915881499999996,
+      "wakeLatenessMaxMs": 3.493792,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 25.341146923398913,
+      "seconds": 12.001536125,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    },
+    {
+      "name": "r4-light-static-on",
+      "appearance": "light",
+      "scenario": "static",
+      "material": "on",
+      "repetition": 4,
+      "valid": false,
+      "invalidReasons": "application-inactive;key-window-lost",
+      "cpuPercentOneCore": 0.4496138046311046,
+      "footprintMiBMedian": 41.03223419189453,
+      "footprintMiBPeak": 41.03223419189453,
+      "rssMiBMedian": 79.203125,
+      "wakeLatenessP95Ms": 3.395325,
+      "wakeLatenessMaxMs": 3.454916,
+      "wakeLatenessOverPeriodCount": 0,
+      "wakeLatenessOver50msCount": 0,
+      "hostBusyPercent": 21.405857740585773,
+      "seconds": 12.003412583,
+      "deliveredActions": 0,
+      "expectedActions": 0,
+      "includedInPair": false
+    }
+  ],
+  "groups": [
+    {
+      "appearance": "light",
+      "scenario": "static",
+      "validPairs": 1,
+      "metrics": {
+        "cpuPercentOneCore": {
+          "onMedian": 0.5480625185084416,
+          "offMedian": 0.478706008017298,
+          "onRange": [
+            0.5480625185084416,
+            0.5480625185084416
+          ],
+          "offRange": [
+            0.478706008017298,
+            0.478706008017298
+          ],
+          "pairedOffMinusOnMedian": -0.06935651049114355,
+          "pairedDeltaRange": [
+            -0.06935651049114355,
+            -0.06935651049114355
+          ],
+          "pairedDeltaPercentMedian": -12.654853807536062
+        },
+        "footprintMiBMedian": {
+          "onMedian": 40.50098419189453,
+          "offMedian": 40.56348419189453,
+          "onRange": [
+            40.50098419189453,
+            40.50098419189453
+          ],
+          "offRange": [
+            40.56348419189453,
+            40.56348419189453
+          ],
+          "pairedOffMinusOnMedian": 0.0625,
+          "pairedDeltaRange": [
+            0.0625,
+            0.0625
+          ],
+          "pairedDeltaPercentMedian": 0.15431723758581684
+        },
+        "rssMiBMedian": {
+          "onMedian": 90.015625,
+          "offMedian": 90.21875,
+          "onRange": [
+            90.015625,
+            90.015625
+          ],
+          "offRange": [
+            90.21875,
+            90.21875
+          ],
+          "pairedOffMinusOnMedian": 0.203125,
+          "pairedDeltaRange": [
+            0.203125,
+            0.203125
+          ],
+          "pairedDeltaPercentMedian": 0.2256552681826072
+        },
+        "wakeLatenessP95Ms": {
+          "onMedian": 3.4402961999999997,
+          "offMedian": 3.4323374999999996,
+          "onRange": [
+            3.4402961999999997,
+            3.4402961999999997
+          ],
+          "offRange": [
+            3.4323374999999996,
+            3.4323374999999996
+          ],
+          "pairedOffMinusOnMedian": -0.007958700000000096,
+          "pairedDeltaRange": [
+            -0.007958700000000096,
+            -0.007958700000000096
+          ],
+          "pairedDeltaPercentMedian": -0.23133763889284
+        },
+        "hostBusyPercent": {
+          "onMedian": 33.69328645571739,
+          "offMedian": 23.3821682712432,
+          "onRange": [
+            33.69328645571739,
+            33.69328645571739
+          ],
+          "offRange": [
+            23.3821682712432,
+            23.3821682712432
+          ],
+          "pairedOffMinusOnMedian": -10.311118184474193,
+          "pairedDeltaRange": [
+            -10.311118184474193,
+            -10.311118184474193
+          ],
+          "pairedDeltaPercentMedian": -30.6028864178208
+        }
+      }
+    },
+    {
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "validPairs": 1,
+      "metrics": {
+        "cpuPercentOneCore": {
+          "onMedian": 39.31168714950132,
+          "offMedian": 38.09261706889177,
+          "onRange": [
+            39.31168714950132,
+            39.31168714950132
+          ],
+          "offRange": [
+            38.09261706889177,
+            38.09261706889177
+          ],
+          "pairedOffMinusOnMedian": -1.2190700806095478,
+          "pairedDeltaRange": [
+            -1.2190700806095478,
+            -1.2190700806095478
+          ],
+          "pairedDeltaPercentMedian": -3.1010372970599205
+        },
+        "footprintMiBMedian": {
+          "onMedian": 40.59473419189453,
+          "offMedian": 40.54785919189453,
+          "onRange": [
+            40.59473419189453,
+            40.59473419189453
+          ],
+          "offRange": [
+            40.54785919189453,
+            40.54785919189453
+          ],
+          "pairedOffMinusOnMedian": -0.046875,
+          "pairedDeltaRange": [
+            -0.046875,
+            -0.046875
+          ],
+          "pairedDeltaPercentMedian": -0.11547064153300808
+        },
+        "rssMiBMedian": {
+          "onMedian": 90.21875,
+          "offMedian": 90.296875,
+          "onRange": [
+            90.21875,
+            90.21875
+          ],
+          "offRange": [
+            90.296875,
+            90.296875
+          ],
+          "pairedOffMinusOnMedian": 0.078125,
+          "pairedDeltaRange": [
+            0.078125,
+            0.078125
+          ],
+          "pairedDeltaPercentMedian": 0.08659508139937652
+        },
+        "wakeLatenessP95Ms": {
+          "onMedian": 1.32201735,
+          "offMedian": 1.3793822,
+          "onRange": [
+            1.32201735,
+            1.32201735
+          ],
+          "offRange": [
+            1.3793822,
+            1.3793822
+          ],
+          "pairedOffMinusOnMedian": 0.05736484999999991,
+          "pairedDeltaRange": [
+            0.05736484999999991,
+            0.05736484999999991
+          ],
+          "pairedDeltaPercentMedian": 4.339190404725015
+        },
+        "hostBusyPercent": {
+          "onMedian": 27.818227466733617,
+          "offMedian": 24.732262382864793,
+          "onRange": [
+            27.818227466733617,
+            27.818227466733617
+          ],
+          "offRange": [
+            24.732262382864793,
+            24.732262382864793
+          ],
+          "pairedOffMinusOnMedian": -3.0859650838688246,
+          "pairedDeltaRange": [
+            -3.0859650838688246,
+            -3.0859650838688246
+          ],
+          "pairedDeltaPercentMedian": -11.093320333077191
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "scenario": "static",
+      "validPairs": 1,
+      "metrics": {
+        "cpuPercentOneCore": {
+          "onMedian": 0.49696728089079717,
+          "offMedian": 0.4814980050623287,
+          "onRange": [
+            0.49696728089079717,
+            0.49696728089079717
+          ],
+          "offRange": [
+            0.4814980050623287,
+            0.4814980050623287
+          ],
+          "pairedOffMinusOnMedian": -0.015469275828468465,
+          "pairedDeltaRange": [
+            -0.015469275828468465,
+            -0.015469275828468465
+          ],
+          "pairedDeltaPercentMedian": -3.112735269159029
+        },
+        "footprintMiBMedian": {
+          "onMedian": 41.56348419189453,
+          "offMedian": 41.61035919189453,
+          "onRange": [
+            41.56348419189453,
+            41.56348419189453
+          ],
+          "offRange": [
+            41.61035919189453,
+            41.61035919189453
+          ],
+          "pairedOffMinusOnMedian": 0.046875,
+          "pairedDeltaRange": [
+            0.046875,
+            0.046875
+          ],
+          "pairedDeltaPercentMedian": 0.11277928429576001
+        },
+        "rssMiBMedian": {
+          "onMedian": 96.5,
+          "offMedian": 96.546875,
+          "onRange": [
+            96.5,
+            96.5
+          ],
+          "offRange": [
+            96.546875,
+            96.546875
+          ],
+          "pairedOffMinusOnMedian": 0.046875,
+          "pairedDeltaRange": [
+            0.046875,
+            0.046875
+          ],
+          "pairedDeltaPercentMedian": 0.048575129533678756
+        },
+        "wakeLatenessP95Ms": {
+          "onMedian": 3.42549165,
+          "offMedian": 3.42821285,
+          "onRange": [
+            3.42549165,
+            3.42549165
+          ],
+          "offRange": [
+            3.42821285,
+            3.42821285
+          ],
+          "pairedOffMinusOnMedian": 0.002721199999999868,
+          "pairedDeltaRange": [
+            0.002721199999999868,
+            0.002721199999999868
+          ],
+          "pairedDeltaPercentMedian": 0.0794396915257367
+        },
+        "hostBusyPercent": {
+          "onMedian": 26.531637094074323,
+          "offMedian": 24.543780344885317,
+          "onRange": [
+            26.531637094074323,
+            26.531637094074323
+          ],
+          "offRange": [
+            24.543780344885317,
+            24.543780344885317
+          ],
+          "pairedOffMinusOnMedian": -1.9878567491890067,
+          "pairedDeltaRange": [
+            -1.9878567491890067,
+            -1.9878567491890067
+          ],
+          "pairedDeltaPercentMedian": -7.492401400413328
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "validPairs": 0,
+      "metrics": {
+        "cpuPercentOneCore": null,
+        "footprintMiBMedian": null,
+        "rssMiBMedian": null,
+        "wakeLatenessP95Ms": null,
+        "hostBusyPercent": null
+      }
+    }
+  ]
+}

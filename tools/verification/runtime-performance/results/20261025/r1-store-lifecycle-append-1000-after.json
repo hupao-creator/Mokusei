@@ -1,0 +1,147 @@
+{
+  "startedAt": "2026-10-25T06:25:09.355708Z",
+  "scenario": "store-lifecycle-append",
+  "sourceLabel": "after",
+  "records": 1000,
+  "warmupOperations": 1,
+  "goos": "darwin",
+  "goarch": "arm64",
+  "goVersion": "go1.27.3",
+  "gomaxprocs": 4,
+  "executableSHA256": "7df99b4c546d0724007dbbd3fc5057d433b02bbbf03dfb3344902a878da88e39",
+  "build": {
+    "GoVersion": "go1.27.3",
+    "Path": "github.com/xinyuan0801/OpenAgent/tools/verification/runtime-performance",
+    "Main": {
+      "Path": "github.com/xinyuan0801/OpenAgent",
+      "Version": "v0.0.0-20261025044408-c17a3fcb270b+dirty"
+    },
+    "Deps": [
+      {
+        "Path": "github.com/bits-and-blooms/bitset",
+        "Version": "v1.20.0",
+        "Sum": "h1:2F+rfL86jE2d/bmw7OhqUg2Sj/1rURkBn3MdfoPyRVU="
+      },
+      {
+        "Path": "github.com/dlclark/regexp2",
+        "Version": "v1.12.0",
+        "Sum": "h1:0j4c5qQmnC6XOWNjP3PIXURXN2gWx76rd3KvgdPkCz8="
+      },
+      {
+        "Path": "github.com/nlnwa/whatwg-url",
+        "Version": "v0.6.2",
+        "Sum": "h1:jU61lU2ig4LANydbEJmA2nPrtCGiKdtgT0rmMd2VZ/Q="
+      },
+      {
+        "Path": "golang.org/x/net",
+        "Version": "v0.55.0",
+        "Sum": "h1:bcvxaJn3e1U6InsFWt1JUq1aSjnRxLzT2rtD2KfkDF8="
+      },
+      {
+        "Path": "golang.org/x/text",
+        "Version": "v0.43.0",
+        "Sum": "h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc="
+      }
+    ],
+    "Settings": [
+      {
+        "Key": "-buildmode",
+        "Value": "exe"
+      },
+      {
+        "Key": "-compiler",
+        "Value": "gc"
+      },
+      {
+        "Key": "-trimpath",
+        "Value": "true"
+      },
+      {
+        "Key": "CGO_ENABLED",
+        "Value": "1"
+      },
+      {
+        "Key": "GOARCH",
+        "Value": "arm64"
+      },
+      {
+        "Key": "GOOS",
+        "Value": "darwin"
+      },
+      {
+        "Key": "GOARM64",
+        "Value": "v8.0"
+      },
+      {
+        "Key": "vcs",
+        "Value": "git"
+      },
+      {
+        "Key": "vcs.revision",
+        "Value": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd"
+      },
+      {
+        "Key": "vcs.time",
+        "Value": "2026-10-25T04:44:08Z"
+      },
+      {
+        "Key": "vcs.modified",
+        "Value": "true"
+      }
+    ]
+  },
+  "profiled": false,
+  "measurements": [
+    {
+      "sample": 1,
+      "operations": 20,
+      "wallNs": 19261833,
+      "userCpuNs": 1809000,
+      "systemCpuNs": 3385000,
+      "nsPerOperation": 963091.65,
+      "operationsPerSecond": 1038.3227805993336,
+      "medianNs": 949958,
+      "p95Ns": 1208208,
+      "allocatedBytes": 1138920,
+      "allocations": 728,
+      "bytesPerOperation": 56946,
+      "allocsPerOperation": 36.4,
+      "liveHeapDeltaBytes": 6848,
+      "processHighWaterRSSBytes": 27262976
+    },
+    {
+      "sample": 2,
+      "operations": 20,
+      "wallNs": 40191875,
+      "userCpuNs": 1944000,
+      "systemCpuNs": 3119000,
+      "nsPerOperation": 2009593.75,
+      "operationsPerSecond": 497.61301258027896,
+      "medianNs": 873792,
+      "p95Ns": 1190458,
+      "allocatedBytes": 1151800,
+      "allocations": 770,
+      "bytesPerOperation": 57590,
+      "allocsPerOperation": 38.5,
+      "liveHeapDeltaBytes": 9928,
+      "processHighWaterRSSBytes": 27885568
+    },
+    {
+      "sample": 3,
+      "operations": 20,
+      "wallNs": 69939625,
+      "userCpuNs": 2084000,
+      "systemCpuNs": 3266000,
+      "nsPerOperation": 3496981.25,
+      "operationsPerSecond": 285.96092701383515,
+      "medianNs": 906459,
+      "p95Ns": 21556000,
+      "allocatedBytes": 1145520,
+      "allocations": 750,
+      "bytesPerOperation": 57276,
+      "allocsPerOperation": 37.5,
+      "liveHeapDeltaBytes": 3864,
+      "processHighWaterRSSBytes": 28278784
+    }
+  ]
+}

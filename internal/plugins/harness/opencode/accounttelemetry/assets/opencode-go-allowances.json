@@ -1,0 +1,227 @@
+{
+  "source": "https://raw.githubusercontent.com/anomalyco/opencode/388406238bd5ca15564a762840a2362c3a45bd9c/packages/console/app/src/component/go-models.ts",
+  "docsSource": "https://raw.githubusercontent.com/anomalyco/opencode/388406238bd5ca15564a762840a2362c3a45bd9c/packages/web/src/content/docs/go.mdx",
+  "verifiedAt": "2026-10-09",
+  "models": [
+    {
+      "id": "claude-haiku-5-5",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "deepseek-flash",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "deepseek-v4-flash",
+      "monthlyUsd": {
+        "go": 30,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "deepseek-v4-flash-vision-exp",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "deepseek-v4.1-flash",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "glm-5.2",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 180
+      }
+    },
+    {
+      "id": "glm-5.3",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "glm-5.3-flash",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 180
+      }
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "gpt-6-luna",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "grok-4.6",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "grok-4.7",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "hy3",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 240
+      }
+    },
+    {
+      "id": "hy4-preview",
+      "monthlyUsd": {
+        "go": 30,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "kimi-k2.7-code",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 180
+      }
+    },
+    {
+      "id": "kimi-k3",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "longcat-2.0",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 240
+      }
+    },
+    {
+      "id": "longcat-2.5-preview-free",
+      "monthlyUsd": null,
+      "limitedTimeFree": true
+    },
+    {
+      "id": "mimo-v2.5",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "mimo-v2.5-pro",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "mimo-v2.6-flash",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "mimo-v2.6-pro",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "minimax-m2.7",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 240
+      }
+    },
+    {
+      "id": "minimax-m3",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 180
+      }
+    },
+    {
+      "id": "muse-spark-1.2-contributor",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "muse-spark-1.3-contributor",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "qwen3.7-plus",
+      "monthlyUsd": {
+        "go": 60,
+        "goPlus": 180
+      }
+    },
+    {
+      "id": "qwen3.8-flash",
+      "monthlyUsd": {
+        "go": 30,
+        "goPlus": 90
+      }
+    },
+    {
+      "id": "qwen3.8-max",
+      "monthlyUsd": {
+        "go": 15,
+        "goPlus": 60
+      }
+    },
+    {
+      "id": "space-bunny",
+      "monthlyUsd": {
+        "go": 30,
+        "goPlus": 120
+      }
+    },
+    {
+      "id": "step-5-preview-free",
+      "monthlyUsd": null,
+      "limitedTimeFree": true
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+--- a/app/macos/Sources/Host/Overview/NativeOverviewChrome.swift
++++ b/app/macos/Sources/Host/Overview/NativeOverviewChrome.swift
+@@ -448,6 +448,7 @@
+
+     private func setHoveredScope(_ scope: String?) {
+         guard hoveredScope != scope else { return }
++        print("TAGTRACE", ProcessInfo.processInfo.systemUptime, "scope", hoveredScope ?? "nil", "->", scope ?? "nil")
+         var transaction = Transaction(animation: reduceMotion ? nil : scope == nil
+             ? .easeInOut(duration: 0.32) : .smooth(duration: 0.22, extraBounce: 0))
+         transaction.disablesAnimations = reduceMotion
+@@ -505,6 +506,7 @@
+     }
+
+     private func scheduleHoverClear() {
++        print("TAGTRACE", ProcessInfo.processInfo.systemUptime, "schedule close", hoveredScope ?? "nil", "pointer", NSEvent.mouseLocation)
+         hoverClearTask?.cancel()
+         hoverClearTask = Task { @MainActor in
+             do { try await Task.sleep(for: .milliseconds(180)) }
+--- a/app/macos/Tests/Integration/Host/NativeOverviewTagGlassTests.swift
++++ b/app/macos/Tests/Integration/Host/NativeOverviewTagGlassTests.swift
+@@ -456,6 +456,15 @@
+             for selected in parent.children {
+                 try Self.action("按标签筛选", id: parent.id, in: root)
+                 try await SwiftUIReplay.wait { Self.element(id: selected.id, in: root) != nil && fixture.bounds[selected.id] != nil }
++                if ProcessInfo.processInfo.environment["MOKUSEI_TAG_HOVER_CHALLENGE"] == "1" {
++                    let source = try #require(fixture.bounds[parent.id])
++                    let local = root.convert(CGPoint(x: source.midX, y: root.isFlipped ? source.midY : root.bounds.height - source.midY), to: nil)
++                    let safe = window.frame.origin
++                    let pointer = NSEvent.mouseLocation
++                    window.setFrameOrigin(CGPoint(x: pointer.x - local.x, y: pointer.y - local.y))
++                    try await Task.sleep(for: .milliseconds(80))
++                    window.setFrameOrigin(safe)
++                }
+                 try await Task.sleep(for: .milliseconds(300))
+                 let before = try #require(fixture.bounds[parent.id])
+                 let oldTitle = Self.string("accessibilityValue", on: try #require(Self.element(id: parent.id, in: root)))
+@@ -494,7 +503,9 @@
+                     expected = NativeOverviewCameraGeometry.pan(expected, deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY)
+                     #expect(fixture.canvas.camera.liveTransform == expected)
+                 }
+-                let childElement = try #require(Self.element(id: selected.id, in: root))
++                let foundChild = Self.element(id: selected.id, in: root)
++                print("AXCHECK", width, selected.id, "scope", fixture.interactions.openScope ?? "nil", "mounted", fixture.interactions.mountedMenuIDs, "found", foundChild != nil)
++                let childElement = try #require(foundChild)
+                 _ = childElement.perform(NSSelectorFromString("accessibilityPerformPress"))
+                 if !reduceMotion {
+                     try await Task.sleep(for: .milliseconds(30))

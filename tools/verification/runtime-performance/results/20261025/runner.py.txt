@@ -1,0 +1,108 @@
+from pathlib import Path
+import datetime, hashlib, json, os, platform, re, subprocess, threading, time
+
+root = Path(__file__).resolve().parent
+out = Path("tools/verification/runtime-performance/results/20261025").resolve()
+out.mkdir(parents=True, exist_ok=True)
+env = dict(os.environ, GOMAXPROCS="4")
+metadata = {"startedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "baseCommit": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+            "gomaxprocs": 4, "platform": platform.platform(), "runs": []}
+metadata["hardware"] = subprocess.check_output(["sysctl", "-n", "hw.model", "machdep.cpu.brand_string", "hw.ncpu", "hw.memsize"], text=True).splitlines()
+metadata["binaries"] = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in ["before", "after", "moku-before", "moku-after", "codex-before", "codex-after"]}
+
+manifest_path = out / "manifest.json"
+if manifest_path.exists():
+    existing = json.loads(manifest_path.read_text())
+    if existing["binaries"] != metadata["binaries"]:
+        raise SystemExit("Cannot resume with different binaries")
+    metadata = existing
+    metadata.setdefault("resumes", []).append(datetime.datetime.now(datetime.timezone.utc).isoformat())
+    for attempt_index, row in enumerate(metadata["runs"]):
+        if row["overlaps"] and not row.get("excluded"):
+            excluded = out / "excluded"
+            excluded.mkdir(exist_ok=True)
+            for suffix in [".json", ".stderr.txt"]:
+                file = out / (row["name"] + suffix)
+                if file.exists():
+                    file.rename(excluded / (str(attempt_index) + "-" + file.name))
+            row["excluded"] = True
+    manifest_path.write_text(json.dumps(metadata, indent=2) + "\n")
+
+def processes():
+    raw = subprocess.check_output(["ps", "-axo", "pid=,pcpu=,comm="], text=True)
+    rows = []
+    for line in raw.splitlines():
+        columns = line.strip().split(None, 2)
+        if len(columns) == 3:
+            rows.append({"pid": int(columns[0]), "cpuPercent": float(columns[1]), "name": Path(columns[2]).name})
+    return rows
+
+def conflicts(rows):
+    compiler = {"go", "compile", "link", "swift", "swift-frontend", "swift-build", "swift-test", "clang", "clang++", "ld", "xctrace", "sample", "spindump"}
+    return [row for row in rows if row["name"] in compiler or row["name"].endswith((".test", ".xctest")) or re.search(r"Replay|Fixture|PackageTests|Browser.*Tests", row["name"])]
+
+def save():
+    (out / "manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
+
+window_ready = False
+
+def run(name, binary, args):
+    global window_ready
+    if any(row["name"] == name and row["exitCode"] == 0 and not row["overlaps"] for row in metadata["runs"]):
+        return
+    waiting = False
+    quiet_since = None
+    while not window_ready:
+        busy = conflicts(processes())
+        if busy:
+            quiet_since = None
+            if not waiting:
+                print("WAIT for existing compiler/GUI replay:", busy, flush=True)
+                waiting = True
+        else:
+            if quiet_since is None:
+                quiet_since = time.monotonic()
+            if time.monotonic() - quiet_since >= 30:
+                window_ready = True
+                break
+        time.sleep(5)
+    record = {"name": name, "command": [str(root / binary), *args], "startedAt": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    record["hostBefore"] = sorted(processes(), key=lambda row: row["cpuPercent"], reverse=True)[:8]
+    overlaps = []
+    stopped = threading.Event()
+    def monitor():
+        while not stopped.wait(0.5):
+            busy = conflicts(processes())
+            if busy:
+                overlaps.append({"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "processes": busy})
+    watcher = threading.Thread(target=monitor)
+    watcher.start()
+    with (out / (name + ".json")).open("w") as stdout, (out / (name + ".stderr.txt")).open("w") as stderr:
+        completed = subprocess.run([str(root / binary), *args], env=env, stdout=stdout, stderr=stderr, timeout=180)
+    stopped.set()
+    watcher.join()
+    record.update({"exitCode": completed.returncode, "overlaps": overlaps, "endedAt": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+    metadata["runs"].append(record)
+    save()
+    print("DONE", name, "exit", completed.returncode, "overlaps", len(overlaps), flush=True)
+    if completed.returncode or overlaps:
+        raise SystemExit("Failed or contaminated sample; retain evidence and resolve before retry")
+
+scenarios = [("store-noop", 200), ("store-lifecycle-append", 20), ("store-work-read", 10), ("runtime-list", 10), ("runtime-notify", 10), ("application-list", 10)]
+for round_number, order in enumerate([["before", "after"], ["after", "before"]], 1):
+    for scale in [1000, 10000]:
+        for scenario, iterations in scenarios:
+            for version in order:
+                run(f"r{round_number}-{scenario}-{scale}-{version}", version,
+                    ["-scenario", scenario, "-records", str(scale), "-iterations", str(iterations), "-samples", "3", "-label", version])
+    for version in order:
+        run(f"r{round_number}-moku-{version}", "moku-" + version,
+            ["-performance", "-samples", "3", "-iterations", "20", "-threads", "64", "-thread-bytes", "32768"])
+    for chunks in [64, 512]:
+        for version in order:
+            run(f"r{round_number}-codex-{chunks}-{version}", "codex-" + version,
+                ["-stream-performance", "-stream-chunks", str(chunks), "-stream-repeats", "3"])
+metadata["finishedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+save()
+print("COMPLETE", out, flush=True)

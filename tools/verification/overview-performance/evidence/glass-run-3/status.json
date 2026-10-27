@@ -1,0 +1,16 @@
+{
+  "status": "completed-collection-invalid-comparison",
+  "revision": "8dac39decad5f8df57f68ea139d7b3547b64a02c",
+  "segments": 32,
+  "invalidSegments": 26,
+  "validPairs": {
+    "light/static": 1,
+    "light/pan-zoom": 1,
+    "dark/static": 1,
+    "dark/pan-zoom": 0
+  },
+  "nativeRecorderHealthy": true,
+  "hostMonitorErrors": [],
+  "sha256": "6811b5839b8c41fdf69158098383783a3102917b3ad6c3bb3436e5464b9a40a2",
+  "conclusion": "No material-performance comparison is justified; every group has at most one valid pair and dark/pan-zoom has none."
+}

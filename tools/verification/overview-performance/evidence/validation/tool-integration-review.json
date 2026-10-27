@@ -1,0 +1,12 @@
+{
+  "upstreamToolCommit": "0085581e6d0613f2f59e88521ceee794e6ad3215",
+  "upstreamProductionBase": "119ac92c07f5695b78f48e4a17400ac0eddfe9b3",
+  "currentFixtureBodyPreservedExactlyExceptTopLevelAccess": true,
+  "currentCaptureImplementationPreservedExactly": true,
+  "adaptations": [
+    "Resolve extraction conflict by retaining current production Moku Dock, not old circular fixture",
+    "Preserve current screenshot metadata and independent inspector contract",
+    "Record ps ucomm, avoiding command-title arguments"
+  ],
+  "oldIncompletePerformanceDataUsedForConclusions": false
+}

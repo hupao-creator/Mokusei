@@ -1,0 +1,22 @@
+{
+  "label": "round2-scopes",
+  "head": "88e580f2dde123d3541f5bc5ea8392878261f96b",
+  "diff": "diff --git a/app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift b/app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift\nindex 875e8171a..b39e9c485 100644\n--- a/app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift\n+++ b/app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift\n@@ -425,20 +425,28 @@ public final class NativeOverviewWorkspaceModel {\n         membershipBuildCount += 1\n         filterMembers.removeAll(keepingCapacity: true)\n         allMembers = NativeOverviewMembership(collection(tags: [], kind: nil))\n-        filters = NativeOverviewSelection.filters(\n-            NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications),\n-            directoryTags: directoryTags.values)\n+        let candidates = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)\n+        filters = NativeOverviewSelection.filters(candidates, directoryTags: directoryTags.values)\n+        // Every exposed filter has one canonical scope. Partition once rather\n+        // than decoding every thread's scope again for every directory/child.\n+        // Applications still use the full candidate list: an unscoped document\n+        // can participate by directory label under the existing selection rules.\n+        let threadsByScope = Dictionary(grouping: candidates.threads, by: NativeOverviewSelection.scope)\n+        func members(for filter: NativeOverviewFilter) -> NativeOverviewCollection {\n+            NativeOverviewSelection.select(threads: threadsByScope[filter.scope] ?? [], applications: candidates.applications,\n+                tags: [filter.tag] + filter.aliases, kind: filter.isDirectory ? .directory : .semantic,\n+                scope: filter.scope, directoryTags: directoryTags.values)\n+        }\n         for index in filters.indices {\n             var filter = filters[index]\n-            let members = collection(tags: [filter.tag] + filter.aliases,\n-                                     kind: filter.isDirectory ? .directory : .semantic, scope: filter.scope)\n-            filterMembers[filter.selectionKey] = NativeOverviewMembership(members)\n-            filter.count = members.count\n+            let selected = members(for: filter)\n+            filterMembers[filter.selectionKey] = NativeOverviewMembership(selected)\n+            filter.count = selected.count\n             for childIndex in filter.children.indices {\n                 var child = filter.children[childIndex]\n-                let members = collection(tags: [child.tag] + child.aliases, kind: .semantic, scope: child.scope)\n-                filterMembers[child.selectionKey] = NativeOverviewMembership(members)\n-                child.count = members.count\n+                let selected = members(for: child)\n+                filterMembers[child.selectionKey] = NativeOverviewMembership(selected)\n+                child.count = selected.count\n                 filter.children[childIndex] = child\n             }\n             filters[index] = filter\n",
+  "command": [
+    "xcrun",
+    "swift",
+    "build",
+    "--package-path",
+    "/Users/example/.worktrees/worktree-02/app/macos",
+    "-c",
+    "release",
+    "-Xswiftc",
+    "-enable-testing"
+  ],
+  "toolchain": "Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n",
+  "builtAt": 1792904748.002475,
+  "probeSourceSHA256": "eba1aff59217775dd1f53b00225739edabeaa089496220b5cd8dd7480d209722",
+  "productionSourceSHA256": "673da7ce31d4fb5f3bc75aef25a5dbaceca7150389ad402dfe40759745d1837e",
+  "untrackedSources": {},
+  "binarySHA256": "b6f552418324761e85bdef5b6dd852baf072d29798856689b0fd6521991a9915"
+}

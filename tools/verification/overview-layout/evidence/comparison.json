@@ -1,0 +1,467 @@
+[
+  {
+    "scenario": "three-600",
+    "visibleFill": [
+      0.5710461871064482,
+      0.5710461871064482
+    ],
+    "fullCards": [
+      3,
+      3
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      1.1555833043530583,
+      0.8899583481252193
+    ],
+    "steps": [
+      57,
+      57
+    ]
+  },
+  {
+    "scenario": "three-900",
+    "visibleFill": [
+      0.39367570130002744,
+      0.49785186141279286
+    ],
+    "fullCards": [
+      3,
+      3
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.020458362996578217,
+      0.025499961338937283
+    ],
+    "steps": [
+      57,
+      66
+    ]
+  },
+  {
+    "scenario": "three-1420",
+    "visibleFill": [
+      0.23480711030716248,
+      0.23480711030716248
+    ],
+    "fullCards": [
+      3,
+      3
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.014208373613655567,
+      0.014833291061222553
+    ],
+    "steps": [
+      57,
+      57
+    ]
+  },
+  {
+    "scenario": "three-1920",
+    "visibleFill": [
+      0.1662234042553192,
+      0.1662234042553192
+    ],
+    "fullCards": [
+      3,
+      3
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.013166689313948154,
+      0.015625031664967537
+    ],
+    "steps": [
+      57,
+      57
+    ]
+  },
+  {
+    "scenario": "three-2560",
+    "visibleFill": [
+      0.16622340425531915,
+      0.16622340425531915
+    ],
+    "fullCards": [
+      3,
+      3
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.012874952517449856,
+      0.016000005416572094
+    ],
+    "steps": [
+      57,
+      57
+    ]
+  },
+  {
+    "scenario": "six",
+    "visibleFill": [
+      0.46961422061432495,
+      0.46961422061432495
+    ],
+    "fullCards": [
+      6,
+      6
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.021166750229895115,
+      0.025416607968509197
+    ],
+    "steps": [
+      143,
+      143
+    ]
+  },
+  {
+    "scenario": "six-repeat",
+    "visibleFill": [
+      0.46961422061432495,
+      0.46961422061432495
+    ],
+    "fullCards": [
+      6,
+      6
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.04499999340623617,
+      0.018166727386415005
+    ],
+    "steps": [
+      143,
+      0
+    ]
+  },
+  {
+    "scenario": "six-reversed",
+    "visibleFill": [
+      0.46961422061432495,
+      0.46961422061432495
+    ],
+    "fullCards": [
+      6,
+      6
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.03266660496592522,
+      0.007083406671881676
+    ],
+    "steps": [
+      143,
+      0
+    ]
+  },
+  {
+    "scenario": "six-to-seven",
+    "visibleFill": [
+      0.5478832573833792,
+      0.5478832573833792
+    ],
+    "fullCards": [
+      7,
+      7
+    ],
+    "screenMoved": [
+      6,
+      6
+    ],
+    "screenMax": [
+      188,
+      98
+    ],
+    "screenTotal": [
+      1128,
+      588
+    ],
+    "elapsedMs": [
+      0.1676249084994197,
+      0.013541663065552711
+    ],
+    "steps": [
+      750,
+      9
+    ]
+  },
+  {
+    "scenario": "delete-center",
+    "visibleFill": [
+      0.6261522941524333,
+      0.6261522941524333
+    ],
+    "fullCards": [
+      8,
+      8
+    ],
+    "screenMoved": [
+      2,
+      0
+    ],
+    "screenMax": [
+      376,
+      0
+    ],
+    "screenTotal": [
+      592,
+      0
+    ],
+    "elapsedMs": [
+      1.5632916474714875,
+      0.009999959729611874
+    ],
+    "steps": [
+      20188,
+      0
+    ]
+  },
+  {
+    "scenario": "refill-center",
+    "visibleFill": [
+      0.7044213309214875,
+      0.7044213309214875
+    ],
+    "fullCards": [
+      9,
+      9
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.09408337064087391,
+      0.008333357982337475
+    ],
+    "steps": [
+      669,
+      5
+    ]
+  },
+  {
+    "scenario": "fresh-16",
+    "visibleFill": [
+      0.6698107628622119,
+      0.6698107628622119
+    ],
+    "fullCards": [
+      6,
+      6
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.04941667430102825,
+      0.05283334758132696
+    ],
+    "steps": [
+      544,
+      544
+    ]
+  },
+  {
+    "scenario": "fresh-30",
+    "visibleFill": [
+      0.8930810171496154,
+      0.8930810171496154
+    ],
+    "fullCards": [
+      8,
+      8
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.08987507317215204,
+      0.09366660378873348
+    ],
+    "steps": [
+      1411,
+      1411
+    ]
+  },
+  {
+    "scenario": "fresh-100",
+    "visibleFill": [
+      0.8749852158486101,
+      0.8749852158486101
+    ],
+    "fullCards": [
+      12,
+      12
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      0.45008340384811163,
+      0.45208341907709837
+    ],
+    "steps": [
+      9019,
+      9019
+    ]
+  },
+  {
+    "scenario": "fresh-500",
+    "visibleFill": [
+      0.9030041395623889,
+      0.9030041395623889
+    ],
+    "fullCards": [
+      6,
+      6
+    ],
+    "screenMoved": [
+      0,
+      0
+    ],
+    "screenMax": [
+      0,
+      0
+    ],
+    "screenTotal": [
+      0,
+      0
+    ],
+    "elapsedMs": [
+      4.334416706115007,
+      4.237249959260225
+    ],
+    "steps": [
+      104785,
+      104785
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "purpose": "Headless capability/permission check only; no app rendering or GPU measurement",
+  "command": [
+    "xcrun",
+    "xctrace",
+    "record",
+    "--template",
+    "Animation Hitches",
+    "--time-limit",
+    "3s",
+    "--output",
+    "/Users/example/.worktrees/worktree-02/.build/verification/overview-final/instruments-capability/headless-hitches.trace",
+    "--launch",
+    "--",
+    "/bin/sleep",
+    "4"
+  ],
+  "returnCode": 1,
+  "timedOut": true,
+  "output": "Starting recording with the Animation Hitches template. Launching process: sleep. Time limit: 3.0 s\nCtrl-C to stop the recording\nReached specified time limit, ending recording...\nStopping recording...\n",
+  "recordedAt": 1792909517.892301,
+  "exportReturnCode": 10,
+  "exportError": "Document Missing Template Error",
+  "developerModeStatus": "disabled (read only; unchanged)",
+  "conclusion": "Template inventory is present, but this headless capability probe did not produce a usable trace; no rendering/GPU evidence was collected."
+}

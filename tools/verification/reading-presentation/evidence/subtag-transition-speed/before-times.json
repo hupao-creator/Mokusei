@@ -1,0 +1,37 @@
+[
+  {
+    "captureEndMs" : 44.478833999999999,
+    "captureStartMs" : 12.536375000000001,
+    "targetMs" : 0
+  },
+  {
+    "captureEndMs" : 77.71054199999999,
+    "captureStartMs" : 51.066583999999999,
+    "targetMs" : 50
+  },
+  {
+    "captureEndMs" : 128.43770900000001,
+    "captureStartMs" : 101.267375,
+    "targetMs" : 100
+  },
+  {
+    "captureEndMs" : 178.482542,
+    "captureStartMs" : 151.53104200000001,
+    "targetMs" : 150
+  },
+  {
+    "captureEndMs" : 243.084667,
+    "captureStartMs" : 222.86129199999999,
+    "targetMs" : 220
+  },
+  {
+    "captureEndMs" : 344.209292,
+    "captureStartMs" : 324.24487499999998,
+    "targetMs" : 320
+  },
+  {
+    "captureEndMs" : 473.05137500000001,
+    "captureStartMs" : 451.65862499999997,
+    "targetMs" : 450
+  }
+]

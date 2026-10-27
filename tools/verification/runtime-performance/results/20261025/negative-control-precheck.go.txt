@@ -1,0 +1,9 @@
+package moku
+import ("context"; "sync")
+type admissionQueue struct { gate sync.Mutex }
+func (q *admissionQueue) Lock(ctx context.Context) error {
+ if err := ctx.Err(); err != nil { return err }
+ q.gate.Lock()
+ return nil
+}
+func (q *admissionQueue) Unlock() { q.gate.Unlock() }

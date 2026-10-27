@@ -1,0 +1,35 @@
+[
+  {
+    "step": "input",
+    "command": [
+      "python3",
+      "tools/verification/overview-input/run.py"
+    ],
+    "inputIdleBefore": 5098.54067775,
+    "exitCode": 0,
+    "endedAt": 1792913918.332814
+  },
+  {
+    "step": "capture",
+    "command": [
+      "python3",
+      "tools/verification/overview-input/run.py",
+      "--glass-world",
+      ".build/verification/glass-world-completion/captures"
+    ],
+    "inputIdleBefore": 5125.404983542,
+    "exitCode": 0,
+    "endedAt": 1792913931.8453279
+  },
+  {
+    "step": "mounting",
+    "command": [
+      "python3",
+      "tools/verification/reading-presentation/run.py",
+      "--overview-mounting"
+    ],
+    "inputIdleBefore": 5138.916959,
+    "exitCode": 0,
+    "endedAt": 1792913946.101262
+  }
+]

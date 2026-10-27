@@ -1,0 +1,24 @@
+{
+  "productionRevision": "e8df447ea32923cc4e7b63cfdb958154ebddb527",
+  "passed": [
+    "Release research fixture build with final three-condition source",
+    "make check ARGS= (architecture, vet/build, Swift build, race suites, 13 directory-tag tests)",
+    "analyzer baseline synthetic replay: 36 rows, 36 pairs, overloaded samples retained",
+    "analyzer extended synthetic replay: missing final revision observation retained as a result",
+    "analyzer prelaunch negative path: comparisonValid=false",
+    "production pure geometry probe: 1/5/12/30 (prior archived run)",
+    "Python syntax, Markdown local links, git diff --check",
+    "no production source diff"
+  ],
+  "expectedFailure": [
+    "three-condition five-card formal prelaunch: 180 checks, zero GUI launches",
+    "bare make check inherited unsupported ARGS=--fresh; rerun with ARGS= passed"
+  ],
+  "notRun": [
+    "native fixture GUI success path and material pixel verification",
+    "valid five-card three-condition performance pairs",
+    "extended zoom/refresh and 12/30-card GUI trials",
+    "GPU/WindowServer/rendered frames/energy profiling"
+  ],
+  "notes": "No user application stopped or profile changed. Archived prior evidence remains separate."
+}

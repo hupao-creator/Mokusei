@@ -1,0 +1,4265 @@
+{
+  "startedAt": "2026-10-25T06:24:51.264299+00:00",
+  "baseCommit": "c17a3fcb270b8d862bbd9cc03ae18c45c4c133fd",
+  "gomaxprocs": 4,
+  "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "runs": [
+    {
+      "name": "r1-store-noop-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "1000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:06.747038+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 95.1,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 84.3,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 73.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 10.6,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 7.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 32711,
+          "cpuPercent": 7.6,
+          "name": "Python"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.3,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:07.705801+00:00"
+    },
+    {
+      "name": "r1-store-noop-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "1000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:07.773624+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 396.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 105.1,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 57.0,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 38.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 51712,
+          "cpuPercent": 29.0,
+          "name": "XprotectService"
+        },
+        {
+          "pid": 32711,
+          "cpuPercent": 10.2,
+          "name": "Python"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 4.5,
+          "name": "syspolicyd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:08.642495+00:00"
+    },
+    {
+      "name": "r1-store-lifecycle-append-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "1000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:08.763647+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 388.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 113.3,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 57.4,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 39.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 51712,
+          "cpuPercent": 31.3,
+          "name": "XprotectService"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 6.4,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 30950,
+          "cpuPercent": 6.2,
+          "name": "codex"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:09.142511+00:00"
+    },
+    {
+      "name": "r1-store-lifecycle-append-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "1000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:09.254087+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 149.1,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 99.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 52.0,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 41.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 30950,
+          "cpuPercent": 8.5,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 5.2,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 51712,
+          "cpuPercent": 4.6,
+          "name": "XprotectService"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:09.585652+00:00"
+    },
+    {
+      "name": "r1-store-work-read-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:09.680478+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 79.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 66.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 65.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 46.9,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 6.6,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 4.4,
+          "name": "core"
+        },
+        {
+          "pid": 32494,
+          "cpuPercent": 2.2,
+          "name": "Python"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:09.897081+00:00"
+    },
+    {
+      "name": "r1-store-work-read-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:09.972875+00:00",
+      "hostBefore": [
+        {
+          "pid": 32275,
+          "cpuPercent": 84.9,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 75.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 64.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 64.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 21.4,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 32711,
+          "cpuPercent": 5.0,
+          "name": "Python"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 3.4,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:10.128027+00:00"
+    },
+    {
+      "name": "r1-runtime-list-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:10.195706+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 85.9,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 83.7,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 61.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 50.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 21.1,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 32494,
+          "cpuPercent": 4.3,
+          "name": "Python"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 2.3,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:10.582249+00:00"
+    },
+    {
+      "name": "r1-runtime-list-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:10.650082+00:00",
+      "hostBefore": [
+        {
+          "pid": 32275,
+          "cpuPercent": 91.8,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 63.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 57.0,
+          "name": "codex"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 52.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32926,
+          "cpuPercent": 24.1,
+          "name": "ReportMemoryException"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 16.3,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.2,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 7.2,
+          "name": "mokusei-runtime"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:11.023862+00:00"
+    },
+    {
+      "name": "r1-runtime-notify-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:11.086751+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 90.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 84.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 47.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 26.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 18.8,
+          "name": "codex"
+        },
+        {
+          "pid": 26931,
+          "cpuPercent": 12.6,
+          "name": "codex"
+        },
+        {
+          "pid": 32926,
+          "cpuPercent": 8.2,
+          "name": "ReportMemoryException"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.2,
+          "name": "coreaudiod"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:11.341307+00:00"
+    },
+    {
+      "name": "r1-runtime-notify-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:11.407630+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 69.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 57.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 33.9,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 20.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 10.4,
+          "name": "logd"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 8.7,
+          "name": "codex"
+        },
+        {
+          "pid": 95632,
+          "cpuPercent": 7.9,
+          "name": "claude"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.6,
+          "name": "coreaudiod"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:11.655995+00:00"
+    },
+    {
+      "name": "r1-application-list-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:11.721746+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 63.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 52.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 26.8,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 7.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 6.5,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 6.4,
+          "name": "codex"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 5.8,
+          "name": "core"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:12.037963+00:00"
+    },
+    {
+      "name": "r1-application-list-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "application-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:12.148535+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 94.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 64.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 31.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 84995,
+          "cpuPercent": 11.1,
+          "name": "claude"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 8.9,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.9,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 6.5,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 26931,
+          "cpuPercent": 6.1,
+          "name": "codex"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:12.365490+00:00"
+    },
+    {
+      "name": "r1-store-noop-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "10000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:12.433986+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 76.3,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 63.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 31.8,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 7.0,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 32908,
+          "cpuPercent": 5.0,
+          "name": "codex"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 4.7,
+          "name": "core"
+        },
+        {
+          "pid": 84995,
+          "cpuPercent": 4.7,
+          "name": "claude"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:13.083518+00:00"
+    },
+    {
+      "name": "r1-store-noop-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "10000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:13.152106+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 82.3,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 75.8,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 48.2,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 11.9,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 77321,
+          "cpuPercent": 9.3,
+          "name": "Maps"
+        },
+        {
+          "pid": 50544,
+          "cpuPercent": 9.0,
+          "name": "routined"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 6.1,
+          "name": "syspolicyd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:13.573875+00:00"
+    },
+    {
+      "name": "r1-store-lifecycle-append-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "10000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:13.642189+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 82.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 80.8,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 68.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32992,
+          "cpuPercent": 30.6,
+          "name": "(git)"
+        },
+        {
+          "pid": 461,
+          "cpuPercent": 16.7,
+          "name": "airportd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 5.8,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 3.8,
+          "name": "syspolicyd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:15.263851+00:00"
+    },
+    {
+      "name": "r1-store-lifecycle-append-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "10000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:15.343019+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 160.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 32232,
+          "cpuPercent": 112.0,
+          "name": "xctrace"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 72.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 59.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 21.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 7.4,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 77582,
+          "cpuPercent": 6.9,
+          "name": "Otty"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:15.826524+00:00"
+    },
+    {
+      "name": "r1-store-work-read-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:15.896281+00:00",
+      "hostBefore": [
+        {
+          "pid": 32232,
+          "cpuPercent": 104.1,
+          "name": "xctrace"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 78.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 66.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 37.1,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 17.7,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 7.0,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 4.7,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:16.710213+00:00"
+    },
+    {
+      "name": "r1-store-work-read-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:25:16.778016+00:00",
+      "hostBefore": [
+        {
+          "pid": 32232,
+          "cpuPercent": 101.8,
+          "name": "xctrace"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 65.9,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 63.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 46.6,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 17.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.2,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 7.0,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 4.5,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:25:17.149693+00:00"
+    },
+    {
+      "name": "r1-runtime-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:25:17.220711+00:00",
+      "hostBefore": [
+        {
+          "pid": 32232,
+          "cpuPercent": 89.2,
+          "name": "xctrace"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 75.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 74.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 32275,
+          "cpuPercent": 18.5,
+          "name": "com.apple.dt.instruments.dtsecurity"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 15.1,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.5,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 6.5,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 5.7,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [
+        {
+          "at": "2026-10-25T06:25:17.868562+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 42.4,
+              "name": "go"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:18.444070+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 4.0,
+              "name": "go"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:19.022312+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.2,
+              "name": "go"
+            },
+            {
+              "pid": 33199,
+              "cpuPercent": 73.8,
+              "name": "go"
+            },
+            {
+              "pid": 33210,
+              "cpuPercent": 0.0,
+              "name": "link"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:19.613323+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            },
+            {
+              "pid": 33230,
+              "cpuPercent": 32.1,
+              "name": "go"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:20.223404+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            },
+            {
+              "pid": 33230,
+              "cpuPercent": 14.5,
+              "name": "go"
+            },
+            {
+              "pid": 33245,
+              "cpuPercent": 25.2,
+              "name": "link"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:20.808626+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            },
+            {
+              "pid": 33230,
+              "cpuPercent": 1.4,
+              "name": "go"
+            },
+            {
+              "pid": 33245,
+              "cpuPercent": 83.2,
+              "name": "link"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:21.386324+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            },
+            {
+              "pid": 33230,
+              "cpuPercent": 0.0,
+              "name": "go"
+            },
+            {
+              "pid": 33245,
+              "cpuPercent": 7.9,
+              "name": "link"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:21.954084+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:22.527951+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:25:23.108168+00:00",
+          "processes": [
+            {
+              "pid": 33187,
+              "cpuPercent": 0.0,
+              "name": "go"
+            }
+          ]
+        }
+      ],
+      "endedAt": "2026-10-25T06:25:23.139479+00:00",
+      "excluded": true
+    },
+    {
+      "name": "r1-runtime-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:27:22.332705+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 123.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 89.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 42.8,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 37188,
+          "cpuPercent": 28.8,
+          "name": "Python"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 7.4,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 16640,
+          "cpuPercent": 6.3,
+          "name": "PerfPowerServices"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 4.8,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:27:28.140075+00:00"
+    },
+    {
+      "name": "r1-runtime-list-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:27:28.202791+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 37278,
+          "cpuPercent": 73.5,
+          "name": "Python"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 58.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 1.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.5,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 1.3,
+          "name": "opencode.exe"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.1,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:27:30.241442+00:00"
+    },
+    {
+      "name": "r1-runtime-notify-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:27:30.307502+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 89.9,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 65.8,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 57.9,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.7,
+          "name": "trustd"
+        },
+        {
+          "pid": 26931,
+          "cpuPercent": 3.3,
+          "name": "codex"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.1,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:27:31.278429+00:00"
+    },
+    {
+      "name": "r1-runtime-notify-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:27:31.343586+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 68.0,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 49.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 14.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 8.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.5,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.1,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 2.4,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:27:32.030784+00:00"
+    },
+    {
+      "name": "r1-application-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:27:32.096265+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 81.7,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 67.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 18.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.9,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 8.9,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.5,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.1,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 2.6,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [
+        {
+          "at": "2026-10-25T06:27:32.729918+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 2.2,
+              "name": "swift"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:33.308168+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 10.1,
+              "name": "swift-test"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:33.883516+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 12.7,
+              "name": "swift-test"
+            },
+            {
+              "pid": 37507,
+              "cpuPercent": 7.2,
+              "name": "swift-frontend"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:34.457670+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 2.5,
+              "name": "swift-test"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:35.041613+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 8.3,
+              "name": "swift-test"
+            },
+            {
+              "pid": 37564,
+              "cpuPercent": 9.9,
+              "name": "swift-frontend"
+            },
+            {
+              "pid": 37566,
+              "cpuPercent": 10.0,
+              "name": "swift-frontend"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:35.690780+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 3.8,
+              "name": "swift-test"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:36.271760+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 1.2,
+              "name": "swift-test"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:27:36.848999+00:00",
+          "processes": [
+            {
+              "pid": 37495,
+              "cpuPercent": 0.0,
+              "name": "swift-test"
+            }
+          ]
+        }
+      ],
+      "endedAt": "2026-10-25T06:27:36.995202+00:00",
+      "excluded": true
+    },
+    {
+      "name": "r1-application-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:32:11.096547+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 99.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 69.6,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 84438,
+          "cpuPercent": 54.2,
+          "name": "remotepairingd"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 45.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 467,
+          "cpuPercent": 38.4,
+          "name": "mDNSResponder"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 6.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 3.3,
+          "name": "core"
+        },
+        {
+          "pid": 429,
+          "cpuPercent": 2.2,
+          "name": "runningboardd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:32:16.030982+00:00"
+    },
+    {
+      "name": "r1-application-list-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:32:16.033961+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 91.9,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 68.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 84438,
+          "cpuPercent": 58.0,
+          "name": "remotepairingd"
+        },
+        {
+          "pid": 467,
+          "cpuPercent": 36.5,
+          "name": "mDNSResponder"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 17.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.9,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.5,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.0,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:32:16.876322+00:00"
+    },
+    {
+      "name": "r1-moku-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/moku-before",
+        "-performance",
+        "-samples",
+        "3",
+        "-iterations",
+        "20",
+        "-threads",
+        "64",
+        "-thread-bytes",
+        "32768"
+      ],
+      "startedAt": "2026-10-25T06:32:16.877084+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 193.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 81.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 84438,
+          "cpuPercent": 56.4,
+          "name": "remotepairingd"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 54.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 467,
+          "cpuPercent": 33.0,
+          "name": "mDNSResponder"
+        },
+        {
+          "pid": 98574,
+          "cpuPercent": 12.8,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.2,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 77582,
+          "cpuPercent": 4.6,
+          "name": "Otty"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [
+        {
+          "at": "2026-10-25T06:32:19.826614+00:00",
+          "processes": [
+            {
+              "pid": 46722,
+              "cpuPercent": 14.5,
+              "name": "swift-build"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:32:20.399817+00:00",
+          "processes": [
+            {
+              "pid": 46722,
+              "cpuPercent": 6.4,
+              "name": "swift-build"
+            },
+            {
+              "pid": 46733,
+              "cpuPercent": 35.1,
+              "name": "swift-frontend"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:32:20.982432+00:00",
+          "processes": [
+            {
+              "pid": 46722,
+              "cpuPercent": 2.0,
+              "name": "swift-build"
+            }
+          ]
+        },
+        {
+          "at": "2026-10-25T06:32:21.565995+00:00",
+          "processes": [
+            {
+              "pid": 46722,
+              "cpuPercent": 7.6,
+              "name": "swift-build"
+            },
+            {
+              "pid": 46791,
+              "cpuPercent": 14.8,
+              "name": "swift-frontend"
+            },
+            {
+              "pid": 46792,
+              "cpuPercent": 13.6,
+              "name": "swift-frontend"
+            }
+          ]
+        }
+      ],
+      "endedAt": "2026-10-25T06:32:21.962678+00:00",
+      "excluded": true
+    },
+    {
+      "name": "r1-moku-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/moku-before",
+        "-performance",
+        "-samples",
+        "3",
+        "-iterations",
+        "20",
+        "-threads",
+        "64",
+        "-thread-bytes",
+        "32768"
+      ],
+      "startedAt": "2026-10-25T06:40:24.641836+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 66.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 49.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 12.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.2,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.6,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.5,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.3,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 1,
+          "cpuPercent": 2.5,
+          "name": "launchd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:29.018365+00:00"
+    },
+    {
+      "name": "r1-moku-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/moku-after",
+        "-performance",
+        "-samples",
+        "3",
+        "-iterations",
+        "20",
+        "-threads",
+        "64",
+        "-thread-bytes",
+        "32768"
+      ],
+      "startedAt": "2026-10-25T06:40:29.019393+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 69.7,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 57.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 89856,
+          "cpuPercent": 4.5,
+          "name": "Codex (Renderer)"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 1.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.2,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 0.6,
+          "name": "logd"
+        },
+        {
+          "pid": 89286,
+          "cpuPercent": 0.4,
+          "name": "ChatGPT"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:30.686799+00:00"
+    },
+    {
+      "name": "r1-codex-64-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-before",
+        "-stream-performance",
+        "-stream-chunks",
+        "64",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:40:30.687485+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 74.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 63687,
+          "cpuPercent": 66.4,
+          "name": "Python"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 43.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 15.4,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.1,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.8,
+          "name": "trustd"
+        },
+        {
+          "pid": 51712,
+          "cpuPercent": 4.5,
+          "name": "XprotectService"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:32.193314+00:00"
+    },
+    {
+      "name": "r1-codex-64-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-after",
+        "-stream-performance",
+        "-stream-chunks",
+        "64",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:40:32.194190+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 66.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 58.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 77321,
+          "cpuPercent": 56.0,
+          "name": "Maps"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 18.8,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 10.8,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.5,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 91272,
+          "cpuPercent": 7.2,
+          "name": "tccd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.3,
+          "name": "trustd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:33.681375+00:00"
+    },
+    {
+      "name": "r1-codex-512-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-before",
+        "-stream-performance",
+        "-stream-chunks",
+        "512",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:40:33.682217+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 98.1,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 68.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 67.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.5,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 8.2,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 91272,
+          "cpuPercent": 7.2,
+          "name": "tccd"
+        },
+        {
+          "pid": 51712,
+          "cpuPercent": 6.4,
+          "name": "XprotectService"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 5.2,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:34.895610+00:00"
+    },
+    {
+      "name": "r1-codex-512-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-after",
+        "-stream-performance",
+        "-stream-chunks",
+        "512",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:40:34.896491+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 78.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 58.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 91272,
+          "cpuPercent": 4.0,
+          "name": "tccd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 2.0,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.7,
+          "name": "logd"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.6,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 376,
+          "cpuPercent": 1.6,
+          "name": "mds"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:35.754313+00:00"
+    },
+    {
+      "name": "r2-store-noop-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "1000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:35.755294+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 51.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 91272,
+          "cpuPercent": 4.2,
+          "name": "tccd"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 2.1,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 1.9,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 376,
+          "cpuPercent": 1.8,
+          "name": "mds"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.5,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:35.962511+00:00"
+    },
+    {
+      "name": "r2-store-noop-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "1000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:35.963586+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 77.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 53.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 7.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.5,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.9,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 91272,
+          "cpuPercent": 1.4,
+          "name": "tccd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.0,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:36.167071+00:00"
+    },
+    {
+      "name": "r2-store-lifecycle-append-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "1000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:36.168089+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 70.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 62.3,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 42.6,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 3.0,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 2.8,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 89286,
+          "cpuPercent": 2.5,
+          "name": "ChatGPT"
+        },
+        {
+          "pid": 77857,
+          "cpuPercent": 1.4,
+          "name": "com.apple.WebKit.GPU"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:36.372544+00:00"
+    },
+    {
+      "name": "r2-store-lifecycle-append-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "1000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:36.373455+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 76.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 53.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 15.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 4.3,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 2.1,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 77864,
+          "cpuPercent": 2.1,
+          "name": "com.apple.WebKit.WebContent"
+        },
+        {
+          "pid": 85755,
+          "cpuPercent": 1.5,
+          "name": "com.apple.WebKit.GPU"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:36.683210+00:00"
+    },
+    {
+      "name": "r2-store-work-read-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:36.684048+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 78.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 77.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 5.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 77864,
+          "cpuPercent": 3.8,
+          "name": "com.apple.WebKit.WebContent"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.4,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.6,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 89286,
+          "cpuPercent": 1.6,
+          "name": "ChatGPT"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:36.832485+00:00"
+    },
+    {
+      "name": "r2-store-work-read-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:36.833486+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 79.9,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 75.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 3.6,
+          "name": "Python"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 3.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 77864,
+          "cpuPercent": 2.6,
+          "name": "com.apple.WebKit.WebContent"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.6,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.3,
+          "name": "corespeechd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:37.027085+00:00"
+    },
+    {
+      "name": "r2-runtime-list-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:37.027977+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.7,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 72.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 3.5,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.9,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 77864,
+          "cpuPercent": 1.4,
+          "name": "com.apple.WebKit.WebContent"
+        },
+        {
+          "pid": 89286,
+          "cpuPercent": 1.2,
+          "name": "ChatGPT"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 1.0,
+          "name": "mokusei-runtime"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:37.391056+00:00"
+    },
+    {
+      "name": "r2-runtime-list-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:37.392157+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.7,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 56.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 98574,
+          "cpuPercent": 2.6,
+          "name": "codex"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 1.8,
+          "name": "Python"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 1.5,
+          "name": "opencode.exe"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.4,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 399,
+          "cpuPercent": 1.0,
+          "name": "dasd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:37.745663+00:00"
+    },
+    {
+      "name": "r2-runtime-notify-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:37.746622+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.8,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 50.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.1,
+          "name": "Python"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.1,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.0,
+          "name": "logd"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.0,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 579,
+          "cpuPercent": 0.6,
+          "name": "karabiner_grabber"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:38.001314+00:00"
+    },
+    {
+      "name": "r2-runtime-notify-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:38.002764+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 81.0,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 52.1,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 3.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.4,
+          "name": "Python"
+        },
+        {
+          "pid": 395,
+          "cpuPercent": 1.8,
+          "name": "locationd"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.4,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.1,
+          "name": "corespeechd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:38.320446+00:00"
+    },
+    {
+      "name": "r2-application-list-1000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "application-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:38.321531+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 63.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 57.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.0,
+          "name": "Python"
+        },
+        {
+          "pid": 30950,
+          "cpuPercent": 1.5,
+          "name": "codex"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.4,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.3,
+          "name": "corespeechd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:38.522904+00:00"
+    },
+    {
+      "name": "r2-application-list-1000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "1000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:38.523778+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 79.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 72.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 23.5,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 3.0,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.6,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.3,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 1.1,
+          "name": "opencode.exe"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:38.784628+00:00"
+    },
+    {
+      "name": "r2-store-noop-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "10000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:38.785540+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 96.7,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 72.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 23.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 2.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 62234,
+          "cpuPercent": 2.5,
+          "name": "Python"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 1.7,
+          "name": "trustd"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.5,
+          "name": "fseventsd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:39.147520+00:00"
+    },
+    {
+      "name": "r2-store-noop-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-noop",
+        "-records",
+        "10000",
+        "-iterations",
+        "200",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:39.148819+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 92.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 77.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 16.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 8.3,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.4,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.0,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 2.5,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:39.687425+00:00"
+    },
+    {
+      "name": "r2-store-lifecycle-append-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "10000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:39.688515+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 69.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 63.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 9.4,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 6.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 4.4,
+          "name": "trustd"
+        },
+        {
+          "pid": 77321,
+          "cpuPercent": 2.9,
+          "name": "Maps"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 2.3,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:40.122724+00:00"
+    },
+    {
+      "name": "r2-store-lifecycle-append-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-lifecycle-append",
+        "-records",
+        "10000",
+        "-iterations",
+        "20",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:40.123708+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 65.8,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 50.7,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 16.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.0,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.1,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.6,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 2.8,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:41.658607+00:00"
+    },
+    {
+      "name": "r2-store-work-read-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:41.659525+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 66.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 45.4,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 14.3,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.7,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.0,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.3,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.8,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 95632,
+          "cpuPercent": 3.1,
+          "name": "claude"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:42.016533+00:00"
+    },
+    {
+      "name": "r2-store-work-read-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "store-work-read",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:42.017450+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 67.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 48.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 15.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.6,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.9,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 7.4,
+          "name": "opencode.exe"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 5.9,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.7,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:42.750778+00:00"
+    },
+    {
+      "name": "r2-runtime-list-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:42.751775+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 88.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 65.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 45.6,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 95632,
+          "cpuPercent": 7.0,
+          "name": "claude"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 5.1,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 3.1,
+          "name": "trustd"
+        },
+        {
+          "pid": 16640,
+          "cpuPercent": 2.8,
+          "name": "PerfPowerServices"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:44.740632+00:00"
+    },
+    {
+      "name": "r2-runtime-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:44.741928+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 103.5,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 81.9,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 66.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 84995,
+          "cpuPercent": 8.4,
+          "name": "claude"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.2,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 77864,
+          "cpuPercent": 4.3,
+          "name": "com.apple.WebKit.WebContent"
+        },
+        {
+          "pid": 77857,
+          "cpuPercent": 3.8,
+          "name": "com.apple.WebKit.GPU"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 1.8,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:50.864493+00:00"
+    },
+    {
+      "name": "r2-runtime-notify-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:50.865458+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 80.5,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 57.3,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 16.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.9,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.1,
+          "name": "trustd"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 4.9,
+          "name": "core"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.6,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:51.601403+00:00"
+    },
+    {
+      "name": "r2-runtime-notify-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "runtime-notify",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:51.602504+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 79.0,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 50.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 15.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 9.9,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.8,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.4,
+          "name": "trustd"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 3.6,
+          "name": "opendirectoryd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 2.7,
+          "name": "logd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:52.610768+00:00"
+    },
+    {
+      "name": "r2-application-list-10000-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/after",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "after"
+      ],
+      "startedAt": "2026-10-25T06:40:52.611907+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 79.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 52.1,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 20.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 2.4,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 1.7,
+          "name": "trustd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.2,
+          "name": "logd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.0,
+          "name": "corespeechd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:40:53.424992+00:00"
+    },
+    {
+      "name": "r2-application-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:40:53.425944+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 181.9,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 83.7,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 59.1,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 30950,
+          "cpuPercent": 15.3,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.1,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 77582,
+          "cpuPercent": 5.1,
+          "name": "Otty"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 1.5,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.0,
+          "name": "corespeechd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [
+        {
+          "at": "2026-10-25T06:40:57.594560+00:00",
+          "processes": [
+            {
+              "pid": 64613,
+              "cpuPercent": 199.6,
+              "name": "go"
+            }
+          ]
+        }
+      ],
+      "endedAt": "2026-10-25T06:40:58.405598+00:00",
+      "excluded": true
+    },
+    {
+      "name": "r2-application-list-10000-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/before",
+        "-scenario",
+        "application-list",
+        "-records",
+        "10000",
+        "-iterations",
+        "10",
+        "-samples",
+        "3",
+        "-label",
+        "before"
+      ],
+      "startedAt": "2026-10-25T06:42:54.775751+00:00",
+      "hostBefore": [
+        {
+          "pid": 8481,
+          "cpuPercent": 98.7,
+          "name": "CodexBar"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 83.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 57.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.3,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 1,
+          "cpuPercent": 1.0,
+          "name": "launchd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 0.8,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 95632,
+          "cpuPercent": 0.8,
+          "name": "claude"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 0.7,
+          "name": "opencode.exe"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:42:59.722027+00:00"
+    },
+    {
+      "name": "r2-moku-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/moku-after",
+        "-performance",
+        "-samples",
+        "3",
+        "-iterations",
+        "20",
+        "-threads",
+        "64",
+        "-thread-bytes",
+        "32768"
+      ],
+      "startedAt": "2026-10-25T06:42:59.724205+00:00",
+      "hostBefore": [
+        {
+          "pid": 20098,
+          "cpuPercent": 118.9,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 71.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 17.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.7,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 1.8,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 347,
+          "cpuPercent": 1.1,
+          "name": "logd"
+        },
+        {
+          "pid": 26571,
+          "cpuPercent": 1.1,
+          "name": "corespeechd"
+        },
+        {
+          "pid": 70091,
+          "cpuPercent": 1.1,
+          "name": "ps"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:00.644138+00:00"
+    },
+    {
+      "name": "r2-moku-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/moku-before",
+        "-performance",
+        "-samples",
+        "3",
+        "-iterations",
+        "20",
+        "-threads",
+        "64",
+        "-thread-bytes",
+        "32768"
+      ],
+      "startedAt": "2026-10-25T06:43:00.646097+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 78.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 55.6,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 67412,
+          "cpuPercent": 13.1,
+          "name": "context7-mcp --api-key ctx7sk-***"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 7.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 67343,
+          "cpuPercent": 2.8,
+          "name": "codex"
+        },
+        {
+          "pid": 10678,
+          "cpuPercent": 1.4,
+          "name": "opencode.exe"
+        },
+        {
+          "pid": 89286,
+          "cpuPercent": 1.4,
+          "name": "ChatGPT"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 1.1,
+          "name": "fseventsd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:05.011611+00:00"
+    },
+    {
+      "name": "r2-codex-64-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-after",
+        "-stream-performance",
+        "-stream-chunks",
+        "64",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:43:05.012638+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 325.0,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 91.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 56.6,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 70324,
+          "cpuPercent": 42.9,
+          "name": "codex"
+        },
+        {
+          "pid": 90702,
+          "cpuPercent": 20.3,
+          "name": "trustd"
+        },
+        {
+          "pid": 70335,
+          "cpuPercent": 15.9,
+          "name": "zsh"
+        },
+        {
+          "pid": 66108,
+          "cpuPercent": 9.5,
+          "name": "codex"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.9,
+          "name": "coreaudiod"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:05.767475+00:00"
+    },
+    {
+      "name": "r2-codex-64-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-before",
+        "-stream-performance",
+        "-stream-chunks",
+        "64",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:43:05.768430+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 68.2,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 63.2,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 59.8,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 70555,
+          "cpuPercent": 56.4,
+          "name": "Python"
+        },
+        {
+          "pid": 351,
+          "cpuPercent": 11.1,
+          "name": "fseventsd"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 10.7,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 9.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 70295,
+          "cpuPercent": 9.0,
+          "name": "codex"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:06.639616+00:00"
+    },
+    {
+      "name": "r2-codex-512-after",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-after",
+        "-stream-performance",
+        "-stream-chunks",
+        "512",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:43:06.640519+00:00",
+      "hostBefore": [
+        {
+          "pid": 20100,
+          "cpuPercent": 211.2,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 87.0,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 25154,
+          "cpuPercent": 54.4,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 70555,
+          "cpuPercent": 10.5,
+          "name": "Python"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.5,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 8.3,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 7.5,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 76178,
+          "cpuPercent": 6.6,
+          "name": "core"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:07.531164+00:00"
+    },
+    {
+      "name": "r2-codex-512-before",
+      "command": [
+        "/Users/example/.worktrees/worktree-01/.build/runtime-performance/codex-before",
+        "-stream-performance",
+        "-stream-chunks",
+        "512",
+        "-stream-repeats",
+        "3"
+      ],
+      "startedAt": "2026-10-25T06:43:07.532306+00:00",
+      "hostBefore": [
+        {
+          "pid": 25154,
+          "cpuPercent": 66.3,
+          "name": "WindowServer"
+        },
+        {
+          "pid": 20098,
+          "cpuPercent": 58.8,
+          "name": "Mokusei"
+        },
+        {
+          "pid": 20100,
+          "cpuPercent": 36.7,
+          "name": "mokusei-runtime"
+        },
+        {
+          "pid": 499,
+          "cpuPercent": 10.0,
+          "name": "syspolicyd"
+        },
+        {
+          "pid": 431,
+          "cpuPercent": 8.4,
+          "name": "coreaudiod"
+        },
+        {
+          "pid": 90699,
+          "cpuPercent": 6.8,
+          "name": "trustd"
+        },
+        {
+          "pid": 643,
+          "cpuPercent": 6.3,
+          "name": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 388,
+          "cpuPercent": 6.1,
+          "name": "opendirectoryd"
+        }
+      ],
+      "exitCode": 0,
+      "overlaps": [],
+      "endedAt": "2026-10-25T06:43:09.233372+00:00"
+    }
+  ],
+  "hardware": [
+    "MacBookPro18,3",
+    "Apple M1 Pro",
+    "10",
+    "17179869184"
+  ],
+  "binaries": {
+    "before": "bb660430ad413206282f8bd548d1cdaa9d183a12e281117fa61bc38e39fae501",
+    "after": "7df99b4c546d0724007dbbd3fc5057d433b02bbbf03dfb3344902a878da88e39",
+    "moku-before": "7fdb262ee1993b6e53b309af1be4159331d9eaf402250f872b124f6545a2f091",
+    "moku-after": "cf101973b771e1b8151d0865531c441d746cc70a1079d953ff87f9ed13090e68",
+    "codex-before": "6dd858aa58cc8114ac83a59a59b8cb37e85655d9f932e6902f126756d4a7455d",
+    "codex-after": "28981d8bed3640ff9b028e1b2ea8be0e11779e212b374954e5fee239d515ac0a"
+  },
+  "resumes": [
+    "2026-10-25T06:27:22.264351+00:00",
+    "2026-10-25T06:31:04.982758+00:00",
+    "2026-10-25T06:39:33.778394+00:00",
+    "2026-10-25T06:42:24.212150+00:00"
+  ],
+  "finishedAt": "2026-10-25T06:43:09.235822+00:00"
+}

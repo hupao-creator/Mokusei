@@ -1,0 +1,27 @@
+func (v *voiceController) delegate(ctx context.Context, lease *mokuVoiceLease, request plugin.VoiceDelegation) {
+	if err := takeVoiceQueue(ctx, v.admissions); err != nil {
+		return
+	}
+	defer func() { v.admissions <- struct{}{} }()
+	v.mu.Lock()
+	active := v.active == lease
+	v.mu.Unlock()
+	current, err := v.c.current()
+	if !active || lease.session.Closed() || err != nil || current.ID != lease.owner {
+		return
+	}
+	// Once this admission begins it belongs to Moku, independently of media
+	// cancellation. Only the eventual spoken delivery uses the media lifetime.
+	delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: lease.id + ":" + request.ID, delegationID: request.ID, generation: request.Generation, lease: lease}
+	err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text)}, delivery, request.Context)
+	if err == nil {
+		return
+	}
+	v.c.report("voice-admission", err)
+	if lease.session.Closed() {
+		return
+	}
+	speechCtx, cancel := voiceLeaseContext(ctx, lease)
+	defer cancel()
+	v.c.report("voice-speech", lease.session.Speak(speechCtx, plugin.VoiceSpeech{DeliveryID: delivery.deliveryID + ":failed", DelegationID: request.ID, Generation: request.Generation, Text: "Moku 未能接受这个请求：" + err.Error()}))
+}

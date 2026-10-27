@@ -1,0 +1,33 @@
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=claude sample=1
+Claude settings cold: readers=8 nativeStartsTotal=8 elapsedMs=267.96
+Claude settings warm: readers=8 nativeStartsTotal=8 elapsedMs=0.29
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=claude sample=2
+Claude settings cold: readers=8 nativeStartsTotal=8 elapsedMs=252.93
+Claude settings warm: readers=8 nativeStartsTotal=8 elapsedMs=0.20
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=claude sample=3
+Claude settings cold: readers=8 nativeStartsTotal=8 elapsedMs=251.78
+Claude settings warm: readers=8 nativeStartsTotal=8 elapsedMs=0.20
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=codex sample=1
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=5 elapsedMs=236.31
+Codex settings warm: readers=8 nativeStartsTotal=9 elapsedMs=219.93
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=codex sample=2
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=5 elapsedMs=238.39
+Codex settings warm: readers=8 nativeStartsTotal=9 elapsedMs=217.88
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=codex sample=3
+PASS codex initial-response overview scope and canonical isolation (12 fixtures)
+Codex settings cold: readers=8 nativeStartsTotal=5 elapsedMs=234.78
+Codex settings warm: readers=8 nativeStartsTotal=9 elapsedMs=219.54
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=pi sample=1
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=2 elapsedMs=431.01
+Pi settings warm: readers=8 nativeStartsTotal=2 elapsedMs=0.79
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=pi sample=2
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=2 elapsedMs=430.25
+Pi settings warm: readers=8 nativeStartsTotal=2 elapsedMs=0.27
+source=a4e7db866883bada3b94ba771c93ba574188ecf7 harness=pi sample=3
+PASS pi initial-response overview scope and canonical isolation (12 fixtures)
+Pi settings cold: readers=8 nativeStartsTotal=2 elapsedMs=433.52
+Pi settings warm: readers=8 nativeStartsTotal=3 elapsedMs=419.77

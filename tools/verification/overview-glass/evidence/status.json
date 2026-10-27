@@ -1,0 +1,45 @@
+{
+  "productionRevision": "e8df447ea32923cc4e7b63cfdb958154ebddb527",
+  "measurementSourceHashes": {
+    "run.py": "a44d8ff62e011570100da49ca8e98aa9264d94975c66473d2061562e5d01a170",
+    "glass.swift": "1e3e3db0d680274a37c2d60995c168ed4e32bb6fee6342bdaf02d51a49f465ef",
+    "capture.swift": "d5ced42ae1ce9292188f9fcb48a66d0aee7223a96a5f475d38d873ae9946efdd",
+    "performance_run.py": "191e043510c1b6cd7fd1253aa2f13589ceebad33af37acec968fed4b8c2ee5c3",
+    "gestures.swift": "5e499b7441b59045c4b18c7072288bfa5435e4aaf2ba58de83f62d5082c5d0e3",
+    "environment.swift": "2f3938574ed8d802a3fd94b3b58eb38eb7f3a65ad24e2ed6c1ae3f6a34525346",
+    "inspect-capture.swift": "7604c248127434f97338f8528e19a20b38690bda9efe6dee525b7f9a7af83ce6",
+    "performance.swift": "2ad807c332015714de3b333f6dd9f9368654bb4a89a3e6142d6bb0e58242f9e5",
+    "performance_support.py": "0c3c1112cdaa25dc8dc187052da9316d1475411f791f2471028e7a7e49a88073",
+    "analyze-performance.py": "efc507c2d96f8f996cafbd2a1988f0ae9be5d2a0ad3dff4d6d60d675cd5f93e3",
+    "verify-performance-analysis.py": "8dc9135dfc1d0581eb130d8e4edd6a93380984b96e9e0e0b97ae81d0713e60bf",
+    "main.swift": "e1a08ca365cd8e347c0db433ad1a4a907bef9fc3b909d5e65b8564956daa6ebe",
+    "inspect-glass.swift": "cd8d17122405c87c99ba0e026c2983da20747b2b51092dfb59d06bd7cfd7c4d8",
+    "glass-fixture.swift": "a9f070c60c3b143cd3e606abb9715ffecd4fdafaf8814d78aba6c8cbffd6fae2",
+    "plot-performance.py": "2080f1678ea63794ef0f7374e4e20b256acb836749c350788783cae81195836c"
+  },
+  "actualMeasurement": "prelaunch environment only; no GUI or glass performance samples",
+  "formalAttempt": {
+    "startUTC": "2026-10-27T06:51:31.663000+00:00",
+    "endUTC": "2026-10-27T06:54:37.286690+00:00",
+    "checks": 180,
+    "minInputIdleSeconds": 0.001399084,
+    "maxInputIdleSeconds": 124.030010542,
+    "maxConsecutiveStableChecks": 4,
+    "competingProcessNames": [],
+    "monitorErrors": [],
+    "phase": "prelaunch",
+    "failure": "No 30-second input-idle/compiler-free interval within 180 seconds; no GUI launched",
+    "GUIWasLaunched": false,
+    "measuredSegments": 0,
+    "validPairs": 0
+  },
+  "performanceResult": {
+    "CPU": null,
+    "GPU": null,
+    "renderedFrameTime": null,
+    "memoryDelta": null
+  },
+  "geometryResult": "Measured production pure geometry; not UI performance",
+  "finalFixture": "Compiled after formal prelaunch attempt; allows natural overflow for 12/30 cards; GUI success path unverified",
+  "archiveSHA256": "d3164ae256335b154a0fc55dec8a620ea7db685d02e2b108d7782b4556700e4d"
+}

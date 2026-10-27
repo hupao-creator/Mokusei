@@ -1,0 +1,105 @@
+{
+  "schema": 2,
+  "smoke": false,
+  "nativeRecorderHealthy": true,
+  "complete": false,
+  "missingConditions": [
+    "r1-dark-pan-zoom-off",
+    "r1-dark-pan-zoom-on",
+    "r1-dark-static-off",
+    "r1-dark-static-on",
+    "r1-light-pan-zoom-off",
+    "r1-light-pan-zoom-on",
+    "r1-light-static-off",
+    "r1-light-static-on",
+    "r2-dark-pan-zoom-off",
+    "r2-dark-pan-zoom-on",
+    "r2-dark-static-off",
+    "r2-dark-static-on",
+    "r2-light-pan-zoom-off",
+    "r2-light-pan-zoom-on",
+    "r2-light-static-off",
+    "r2-light-static-on",
+    "r3-dark-pan-zoom-off",
+    "r3-dark-pan-zoom-on",
+    "r3-dark-static-off",
+    "r3-dark-static-on",
+    "r3-light-pan-zoom-off",
+    "r3-light-pan-zoom-on",
+    "r3-light-static-off",
+    "r3-light-static-on",
+    "r4-dark-pan-zoom-off",
+    "r4-dark-pan-zoom-on",
+    "r4-dark-static-off",
+    "r4-dark-static-on",
+    "r4-light-pan-zoom-off",
+    "r4-light-pan-zoom-on",
+    "r4-light-static-off",
+    "r4-light-static-on"
+  ],
+  "protocolErrors": [
+    "driver-did-not-complete",
+    "native-replay-did-not-pass",
+    "warmup-coverage-mismatch"
+  ],
+  "validTrial": false,
+  "comparisonValid": false,
+  "hostMonitorErrors": [],
+  "missingMetrics": [
+    "GPU time/utilization attributable to fixture",
+    "rendered frame times/FPS",
+    "presentation hitches",
+    "energy"
+  ],
+  "rows": [],
+  "groups": [
+    {
+      "appearance": "light",
+      "scenario": "static",
+      "validPairs": 0,
+      "metrics": {
+        "cpuPercentOneCore": null,
+        "footprintMiBMedian": null,
+        "rssMiBMedian": null,
+        "wakeLatenessP95Ms": null,
+        "hostBusyPercent": null
+      }
+    },
+    {
+      "appearance": "light",
+      "scenario": "pan-zoom",
+      "validPairs": 0,
+      "metrics": {
+        "cpuPercentOneCore": null,
+        "footprintMiBMedian": null,
+        "rssMiBMedian": null,
+        "wakeLatenessP95Ms": null,
+        "hostBusyPercent": null
+      }
+    },
+    {
+      "appearance": "dark",
+      "scenario": "static",
+      "validPairs": 0,
+      "metrics": {
+        "cpuPercentOneCore": null,
+        "footprintMiBMedian": null,
+        "rssMiBMedian": null,
+        "wakeLatenessP95Ms": null,
+        "hostBusyPercent": null
+      }
+    },
+    {
+      "appearance": "dark",
+      "scenario": "pan-zoom",
+      "validPairs": 0,
+      "metrics": {
+        "cpuPercentOneCore": null,
+        "footprintMiBMedian": null,
+        "rssMiBMedian": null,
+        "wakeLatenessP95Ms": null,
+        "hostBusyPercent": null
+      }
+    }
+  ]
+}

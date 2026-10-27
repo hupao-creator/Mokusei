@@ -1,0 +1,22 @@
+{
+  "protocol": "three-condition baseline: five cards, idle and fixed-scale pan, six balanced repetitions",
+  "startAsiaShanghai": "2026-10-27T15:07:17.930865+08:00",
+  "endAsiaShanghai": "2026-10-27T15:10:23.791683+08:00",
+  "phase": "prelaunch",
+  "failure": "No 30-second input-idle/compiler-free interval within 180 seconds; no GUI launched",
+  "checks": 180,
+  "minInputIdleSeconds": 0.000596083,
+  "maxInputIdleSeconds": 101.33957325,
+  "maxConsecutiveStableChecks": 0,
+  "competingProcessNames": [],
+  "monitorErrors": [],
+  "GUIWasLaunched": false,
+  "measuredSegments": 0,
+  "validPairs": 0,
+  "result": {
+    "CPU": null,
+    "memory": null,
+    "GPU": null,
+    "renderedFrames": null
+  }
+}

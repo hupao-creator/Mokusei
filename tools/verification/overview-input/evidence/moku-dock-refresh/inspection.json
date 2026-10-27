@@ -1,0 +1,77 @@
+{
+  "comparisons" : [
+    {
+      "backgroundMeanDifference" : 0,
+      "regions" : [
+        {
+          "changedPixelFraction" : 1,
+          "id" : "codex",
+          "meanChannelDifference" : 15.311588546093923,
+          "region" : "{{580, 585}, {1241, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "claude",
+          "meanChannelDifference" : 12.319507043362139,
+          "region" : "{{580, 977}, {558, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "pi",
+          "meanChannelDifference" : 15.302063598358464,
+          "region" : "{{580, 1370}, {428, 8}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "opencode",
+          "meanChannelDifference" : 12.760833864052332,
+          "region" : "{{1262, 977}, {559, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "report",
+          "meanChannelDifference" : 13.098101931383143,
+          "region" : "{{1392, 1370}, {429, 8}}"
+        }
+      ],
+      "theme" : "light"
+    },
+    {
+      "backgroundMeanDifference" : 0,
+      "regions" : [
+        {
+          "changedPixelFraction" : 1,
+          "id" : "codex",
+          "meanChannelDifference" : 20.4022462269124,
+          "region" : "{{580, 585}, {1241, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "claude",
+          "meanChannelDifference" : 17.103805804142244,
+          "region" : "{{580, 977}, {558, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "pi",
+          "meanChannelDifference" : 20.577986083367719,
+          "region" : "{{580, 1370}, {428, 8}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "opencode",
+          "meanChannelDifference" : 16.7073797662188,
+          "region" : "{{1262, 977}, {559, 9}}"
+        },
+        {
+          "changedPixelFraction" : 1,
+          "id" : "report",
+          "meanChannelDifference" : 16.242387918039011,
+          "region" : "{{1392, 1370}, {429, 8}}"
+        }
+      ],
+      "theme" : "dark"
+    }
+  ],
+  "inspection" : "Independent PNG decoding; all five card interior strips must change while fixed exterior backdrop stays stable."
+}

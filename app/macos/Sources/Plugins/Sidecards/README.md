@@ -1,0 +1,41 @@
+# Thread Sidecards
+
+The shared [NativePlugins](../../Composition/NativePlugins.swift) composition registers Conversation, Browser (`iab`) and Voice. The host in [Host/Sidecards](../../Host/Sidecards/) selects one expanded card, owns widths/responsive layout, outer transitions, focus and suppression, and injects [thread-bound capabilities](../../Shared/PluginAPI/SidecardPlugin.swift). Sidecards apply to ordinary Agent Threads.
+
+## Conversation
+
+[Conversation](Conversation/) owns its draft and active-execution presentation. Its history qualification comes from the Harness's complete public turn index, not whichever lazy body is loaded. A first running/waiting turn remains in the main reading area. With earlier/inherited history, the active process can be shown in the execution card. Send intents and receipts coordinate with other cards through the host; plugins do not import siblings.
+
+## Browser
+
+[Browser](Browser/) owns WKWebView navigation, URL policy, annotation and capture.
+
+Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
+
+Rejected subframe downloads do not replace the main page's ready/error state.
+Annotation placement follows WebKit's applied page zoom at its limits, while
+menu zoom commands retain their accumulated level for consistent reversal.
+
+Browser state and drafts are isolated by thread. Native view/session generations reject late results after a switch or teardown. Collapsing or covering a card is distinct from ending its underlying activity.
+
+Page-owned file pickers and JavaScript dialogs close with a negative result when the browser is suppressed, its document navigates, or its session is released. Their WebKit callbacks complete once, including when AppKit delivers a delayed sheet completion. Cancellation retains dialog ownership across synchronous reentrant navigation; normal completion releases ownership before the page can open its next dialog. `NativeBrowserDialogTests` obtains WebKit parameters from a local HTML fixture and exercises these native sheets without external pages.
+
+Run `python3 tools/verification/reading-presentation/run.py --browser-dialogs` in a graphical macOS session. The isolated AppKit runner owns the application event loop and checks the complete four-test summary and all 19 cases. Ordinary SwiftPM skips this suite: without that event loop, `NSOpenPanel` can end the test process before the suite finishes, even with a zero exit status.
+
+## Voice
+
+[Voice](Voice/) presents availability, media controls and separate spoken transcripts from a [private read-only discussion](../../../../../internal/services/threadvoice/README.md). It does not send ordinary task input, answer the source task's permissions or write discussion history into that task. The [native voice owner](../../Voice/README.md) controls microphone and connection lifetime. Opening a card alone does not start capture.
+
+Verification uses the existing sidecard navigation, conversation, browser annotation/viewport and voice suites.
+
+`NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
+verify that iframe attachment and unsupported-MIME responses preserve the
+main page, while main-frame downloads remain rejected. Its annotation replay
+compares DOM geometry and the production native editor portal after zoom commands
+pass both WebKit limits. Run `xcrun swift test --package-path app/macos --no-parallel
+--filter 'NativeBrowserViewportTests|NativeBrowserAnnotationTests'` in a graphical
+macOS session.
+
+The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session discards unsent attachments (only the existing text draft is persisted). The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
+
+Replay: `xcrun swift test --no-parallel --package-path app/macos --filter 'NativeSidecardAttachmentPasteTests|NativeComposerPasteTests|NativeSidecardNavigationTests'` (requires a graphical macOS session).

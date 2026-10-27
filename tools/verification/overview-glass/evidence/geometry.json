@@ -1,0 +1,75 @@
+{
+  "kind" : "production pure geometry, no GUI and no glass timing",
+  "planColumnsRows" : [
+    2,
+    1
+  ],
+  "readableCellBudget" : 16,
+  "records" : [
+    {
+      "boundsColumnsRows" : [
+        2,
+        1
+      ],
+      "cameraScale" : 1.0234097487274518,
+      "count" : 1,
+      "fitsAtReadingScale" : true,
+      "geometricFullyInWindow" : 1,
+      "geometricIntersectingWindow" : 1,
+      "minimumScale" : 1.0234097487274518,
+      "placed" : 1,
+      "totalNaturalCells" : 2,
+      "wholeSceneFitScale" : 2.2717391304347827
+    },
+    {
+      "boundsColumnsRows" : [
+        2,
+        3
+      ],
+      "cameraScale" : 1.0234097487274518,
+      "count" : 5,
+      "fitsAtReadingScale" : true,
+      "geometricFullyInWindow" : 5,
+      "geometricIntersectingWindow" : 5,
+      "minimumScale" : 1.0234097487274518,
+      "placed" : 5,
+      "totalNaturalCells" : 6,
+      "wholeSceneFitScale" : 1.2879746835443038
+    },
+    {
+      "boundsColumnsRows" : [
+        3,
+        5
+      ],
+      "cameraScale" : 1.0234097487274518,
+      "count" : 12,
+      "fitsAtReadingScale" : false,
+      "geometricFullyInWindow" : 7,
+      "geometricIntersectingWindow" : 12,
+      "minimumScale" : 1.0234097487274518,
+      "placed" : 12,
+      "totalNaturalCells" : 15,
+      "wholeSceneFitScale" : 0.76503759398496241
+    },
+    {
+      "boundsColumnsRows" : [
+        5,
+        8
+      ],
+      "cameraScale" : 1.0234097487274518,
+      "count" : 30,
+      "fitsAtReadingScale" : false,
+      "geometricFullyInWindow" : 10,
+      "geometricIntersectingWindow" : 26,
+      "minimumScale" : 1.0234097487274518,
+      "placed" : 30,
+      "totalNaturalCells" : 36,
+      "wholeSceneFitScale" : 0.47546728971962615
+    }
+  ],
+  "toolbarBottom" : 58,
+  "viewportPoints" : [
+    1800,
+    1000
+  ]
+}

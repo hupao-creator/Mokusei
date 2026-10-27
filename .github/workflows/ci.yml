@@ -1,0 +1,255 @@
+name: CI
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CGO_ENABLED: '1'
+  GOTOOLCHAIN: local
+  GOFLAGS: -mod=readonly
+
+jobs:
+  go:
+    name: Go / Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # scripts/go.sh downloads Go 1.27.3 but rejects non-Darwin/arm64 hosts.
+      # setup-go honors go.mod's toolchain directive without changing go.mod.
+      - uses: actions/setup-go@v6
+        id: go
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Locate Go caches
+        id: go-cache
+        run: |
+          go version
+          printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.modules }}
+            ${{ steps.go-cache.outputs.build }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-
+
+      # Ubuntu's standard image provides cc and libsqlite3-dev. Keep this
+      # explicit: the runtime uses cgo, and disabling it is not a valid build.
+      - name: Check SQLite C toolchain
+        run: |
+          printf '#include <sqlite3.h>\nint main(void) { return sqlite3_libversion_number() == 0; }\n' |
+            cc -x c - -lsqlite3 -o "$RUNNER_TEMP/sqlite-check"
+          "$RUNNER_TEMP/sqlite-check"
+
+      - name: Go formatting
+        run: |
+          unformatted="$(gofmt -l cmd internal tools)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'Run gofmt on:\n%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Architecture, registration and source boundaries
+        run: go run ./cmd/mokusei-check architecture
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Go build
+        run: go build ./...
+
+      - name: Verify Go reporting against real failure and skip fixtures
+        run: python3 scripts/ci/verify-go-reporting.py
+
+      # Includes the Go half of check-directorytag; -count=1 prevents cached
+      # test results from substituting for execution after a cache restore.
+      # devtool's rotation tests call Darwin-only native profile leases; they
+      # run in the macOS job. All packages are still built and vetted above.
+      # Bound package concurrency for process/deadline fixtures on standard runners.
+      - name: Go unit tests (including directory tags)
+        if: ${{ !cancelled() }}
+        run: |
+          packages="$(go list ./cmd/... ./internal/...)"
+          portable_packages=()
+          while IFS= read -r package; do
+            if [[ "$package" != */internal/tooling/devtool ]]; then
+              portable_packages+=("$package")
+            fi
+          done <<< "$packages"
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/unit" -- \
+            go test -json -p 2 -count=1 "${portable_packages[@]}"
+
+      - name: Go module race tests (check-modules)
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/modules" --
+          go test -json -race -p 2 -count=1
+          ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime
+          ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
+
+      - name: Runtime and Codex integration properties (pbt)
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/properties" --
+          go test -json -race -count=1
+          ./tools/verification/runtime-concurrency ./tools/verification/codex
+          -run Properties
+
+      - name: Summarize Go tests and enforce execution
+        if: ${{ always() }}
+        run: >-
+          python3 scripts/ci/go-tests.py report --output "$RUNNER_TEMP/ci-go/summary.json"
+          "$RUNNER_TEMP/ci-go/unit" "$RUNNER_TEMP/ci-go/modules" "$RUNNER_TEMP/ci-go/properties"
+
+      - name: Retain Go test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-linux-test-evidence
+          path: ${{ runner.temp }}/ci-go
+          if-no-files-found: warn
+          retention-days: 14
+
+  swift:
+    name: Swift headless and native Go / macOS
+    # Package.swift and the Metal plugin require macOS 26. macos-15/14 can
+    # neither run these test binaries nor validate their AppKit behavior.
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      MOKUSEI_TEST_HEADLESS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v6
+        id: go
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Locate Go caches
+        id: go-cache
+        run: |
+          go version
+          printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.modules }}
+            ${{ steps.go-cache.outputs.build }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-
+
+      # check-modules includes a Darwin-only JXA/AppKit clipboard bridge test.
+      # Linux tests the unsupported-platform branch instead.
+      - name: Native Go module race tests
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-native-go/moku" --
+          go test -json -race -count=1 ./internal/services/moku
+
+      - name: Native development tool unit tests
+        if: ${{ !cancelled() }}
+        run: >-
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-native-go/devtool" --
+          go test -json -count=1 ./internal/tooling/devtool
+
+      - name: Summarize native Go tests and enforce execution
+        if: ${{ always() }}
+        run: >-
+          python3 scripts/ci/go-tests.py report --output "$RUNNER_TEMP/ci-native-go/summary.json"
+          "$RUNNER_TEMP/ci-native-go/moku" "$RUNNER_TEMP/ci-native-go/devtool"
+
+      - name: Prepare Xcode and Metal toolchain
+        if: ${{ !cancelled() }}
+        id: xcode
+        run: |
+          sw_vers
+          test "$(sw_vers -productVersion | cut -d. -f1)" -ge 26
+          xcodebuild -version
+          xcrun swift --version
+          if ! xcrun --sdk macosx metal --version; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun --sdk macosx metal --version
+          fingerprint="$({ xcodebuild -version; xcrun swift --version; xcrun --sdk macosx --show-sdk-version; } | shasum -a 256 | cut -d' ' -f1)"
+          printf 'fingerprint=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: app/macos/.build
+          key: ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.xcode.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.xcode.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-
+
+      # Always build, even on a cache hit. --skip-build below refers only to
+      # this run's successful build, never directly to restored test binaries.
+      - name: Swift build (including test targets)
+        id: swift-build
+        if: ${{ !cancelled() && steps.xcode.outcome == 'success' }}
+        working-directory: app/macos
+        run: xcrun swift build --build-tests --force-resolved-versions
+
+      - name: Swift directory-tag integration tests
+        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
+        timeout-minutes: 5
+        working-directory: app/macos
+        run: |
+          set -o pipefail
+          xcrun swift test --skip-build --no-parallel --filter NativeOverviewDirectoryTagTests 2>&1 |
+            tee "$RUNNER_TEMP/swift-directory-tags.log"
+
+      - name: Swift full test suite
+        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
+        timeout-minutes: 20
+        working-directory: app/macos
+        run: |
+          set -o pipefail
+          # AppKit fixtures share application/window state across suites.
+          xcrun swift test --skip-build --no-parallel 2>&1 | tee "$RUNNER_TEMP/swift-tests.log"
+
+      - name: Summarize Swift tests and enforce execution
+        if: ${{ always() }}
+        run: |
+          python3 scripts/ci/swift-tests.py
+
+      - name: Retain native test evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-evidence
+          path: |
+            ${{ runner.temp }}/ci-native-go
+            ${{ runner.temp }}/swift-directory-tags.log
+            ${{ runner.temp }}/swift-tests.log
+            ${{ runner.temp }}/swift-summary.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,44 @@
+{
+  "backingScale" : 2,
+  "camera" : {
+    "scale" : 0.90822784810126578,
+    "x" : 265.77215189873419,
+    "y" : 122
+  },
+  "cpuCount" : 10,
+  "displayModePixels" : [
+    3024,
+    1964
+  ],
+  "frames" : {
+    "claude" : "{{266, 318.17721518987344}, {326.96202531645565, 181.64556962025313}}",
+    "codex" : "{{266, 122}, {668.45569620253161, 181.64556962025313}}",
+    "opencode" : "{{607.49367088607596, 318.17721518987344}, {326.96202531645565, 181.64556962025313}}",
+    "pi" : "{{266, 514.35443037974687}, {326.96202531645565, 181.64556962025313}}",
+    "report" : "{{607.49367088607596, 514.35443037974687}, {326.96202531645565, 181.64556962025313}}"
+  },
+  "memoryBytes" : 17179869184,
+  "missingMetrics" : [
+    "GPU time\/utilization attributable to fixture",
+    "rendered frame times\/FPS",
+    "presentation hitches",
+    "energy"
+  ],
+  "nominalDisplayRefreshHzNotFPS" : 120,
+  "os" : "Version 26.5.1 (Build 25F80)",
+  "pid" : 53175,
+  "reduceMotion" : false,
+  "reduceTransparency" : false,
+  "repetitions" : 4,
+  "sampleSeconds" : 12,
+  "sampling" : "getrusage and TASK_VM_INFO; host CPU tick deltas; main-actor Task.sleep wake lateness is only a responsiveness proxy",
+  "schema" : 1,
+  "screenFrame" : "{{0, 0}, {1512, 982}}",
+  "smoke" : false,
+  "startedAt" : "2026-10-25T05:34:01Z",
+  "warmupSecondsPerCondition" : 4,
+  "windowPoints" : [
+    1200,
+    760
+  ]
+}

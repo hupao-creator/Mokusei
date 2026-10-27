@@ -1,0 +1,68 @@
+{
+  "productionCommits": [
+    "d9038e700",
+    "7ac1437f4",
+    "1f8e4f51c"
+  ],
+  "checks": [
+    {
+      "label": "Moku integration",
+      "command": "./scripts/go.sh run -race ./tools/verification/moku",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/moku-final-race.log",
+      "sha256": "a849b0285203398704b0e5a5d1e3aba08a3e13de3d6739c5296c85e164dbc925"
+    },
+    {
+      "label": "Store/workspaces integration",
+      "command": "./scripts/go.sh run -race ./tools/verification/storage-workspaces",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/storage-workspaces-race.log",
+      "sha256": "2d070da023fd032be0786d8ef080ec98656d283816ff9089e1cfcf3e058e5bf1"
+    },
+    {
+      "label": "Runtime integration",
+      "command": "./scripts/go.sh run -race ./tools/verification/runtime",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/runtime-race.log",
+      "sha256": "de06a2c4874d3d319fcf7fbbbacd226ddcdc8a29dddb93dd4e053a400b4efd65"
+    },
+    {
+      "label": "Application host integration",
+      "command": "./scripts/go.sh run -race ./tools/verification/applicationhost",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/applicationhost-race-final.log",
+      "sha256": "2bee7aae65858fea01373b099cfe156b94aa47aec84cf26dd3145a7e6715fe3e"
+    },
+    {
+      "label": "Codex integration",
+      "command": "./scripts/go.sh run -race ./tools/verification/codex",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/codex-race.log",
+      "sha256": "8b0d1526df12ffa1b8f7c56e983dd0aedc45f3e5b08e1368a5a86d5d0f53c4e9"
+    },
+    {
+      "label": "Repository gate",
+      "command": "make check ARGS=",
+      "exitCode": 0,
+      "log": ".build/runtime-performance/logs/make-check-final.log",
+      "sha256": "714b423114f5d63dc1333acdad572a54ee64f31ff62663e2dd443b73bad0452e"
+    }
+  ],
+  "initialFailures": [
+    {
+      "command": "./scripts/go.sh run -race ./tools/verification/applicationhost",
+      "reason": "New fixture omitted required settings; fixed both behavior and benchmark setup, rerun passed."
+    },
+    {
+      "command": "make check",
+      "reason": "Inherited ARGS=--fresh rejected by Go property runner. Explicit ARGS= rerun passed; no production change."
+    }
+  ],
+  "notRun": [
+    "live paid model/provider calls",
+    "audio hardware/WebRTC",
+    "GUI frame or GPU measurements",
+    "multi-hour resource soak",
+    "full asynchronous publisher completion benchmark"
+  ]
+}

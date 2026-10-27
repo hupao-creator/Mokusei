@@ -1,0 +1,163 @@
+[
+  {
+    "step": "glass-captures",
+    "command": [
+      "python3",
+      "tools/verification/overview-input/run.py",
+      "--glass-world",
+      ".build/verification/overview-final/glass-captures"
+    ],
+    "started": 1792905809.88691,
+    "ended": 1792905838.538323,
+    "exitCode": 0
+  },
+  {
+    "step": "mounting",
+    "command": [
+      "python3",
+      "tools/verification/reading-presentation/run.py",
+      "--overview-mounting"
+    ],
+    "started": 1792905838.5395782,
+    "ended": 1792905867.2057621,
+    "exitCode": 0
+  },
+  {
+    "step": "tag-glass",
+    "command": [
+      "python3",
+      "tools/verification/reading-presentation/run.py",
+      "--tag-glass"
+    ],
+    "started": 1792905867.216929,
+    "ended": 1792905913.9411242,
+    "exitCode": 0
+  },
+  {
+    "step": "reading",
+    "command": [
+      "python3",
+      "tools/verification/reading-presentation/run.py"
+    ],
+    "started": 1792905913.959588,
+    "ended": 1792905931.295072,
+    "exitCode": 0
+  },
+  {
+    "step": "settings-transition",
+    "command": [
+      "python3",
+      "tools/verification/reading-presentation/run.py",
+      "--settings-transition"
+    ],
+    "started": 1792905931.296464,
+    "ended": 1792905946.3969731,
+    "exitCode": 0
+  },
+  {
+    "step": "overview-suites",
+    "command": [
+      "xcrun",
+      "swift",
+      "test",
+      "--package-path",
+      "app/macos",
+      "--skip-build",
+      "--no-parallel",
+      "--filter",
+      "NativeOverview"
+    ],
+    "started": 1792905946.408793,
+    "ended": 1792906038.356092,
+    "exitCode": 0
+  },
+  {
+    "step": "overview-input",
+    "log": "/tmp/overview-final-input.log",
+    "exitCode": 0
+  },
+  {
+    "step": "overview-search-native",
+    "log": "overview-search-native.log",
+    "exitCode": 0,
+    "tests": 14,
+    "gatedCasesExecuted": 3
+  },
+  {
+    "step": "make-check-final",
+    "log": "make-check.log",
+    "exitCode": 0,
+    "command": [
+      "make",
+      "check",
+      "ARGS="
+    ]
+  },
+  {
+    "step": "visual-inspection",
+    "captures": [
+      "light-on.png",
+      "light-off.png",
+      "dark-on.png",
+      "dark-off.png"
+    ],
+    "result": "All five cards, semantic controls, current bottom-center Dock and light/dark material changes inspected; no new visual regression observed"
+  },
+  {
+    "step": "make-check-post-audit",
+    "command": [
+      "make",
+      "check",
+      "ARGS="
+    ],
+    "log": "make-check-post-audit.log",
+    "exitCode": 0
+  },
+  {
+    "step": "performance-diagnostic-build",
+    "mode": "Release build-only; no GUI launch",
+    "log": "glass-performance-diagnostic-build.log",
+    "exitCode": 0
+  },
+  {
+    "step": "power-field-validation",
+    "mode": "single unpaired headless tool validation, not a performance conclusion",
+    "log": "power-field-validation.log",
+    "exitCode": 0
+  },
+  {
+    "step": "final-delivery-check",
+    "command": [
+      "make",
+      "check",
+      "ARGS="
+    ],
+    "log": "make-check-final-delivery.log",
+    "exitCode": 0,
+    "validatedSourceSHA256": {
+      "app/macos/Sources/Host/Overview/NativeOverviewMembership.swift": "c305114bdba96003a94b69a46aefb124e61c5314e6232875039bce1939204b65",
+      "app/macos/Sources/Host/Overview/NativeOverviewSelection.swift": "efbc512dd653cdebe275c225be201bde29ff7fbc64a053204beddacaecd8cf16",
+      "app/macos/Sources/Host/Overview/NativeOverviewWorkspaceModel.swift": "0919257db91aca73336fdaa78f5a250c3ede73bce3a3507ffb438fd7ebfa77a2",
+      "app/macos/Tests/Integration/Host/NativeOverviewMembershipTests.swift": "7682458e53a483f7c2f60e7e5091051553cfd0b066b6397d5bf457538d8f9ede",
+      "tools/verification/overview-input/analyze-performance.py": "5fd987d0e335ccf2c16fc25bbe511f7c4d2dc8cf69cbe10611d5a34bf79db2f3",
+      "tools/verification/overview-input/glass-fixture.swift": "d9bd3136028deccf702f2ff580ad81a5c6e8d30490c4127cadad79fe6bdd7758",
+      "tools/verification/overview-input/glass.swift": "1e3e3db0d680274a37c2d60995c168ed4e32bb6fee6342bdaf02d51a49f465ef",
+      "tools/verification/overview-input/performance.swift": "bc59c168115fefeb317b16170039091ddb57370a147c305fdde4ae5bcf12d7d4",
+      "tools/verification/overview-input/plot-performance.py": "257294a90e95f460b81805bb56eab5bff7d5987fd368ce723fb7c0c6b9d64662",
+      "tools/verification/overview-input/run.py": "a8862b621e7f14ebc15def181372e8f9fc4160289540b396b4ca4b1833c846cb",
+      "tools/verification/overview-performance/analyze.py": "1e81769c62c524831f44cd2f67e76897273c6c738d5dd8ff56026ad952ea0019",
+      "tools/verification/overview-performance/main.swift": "eba1aff59217775dd1f53b00225739edabeaa089496220b5cd8dd7480d209722",
+      "tools/verification/overview-performance/plot.py": "8bb7e8a156d704a3a90bd9da9da990aac99616cb7d999abe2702eeb3b93ae387",
+      "tools/verification/overview-performance/run.py": "83d9de563c446b7da8afe845d831a03c0624e64cd9bd83b9bb34e1934e7c6476",
+      "tools/verification/reading-presentation/run.py": "d916130453d07eee48158a9e2295986901e0c181ec6b86fbae79e6c5e5ca16e5"
+    },
+    "additionalChecks": [
+      "plot generation",
+      "SVG XML parse",
+      "paired-evidence consistency",
+      "archive path validation",
+      "Markdown links",
+      "git diff --cached --check"
+    ]
+  }
+]

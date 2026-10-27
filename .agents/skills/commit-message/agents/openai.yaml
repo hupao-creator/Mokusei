@@ -1,0 +1,3 @@
+interface:
+  display_name: "Commit Message"
+  short_description: "Write clear commit messages with context and rationale"
