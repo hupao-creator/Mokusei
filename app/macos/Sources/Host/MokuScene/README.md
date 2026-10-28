@@ -62,6 +62,8 @@ importing, submission and unavailable states retain their ordinary admission rul
 Moku editors use a shortened, rounded 2.6-point caret with a warm-yellow upper
 halo and cool-blue lower halo. A 2.4-second breathing cycle replaces native on/off
 blinking; the white dark-mode core retains native dark ink in light appearance.
+Light-mode ink stays at 80–100% opacity so the dim phase remains visible;
+dark-mode ink uses 20–100%, while the halos fade fully in both appearances.
 Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations. Reduce Motion keeps the caret steady and makes

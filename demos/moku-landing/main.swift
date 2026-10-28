@@ -297,10 +297,11 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         throw Failure(description: "WindowServer did not provide a complete demo window for \(name)")
     }
-    private func captureCaret(_ name: String, input: NSTextView, caret: CALayer) async throws {
+    private func captureCaret(_ name: String, input: NSTextView, caret: CALayer, dim: Bool = false) async throws {
         input.updateInsertionPointStateAndRestartTimer(true)
-        try await wait("Caret did not reach its bright phase for the contrast capture") {
-            (caret.sublayers?.first { $0.name == "composer-insertion-core" }?.presentation()?.opacity ?? 0) > 0.97
+        try await wait("Caret did not reach the requested phase for the contrast capture") {
+            let opacity = caret.sublayers?.first { $0.name == "composer-insertion-core" }?.presentation()?.opacity ?? 0
+            return dim ? opacity > 0 && opacity < 0.805 : opacity > 0.995
         }
         let image = try await capture(name)
         let root = window.contentView!
@@ -319,10 +320,10 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         let a = luminance(foreground), b = luminance(background)
         let contrast = (max(a, b) + 0.05) / (min(a, b) + 0.05)
-        caretContrast[fixture.dark ? "dark" : "light"] = ["ratio": contrast, "widthPoints": Double(caret.bounds.width)]
+        caretContrast[(fixture.dark ? "dark" : "light") + (dim ? "-dim" : "")] = ["ratio": contrast, "widthPoints": Double(caret.bounds.width)]
         try JSONSerialization.data(withJSONObject: caretContrast, options: .prettyPrinted)
             .write(to: output.appendingPathComponent("caret-contrast.json"))
-        try require(abs(caret.bounds.width - 2.6) < 0.01 && contrast >= 4.5, "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
+        try require(abs(caret.bounds.width - 2.6) < 0.01 && contrast >= (dim ? 3 : 4.5), "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
         rect = rect.insetBy(dx: -18, dy: -14)
         let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale,
                             width: rect.width * scale, height: rect.height * scale).integral
@@ -369,7 +370,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
                         "Native blinking interrupted the breathing caret")
             opacitySamples.append(core.presentation()?.opacity ?? core.opacity)
         }
-        try require(opacitySamples.min()! < 0.3 && opacitySamples.max()! > 0.9 && opacitySamples.min()! >= 0.19,
+        try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,
                     "Caret did not breathe continuously between dim and bright phases")
         try require(caret.bounds.height < input.font!.pointSize && abs(caret.bounds.width - 2.6) < 0.01,
                     "Caret did not use the approved short, slightly thicker geometry")
@@ -388,6 +389,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         let settled = caret.presentation()?.position ?? caret.position
         try require(abs(settled.x - target.x) < 0.5, "Caret did not settle at the native insertion point")
         try await captureCaret("01c-breathing-caret", input: input, caret: caret)
+        try await captureCaret("01d-dim-caret", input: input, caret: caret, dim: true)
         try require(accessible("moku-send", in: window.contentView!), "Nonempty composer does not expose Send")
         try JSONSerialization.data(withJSONObject: ["before": NSStringFromPoint(before), "during": NSStringFromPoint(during),
             "target": NSStringFromPoint(target), "settled": NSStringFromPoint(settled)], options: .prettyPrinted)

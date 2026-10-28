@@ -75,6 +75,8 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 2.6-point rounded caret, shortened to 23/24 of the text size and centered in the
 native insertion rectangle. The core is white in dark appearance and uses native
 ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
+Light ink stays at 80–100% opacity throughout the cycle for contrast; dark-mode
+white ink breathes at 20–100%, while both halos fade fully.
 Core Animation breathes over 2.4 seconds; native blink callbacks do not hide it
 or restart the cycle. Same-line movement interpolates over 120ms from the current
 presentation; repainting an unchanged rectangle does not restart movement.

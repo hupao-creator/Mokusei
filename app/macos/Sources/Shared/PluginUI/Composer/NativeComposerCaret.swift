@@ -8,6 +8,7 @@ import QuartzCore
     private let warmGlow = CALayer()
     private let coolGlow = CALayer()
     private var hasFrame = false
+    private var darkAppearance = true
     var reduceMotion = false {
         didSet {
             guard reduceMotion != oldValue else { return }
@@ -55,6 +56,10 @@ import QuartzCore
         // reference on the dark capsule without sacrificing light-mode contrast.
         let dark = editor.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         core.backgroundColor = (dark ? NSColor.white : color).cgColor
+        if darkAppearance != dark {
+            darkAppearance = dark
+            core.removeAnimation(forKey: "breathing")
+        }
         for (glow, center) in [(warmGlow, height * 0.24), (coolGlow, height * 0.76)] {
             glow.frame = CGRect(x: -0.7, y: center - height * 0.18, width: 4, height: height * 0.36)
             glow.cornerRadius = 2
@@ -83,7 +88,9 @@ import QuartzCore
                 // Native blink callbacks and typing must not reset the cycle.
                 let breath = CABasicAnimation(keyPath: "opacity")
                 breath.fromValue = part.opacity
-                breath.toValue = part === core ? 0.2 : 0
+                // Pale glass needs a stronger ink floor throughout the cycle;
+                // the halos still breathe fully in either appearance.
+                breath.toValue = part === core ? (darkAppearance ? 0.2 : 0.8) : 0
                 breath.duration = 1.2
                 breath.autoreverses = true
                 breath.repeatCount = .infinity
