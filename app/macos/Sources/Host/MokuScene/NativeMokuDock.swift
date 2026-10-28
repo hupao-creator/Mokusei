@@ -318,10 +318,6 @@ public struct NativeMokuDock: View {
                     openNote: { state.openNotePanelFromUser() },
                     // Voice owns the composer seat; notes only change presentation.
                     openInput: { if !voiceModeActive { state.setInputOpen(true) } })
-                NativeMokuForceTouchVoiceMonitor(
-                    isActive: { state.overviewVisible && !state.dockCovered && state.windowVisible },
-                    isInside: { voiceActivationFrame.insetBy(dx: -5, dy: -5).contains($0) },
-                    canStart: canStartVoice, start: startVoice)
             }
             .allowsHitTesting(false)
         }
@@ -636,6 +632,7 @@ public struct NativeMokuDock: View {
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,
             retainedDirectories: retaining ? state.retainedDirectories : nil,
+            canStartVoice: { state.windowVisible && !navigationDisabled && canStartVoice() }, startVoice: startVoice,
             activeVoiceControls: voiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel,
             availableHeight: room,
             mentions: directoryMentions, includesCompletion: false, onMentionFrame: { state.dockMentionHitRect = $0 },

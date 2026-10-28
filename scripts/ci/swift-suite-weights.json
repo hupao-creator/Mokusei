@@ -29,7 +29,7 @@
   "MokuseiSettingsIntegrationTests.NativeComposerContrastTests": 4.591,
   "MokuseiSettingsIntegrationTests.NativeComposerPasteTests": 5.903,
   "MokuseiSettingsIntegrationTests.NativeComposerScrollTests": 6.333,
-  "MokuseiSettingsIntegrationTests.NativeForceTouchVoiceTriggerTests": 0.031,
+  "MokuseiSettingsIntegrationTests.NativeMokuLongPressVoiceTests": 0.031,
   "MokuseiSettingsIntegrationTests.NativeHTMLGeometryTests": 0.1,
   "MokuseiSettingsIntegrationTests.NativeLoadingMarkTests": 2.816,
   "MokuseiSettingsIntegrationTests.NativeMarkdownLocalImageTests": 2.863,

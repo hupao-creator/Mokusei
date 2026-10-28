@@ -42,7 +42,9 @@ struct NativeMokuComposerInput: View {
     var retainedText: String?
     var retainedAttachments: [NativeComposerAttachment]?
     var retainedDirectories: [NativeComposerDirectory]?
-    /// Voice starts through Force Touch or its menu shortcut.
+    /// Voice starts by holding the native editor; the workspace owns the session.
+    var canStartVoice: () -> Bool = { false }
+    var startVoice: () -> Void = {}
     var activeVoiceControls = AnyView(EmptyView())
     var voiceModeActive = false
     var running = false
@@ -80,7 +82,9 @@ struct NativeMokuComposerInput: View {
     }
     private var placeholder: String {
         let directories = retainedDirectories ?? draft.directories
-        guard let first = directories.first else { return "Ask Moku…" }
+        guard let first = directories.first else {
+            return localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak")
+        }
         let name = first.name.string
         let subject: String
         switch directories.count {
@@ -92,7 +96,7 @@ struct NativeMokuComposerInput: View {
         default:
             subject = localize("\(name) 等 \(directories.count) 个目录", "\(name) and \(directories.count - 1) other directories")
         }
-        return localize("向 Moku 询问关于 \(subject) 的问题…", "Ask Moku about \(subject)…")
+        return localize("向 Moku 询问关于 \(subject) 的问题，或长按说话…", "Ask Moku about \(subject)… or hold to speak")
     }
     var body: some View {
         VStack(spacing: 0) {
@@ -141,6 +145,16 @@ struct NativeMokuComposerInput: View {
                     selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
                         onEditorStateChange?(state)
                     }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
+                    .overlay {
+                        NativeMokuLongPressVoiceMonitor(
+                            isActive: { focusEnabled && !unavailable && !readOnly && !voiceModeActive },
+                            canStart: canStartVoice, start: startVoice)
+                            .allowsHitTesting(false)
+                    }
+                    .help(localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking"))
+                    .accessibilityAction(named: Text(localize("开始语音", "Start voice"))) {
+                        if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
+                    }
                 // Keep the seat while it opens, without mounting an inactive
                 // voice entry. The workspace retains the media client itself.
                 ZStack {
@@ -258,6 +272,7 @@ public struct NativeMokuHistoryComposer: View {
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
+            canStartVoice: canStartVoice, startVoice: startVoice,
             activeVoiceControls: activeVoiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel, availableHeight: availableHeight,
             mentions: mentions, showsEyes: true,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
@@ -267,13 +282,6 @@ public struct NativeMokuHistoryComposer: View {
             .background { ZStack { NativeMokuCapsuleGlass().id(colorScheme); voiceBackground } }
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
-            .overlay {
-                NativeMokuForceTouchVoiceMonitor(
-                    isActive: { !disabled },
-                    isInside: { _ in true },
-                    canStart: canStartVoice, start: startVoice)
-                .allowsHitTesting(false)
-            }
             .onHover { hovered = $0 }
             .coordinateSpace(name: "native-moku-dock")
             .onGeometryChange(for: CGFloat.self) { max(58, $0.frame(in: .global).maxY - 24) } action: { availableHeight = $0 }
