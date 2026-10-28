@@ -113,10 +113,11 @@ public struct NativeComposerTextInput: View {
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
             submitOnReturn: submitOnReturn, emphasizedInsertionPoint: emphasizedInsertionPoint,
             reduceCaretMotion: reduceMotion,
-            onPaste: nativePaste)
+            onPaste: nativePaste, textInsets: emphasizedInsertionPoint ? editorInsets : EdgeInsets())
             // Split the trailing line spacing around the glyphs to center a single line.
-            .padding(EdgeInsets(top: insets.top + spacing / 2, leading: insets.left,
-                               bottom: max(0, insets.bottom - spacing / 2), trailing: insets.right))
+            // Keep glow space inside the native viewport so the scroll clip
+            // does not cut it at the first/last line or the leading insertion.
+            .padding(emphasizedInsertionPoint ? EdgeInsets() : editorInsets)
             .background(alignment: .topLeading) {
                 if value.isEmpty {
                     Text(placeholder).font(.system(size: fontSize)).foregroundStyle(Color.primary.opacity(0.85))
@@ -161,6 +162,10 @@ public struct NativeComposerTextInput: View {
                 Task { await onFiles(files) }; return true
             }
             .accessibilityLabel(placeholder)
+    }
+    private var editorInsets: EdgeInsets {
+        EdgeInsets(top: insets.top + spacing / 2, leading: insets.left,
+                   bottom: max(0, insets.bottom - spacing / 2), trailing: insets.right)
     }
     private var nativePaste: (([NSItemProvider], NSRange) -> Void)? {
         guard onFiles != nil else { return nil }
