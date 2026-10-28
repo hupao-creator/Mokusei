@@ -7,6 +7,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     @Binding var selection: NSRange?
     @Binding var focused: Bool
     var selectionRequest: NativeComposerSelectionRequest?
+    var initialSelection: NSRange?
     var focusEnabled: Bool
     var unavailable: Bool
     var fontSize: CGFloat
@@ -48,6 +49,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.handleKey = { [weak coordinator = context.coordinator] event in coordinator?.handle(event) ?? false }
         scroll.documentView = editor
         context.coordinator.editor = editor
+        context.coordinator.pendingSelection = initialSelection
         return scroll
     }
 
@@ -70,6 +72,12 @@ struct NativeComposerEditor: NSViewRepresentable {
                 replacedText = true
                 editor.setSelectedRange(coordinator.clamped(oldSelection))
             }
+        }
+        // A remounted editor restores the draft before applying the caret saved
+        // by the previous surface. Completion requests below still take priority.
+        if let pending = coordinator.pendingSelection, !editor.hasMarkedText() {
+            coordinator.pendingSelection = nil
+            editor.setSelectedRange(coordinator.clamped(pending))
         }
         // Caret/focus rerenders must not invalidate glyph layout after scrolling.
         if !editor.hasMarkedText(), replacedText || coordinator.fontSize != fontSize || coordinator.spacing != spacing {
@@ -107,6 +115,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         var lastModel: String?
         var fontSize: CGFloat?
         var spacing: CGFloat?
+        var pendingSelection: NSRange?
         private var lastRequest: UUID?
         private var lastState: NativeComposerEditorState?
         private var publishScheduled = false
