@@ -58,6 +58,14 @@ records screenshot measurements, the compact fallback and verification limits.
 
 Content-only and carousel-fact updates do not restart an already queued or playing automatic refit. Queued work reads the latest bounds after acquiring the spatial stage; a playing refit reconciles newer framing revisions on completion. Continuous Harness output therefore cannot postpone insertion framing until output stops or the user clicks the background.
 
+Reading-position preservation starts from settled automatic framing, or from an
+already retained reading target. A footprint revision arriving before insertion
+framing completes keeps the pending collection fit and resolves it against the
+latest bounds. It cannot retain the old or partially animated camera as a new
+reading position. Consecutive reading-preserving revisions carry their target
+forward rather than repeatedly sampling intermediate motion; explicit return,
+restoration and attention framing take precedence over reading retention.
+
 [NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic attention; hover/restored focus alone does not imply editing.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Search dismissal can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
@@ -98,4 +106,4 @@ Validation uses existing Overview layout/camera/search/tag/directory tests and t
 
 The [Overview chaos guide](../../../../../tools/native-interaction/OVERVIEW.md) describes the actions and coverage limits. The [real app runner](../../../../../tools/verification/overview-interaction/README.md) creates actual directories, a symlink and a Git linked worktree, seeds an exclusively owned profile before launch, then drives the signed production Release app. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
 
-The [layout comparison](../../../../../tools/verification/overview-layout/README.md) compiles baseline/current production geometry and reports screen displacement, visible fill, complete cards and solver work. Native capacity tests additionally assert same-footprint solver avoidance, deletion/refill screen anchors, automatic insertion framing without a background click and manual-pan retention in both motion settings. Insertion checks use actual rendered frames for one-to-two and six-to-seven cards, wait through delayed refits, and verify that explicit return to automatic framing has no further correction to make.
+The [layout comparison](../../../../../tools/verification/overview-layout/README.md) compiles baseline/current production geometry and reports screen displacement, visible fill, complete cards and solver work. Native capacity tests additionally assert same-footprint solver avoidance, deletion/refill screen anchors, automatic insertion framing without a background click and manual-pan retention in both motion settings. Insertion checks use actual rendered frames for one-to-two and six-to-seven cards, including footprint growth before the refit and coalesced Runtime revision history, wait through delayed refits, and verify that explicit return to automatic framing has no further correction to make.
