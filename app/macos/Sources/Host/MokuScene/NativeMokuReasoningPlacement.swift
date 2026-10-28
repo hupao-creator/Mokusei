@@ -9,14 +9,14 @@ struct NativeMokuReasoningPlacement: Equatable {
     var decorationPadding: CGFloat = 32
 
     @MainActor static func fit(surface: CGRect, arcBody: CGRect? = nil, viewport: CGRect,
-                              glyphs: [MokuReasoningGlyph]) -> Self {
+                              glyphs: [MokuReasoningGlyph], preferredScale: CGFloat = 1) -> Self {
         guard viewport.width > 0, viewport.height > 0 else { return .init(surface: surface) }
         let arcBody = arcBody ?? surface
         let track = NativeMokuReasoningArcTrack(body: arcBody)
         let arcInk = track.inkBounds(for: glyphs)
         let ink = arcInk.union(surface)
         let available = viewport.insetBy(dx: min(4, viewport.width / 4), dy: min(4, viewport.height / 4))
-        let scale = min(1, available.width / max(1, ink.width), available.height / max(1, ink.height))
+        let scale = min(preferredScale, available.width / max(1, ink.width), available.height / max(1, ink.height))
         let left = (ink.minX - surface.midX) * scale, right = (ink.maxX - surface.midX) * scale
         let top = (ink.minY - surface.midY) * scale, bottom = (ink.maxY - surface.midY) * scale
         let x = min(max(surface.midX, available.minX - left), available.maxX - right)

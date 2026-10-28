@@ -45,3 +45,7 @@ A thread switch may also reset presentation state before the old cleanup task
 finishes; that state alone does not certify cleanup.
 See the [Swift failure audit](../../../../tools/verification/swift-tests/README.md)
 for the baseline, failure classifications, skipped fixtures and validation logs.
+
+The tag-prefix geometry-only case mounts its filter bar offscreen to exclude
+native glass hover from chip-height measurements. Its optional WindowServer
+capture mode remains on-screen; glyph reference and pixel assertions are unchanged.

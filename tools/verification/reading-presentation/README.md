@@ -11,9 +11,10 @@ Overview and Moku presentation. The real shell waits for Moku hydration before
 centering. Installed public snapshots cover durable shells before native admission,
 failed dispatch, a successful result followed by Talk/another pending creation,
 global membership versus scoped search, archive/delete reentry, directory-only
-documents and snapshot rehydration. Mounted production surfaces also check Talk
-beside the live editor, failed submission draft retention, Escape, narrow resize,
-Settings/history cover and remount.
+documents and snapshot rehydration. Mounted production surfaces also check one persistent character through native
+submission, running, Talk and dispatch, the accessible Stop action, notification
+deferral while editing, failed submission draft retention, Escape/reopening,
+narrow resize and Settings/history cover/remount without forced reopening.
 
 Catalog transactions pass through the actual preparation/installation boundary.
 Fixture send callbacks replace unavailable remote admission; no Runtime, model
