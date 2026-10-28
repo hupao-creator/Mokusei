@@ -72,7 +72,7 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
-2.6-point rounded caret, shortened to 23/24 of the text size and centered in the
+2.6-point rounded caret, sized to 25/24 of the text size and centered in the
 native insertion rectangle. The core is white in dark appearance and uses native
 ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
 Light ink stays at 80–100% opacity throughout the cycle for contrast; dark-mode

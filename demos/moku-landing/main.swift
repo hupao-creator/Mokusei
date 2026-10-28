@@ -372,7 +372,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,
                     "Caret did not breathe continuously between dim and bright phases")
-        try require(caret.bounds.height < input.font!.pointSize && abs(caret.bounds.width - 2.6) < 0.01,
+        try require(caret.bounds.height > input.font!.pointSize && caret.bounds.height < input.font!.pointSize * 1.1 && abs(caret.bounds.width - 2.6) < 0.01,
                     "Caret did not use the approved short, slightly thicker geometry")
         try JSONSerialization.data(withJSONObject: opacitySamples.map(Double.init), options: .prettyPrinted)
             .write(to: output.appendingPathComponent("caret-breathing.json"))

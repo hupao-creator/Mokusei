@@ -39,7 +39,7 @@ import QuartzCore
     func show(at nativeRect: CGRect, color: NSColor, in editor: NSTextView) {
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
-        let height = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 23 / 24)
+        let height = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
         let rect = CGRect(x: nativeRect.midX - 1.3, y: nativeRect.midY - height / 2, width: 2.6, height: height)
         let previous = layer.presentation()?.position ?? layer.position
         let moved = hasFrame && rect.origin != layer.position
