@@ -85,6 +85,7 @@ func verificationMain() error {
 	streamRepeats := flag.Int("stream-repeats", 3, "samples per stream kind (1..20)")
 	settlementOnly := flag.Bool("settlement-only", false, "run only deterministic native/durable follow-up completion races")
 	voiceOnly := flag.Bool("voice-only", false, "only replay native voice notifications and feedback identities without audio devices")
+	voiceConfigurationOnly := flag.Bool("voice-configuration-only", false, "only replay native voice configuration rejection and cleanup ownership")
 	realOnly := flag.Bool("real-only", false, "run only installed-CLI loopback verification (requires -real-codex)")
 	real := flag.String("real-codex", "", "also verify this installed native Codex executable against a local scripted Provider (macOS only)")
 	flag.Parse()
@@ -100,6 +101,13 @@ func verificationMain() error {
 	defer os.RemoveAll(root)
 	if *settingsPerformance {
 		return verifySettingsPerformance(ctx, root)
+	}
+	if *voiceConfigurationOnly {
+		binary, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		return verifyVoiceConfiguration(ctx, filepath.Join(root, "voice-configuration"), binary)
 	}
 	if *streamOnly || *streamPerformance {
 		binary, err := os.Executable()

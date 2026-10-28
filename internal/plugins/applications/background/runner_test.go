@@ -70,8 +70,12 @@ func (runnerTestSessions) Read(string) (*plugin.PrivateSessionSnapshot, error) {
 func (runnerTestSessions) Resolve(context.Context, string) (plugin.ResolvedBackgroundConfiguration, error) {
 	return plugin.ResolvedBackgroundConfiguration{ConfigurationKey: "current"}, nil
 }
-func (runnerTestSessions) Configure(context.Context, plugin.ConfigureSessionRequest) (plugin.PrivateSessionSnapshot, error) {
-	panic("current session must not be reconfigured")
+func (s runnerTestSessions) Configure(_ context.Context, request plugin.ConfigureSessionRequest) (plugin.PrivateSessionSnapshot, error) {
+	if request.Configuration.ConfigurationKey != "current" {
+		panic("current session must not be replaced")
+	}
+	current, err := s.Read(request.SessionKey)
+	return *current, err
 }
 func (s runnerTestSessions) Open(context.Context, plugin.OpenSessionRequest) (plugin.PrivateSessionHandle, error) {
 	return s.handle, nil

@@ -194,6 +194,7 @@ func main() {
 	defer os.RemoveAll(dir)
 	verifyBackgroundScopeBindings(ctx)
 	verifyReportScopes(ctx)
+	verifyBackgroundSettings(ctx)
 	verifyComputePool(ctx)
 	verifyProjectionWorkers(ctx, dir)
 	verifyProjectionReuse(ctx, dir)

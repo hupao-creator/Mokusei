@@ -43,6 +43,14 @@ on the new owner afterward. Private Report/Tag executions do not themselves
 block switching; an in-flight native admission still does. Unrelated settings
 retain their existing save behavior.
 
+Moku rechecks pending configuration before reserving a successor execution,
+including when a prepared follow-up races its predecessor's completion. A
+confirmed unconsumed input returns to the coordinator for fresh settings,
+instructions and context. Uncertain native outcomes are never retried this way.
+Background configuration discovery also fences reuse of an existing idle
+session. A settings-save race re-resolves the configuration without spending a
+batch execution attempt; admitted batches and their retries retain their profile.
+
 Configuration admission uses a cancellable gate. A settings presentation that
 leaves its page releases its waiting HTTP request even when another native
 discovery still owns the gate; a cancelled waiter never enters the operation.
