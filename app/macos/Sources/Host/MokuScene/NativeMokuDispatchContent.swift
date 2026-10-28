@@ -1,5 +1,6 @@
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 import SwiftUI
 
 /// The approved single row lives inside the production Talk glass and eyes.
@@ -66,13 +67,13 @@ struct NativeMokuDispatchDetail: View {
                     .accessibilityLabel(localize("关闭派发详情", "Close dispatch details"))
             }
             Text(localize("输入内容", "Input content")).font(.system(size: 20, weight: .semibold))
-            ScrollView {
+            NativeScrollView {
                 Text(dispatch.prompt ?? localize("输入内容不可用", "Input content unavailable"))
                     .font(.system(size: 13)).lineSpacing(5).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: 260)
             Divider()
-            ScrollView {
+            NativeScrollView {
                 Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 10) {
                     field(localize("状态", "Status"), dispatch.sentence(chinese: locale.language.languageCode?.identifier == "zh"))
                     if let model = dispatch.model { field(localize("模型", "Model"), model) }

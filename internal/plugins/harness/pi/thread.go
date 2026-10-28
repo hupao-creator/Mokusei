@@ -804,6 +804,10 @@ func (h *threadHandle) interactionLocked(event Event, current *model.PublicExecu
 	} else {
 		interaction.Actions = []model.PublicInteractionAction{{ID: "submit", Intent: "submit", Label: "Submit"}, {ID: "cancel", Intent: "cancel", Label: "Cancel"}}
 		question := model.PublicInteractionQuestion{ID: "answer", Prompt: interaction.Title, AllowOther: event.Method != "select", Options: []model.PublicInteractionOption{}}
+		if event.Method == "editor" && event.Prefill != nil {
+			initial, _ := json.Marshal(*event.Prefill)
+			question.Form = &model.PublicQuestionForm{Type: "string", Default: initial}
+		}
 		for _, value := range options {
 			question.Options = append(question.Options, model.PublicInteractionOption{Value: value, Label: clean(value, 2000)})
 		}
@@ -851,7 +855,19 @@ func (h *threadHandle) Respond(ctx context.Context, request model.RespondRequest
 		answer.Cancelled = true
 	} else {
 		var value string
-		if err := json.Unmarshal(request.Answers["answer"], &value); err != nil || item.Method == "select" && !slices.Contains(item.Options, value) {
+		var err error
+		if initial, present := request.ValidatedFormValues["answer"]; item.Method == "editor" && present {
+			// Core preflight includes an unchanged editor default even when the
+			// client omits it from the submitted answer map.
+			var ok bool
+			value, ok = initial.(string)
+			if !ok {
+				err = errors.New("missing validated editor value")
+			}
+		} else {
+			err = json.Unmarshal(request.Answers["answer"], &value)
+		}
+		if err != nil || item.Method == "select" && !slices.Contains(item.Options, value) {
 			h.mu.Unlock()
 			return errors.New("invalid Pi answer")
 		}

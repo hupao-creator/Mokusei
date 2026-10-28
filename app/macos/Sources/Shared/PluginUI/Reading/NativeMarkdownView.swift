@@ -13,6 +13,9 @@ public struct NativeMarkdownAppliedDocument: Equatable, Sendable {
 /// and attachment resolver; plain Markdown never creates a browser view.
 public struct NativeMarkdownView: View {
     public let text: String
+    // SwiftUI compares stored inputs before evaluating body. String equality
+    // alone can suppress a raw Unicode replacement before the task ID is read.
+    private let sourceBytes: Data
     public var streaming: Bool
     public var fontSize: CGFloat
     public var muted: Bool
@@ -31,7 +34,7 @@ public struct NativeMarkdownView: View {
                 openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
                 documentToken: String? = nil,
                 onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)? = nil) {
-        self.text = text; self.streaming = streaming
+        self.text = text; self.sourceBytes = Data(text.utf8); self.streaming = streaming
         self.fontSize = fontSize; self.muted = muted; self.openExternal = openExternal
         self.resolveMedia = resolveMedia; self.openExecution = openExecution
         self.documentToken = documentToken; self.onDocumentApplied = onDocumentApplied
@@ -372,9 +375,15 @@ struct MarkdownInlineView: View {
 
 struct MarkdownCodeBlock: View {
     let source: String
+    private let sourceBytes: Data
     var selectionScope: String? = nil
+
+    init(source: String, selectionScope: String? = nil) {
+        self.source = source; self.sourceBytes = Data(source.utf8)
+        self.selectionScope = selectionScope
+    }
     var body: some View {
-        ScrollView(.horizontal) {
+        NativeScrollView(.horizontal) {
             MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
                                    fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, selectionScope: selectionScope, openLink: { _ in })
                 .frame(width: max(1, codeWidth), alignment: .leading)
@@ -400,7 +409,7 @@ private struct MarkdownTableView: View {
 
     var body: some View {
         let columnWidths = widths
-        return ScrollView(.horizontal) {
+        return NativeScrollView(.horizontal) {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     GridRow {

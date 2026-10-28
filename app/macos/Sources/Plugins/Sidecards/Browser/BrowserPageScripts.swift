@@ -75,10 +75,6 @@ extension BrowserPageScripts {
 })();
 """#
 
-    static let scrollbar = #"""
-(() => { const style=document.createElement('style'); style.textContent='*{scrollbar-width:auto!important;scrollbar-color:auto!important}::-webkit-scrollbar{width:2px!important;height:2px!important}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent!important}::-webkit-scrollbar-thumb{background:transparent!important;border-radius:999px!important}::-webkit-scrollbar-thumb:hover{background:rgb(128 128 128 / .35)!important}'; (document.head||document.documentElement).append(style); })();
-"""#
-
     // WebKit exposes native media denial; remaining permission surfaces either
     // are unavailable in WKWebView or are explicitly denied at document start.
     // This script is installed for every frame and exposes no host capability.

@@ -226,14 +226,20 @@ public struct NativeSettingsInput: View {
     @FocusState private var focused: Bool
     @Environment(\.nativeSettingsField) private var field
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.nativeSettingsFormPage) private var formPage
     public init(value: Binding<String>, placeholder: String = "", secret: Bool = false) {
         _value = value; self.placeholder = placeholder; self.secret = secret
     }
     public var body: some View {
         Group {
-            if secret { SecureField(placeholder, text: $value) }
-            else { TextField(placeholder, text: $value) }
-        }.textFieldStyle(.plain).focusEffectDisabled().focused($focused).modifier(NativeSettingsInputDecoration(focused: focused))
+            if formPage {
+                input.textFieldStyle(.roundedBorder).focused($focused)
+                    .accessibilityLabel(field.label).accessibilityHint(field.description ?? "")
+            } else {
+                input.textFieldStyle(.plain).focusEffectDisabled().focused($focused)
+                    .modifier(NativeSettingsInputDecoration(focused: focused))
+            }
+        }
             .background(NativeSettingsActivationRegistration(activation: field.activation) { if enabled { focused = true } })
             .background {
                 if !secret {
@@ -249,6 +255,10 @@ public struct NativeSettingsInput: View {
                 }
             }
     }
+    @ViewBuilder private var input: some View {
+        if secret { SecureField(placeholder, text: $value) }
+        else { TextField(placeholder, text: $value) }
+    }
 }
 
 public struct NativeSettingsTextarea: View {
@@ -256,15 +266,24 @@ public struct NativeSettingsTextarea: View {
     public let minHeight: CGFloat
     @State private var height: CGFloat = 0
     @Environment(\.nativeSettingsField) private var field
+    @Environment(\.nativeSettingsFormPage) private var formPage
+    @Environment(\.locale) private var locale
     public init(value: Binding<String>, minHeight: CGFloat = 112, rows: Int? = nil) {
         _value = value; self.minHeight = minHeight
         _height = State(initialValue: max(minHeight, rows.map { CGFloat(max(1, $0)) * 18.2 + 16 } ?? minHeight))
     }
     public var body: some View {
-        NativeSettingsTextEditor(value: $value, height: $height, minimumHeight: max(34, minHeight),
+        VStack(alignment: .trailing, spacing: 6) {
+            NativeSettingsTextEditor(value: $value, height: $height, minimumHeight: max(34, minHeight),
                                  label: field.label, description: field.description, invalid: field.invalid,
                                  activation: field.activation)
-            .frame(maxWidth: .infinity).frame(height: max(34, minHeight, height))
+                .frame(maxWidth: .infinity).frame(height: max(34, minHeight, height))
+            if formPage {
+                Stepper(locale.language.languageCode?.identifier == "zh" ? "编辑器高度" : "Editor height",
+                        value: $height, in: max(34, minHeight)...CGFloat.greatestFiniteMagnitude, step: 28)
+                    .controlSize(.small)
+            }
+        }
     }
 }
 
@@ -293,9 +312,25 @@ public struct NativeSettingsSelect: View {
 public struct NativeSettingsToggle: View {
     @Binding private var value: Bool
     @Environment(\.nativeSettingsField) private var field
+    @Environment(\.nativeSettingsFormPage) private var formPage
+    @Environment(\.isEnabled) private var enabled
+    @FocusState private var focused: Bool
     public init(value: Binding<Bool>) { _value = value }
     public var body: some View {
-        Toggle(field.label, isOn: $value).labelsHidden().toggleStyle(NativeSettingsSwitchStyle()).frame(maxWidth: .infinity, alignment: .trailing)
+        Group {
+            if formPage {
+                Toggle(field.label, isOn: Binding(get: { value }, set: { next in
+                    NativeSettingsChangeContext.withDiscreteChange { value = next }
+                })).labelsHidden().toggleStyle(.switch).focused($focused)
+                    .background(NativeSettingsActivationRegistration(activation: field.activation) {
+                        guard enabled else { return }
+                        focused = true
+                        NativeSettingsChangeContext.withDiscreteChange { value.toggle() }
+                    })
+            } else {
+                Toggle(field.label, isOn: $value).labelsHidden().toggleStyle(NativeSettingsSwitchStyle())
+            }
+        }.frame(maxWidth: .infinity, alignment: .trailing)
             .accessibilityLabel(field.label).accessibilityHint(field.description ?? "")
             .background(NativeSettingsControlRegistration(descriptor: .object([
                 "kind": .text("toggle"), "label": .text(field.label), "value": .bool(value),

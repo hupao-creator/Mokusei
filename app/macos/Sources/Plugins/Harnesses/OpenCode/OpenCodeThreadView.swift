@@ -273,7 +273,7 @@ struct OpenCodeToolOutput: View {
     let text: String
     @State private var contentHeight: CGFloat = 18
     var body: some View {
-        ScrollView(.vertical) {
+        NativeScrollView(.vertical) {
             Text(text).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }

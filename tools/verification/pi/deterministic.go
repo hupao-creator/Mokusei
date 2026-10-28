@@ -132,6 +132,22 @@ func verifyAdapter(ctx context.Context) {
 	err = handle.Respond(ctx, model.RespondRequest{ExecutionID: "question", InteractionID: interaction.ID, ActionID: "submit", Answers: map[string]json.RawMessage{"answer": answer}})
 	check(err == nil, "answer interaction")
 	waitStatus(ctx, store, "question", "completed")
+	check(send(handle, "editor", "edit") == nil, "editor prompt")
+	state = waitStatus(ctx, store, "editor", "waiting-for-user")
+	interaction = state.Executions[len(state.Executions)-1].Interactions[0]
+	check(interaction.Questions[0].Form != nil, "editor default reaches public form")
+	checked := model.ValidatePublicInteractionAnswers(interaction, nil)
+	check(checked.Valid && checked.ValidatedFormValues["answer"] == "PREFILL_KEEP_43E9\nsecond line 中文 🚀", "editor initial value survives RPC and public preflight")
+	check(handle.Respond(ctx, model.RespondRequest{ExecutionID: "editor", InteractionID: interaction.ID, ActionID: "submit", Answers: checked.Answers, ValidatedFormValues: checked.ValidatedFormValues}) == nil, "reply with unchanged editor default")
+	waitStatus(ctx, store, "editor", "completed")
+	check(send(handle, "editor-no-prefill", "edit-no-prefill") == nil, "editor without prefill prompt")
+	state = waitStatus(ctx, store, "editor-no-prefill", "waiting-for-user")
+	interaction = state.Executions[len(state.Executions)-1].Interactions[0]
+	answer, _ = json.Marshal("PREFILL_KEEP_43E9\nsecond line 中文 🚀")
+	checked = model.ValidatePublicInteractionAnswers(interaction, map[string]json.RawMessage{"answer": answer})
+	check(checked.Valid, "editor without prefill accepts typed input")
+	check(handle.Respond(ctx, model.RespondRequest{ExecutionID: "editor-no-prefill", InteractionID: interaction.ID, ActionID: "submit", Answers: checked.Answers, ValidatedFormValues: checked.ValidatedFormValues}) == nil, "reply to editor without prefill")
+	waitStatus(ctx, store, "editor-no-prefill", "completed")
 	check(send(handle, "todo-clear", "todos") == nil, "todo prompt")
 	state = waitStatus(ctx, store, "todo-clear", "completed")
 	var clears int

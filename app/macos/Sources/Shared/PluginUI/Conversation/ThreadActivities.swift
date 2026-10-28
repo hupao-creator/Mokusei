@@ -60,7 +60,7 @@ private struct ThreadActivityDetail: View {
     @State private var contentHeight: CGFloat = 220
 
     var body: some View {
-        ScrollView(.vertical) {
+        NativeScrollView(.vertical) {
             content
                 .font(NativeTypography.mono(size: 11))
                 .lineSpacing(6.6)

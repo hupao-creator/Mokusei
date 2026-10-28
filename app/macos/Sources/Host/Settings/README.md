@@ -1,5 +1,39 @@
 # Native settings
 
+Settings form controls use system SwiftUI/AppKit controls on the existing macOS
+26 minimum. The page's `nativeSettingsFormPage` environment selects system
+popups, rounded text/secure fields, switches, bordered action buttons and AppKit
+plain text editors; embedded Thread editors retain their existing presentation.
+Rows still own labels, descriptions and announced validation errors. Help buttons
+open native popovers, and text editor height is adjusted with a keyboard-accessible
+Stepper instead of a custom drag grip. Native text editing retains composition,
+selection, Undo, label activation and the draft close/save gate.
+
+| Settings surface | Native interactions |
+| --- | --- |
+| General | Appearance/language popups, glass world switch, Agent/install buttons, cancel and destructive clear buttons |
+| Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
+| Moku | Coordinating Agent buttons, dispatch-target checkboxes, execution fields, routing switch and text editor |
+| Report and Tag | Inheritance switches, Harness popups and the same contributed execution fields |
+
+All controls keep their existing bindings, availability and pending/save/error
+gates. System menu items carry option indexes separately from titles, preserving
+duplicate display names and opaque UTF-16 option IDs. The interaction registry
+keeps the same descriptors and discrete-change semantics.
+
+The reference-image model/effort selector is a separate component task. Its
+integration points are the shared `NativeSettingsSelect`/`NativeSettingsSelectPopover`
+entry and each Harness's model, thinking/effort or variant field in
+`CodexSettings`, `ClaudeSettings`, `PiSettings` and `OpenCodeSettings`. This change
+does not alter their catalog, default or dependent-choice mapping. Changes in
+those Harness files here are confined to refresh/retry button presentation.
+
+`NativeSettingsControlsReplayTests` mounts the shared production form and sends
+AppKit actions through real controls, checking option identity/disabled state,
+text binding and Undo. The existing Settings launcher below exercises persistence,
+IME, conflict and close behavior; the navigation demo covers light/dark, compact
+and zoomed production page layouts.
+
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
 Programmatic close and the global Overview command preserve IME protection,
@@ -143,3 +177,8 @@ without forcing native cache invalidation; this refreshes capabilities even when
 installation paths stay unchanged. OpenCode can return a native catalog before
 optional account checks complete: it labels that uncertainty and rereads without
 forcing another probe. No settings navigation or Map layout is changed.
+
+Escape cancels the focused model/reasoning selector's open native popover before
+page navigation, without changing its value. The next Escape returns from Settings.
+`NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
+through NSApplication to cover this precedence, focus restoration and reopening.

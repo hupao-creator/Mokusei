@@ -25,11 +25,10 @@ struct NativeComposerEditor: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView()
+        let scroll = NativeStyledScrollView()
         scroll.drawsBackground = false
         scroll.contentView.drawsBackground = false
         scroll.autohidesScrollers = true
-        scroll.scrollerStyle = .overlay
         let editor = ComposerTextView()
         editor.isRichText = false
         editor.drawsBackground = false

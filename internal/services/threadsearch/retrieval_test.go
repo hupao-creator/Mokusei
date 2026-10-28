@@ -461,3 +461,60 @@ func TestLiteralSearchSpansChunkBoundaries(t *testing.T) {
 		t.Fatalf("literal result escaped requested scope: %+v", out)
 	}
 }
+
+func TestIndexUpgradeKeepsMetadataFallbackUntilModelRebuild(t *testing.T) {
+	f := newPerformanceFixture(t, time.Nanosecond)
+	f.seed(t, "upgrade", "upgrade-title", "FIRST_KEYWORD "+strings.Repeat("界", 8000)+" SECOND_KEYWORD", true)
+	if err := f.m.Close(); err != nil {
+		t.Fatal(err)
+	}
+	f.p.available.Store(false)
+	_, err := f.db.Update(context.Background(), func(tx *store.Tx) error {
+		c, err := readConfig(tx.Snapshot())
+		if err != nil {
+			return err
+		}
+		c.Pipeline = strings.TrimSuffix(indexVersion, "/v2") + "/v1"
+		key := documentPrefix + RefKey(model.ThreadRef{TypeID: "agent", ThreadID: "upgrade"})
+		var old Document
+		if _, err := tx.Get(key, &old); err != nil {
+			return err
+		}
+		old.Version, old.LiteralText = c.Pipeline, ""
+		if err := tx.Put(key, old); err != nil {
+			return err
+		}
+		return tx.Put(configKey, c)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.m, err = New(context.Background(), f.m.options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { f.m.Close() })
+	if out := f.query(t, "upgrade-title", "upgrade"); len(out.Hits) != 1 || out.Mode != "keyword" {
+		t.Fatalf("metadata fallback unavailable during upgrade: %+v", out)
+	}
+	if out := f.query(t, "FIRST_KEYWORD SECOND_KEYWORD", "upgrade"); len(out.Hits) != 0 || out.Reason != "index-empty" {
+		t.Fatalf("obsolete body index survived upgrade: %+v", out)
+	}
+	waitPerformance(t, func() bool { s, err := f.m.Status(context.Background()); return err == nil && !s.Working })
+	f.p.available.Store(true)
+	s, err := f.m.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.m.Index(context.Background(), IndexRequest{Action: "start", Consent: true, ExpectedRevision: s.Config.Revision}); err != nil {
+		t.Fatal(err)
+	}
+	waitPerformance(t, func() bool {
+		s, err := f.m.Status(context.Background())
+		return err == nil && !s.Working && s.Indexed == 1
+	})
+	f.p.available.Store(false)
+	if out := f.query(t, "FIRST_KEYWORD SECOND_KEYWORD", "upgrade"); len(out.Hits) != 1 || out.Hits[0].Score < 2 || out.Mode != "keyword" {
+		t.Fatalf("rebuilt literal text unavailable without model: %+v", out)
+	}
+}

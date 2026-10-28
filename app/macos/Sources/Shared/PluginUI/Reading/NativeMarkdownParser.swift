@@ -11,8 +11,8 @@ enum MarkdownParser {
 
     static func parse(_ source: String) -> MarkdownDocument {
         let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        let prepared = extractFootnotes(protectBareURLs(normalized))
-        let main = prepareReferences(prepared.source, notes: prepared.notes)
+        let prepared = extractFootnotes(normalized)
+        let main = prepareReferences(protectBareURLs(prepared.source), notes: prepared.notes)
         let document = Document(parsing: main.source, options: [.disableSmartOpts])
         var converter = Converter(source: main.source, tokens: main.tokens)
         var blocks = converter.blocks(document.children)
@@ -22,7 +22,7 @@ enum MarkdownParser {
         while cursor < converter.references.count {
             let id = converter.references[cursor]
             if let note = prepared.notes.first(where: { $0.id == id }) {
-                let preparedNote = prepareReferences(note.source, notes: prepared.notes)
+                let preparedNote = prepareReferences(protectBareURLs(note.source), notes: prepared.notes)
                 let parsed = Document(parsing: preparedNote.source, options: [.disableSmartOpts])
                 var noteConverter = Converter(source: preparedNote.source, tokens: preparedNote.tokens, references: converter.references, referenceCounts: converter.referenceCounts)
                 let content = noteConverter.blocks(parsed.children)
@@ -236,8 +236,6 @@ enum MarkdownParser {
     private static let footnoteReference = try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\]"#)
     private static let whitespace = try! NSRegularExpression(pattern: "[ \t\r\n\u{000C}]+")
     private static let footnoteDefinition = try! NSRegularExpression(pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[\^([^\]\s]+)\]:[ \t]*(.*)$"#)
-    private static let referenceDefinition = try! NSRegularExpression(
-        pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[(?:\\.|[^\]\\])+\]:[ \t]*(.*)$"#)
     private static let autolinkExpression = try! NSRegularExpression(
         pattern: #"(?i)(?:https?://|www\.)[^\s<>]+|[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+"#)
 
@@ -279,25 +277,35 @@ enum MarkdownParser {
 
     /// Protect source syntax before cmark splits emphasis or decodes entities.
     /// AST ranges keep code, explicit links/images and raw HTML literal.
-    private static func protectedRanges(_ source: String) -> [NSRange] {
+    private static func sourceRanges(_ source: String, visibleText: Bool = false) -> [NSRange] {
         let rows = source.components(separatedBy: "\n")
         let byteCount = source.utf8.count
         var starts: [Int] = []; var offset = 0
         for row in rows { starts.append(offset); offset += row.utf8.count + 1 }
         var ranges: [NSRange] = []
-        func collect(_ node: any Markup) {
-            if node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML {
+        func collect(_ node: any Markup, lineOffset: Int = 0) {
+            var lineOffset = lineOffset
+            // cmark removes leading reference definitions from paragraph text
+            // without advancing inline source lines. The block still ends at
+            // the real source line, so align its inline subtree to that end.
+            if node is Paragraph, let end = node.range?.upperBound.line,
+               let inlineEnd = Array(node.children).last?.range?.upperBound.line {
+                lineOffset = max(0, end - inlineEnd)
+            }
+            let literal = node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML
+            if visibleText && literal { return }
+            if visibleText ? node is Markdown.Text : literal {
                 guard let range = node.range,
-                      starts.indices.contains(range.lowerBound.line - 1), starts.indices.contains(range.upperBound.line - 1) else { return }
-                let lower = starts[range.lowerBound.line - 1] + range.lowerBound.column - 1
-                let upper = starts[range.upperBound.line - 1] + range.upperBound.column - 1
+                      starts.indices.contains(range.lowerBound.line + lineOffset - 1), starts.indices.contains(range.upperBound.line + lineOffset - 1) else { return }
+                let lower = starts[range.lowerBound.line + lineOffset - 1] + range.lowerBound.column - 1
+                let upper = starts[range.upperBound.line + lineOffset - 1] + range.upperBound.column - 1
                 guard lower >= 0, upper >= lower, upper <= byteCount else { return }
                 let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
                 let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
                 if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
                     ranges.append(NSRange(first..<last, in: source))
                 }
-            } else { node.children.forEach(collect) }
+            } else { node.children.forEach { collect($0, lineOffset: lineOffset) } }
         }
         collect(Document(parsing: source, options: [.disableSmartOpts]))
         return ranges
@@ -305,27 +313,14 @@ enum MarkdownParser {
 
     private static func protectBareURLs(_ source: String) -> String {
         guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
-        var protected = protectedRanges(source)
-        // Reference definitions are absent from the AST. Rewriting their URL
-        // as an inline link destroys the definition before cmark can resolve it.
-        var offset = 0
-        var destinationOnNextLine = false
-        for line in source.components(separatedBy: "\n") {
-            let range = NSRange(location: 0, length: line.utf16.count)
-            if destinationOnNextLine {
-                protected.append(NSRange(location: offset, length: range.length))
-                destinationOnNextLine = false
-            } else if footnoteDefinition.firstMatch(in: line, range: range) == nil,
-                      let definition = referenceDefinition.firstMatch(in: line, range: range) {
-                protected.append(NSRange(location: offset, length: range.length))
-                destinationOnNextLine = definition.range(at: 2).length == 0
-            }
-            offset += range.length + 1
-        }
+        // Only rewrite URLs that begin in actual prose. Reference definitions
+        // (including multiline labels/titles) are absent from the inline AST;
+        // a definition-shaped paragraph continuation remains a Text node.
+        let visible = sourceRanges(source, visibleText: true)
         let result = NSMutableString(string: source)
         let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
         for match in matches.reversed() {
-            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            guard visible.contains(where: { NSLocationInRange(match.range.location, $0) }) else { continue }
             var candidate = result.substring(with: match.range)
             guard ["http://", "https://", "www."].contains(where: { candidate.lowercased().hasPrefix($0) }) else { continue }
             while let last = candidate.last, ".,:;!?*_'\"".contains(last)
@@ -358,7 +353,7 @@ enum MarkdownParser {
 
     private static func prepareReferences(_ source: String, notes: [Footnote]) -> (source: String, tokens: [String: String]) {
         guard !notes.isEmpty, source.contains("[^") else { return (source, [:]) }
-        let protected = protectedRanges(source)
+        let protected = sourceRanges(source)
         let raw = source as NSString
         let result = NSMutableString(string: source)
         let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"

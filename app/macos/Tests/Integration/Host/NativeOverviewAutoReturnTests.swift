@@ -97,6 +97,48 @@ struct NativeOverviewAutoReturnTests {
         #expect(!camera.manual)
     }
 
+    @Test(arguments: [false, true])
+    func footprintRevisionCannotRetainAnUnfinishedReturn(restoring: Bool) async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        let coordinator = NativeOverviewStageCoordinator()
+        camera.stageCoordinator = coordinator
+        let layout = try await coordinator.acquire(owner: "layout")
+        defer { layout.release() }
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 200)
+        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
+        if restoring {
+            camera.restore(view: .init(transform: displaced, manual: false), content: small, viewport: viewport)
+        } else {
+            camera.cutTo(content: small, viewport: viewport)
+            camera.setManualTransform(displaced)
+            camera.returnToAuto()
+        }
+        camera.onChange = {}
+        // Layout finishes while the return still waits for this stage. A local
+        // footprint edit cannot replace the user's pending automatic framing.
+        camera.deferRefit()
+        camera.requestRefit(content: grown, viewport: viewport, layoutChanged: true, preserveReadingPosition: true)
+        layout.release()
+        try await wait { !camera.hasScheduledMotion }
+        #expect(camera.liveTransform == NativeOverviewCameraGeometry.fit(grown, viewport: viewport))
+        #expect(!camera.manual)
+    }
+
+    @Test func footprintShrinkLeavingAttentionFitsTheCollection() async throws {
+        let camera = NativeOverviewCamera()
+        defer { camera.dispose() }
+        camera.onChange = {}
+        camera.cutTo(content: content, viewport: viewport)
+        camera.setCarouselCards([.init(id: "running", rect: card, eligible: true)])
+        try await wait { camera.carouselTargetID == "running" && !camera.hasScheduledMotion }
+        let smaller = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
+        camera.deferRefit()
+        camera.requestRefit(content: smaller, viewport: viewport, layoutChanged: true, preserveReadingPosition: true)
+        try await wait { camera.carouselTargetID == nil && !camera.hasScheduledMotion }
+        #expect(camera.liveTransform == NativeOverviewCameraGeometry.fit(smaller, viewport: viewport))
+    }
+
     /// Automatic attention keeps the scene's fitted reading scale and only
     /// translates the card center to the usable viewport center.
     private func attentionFocus() -> NativeOverviewTransform {

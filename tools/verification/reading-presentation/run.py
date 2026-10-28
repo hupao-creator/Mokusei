@@ -9,6 +9,8 @@ from native_replay import NativeReplay
 
 
 def main():
+    if "--model-selector" in sys.argv and os.environ.get("MOKUSEI_TEST_HEADLESS") == "1":
+        raise SystemExit("Model-selector popover replay requires a display; run NativeModelSelectorHeadlessTests for window-free coverage")
     source = Path(__file__).resolve().parent
     repo = source.parents[2]
     package = repo / "app/macos"
@@ -23,7 +25,9 @@ def main():
     glass_captures = "--tag-glass-captures" in sys.argv
     isolated_input = "--isolated-input" in sys.argv
     tag_glass = "--tag-glass" in sys.argv or glass_captures
-    suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
+    suite = ("NativeModelSelectorReplayTests" if "--model-selector" in sys.argv else
+             "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
+             "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
              "NativeBrowserDialogTests" if "--browser-dialogs" in sys.argv else
@@ -42,7 +46,7 @@ def main():
              "NativeMokuExecutionLinkTests" if "--moku-execution-links" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
-    thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
+    thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests"]
               if isolated_input else [suite])
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
@@ -53,6 +57,10 @@ def main():
         replay.acquire()
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
+        if "--model-selector" in sys.argv:
+            environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
+        if "--thread-sidebar" in sys.argv:
+            environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
         if tag_glass:
@@ -82,7 +90,9 @@ def main():
     finally:
         replay.export(evidence)
         replay.close()
-    count = (4 if isolated_input else
+    count = (4 if "--model-selector" in sys.argv else
+             4 if isolated_input else
+             4 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
@@ -95,7 +105,7 @@ def main():
              8 if "--browser-viewport" in sys.argv or "--markdown" in sys.argv else
              2 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
-             10 if "--moku-note-tests" in sys.argv else 5)
+             11 if "--moku-note-tests" in sys.argv else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

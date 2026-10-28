@@ -105,6 +105,7 @@ public struct ThreadDetailTurn: View {
     public let usage: AnyView?
     public let active: Bool
 
+    @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
     @Environment(\.locale) private var locale
 
@@ -163,14 +164,17 @@ public struct ThreadDetailTurn: View {
                 "visibleRowCount": .integer(filteredRows.count), "status": .text(status),
                 "userMessages": .bool(visibility.userMessages), "work": .bool(visibility.work)
             ]))
+            .preference(key: ThreadAuthorPreference.self, value: [id: author ?? .null])
             .id(id)
         }
     }
 
     private var footer: some View {
         ThreadFooterFlow(spacing: 6) {
-            Text(authorLabel).font(NativeTypography.mono(size: 14))
-            Text("·")
+            if !authorInHeader {
+                ThreadAuthorLabel(author: author)
+                Text("·").accessibilityHidden(true)
+            }
             if let completedAt {
                 Text(formatThreadTimestamp(completedAt))
                     .font(NativeTypography.mono(size: 14))
@@ -192,12 +196,6 @@ public struct ThreadDetailTurn: View {
         }
         .font(NativeTypography.inter(size: 14))
         .foregroundStyle(NativePalette.thread.muted.swiftUI)
-    }
-
-    private var authorLabel: String {
-        let model = author?["model"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
-        let effort = author?["effort"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
-        return "Author: \(model ?? localize("未知模型")) · \(localize(effort ?? "未记录"))"
     }
 
     private func localize(_ source: String) -> String {

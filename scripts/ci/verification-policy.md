@@ -11,15 +11,16 @@ remain useful for iteration and diagnosis; their existence does not make every
 tool mandatory for every change. Historical logs and checks from a different
 revision cannot certify the new revision.
 
-Plan focused local checks first and require the actual hosted merge gates for
-the final revision. Do not add a full local `make check` merely before or after
-equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
+Plan focused local checks first. Hosted CI currently provides advisory feedback;
+its completion is not a merge requirement. Honor any actual remote required
+checks if protection rules change. Do not add a full local `make check` merely
+before or after equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
 coordination. Documentation-only diffs proven by the workflow's conservative
 path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
 and manual dispatches run all checks below. Native tests outside a proven
 documentation scope are not claimed as executed.
 
-## Default hosted gates
+## Default hosted checks
 
 | Gate | Independent value | Execution |
 | --- | --- | --- |
@@ -53,10 +54,10 @@ their independent purpose. A timeout still means incomplete verification.
 Preserve each attempt's evidence and select the latest execution of each required
 slot; never fall back from a new failure to an old success. Re-run failed jobs
 only after diagnosis shows a retry is appropriate. A same-commit passing retry
-does not establish that the first failure was harmless. All required checks and
-complete observed method coverage remain merge requirements.
+does not establish that the first failure was harmless. The workflow still
+requires all selected jobs and complete observed method coverage to report success; that result is advisory for merging.
 
-## Extended hosted gate
+## Extended hosted checks
 
 Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.
@@ -64,7 +65,7 @@ No account, paid model, microphone or self-hosted Mac is involved. Extended
 dispatches run only four independent native-CLI/system lanes. The normal PR run
 does not claim these checks ran.
 
-Run this gate for native CLI/adapter compatibility, process ownership and system
+Run these checks for native CLI/adapter compatibility, process ownership and system
 coordination changes. Its independent value is detecting actual CLI loader/protocol
 changes and cross-role faults that scripted peers do not establish. Pinning a CLI
 gives reproducible coverage of that version, not proof of future upstream compatibility. The long-running stability gate has been removed; these checks

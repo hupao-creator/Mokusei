@@ -29,6 +29,60 @@ struct MarkdownSourceIdentityTests {
         })
     }
 
+    @Test(arguments: [
+        "ordinary text\n[x]: https://example.com/a*b*c",
+        "[x]: https://example.com/a*b*c trailing prose",
+        "[x]:\nhttps://example.com/a*b*c trailing prose"
+    ]) func referenceLikeProseRetainsBareURL(_ source: String) {
+        let document = MarkdownParser.parse(source)
+        guard case .paragraph(let spans) = document.blocks.first else {
+            Issue.record("Missing prose paragraph"); return
+        }
+        #expect(spans.contains { $0.link == "https://example.com/a*b*c" })
+        #expect(!spans.contains { $0.emphasis })
+    }
+
+    @Test(arguments: [
+        "Use [^two words].\n\n[^two\nwords]: https://example.com/a*b*c",
+        "Use [^two words].\n\n[^two words]: https://example.com/a*b*c \"first\nhttps://example.com/title*x*y\nlast\"",
+        "Use [^two words].\n\n[^two words]: https://example.com/a*b*c\n  \"https://example.com/title*x*y\""
+    ]) func multilineReferenceDefinitionsRetainDestinationAndTitle(_ source: String) {
+        let document = MarkdownParser.parse(source)
+        guard case .paragraph(let spans) = document.blocks.first,
+              let link = spans.first(where: { $0.link != nil }) else {
+            Issue.record("Missing reference link"); return
+        }
+        #expect(link.link == "https://example.com/a*b*c")
+        if source.contains("title*x*y") {
+            #expect(link.title?.contains("https://example.com/title*x*y") == true)
+            #expect(link.title?.contains("[https:") == false)
+        }
+    }
+
+    @Test func definitionPrefixDoesNotShiftVisibleProseRanges() {
+        let document = MarkdownParser.parse("Use [x].\n\n[x]: https://example.com/a*b*c\nordinary https://example.com/d*e*f")
+        let spans = document.blocks.flatMap { block -> [MarkdownSpan] in
+            if case .paragraph(let spans) = block { return spans }
+            return []
+        }
+        #expect(spans.contains { $0.link == "https://example.com/a*b*c" })
+        #expect(spans.contains { $0.link == "https://example.com/d*e*f" })
+        #expect(!spans.contains { $0.emphasis })
+    }
+
+    @Test func extractedFootnoteRetainsCompleteBareURL() {
+        let document = MarkdownParser.parse("Note[^one].\n\n[^one]: https://example.com/a*b*c")
+        let spans = document.blocks.flatMap { block -> [MarkdownSpan] in
+            guard case .footnote(_, _, let children) = block else { return [] }
+            return children.flatMap { child -> [MarkdownSpan] in
+                if case .paragraph(let spans) = child { return spans }
+                return []
+            }
+        }
+        #expect(spans.contains { $0.link == "https://example.com/a*b*c" })
+        #expect(!spans.contains { $0.emphasis })
+    }
+
     @Test func canonicalEquivalenceDoesNotReplaceSourceBytes() async throws {
         let nfc = "[caf\u{e9}](http://127.0.0.1/caf\u{e9})\n\n```\ncaf\u{e9}\n```"
         let nfd = "[cafe\u{301}](http://127.0.0.1/cafe\u{301})\n\n```\ncafe\u{301}\n```"

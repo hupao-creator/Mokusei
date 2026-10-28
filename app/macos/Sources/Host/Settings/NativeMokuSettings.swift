@@ -17,7 +17,6 @@ import SwiftUI
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
     @State private var textAreaHeights: [String: CGFloat] = [:]
-    @State private var resizeStarts: [String: CGFloat] = [:]
     @FocusState private var focusedHost: String?
 
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
@@ -147,7 +146,7 @@ import SwiftUI
 
     private var retryDiscovery: some View {
         Button(locale.text("重试", "Retry")) { Task { await model.refreshInstallations() } }
-            .buttonStyle(SettingsTextButton()).disabled(model.probing || !model.runtimeAvailable)
+            .buttonStyle(.bordered).disabled(model.probing || !model.runtimeAvailable)
             .nativeSettingsAction("retryDiscovery", label: "Retry Agent discovery") { Task { await model.refreshInstallations() } }
     }
 
@@ -180,7 +179,7 @@ import SwiftUI
                         let x = 19 + available * (CGFloat(index) + 0.5) / CGFloat(count)
                         let selected = host?.descriptor.id == harness.descriptor.id
                         let supported = harness.descriptor.threadCapabilities.canHostMoku
-                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id), transparent: true,
+                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id),
                                                   hostSlot: true, hideLogo: selected) { selectHost(harness) }
                             .nativeSettingsAction("host." + id, label: harness.descriptor.displayName.string, selected: selected) { selectHost(harness) }
                             .scaleEffect(selected ? 1.7 : 0.88).position(x: x, y: 71)
@@ -195,9 +194,9 @@ import SwiftUI
                                 navigateHost(current: id, key: event.key); return .handled
                             }
                         let feedback = feedbackSample(target: id, now: now)
-                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id), transparent: true,
-                                                  preservesDisabledOpacity: true, logoTransform: feedback?.target ?? .init(),
-                                                  logoOpacity: feedback?.targetOpacity ?? 1) { toggleTarget(id) }
+                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id),
+                                                  logoTransform: feedback?.target ?? .init(),
+                                                  logoOpacity: feedback?.targetOpacity ?? 1, checked: targets.contains(id)) { toggleTarget(id) }
                             .nativeSettingsAction("target." + id, label: harness.descriptor.displayName.string, selected: targets.contains(id)) { toggleTarget(id) }
                             .overlay(alignment: .bottom) {
                                 Capsule().fill(NativePalette.settings.accent.swiftUI).frame(width: 13, height: 2)
@@ -265,14 +264,10 @@ import SwiftUI
                onEscape: onCloseRequest)
                 .nativeSettingsControl(field)
                 .frame(height: textAreaHeights[field] ?? height)
-                .overlay(alignment: .bottomTrailing) {
-                    SettingsTextAreaResizeGrip()
-                        .gesture(DragGesture(minimumDistance: 1).onChanged { drag in
-                            guard !model.clearing else { return }
-                            if resizeStarts[field] == nil { resizeStarts[field] = textAreaHeights[field] ?? height }
-                            textAreaHeights[field] = max(112, (resizeStarts[field] ?? height) + drag.translation.height)
-                        }.onEnded { _ in resizeStarts[field] = nil })
-                }
+            Stepper(locale.text("编辑器高度", "Editor height"), value: Binding(
+                get: { textAreaHeights[field] ?? height }, set: { textAreaHeights[field] = $0 }),
+                in: 112...CGFloat.greatestFiniteMagnitude, step: 28)
+                .controlSize(.small).frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 

@@ -966,7 +966,7 @@ private struct OverviewTagMenuViewport<Content: View>: View {
         let clipBounds = CGRect(x: 0, y: 0, width: width, height: OverviewTagMetrics.chipHeight)
             .insetBy(dx: 0, dy: -OverviewTagMetrics.chipHeight - OverviewTagMetrics.submenuSpacing)
             .union(target.offsetBy(dx: -scrollOffset, dy: 0))
-        ScrollView(.horizontal) {
+        NativeScrollView(.horizontal) {
             // Glass captures its labels. Keeping its container inside the
             // viewport prevents offscreen sibling labels escaping the clip.
             GlassEffectContainer(spacing: OverviewTagMetrics.submenuSpacing) {
@@ -1053,7 +1053,7 @@ private struct OverviewHorizontalScroll<Content: View>: View {
     @ViewBuilder var content: () -> Content
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal) {
+            NativeScrollView(.horizontal) {
                 content()
             }
             .scrollIndicators(.never)

@@ -7,12 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/mail"
-	"net/url"
 	"slices"
 	"strings"
-	"time"
-	"unicode/utf8"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 )
@@ -67,9 +63,13 @@ func parsePermission(value Object, execution string) (*Interaction, error) {
 	return &Interaction{ID: id, ExecutionID: execution, SessionID: session, Kind: "permission", Title: "Allow " + action + "?", Status: "pending", Action: action, Resources: resources, Save: save, Description: description, Metadata: object(value["metadata"])}, nil
 }
 func parseForm(value Object, execution string) (*Interaction, error) {
-	v := &Interaction{ID: str(value["id"]), ExecutionID: execution, SessionID: str(value["sessionID"]), Kind: "form", Title: str(value["title"]), Status: "pending", Metadata: object(value["metadata"])}
-	if v.ID == "" || v.SessionID == "" || v.Title == "" {
+	title, validTitle := value["title"].(string)
+	v := &Interaction{ID: str(value["id"]), ExecutionID: execution, SessionID: str(value["sessionID"]), Kind: "form", Title: title, Status: "pending", Metadata: object(value["metadata"])}
+	if v.ID == "" || v.SessionID == "" || !validTitle {
 		return nil, errors.New("invalid OpenCode form")
+	}
+	if v.Title == "" {
+		v.Title = "OpenCode request"
 	}
 	for _, field := range array(value["fields"]) {
 		v.Fields = append(v.Fields, object(field))
@@ -130,13 +130,13 @@ func ValidateFields(fields []Object) error {
 			return errors.New("unsupported form field format")
 		}
 		if pattern := str(field["pattern"]); pattern != "" {
-			if _, err := compileNativeRegexp(pattern); err != nil {
+			if err := model.ValidatePublicQuestionPattern(pattern); err != nil {
 				return fmt.Errorf("unsupported OpenCode form pattern: %w", err)
 			}
 		}
 		if kind == "external" {
-			u, err := url.Parse(str(field["url"]))
-			if err != nil || u.Scheme == "" {
+			_, _, err := model.ParseAbsoluteURL(str(field["url"]))
+			if err != nil {
 				return errors.New("invalid external form URL")
 			}
 		}
@@ -305,34 +305,16 @@ func validateField(f Object, value any) error {
 		if !ok {
 			return bad("expected text")
 		}
-		size := utf8.RuneCountInString(text)
-		if f["minLength"] != nil && float64(size) < number(f["minLength"]) || f["maxLength"] != nil && float64(size) > number(f["maxLength"]) {
-			return bad("length outside bounds")
+		encoded, err := json.Marshal(f)
+		if err != nil {
+			return err
 		}
-		if pattern := str(f["pattern"]); pattern != "" {
-			r, err := compileNativeRegexp(pattern)
-			if err != nil || !r.MatchString(text) {
-				return bad("pattern mismatch")
-			}
+		var form model.PublicQuestionForm
+		if err := json.Unmarshal(encoded, &form); err != nil {
+			return err
 		}
-		switch str(f["format"]) {
-		case "email":
-			if _, err := mail.ParseAddress(text); err != nil {
-				return bad("invalid email")
-			}
-		case "uri":
-			u, err := url.Parse(text)
-			if err != nil || u.Scheme == "" {
-				return bad("invalid URI")
-			}
-		case "date":
-			if _, err := time.Parse("2006-01-02", text); err != nil {
-				return bad("invalid date")
-			}
-		case "date-time":
-			if _, err := time.Parse(time.RFC3339, text); err != nil {
-				return bad("invalid date-time")
-			}
+		if reason := model.ValidatePublicQuestionString(form, text); reason != "" {
+			return bad(reason)
 		}
 		if f["options"] != nil && f["custom"] != true {
 			found := false

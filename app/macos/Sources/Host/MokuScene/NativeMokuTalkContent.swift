@@ -31,7 +31,7 @@ struct NativeMokuTalkContent: View {
     let message: NativeMokuTalkMessage
     @State private var followsTail = true
     var body: some View {
-        ScrollView {
+        NativeScrollView {
             Text(message.text).font(.system(size: 13, weight: .medium))
                 .lineSpacing(3).multilineTextAlignment(.center).textSelection(.enabled)
                 .frame(maxWidth: .infinity)

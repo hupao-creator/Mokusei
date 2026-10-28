@@ -185,18 +185,13 @@ class ReadingDriver:
         self.expand()
         self.settings_return()
         self.stale_probe()
-        if self.controls(self.wait(), "history.toggle"):
-            self.toggle("history.toggle", True)
-            earlier = self.controls(self.wait(), "loadEarlier")
-            if earlier:
-                before = self.value(self.wait(), "timeline")
-                after = self.invoke(earlier[0])
-                if self.value(after, "timeline")["firstIndex"] >= before["firstIndex"]:
-                    raise AssertionError("Load earlier did not extend the real timeline window")
+        if self.controls(self.wait(), "history.open"):
             entry = self.control("history.open")
             after = self.invoke(entry)
             if self.value(after, "conversation")["historyRow"] != entry["value"]:
                 raise AssertionError("Historical row opened the wrong destination")
+            if self.value(after, "history.sidebar")["selectedRow"] != entry["value"]:
+                raise AssertionError("Sidebar selection did not follow the opened turn")
             self.toggle("visibility.userMessages", True)
             self.toggle("visibility.work", True)
             self.expand()
@@ -208,8 +203,9 @@ class ReadingDriver:
         latest = self.controls(self.wait(), "jumpLatest")
         if latest:
             after = self.invoke(latest[0])
-            if self.value(after, "conversation")["historyOpen"]:
-                raise AssertionError("Jump latest did not collapse historical rows")
+            sidebar = self.controls(after, "history.sidebar")
+            if sidebar and sidebar[0]["value"]["selectedRow"] != sidebar[0]["value"]["currentRow"]:
+                raise AssertionError("Jump latest did not select the current turn")
         self.invoke(self.control("timeline"), "scrollBy", -500)
 
     def monkey(self, seed, steps):

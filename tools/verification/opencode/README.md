@@ -18,7 +18,7 @@ To include the actual external OpenCode 2.0.25+ process:
 go run ./tools/verification/opencode -native-cli "$(command -v opencode)"
 ```
 
-The explicit native path enables three additional cases. Each creates temporary
+The explicit native path enables four additional cases. Each creates temporary
 HOME/XDG/database directories, supplies a synthetic key, and sends every inference
 request to an `httptest` loopback server. These are integration replays, not unit
 tests or account-based model probes. The user's existing native profile is not used.
@@ -97,3 +97,7 @@ question/option IDs, submission and cancellation before a required answer.
 Plain SwiftPM runs explicitly skip this suite without the fixture; use the
 launcher for the mounted cross-language verification. The ordinary no-argument
 renderer replay retains its existing parity and error cases.
+
+The installed-native `thread` form replay includes an empty form title, emoji UTF-16 length, dotted email, nonfatal URI percent encoding (default and external URL), and expanded-year date-time defaults. It checks the final native answered values after production SSE admission and public preflight.
+
+`-case forms -native-cli /absolute/path/to/opencode` runs a standalone native Form API/SSE contract matrix without prompts. It covers all form regressions above plus JavaScript date strings, unknown-zone rejection, and dot/Unicode line separators, comparing production public preflight with native HTTP status and pending/answered state. This case is also included in the full installed-native replay.
