@@ -336,46 +336,11 @@ func publicFormValueError(form PublicQuestionForm, value any, present bool, opti
 		if !ok {
 			return "Enter text."
 		}
-		length := UTF16Length(text)
-		if form.Required && length == 0 {
-			return "An answer is required."
-		}
-		if form.MinLength != nil && length < *form.MinLength {
-			return fmt.Sprintf("Enter at least %d characters.", *form.MinLength)
-		}
-		if form.MaxLength != nil && length > *form.MaxLength {
-			return fmt.Sprintf("Enter at most %d characters.", *form.MaxLength)
-		}
-		if form.Pattern != nil {
-			matched, err := matchPublicQuestionPattern(*form.Pattern, text)
-			if err != nil {
-				return "The required answer pattern could not be evaluated."
-			}
-			if !matched {
-				return "Answer does not match the required pattern."
-			}
+		if reason := ValidatePublicQuestionString(form, text); reason != "" {
+			return reason
 		}
 		if options != nil && !allowOther && !questionContains(options, text) {
 			return "Choose an available option."
-		}
-		switch form.Format {
-		case "email":
-			if !questionEmail(text) {
-				return "Enter an email address."
-			}
-		case "uri":
-			if !questionURI(text) {
-				return "Enter a URI."
-			}
-		case "date":
-			date, err := time.Parse("2006-01-02", text)
-			if err != nil || date.Format("2006-01-02") != text {
-				return "Enter a valid date."
-			}
-		case "date-time":
-			if !questionDateTime(text) {
-				return "Enter a valid date and time."
-			}
 		}
 	case "number", "integer":
 		n, ok := number(value)
@@ -420,6 +385,50 @@ func publicFormValueError(form PublicQuestionForm, value any, present bool, opti
 			if !allowOther && !questionContains(options, value) {
 				return "Choose available options."
 			}
+		}
+	}
+	return ""
+}
+
+// ValidatePublicQuestionString shares the native string contract between schema
+// default admission and public answers. Choice membership is checked by callers.
+func ValidatePublicQuestionString(form PublicQuestionForm, text string) string {
+	length := UTF16Length(text)
+	if form.Required && length == 0 {
+		return "An answer is required."
+	}
+	if form.MinLength != nil && length < *form.MinLength {
+		return fmt.Sprintf("Enter at least %d characters.", *form.MinLength)
+	}
+	if form.MaxLength != nil && length > *form.MaxLength {
+		return fmt.Sprintf("Enter at most %d characters.", *form.MaxLength)
+	}
+	if form.Pattern != nil {
+		matched, err := matchPublicQuestionPattern(*form.Pattern, text)
+		if err != nil {
+			return "The required answer pattern could not be evaluated."
+		}
+		if !matched {
+			return "Answer does not match the required pattern."
+		}
+	}
+	switch form.Format {
+	case "email":
+		if !questionEmail(text) {
+			return "Enter an email address."
+		}
+	case "uri":
+		if !questionURI(text) {
+			return "Enter a URI."
+		}
+	case "date":
+		date, err := time.Parse("2006-01-02", text)
+		if err != nil || date.Format("2006-01-02") != text {
+			return "Enter a valid date."
+		}
+	case "date-time":
+		if !questionDateTime(text) {
+			return "Enter a valid date and time."
 		}
 	}
 	return ""
@@ -513,6 +522,9 @@ func compilePublicQuestionPattern(pattern string) (*regexp2.Regexp, error) {
 			} else {
 				fmt.Fprintf(&expression, `\u%04X\u%04X`, high, low)
 			}
+		} else if r == '.' && !escaped && !inClass {
+			// JavaScript dot excludes all four line terminators.
+			expression.WriteString(`[^\r\n\u2028\u2029]`)
 		} else if r == '$' && !escaped && !inClass {
 			// regexp2 otherwise permits a final newline before $, unlike an
 			// ECMAScript pattern without the multiline flag.
@@ -602,14 +614,28 @@ func questionDateTime(value string) bool {
 		}
 		return valid
 	}
+	// Date.toString appends a human-readable zone comment after the offset.
+	if before, _, found := strings.Cut(value, " ("); found && strings.HasSuffix(value, ")") {
+		value = before
+	}
 	for _, layout := range []string{
+		"Mon Jan 02 2006 15:04:05 GMT-0700", "Jan 2 2006 15:04:05 GMT-0700",
 		time.RFC3339Nano, "2006-01-02T15:04Z07:00", "2006-01-02T15:04:05.999999999",
 		"2006-01-02T15:04", "2006-01-02 15:04:05.999999999Z07:00", "2006-01-02 15:04:05.999999999",
 		"2006-01-02 15:04", "2006-01-02", "2006-01", "2006", time.RFC1123, time.RFC1123Z,
 		time.RFC822, time.RFC822Z, time.RFC850, time.ANSIC, time.UnixDate, time.RubyDate,
 		"Jan 2, 2006", "January 2, 2006", "Jan 2 2006", "January 2 2006", "1/2/2006", "2006/1/2",
 	} {
-		if _, err := time.Parse(layout, value); err == nil {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			if strings.Contains(layout, "MST") {
+				// Go accepts fabricated zone abbreviations; native Date does not.
+				zone, _ := parsed.Zone()
+				switch zone {
+				case "UT", "UTC", "GMT", "EST", "EDT", "CST", "CDT", "MST", "MDT", "PST", "PDT":
+				default:
+					continue
+				}
+			}
 			return true
 		}
 	}

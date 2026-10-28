@@ -27,7 +27,7 @@ func run() error {
 	toolchain := flag.String("go", filepath.Join(runtime.GOROOT(), "bin", "go"), "Go executable used to build fixture and replay cases")
 	root := flag.String("root", ".", "repository root")
 	race := flag.Bool("race", true, "enable Go race detector")
-	only := flag.String("case", "all", "all, credentials, timeout, settings, native, thread, foreground, renderer, or telemetry")
+	only := flag.String("case", "all", "all, credentials, timeout, settings, native, thread, forms, foreground, renderer, or telemetry")
 	flag.Parse()
 	absolute, err := filepath.Abs(*root)
 	if err != nil {
@@ -36,7 +36,7 @@ func run() error {
 	if _, err = os.Stat(filepath.Join(absolute, "go.mod")); err != nil {
 		return fmt.Errorf("run from repository root or pass -root: %w", err)
 	}
-	allowed := map[string]bool{"all": true, "credentials": true, "timeout": true, "settings": true, "native": true, "thread": true, "foreground": true, "renderer": true, "telemetry": true}
+	allowed := map[string]bool{"all": true, "credentials": true, "timeout": true, "settings": true, "native": true, "thread": true, "forms": true, "foreground": true, "renderer": true, "telemetry": true}
 	if !allowed[*only] {
 		return fmt.Errorf("unknown replay case %q", *only)
 	}
@@ -67,10 +67,10 @@ func run() error {
 	}
 	cases := []string{"credentials", "settings", "timeout", "renderer", "telemetry"}
 	if *native != "" {
-		cases = append(cases, "native", "thread", "foreground")
+		cases = append(cases, "native", "thread", "forms", "foreground")
 	}
 	if *only != "all" {
-		if (*only == "native" || *only == "thread" || *only == "foreground") && *native == "" {
+		if (*only == "native" || *only == "thread" || *only == "forms" || *only == "foreground") && *native == "" {
 			return fmt.Errorf("case %s requires explicit -native-cli", *only)
 		}
 		cases = []string{*only}
