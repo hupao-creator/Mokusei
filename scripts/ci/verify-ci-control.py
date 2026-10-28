@@ -36,7 +36,7 @@ def main():
 
         def scope(expected, kind="pull_request"):
             head = git("rev-parse", "HEAD")
-            event = {"before": base, "pull_request": {"base": {"sha": base}, "head": {"sha": head}}}
+            event = {"number": 1, "before": base, "pull_request": {"base": {"sha": base}, "head": {"sha": head}}}
             (root / "event.json").write_text(json.dumps(event))
             env = dict(environment, GITHUB_EVENT_NAME=kind, GITHUB_SHA=head)
             value = command([sys.executable, str(SCRIPTS / "scope.py")], cwd=repo, env=env)
@@ -47,6 +47,24 @@ def main():
         (repo / "README.md").write_text("Changed documentation\n")
         git("commit", "-qam", "Update documentation")
         scope(True)
+        # A controlled API peer lets the real scope CLI reject stale admission
+        # without querying or changing any live PR.
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        peer = bin_dir / "gh"
+        peer.write_text("#!/usr/bin/env python3\nimport os\nprint(open(os.environ['CI_API_FIXTURE']).read())\n")
+        peer.chmod(0o755)
+        current = {"state": "open", "base": {"sha": base}, "head": {"sha": git("rev-parse", "HEAD")}}
+        api = root / "current-pr.json"
+        current_env = dict(environment, GITHUB_EVENT_NAME="pull_request", GITHUB_REPOSITORY="fixture/repo",
+                           PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], CI_API_FIXTURE=str(api))
+        head = current["head"]["sha"]
+        for state, current_head, current_base, expected in (("open", head, base, True), ("open", base, base, False),
+                                                           ("open", head, head, False), ("closed", head, base, False)):
+            current.update(state=state, head={"sha": current_head}, base={"sha": current_base})
+            api.write_text(json.dumps(current))
+            command([sys.executable, str(SCRIPTS / "scope.py"), "--current"], cwd=repo, env=current_env, success=expected)
+        print("PASS queued admission CLI: current PR accepted; superseded and closed PRs rejected")
         scope(True, "push")
         scope(False, "workflow_dispatch")
         (repo / "source.go").write_text("package changed\n")
@@ -106,6 +124,8 @@ def main():
             result = command([sys.executable, "-c", script], cwd=root, success=success)
             if timeout < 1 and "incomplete execution, not a test assertion failure" not in result:
                 raise AssertionError(result)
+        command([sys.executable, str(SCRIPTS / "deadline.py"), sys.executable, "-c", "pass"], cwd=root,
+                env=dict(os.environ, MOKUSEI_CI_STARTED_AT="0"))
         print("PASS real subprocess completion, nonzero status and deadline termination")
 
 

@@ -39,7 +39,7 @@ empty execution and all-skipped runs fail the reporting step. Use `-count=1`;
 the report rejects repeated terminal events. Unit, race, property and platform
 runs overlap, so their counts are not unique coverage totals.
 
-## Parallel execution and the time budget
+## Parallel execution and queueing
 
 The normal workflow runs Linux checks/replays alongside two macOS preparation
 jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
@@ -69,28 +69,30 @@ downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.
 DirectoryTag is also executed once. Four native-CLI/system runners are separate
 `extended=true` workflow dispatches, which do not repeat the normal workflow.
-Default and extended attempts on the same branch share a concurrency group:
-extended attempts wait instead of taking the default attempt's macOS slots,
-while a new commit cancels stale work. Dispatch the extended gate after the
-default run completes so its queue does not consume the time budget. CLI installs
-are cached by exact package/version and architecture; a download gets at most
-three minutes instead of exhausting the verification budget.
-The removed long-running stability check is not replaced with another soak.
+Default PR/main and extended runs share a repository-wide concurrency queue
+(`queue: max`, no cancellation of another queued run). One workflow cohort is
+admitted at a time; its Linux checks, preparation jobs and native shards still
+run in parallel. The scope job rejects obsolete PR heads/bases and superseded
+main pushes before scheduling native work. Explicit dispatches remain pinned to
+the requested revision. This is a workflow queue, not GitHub Merge Queue.
+CLI installs are cached by exact package/version and architecture, and downloads
+retain their three-minute execution timeout. The removed long-running stability
+check is not replaced with another soak.
 
-Each attempt must finish in **less than fifteen minutes**. Owned test/build commands
-stop against a shared 840-second deadline measured from GitHub's current attempt
-start, reserving cleanup time. Jobs also have a fourteen-minute timeout. Final job
-coverage and elapsed time are checked after uploading summaries, with cleanup
-headroom. Runner queue and Action download/cache delays are visible in the
-observed whole-attempt time; a slow or incomplete attempt cannot be reported as
-successful. Use actual hosted start/completion timestamps to validate the target.
-The aggregate additionally reports job queue time and elapsed time since the
-first trigger, so a short retry does not hide earlier waiting. Carried-forward
-successful jobs on partial retries retain old execution timestamps even when
-GitHub assigns new job IDs; they are labeled reused, not counted as new work.
-The five-runner matrix is a per-run limit, not an account-wide reservation.
-Coordinate final PR/extended runs as described in AGENTS.md; this workflow does
-not hide contention by resetting its deadline or silently canceling other PRs.
+There is **no whole-run fifteen-minute merge gate** and no shared 840-second
+command deadline. Queueing cannot consume a later command's execution allowance.
+Each owned command has an independent thirty-minute default timeout and each
+build/test job has a thirty-minute timeout to stop hung work; narrower existing
+CLI/test limits remain in force. Timeout is incomplete execution and still fails
+coverage. These execution guards are not a wall-clock acceptance requirement.
+
+The aggregate reports each job's queue time, attempt time and elapsed time since
+the first trigger. Carried-forward successful jobs on partial retries retain
+old execution timestamps even when GitHub assigns new job IDs; they are labeled
+reused, not counted as new work. Time is diagnostic and does not decide merge
+eligibility. All required jobs and complete observed coverage must still pass.
+The queue only coordinates workflows using this key in this repository; other
+repositories or older workflow revisions may still consume account capacity.
 
 ## Native coverage evidence
 
@@ -151,6 +153,10 @@ raw logs and screenshots remain available for diagnosis. Swift failures print
 bounded assertion excerpts directly in the job log and summary; replay errors
 report command status and timeout reason even when their log is empty.
 Missing logs are reported as not run, never as zero failures.
+GitHub [supports `queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency); actionlint 1.7.12 predates that syntax. Local lint
+ignores only its exact unknown-queue-key diagnostic, and actual hosted workflow
+acceptance remains required.
+
 Hosted runner execution is established by actual workflow results, not by local
 YAML validation or local tests.
 
@@ -161,7 +167,7 @@ truncated, malformed and absent captures. CI runs the same verifier on Linux.
 
 `python3 scripts/ci/verify-ci-control.py` exercises the real scope and evidence
 entry points with temporary Git histories and retained artifact directories,
-and runs real subprocess success, nonzero exit and deadline termination cases.
+and runs real subprocess success, nonzero exit and command-timeout termination cases.
 It runs on Linux alongside the existing Go reporter verifier.
 
 ## Pull request merge gates
@@ -171,9 +177,9 @@ requires changes to `main` to go through a pull request. Before merging, the
 branch must be up to date with `main`, and these GitHub Actions checks must pass:
 
 - `Go / Linux`
-- `Complete coverage and fifteen-minute budget`
+- `Complete coverage`
 
-The complete-coverage check includes every default job and the wall-clock budget.
+The complete-coverage check includes every default job and the selected verification scope.
 Optional extended dispatches use a distinct aggregate check name and cannot
 satisfy this required default check.
 

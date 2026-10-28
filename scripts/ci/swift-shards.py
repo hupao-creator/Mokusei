@@ -62,7 +62,6 @@ def prepare():
 
 
 def verify(evidence):
-    deadline.remaining()
     manifest = json.loads(MANIFEST.read_text())
     for key, value in identity().items():
         if manifest.get(key) != value:

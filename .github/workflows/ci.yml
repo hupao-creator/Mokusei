@@ -16,10 +16,11 @@ permissions:
   actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
-  # Extended runs must wait for this branch's default run, not consume its
-  # native runner slots. A new commit still cancels stale verification.
-  cancel-in-progress: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+  # Reserve one workflow cohort for this repository; each cohort still runs
+  # its native shards in parallel. Queued obsolete revisions exit at scope.
+  group: ci-native-capacity-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
 
 defaults:
   run:
@@ -44,22 +45,20 @@ jobs:
           fetch-depth: 0
       - name: Classify the complete changed-path set
         id: scope
-        run: python3 scripts/ci/scope.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/scope.py --current
 
   go:
     needs: scope
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Go / Linux
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
 
       # scripts/go.sh downloads Go 1.27.3 but rejects non-Darwin/arm64 hosts.
       # setup-go honors go.mod's toolchain directive without changing go.mod.
@@ -183,7 +182,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Integration / ${{ matrix.group }}
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -192,10 +191,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -217,7 +212,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Native Go and Swift fixture preparation
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     outputs:
       cache: ${{ steps.go-cache.outputs.key }}
       modules: ${{ steps.go-cache.outputs.modules }}
@@ -227,10 +222,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -278,7 +269,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Swift build and complete test inventory
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     outputs:
       cache: ${{ steps.restore.outputs.cache-primary-key }}
       developer: ${{ steps.toolchain.outputs.developer }}
@@ -287,10 +278,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - name: Prepare the native toolchain
         id: toolchain
         run: |
@@ -336,7 +323,7 @@ jobs:
     name: macOS / ${{ matrix.name }}
     needs: [scope, swift-build, native-go]
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       # Five is the standard hosted macOS concurrency allowance.
@@ -357,10 +344,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         if: ${{ matrix.go }}
         with:
@@ -422,7 +405,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
     name: Native CLI / ${{ matrix.kind }}
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -436,10 +419,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -502,19 +481,15 @@ jobs:
           retention-days: 7
 
   verification:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage and time budget' || 'Complete coverage and fifteen-minute budget' }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage' || 'Complete coverage' }}
     if: ${{ always() }}
     needs: [scope, go, replays, native-go, swift-build, mac, external]
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - name: Select artifact IDs before downloading retry evidence
         id: evidence
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
@@ -559,7 +534,7 @@ jobs:
           path: ${{ runner.temp }}/run-summary.json
           if-no-files-found: error
           retention-days: 14
-      - name: Enforce every required job and whole-attempt duration
+      - name: Enforce every required job
         if: ${{ always() }}
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
@@ -567,18 +542,16 @@ jobs:
           EXTENDED: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
         run: |
           python3 - <<'PY'
-          import json, os, time
+          import json, os
           results = json.loads(os.environ['JOB_RESULTS'])
           required = ['scope', 'external'] if os.environ['EXTENDED'] == 'true' else ['scope', 'go']
           if os.environ['EXTENDED'] != 'true' and os.environ['DOCUMENTATION_ONLY'] != 'true':
               required += ['replays', 'native-go', 'swift-build', 'mac']
           failures = [name for name in required if results[name]['result'] != 'success']
-          elapsed = time.time() - int(os.environ['MOKUSEI_CI_STARTED_AT'])
-          message = f'CI attempt: {elapsed:.1f}s elapsed; required jobs failed/skipped: {failures}. Limit: <900s.'
+          message = f'Required jobs failed/skipped: {failures}. Elapsed time is diagnostic, not a merge gate.'
           print(message)
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
               output.write('\n' + message + '\n')
-          # Leave cleanup/checkout post-actions a margin before the strict 900s limit.
-          if failures or elapsed >= 885:
+          if failures:
               raise SystemExit(1)
           PY

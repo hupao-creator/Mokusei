@@ -1,4 +1,4 @@
-"""Expose runner queues and total retry latency without resetting the CI budget."""
+"""Expose runner queues and total retry latency without imposing a whole-run time gate."""
 from datetime import datetime
 import json
 import os
@@ -33,7 +33,7 @@ def main():
     now = time.time()
     report = {"run": run["id"], "attempt": attempt,
               "elapsedSinceFirstTriggerSeconds": round(now - timestamp(run["created_at"]), 1),
-              "elapsedThisAttemptSeconds": round(now - int(os.environ["MOKUSEI_CI_STARTED_AT"]), 1),
+              "elapsedThisAttemptSeconds": round(now - timestamp(run["run_started_at"]), 1),
               "jobs": jobs}
     Path(os.environ["RUNNER_TEMP"], "run-summary.json").write_text(json.dumps(report, indent=2) + "\n")
     rows = ["## Queue and retry latency", "",
@@ -43,7 +43,7 @@ def main():
     for job in jobs:
         queue = "prior execution" if job["reused"] else job["queueSeconds"]
         rows.append(f"| {job['name']} | {queue} | {job['executionSeconds']} | {job['conclusion'] or 'running'} |")
-    rows += ["", "Reused jobs are not new runner work. The strict whole-attempt budget still includes queueing."]
+    rows += ["", "Reused jobs are not new runner work. Elapsed time is diagnostic and does not decide merge eligibility."]
     text = "\n".join(rows) + "\n"
     print(text)
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:

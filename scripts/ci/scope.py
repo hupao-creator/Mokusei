@@ -1,4 +1,5 @@
-"""Prove a documentation-only diff; unknown inputs retain the complete CI gate."""
+"""Reject obsolete queued work and prove a conservative documentation-only diff."""
+import argparse
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -7,6 +8,9 @@ import subprocess
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--current", action="store_true", help="Reject superseded PR/main revisions before native scheduling")
+    args = parser.parse_args()
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     kind = os.environ["GITHUB_EVENT_NAME"]
     base = head = None
@@ -15,6 +19,22 @@ def main():
         head = event["pull_request"]["head"]["sha"]
     elif kind == "push" and event.get("before", "").strip("0"):
         base, head = event["before"], os.environ["GITHUB_SHA"]
+    if args.current and kind in {"pull_request", "push"}:
+        repository = os.environ["GITHUB_REPOSITORY"]
+        if kind == "pull_request":
+            current = json.loads(subprocess.check_output([
+                "gh", "api", f"repos/{repository}/pulls/{event['number']}"], text=True))
+            obsolete = (current["state"] != "open" or current["head"]["sha"] != head
+                        or current["base"]["sha"] != base)
+        else:
+            current = json.loads(subprocess.check_output([
+                "gh", "api", f"repos/{repository}/git/ref/heads/main"], text=True))
+            obsolete = current["object"]["sha"] != os.environ["GITHUB_SHA"]
+        if obsolete:
+            message = "Superseded queued revision: use the latest PR head/base or main commit; no native verification started."
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                summary.write(message + "\n")
+            raise SystemExit(message)
     paths = []
     if base and head and all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in (base, head)):
         # Disable rename detection: both the old and new path must be documentation.
