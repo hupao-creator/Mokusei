@@ -610,13 +610,18 @@ func main() {
 	// No active execution owns this event. The production SSE admission must
 	// initialize an empty automatic-execution map before publishing the form.
 	idleFields := []oc.Object{
+		{"key": "emoji", "type": "string", "minLength": 2, "default": "😀"},
+		{"key": "email", "type": "string", "format": "email", "default": "a..b@example.com"},
+		{"key": "uri", "type": "string", "format": "uri", "default": "https://example.com/%zz"},
+		{"key": "date", "type": "string", "format": "date-time", "default": "+010000-01-01T00:00:00.000Z"},
+		{"key": "external", "type": "external", "url": "https://example.com/%zz"},
 		{"key": "prefix", "type": "string", "required": true},
 		{"key": "number", "type": "integer", "required": true, "minimum": 16, "maximum": 16},
 		{"key": "optional", "type": "string", "required": false},
 		{"key": "hidden", "type": "string", "hidden": true, "default": "hidden-default"},
 		{"key": "inactive", "type": "string", "required": true, "when": []oc.Object{{"key": "prefix", "op": "eq", "value": "other"}}},
 	}
-	must(native.Request(ctx, "POST", "/api/session/"+frozen.NativeSessionID+"/form", oc.Object{"id": "frm_fixture_idle", "title": "Idle native form", "fields": idleFields}, &nativeForm))
+	must(native.Request(ctx, "POST", "/api/session/"+frozen.NativeSessionID+"/form", oc.Object{"id": "frm_fixture_idle", "title": "", "fields": idleFields}, &nativeForm))
 	var automaticID string
 	for {
 		observed, err := oc.DecodeState(formState.Read())
@@ -632,8 +637,12 @@ func main() {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+	check(publicForm.Title == "OpenCode request", "empty native form title gets public fallback")
 	idleAnswers := map[string]json.RawMessage{}
 	for _, question := range publicForm.Questions {
+		if question.Form.Type == "external" {
+			idleAnswers[question.ID], _ = json.Marshal(question.Options[0].Value)
+		}
 		if question.Form.Type == "integer" {
 			idleAnswers[question.ID] = json.RawMessage(`"0x10"`)
 		}
@@ -646,7 +655,7 @@ func main() {
 	idleResult := detail["state"].(map[string]any)
 	check(idleResult["status"] == "answered", "idle native form reply failed")
 	nativeAnswers := idleResult["answer"].(map[string]any)
-	check(nativeAnswers["prefix"] == "opencode-option-user-data" && nativeAnswers["number"] == float64(16) && nativeAnswers["hidden"] == "hidden-default" && len(nativeAnswers) == 3, "typed form values/defaults/omissions did not reach native form")
+	check(nativeAnswers["prefix"] == "opencode-option-user-data" && nativeAnswers["number"] == float64(16) && nativeAnswers["hidden"] == "hidden-default" && len(nativeAnswers) == 8 && nativeAnswers["emoji"] == "😀" && nativeAnswers["email"] == "a..b@example.com" && nativeAnswers["uri"] == "https://example.com/%zz" && nativeAnswers["date"] == "+010000-01-01T00:00:00.000Z" && nativeAnswers["external"] == true, "typed form values/defaults/omissions did not reach native form")
 	fmt.Println("PASS idle SSE automatic admission, literal option-prefix text, typed radix numbers, hidden defaults and optional/conditional omission")
 	must(formHandle.Close())
 	release = make(chan struct{})
