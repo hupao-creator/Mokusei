@@ -306,6 +306,9 @@ public struct ThreadConversation: View {
     }
     private func selectRow(_ id: JSONText) {
         guard visibleRows.contains(where: { $0.id == id }) else { return }
+        // Re-selecting a settled history page must not retire its live resource.
+        // During Back or an external result visit, selection still changes ownership.
+        if case let .history(selected) = destination, selected == id, !pageMotion.active, !resultVisit { return }
         // Invalidate an interrupted Back animation before selecting another
         // turn; its delayed completion must not replace the new destination.
         pageMotion.cancel()
