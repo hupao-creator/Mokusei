@@ -2,6 +2,10 @@ import Foundation
 import MokuseiCore
 import SwiftUI
 
+func threadExecutionResultAnchor(_ executionID: JSONText) -> JSONText {
+    JSONText("execution-result:" + nativeReadingInteractionKey(executionID))
+}
+
 /// Opaque, plugin-rendered rows; the shared UI never decodes their content.
 public struct ThreadDetailRow: Identifiable {
     public enum Kind: String, Sendable { case user, work, content, attention }
@@ -11,15 +15,16 @@ public struct ThreadDetailRow: Identifiable {
     public let node: AnyView
     public let execution: ThreadExecutionMembership?
     public let executionSummary: ThreadExecutionSummary?
+    public let finalReply: Bool
 
     public init(id: JSONText, kind: Kind, node: AnyView,
                 execution: ThreadExecutionMembership? = nil,
-                executionSummary: ThreadExecutionSummary? = nil) {
+                executionSummary: ThreadExecutionSummary? = nil, finalReply: Bool = false) {
         self.id = id
         self.kind = kind
         self.node = node
         self.execution = execution
-        self.executionSummary = executionSummary
+        self.executionSummary = executionSummary; self.finalReply = finalReply
     }
 }
 
@@ -131,14 +136,22 @@ public struct ThreadDetailTurn: View {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
             let displayed = groupThreadExecutionRows(filteredRows, reasoningUsage: reasoningUsage)
+            // Harnesses identify the final reply, including its first text part.
+            // Resolve only after the body loads; review/status rows can follow it.
+            let result = completedAt != nil ? displayed.first(where: \.finalReply)?.id ?? displayed.last?.id : displayed.last?.id
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(displayed.enumerated()), id: \.element.id) { index, row in
                     row.node
+                        .modifier(ExecutionResultAnchor(id: id, enabled: row.id == result))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .environment(\.threadFirstDetailRow, index == 0)
                         .nativeReadingScope("item." + nativeReadingInteractionKey(row.id))
                         .threadReadingAnchor(row.id)
                         .padding(.bottom, !active && index == displayed.count - 1 ? 0 : row.kind == .user ? 26 : 16)
+                }
+                if displayed.isEmpty {
+                    Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
+                        .threadReadingAnchor(threadExecutionResultAnchor(id))
                 }
                 if !active { footer.padding(.top, displayed.last?.kind == .user ? 26 : 18) }
             }
@@ -189,6 +202,15 @@ public struct ThreadDetailTurn: View {
 
     private func localize(_ source: String) -> String {
         NativePluginLocalization.localize(source, locale: locale)
+    }
+}
+
+private struct ExecutionResultAnchor: ViewModifier {
+    let id: JSONText
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.threadReadingAnchor(threadExecutionResultAnchor(id)) }
+        else { content }
     }
 }
 

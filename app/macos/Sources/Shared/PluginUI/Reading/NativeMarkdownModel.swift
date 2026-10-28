@@ -1,5 +1,6 @@
 import Foundation
 import MokuseiCore
+import MokuseiPluginAPI
 
 struct MarkdownSpan: Hashable, Sendable {
     var text: String
@@ -78,6 +79,9 @@ enum MarkdownURLPolicy {
             if delimiter == nil || colon < delimiter! {
                 if String(value[..<colon]).lowercased() == "file" {
                     return localFileURL(value) == nil ? nil : value
+                }
+                if String(value[..<colon]).lowercased() == "mokusei" {
+                    return URL(string: value).flatMap(ApplicationExecutionLink.parse) == nil ? nil : value
                 }
                 let allowed = ["http", "https", "irc", "ircs", "mailto", "xmpp"]
                 guard allowed.contains(String(value[..<colon]).lowercased()) else { return nil }

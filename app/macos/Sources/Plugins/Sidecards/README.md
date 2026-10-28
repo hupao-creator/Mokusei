@@ -62,3 +62,8 @@ cannot establish AppKit event-loop/key-window ownership.
 The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session discards unsent attachments (only the existing text draft is persisted). The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
 
 Replay: `xcrun swift test --no-parallel --package-path app/macos --filter 'NativeSidecardAttachmentPasteTests|NativeComposerPasteTests|NativeSidecardNavigationTests'` (requires a graphical macOS session).
+
+An execution-result reading request keeps its targeted active execution in the
+main reader instead of moving it into the Conversation sidecard. This preserves
+the same mounted reading visit and user-controlled following across completion.
+Other execution and composer behavior retains the normal sidecard policy.

@@ -48,7 +48,7 @@ let package = Package(
         .testTarget(name: "MokuseiSettingsIntegrationTests", dependencies: [
             "MokuseiTestSupport",
             "MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI",
-            "MokuseiHarnessCodex", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiVoice", "MokuseiApplications"
+            "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiVoice", "MokuseiApplications"
         ], path: "Tests/Integration/Host"),
         .testTarget(name: "MokuseiGitIntegrationTests", dependencies: ["MokuseiTestSupport", "MokuseiUI", "MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode"], path: "Tests/Integration/Threads"),
         .testTarget(name: "MokuseiCoreTests", dependencies: ["MokuseiCore"], path: "Tests/Core"),

@@ -29,7 +29,7 @@ public func bindThreadExecutionSource<Source>(
         guard sourceIDs.contains(row.id) else { return row }
         return ThreadDetailRow(id: row.id, kind: row.kind, node: row.node,
                                execution: runIDs[row.id].map { .source(startID: $0) },
-                               executionSummary: row.executionSummary)
+                               executionSummary: row.executionSummary, finalReply: row.finalReply)
     }
 }
 

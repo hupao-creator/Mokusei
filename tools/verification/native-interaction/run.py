@@ -104,7 +104,9 @@ def main():
             api.step(client, trace, {"name": "settings.select", "section": removed}, expected_error="not_found")
         for section in initial["settingsSections"]:
             api.step(client, trace, {"name": "settings.select", "section": section})
-        api.step(client, trace, {"name": "navigation.back"})
+        api.step(client, trace, {"name": "navigation.back"}, wait=False)
+        api.step(client, trace, {"name": "settings.select", "section": "general"}, expected_error="unavailable")
+        client.settle(lambda state: state["page"] != "settings")
         for ref in initial["threads"]:
             api.step(client, trace, {"name": "thread.open", **ref})
             api.step(client, trace, {"name": "settings.open"})

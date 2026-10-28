@@ -31,8 +31,9 @@ struct ConversationExecutionState {
         return nil
     }
 
-    func sidecardExecutionID(thread: HarnessThread, index: ThreadConversationIndex?) -> JSONText? {
+    func sidecardExecutionID(thread: HarnessThread, index: ThreadConversationIndex?, readingTarget: HarnessReadingTarget? = nil) -> JSONText? {
         guard let active = activeExecutionID(thread: thread), Self.hasHistoryBefore(index, executionID: active) else { return nil }
+        if readingTarget?.position == .result, readingTarget?.executionID == active { return nil }
         return active
     }
 
@@ -80,10 +81,10 @@ struct ConversationExecutionState {
     mutating func update(thread: HarnessThread, index: ThreadConversationIndex?, readingTarget: HarnessReadingTarget?,
                          expanded: Bool, selectionRevision: Int, open: () -> Int, close: () -> Void) {
         let active = activeExecutionID(thread: thread)
-        let sidecardExecution = sidecardExecutionID(thread: thread, index: index)
+        let sidecardExecution = sidecardExecutionID(thread: thread, index: index, readingTarget: readingTarget)
         if !initialOpenHandled, index != nil {
             initialOpenHandled = true
-            if sidecardExecution != nil && selectionRevision == 0 { _ = open() }
+            if readingTarget?.position != .result && sidecardExecution != nil && selectionRevision == 0 { _ = open() }
         }
         if let previousActiveID, active == nil,
            thread.observation.latestExecution?.executionID == previousActiveID,

@@ -34,6 +34,9 @@ public extension NativeWorkspacePresentation {
     var interactionActions: [String] {
         guard interactionReady else { return [] }
         if scene.settingsOpen {
+            // The closing page stays mounted for its mask animation, but a
+            // section/control command can no longer produce a readable result.
+            if scene.settingsClosing { return ["navigation.back", "overview.show", "settings.close"] }
             var actions = ["settings.select", "settings.control"]
             if settingsNavigation.closeBlockReason(model: workspace.settingsModel) == nil {
                 actions += ["settings.close", "navigation.back", "overview.show"]

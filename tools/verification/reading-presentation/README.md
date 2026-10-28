@@ -402,3 +402,11 @@ horizontally scrolling table in the outer reading viewport. The replay needs a
 graphical session; it opens no external websites and makes no model requests.
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
+
+## Moku execution links
+
+`python3 tools/verification/reading-presentation/run.py --moku-execution-links`
+runs the production note Markdown callback, Host admission and all four Harness
+readers with delayed content resources. It checks exact result positioning,
+streaming follow/stop/resume, successor isolation, archived/failed and missing
+execution targets. These cases also run in the complete hosted Swift suite.

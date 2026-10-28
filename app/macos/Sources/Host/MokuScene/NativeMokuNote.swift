@@ -66,6 +66,7 @@ struct NativeMokuNoteContent: View {
     let availableHeight: CGFloat
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
+    var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
     var onContentHeightChange: ((CGFloat) -> Void)?
     var claimOpenArm: () -> Bool = { false }
     var onExposure: ((NativeMokuNote) -> Void)?
@@ -141,7 +142,7 @@ struct NativeMokuNoteContent: View {
         Group {
             if let note {
                 NativeMarkdownView(text: note.text, fontSize: 13, openExternal: openExternal,
-                    documentToken: note.documentToken,
+                    openExecution: openExecution, documentToken: note.documentToken,
                     onDocumentApplied: { exposure.applied($0) })
                     .id(note.documentToken)
                     .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,
