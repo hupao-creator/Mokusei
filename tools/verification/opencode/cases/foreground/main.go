@@ -82,6 +82,13 @@ func main() {
 	defer os.RemoveAll(root)
 	cwd := filepath.Join(root, "workspace")
 	must(os.MkdirAll(cwd, 0700))
+	initialReasoning := strings.Repeat("😀", 32768)
+	firstObserved, tailObserved := make(chan struct{}), make(chan struct{})
+	assistantObserved := make(chan struct{})
+	acknowledgeFirst := sync.OnceFunc(func() { close(firstObserved) })
+	acknowledgeTail := sync.OnceFunc(func() { close(tailObserved) })
+	acknowledgeAssistant := sync.OnceFunc(func() { close(assistantObserved) })
+	published := []<-chan struct{}{firstObserved, tailObserved, assistantObserved}
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" {
@@ -122,15 +129,26 @@ func main() {
 		f := w.(http.Flusher)
 		chunks := []any{map[string]any{"id": fmt.Sprintf("chat_%d", requests.Load()), "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "delta": delta, "finish_reason": nil}}}, map[string]any{"id": "chat_end", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{}, "finish_reason": finish}}, "usage": map[string]any{"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15}}}
 		reasoningChunks := []any{}
-		for _, text := range []string{strings.Repeat("😀", 32768), "tail"} {
+		for _, text := range []string{initialReasoning, "tail"} {
 			reasoningChunks = append(reasoningChunks, map[string]any{"id": "reasoning_fixture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": "fixture-model", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"reasoning_content": text}, "finish_reason": nil}}})
 		}
 		chunks = append(reasoningChunks, chunks...)
-		for _, chunk := range chunks {
+		for index, chunk := range chunks {
 			b, _ := json.Marshal(chunk)
 			fmt.Fprintf(w, "data: %s\n\n", b)
 			f.Flush()
-			time.Sleep(120 * time.Millisecond)
+			if index < len(published) {
+				// Native SSE and foreground publication may coalesce fast input.
+				// Advance only after the real adapter exposes this source segment,
+				// so streaming coverage does not depend on a 120ms scheduling gap.
+				select {
+				case <-published[index]:
+				case <-r.Context().Done():
+					return
+				case <-time.After(10 * time.Second):
+					panic(fmt.Sprintf("native foreground segment %d was not published before the next source segment", index+1))
+				}
+			}
 		}
 		fmt.Fprint(w, "data: [DONE]\n\n")
 		f.Flush()
@@ -167,6 +185,16 @@ func main() {
 		activityMu.Lock()
 		activities = append(activities, activity)
 		activityMu.Unlock()
+		if activity.Kind == "reasoning" {
+			if activity.Text == initialReasoning {
+				acknowledgeFirst()
+			}
+			if strings.HasSuffix(activity.Text, "tail") {
+				acknowledgeTail()
+			}
+		} else if activity.Kind == "assistant-text" {
+			acknowledgeAssistant()
+		}
 	}
 	handle, err := h.Open(ctx, open)
 	must(err)
@@ -196,7 +224,7 @@ func main() {
 		fmt.Printf("activity kind=%s sequence=%d textPoints=%d\n", activity.Kind, activity.Sequence, len([]rune(activity.Text)))
 	}
 	check(reasoningCount >= 2, "reasoning stream not published")
-	check(assistantCount == 1, "duplicate ended text published another activity")
+	check(assistantCount == 1, fmt.Sprintf("assistant transition count=%d, want one without duplicate ended fragments", assistantCount))
 	check(offset == 8, "reasoning source UTF-16 offset did not count surrogate pairs")
 	projected, err := oc.DecodeState(state.Read())
 	must(err)

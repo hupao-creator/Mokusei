@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 // Only native discovery is a fixture. Authentication, request slots, read
@@ -133,7 +133,7 @@ func verifySwiftSettingsCapacity() (failure error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--no-parallel", "--filter", "RuntimeSettingsCapacityInteropTests")
+	command := swiftfixture.Test(ctx, "--no-parallel", "--filter", "RuntimeSettingsCapacityInteropTests")
 	command.Env = append(os.Environ(), "MOKUSEI_SWIFT_SETTINGS_PROFILE="+p.DataDir)
 	var output bytes.Buffer
 	command.Stdout = io.MultiWriter(os.Stdout, &output)

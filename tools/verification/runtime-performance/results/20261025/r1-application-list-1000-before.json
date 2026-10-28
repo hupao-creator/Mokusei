@@ -11,9 +11,7 @@
   "executableSHA256": "bb660430ad413206282f8bd548d1cdaa9d183a12e281117fa61bc38e39fae501",
   "build": {
     "GoVersion": "go1.27.3",
-    "Path": "github.com/xinyuan0801/OpenAgent/tools/verification/runtime-performance",
     "Main": {
-      "Path": "github.com/xinyuan0801/OpenAgent",
       "Version": "v0.0.0-20261025044408-c17a3fcb270b+dirty"
     },
     "Deps": [

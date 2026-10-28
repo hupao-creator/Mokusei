@@ -143,16 +143,29 @@ struct NativeOverviewTransitionTests {
         let a = try frame("a", fixture), b = try frame("b", fixture)
         let originalRedness = try redness(window, at: a)
         #expect(originalRedness > 0.2)
+        let replacedAt = ProcessInfo.processInfo.systemUptime
         fixture.items = [.init(id: "b"), .init(id: "c")]
-        try await SwiftUIReplay.wait { fixture.state.isLayingOut && fixture.state.presentedPlacements.contains { $0.id == "c" } }
-        try await Task.sleep(for: .milliseconds(45))
-        let exiting = try frame("a", fixture)
+        var sample: (exiting: CGRect, survivor: CGRect, interactive: Bool)?
+        try await SwiftUIReplay.wait {
+            guard fixture.state.isLayingOut, fixture.state.mountedCardIDs.contains("a"),
+                  fixture.state.presentedPlacements.contains(where: { $0.id == "c" }),
+                  (fixture.sampleTimes["a"] ?? 0) > replacedAt,
+                  // The exit targets 0.98x. Observe its second half before
+                  // checking the corresponding fade, rather than its first tick.
+                  let current = fixture.frames["a"], current.width < a.width * 0.99,
+                  let survivor = fixture.frames["b"] else { return false }
+            sample = (current, survivor, fixture.state.allowsActivation(cardID: "a"))
+            return true
+        }
+        let captured = try #require(sample)
+        let exiting = captured.exiting
         #expect(exiting.width < a.width && exiting.width > a.width * 0.979)
         #expect(exiting.midY < a.midY)
+        #expect(captured.survivor == b)
+        #expect(!captured.interactive)
+        // Capture can pump AppKit's drawing loop. Assert the retained exit
+        // state above, without reading a later lifecycle phase after readback.
         #expect(try redness(window, at: exiting) < originalRedness * 0.8)
-        #expect(try frame("b", fixture) == b)
-        #expect(fixture.state.mountedCardIDs.contains("a"))
-        #expect(!fixture.state.allowsActivation(cardID: "a"))
         try await SwiftUIReplay.wait { !fixture.state.mountedCardIDs.contains("a") && fixture.frames["c"] != nil }
         let target = try #require(fixture.state.presentedPlacements.first { $0.id == "c" })
         let transform = fixture.state.camera.liveTransform
@@ -381,11 +394,22 @@ struct NativeOverviewTransitionTests {
         defer { window.close(); fixture.state.camera.dispose() }
         let oldCamera = fixture.state.camera.liveTransform
         let before = try frame("a", fixture)
+        let clearedAt = ProcessInfo.processInfo.systemUptime
         fixture.items = []
-        try await SwiftUIReplay.wait { fixture.state.isLayingOut }
-        try await Task.sleep(for: .milliseconds(45))
-        #expect(fixture.state.camera.liveTransform == oldCamera)
-        let exiting = try frame("a", fixture)
+        var sample: (NativeOverviewTransform, CGRect)?
+        // Sleep only sets a minimum delay: a busy runner can resume after the
+        // exit has completed. Sample the camera and a still-mounted moving
+        // card in the same main-actor turn, before checking either assertion.
+        try await SwiftUIReplay.wait {
+            guard fixture.state.isLayingOut, fixture.state.mountedCardIDs.contains("a"),
+                  (fixture.sampleTimes["a"] ?? 0) > clearedAt,
+                  let current = fixture.frames["a"], current.midY < before.midY,
+                  current.midY > before.midY - 9 else { return false }
+            sample = (fixture.state.camera.liveTransform, current)
+            return true
+        }
+        let (camera, exiting) = try #require(sample)
+        #expect(camera == oldCamera)
         #expect(abs(exiting.midX - before.midX) < 1)
         #expect(exiting.midY < before.midY && exiting.midY > before.midY - 9)
         try await settled(fixture)
@@ -400,9 +424,14 @@ struct NativeOverviewTransitionTests {
         defer { window.close(); fixture.state.camera.dispose() }
         let scale = fixture.state.camera.liveTransform.scale
         fixture.items = [.init(id: "a", rows: 2)]
-        try await SwiftUIReplay.wait { fixture.state.isLayingOut }
-        try await Task.sleep(for: .milliseconds(45))
-        let shrinking = try frame("a", fixture)
+        var sample: CGRect?
+        try await SwiftUIReplay.wait {
+            guard fixture.state.isLayingOut, let current = fixture.frames["a"],
+                  current.width > 360 * scale, current.width < 736 * scale else { return false }
+            sample = current
+            return true
+        }
+        let shrinking = try #require(sample)
         #expect(shrinking.width > 360 * scale && shrinking.width < 736 * scale)
         #expect(abs(shrinking.height - 200 * scale) < 0.5)
         try await SwiftUIReplay.wait { (fixture.frames["a"]?.height ?? 0) > 205 * scale }

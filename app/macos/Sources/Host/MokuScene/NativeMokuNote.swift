@@ -62,6 +62,7 @@ enum NativeMokuNoteLayout {
 struct NativeMokuNoteContent: View {
     let note: NativeMokuNote?
     let width: CGFloat
+    let height: CGFloat
     let availableHeight: CGFloat
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
@@ -83,6 +84,8 @@ struct NativeMokuNoteContent: View {
             if availableHeight < headerHeight + 44 {
                 // At large app zoom, fixed chrome can leave less than a line.
                 // Let the header scroll with the body in this short viewport.
+                // Use the Dock's capacity, not the initially empty document's
+                // fitted height: changing branches would retire its read session.
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) { header; noteBody }
                 }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
@@ -91,11 +94,11 @@ struct NativeMokuNoteContent: View {
                     header
                     ScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
-                        .frame(height: availableHeight - headerHeight)
+                        .frame(height: height - headerHeight)
                 }
             }
         }
-        .frame(width: width, height: availableHeight, alignment: .top)
+        .frame(width: width, height: height, alignment: .top)
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
             if height > 0 { onContentHeightChange?(height + headerHeight) }

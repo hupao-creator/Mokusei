@@ -69,6 +69,11 @@ new current profile. A writer for an unrelated profile must allow rotation and
 can keep writing without changing either new current or previous. Fresh runs in
 a separate Go subprocess with a disposable HOME; writer acknowledgements and
 process exit are bounded, and emergency cleanup targets only fixture PIDs.
+The stdout reader joins the child with `Cmd.Wait`, which also owns closing its
+stdin pipe. A controller close after a fast acknowledged exit may observe
+`os.ErrClosed`; that is harmless, but every other close error and the actual
+child exit status still fail the replay. A closed pipe never replaces the
+cooperative acknowledgement or joined-exit assertion.
 
 Before starting a writer without `--data-dir`, the same Swift executable runs
 two read-only Foundation home probes: a temporary HOME with CFFIXED_USER_HOME

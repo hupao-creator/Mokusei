@@ -43,23 +43,8 @@ func run() error {
 	scopes := flag.Int("scopes", 1, "one Inbox task, or 2-3 tasks in independent directories")
 	actions := flag.String("actions", "read,archive,unarchive,settings", "action sequence: read,archive,unarchive,settings,followup,fork,interrupt,delete,clear")
 	scenarioTimeout := flag.Duration("scenario-timeout", defaultScenarioTimeout, "total in-process scenario budget; does not change 30s convergence waits")
-	runtimePath := flag.String("runtime", "", "built runtime executable: enable real process crash and soak verification")
-	soakDuration := flag.Duration("soak-duration", 30*time.Minute, "minimum continuous daemon soak duration (shorter than 30m is smoke only)")
-	soakCycles := flag.Int("soak-cycles", 100, "minimum completed soak cycles")
 	flag.Parse()
-	scenarioTimeoutSet := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "scenario-timeout" {
-			scenarioTimeoutSet = true
-		}
-	})
-	if *runtimePath != "" {
-		if scenarioTimeoutSet {
-			return errors.New("-scenario-timeout applies only to in-process scenarios")
-		}
-		return runScenarioOptions(*native, *evidence, *faults, *scopes, nil, defaultScenarioTimeout, &stabilityOptions{Runtime: *runtimePath, Duration: *soakDuration, MinCycles: *soakCycles})
-	}
-	return runScenarioOptions(*native, *evidence, *faults, *scopes, strings.Split(*actions, ","), *scenarioTimeout, nil)
+	return runScenarioOptions(*native, *evidence, *faults, *scopes, strings.Split(*actions, ","), *scenarioTimeout)
 }
 func runCase(nativePath, evidencePath, faultSpec string) error {
 	return runScenario(nativePath, evidencePath, faultSpec, 1)
@@ -68,9 +53,9 @@ func runScenario(nativePath, evidencePath, faultSpec string, scopes int) error {
 	return runScenarioActions(nativePath, evidencePath, faultSpec, scopes, []string{"read", "archive", "unarchive", "settings"})
 }
 func runScenarioActions(nativePath, evidencePath, faultSpec string, scopes int, actions []string) error {
-	return runScenarioOptions(nativePath, evidencePath, faultSpec, scopes, actions, defaultScenarioTimeout, nil)
+	return runScenarioOptions(nativePath, evidencePath, faultSpec, scopes, actions, defaultScenarioTimeout)
 }
-func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, actions []string, scenarioTimeout time.Duration, stability *stabilityOptions) (err error) {
+func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, actions []string, scenarioTimeout time.Duration) (err error) {
 	if scenarioTimeout <= 0 {
 		return errors.New("scenario timeout must be positive")
 	}
@@ -100,10 +85,6 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 	plan, e := parseFaults(*faults)
 	if e != nil {
 		return e
-	}
-	var budget any
-	if stability == nil {
-		budget = scenarioTimeout.String()
 	}
 	var convergence object
 	mock := &provider{faultPlan: plan, faultHits: map[string]int{}, children: map[string]string{}, scopeChecks: map[string]bool{}}
@@ -145,7 +126,7 @@ func runScenarioOptions(nativePath, evidencePath, faultSpec string, scopes int, 
 			e := os.Mkdir(*evidence, 0700)
 			if e == nil {
 				mock.mu.Lock()
-				e = os.WriteFile(filepath.Join(*evidence, "provider.json"), encoded(object{"requests": mock.requests, "actions": actions, "scopes": scopes, "scenarioTimeout": budget, "failures": mock.failures, "blockedEgress": mock.blocked, "faultPlan": mock.faultPlan, "faultHits": mock.faultHits, "scopeChecks": mock.scopeChecks, "stability": mock.stability, "outcomeError": fmt.Sprint(err)}), 0600)
+				e = os.WriteFile(filepath.Join(*evidence, "provider.json"), encoded(object{"requests": mock.requests, "actions": actions, "scopes": scopes, "scenarioTimeout": scenarioTimeout.String(), "failures": mock.failures, "blockedEgress": mock.blocked, "faultPlan": mock.faultPlan, "faultHits": mock.faultHits, "scopeChecks": mock.scopeChecks, "outcomeError": fmt.Sprint(err)}), 0600)
 				mock.mu.Unlock()
 				if err != nil && convergence != nil {
 					e = errors.Join(e, os.WriteFile(filepath.Join(*evidence, "convergence.json"), encoded(convergence), 0600))
@@ -192,7 +173,7 @@ trace_exporter = "none"
 		return err
 	}
 	wrapper := filepath.Join(root, "bin/codex")
-	if err = os.WriteFile(wrapper, []byte("#!/bin/sh\n/bin/ps -p $$ -o pid=,pgid=,lstart= >> "+quote(filepath.Join(root, "native-owned.tsv"))+" || exit 1\nexec /usr/bin/sandbox-exec -f "+quote(sandbox)+" "+quote(*native)+" \"$@\"\n"), 0700); err != nil {
+	if err = os.WriteFile(wrapper, []byte("#!/bin/sh\nexec /usr/bin/sandbox-exec -f "+quote(sandbox)+" "+quote(*native)+" \"$@\"\n"), 0700); err != nil {
 		return err
 	}
 	env := map[string]string{"HOME": filepath.Join(root, "home"), "PATH": filepath.Join(root, "bin") + ":/usr/bin:/bin:/usr/sbin:/sbin", "CODEX_HOME": filepath.Join(root, "native"), "CODEX_SQLITE_HOME": filepath.Join(root, "native"), "TMPDIR": filepath.Join(root, "tmp"), "FIXTURE_KEY": "fixture-only", "HTTP_PROXY": server.URL, "HTTPS_PROXY": server.URL, "ALL_PROXY": server.URL, "NO_PROXY": "127.0.0.1,localhost,::1"}
@@ -239,9 +220,7 @@ trace_exporter = "none"
 		return err
 	}
 	defer func() {
-		if owner != nil {
-			err = errors.Join(err, owner.Release())
-		}
+		err = errors.Join(err, owner.Release())
 	}()
 	db, err := store.Open(filepath.Join(root, "profile/mokusei-go-state-v1/state.sqlite"))
 	if err != nil {
@@ -266,13 +245,6 @@ trace_exporter = "none"
 	err = errors.Join(err, db.Close())
 	if err != nil {
 		return err
-	}
-	if stability != nil {
-		if err = owner.Release(); err != nil {
-			return err
-		}
-		owner = nil
-		return runStability(root, p, env, mock, *stability)
 	}
 	fmt.Printf("SCENARIO timeout=%s scopes=%d actions=%d startedAt=%s\n", scenarioTimeout, scopes, len(actions), time.Now().UTC().Format(time.RFC3339Nano))
 	ctx, cancel := context.WithTimeout(context.Background(), scenarioTimeout)

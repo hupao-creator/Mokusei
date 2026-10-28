@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 // Fixed source/desired content is independent of both implementations. Only the
@@ -78,7 +78,7 @@ func verifySwiftDeltas() (failure error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "GoDeltaInteropTests")
+	command := swiftfixture.Test(ctx, "--filter", "GoDeltaInteropTests")
 	command.Env = append(os.Environ(), "MOKUSEI_GO_DELTA_FIXTURES="+path)
 	var output bytes.Buffer
 	command.Stdout = io.MultiWriter(os.Stdout, &output)

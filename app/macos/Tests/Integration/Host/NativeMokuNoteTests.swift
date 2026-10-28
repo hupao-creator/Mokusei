@@ -236,7 +236,7 @@ struct NativeMokuNoteTests {
     @Test(.requiresDisplay, arguments: [64.0, 360.0]) func panelRendersSelectableProductionMarkdown(height: Double) async throws {
         let note = NativeMokuNote(id: "panel-incarnation", text: "# Milestones\n\n- Dispatched the migration\n- Waiting for review",
                                   revision: 3, updatedAt: 1_700_000_000_000)
-        let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: height < 100 ? 188 : 480, availableHeight: height,
+        let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: height < 100 ? 188 : 480, height: height, availableHeight: height,
                                                               openExternal: nil), width: 600, height: 500)
         defer { window.close() }
         let content = try #require(window.contentView)
@@ -255,7 +255,7 @@ struct NativeMokuNoteTests {
 
         // The empty state is a hint rather than a dead panel; no note Markdown
         // document is mounted for it.
-        let empty = SwiftUIReplay.window(NativeMokuNoteContent(note: nil, width: 480, availableHeight: 360,
+        let empty = SwiftUIReplay.window(NativeMokuNoteContent(note: nil, width: 480, height: 360, availableHeight: 360,
                                                             openExternal: nil), width: 600, height: 500)
         defer { empty.close() }
         let emptyContent = try #require(empty.contentView)

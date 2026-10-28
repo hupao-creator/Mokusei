@@ -54,6 +54,8 @@ try:
         raise RuntimeError("Replay exited without a result; inspect runtime-isolation.json before retrying")
     result = json.loads(report.read_text())
     passed = result["ok"] and status == 0
+    if not passed:
+        print((replay.root / "stdout.log").read_text(), end="")
     print(("PASS: " if passed else "FAIL: ") + result["message"])
     raise SystemExit(0 if passed else 1)
 except RuntimeError as error:

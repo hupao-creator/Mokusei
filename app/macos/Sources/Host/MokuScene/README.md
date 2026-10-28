@@ -85,6 +85,11 @@ history or changes the persistent note, ordinary replies or voice transcript.
 
 Coverage retains the union of settled ranges, so revisiting text does not accumulate duplicate intervals. Disconnect cancels the in-flight submission while retaining at most one completed receipt. Snapshot rehydration reconciles that receipt against the exact catalog incarnation/version before retrying; a new version, cleared note or released workspace discards it. The native note replay checks failed submission, same-version retry, stale pending eviction, short-note dwell and long-note viewport gaps/complete traversal. The backend's `-swift-note-exposure` replay connects the actual Swift tracker and sender to an isolated authenticated Runtime and checks the next Moku context.
 
+The fixed-header versus scrolling-header layout depends on the Dock's available
+viewport height, independently of the document's fitted height. An initially
+empty Markdown layout must not replace the scroll container when parsing
+finishes: replacing it retires the mounted renderer and its armed read session.
+
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
 
 ## Voice display

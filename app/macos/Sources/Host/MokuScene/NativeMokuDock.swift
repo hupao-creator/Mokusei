@@ -208,7 +208,8 @@ public struct NativeMokuDock: View {
             let noteButtonRect: CGRect? = nil
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
-                        surface: surface, rowHeight: rowHeight, noteHeight: noteHeight)
+                        surface: surface, rowHeight: rowHeight, noteHeight: noteHeight,
+                        noteAvailableHeight: noteAvailableHeight)
                     .nativeCanvasNavigationRegion()
                     .position(x: surface.midX, y: surface.midY)
                     .animation(surfaceAnimation, value: surface)
@@ -409,7 +410,8 @@ public struct NativeMokuDock: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("moku-landing-notice")
     }
-    private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat, noteHeight: CGFloat) -> some View {
+    private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat,
+                         noteHeight: CGFloat, noteAvailableHeight: CGFloat) -> some View {
         let idleWidth = min(NativeMokuCapsuleLayout.idleSize.width, width)
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let followsEditor = inputPresent && displayedMessage == nil
@@ -428,7 +430,7 @@ public struct NativeMokuDock: View {
         .frame(width: surface.width, height: surface.height, alignment: .bottomLeading)
         .overlay(alignment: .top) {
             if state.notePanelOpen {
-                NativeMokuNoteContent(note: note, width: width, availableHeight: noteHeight,
+                NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
                                       routeEligible: state.notePanelOpen && state.overviewVisible
                                           && !state.dockCovered && !navigationDisabled,
                                       openExternal: openExternal,

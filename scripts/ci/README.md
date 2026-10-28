@@ -1,7 +1,7 @@
 # Continuous integration
 
 [The workflow](../../.github/workflows/ci.yml) runs portable Go checks on Linux
-and native Go plus headless Swift checks on macOS 26 arm64. `scripts/go.sh` is
+and native Go plus graphical Swift checks on macOS 26 arm64. `scripts/go.sh` is
 the local Apple Silicon bootstrap; Actions installs the `go.mod` toolchain
 with setup-go so Linux does not invoke a Darwin-only wrapper. CGO and system
 SQLite remain enabled. The Darwin profile-rotation tests run on macOS, and
@@ -26,13 +26,75 @@ empty execution and all-skipped runs fail the reporting step. Use `-count=1`;
 the report rejects repeated terminal events. Unit, race, property and platform
 runs overlap, so their counts are not unique coverage totals.
 
+## Parallel execution and the time budget
+
+The normal workflow runs Linux checks/replays alongside two macOS preparation
+jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
+the other **always builds** current Swift sources and all test targets. It lists
+methods from that binary, then partitions every discovered suite into five
+balanced groups, accounting for the replays assigned to each runner. Historical
+suite weights affect placement only: new suites are
+automatically included, never silently omitted.
+
+The successful build is shared through a unique run/attempt cache key. Cache
+transport preserves executable permissions and framework symlinks. Each consumer
+checks the same revision, canonical checkout path, architecture, Debug configuration,
+Xcode/Swift/SDK/compiler fingerprint and producer run/attempt before using
+`--skip-build`. There is no cache-miss fallback to an old binary. Ordinary local
+Go/Swift replay commands still build unless explicitly given the verified-build
+option. Re-running failed jobs can reuse the successful producer's recorded attempt.
+
+Five macOS runners then execute concurrently. Each runs its Swift shard and
+assigned Go/Swift or isolated AppKit replays serially; scheduling weights balance
+the combined workload. Tests within one graphical session remain serial.
+Only the two capture-dependent tag-glass methods need the
+standalone host; its other five methods already execute in the Swift shards.
+The four input/responder methods deferred by the browser, history composer and
+Report suites share one isolated host, without repeating their other methods.
+The Go producer also exports this attempt's warmed race and ordinary build caches;
+downstream jobs do not depend on an older immutable dependency-cache entry.
+Swift CI omits the editor index store while retaining Debug code and test targets.
+DirectoryTag is also executed once. Four native-CLI/system runners are separate
+`extended=true` workflow dispatches, which do not repeat the normal workflow.
+Default and extended attempts on the same branch share a concurrency group:
+extended attempts wait instead of taking the default attempt's macOS slots,
+while a new commit cancels stale work. Dispatch the extended gate after the
+default run completes so its queue does not consume the time budget. CLI installs
+are cached by exact package/version and architecture; a download gets at most
+three minutes instead of exhausting the verification budget.
+The removed long-running stability check is not replaced with another soak.
+
+Each attempt must finish in **less than fifteen minutes**. Owned test/build commands
+stop against a shared 840-second deadline measured from GitHub's current attempt
+start, reserving cleanup time. Jobs also have a fourteen-minute timeout. Final job
+coverage and elapsed time are checked after uploading summaries, with cleanup
+headroom. Runner queue and Action download/cache delays are visible in the
+observed whole-attempt time; a slow or incomplete attempt cannot be reported as
+successful. Use actual hosted start/completion timestamps to validate the target.
+
+## Native coverage evidence
+
 Swift reports XCTest and Swift Testing separately. XCTest failures and Swift
 Testing issues are framework counts, not interchangeable assertion counts.
-DirectoryTag is repeated inside the full suite and must not be added twice.
-`MOKUSEI_TEST_HEADLESS=1` deliberately exercises capability admission; the
-display-dependent tests visibly skip. This does not verify native user flows
-or a physically display-less machine. Keep the local graphical `make check`
-and affected [native replays](../../tools/verification/README.md).
+The builder and all five consumers must supply identical manifests. Actual
+terminal method identities, counts and receipts must match the discovered
+inventory exactly once across shards. Same-count omissions/substitutions fail.
+Named fixture/isolated-host skips additionally need observed passing outcomes in
+the required replay logs; a new skip is not admitted just because most tests ran.
+
+CI enables motion and transparency only in the disposable runner account: the
+[stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
+Local commands never alter developer accessibility preferences. Rendered geometry
+uses the actual backing scale for one-physical-pixel precision; pure camera math
+keeps its numerical tolerance. Real-window resize fixtures fit the current
+screen, while fixed component fixtures retain their specified logical viewport.
+
+`replays.py` runs existing production-boundary commands, retaining commands,
+exit status, logs and interrupted work. Reproduce a group locally with
+`python3 scripts/ci/replays.py GROUP --go ./scripts/go.sh --output /tmp/new-evidence`.
+Native groups require the current Swift build. The
+[verification policy](verification-policy.md) records each gate's independent
+value, triggers and the limited hardware/signed-package acceptance that remains.
 
 Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
 `.build/check-swift` as its output directory. It streams the real `xcrun swift
@@ -51,11 +113,12 @@ python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
   --exit-code 0 --output-dir /tmp/swift-log-review
 ```
 
-The no-argument CI mode retains its two log inputs under `RUNNER_TEMP`, writes
-`swift-summary.json` there, and appends the table/errors to `GITHUB_STEP_SUMMARY`.
-The local runner and CI share the same parser.
+The no-argument CI mode audits collected shard/replay artifacts and writes
+`swift-summary.json` under `RUNNER_TEMP`. Local capture and distributed CI share
+`swift_reporting.py`; CI adds manifest and observed-identity checks.
 
-Raw test logs and JSON summaries are retained as Actions artifacts even when
+Artifacts are refreshed when the same job is retried; per-attempt raw job logs
+remain available in GitHub Actions. Raw test logs and JSON summaries are retained as Actions artifacts even when
 tests fail. Missing logs are reported as not run, never as zero failures.
 Hosted runner execution is established by actual workflow results, not by local
 YAML validation or local tests.
@@ -72,7 +135,11 @@ requires changes to `main` to go through a pull request. Before merging, the
 branch must be up to date with `main`, and these GitHub Actions checks must pass:
 
 - `Go / Linux`
-- `Swift headless and native Go / macOS`
+- `Complete coverage and fifteen-minute budget`
+
+The complete-coverage check includes every default job and the wall-clock budget.
+Optional extended dispatches use a distinct aggregate check name and cannot
+satisfy this required default check.
 
 All code-review conversations must be resolved. General PR timeline comments
 have no resolution state and are not covered by this rule. The required number

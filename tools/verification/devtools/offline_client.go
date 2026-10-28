@@ -304,8 +304,20 @@ func (p *offlineClientProcess) quit(ctx context.Context) {
 	_, err := io.WriteString(p.input, "quit\n")
 	must(err)
 	must(p.expect(ctx, "bye"))
-	must(p.input.Close())
+	must(p.closeInput())
 	must(p.waitExit(ctx))
+}
+
+func (p *offlineClientProcess) closeInput() error {
+	// The stdout reader calls Cmd.Wait after EOF; Wait also closes StdinPipe.
+	// A fast cooperative exit may therefore close it before this controller.
+	// Keep the acknowledgement and waitExit checks: an already-closed pipe alone
+	// says nothing about successful native cleanup.
+	err := p.input.Close()
+	if errors.Is(err, os.ErrClosed) {
+		return nil
+	}
+	return err
 }
 
 func (p *offlineClientProcess) waitExit(ctx context.Context) error {

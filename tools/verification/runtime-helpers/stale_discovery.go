@@ -19,6 +19,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 type staleDiscoveryCase struct {
@@ -111,7 +112,7 @@ func verifyStaleDiscovery(ctx context.Context, directory, executable string) {
 	if len(os.Args) > 1 && os.Args[1] == "--swift-shutdown" {
 		manifest := filepath.Join(directory, "stale-discovery.json")
 		must(profile.WritePrivateJSON(manifest, cases))
-		command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "RuntimeShutdownInteropTests/testStaleDiscoveryRecovery")
+		command := swiftfixture.Test(ctx, "--filter", "RuntimeShutdownInteropTests/testStaleDiscoveryRecovery")
 		command.Env = append(os.Environ(), "MOKUSEI_STALE_DISCOVERY_CASES="+manifest)
 		var output bytes.Buffer
 		command.Stdout, command.Stderr = io.MultiWriter(os.Stdout, &output), os.Stderr
