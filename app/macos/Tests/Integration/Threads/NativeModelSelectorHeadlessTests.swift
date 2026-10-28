@@ -48,6 +48,11 @@ struct NativeModelSelectorHeadlessTests {
             .init(id: decomposed, label: "Decomposed")
         ], presentation: .models, model: nil, label: "Model")
         try capture(content, name: "models")
+        let scroll = try #require(content.subviews.compactMap { $0 as? NativeStyledScrollView }.first)
+        scroll.tile()
+        #expect(scroll.hasVerticalScroller)
+        #expect(scroll.verticalScroller?.controlSize == .mini)
+        #expect(scroll.scrollerStyle == NSScroller.preferredScrollerStyle)
         var selected: JSONText?
         var dismissed = false
         content.choose = { selected = $0 }; content.dismiss = { dismissed = true }
