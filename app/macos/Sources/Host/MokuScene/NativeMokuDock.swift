@@ -58,6 +58,7 @@ public struct NativeMokuDock: View {
     @FocusState private var stopFocused: Bool
     @AccessibilityFocusState private var stopAccessibilityFocused: Bool
     @State private var capsuleHeight: CGFloat = 58
+    @State private var completionHeight: CGFloat = 0
     @State private var capsuleFraction: CGFloat = 0
     @State private var submitting = false
     @State private var focusReady = false
@@ -171,7 +172,9 @@ public struct NativeMokuDock: View {
     private var talkTrailing: CGFloat { voiceControlVisible ? 48 : NativeMokuTalkTypography.trailing }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
-        guard let message = displayedMessage else { return max(landing ? 76 : 58, capsuleHeight) }
+        guard let message = displayedMessage else {
+            return max(landing ? 76 : 58, capsuleHeight) + (completionVisible ? completionHeight : 0)
+        }
         if message.dispatch != nil { return 58 }
         return NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing)
     }
@@ -179,6 +182,7 @@ public struct NativeMokuDock: View {
         !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
         !submitting && !draft.submitting && interaction == nil && displayedMessage == nil
     }
+    private var completionVisible: Bool { inputPresent && !retaining && directoryMentions.isOpen }
     private var mentionsEnabled: Bool {
         state.overviewVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
     }
@@ -507,6 +511,22 @@ public struct NativeMokuDock: View {
             }
         }
         .frame(width: surface.width, height: surface.height, alignment: .bottomLeading)
+        .onChange(of: completionVisible) { _, visible in
+            if !visible { state.dockMentionHitRect = nil }
+        }
+        .overlay(alignment: .top) {
+            if completionVisible {
+                NativeMokuComposerCompletion(mentions: directoryMentions, draft: draft,
+                    maxHeight: max(0, room - capsuleHeight - 12),
+                    onFrame: { state.dockMentionHitRect = completionVisible ? $0 : nil })
+                    .disabled((disabled && !offlineDraftEditing) || draft.clearing || draft.isDisposed)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { completionHeight = $0 }
+                    // Resolve the menu's target height once. The shell animates;
+                    // the editor and its persistent face share the bottom edge.
+                    .transaction { $0.animation = nil }
+                    .transition(.opacity)
+            }
+        }
         .overlay(alignment: .top) {
             if state.notePanelOpen {
                 NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
@@ -618,7 +638,7 @@ public struct NativeMokuDock: View {
             retainedDirectories: retaining ? state.retainedDirectories : nil,
             activeVoiceControls: voiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel,
             availableHeight: room,
-            mentions: directoryMentions, onMentionFrame: { state.dockMentionHitRect = $0 },
+            mentions: directoryMentions, includesCompletion: false, onMentionFrame: { state.dockMentionHitRect = $0 },
             selectionRequest: directoryMentions.selectionRequest,
             initialSelection: state.retainedSelection,
             onEditorStateChange: { editor in
