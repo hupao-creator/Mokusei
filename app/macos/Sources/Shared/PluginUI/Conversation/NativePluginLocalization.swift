@@ -52,6 +52,7 @@ public enum NativePluginLocalization {
         "填写批注…": "Add a comment…", "删除批注 {index}": "Delete annotation {index}",
         "批注原始截图": "Original annotation screenshot", "描述要修改的内容…": "Describe the changes…",
         "批注内容": "Annotation comment", "添加批注": "Add annotation",
+        "未提交：不支持在新窗口中打开此请求": "Not submitted: this request cannot open in a new window",
         "网页下载已取消": "Web download cancelled", "已阻止打开该地址": "Opening this address was blocked",
         "网页进程已退出，请重试": "The web process exited. Please try again.",
         "网页响应失败（HTTP {status}）": "The page returned HTTP {status}",

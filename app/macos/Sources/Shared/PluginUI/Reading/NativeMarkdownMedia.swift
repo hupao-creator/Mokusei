@@ -35,17 +35,12 @@ typealias MarkdownMediaError = NativeMarkdownMediaError
 
 actor MarkdownMediaCache {
     static let shared = MarkdownMediaCache()
-    private var cache: [URL: Data] = [:]
-    private var order: [URL] = []
-    private var bytes = 0
-    private let budget = 32 * 1024 * 1024
+    // URLSession owns HTTP freshness and revalidation. A URL-only body cache
+    // would bypass no-store/no-cache and reuse stale media across documents.
     private let singleLimit = 24 * 1024 * 1024
 
     func load(_ url: URL) async throws -> Data {
         try Task.checkCancellation()
-        if let data = cache[url] {
-            order.removeAll { $0 == url }; order.append(url); return data
-        }
         guard ["https", "http"].contains(url.scheme?.lowercased() ?? "") else { throw MarkdownMediaError.unsupportedURL }
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -61,11 +56,6 @@ actor MarkdownMediaCache {
             data.append(byte)
         }
         try Task.checkCancellation()
-        if let previous = cache.updateValue(data, forKey: url) { bytes -= previous.count }
-        order.removeAll { $0 == url }; order.append(url); bytes += data.count
-        while bytes > budget || order.count > 32 {
-            let key = order.removeFirst(); bytes -= cache.removeValue(forKey: key)?.count ?? 0
-        }
         return data
     }
 

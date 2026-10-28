@@ -46,7 +46,13 @@ public final class ConversationSidecardPresentation {
                 NativeComposerStoredAttachment(id: $0.id, path: $0.path, name: $0.name, mimeType: $0.mimeType,
                     size: $0.size, kind: NativeComposerStoredAttachment.Kind(rawValue: $0.kind.rawValue)!)
             }
-        }, attachmentPolicy: context.attachmentImport?.policy, discardAttachments: context.discardAttachments))
+        }, attachmentPolicy: context.attachmentImport?.policy, discardAttachments: context.discardAttachments),
+            persistence: context.draftStorageDirectory.map {
+                // Attachment receipts have their own revision: editing text must
+                // not resurrect files accepted while this presentation was away.
+                NativeComposerDraftPersistence(storageDirectory: $0,
+                    scope: JSONText(codeUnits: Array("conversation-attachments:".utf16) + context.thread.id.codeUnits))
+            })
         lifetime.onCancel { [attachments] in Task { await attachments.dispose() } }
         persistence = context.draftStorageDirectory.map {
             NativeComposerDraftPersistence(storageDirectory: $0, scope: JSONText(codeUnits: Array("conversation:".utf16) + context.thread.id.codeUnits))

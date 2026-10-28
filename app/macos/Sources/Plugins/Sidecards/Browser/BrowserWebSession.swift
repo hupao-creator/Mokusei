@@ -18,6 +18,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     var ready = false
     var canGoBack = false
     var canGoForward = false
+    var notice: String?
     var error: String?
     var terminated = false
     var annotating = false
@@ -93,7 +94,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         cancelPageDialog()
         historyStartPending = false
         cancelAnnotation()
-        pendingURL = target; loading = true; ready = false; error = nil
+        pendingURL = target; loading = true; ready = false; error = nil; notice = nil
         navigationCommitted = false
         sameDocumentCandidate = allowSameDocument && documentResponseOK && sameDocument(target, completedDocumentURL)
         if !sameDocumentCandidate { documentResponseOK = false }
@@ -136,6 +137,20 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             url = current.absoluteString
         }
         title = webView.title ?? ""; canGoBack = webView.canGoBack; canGoForward = webView.canGoForward
+        // Same-document history has no response/commit callback. Its current
+        // history item carries the successful document status, including SPA paths.
+        if !webView.isLoading, !navigationCommitted, webView.url == pendingURL,
+           let item = webView.backForwardList.currentItem, let status = historyResponses[item] {
+            documentStatus = status; documentResponseOK = (200..<300).contains(status)
+            completedDocumentURL = documentResponseOK ? webView.url : nil
+            completedDocumentStatus = status
+            loading = false; pendingURL = nil; sameDocumentCandidate = false
+            ready = documentResponseOK && error == nil
+        }
+        if !loading, !webView.isLoading, documentResponseOK, error == nil {
+            completedDocumentURL = webView.url
+            completedDocumentStatus = documentStatus
+        }
         if loading, !webView.isLoading, !navigationCommitted, error == nil, completedDocumentURL != nil {
             finishCancelledNavigation()
         }
@@ -163,17 +178,18 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             let permitted = (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET" && BrowserURL.absolute(target.absoluteString) != nil
             // Let UIDelegate receive GET popups and schedule the replacement
             // after WebKit finishes its popup decision, avoiding reentrant loads.
+            if !permitted { rejectNavigation("未提交：不支持在新窗口中打开此请求") }
             decisionHandler(permitted ? .allow : .cancel)
             return
         }
         let allowed = BrowserURL.absolute(target.absoluteString) != nil || (!main && ["about:blank", "about:srcdoc"].contains(target.absoluteString))
         guard allowed else {
-            if main { report("已阻止打开该地址") }
+            if main { rejectNavigation("已阻止打开该地址") }
             decisionHandler(.cancel); return
         }
         if main {
             historyStartPending = navigationAction.navigationType == .backForward
-            pendingURL = target; error = nil
+            pendingURL = target; error = nil; notice = nil
             if documentResponseOK && sameDocument(target, completedDocumentURL) { sameDocumentCandidate = true }
         }
         decisionHandler(.allow)
@@ -274,6 +290,12 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             return translate("网页响应失败（HTTP {status}）").replacingOccurrences(of: "{status}", with: String(status))
         }
         return translate(source)
+    }
+    private func rejectNavigation(_ message: String) {
+        if completedDocumentURL != nil, !navigationCommitted || ready {
+            if loading { finishCancelledNavigation() }
+            notice = message
+        } else { report(message) }
     }
     private func report(_ message: String) {
         loading = false; ready = false; documentResponseOK = false; error = message

@@ -52,14 +52,14 @@ compares DOM geometry and the production native editor portal after zoom command
 pass both WebKit limits. Run `xcrun swift test --package-path app/macos --no-parallel
 --filter 'NativeBrowserViewportTests|NativeBrowserAnnotationTests'` in a graphical
 macOS session. `python3 tools/verification/reading-presentation/run.py --browser-viewport`
-runs all eight viewport cases in an isolated AppKit event loop, including focused
+runs all nine viewport cases and the HTTP media freshness case in an isolated AppKit event loop, including focused
 document Reload/Zoom through the real responder chain without changing host zoom.
 Plain SwiftPM retains the portal geometry, document layers, cookie isolation and
 navigation/cancellation cases. The annotation mouse-input and focused responder-
 chain cases explicitly require this native replay capability; a display alone
 cannot establish AppKit event-loop/key-window ownership.
 
-The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session discards unsent attachments (only the existing text draft is persisted). The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
+The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session persists imported attachments in a profile/thread-scoped draft alongside the independently revisioned text draft. Reopening restores the chips; removal discards staged files and an accepted send consumes its attachment revision, including after release. The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
 
 Replay: `xcrun swift test --no-parallel --package-path app/macos --filter 'NativeSidecardAttachmentPasteTests|NativeComposerPasteTests|NativeSidecardNavigationTests'` (requires a graphical macOS session).
 
@@ -67,3 +67,5 @@ An execution-result reading request keeps its targeted active execution in the
 main reader instead of moving it into the Conversation sidecard. This preserves
 the same mounted reading visit and user-controlled following across completion.
 Other execution and composer behavior retains the normal sidecard policy.
+
+Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
