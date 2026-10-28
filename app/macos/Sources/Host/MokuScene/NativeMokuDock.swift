@@ -496,7 +496,8 @@ public struct NativeMokuDock: View {
                                       onContentHeightChange: { noteContentHeight = $0 },
                                       claimOpenArm: { state.claimNoteOpenArm() },
                                       onExposure: { state.recordNoteExposure($0) },
-                                      onClose: { state.setNotePanelOpen(false) })
+                                      onClose: { state.setNotePanelOpen(false) },
+                                      onOpenHistory: { state.setMokuOpen(true) })
                     // The reading document lays out at its final width; only
                     // the enclosing glass bounds interpolate and clip it.
                     .transaction { $0.animation = nil }

@@ -95,7 +95,7 @@ def main():
              8 if "--browser-viewport" in sys.argv else
              2 if glass_captures else
              7 if tag_glass or "--markdown" in sys.argv or "--moku-composer" in sys.argv else
-             10 if "--moku-note-tests" in sys.argv else 5)
+             11 if "--moku-note-tests" in sys.argv else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

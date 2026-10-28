@@ -520,7 +520,6 @@ final class BrowserWKWebView: WKWebView {
     var onDocumentZoomChanged: (() -> Void)?
     var annotationActive = false
     private(set) var documentZoomLevel: Double = 0
-    var rawDocumentZoomFactor: CGFloat { CGFloat(pow(1.2, documentZoomLevel)) }
     private let zoomMemory: BrowserDocumentZoomMemory
 
     override init(frame frameRect: CGRect, configuration: WKWebViewConfiguration) {

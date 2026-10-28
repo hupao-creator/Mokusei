@@ -303,15 +303,6 @@ import MokuseiPluginUI
             try JSONValue.array(replyReadOrder.map(JSONValue.string)).encodedData().write(to: replyReadFileURL, options: .atomic)
         } catch {}
     }
-    func setCameraActive(_ active: Bool) {
-        if active { talkPresentation.setPresented(false); closeNotePanel() }
-        cameraActive = active
-        if !active, mokuOpen, windowVisible, let key = liveReplyKey { markReplyRead(key) }
-    }
-    func setFlightActive(_ active: Bool) {
-        if active { talkPresentation.setPresented(false); closeNotePanel() }
-        flightActive = active; onFlightActiveChange?(active)
-    }
     func finishSettingsTransition() {
         settingsTransitioning = false
         guard settingsClosing else { return }
@@ -325,9 +316,6 @@ import MokuseiPluginUI
     }
     func dockViewport(in size: CGSize) -> CGRect {
         dockVisibleViewport ?? CGRect(origin: .zero, size: size)
-    }
-    func setDockViewport(_ viewport: CGRect) {
-        if dockVisibleViewport != viewport { dockVisibleViewport = viewport }
     }
 }
 
