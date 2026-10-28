@@ -117,6 +117,77 @@ struct NativeMokuHistoryComposerTests {
         #expect(Array(input.string.utf16) == [0x65, 0x301])
         let restored = NativeComposerDraft(services: services, persistence: persistence)
         #expect(Array(restored.text.utf16) == [0x65, 0x301])
+        try await mountedEditorHoldStartsOnceAndRetainsDraft()
+    }
+
+    private func monitor(in view: NSView) -> NativeMokuLongPressVoiceMonitor.MonitorView? {
+        if let monitor = view as? NativeMokuLongPressVoiceMonitor.MonitorView { return monitor }
+        return view.subviews.lazy.compactMap { monitor(in: $0) }.first
+    }
+
+    private func mountedEditorHoldStartsOnceAndRetainsDraft() async throws {
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        draft.text = "保持这份草稿"
+        var starts = 0
+        var available = true
+        let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
+            onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: { starts += 1 }), width: 560, height: 180)
+        defer { window.close() }
+        try await SwiftUIReplay.wait {
+            guard let view = monitor(in: window.contentView!) else { return false }
+            return view.bounds.width > 100 && view.bounds.height >= 58 && window.isKeyWindow && NSApp.isActive
+        }
+        let view = try #require(monitor(in: window.contentView!))
+        let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view })
+        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint) -> NSEvent = { type, point in
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        func hold(duration: TimeInterval, drag: Bool = false) async throws {
+            window.makeKeyAndOrderFront(nil)
+            try await SwiftUIReplay.wait { window.isKeyWindow && NSApp.isActive && recognizer.state == .possible }
+            let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+            // Create each event when delivered: pre-creating the release gives
+            // AppKit a zero-duration gesture even though the timer waited.
+            let sendUp: @MainActor @Sendable () -> Void = { NSApp.postEvent(event(.leftMouseUp, point), atStart: true) }
+            let sendDrag: @MainActor @Sendable () -> Void = {
+                NSApp.postEvent(event(.leftMouseDragged, CGPoint(x: point.x + 20, y: point.y)), atStart: true)
+            }
+            let release = Timer(timeInterval: duration, repeats: false) { _ in
+                MainActor.assumeIsolated { sendUp() }
+            }
+            RunLoop.main.add(release, forMode: .common)
+            RunLoop.main.add(release, forMode: .eventTracking)
+            var movement: Timer?
+            if drag {
+                let timer = Timer(timeInterval: 0.1, repeats: false) { _ in
+                    MainActor.assumeIsolated { sendDrag() }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                RunLoop.main.add(timer, forMode: .eventTracking)
+                movement = timer
+            }
+            NSApp.sendEvent(event(.leftMouseDown, point))
+            try await Task.sleep(for: .seconds(duration + 0.1))
+            try await SwiftUIReplay.wait { recognizer.state == .possible }
+            release.invalidate(); movement?.invalidate()
+        }
+        #expect(view.hitTest(.zero) == nil)
+        try await hold(duration: 0.1)
+        #expect(starts == 0)
+        try await hold(duration: 0.8, drag: true)
+        #expect(starts == 0)
+        try await hold(duration: 0.8)
+        #expect(starts == 1)
+        #expect(draft.text == "保持这份草稿")
+        available = false
+        try await hold(duration: 0.8)
+        #expect(starts == 1)
+        // Detachment removes the recognizer owned by this editor.
+        let count = window.contentView?.gestureRecognizers.count ?? 0
+        view.stop()
+        #expect(window.contentView?.gestureRecognizers.count == count - 1)
     }
 
     @Test func historyExposesExecutionStopAndFirstQuestionCancel() async throws {

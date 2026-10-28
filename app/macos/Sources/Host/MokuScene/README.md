@@ -74,7 +74,7 @@ native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations. Reduce Motion keeps the caret steady and makes
 movement immediate.
 
-The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it remains `Ask Moku…`; selected directories use `Ask Moku about <name>…` (Chinese: `向 Moku 询问关于 <name> 的问题…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
+The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it reads `Ask Moku… or hold to speak` (Chinese: `向 Moku 提问，或长按说话…`); selected directories retain `Ask Moku about <name>…` with `or hold to speak` appended (Chinese: `向 Moku 询问关于 <name> 的问题，或长按说话…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 
 On macOS, physical two-finger left swipe over Moku opens input; upward swipe opens the note. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. A single click does not substitute for these gestures. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Left swipe cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
@@ -159,9 +159,16 @@ The current user transcript takes precedence over Talk/dispatch while present. P
 
 The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Active voice presentation covers the thinking arc; the history composer does not mount it.
 
-Force Touch uses AppKit's stage-2 deep click in
-[NativeForceTouchVoiceTrigger](../VoiceControls/NativeForceTouchVoiceTrigger.swift),
-then immediately starts the workspace-owned voice client. Its preparing through
+Holding the text editor for 0.5 seconds starts the workspace-owned voice client
+through [NativeMokuLongPressVoiceMonitor](../VoiceControls/NativeMokuLongPressVoiceMonitor.swift).
+Landing, bottom-Dock and history editors share this entrance. The native press recognizer
+preserves ordinary click/focus and cancels on movement, early release,
+lost window activity, unavailable input or unmount. AppKit tracks the delivered
+event stream, including native text selection. Only the editor is eligible; eyes, attachment/send controls,
+notes and directory suggestions are excluded. Release after activation keeps the
+voice session running and retains the draft. The localized placeholder/help and
+VoiceOver Start voice action expose the entrance. Force Touch and the former
+Ctrl+Option+V menu command no longer start or stop Moku voice. Its preparing through
 stopping phases drive presentation. The cloud fades over the existing 0.42-second
 smooth capsule timing; the drawing stays mounted with its timeline paused while
 inactive, so resizing does not insert a final-width cloud mid-collapse. Dock
