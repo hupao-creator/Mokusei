@@ -134,13 +134,11 @@ jobs:
           retention-days: 14
 
   swift:
-    name: Swift headless and native Go / macOS
+    name: Swift UI and native Go / macOS
     # Package.swift and the Metal plugin require macOS 26. macos-15/14 can
     # neither run these test binaries nor validate their AppKit behavior.
     runs-on: macos-26
     timeout-minutes: 40
-    env:
-      MOKUSEI_TEST_HEADLESS: '1'
     steps:
       - uses: actions/checkout@v4
         with:

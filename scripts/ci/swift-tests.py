@@ -15,6 +15,8 @@ for label, filename in [("Directory tags", "swift-directory-tags.log"),
         errors.append(f"{label}: no test log; tests did not run.")
         continue
     log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", path.read_text(errors="replace"))
+    if "Requires a logged-in WindowServer session and a display" in log:
+        errors.append(f"{label}: native display tests skipped; hosted UI coverage is required.")
     executed = 0
 
     # Read only XCTest's final aggregate, not each repeated suite total.
