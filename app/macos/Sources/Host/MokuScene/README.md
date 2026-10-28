@@ -65,7 +65,9 @@ button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
 importing, submission and unavailable states retain their ordinary admission rules.
 Moku editors use a shortened, rounded 2.6-point caret with a warm-yellow upper
-halo and cool-blue lower halo. A 2.4-second breathing cycle replaces native on/off
+halo and cool-blue lower halo, plus the reference’s blurred gradient fringe.
+Composer padding lives inside the native viewport so these halos are not cut at
+the text line edges. A 2.4-second breathing cycle replaces native on/off
 blinking; the white dark-mode core retains native dark ink in light appearance.
 Light-mode ink stays at 80–100% opacity so the dim phase remains visible;
 dark-mode ink uses 20–100%, while the halos fade fully in both appearances.

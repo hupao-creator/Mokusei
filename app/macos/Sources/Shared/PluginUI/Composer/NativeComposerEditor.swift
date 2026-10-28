@@ -21,6 +21,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     var emphasizedInsertionPoint = false
     var reduceCaretMotion = false
     var onPaste: (([NSItemProvider], NSRange) -> Void)? = nil
+    var textInsets = EdgeInsets()
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
@@ -97,6 +98,7 @@ struct NativeComposerEditor: NSViewRepresentable {
             editor.textColor = .labelColor
             editor.insertionPointColor = .labelColor
         }
+        editor.composerTextInsets = textInsets
         editor.pasteAttachments = unavailable ? nil : onPaste
         editor.isEditable = !unavailable
         editor.isSelectable = !unavailable
@@ -215,6 +217,21 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
     var reduceCaretMotion = false { didSet { caret.reduceMotion = reduceCaretMotion } }
     private let caret = NativeComposerCaret()
+    var composerTextInsets = EdgeInsets() {
+        didSet {
+            guard composerTextInsets != oldValue else { return }
+            textContainerInset = NSSize(width: (composerTextInsets.leading + composerTextInsets.trailing) / 2,
+                                       height: (composerTextInsets.top + composerTextInsets.bottom) / 2)
+            needsDisplay = true
+        }
+    }
+    override var textContainerOrigin: NSPoint {
+        // AppKit sizes with symmetric insets; shift the origin to retain the
+        // composer's asymmetric line-spacing allowance without changing height.
+        let origin = super.textContainerOrigin
+        return NSPoint(x: origin.x + (composerTextInsets.leading - composerTextInsets.trailing) / 2,
+                       y: origin.y + (composerTextInsets.top - composerTextInsets.bottom) / 2)
+    }
     private(set) var operationDepth = 0
     private func editing(_ operation: () -> Void) {
         operationDepth += 1
