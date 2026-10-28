@@ -303,7 +303,20 @@ private struct Failure: Error, CustomStringConvertible { let description: String
             let opacity = caret.sublayers?.first { $0.name == "composer-insertion-core" }?.presentation()?.opacity ?? 0
             return dim ? opacity > 0 && opacity < 0.805 : opacity > 0.995
         }
+        // WindowServer capture is asynchronous; hold the sampled phase so its
+        // pixels cannot drift into the other half of the breathing cycle.
+        let pausedTime = caret.convertTime(CACurrentMediaTime(), from: nil)
+        caret.speed = 0
+        caret.timeOffset = pausedTime
+        defer {
+            caret.speed = 1
+            caret.timeOffset = 0
+            caret.beginTime = 0
+            caret.beginTime = caret.convertTime(CACurrentMediaTime(), from: nil) - pausedTime
+        }
         let image = try await capture(name)
+        try require(window.isKeyWindow && window.firstResponder === input && caret.superlayer != nil,
+                    "Caret capture lost the native editor's focus")
         let root = window.contentView!
         var rect = input.convert(caret.frame, to: root)
         if !root.isFlipped { rect.origin.y = root.bounds.height - rect.maxY }
@@ -367,7 +380,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         for _ in 0..<26 {
             try await Task.sleep(for: .milliseconds(100))
             try require(caret.superlayer != nil && !caret.isHidden,
-                        "Native blinking interrupted the breathing caret")
+                        "Native blinking interrupted the breathing caret; key=\(window.isKeyWindow), active=\(NSApp.isActive), focused=\(window.firstResponder === input)")
             opacitySamples.append(core.presentation()?.opacity ?? core.opacity)
         }
         try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,
@@ -475,6 +488,10 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         try await Task.sleep(for: .milliseconds(180))
         let darkCaret = darkInput.layer!.sublayers!.first { $0.name == "composer-insertion-point" }!
         try await captureCaret("08-narrow-dark", input: darkInput, caret: darkCaret)
+        darkInput.insertText("", replacementRange: .init(location: 0, length: darkInput.string.utf16.count))
+        try await wait("Empty dark editor did not settle") { self.fixture.draft.text.isEmpty }
+        try await Task.sleep(for: .milliseconds(180))
+        try await captureCaret("08b-empty-dark", input: darkInput, caret: darkCaret)
         fixture.reset(); fixture.dark = false
         window.setContentSize(.init(width: 1100, height: 720))
         fixture.original = true
