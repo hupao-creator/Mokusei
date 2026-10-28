@@ -11,9 +11,9 @@ private struct Failure: Error, CustomStringConvertible { let description: String
 @MainActor @Observable private final class Fixture {
     let state = NativeMokuSceneState()
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+    var landing = false
     var mode = MokuCharacterMode.idle
     var running = false
-    var landing = false
     var reasoning: MokuReasoningContent?
     var phase = ScenePhase.active
     var stage = "idle"
@@ -29,6 +29,9 @@ private struct Scene: View {
         } thread: { Color.white } dock: {
             NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/tmp",
                 landing: fixture.landing, mode: fixture.mode, running: fixture.running, reasoning: fixture.reasoning,
+                loadMentionDirectories: { ["Mokusei", "Design", "Research", "Website", "Agent Learn", "AnyThing"].map {
+                    NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
+                } },
                 onSend: { _ in }, onCancel: { fixture.running = false; fixture.reasoning = nil; fixture.mode = .idle })
                 .environment(\.scenePhase, fixture.phase)
         } settings: { Color.white }
@@ -38,6 +41,11 @@ private struct Scene: View {
 
 @MainActor private func canvases(in view: NSView) -> [NativeMokuCharacterCanvas] {
     (view as? NativeMokuCharacterCanvas).map { [$0] } ?? view.subviews.flatMap { canvases(in: $0) }
+}
+
+@MainActor private func editor(in view: NSView) -> NSTextView? {
+    if let text = view as? NSTextView, text.isEditable { return text }
+    return view.subviews.lazy.compactMap { editor(in: $0) }.first
 }
 
 @MainActor private func wait(_ name: String, _ condition: () -> Bool) async throws {
@@ -85,11 +93,23 @@ private struct Scene: View {
     var lastPose = controller.pose
     var lastClock = controller.clock
     var greatestEyeStep = 0.0
+    var expectedEditorOffset: CGFloat?
+    var maximumMentionDrift: CGFloat = 0
     let eyeChannels = ["lx", "ly", "lw", "lh", "rx", "ry", "rw", "rh"]
 
     func sample(_ name: String) throws {
+        host.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
         let faces = canvases(in: host).filter { $0.seat == .face }
         guard faces.count == 1, faces[0] === face else { throw Failure(description: name + ": replaced or duplicated the eye seat") }
+        if let expectedEditorOffset, let text = editor(in: host), let scroll = text.enclosingScrollView {
+            let actual = face.convert(face.bounds, to: nil).midY - scroll.convert(scroll.bounds, to: nil).midY
+            let drift = abs(actual - expectedEditorOffset)
+            maximumMentionDrift = max(maximumMentionDrift, drift)
+            guard drift <= 1.5 else {
+                throw Failure(description: "\(name): face drifted \(drift)pt from its editor row; face=\(face.convert(face.bounds, to: nil)); editor=\(scroll.convert(scroll.bounds, to: nil))")
+            }
+        }
         let pose = controller.pose, dt = max(0, controller.clock - lastClock)
         guard pose.values.values.allSatisfy(\.isFinite) else { throw Failure(description: name + ": non-finite pose") }
         let step = eyeChannels.map { abs(pose[$0] - lastPose[$0]) * 0.22 }.max() ?? 0
@@ -124,7 +144,7 @@ private struct Scene: View {
         let deadline = ProcessInfo.processInfo.systemUptime + Double(milliseconds) / 1000
         var frame = 0
         while ProcessInfo.processInfo.systemUptime < deadline {
-            try sample(name)
+            do { try sample(name) } catch { try await capture(name + "-failure"); throw error }
             if images && frame % 5 == 0 { try await capture(name) }
             frame += 1
             try await Task.sleep(for: .milliseconds(20))
@@ -168,6 +188,40 @@ private struct Scene: View {
             throw Failure(description: "\(frame["state"]!): eye seat escaped input trajectory: \(rect)")
         }
     }
+    for landing in [false, true] {
+        fixture.landing = landing
+        fixture.state.setInputOpen(true)
+        try await observe("mention-prepare-\(landing)", milliseconds: 750, images: false)
+        guard let text = editor(in: host), let scroll = text.enclosingScrollView else {
+            throw Failure(description: "Missing mounted mention editor")
+        }
+        window.makeFirstResponder(text)
+        expectedEditorOffset = face.convert(face.bounds, to: nil).midY - scroll.convert(scroll.bounds, to: nil).midY
+        func replace(_ value: String) {
+            text.insertText(value, replacementRange: NSRange(location: 0, length: text.string.utf16.count))
+        }
+        replace("@")
+        try await observe("mention-open-\(landing)", milliseconds: 750)
+        guard fixture.state.dockMentionHitRect != nil else { throw Failure(description: "Mention menu did not open") }
+        replace("@Mo")
+        try await observe("mention-filter-\(landing)", milliseconds: 550)
+        replace("@")
+        try await observe("mention-grow-\(landing)", milliseconds: 550)
+        text.keyDown(with: NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\u{1b}",
+            charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)!)
+        try await observe("mention-escape-\(landing)", milliseconds: 550)
+        guard fixture.state.dockMentionHitRect == nil else { throw Failure(description: "Escape did not close mention menu") }
+        for index in 0..<4 {
+            replace(index.isMultiple(of: 2) ? "@D" : "")
+            try await observe("mention-reverse-\(landing)-\(index)", milliseconds: 100)
+        }
+        try await observe("mention-settle-\(landing)", milliseconds: 550)
+        expectedEditorOffset = nil
+    }
+    fixture.landing = false
+    fixture.state.setInputOpen(false)
+    try await observe("mention-return-idle", milliseconds: 750)
     fixture.running = true; fixture.mode = .running
     try await observe("idle-to-running", milliseconds: 650)
     try await observe("running-orbit", milliseconds: 4300, images: false)
@@ -248,8 +302,8 @@ private struct Scene: View {
     try JSONSerialization.data(withJSONObject: observations, options: [.prettyPrinted, .sortedKeys])
         .write(to: output.appendingPathComponent("frames.json"))
     return ["samples": observations.count, "screenshots": screenshots, "maximumEyeStep": greatestEyeStep,
-            "nativeFrames": controller.frameCount,
-            "checks": ["single persistent eye seat", "input screen-space trajectory", "bounded inter-frame eye motion", "running clock continuation",
+            "nativeFrames": controller.frameCount, "maximumMentionDrift": maximumMentionDrift,
+            "checks": ["single persistent eye seat", "input screen-space trajectory", "mention editor alignment in Dock and landing", "bounded inter-frame eye motion", "running clock continuation",
                        "append does not redirect", "rapid reversal", "inactive pause", "bottom/landing narrow/short arc fit", "centered enlarged thinking and input handoff", "retired glyph cleanup"]]
 }
 
