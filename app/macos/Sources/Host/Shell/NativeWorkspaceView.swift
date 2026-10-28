@@ -345,19 +345,6 @@ public final class NativeWorkspacePresentation {
         scene.toggleNotePanelFromUser()
     }
 
-    /// Keyboard fallback for Macs without a Force Touch trackpad. This is the
-    /// only non-gesture voice entry; Moku's composer no longer renders one.
-    public func toggleMokuVoice() {
-        Task {
-            let voice = workspace.voice.moku
-            if voice.state.phase != .closed && voice.state.phase != .failed {
-                await voice.stop()
-            } else if voice.state.available {
-                await voice.start()
-            }
-        }
-    }
-
     public func setAppearance(_ appearance: DesktopAppearance) throws {
         try themeTransition.perform(appearance: appearance) {
             try workspace.preferences.setAppearance(appearance)
@@ -664,8 +651,6 @@ public struct NativeWorkspaceCommands: Commands {
             Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)
-            Button(locale.text("Moku 语音", "Moku Voice")) { presentation?.toggleMokuVoice() }
-                .keyboardShortcut("v", modifiers: [.control, .option])
         }
         CommandGroup(replacing: .appSettings) {
             Button(locale.text("设置…", "Settings…")) { presentation?.openSettings() }.keyboardShortcut(",")

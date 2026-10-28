@@ -117,6 +117,75 @@ struct NativeMokuHistoryComposerTests {
         #expect(Array(input.string.utf16) == [0x65, 0x301])
         let restored = NativeComposerDraft(services: services, persistence: persistence)
         #expect(Array(restored.text.utf16) == [0x65, 0x301])
+        try await mountedEditorHoldStartsOnceAndRetainsDraft()
+    }
+
+    private func monitor(in view: NSView) -> NativeMokuLongPressVoiceMonitor.MonitorView? {
+        if let monitor = view as? NativeMokuLongPressVoiceMonitor.MonitorView { return monitor }
+        return view.subviews.lazy.compactMap { monitor(in: $0) }.first
+    }
+
+    private func mountedEditorHoldStartsOnceAndRetainsDraft() async throws {
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        draft.text = "保持这份草稿"
+        var starts = 0
+        var available = true
+        let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
+            onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: { starts += 1 }), width: 560, height: 180)
+        defer { window.close() }
+        try await SwiftUIReplay.wait { monitor(in: window.contentView!) != nil && window.isKeyWindow && NSApp.isActive }
+        let view = try #require(monitor(in: window.contentView!))
+        let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+        let screen = window.convertPoint(toScreen: point)
+        func event(_ type: NSEvent.EventType, location: CGPoint? = nil) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type, location: location ?? point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        func sample(after seconds: Double = 1, pressed: Bool = true, at position: CGPoint? = nil) {
+            view.sample(at: position ?? screen, pressed: pressed, now: ProcessInfo.processInfo.systemUptime + seconds)
+        }
+        #expect(view.hitTest(.zero) == nil)
+        view.receive(try event(.leftMouseDown))
+        sample(after: 0.1)
+        #expect(starts == 0)
+        sample()
+        sample()
+        view.receive(try event(.leftMouseUp))
+        #expect(starts == 1)
+        #expect(draft.text == "保持这份草稿")
+
+        view.receive(try event(.leftMouseDown))
+        view.receive(try event(.leftMouseUp))
+        sample()
+        #expect(starts == 1)
+        view.receive(try event(.leftMouseDown))
+        view.receive(try event(.leftMouseDragged))
+        sample()
+        #expect(starts == 1)
+        view.receive(try event(.leftMouseDown))
+        sample(at: CGPoint(x: screen.x + 12, y: screen.y))
+        sample()
+        #expect(starts == 1)
+        view.receive(try event(.leftMouseDown))
+        sample(pressed: false)
+        sample()
+        #expect(starts == 1)
+
+        view.receive(try event(.leftMouseDown))
+        available = false
+        sample()
+        available = true
+        sample()
+        #expect(starts == 1)
+        // The attachment/eye seat is outside the actual mounted editor monitor.
+        view.receive(try event(.leftMouseDown, location: view.convert(CGPoint(x: -20, y: 10), to: nil)))
+        sample()
+        #expect(starts == 1)
+        view.receive(try event(.leftMouseDown))
+        window.contentView = nil
+        sample()
+        #expect(starts == 1)
     }
 
     @Test func historyExposesExecutionStopAndFirstQuestionCancel() async throws {
