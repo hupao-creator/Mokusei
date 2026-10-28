@@ -382,6 +382,103 @@ struct NativeReportNavigationTests {
         #expect(portal(in: root) == nil)
         assertButtons(hidden: false)
     }
+    @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native file panels: python3 tools/verification/reading-presentation/run.py --report-controls"))
+    func reportNativeDialogsAndDownloadsPreserveTheDocument() async throws {
+        let app = NSApplication.shared
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
+        let fixture = ReportNavigationFixture()
+        let window = SwiftUIReplay.window(ReportNavigationReplay(fixture: fixture))
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        fixture.open = true
+        try await SwiftUIReplay.wait(timeout: .seconds(15)) { fixture.ready }
+        func webView(in view: NSView) -> WKWebView? {
+            if let web = view as? WKWebView { return web }
+            return view.subviews.lazy.compactMap { webView(in: $0) }.first
+        }
+        let document = try #require(webView(in: root))
+        let http = try ReportHTTPFixture()
+        defer { http.close() }
+        try await SwiftUIReplay.wait { http.port != nil }
+        // Exercise real WebKit UI callbacks and native sheets, including a
+        // positive branch that used to be silently converted to cancellation.
+        for script in ["window.dialogResult = String(confirm('Report confirm'))",
+                       "window.dialogResult = prompt('Report prompt', 'PROMPT_DEFAULT')",
+                       "alert('Report alert'); window.dialogResult = 'alert done'"] {
+            let evaluation = Task { @MainActor in _ = try await document.evaluateJavaScript(script) }
+            try await SwiftUIReplay.wait { window.attachedSheet != nil }
+            let sheet = try #require(window.attachedSheet)
+            window.endSheet(sheet, returnCode: .alertFirstButtonReturn)
+            sheet.orderOut(nil)
+            _ = try await evaluation.value
+            let expected = script.contains("confirm") ? "true" : script.contains("prompt") ? "PROMPT_DEFAULT" : "alert done"
+            #expect(try await document.evaluateJavaScript("window.dialogResult") as? String == expected)
+        }
+        _ = try await document.evaluateJavaScript("""
+            const file = document.createElement('input'); file.type = 'file';
+            file.id = 'report-file'; document.body.append(file); file.click();
+            """)
+        try await SwiftUIReplay.wait { window.attachedSheet is NSOpenPanel }
+        (window.attachedSheet as? NSOpenPanel)?.cancel(nil)
+        try await SwiftUIReplay.wait { window.attachedSheet == nil }
+        #expect(try await document.evaluateJavaScript("document.getElementById('report-file').files.length") as? Int == 0)
+
+        _ = try await document.evaluateJavaScript("""
+            const download = document.createElement('a');
+            download.href = URL.createObjectURL(new Blob(['QA_DOWNLOAD']));
+            download.download = 'qa.txt'; document.body.append(download); download.click();
+            """)
+        try await SwiftUIReplay.wait {
+            SwiftUIReplay.text(in: root).contains("Downloads are not supported in reports. The document remains open.")
+        }
+        #expect(fixture.ready)
+        let downloadURL = try http.url("/download")
+        document.load(URLRequest(url: downloadURL))
+        try await SwiftUIReplay.wait { http.requests.contains { $0.contains("/download") } }
+        try await SwiftUIReplay.wait { !document.isLoading }
+        try await SwiftUIReplay.wait {
+            SwiftUIReplay.text(in: root).contains("Downloads are not supported in reports. The document remains open.")
+        }
+        #expect(fixture.ready)
+        #expect(document.url?.scheme == "mokusei-html")
+        #expect(try await document.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Report")
+    }
+
+    @Test(.requiresDisplay)
+    func reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface() async throws {
+        let app = NSApplication.shared
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
+        let plugin = try #require(NativeReportApplication.make().threads.first)
+        let reference = ApplicationThreadRef(threadID: "report", typeID: "report.document")
+        var notified = false
+        // The capability owns Retry and can recover without a new revision.
+        // Deliver its failure notification to the real Report detail, then
+        // expose recovered content from the same capability identity.
+        let capability = ApplicationIsolatedHTML { _, onFailure in
+            Text("Recovered report").task {
+                onFailure(.init(thread: reference, message: "Retired visit error"))
+                notified = true
+            }
+        }
+        let context = ApplicationRendererContext(theme: .light, locale: "en", lifetime: PluginLifetime(),
+            domain: ApplicationDomainClient(pluginID: "report") { _, _, _, _, _ in .null },
+            capabilities: try .init(scope: .init(pluginID: "report", thread: reference),
+                requires: plugin.requires, registrations: [.init(ApplicationCapabilities.isolatedHTML, value: capability)]),
+            openThread: { _, _ in }, openExecution: { _ in })
+        let entry = ApplicationThreadCatalogEntry<JSONValue>(ref: reference, revision: 1, createdAt: 0, updatedAt: 0,
+            title: "Report", archived: false, tags: .init(tags: [], semanticTags: [], directoryTags: [], tagEmojis: [:]), presentations: [],
+            view: .object(["previewText": .text(""), "contentRevision": .text("1"), "relatedExecutions": .array([])]))
+        let window = SwiftUIReplay.window(try plugin.detail(props: .init(entry: entry, context: context)))
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { notified && SwiftUIReplay.text(in: root).contains("Recovered report") }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!SwiftUIReplay.text(in: root).contains("Retired visit error"))
+    }
+
     @Test func reportReturnsToSourceExecutionAndOrdinaryThreadStillReturnsToOverview() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -509,7 +606,8 @@ private final class ReportHTTPFixture {
                 }
                 self.requests.append(String(decoding: request, as: UTF8.self).components(separatedBy: "\r\n").first ?? "")
                 let body = Data("<html><body><h1>Short destination</h1></body></html>".utf8)
-                let header = Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
+                let mime = self.requests.last?.contains("/download") == true ? "application/octet-stream" : "text/html"
+                let header = Data("HTTP/1.1 200 OK\r\nContent-Type: \(mime)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
                 connection.send(content: header + body, completion: .contentProcessed { _ in connection.cancel() })
             }
         }

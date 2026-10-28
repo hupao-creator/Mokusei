@@ -16,5 +16,5 @@ require (
 
 require (
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.55.0
 )

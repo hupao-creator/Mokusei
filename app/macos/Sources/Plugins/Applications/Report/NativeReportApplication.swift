@@ -41,7 +41,6 @@ import SwiftUI
 
 private struct NativeReportDetail: View {
     let props: ApplicationThreadProps<NativeReportView>
-    @State private var failure: String?
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             switch Result(catching: { () throws -> (ApplicationIsolatedHTML, ApplicationHTMLSource) in
@@ -52,9 +51,9 @@ private struct NativeReportDetail: View {
             }) {
             case .failure(let error): NativeApplicationFailure(message: error.localizedDescription)
             case .success(let (capability, source)):
-                capability.surface(source: source) { failure = $0.message }
+                // The surface owns loading errors and Retry for this visit.
+                capability.surface(source: source) { _ in }
             }
-            if let failure { NativeApplicationFailure(message: failure) }
-        }.onChange(of: props.entry.view.contentRevision) { _, _ in failure = nil }
+        }
     }
 }
