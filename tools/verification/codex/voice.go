@@ -52,6 +52,9 @@ func runSyntheticVoice(ctx context.Context, root string) error {
 	if err = verifyLaunchCatalogCache(ctx, root, binary, environment); err != nil {
 		return err
 	}
+	if err = verifyVoiceConfiguration(ctx, filepath.Join(root, "configuration"), binary); err != nil {
+		return err
+	}
 	return verifyNativeVoicePrewarm(ctx, root, binary, environment)
 }
 

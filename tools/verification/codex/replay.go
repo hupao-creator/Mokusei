@@ -46,6 +46,9 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = verifyFollowUpSettlement(ctx, filepath.Join(root, "follow-up-settlement"), binary); e != nil {
 		return e
 	}
+	if e = verifyVoiceConfiguration(ctx, filepath.Join(root, "voice-configuration"), binary); e != nil {
+		return e
+	}
 	if e = verifyRequiredServiceTier(ctx, filepath.Join(root, "service-tier"), binary); e != nil {
 		return e
 	}

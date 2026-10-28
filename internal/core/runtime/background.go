@@ -307,7 +307,7 @@ func (c backgroundCapability) Configure(ctx context.Context, request plugin.Conf
 			return nil, err
 		}
 		if revision != configuration.SettingsRevision {
-			return nil, errors.New("settings changed while resolving background configuration")
+			return nil, model.NewError("BACKGROUND_CONFIGURATION_CHANGED", "settings changed while resolving background configuration")
 		}
 		harnesses, _, err := c.effectiveSettings(settings)
 		if err != nil {
@@ -329,8 +329,11 @@ func (c backgroundCapability) Configure(ctx context.Context, request plugin.Conf
 			}
 			return nil, nil
 		}
-		if current.Ref.Owner != c.owner || request.ExpectedRevision == nil || current.Record.Revision != *request.ExpectedRevision {
-			return nil, errors.New("private session revision conflict")
+		if current.Ref.Owner != c.owner {
+			return nil, errors.New("private session owner mismatch")
+		}
+		if request.ExpectedRevision == nil || current.Record.Revision != *request.ExpectedRevision {
+			return nil, model.NewError("BACKGROUND_CONFIGURATION_CHANGED", "private session changed while resolving background configuration")
 		}
 		if source == nil || current.Record.ID != source.Record.ID {
 			return nil, errors.New("private session changed during configuration")

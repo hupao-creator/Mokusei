@@ -6,6 +6,12 @@
 
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
+A settings save that races configuration discovery causes re-resolution within
+the same batch attempt, without failure backoff. Existing idle-session reuse
+passes the same saved-version check. The Runtime replay covers these boundaries
+through the production Tag/Report participants, active steering, next-batch
+adoption and independent profiles that remain unaffected by Moku edits.
+
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
