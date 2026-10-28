@@ -26,6 +26,17 @@ markup follows HTML tree repair: for example, plain text misplaced in head
 is moved to the visible body, while title content stays hidden. This is static
 source text, not computed CSS visibility or live form state.
 
+If the tree parser rejects a document (notably its 512-open-element limit),
+projection reparses bounded UTF-8 prefixes and retains a successfully parsed
+prefix. Both preview and search use that same safe prefix; preview still applies
+title removal and its length limit. Content at or after the rejected region can
+be absent from search/preview, and a document with no visible safe prefix has
+empty projected text. Recovery never scans an isolated suffix or exposes raw
+markup, since its template/foreign-content context would be unknown. The original
+HTML remains unchanged and available to the Reader; parser failure does not
+reject a report accepted by the input size contract.
+
+
 The native Report surface owns load failure and Retry state. Report detail does
 not retain a second error overlay after the surface recovers. Page alert,
 confirm, prompt and file selection use native sheets owned by the current visit;

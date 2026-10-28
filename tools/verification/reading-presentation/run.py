@@ -93,7 +93,7 @@ def main():
     finally:
         replay.export(evidence)
         replay.close()
-    count = (3 if "--model-selector" in sys.argv else
+    count = (4 if "--model-selector" in sys.argv else
              5 if isolated_input else
              2 if "--report-controls" in sys.argv else
              4 if "--thread-sidebar" in sys.argv else

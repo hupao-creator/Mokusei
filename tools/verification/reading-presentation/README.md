@@ -449,14 +449,17 @@ does not retain a duplicate failure overlay at the same content revision.
 ## Model and reasoning selector
 
 `python3 tools/verification/reading-presentation/run.py --model-selector` runs
-three mounted production-selector cases in the isolated AppKit application loop.
+four mounted production-selector cases in the isolated AppKit application loop.
 They cover exact IDs, disabled choices, keyboard commit/cancellation/type-ahead,
 slider actions and reset, the model-list subpage, capability refresh, and a single
-fixed choice. Light/dark model lists and the reasoning panel are rendered under
+fixed choice. The Settings Escape monitor case dispatches through NSApplication
+to verify model/reasoning cancellation before page return, unchanged values,
+restored anchor focus, reopening and the second Escape. Light/dark model lists
+and the reasoning panel are rendered under
 `.scratch/reading-presentation/NativeModelSelectorReplayTests`. These component
 renders do not certify WindowServer compositing or physical input delivery.
 
-SwiftPM defers these three methods to this launcher because transient popovers
+SwiftPM defers these four methods to this launcher because transient popovers
 need a running AppKit application. The default CI `native-controls` replay group
 runs them and the coverage collector requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.

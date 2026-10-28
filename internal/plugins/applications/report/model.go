@@ -240,7 +240,10 @@ func htmlReaderText(source, title string, limit int) string {
 	// The tree builder owns namespace changes, HTML integration points and
 	// raw-text/RCDATA state. A tokenizer alone treats SVG <style/> as an
 	// unclosed HTML style element and consumes the remaining document.
-	root, _ := htmlnode.Parse(strings.NewReader(source))
+	root, err := htmlnode.Parse(strings.NewReader(source))
+	if err != nil {
+		root = recoverReaderHTMLPrefix(source)
+	}
 	var visit func(*htmlnode.Node)
 	visit = func(node *htmlnode.Node) {
 		if node.Type == htmlnode.ElementNode && hiddenTags[node.Data] {
@@ -274,6 +277,33 @@ func htmlReaderText(source, title string, limit int) string {
 		return strings.TrimRightFunc(string(characters[:limit-1]), unicode.IsSpace) + "…"
 	}
 	return text
+}
+
+// Parse discards its partial tree on depth-limit and internal parser errors.
+// Reparse bounded prefixes with the same HTML tree builder rather than guessing
+// at text after a lost template/foreign-content context. Only successful trees
+// are eligible for projection; even an unexpected parser error degrades safely.
+// The search makes at most log2(len(source))+1 attempts and never splits UTF-8.
+func recoverReaderHTMLPrefix(source string) *htmlnode.Node {
+	root := &htmlnode.Node{Type: htmlnode.DocumentNode}
+	low, high := 0, len(source)-1
+	for low < high {
+		end := low + (high-low+1)/2
+		for end > low && !utf8.RuneStart(source[end]) {
+			end--
+		}
+		if end == low {
+			break
+		}
+		candidate, err := htmlnode.Parse(strings.NewReader(source[:end]))
+		if err != nil {
+			high = end - 1
+		} else {
+			root = candidate
+			low = end
+		}
+	}
+	return root
 }
 
 // Structural boundaries separate words; inline markup and comments do not.

@@ -285,6 +285,10 @@ because variant names do not imply an intensity order. Other form controls are
 independent. Existing Settings interaction IDs and discrete-change admission are
 preserved. AppKit owns popover dismissal, native slider actions and accessibility;
 capability changes, detachment and parent scrolling retire open popovers.
+The anchor and content implement `NativeSettingsEscapeCancelling` so a document-level
+Escape monitor can follow the responder chain and cancel the popover before
+leaving the page, even when AppKit
+addresses the key event to the anchor window.
 
 The mounted `NativeModelSelectorReplayTests` exercises real controls and bindings
 for opaque IDs, disabled rows, keyboard cancellation, native slider actions,
