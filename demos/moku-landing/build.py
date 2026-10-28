@@ -23,7 +23,7 @@ if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos")], cwd=repo, check=True)
 replay = NativeReplay(repo, "MokuLandingDemo", "com.mokusei.moku-landing-demo")
 try:
-    replay.compile([source / "main.swift"])
+    replay.compile([source / "LandingFixture.swift", source / "main.swift"])
     if options.verify:
         replay.acquire()
         status = replay.run(["--verify"], timeout=90)
