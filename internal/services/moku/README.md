@@ -93,6 +93,15 @@ Moku always uses its built-in coordination instructions. Saved routing guidance 
 
 ## Talk and notes
 
+The built-in prompt defines the user's visible communication surfaces as Talk,
+the persistent note, and all content in ordinary Agent Threads, including Moku's
+delegated instructions. Moku's own assistant messages, including normal and final
+replies, are not visible and do not count as communicating with the user. Anything
+the user needs to know or respond to must reach a visible surface: Talk for short
+immediate answers, questions, confirmations and updates; the note for persistent
+milestone recaps; and the relevant Agent Thread for detailed task discussion and
+deliverables. Runtime voice delivery remains separate.
+
 `talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions and the built-in Moku prompt, including coordination reached through voice. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
 
 `update_note` requires `text` and an `expected` basis containing `noteId`,
