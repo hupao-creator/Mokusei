@@ -11,6 +11,14 @@ remain useful for iteration and diagnosis; their existence does not make every
 tool mandatory for every change. Historical logs and checks from a different
 revision cannot certify the new revision.
 
+Plan focused local checks first and require the actual hosted merge gates for
+the final revision. Do not add a full local `make check` merely before or after
+equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
+coordination. Documentation-only diffs proven by the workflow's conservative
+path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
+and manual dispatches run all checks below. Native tests outside a proven
+documentation scope are not claimed as executed.
+
 ## Default hosted gates
 
 | Gate | Independent value | Execution |
@@ -28,15 +36,25 @@ the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
 tests and retain reports/logs. New or display-related skips fail the job. Do not
 turn a regression into an allowlist entry.
 
-## Runtime budget and runner allocation
+## Runner allocation and execution limits
 
-Every CI attempt has a less-than-fifteen-minute acceptance budget. Current sources
-are built once; an exact run/attempt manifest gates shared artifacts. Five
-macOS runners balance their Swift shards plus assigned interop/native-host work
-in parallel, with serial GUI work inside each runner. All discovered method IDs
-must appear exactly once; weights are scheduling hints, never a coverage list.
-Owned commands share an 840-second deadline and final status/time checks retain
-cleanup headroom. Actual hosted wall time is the acceptance evidence.
+The workflow serializes PR/main and extended cohorts in a repository-wide queue.
+Each admitted cohort still builds current sources once and runs five disjoint
+native shards in parallel, with serial GUI work inside each runner. An exact
+run/producer-attempt manifest gates shared artifacts and all discovered method
+IDs must appear exactly once; weights are scheduling hints, never a coverage list.
+Obsolete queued PR heads/bases and main pushes stop before native scheduling.
+
+There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
+Queue, attempt and total retry elapsed times are diagnostic metrics. Thirty-minute
+job/command execution limits stop hung work; narrower CLI/test timeouts retain
+their independent purpose. A timeout still means incomplete verification.
+
+Preserve each attempt's evidence and select the latest execution of each required
+slot; never fall back from a new failure to an old success. Re-run failed jobs
+only after diagnosis shows a retry is appropriate. A same-commit passing retry
+does not establish that the first failure was harmless. All required checks and
+complete observed method coverage remain merge requirements.
 
 ## Extended hosted gate
 
