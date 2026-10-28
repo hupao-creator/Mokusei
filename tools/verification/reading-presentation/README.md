@@ -61,7 +61,8 @@ Reader. It checks colliding provider/model choices, default/optional/hidden/
 conditional fields, exact Go public IDs and cancellation without required answers.
 
 `--browser-viewport` mounts the real loopback Browser fixtures, including cancelled
-navigation, popup downloads, native editing keys, and annotation capture after
+navigation, SPA history traversal, blocked protocols and popup POST notices,
+popup downloads, native editing keys, and annotation capture after
 page changes. `--composer-contrast` additionally checks the mounted host directory
 picker's 50-reference limit through its real accessibility controls, then selects
 the same directory after removing a reference. Both use the AppKit event loop.

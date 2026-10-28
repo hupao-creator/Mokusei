@@ -16,7 +16,7 @@ struct NativeSidecardAttachmentPasteTests {
     private func presentation(stage: @escaping ([SidecardAttachmentSource], PluginLifetime) async throws -> [SidecardImportedAttachment],
                               send: @escaping (JSONValue) async throws -> SidecardSendReceipt,
                               discard: @escaping ([JSONText]) async throws -> Void = { _ in },
-                              limit: Int = 20, lifetime: PluginLifetime) throws -> ConversationSidecardPresentation {
+                              limit: Int = 20, storage: URL? = nil, lifetime: PluginLifetime) throws -> ConversationSidecardPresentation {
         let thread = try HarnessThread(id: "paste", harnessID: "fixture", revision: 0, sessionState: .null,
             observation: .init(), cwd: "/tmp", settings: .object([:]), createdAt: 0, updatedAt: 0, title: "Paste", tags: [])
         let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
@@ -25,7 +25,7 @@ struct NativeSidecardAttachmentPasteTests {
             executionDisabled: false, expanded: true, transitioning: false, suppressed: false,
             conversation: { _, _ in AnyView(EmptyView()) }, voice: nil, open: { 0 }, close: {}, selectionRevision: { 0 },
             onIntent: { _ in {} }, send: send, stageAttachments: { _ in [] }, discardAttachments: discard,
-            backToOverview: {}, attachmentImport: .init(stage: stage, policy: { _ in
+            backToOverview: {}, draftStorageDirectory: storage, attachmentImport: .init(stage: stage, policy: { _ in
                 RuntimeAttachmentPolicy(imageBytes: 1_000_000, pdfBytes: 1_000_000, fileBytes: 1_000_000,
                     messageBytes: 2_000_000, messageCount: limit)
             }))
@@ -166,6 +166,64 @@ struct NativeSidecardAttachmentPasteTests {
         #expect(sent.count == 1)
     }
 
+    @Test func completedAttachmentsSurviveReleaseAndAreConsumedOnSend() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var discarded: [JSONText] = [], sent: [JSONValue] = []
+        let stage: ([SidecardAttachmentSource], PluginLifetime) async throws -> [SidecardImportedAttachment] = { _, _ in
+            [.init(id: "saved-file", path: "/staged/a b.txt", name: "a b.txt", mimeType: "text/plain", size: 10, kind: .file)]
+        }
+        let send: (JSONValue) async throws -> SidecardSendReceipt = { sent.append($0); return .init(executionID: "accepted") }
+        let firstLifetime = PluginLifetime()
+        let first = try presentation(stage: stage, send: send, discard: { discarded += $0 }, storage: directory, lifetime: firstLifetime)
+        first.changeDraft("keep text")
+        await first.importFiles([.init(data: Data("attachment".utf8), name: "a b.txt", mimeType: "text/plain")])
+        #expect(first.attachments.attachments.first?.attachment?.id == "saved-file")
+        firstLifetime.cancel()
+        try await SwiftUIReplay.wait { first.attachments.isDisposed }
+        #expect(discarded.isEmpty)
+        let secondLifetime = PluginLifetime()
+        let second = try presentation(stage: stage, send: send, discard: { discarded += $0 }, storage: directory, lifetime: secondLifetime)
+        #expect(second.draft == "keep text")
+        #expect(second.attachments.attachments.first?.attachment?.id == "saved-file")
+        second.changeDraft("edited text")
+        await second.send()
+        #expect(sent.first?["parts"]?.arrayValue?.contains { $0["file"]?["id"] == .text("saved-file") } == true)
+        secondLifetime.cancel()
+        try await SwiftUIReplay.wait { second.attachments.isDisposed }
+        let thirdLifetime = PluginLifetime()
+        defer { thirdLifetime.cancel() }
+        let third = try presentation(stage: stage, send: send, storage: directory, lifetime: thirdLifetime)
+        #expect(third.draft.isEmpty && third.attachments.attachments.isEmpty)
+        #expect(discarded.isEmpty)
+    }
+
+    @Test func lateReceiptConsumesRestoredAttachmentsWithoutClearingNewText() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var receipt: CheckedContinuation<SidecardSendReceipt, Never>?
+        let stage: ([SidecardAttachmentSource], PluginLifetime) async throws -> [SidecardImportedAttachment] = { _, _ in
+            [.init(id: "sent-file", path: "/staged/file.txt", name: "file.txt", mimeType: "text/plain", size: 1, kind: .file)]
+        }
+        let lifetime = PluginLifetime()
+        let first = try presentation(stage: stage, send: { _ in await withCheckedContinuation { receipt = $0 } }, storage: directory, lifetime: lifetime)
+        first.changeDraft("old text")
+        await first.importFiles([.init(data: Data([1]), name: "file.txt", mimeType: "text/plain")])
+        let sending = Task { await first.send() }
+        try await SwiftUIReplay.wait { receipt != nil }
+        lifetime.cancel()
+        try await SwiftUIReplay.wait { first.attachments.isDisposed }
+        let reopenedLifetime = PluginLifetime()
+        defer { reopenedLifetime.cancel() }
+        let reopened = try presentation(stage: stage, send: { _ in .init(executionID: "unused") }, storage: directory, lifetime: reopenedLifetime)
+        #expect(reopened.attachments.attachments.count == 1)
+        reopened.changeDraft("new text")
+        receipt?.resume(returning: .init(executionID: "accepted"))
+        await sending.value
+        #expect(reopened.draft == "new text")
+        #expect(reopened.attachments.attachments.isEmpty)
+    }
+
     @Test func pendingRemovalAndLimitsUseSharedDraftPolicy() async throws {
         let lifetime = PluginLifetime()
         defer { lifetime.cancel() }
@@ -190,4 +248,77 @@ struct NativeSidecardAttachmentPasteTests {
         #expect(card.attachments.error == "附件数量超过主机限制")
         #expect(card.draft == "keep text" && sends == 0)
     }
+    @Test(arguments: ["open", "closed", "importing", "readded", "failed"])
+    func lateReceiptConsumesOnlyAcceptedAttachmentIdentity(successor: String) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var receipt: CheckedContinuation<SidecardSendReceipt, Error>?
+        var staging: CheckedContinuation<Void, Never>?
+        var staged = 0
+        var sent: [JSONValue] = []
+        let stage: ([SidecardAttachmentSource], PluginLifetime) async throws -> [SidecardImportedAttachment] = { _, _ in
+            staged += 1
+            if staged == 2 && successor == "importing" { await withCheckedContinuation { staging = $0 } }
+            return [.init(id: JSONText("file-\(staged)"), path: "/staged/file.txt", name: "file.txt", mimeType: "text/plain", size: 1, kind: .file)]
+        }
+        let lifetime = PluginLifetime()
+        let first = try presentation(stage: stage, send: { _ in try await withCheckedThrowingContinuation { receipt = $0 } }, storage: directory, lifetime: lifetime)
+        first.changeDraft("old text")
+        let file = NativeComposerFile(data: Data([1]), name: "file.txt", mimeType: "text/plain")
+        await first.importFiles([file])
+        let sending = Task { await first.send() }
+        try await SwiftUIReplay.wait { receipt != nil }
+        lifetime.cancel()
+        try await SwiftUIReplay.wait { first.attachments.isDisposed }
+        let reopenedLifetime = PluginLifetime()
+        let reopened = try presentation(stage: stage, send: { sent.append($0); return .init(executionID: "next") }, storage: directory, lifetime: reopenedLifetime)
+        reopened.changeDraft("new text")
+        if successor == "readded" {
+            await reopened.attachments.removeAttachment(try #require(reopened.attachments.attachments.first?.id))
+        }
+        // Readding identical bytes/name/path still creates a new attachment
+        // identity. An old receipt must never consume this replacement.
+        let importing = Task { await reopened.importFiles([file]) }
+        if successor == "importing" {
+            try await SwiftUIReplay.wait { staging != nil }
+            #expect(reopened.attachments.attachments.last?.pending == true)
+        } else { await importing.value }
+        if successor == "closed" {
+            reopenedLifetime.cancel()
+            try await SwiftUIReplay.wait { reopened.attachments.isDisposed }
+        }
+        if successor == "failed" { receipt?.resume(throwing: PluginContractError("send rejected")) }
+        else { receipt?.resume(returning: .init(executionID: "accepted")) }
+        await sending.value
+        if successor == "importing" {
+            #expect(reopened.attachments.attachments.count == 1)
+            #expect(reopened.attachments.attachments.first?.pending == true)
+            #expect(reopened.attachments.importing)
+            staging?.resume()
+            await importing.value
+        }
+        let expected: [JSONText] = successor == "failed" ? ["file-1", "file-2"] : ["file-2"]
+        if successor != "closed" {
+            #expect(reopened.draft == "new text")
+            #expect(reopened.attachments.attachments.compactMap(\.attachment).map(\.id) == expected)
+            reopenedLifetime.cancel()
+            try await SwiftUIReplay.wait { reopened.attachments.isDisposed }
+        }
+        let thirdLifetime = PluginLifetime()
+        let third = try presentation(stage: stage, send: { sent.append($0); return .init(executionID: "next") }, storage: directory, lifetime: thirdLifetime)
+        #expect(third.draft == "new text")
+        #expect(third.attachments.attachments.compactMap(\.attachment).map(\.id) == expected)
+        await third.send()
+        await third.send() // Repeated send after consumption is a no-op.
+        #expect(sent.count == 1)
+        #expect(sent.first?["parts"]?.arrayValue?.compactMap { $0["file"]?["id"]?.stringValue } == expected.map(\.string))
+        thirdLifetime.cancel()
+        try await SwiftUIReplay.wait { third.attachments.isDisposed }
+        let fourthLifetime = PluginLifetime()
+        defer { fourthLifetime.cancel() }
+        let fourth = try presentation(stage: stage, send: { _ in Issue.record("consumed draft sent again"); return .init(executionID: "unexpected") }, storage: directory, lifetime: fourthLifetime)
+        #expect(fourth.draft.isEmpty && fourth.attachments.attachments.isEmpty)
+        await fourth.send()
+    }
+
 }

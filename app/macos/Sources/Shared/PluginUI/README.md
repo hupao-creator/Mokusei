@@ -104,6 +104,8 @@ in the footer. Inherited transcripts containing several turns retain each turn's
 author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
 covers mounted navigation, author updates, long indices and responsive layout.
 
+Remote Markdown images use URLSession HTTP caching and revalidation, with no process-wide URL-only body cache. New document loads therefore honor `Cache-Control: no-store`; mounted images retain their current raster. The streamed 24 MiB body limit and decoded pixel limit remain enforced.
+
 ## Cards, composer and forms
 
 Shared Harness card components keep task identity, usage, plan and extension layout consistent. Plan rows have a native glass highlight only for an actual in-progress step; empty plans render no section. The emoji/follow-up control keeps a stable circular glass surface and native focus/action semantics. Loading-cloud palette is supplied by the Harness rather than selected by identity inside the renderer.
@@ -145,6 +147,8 @@ projects public form metadata consistently for the Dock and Reader fallback.
 Visible defaults populate the editor; optional absence remains valid. Hidden
 defaults participate in conditions without becoming steps, and inactive drafts
 stay local. Core retains schema validation and native answer conversion.
+
+Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
 
