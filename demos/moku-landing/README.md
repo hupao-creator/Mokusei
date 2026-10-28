@@ -5,9 +5,10 @@
 Chrome、Harness 卡片和 SwiftUI 窗口材质。中心态为 680 × 76pt，正文 16pt / 行高24pt；
 窄窗口保留24pt横向边距。普通 Dock 的168 × 44pt位置及展开尺寸保持现有值。
 没有文字、附件或目录时，发送按钮及背景完全隐藏；保留空布局占位避免输入区跳动。
-输入光标为3pt实色粗光标，沿用原生浅深色文字颜色和闪烁，没有渐变或光晕。
+输入光标为2.6pt圆头短光芯，上暖黄、下冷蓝光晕，以2.4秒周期平滑呼吸。
+深色使用白色光芯，浅色保留原生深色文字颜色以维持对比度。
 同一行保留120ms平滑移动，连续输入从当前呈现位置接续。
-输入法组合使用原生光标，换行保持即时定位。系统减少动态效果只关闭位移动画。
+输入法组合使用原生光标，换行保持即时定位。系统减少动态效果关闭位移与呼吸动画，光标保持常亮。
 
 ```sh
 python3 demos/moku-landing/build.py --verify --open
@@ -17,7 +18,8 @@ python3 demos/moku-landing/build.py --verify --open
 回放结果、几何测量和当前进程窗口截图保存在 `.build/moku-landing/evidence/`。
 `caret-motion.json` 记录真实原生输入触发的光标起点、中间点和落点。
 `caret-contrast.json` 记录当前窗口像素中的光标对比度与实际宽度；
-`01c-solid-caret-closeup.png` 及 `08-narrow-dark-closeup.png` 用于检查浅深色实色光标。
+`caret-breathing.json` 记录跨越完整周期的真实呈现层亮度采样；
+`01c-breathing-caret-closeup.png` 及 `08-narrow-dark-closeup.png` 用于检查浅深色光标亮态与光晕。
 截图要求窗口内容完整覆盖画面，系统收起窗口的缩略过渡不能作为通过依据。
 已完成 Swift build 时可以追加 `--skip-build`。app 和其私有工作目录保留在
 临时目录，便于重新打开审阅；不替换已安装的 Mokusei。

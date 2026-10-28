@@ -59,10 +59,13 @@ An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
 importing, submission and unavailable states retain their ordinary admission rules.
-Moku editors use a solid 3-point caret in the native light/dark text color, with
-native blinking and 120ms interruptible same-line movement. There is no gradient
-or glow. IME composition uses the native caret; line changes stay immediate.
-Losing focus removes the layer, and Reduce Motion makes movement immediate.
+Moku editors use a shortened, rounded 2.6-point caret with a warm-yellow upper
+halo and cool-blue lower halo. A 2.4-second breathing cycle replaces native on/off
+blinking; the white dark-mode core retains native dark ink in light appearance.
+Same-line movement remains 120ms and interruptible. IME composition uses the
+native caret; line changes stay immediate. Selection and focus/visibility loss
+remove the layer and animations. Reduce Motion keeps the caret steady and makes
+movement immediate.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it remains `Ask Moku…`; selected directories use `Ask Moku about <name>…` (Chinese: `向 Moku 询问关于 <name> 的问题…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 

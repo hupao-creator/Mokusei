@@ -71,14 +71,17 @@ stay local. Core retains schema validation and native answer conversion.
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
-[NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a solid
-3-point caret with the native light/dark text color and native blink cadence.
-Same-line movement interpolates over 120ms from the current presentation; repainting
-an unchanged rectangle does not restart movement. There is no gradient or glow.
+[NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
+2.6-point rounded caret, shortened to 23/24 of the text size and centered in the
+native insertion rectangle. The core is white in dark appearance and uses native
+ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
+Core Animation breathes over 2.4 seconds; native blink callbacks do not hide it
+or restart the cycle. Same-line movement interpolates over 120ms from the current
+presentation; repainting an unchanged rectangle does not restart movement.
 
 Marked text uses the native caret, and line changes bypass interpolation. Selection,
-loss of focus, hidden windows and detachment release the layer. Reduce Motion makes
-movement immediate while retaining the thicker mark and normal native blinking.
+loss of focus, hidden windows and detachment release the layer and its animations.
+Reduce Motion keeps the mark steady and makes movement immediate.
 Text, scroll clipping, selection and input-method ownership remain native.
 
 Clipboard file/image paste reserves the draft synchronously before any item-provider decoding. The same draft-owned preparation lasts through attachment validation and staging, including oversized batches; Return and toolbar sends remain blocked until that operation resolves. Retired preparation cannot mutate a cleared or disposed draft. Clipboard TIFF preparation precedes attachment admission. Invalid TIFF does not
