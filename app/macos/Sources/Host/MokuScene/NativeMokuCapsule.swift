@@ -5,6 +5,7 @@ import SwiftUI
 /// Coordinates are local to the flipped scene, including a scrolled shell.
 enum NativeMokuCapsuleLayout {
     static let idleSize = CGSize(width: 168, height: 44)
+    static let landingScale: CGFloat = 76.0 / 58.0
     /// Shared by the capsule glass, its clip shape and the nested composer
     /// surfaces (including attachment chips, which derive their concentric
     /// radius from this value).

@@ -22,6 +22,7 @@ struct NativeMokuLandingTests {
         var window: NSWindow?
         var rejectSubmission = false
         var submissions = 0
+        var stops = 0
         var revision = 0
         var scene: NativeMokuSceneState { presentation.scene }
         var overview: NativeOverviewWorkspaceModel { presentation.overview }
@@ -46,10 +47,10 @@ struct NativeMokuLandingTests {
                 directoryTag: "Fixture", directoryScope: JSONText(directory.path))
         }
         func install(_ threads: [HarnessThread] = [], operations: [JSONValue] = [], applications: [JSONValue] = [],
-                     includeMoku: Bool = true, execution: JSONText = "moku-run") async throws {
+                     includeMoku: Bool = true, execution: JSONText = "moku-run", running: Bool = false) async throws {
             revision += 1
             let coordinator = try HarnessThread(id: "moku", harnessID: "codex", revision: revision, sessionState: .null,
-                observation: .init(latestExecution: operations.isEmpty ? nil : try .init(executionID: execution, status: .running, startedAt: 1)),
+                observation: .init(latestExecution: operations.isEmpty && !running ? nil : try .init(executionID: execution, status: .running, startedAt: 1)),
                 cwd: JSONText(directory.path), settings: .object([:]), createdAt: 0, updatedAt: Double(revision),
                 title: "Moku", tags: [], moku: true, transcript: .array(operations))
             let snapshot: JSONValue = .object(["revision": .integer(revision), "settingsRevision": .integer(0),
@@ -102,8 +103,8 @@ struct NativeMokuLandingTests {
             } thread: { Text("History fixture") } dock: {
                 if fixture.workspace.catalog.moku != nil {
                     NativeMokuDock(state: fixture.scene, draft: fixture.presentation.draft, cwd: JSONText(fixture.directory.path),
-                        landing: fixture.moku.landing, running: fixture.moku.running,
-                        presentation: fixture.moku, onSend: fixture.submit, onCancel: {})
+                        landing: fixture.moku.landing, mode: fixture.moku.dockMode, running: fixture.moku.running,
+                        presentation: fixture.moku, onSend: fixture.submit, onCancel: { fixture.stops += 1 })
                 }
             } settings: { Color.gray.overlay { Text("Settings fixture") } }
             .environment(\.locale, Locale(identifier: "zh-Hans"))
@@ -151,12 +152,20 @@ struct NativeMokuLandingTests {
             #expect(fixture.scene.capsuleFrame.height == 76 && abs(fixture.scene.capsuleFrame.midY - height / 2) < 1)
             #expect(SwiftUIReplay.editor(in: try #require(fixture.window?.contentView)) != nil)
         }
+        try await withFixture { fixture in
+            try await fixture.install(running: true); fixture.mount(fullWorkspace: true)
+            let root = try #require(fixture.window?.contentView)
+            try await SwiftUIReplay.wait { faces(in: root).first?.controller.input?.running == true }
+            #expect(fixture.moku.landing && !fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 1)
+            #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
+        }
     }
 
     @Test func pendingShellAndFailureStayCenteredUntilExplicitDispatchSuccess() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
+            fixture.scene.setInputOpen(false)
             try await fixture.install(operations: [dispatch()])
             try await fixture.install([fixture.thread(status: nil)], operations: [dispatch()])
             #expect(fixture.moku.landing && fixture.overview.globalConversationCount == 1)
@@ -191,7 +200,8 @@ struct NativeMokuLandingTests {
             fixture.overview.endSearch()
             try await fixture.install([fixture.thread(archived: true), fixture.thread("second", archived: true)],
                 operations: [dispatch(completed: true, ok: true)])
-            try await SwiftUIReplay.wait { fixture.moku.landing && fixture.scene.inputOpen }
+            try await SwiftUIReplay.wait { fixture.moku.landing && fixture.scene.talkPresentation.presented }
+            #expect(!fixture.scene.inputOpen)
             try await fixture.install([fixture.thread()], operations: [])
             try await SwiftUIReplay.wait { !fixture.moku.landing }
             try await fixture.install()
@@ -199,27 +209,71 @@ struct NativeMokuLandingTests {
         }
     }
 
-    @Test func talkRemainsVisibleWithoutReplacingDraftAndFailedSubmissionKeepsInput() async throws {
+    private func faces(in view: NSView) -> [NativeMokuCharacterCanvas] {
+        if let canvas = view as? NativeMokuCharacterCanvas { return canvas.seat == .face ? [canvas] : [] }
+        return view.subviews.flatMap { faces(in: $0) }
+    }
+    private func element(id: String, in object: NSObject) -> NSObject? {
+        let identifier = NSSelectorFromString("accessibilityIdentifier")
+        if object.responds(to: identifier), object.perform(identifier)?.takeUnretainedValue() as? String == id { return object }
+        let children = NSSelectorFromString("accessibilityChildren")
+        if object.responds(to: children), let values = object.perform(children)?.takeUnretainedValue() as? [NSObject] {
+            for child in values { if let found = element(id: id, in: child) { return found } }
+        }
+        return nil
+    }
+
+    @Test func oneResidentOwnsSubmissionRunningTalkDispatchAndStop() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
             let window = try #require(fixture.window), root = try #require(window.contentView)
+            let face = try #require(faces(in: root).first)
             let input = try #require(SwiftUIReplay.editor(in: root))
             input.insertText("继续完善需求", replacementRange: NSRange(location: 0, length: 0))
+            fixture.rejectSubmission = true
+            try press(36, characters: "\r", window: window)
+            try await SwiftUIReplay.wait { fixture.presentation.draft.error != nil && fixture.scene.inputOpen }
+            #expect(fixture.submissions == 1 && fixture.presentation.draft.text == "继续完善需求")
+            fixture.rejectSubmission = false
+            try await SwiftUIReplay.wait { SwiftUIReplay.editor(in: root) != nil }
+            try press(36, characters: "\r", window: window)
+            try await SwiftUIReplay.wait { fixture.submissions == 2 && !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            try await fixture.install(running: true)
+            try await SwiftUIReplay.wait { face.controller.input?.running == true }
+            #expect(fixture.moku.landing && fixture.presentation.draft.text.isEmpty)
+            #expect(fixture.scene.dockHitRects.count == 1 && faces(in: root).count == 1 && faces(in: root).first === face)
+            #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
+            #expect(abs(fixture.scene.capsuleFrame.midY - root.bounds.midY) < 1)
+            let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+            if NSApp.responds(to: enableAX) { _ = NSApp.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
+            try await SwiftUIReplay.wait { element(id: "moku-stop", in: root) != nil }
+            _ = try #require(element(id: "moku-stop", in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
+            #expect(fixture.stops == 1)
             try await fixture.install(operations: [talk("你希望任务在哪个目录进行？")])
             try await SwiftUIReplay.wait { fixture.scene.talkPresentation.presented }
-            #expect(fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 2)
-            #expect(fixture.presentation.draft.text == "继续完善需求" && SwiftUIReplay.editor(in: root) === input)
+            #expect(!fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 1)
+            #expect(element(id: "moku-landing-notice", in: root) == nil)
             #expect(SwiftUIReplay.text(in: root).contains("你希望任务在哪个目录进行？"))
+            #expect(faces(in: root).count == 1 && faces(in: root).first === face)
+            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
+            let followup = try #require(SwiftUIReplay.editor(in: root))
+            followup.insertText("保留这份补充", replacementRange: .init(location: 0, length: 0))
+            try await fixture.install(operations: [dispatch()])
+            #expect(!fixture.scene.talkPresentation.presented && fixture.scene.dockHitRects.count == 1)
+            #expect(fixture.presentation.draft.text == "保留这份补充" && SwiftUIReplay.editor(in: root) === followup)
+            try press(53, characters: "\u{1b}", window: window)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && fixture.scene.talkPresentation.presented }
+            #expect(fixture.moku.talkMessage?.dispatch?.phase == .dispatching && fixture.scene.dockHitRects.count == 1)
+            #expect(faces(in: root).count == 1 && faces(in: root).first === face)
             window.setContentSize(CGSize(width: 480, height: 360))
-            try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 432 && fixture.scene.dockHitRects.count == 2 }
-            #expect(fixture.scene.dockHitRects[1].minY >= NativeWindowNavigationGeometry.safeAreaTop)
-            fixture.rejectSubmission = true
-            window.makeFirstResponder(input)
-            try press(36, characters: "\r", window: window)
-            try await SwiftUIReplay.wait { fixture.presentation.draft.error != nil }
-            #expect(fixture.submissions == 1 && fixture.moku.landing && fixture.scene.inputOpen)
-            #expect(fixture.presentation.draft.text == "继续完善需求")
+            try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 400 }
+            #expect(abs(fixture.scene.capsuleFrame.midY - root.bounds.midY) < 1)
+            fixture.scene.dismissTalk()
+            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen && fixture.scene.capsuleFrame.width == 432 }
+            #expect(fixture.presentation.draft.text == "保留这份补充")
         }
     }
 
@@ -231,7 +285,8 @@ struct NativeMokuLandingTests {
             let input = try #require(SwiftUIReplay.editor(in: root))
             input.insertText("保留草稿", replacementRange: .init(location: 0, length: 0))
             try press(53, characters: "\u{1b}", window: window)
-            #expect(fixture.scene.inputOpen)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            fixture.scene.toggleInput()
             window.setContentSize(CGSize(width: 480, height: 620))
             try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 432 }
             fixture.scene.openSettings()
@@ -241,12 +296,12 @@ struct NativeMokuLandingTests {
             fixture.scene.setMokuOpen(true)
             try await SwiftUIReplay.wait { fixture.scene.dockCovered }
             fixture.scene.setMokuOpen(false)
-            try await SwiftUIReplay.wait { fixture.scene.inputOpen && !fixture.scene.dockCovered }
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.dockCovered }
             window.contentView = NSHostingView(rootView: Text("Temporarily unmounted"))
             try await Task.sleep(for: .milliseconds(50))
             window.contentView = NSHostingView(rootView: Surface(fixture: fixture).modifier(NativeWorkspaceWindowSurface()))
             window.setContentSize(CGSize(width: 480, height: 620))
-            try await SwiftUIReplay.wait { fixture.scene.windowVisible && fixture.scene.inputOpen && fixture.scene.capsuleFrame.width == 432 }
+            try await SwiftUIReplay.wait { fixture.scene.windowVisible && !fixture.scene.inputOpen && fixture.scene.capsuleFrame.width < 432 }
             #expect(fixture.presentation.draft.text == "保留草稿" && fixture.moku.landing)
         }
     }

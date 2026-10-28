@@ -13,6 +13,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var mode = MokuCharacterMode.idle
     var running = false
+    var landing = false
     var reasoning: MokuReasoningContent?
     var phase = ScenePhase.active
     var stage = "idle"
@@ -27,7 +28,7 @@ private struct Scene: View {
             }
         } thread: { Color.white } dock: {
             NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/tmp",
-                mode: fixture.mode, running: fixture.running, reasoning: fixture.reasoning,
+                landing: fixture.landing, mode: fixture.mode, running: fixture.running, reasoning: fixture.reasoning,
                 onSend: { _ in }, onCancel: { fixture.running = false; fixture.reasoning = nil; fixture.mode = .idle })
                 .environment(\.scenePhase, fixture.phase)
         } settings: { Color.white }
@@ -209,20 +210,36 @@ private struct Scene: View {
     fixture.phase = .active
     try await observe("resume-current-pose", milliseconds: 250)
 
-    for size in [CGSize(width: 300, height: 190), CGSize(width: 180, height: 140)] {
-        window.setContentSize(size)
-        try await observe("fit-\(Int(size.width))-\(Int(size.height))", milliseconds: 900)
-        let surface = fixture.state.capsuleFrame
-        let bodySize = controller.input!.capsuleSize
-        let scale = surface.width / bodySize.width
-        let bounds = NativeMokuReasoningArcTrack(body: CGRect(origin: .zero, size: bodySize))
-            .inkBounds(for: controller.paintedReasoningGlyphs)
-        let actual = CGRect(x: surface.midX + (bounds.minX - bodySize.width / 2) * scale,
-            y: surface.midY + (bounds.minY - bodySize.height / 2) * scale,
-            width: bounds.width * scale, height: bounds.height * scale)
-        let viewport = CGRect(origin: .zero, size: host.bounds.size).insetBy(dx: -0.5, dy: -0.5)
-        guard viewport.contains(actual) else { throw Failure(description: "Arc glyphs clipped in \(size): \(actual) outside \(viewport)") }
+    for landing in [false, true] {
+        fixture.landing = landing
+        window.setContentSize(CGSize(width: 820, height: 480))
+        try await observe(landing ? "landing-thinking" : "bottom-thinking", milliseconds: 900)
+        if landing {
+            guard !fixture.state.inputOpen, fixture.state.capsuleFrame.width > 168,
+                  abs(fixture.state.capsuleFrame.midY - host.bounds.midY) < 1 else {
+                throw Failure(description: "Landing did not retain its enlarged centered thinking resident")
+            }
+            fixture.state.setInputOpen(true)
+            try await observe("landing-thinking-to-input", milliseconds: 900)
+            fixture.state.setInputOpen(false)
+            try await observe("landing-input-to-thinking", milliseconds: 1400)
+        }
+        for size in [CGSize(width: 300, height: 190), CGSize(width: 180, height: 140)] {
+            window.setContentSize(size)
+            try await observe("fit-\(Int(size.width))-\(Int(size.height))", milliseconds: 900)
+            let surface = fixture.state.capsuleFrame
+            let bodySize = controller.input!.capsuleSize
+            let scale = surface.width / bodySize.width
+            let bounds = NativeMokuReasoningArcTrack(body: CGRect(origin: .zero, size: bodySize))
+                .inkBounds(for: controller.paintedReasoningGlyphs)
+            let actual = CGRect(x: surface.midX + (bounds.minX - bodySize.width / 2) * scale,
+                y: surface.midY + (bounds.minY - bodySize.height / 2) * scale,
+                width: bounds.width * scale, height: bounds.height * scale)
+            let viewport = CGRect(origin: .zero, size: host.bounds.size).insetBy(dx: -0.5, dy: -0.5)
+            guard viewport.contains(actual) else { throw Failure(description: "Arc glyphs clipped in \(size): \(actual) outside \(viewport)") }
+        }
     }
+    fixture.landing = false
     window.setContentSize(CGSize(width: 820, height: 480))
     fixture.reasoning = nil; fixture.running = false; fixture.mode = .idle
     try await observe("thinking-to-idle-and-landing", milliseconds: 1300)
@@ -233,7 +250,7 @@ private struct Scene: View {
     return ["samples": observations.count, "screenshots": screenshots, "maximumEyeStep": greatestEyeStep,
             "nativeFrames": controller.frameCount,
             "checks": ["single persistent eye seat", "input screen-space trajectory", "bounded inter-frame eye motion", "running clock continuation",
-                       "append does not redirect", "rapid reversal", "inactive pause", "narrow/short arc fit", "retired glyph cleanup"]]
+                       "append does not redirect", "rapid reversal", "inactive pause", "bottom/landing narrow/short arc fit", "centered enlarged thinking and input handoff", "retired glyph cleanup"]]
 }
 
 @MainActor private final class Delegate: NSObject, NSApplicationDelegate {

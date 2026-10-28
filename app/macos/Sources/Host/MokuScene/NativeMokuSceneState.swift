@@ -18,6 +18,7 @@ import MokuseiPluginUI
     let canvasInputRegions = NativeCanvasInputRegions()
     public private(set) var mokuOpen = false
     public private(set) var cameraActive = false
+    private var landingActive = false
     public private(set) var inputOpen = false
     public private(set) var inputLeaving = false
     public private(set) var talkPresentation = NativeMokuTalkState()
@@ -118,6 +119,13 @@ import MokuseiPluginUI
         searchActive = active
         if active { talkPresentation.setPresented(false); closeNotePanel() }
         command?(.visibility)
+    }
+    /// Entrance belongs to the scene, so remounting or uncovering the Dock
+    /// cannot reopen input over the resident character or a waiting notification.
+    func updateLanding(_ active: Bool) -> Bool {
+        guard active != landingActive else { return false }
+        landingActive = active
+        return true
     }
     public func toggleInput() {
         // Compose belongs to the Overview capsule. Off that route the shortcut
