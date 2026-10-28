@@ -105,6 +105,11 @@ Saves carry expected settings revision. Success adopts the normalized response a
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku routing guidance remains editable; there is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
 Settings no longer exposes plugin enablement or service-restart instructions.
 
+Changing the coordinating Harness is rejected through the existing save-error
+path while Moku or any ordinary Agent Thread is busy, including pending input
+and waiting interactions. Other settings remain editable. The selected Harness
+inherits the existing note when the idle replacement is applied.
+
 [SettingsDiagnostics](../../Core/SettingsDiagnostics.swift) records bounded operational fields and correlates client flow with command identity. Diagnostics do not contain submitted setting values and their failure does not fail a save.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/settings-shell` for Go boundaries; on macOS build a runtime with `make runtime`, then run `./scripts/go.sh run -race ./tools/verification/settings -runtime "$PWD/.build/go/mokusei-runtime"`. The launcher drives real Swift settings flows against an isolated daemon, including acquisition before page mount, cache reuse, concurrent readers and failed-read recovery. The same existing native flow mounts the production General page offline to verify the `glass world` binding, snapshot and JSON persistence, missing-field defaults, unrelated preference writes, and visible write failures. Set `MOKUSEI_GLASS_WORLD_ARTIFACTS` to capture its off-state Settings window through ScreenCaptureKit; this avoids stale layer-backed control frames from view-cache snapshots.

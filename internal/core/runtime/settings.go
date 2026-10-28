@@ -136,6 +136,13 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 		return SettingsResult{}, err
 	}
 	stage = "persist"
+	if previous.Moku.HostHarnessPreference != settings.Moku.HostHarnessPreference {
+		release, changeErr := r.beginMokuHarnessChange(false)
+		if changeErr != nil {
+			return SettingsResult{}, changeErr
+		}
+		defer release()
+	}
 	finishPersist := r.settingsSpan(ctx, "persist", model.Object{"expectedRevision": expected})
 	result = SettingsResult{}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {

@@ -104,6 +104,17 @@ func (r *Runtime) EnsureConfiguredMokuThread(ctx context.Context, configuration 
 }
 func (r *Runtime) ReplaceConfiguredMokuThread(ctx context.Context, oldID string, configuration MokuConfiguration) (model.ThreadRecord, error) {
 	if oldID != "" {
+		old, err := r.Thread(oldID)
+		if err != nil {
+			return model.ThreadRecord{}, err
+		}
+		if old.HarnessID != configuration.HarnessID {
+			release, err := r.beginMokuHarnessChange(true)
+			if err != nil {
+				return model.ThreadRecord{}, err
+			}
+			defer release()
+		}
 		if err := r.CloseMokuThread(ctx, oldID); err != nil {
 			return model.ThreadRecord{}, err
 		}
