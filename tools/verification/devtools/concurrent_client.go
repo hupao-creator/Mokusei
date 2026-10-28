@@ -68,7 +68,7 @@ func finishGatedOfflineFresh(ctx context.Context, process *offlineClientProcess,
 	must(err)
 	var result offlineFreshResult
 	must(json.Unmarshal([]byte(line), &result))
-	must(process.input.Close())
+	must(process.closeInput())
 	must(process.waitExit(ctx))
 	return result
 }

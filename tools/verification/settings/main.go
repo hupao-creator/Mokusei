@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"io"
 	"net"
 	"net/http"
@@ -366,7 +367,7 @@ func run() (failure error) {
 		return err
 	}
 	defer closePrefetch()
-	swift := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "NativeSettingsUserFlows")
+	swift := swiftfixture.Test(ctx, "--filter", "NativeSettingsUserFlows")
 	swift.Env = append(os.Environ(), "MOKUSEI_SETTINGS_TEST_PROFILE="+p.DataDir, "MOKUSEI_SETTINGS_PREFETCH_URL="+prefetchURL)
 	swift.Stdout = io.MultiWriter(os.Stdout, &swiftOutput)
 	swift.Stderr = io.MultiWriter(os.Stderr, &swiftOutput)

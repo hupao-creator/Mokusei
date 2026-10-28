@@ -4,7 +4,7 @@ The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
 tools to hosted gates and explains their independent value. A current-revision
 CI pass replaces an equivalent local run. Standalone visual/research tools are
 not automatically merge requirements; additional local acceptance needs a named
-uncovered defect and trigger. Real CLI and full stability checks have a hosted
+uncovered defect and trigger. Real CLI checks have a hosted
 `CI` workflow dispatch (`extended=true`); they do not require self-hosted Macs.
 
 Retained evidence uses neutral `/Users/example` paths and numbered `.worktrees`
@@ -22,10 +22,7 @@ baseline comparison, headless admission and the eight XCTest fixture skips.
 For real native CLI + mock LLM combinations spanning Moku, child tasks, scoped
 Report/Tag, faults, public actions and restart, see [Moku system verification](moku-system/README.md)
 and `make check-system` (requires `MOKUSEI_SYSTEM_CODEX`).
-`make check-stability` adds real daemon SIGKILL/recovery and a continuous
-30-minute, minimum-100-cycle resource gate with owned-process exit checks.
-It also requires a new `STABILITY_OUTPUT` evidence directory and is deliberately
-separate from the fast checks.
+
 
 For the sequential release gate runner, retained JSON/log evidence, isolated
 headless lifecycle checks and optional installed-CLI mock-provider verification,
@@ -49,6 +46,11 @@ For script-driven navigation of the real macOS app, protocol validation and seed
 chaos traces, see the [semantic interaction replay](native-interaction/README.md).
 For mounted conversation/history controls, disclosure, scrolling and 150-turn
 windowing in the same production app, see the [reading interaction replay](thread-interaction/README.md).
+
+CI builds Swift once and verifies its exact manifest before replay launchers use
+`MOKUSEI_SWIFT_SKIP_BUILD=1`; see [the shared command helper](swiftfixture/README.md).
+Local commands keep their default build behavior. UI shards and independent
+replays run on separate hosted runners, not competing windows in one session.
 
 Run from the repository root with `./scripts/go.sh`. These executable integration drivers complement the package tests. They exercise production boundaries against fixed protocol fixtures, temporary databases/profiles or loopback model services. Failures return nonzero. Build the runtime with `make runtime` before the native settings launcher.
 

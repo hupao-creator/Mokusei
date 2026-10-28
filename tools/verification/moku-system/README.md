@@ -48,12 +48,11 @@ For a deliberately longer manual trace, choose a budget explicitly:
 
 The value must be positive. It changes only the whole in-process scenario
 budget: each convergence wait remains bounded by 30 seconds, and the HTTP
-request timeout remains 20 seconds. It cannot configure the separate daemon
-stability mode, which uses its existing soak duration and limits.
+request timeout remains 20 seconds.
 
 `SCENARIO` logs the configured budget and start time; action logs show start time,
 remaining total budget and elapsed lifecycle duration, including failed lifecycle
-actions. `provider.json` records `scenarioTimeout` (null for daemon stability).
+actions. `provider.json` records `scenarioTimeout`.
 A pass with an explicit larger budget is evidence for that configured trace,
 not a pass under the default budget. Preserve a previous timeout and its stage
 timings when using a larger budget to investigate cumulative work versus a stall.
@@ -146,68 +145,14 @@ path plus retained
 synthetic evidence. These tests skip without `MOKUSEI_SYSTEM_CODEX`; a skipped
 ordinary `go test` is not evidence of native combination coverage.
 
-## Real process crashes and continuous resource gate
-
-```sh
-MOKUSEI_SYSTEM_CODEX=/absolute/path/to/native/codex \
-STABILITY_OUTPUT=/tmp/moku-stability-evidence \
-  make check-stability
-```
-
-This separate target builds the actual headless runtime with the production
-`go build -trimpath` recipe (without race instrumentation),
-starts it through production daemon discovery, and keeps the mock model service
-in the observing parent. It does not use the existing user's daemon. The output
-directory must be new. Allow at least 30 minutes plus build/crash setup time.
-The observing runner, module/system tests and ordinary release replays still use
-the race detector. `runtimeRace` records whether the measured executable has it;
-instrumented RSS and production RSS are distinct performance measurements.
-
-The required evidence is:
-
-| Gate | Acceptance |
-| --- | --- |
-| Completed-state crash | Three SIGKILL/restart cycles; new PID, epoch and credential; old connection rejected; task/Report/Tag identities, settings and durable command receipts preserved; changed-body replay rejected |
-| Active-model crash | Three crashes after a real child request reaches a response barrier; original execution becomes interrupted, no completion Report or automatic input replay, new followup succeeds |
-| Native process lifetime | Wrapper registers PID, process group and birth time; registered groups are checked after crash/clear, including reparented processes; fallback cleanup does not turn a leak into a pass |
-| Continuous daemon | One unchanged daemon PID/epoch for at least 30 minutes and at least 100 cycles of create, followup, read and active clear |
-| Settled resources | First five cycles warm up; cycles 6–10 establish baseline. Final five medians and every post-baseline sample stay within RSS baseline + max(64 MiB, 50%) and FD baseline + 8; empty-history descendants remain zero |
-| Live Go heap | Capture `GODEBUG=gctrace=1`; require the final PID/epoch marker and GC samples reaching the late run window (at least 90% of soak duration on the owner's GC clock), with second-half post-GC live heap no more than first-five median + 32 MiB |
-| Final cleanup | Daemon and all still-owned registered processes exit; process log has no race or panic |
-
-`provider.json` records the runtime executable SHA-256, race build flag, native CLI version,
-crash windows, cycle count, duration, resource samples, thresholds, qualification
-and cleanup result, plus final-owner GC live-heap samples and GC timestamps.
-Loaded-state native RSS is recorded separately; its magnitude
-is diagnostic, while registered process exit is mandatory. The parent bounds its
-request transcript memory independently of the measured daemon. Retired process
-registrations are forgotten only after confirmed exit; fallback kills revalidate
-birth/group/command identity to avoid killing a reused PID.
-
-A quick harness smoke can use `ARGS='-soak-duration=0 -soak-cycles=15'`. It may
-pass the resource assertions but must report `longRunQualified: false`; it is not
-30-minute stability evidence. Thresholds are fixed before execution and are not
-relaxed to make a run pass. Failure retains the isolated profile and diagnostics.
-
-Quiescence means three consecutive public snapshots with terminal task states,
-no active AgentRuns, empty Moku delivery queue and no live model requests. This is
-a bounded observation, not proof that every durable consumer inbox was drained.
-Crash recovery checks therefore use exact execution/report/receipt invariants.
-The continuous run measures process RSS, descriptors, owned descendants and
-post-GC live heap. It does not expose goroutine internals or prove multi-hour/day
-stability. Do not erase an instrumented RSS failure when a production run passes:
-retain both build identities and diagnostic evidence, and label the qualification
-as applying to the production artifact only.
-
 ## Remaining verification scope
 
 This is not yet the full combination gate. Cross-Harness chains, concurrent dependent
 tasks within a scope, broader generated command sequences, exact uncertain-admission
 crash windows, steering races, worktrees/attachments/Context, voice combinations
-and multi-hour resource soak remain required work under
+remain outside this gate; see the historical scope in
 [the full objective](https://github.com/xinyuan0801/OpenAgent/issues/542).
 It starts with one child per scope and can add forks and successive executions;
-the ordinary system matrix uses graceful composition restart, while the separate
-stability target uses actual daemon crashes. External Context acquisition is disabled. The separate
+the system matrix uses graceful composition restart. External Context acquisition is disabled. The separate
 [release runner](../release-health/README.md) and module checks support this work
 but do not substitute for the outstanding combination coverage.

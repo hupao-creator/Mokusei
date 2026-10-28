@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -65,7 +65,7 @@ func verifyShutdownRecovery(ctx context.Context, directory, executable, mode str
 	verifyShutdownCommand(ctx, *c, http.StatusServiceUnavailable)
 
 	if mode == "swift" {
-		command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "RuntimeShutdownInteropTests.testReopenAfterFailedShutdown")
+		command := swiftfixture.Test(ctx, "--filter", "RuntimeShutdownInteropTests.testReopenAfterFailedShutdown")
 		command.Env = append(os.Environ(), "MOKUSEI_SHUTDOWN_PROFILE="+p.DataDir,
 			"MOKUSEI_SHUTDOWN_RUNTIME="+executable, "MOKUSEI_SHUTDOWN_GATE="+gate)
 		command.Stdout, command.Stderr = os.Stdout, os.Stderr

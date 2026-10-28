@@ -12,13 +12,16 @@ def main():
     source = Path(__file__).resolve().parent
     repo = source.parents[2]
     package = repo / "app/macos"
-    subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
+    if os.environ.get("MOKUSEI_SWIFT_SKIP_BUILD") != "1":
+        subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
     developer = Path(subprocess.check_output(["xcrun", "--show-sdk-platform-path"], text=True).strip()) / "Developer"
     frameworks = developer / "Library/Frameworks"
     toolchain = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip()).parent.parent
     args = ["-g", "-plugin-path", str(toolchain / "lib/swift/host/plugins/testing"),
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks)]
+    glass_captures = "--tag-glass-captures" in sys.argv
+    tag_glass = "--tag-glass" in sys.argv or glass_captures
     suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
@@ -28,7 +31,7 @@ def main():
              "NativeReportNavigationTests" if "--report-navigation" in sys.argv else
              "NativeSettingsTransitionTests" if "--settings-transition" in sys.argv else
              "NativeMarkdownLocalImageTests" if "--local-images" in sys.argv else
-             "NativeOverviewTagGlassTests" if "--tag-glass" in sys.argv else "NativeReadingPagePresentationTests")
+             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv
     tests = package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{suite}.swift"
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
@@ -40,12 +43,17 @@ def main():
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
+        if tag_glass:
+            environment.setdefault("MOKUSEI_TAG_SWITCH_ARTIFACTS", str(replay.workspace / "evidence/switch"))
+            environment.setdefault("MOKUSEI_TAG_MORPH_ARTIFACTS", str(replay.workspace / "evidence/morph"))
         if "--initial-response" in sys.argv:
             fixture = replay.workspace / "initial-response.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/initial-response", "-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"] = str(fixture)
             environment["MOKUSEI_INITIAL_RESPONSE_ARTIFACTS"] = str(replay.workspace / "evidence")
-        status = replay.run(["--no-parallel", "--filter", suite], timeout=90, launch_services=False, env=environment)
+        selected = ("directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
+                    if glass_captures else suite)
+        status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
         output = (replay.root / "stdout.log").read_text()
         print(output, end="")
         result = subprocess.CompletedProcess([], status, stdout=output)
@@ -61,7 +69,7 @@ def main():
              6 if "--overview-mounting" in sys.argv else
              2 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv else
-             7 if "--tag-glass" in sys.argv else 5)
+             2 if glass_captures else 7 if tag_glass else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

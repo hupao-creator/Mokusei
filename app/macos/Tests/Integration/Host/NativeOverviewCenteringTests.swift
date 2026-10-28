@@ -142,9 +142,17 @@ struct NativeOverviewCenteringTests {
 
     @Test(.requiresDisplay) func resizingReframesActualCardsWithoutReplacingThem() async throws {
         _ = NSApplication.shared
-        let fixture = CenteringFixture(size: .init(width: 1180, height: 780), count: 16)
+        let style: NSWindow.StyleMask = [.titled, .resizable]
+        let initialScreen = try #require(NSScreen.main)
+        let available = NSWindow.contentRect(forFrameRect: initialScreen.visibleFrame, styleMask: style).size
+        // This case resizes a real window, which AppKit constrains to the screen.
+        // Fixed-size component cases above still cover the full 1180 × 780 canvas.
+        let normal = CGSize(width: min(1180, floor(available.width)),
+                            height: min(780, floor(available.height) - 1))
+        try #require(normal.width >= 860 && normal.height >= 600)
+        let fixture = CenteringFixture(size: normal, count: 16)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: fixture.size),
-                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+                              styleMask: style, backing: .buffered, defer: false, screen: initialScreen)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: CenteringCanvas(fixture: fixture, constrained: false))
         window.makeKeyAndOrderFront(nil)
@@ -157,9 +165,10 @@ struct NativeOverviewCenteringTests {
         // Production minimum, a tall window, and the default size. Unlike the
         // compact component cases, this changes the actual native content area.
         // AppKit constrains real window height to the current screen's work area.
-        for size in [CGSize(width: 860, height: 600), CGSize(width: 860, height: tallHeight), CGSize(width: 1180, height: 780)] {
+        for size in [CGSize(width: 860, height: 600), CGSize(width: 860, height: tallHeight), normal] {
             fixture.size = size
             window.setContentSize(size)
+            print("RESIZE requested=\(size) frame=\(window.frame) content=\(String(describing: window.contentView?.bounds.size))")
             try await SwiftUIReplay.wait { fixture.viewport == size }
             // Refit is deliberately coalesced; settle must include the actual
             // submitted motion, rather than accepting the previous idle frame.

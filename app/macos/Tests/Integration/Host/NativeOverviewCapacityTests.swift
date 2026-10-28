@@ -266,7 +266,8 @@ struct NativeOverviewCapacityTests {
         let fixture = CapacityFixture()
         fixture.size = .init(width: 1111, height: 900)
         fixture.items = (0..<9).map { .init(id: "card-\($0)") }
-        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+        // Avoid introducing a half-pixel outer centering offset around this odd-width canvas.
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: fixture.size.width, height: fixture.size.height)
         defer { window.close() }
         try await settle(fixture, in: window)
         let frames = fixture.frames
@@ -363,21 +364,35 @@ struct NativeOverviewCapacityTests {
 
     private func settle(_ fixture: CapacityFixture, in window: NSWindow) async throws {
         // SwiftUI aligns rendered frames to device pixels; keep one-pixel precision at 1x and 2x.
-        try await SwiftUIReplay.wait(timeout: .seconds(15)) {
-            fixture.viewport == fixture.size && fixture.state.camera.viewport?.width == fixture.size.width &&
-            fixture.state.camera.viewport?.height == fixture.size.height && !fixture.state.isLayingOut &&
-            fixture.state.layoutError == nil &&
-            Set(fixture.state.presentedPlacements.map(\.member)) == Set(fixture.items.map(\.member)) &&
-            !fixture.state.camera.isAnimating && !fixture.state.camera.hasScheduledMotion &&
-            fixture.state.presentedPlacements.allSatisfy { placement in
-                guard let frame = fixture.frames[placement.id] else { return false }
-                let transform = fixture.state.camera.liveTransform
-                let expected = placement.cardFrame
-                return abs(frame.minX - (transform.x + expected.minX * transform.scale)) < 1 / window.backingScaleFactor &&
-                    abs(frame.minY - (transform.y + expected.minY * transform.scale)) < 1 / window.backingScaleFactor &&
-                    abs(frame.width - expected.width * transform.scale) < 1 / window.backingScaleFactor &&
-                    abs(frame.height - expected.height * transform.scale) < 1 / window.backingScaleFactor
+        do {
+            try await SwiftUIReplay.wait(timeout: .seconds(15)) {
+                fixture.viewport == fixture.size && fixture.state.camera.viewport?.width == fixture.size.width &&
+                fixture.state.camera.viewport?.height == fixture.size.height && !fixture.state.isLayingOut &&
+                fixture.state.layoutError == nil &&
+                Set(fixture.state.presentedPlacements.map(\.member)) == Set(fixture.items.map(\.member)) &&
+                !fixture.state.camera.isAnimating && !fixture.state.camera.hasScheduledMotion &&
+                fixture.state.presentedPlacements.allSatisfy { placement in
+                    guard let frame = fixture.frames[placement.id] else { return false }
+                    let transform = fixture.state.camera.liveTransform
+                    let expected = placement.cardFrame
+                    return abs(frame.minX - (transform.x + expected.minX * transform.scale)) < 1 / window.backingScaleFactor &&
+                        abs(frame.minY - (transform.y + expected.minY * transform.scale)) < 1 / window.backingScaleFactor &&
+                        abs(frame.width - expected.width * transform.scale) < 1 / window.backingScaleFactor &&
+                        abs(frame.height - expected.height * transform.scale) < 1 / window.backingScaleFactor
+                }
             }
+        } catch {
+            let camera = fixture.state.camera
+            print("CAPACITY viewport=\(fixture.viewport) requested=\(fixture.size) camera=\(String(describing: camera.viewport)) layout=\(fixture.state.isLayingOut) error=\(String(describing: fixture.state.layoutError)) animating=\(camera.isAnimating) scheduled=\(camera.hasScheduledMotion) scale=\(window.backingScaleFactor)")
+            for placement in fixture.state.presentedPlacements {
+                let transform = camera.liveTransform
+                let expected = placement.cardFrame
+                let projected = CGRect(x: transform.x + expected.minX * transform.scale,
+                    y: transform.y + expected.minY * transform.scale,
+                    width: expected.width * transform.scale, height: expected.height * transform.scale)
+                print("CAPACITY card=\(placement.id) actual=\(String(describing: fixture.frames[placement.id])) projected=\(projected)")
+            }
+            throw error
         }
         #expect(fixture.state.layoutError == nil)
     }

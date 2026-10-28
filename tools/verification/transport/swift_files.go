@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -105,7 +105,7 @@ func verifySwiftFiles() (failure error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--no-parallel", "--filter", "RuntimeHostFilesInteropTests")
+	command := swiftfixture.Test(ctx, "--no-parallel", "--filter", "RuntimeHostFilesInteropTests")
 	command.Env = append(os.Environ(), "MOKUSEI_SWIFT_FILES_PROFILE="+p.DataDir)
 	var output bytes.Buffer
 	command.Stdout = io.MultiWriter(os.Stdout, &output)

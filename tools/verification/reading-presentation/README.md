@@ -97,6 +97,10 @@ python3 tools/verification/reading-presentation/run.py --tag-glass
 ```
 
 This runs seven `NativeOverviewTagGlassTests` cases against production Chrome.
+CI uses `--tag-glass-captures` for the two WindowServer pixel cases, because the
+other five already run in its Swift shards. Both modes reject skips and retain
+the same assertions. A verified shared CI build avoids repeating SwiftPM build;
+ordinary local invocations still build current sources.
 They check selected-child titles, directory widths, narrow and zoomed layouts,
 menu input ownership and interrupted close/reopen transitions. The parent title
 stays frozen while its child glass returns, then updates after exit. Controls
@@ -134,8 +138,9 @@ optical frame pacing or drive the physical pointer.
 MOKUSEI_TAG_SWITCH_ARTIFACTS=/tmp/tag-switch-evidence python3 tools/verification/reading-presentation/run.py --tag-glass
 ```
 
-The optional directory retains before/during/after PNGs and `pixels.json` with
-the measured widths and corner insets. Screen-capture access is required.
+The launcher retains before/during/after PNGs and `pixels.json` under the run's
+`switch` evidence directory by default, including failed captures. The variable
+above overrides that destination. Screen-capture access is required.
 See the [recording diagnosis and native before/after evidence](evidence/switch-clipping.md).
 
 The short-child regression additionally captures this process's WindowServer
@@ -143,7 +148,8 @@ window during the production glass return animation. Its selected `OpenAgent`
 parent is wider than the single `配置修复` child, as in the reported recording.
 Pixels must extend beyond both sides of the settled child viewport below the
 parent; the old fixed-width clip paints neither strip. Set
-`MOKUSEI_TAG_MORPH_ARTIFACTS=/tmp/tag-morph-evidence` to retain PNG samples.
+`MOKUSEI_TAG_MORPH_ARTIFACTS=/tmp/tag-morph-evidence` to override the default
+`morph` evidence directory for PNG samples.
 The same artifact flag also records a fresh opening at target offsets 0/50/100/150/220/320/450ms, with actual WindowServer capture intervals in `opening-times.json`. Compare identical fixtures before and after a motion change; these are sampled keyframes, not an optical latency or FPS measurement.
 This case needs screen-capture access and skips the moving-pixel assertions
 when the system has Reduce Motion enabled. It exercises the real accessibility

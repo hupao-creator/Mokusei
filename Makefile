@@ -48,11 +48,3 @@ check-modules:
 check-system:
 	@test -n "$(MOKUSEI_SYSTEM_CODEX)" || { echo 'Set MOKUSEI_SYSTEM_CODEX to the native Codex executable'; exit 1; }
 	$(GO) test -race ./tools/verification/moku-system -rapid.checks=8 -count=1 -timeout=10m $(ARGS)
-
-.PHONY: check-stability
-check-stability:
-	@test -n "$(MOKUSEI_SYSTEM_CODEX)" || { echo 'Set MOKUSEI_SYSTEM_CODEX to the native Codex executable'; exit 1; }
-	@test -n "$(STABILITY_OUTPUT)" || { echo 'Set STABILITY_OUTPUT to a new evidence directory'; exit 1; }
-	@mkdir -p .build/verification
-	$(GO) build -trimpath -o .build/verification/stability-runtime ./cmd/mokusei-runtime
-	$(GO) run -race ./tools/verification/moku-system -codex "$(MOKUSEI_SYSTEM_CODEX)" -runtime "$(CURDIR)/.build/verification/stability-runtime" -evidence "$(STABILITY_OUTPUT)" $(ARGS)

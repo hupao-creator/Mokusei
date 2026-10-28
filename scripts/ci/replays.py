@@ -9,6 +9,8 @@ import subprocess
 import sys
 import time
 
+import deadline
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -62,7 +64,7 @@ def main():
                                "-artifacts", str(output / "settings")]),
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name])
-              for name in ["browser-dialogs", "application-navigation", "tag-glass"]],
+              for name in ["browser-dialogs", "application-navigation", "tag-glass-captures"]],
         ],
     }
     if args.group == "fixtures":
@@ -80,27 +82,27 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: sys.exit("Replay runner terminated"))
     save()
     for record in records:
+        try:
+            deadline.remaining()
+        except TimeoutError as error:
+            report.setdefault("errors", []).append(str(error))
+            save()
+            raise SystemExit(1)
         record["status"] = "running"
         save()
         print("RUN", record["name"], flush=True)
         start = time.monotonic()
-        process = None
         try:
             with (output / record["log"]).open("w") as log:
-                process = subprocess.Popen(record["command"], cwd=root, env=environment,
-                                           stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-                record["exit_code"] = process.wait(timeout=900)
+                record["exit_code"] = deadline.run(record["command"], cwd=root, env=environment,
+                                                   stdout=log, stderr=subprocess.STDOUT)
             record["status"] = "passed" if record["exit_code"] == 0 else "failed"
             text = (output / record["log"]).read_text(errors="replace")
             if re.search(r"Test Case '[^\n]+' skipped|[➜↷✘] Test [^\n]* skipped(?:[.:]| because)", text):
                 record.update(status="failed", error="Replay skipped a required native test")
-        except (OSError, subprocess.TimeoutExpired) as error:
+        except (OSError, TimeoutError, subprocess.TimeoutExpired) as error:
             record.update(status="failed", error=str(error))
         finally:
-            if process is not None and process.poll() is None:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-                record.update(status="failed", error="Interrupted or timed out; owned process group killed")
             record["seconds"] = round(time.monotonic() - start, 3)
             save()
         print(record["status"].upper(), record["name"], flush=True)

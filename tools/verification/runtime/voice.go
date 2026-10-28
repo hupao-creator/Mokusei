@@ -6,8 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -22,7 +22,7 @@ func verifySwiftVoice(ctx context.Context, r *core.Runtime, root, threadID strin
 	path := filepath.Join(root, "swift-requests.json")
 	testCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	command := exec.CommandContext(testCtx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "IntegerWireTests")
+	command := swiftfixture.Test(testCtx, "--filter", "IntegerWireTests")
 	command.Env = append(os.Environ(), "MOKUSEI_SWIFT_INTEGER_REQUESTS="+path, "MOKUSEI_SWIFT_VOICE_THREAD="+threadID)
 	command.Stdout, command.Stderr = os.Stdout, os.Stderr
 	must(command.Run())

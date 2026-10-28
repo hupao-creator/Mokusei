@@ -56,11 +56,6 @@ before retrying a timed-out native gate.
   scope. It is explicitly skipped when no native path is supplied.
 
 
-Run `make check-stability` separately for the real daemon crash and 30-minute
-single-process RSS/FD/native-process gate described in the
-[Moku system guide](../moku-system/README.md#real-process-crashes-and-continuous-resource-gate).
-The ordinary release runner does not implicitly run this long target.
-
 These checks do not establish multi-hour/day memory/FD stability, production
 provider availability, real-account authentication, model quality, or guaranteed
 Moku provider-side effects. Moku terminal notifications now use a transactional

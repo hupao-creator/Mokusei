@@ -190,11 +190,18 @@ struct NativeReportNavigationTests {
             window.sendEvent(event)
         }
         try await SwiftUIReplay.wait { fixture.backs == 1 && fixture.motion.active }
-        try await Task.sleep(for: .milliseconds(100))
-        let moving = replaced.convert(replaced.bounds, to: root)
-        #expect(moving.minX > 4 && moving.minX < root.bounds.width,
+        // active is set before the asynchronously scheduled first animation frame.
+        // Observe the presented interval instead of assuming a fixed 100ms sample.
+        var sawMovingNavigation = false
+        try await SwiftUIReplay.wait {
+            if replaced.isDescendant(of: root) {
+                let moving = replaced.convert(replaced.bounds, to: root)
+                sawMovingNavigation = sawMovingNavigation || (moving.minX > 4 && moving.minX < root.bounds.width)
+            }
+            return !fixture.open
+        }
+        #expect(sawMovingNavigation,
             "The report and back navigation must leave together, rather than leaving a root overlay behind")
-        try await SwiftUIReplay.wait { !fixture.open }
         #expect(portal(in: root) == nil)
         assertButtons(hidden: false)
     }
