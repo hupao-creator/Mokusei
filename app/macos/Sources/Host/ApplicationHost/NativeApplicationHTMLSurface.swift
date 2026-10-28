@@ -244,6 +244,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
 
     func updateNSView(_ view: HTMLDocumentContainer, context: Context) {
         context.coordinator.input = self
+        if suppressed { context.coordinator.cancelPageDialog() }
         view.onHover = onHover
         view.suppressed = suppressed
         if let document = view.documentView as? HTMLDocumentWebView {
@@ -263,6 +264,8 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         private weak var webView: WKWebView?
         private var active = true
         private var disposed = false
+        private var pageDialog: HTMLPageDialog?
+        private var cancellingPageDialog = false
         private var preloader: NativeApplicationHTMLPreloader?
         private var warmupNavigation: WKNavigation?
         private let documentURL: URL
@@ -307,6 +310,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         func dispose() {
             guard !disposed else { return }
             disposed = true; active = false
+            cancelPageDialog()
             webView?.navigationDelegate = nil; webView?.uiDelegate = nil
             webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.handler, contentWorld: Self.world)
             webView?.configuration.userContentController.removeAllUserScripts()
@@ -321,8 +325,14 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             input.onReady()
         }
 
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            cancelPageDialog()
+        }
+
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation, let url = webView.url else { return }
+            cancelPageDialog()
             // A new document owns its scroll state, including remote pages
             // reached from a Report whose navigation was collapsed.
             input.onPresentation(false)
@@ -342,6 +352,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             guard owns(webView) else { return }
             active = false
+            cancelPageDialog()
             input.onFailure(input.locale.string.hasPrefix("en")
                 ? "The HTML document process exited. Retry to reopen the document."
                 : "HTML 文档进程已退出，请重试以重新打开文档。")
@@ -350,7 +361,11 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         private func failed(_ view: WKWebView, _ error: Error) {
             let error = error as NSError
             guard owns(view), !(error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled) else { return }
+            // Policy cancellation (including rejected downloads) interrupts
+            // a provisional frame, not the already loaded Report document.
+            if error.domain == "WebKitErrorDomain" && error.code == 102 { return }
             active = false
+            cancelPageDialog()
             input.onFailure(error.localizedDescription)
         }
 
@@ -359,6 +374,9 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
             guard owns(webView), let url = action.request.url else { decisionHandler(.cancel); return }
+            if action.shouldPerformDownload {
+                decisionHandler(.cancel); rejectDownload(); return
+            }
             guard permitDirectAddress(url) else { decisionHandler(.cancel); return }
             if action.targetFrame == nil {
                 decisionHandler(.cancel)
@@ -368,10 +386,72 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             }
         }
 
+        func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse,
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void) {
+            guard owns(webView) else { decisionHandler(.cancel); return }
+            let disposition = (response.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+            guard response.canShowMIMEType, !disposition.hasPrefix("attachment") else {
+                decisionHandler(.cancel); rejectDownload(); return
+            }
+            decisionHandler(.allow)
+        }
+
+        private func rejectDownload() {
+            input.onNavigationNotice(input.locale.string.hasPrefix("en")
+                ? "Downloads are not supported in reports. The document remains open."
+                : "报告暂不支持下载，当前文档将保持打开。")
+        }
+
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             guard owns(webView), action.targetFrame == nil else { return nil }
             openNewWindowRequest(action.request); return nil
+        }
+
+        func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor ([URL]?) -> Void) {
+            guard owns(webView), !input.suppressed, pageDialog == nil, let window = webView.window, window.attachedSheet == nil else { completionHandler(nil); return }
+            let panel = NSOpenPanel()
+            panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+            panel.canChooseDirectories = parameters.allowsDirectories
+            panel.canChooseFiles = !parameters.allowsDirectories
+            panel.beginSheetModal(for: window, completionHandler: ownPageDialog(panel) { response in
+                completionHandler(response == .OK ? panel.urls : nil)
+            })
+        }
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor () -> Void) {
+            guard owns(webView), !input.suppressed, pageDialog == nil, let window = webView.window, window.attachedSheet == nil else { completionHandler(); return }
+            let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: (input.locale.string.hasPrefix("en") ? "OK" : "好"))
+            alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { _ in completionHandler() })
+        }
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor (Bool) -> Void) {
+            guard owns(webView), !input.suppressed, pageDialog == nil, let window = webView.window, window.attachedSheet == nil else { completionHandler(false); return }
+            let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: (input.locale.string.hasPrefix("en") ? "OK" : "好")); alert.addButton(withTitle: (input.locale.string.hasPrefix("en") ? "Cancel" : "取消"))
+            alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { completionHandler($0 == .alertFirstButtonReturn) })
+        }
+        func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor (String?) -> Void) {
+            guard owns(webView), !input.suppressed, pageDialog == nil, let window = webView.window, window.attachedSheet == nil else { completionHandler(nil); return }
+            let alert = NSAlert(); alert.messageText = String(prompt.prefix(4000)); alert.addButton(withTitle: (input.locale.string.hasPrefix("en") ? "OK" : "好")); alert.addButton(withTitle: (input.locale.string.hasPrefix("en") ? "Cancel" : "取消"))
+            let field = NSTextField(string: defaultText ?? ""); field.frame = CGRect(x: 0, y: 0, width: 300, height: 24); alert.accessoryView = field
+            alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { completionHandler($0 == .alertFirstButtonReturn ? field.stringValue : nil) })
+        }
+        private func ownPageDialog(_ sheet: NSWindow, completion: @escaping (NSApplication.ModalResponse) -> Void) -> (NSApplication.ModalResponse) -> Void {
+            let dialog = HTMLPageDialog(sheet: sheet, completion: completion)
+            pageDialog = dialog
+            return { [weak self, dialog] response in
+                sheet.orderOut(nil)
+                if self?.pageDialog === dialog, self?.cancellingPageDialog != true { self?.pageDialog = nil }
+                dialog.finish(response)
+            }
+        }
+        func cancelPageDialog() {
+            guard !cancellingPageDialog, let dialog = pageDialog else { return }
+            // Keep the slot occupied while WebKit receives cancellation, so the
+            // departing page cannot replace its dialog, even if its callback starts
+            // another navigation or pumps AppKit's sheet completion reentrantly.
+            cancellingPageDialog = true
+            defer { cancellingPageDialog = false }
+            dialog.cancel()
+            if pageDialog === dialog { pageDialog = nil }
         }
 
         private func openNewWindowRequest(_ request: URLRequest) {
@@ -1070,5 +1150,31 @@ private final class HTMLDocumentWebView: WKWebView {
         zoomPreferences?.setLevel(level, for: zoomHostname)
         pageZoom = HTMLZoomPreferences.visibleFactor(level)
         updateSafeArea()
+    }
+}
+
+/// Sheets belong to the page session, not the host window. Retiring a page must
+/// resolve WebKit's callback even if AppKit delivers its sheet completion later.
+@MainActor
+private final class HTMLPageDialog {
+    private let sheet: NSWindow
+    private var completion: ((NSApplication.ModalResponse) -> Void)?
+
+    init(sheet: NSWindow, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        self.sheet = sheet; self.completion = completion
+    }
+    func finish(_ response: NSApplication.ModalResponse) {
+        let action = completion
+        completion = nil
+        action?(response)
+    }
+    func cancel() {
+        guard completion != nil else { return }
+        // Complete with cancellation before ending the sheet: a queued OK
+        // response must never deliver selected files to a retired page.
+        finish(.cancel)
+        if let panel = sheet as? NSSavePanel { panel.cancel(nil) }
+        else { sheet.sheetParent?.endSheet(sheet, returnCode: .cancel) }
+        sheet.orderOut(nil)
     }
 }

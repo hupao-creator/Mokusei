@@ -62,7 +62,7 @@ assigned Go/Swift or isolated AppKit replays serially; scheduling weights balanc
 the combined workload. Tests within one graphical session remain serial.
 Only the two capture-dependent tag-glass methods need the
 standalone host; its other five methods already execute in the Swift shards.
-The four input/responder methods deferred by the browser, history composer and
+The five input/responder and native-panel methods deferred by the browser, history composer and
 Report suites share one isolated host, without repeating their other methods.
 The Go producer also exports this attempt's warmed race and ordinary build caches;
 downstream jobs do not depend on an older immutable dependency-cache entry.

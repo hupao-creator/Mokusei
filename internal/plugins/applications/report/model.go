@@ -9,7 +9,6 @@ import (
 	"html"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,6 +16,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
 	"github.com/hupao-creator/Mokusei/internal/services/taglabel"
+	htmlnode "golang.org/x/net/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -226,71 +226,45 @@ func summarize(record model.VersionedRecord, value Data) Summary {
 	return Summary{ID: record.ID, Revision: record.Revision, Title: value.Title, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, RelatedThreadCount: len(value.RelatedExecutions), TagCount: len(ProjectTags(value).Tags), Archived: value.Archived}
 }
 
-var tagName = regexp.MustCompile(`(?i)^\s*(/?)\s*([a-z][\w:-]*)`)
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}
 
-// HTMLPreview scans once and never executes, sanitizes, or rewrites the document.
+// HTMLPreview parses static reader text without executing or rewriting the document.
 func HTMLPreview(source, title string) string { return htmlReaderText(source, title, MaxPreviewLength) }
 
-// HTMLSearchText shares the established reader-text scan, without the card's
+// HTMLSearchText shares the reader-text projection, without the card's
 // excerpt truncation. It never executes script, reads files or loads resources.
 func HTMLSearchText(source string) string { return htmlReaderText(source, "", 0) }
 
 func htmlReaderText(source, title string, limit int) string {
 	var visible strings.Builder
-	// HTML tag names are ASCII. Full Unicode lowercasing may change byte length
-	// and invalidate the offsets used to skip non-reader content below.
-	lower := asciiLower(source)
-	for cursor := 0; cursor < len(source); {
-		relative := strings.IndexByte(source[cursor:], '<')
-		if relative < 0 {
-			visible.WriteString(source[cursor:])
-			break
-		}
-		start := cursor + relative
-		visible.WriteString(source[cursor:start])
-		if strings.HasPrefix(source[start:], "<!--") {
-			end := strings.Index(source[start+4:], "-->")
-			if end < 0 {
-				break
-			}
-			cursor = start + 4 + end + 3
-			visible.WriteByte(' ')
-			continue
-		}
-		end := htmlTagEnd(source, start+1)
-		if end < 0 {
-			visible.WriteString(source[start:])
-			break
-		}
-		tag := source[start+1 : end]
-		match := tagName.FindStringSubmatch(tag)
-		if match == nil {
-			if strings.HasPrefix(strings.TrimSpace(tag), "!") || strings.HasPrefix(strings.TrimSpace(tag), "?") {
-				visible.WriteByte(' ')
-			} else {
-				visible.WriteString(source[start : end+1])
-			}
-			cursor = end + 1
-			continue
-		}
-		name := strings.ToLower(match[2])
-		if match[1] == "" && !strings.HasSuffix(strings.TrimSpace(tag), "/") && hiddenTags[name] {
-			closing := findClosingTag(lower, name, end+1)
-			if closing < 0 {
-				break
-			}
-			closingEnd := htmlTagEnd(source, closing+1)
-			if closingEnd < 0 {
-				break
-			}
-			cursor = closingEnd + 1
-		} else {
-			cursor = end + 1
-		}
-		visible.WriteByte(' ')
+	// The tree builder owns namespace changes, HTML integration points and
+	// raw-text/RCDATA state. A tokenizer alone treats SVG <style/> as an
+	// unclosed HTML style element and consumes the remaining document.
+	root, err := htmlnode.Parse(strings.NewReader(source))
+	if err != nil {
+		root = recoverReaderHTMLPrefix(source)
 	}
-	text := strings.Join(strings.Fields(decodePreviewEntities(visible.String())), " ")
+	var visit func(*htmlnode.Node)
+	visit = func(node *htmlnode.Node) {
+		if node.Type == htmlnode.ElementNode && hiddenTags[node.Data] {
+			return
+		}
+		block := node.Type == htmlnode.ElementNode && node.Namespace == "" && readerBlockTags[node.Data]
+		if block {
+			visible.WriteByte(' ')
+		}
+		if node.Type == htmlnode.TextNode {
+			visible.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+		if block {
+			visible.WriteByte(' ')
+		}
+	}
+	visit(root)
+	text := strings.Join(strings.Fields(visible.String()), " ")
 	normalizedTitle := strings.Join(strings.Fields(title), " ")
 	if normalizedTitle != "" && strings.HasPrefix(text, normalizedTitle) {
 		rest := strings.TrimPrefix(text, normalizedTitle)
@@ -304,90 +278,42 @@ func htmlReaderText(source, title string, limit int) string {
 	}
 	return text
 }
-func asciiLower(value string) string {
-	data := []byte(value)
-	for index, c := range data {
-		if c >= 'A' && c <= 'Z' {
-			data[index] = c + ('a' - 'A')
+
+// Parse discards its partial tree on depth-limit and internal parser errors.
+// Reparse bounded prefixes with the same HTML tree builder rather than guessing
+// at text after a lost template/foreign-content context. Only successful trees
+// are eligible for projection; even an unexpected parser error degrades safely.
+// The search makes at most log2(len(source))+1 attempts and never splits UTF-8.
+func recoverReaderHTMLPrefix(source string) *htmlnode.Node {
+	root := &htmlnode.Node{Type: htmlnode.DocumentNode}
+	low, high := 0, len(source)-1
+	for low < high {
+		end := low + (high-low+1)/2
+		for end > low && !utf8.RuneStart(source[end]) {
+			end--
+		}
+		if end == low {
+			break
+		}
+		candidate, err := htmlnode.Parse(strings.NewReader(source[:end]))
+		if err != nil {
+			high = end - 1
+		} else {
+			root = candidate
+			low = end
 		}
 	}
-	return string(data)
+	return root
 }
 
-var previewEntity = regexp.MustCompile(`(?i)&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);`)
-var previewNames = map[string]string{"amp": "&", "apos": "'", "copy": "©", "gt": ">", "hellip": "…", "lt": "<", "mdash": "—", "middot": "·", "nbsp": " ", "ndash": "–", "quot": "\"", "reg": "®"}
-
-func decodePreviewEntities(value string) string {
-	return previewEntity.ReplaceAllStringFunc(value, func(entity string) string {
-		name := entity[1 : len(entity)-1]
-		if strings.HasPrefix(name, "#") {
-			base := 10
-			digits := name[1:]
-			if strings.HasPrefix(digits, "x") || strings.HasPrefix(digits, "X") {
-				base = 16
-				digits = digits[1:]
-			}
-			point, err := strconv.ParseUint(digits, base, 32)
-			if err != nil || point == 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff) {
-				return " "
-			}
-			return string(rune(point))
-		}
-		if decoded, ok := previewNames[strings.ToLower(name)]; ok {
-			return decoded
-		}
-		return entity
-	})
-}
-func htmlTagEnd(source string, start int) int {
-	var quote byte
-	state := byte(0)
-	declaration := start < len(source) && (source[start] == '!' || source[start] == '?')
-	space := func(c byte) bool { return strings.ContainsRune("\t\n\f\r ", rune(c)) }
-	for index := start; index < len(source); index++ {
-		c := source[index]
-		switch {
-		case quote != 0:
-			if c == quote {
-				quote = 0
-			}
-		case declaration && (c == '\'' || c == '"'):
-			quote = c
-		case c == '>':
-			return index
-		case state == 1:
-			if space(c) {
-				continue
-			}
-			if c == '\'' || c == '"' {
-				quote = c
-				state = 0
-			} else {
-				state = 2
-			}
-		case state == 2:
-			if space(c) {
-				state = 0
-			}
-		case c == '=':
-			state = 1
-		}
-	}
-	return -1
-}
-func findClosingTag(source, name string, start int) int {
-	prefix := "</" + name
-	for start < len(source) {
-		offset := strings.Index(source[start:], prefix)
-		if offset < 0 {
-			return -1
-		}
-		candidate := start + offset
-		end := candidate + len(prefix)
-		if end == len(source) || strings.ContainsRune(" \t\n\r\f/>", rune(source[end])) {
-			return candidate
-		}
-		start = end
-	}
-	return -1
+// Structural boundaries separate words; inline markup and comments do not.
+var readerBlockTags = map[string]bool{
+	"address": true, "article": true, "aside": true, "blockquote": true,
+	"br": true, "dd": true, "details": true, "dialog": true, "div": true,
+	"dl": true, "dt": true, "fieldset": true, "figcaption": true, "figure": true,
+	"footer": true, "form": true, "h1": true, "h2": true, "h3": true,
+	"h4": true, "h5": true, "h6": true, "header": true, "hr": true,
+	"li": true, "main": true, "nav": true, "ol": true, "p": true,
+	"pre": true, "section": true, "summary": true, "table": true,
+	"td": true, "th": true, "tr": true, "ul": true, "textarea": true,
 }
