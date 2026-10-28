@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import MokuseiPluginUI
 
 /// The source settings page owns Escape at document scope. Native text editors
 /// and popup menus keep their own composing/tracking cancellation first.
@@ -38,6 +39,16 @@ struct NativeSettingsEscapeHandler: NSViewRepresentable {
                     guard let self, let window = self.window, event.window === window, !self.isHiddenOrHasHiddenAncestor,
                           event.keyCode == 53, self.menus.isEmpty,
                           (window.firstResponder as? NSTextInputClient)?.hasMarkedText() != true else { return false }
+                    // Transient NSPopovers can leave key events addressed to
+                    // their anchor window. Cancel the focused control's popup
+                    // before this monitor consumes Escape as page navigation.
+                    var responder = window.firstResponder
+                    while let current = responder, current !== window {
+                        if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true {
+                            return true
+                        }
+                        responder = current.nextResponder
+                    }
                     self.close()
                     return true
                 }
