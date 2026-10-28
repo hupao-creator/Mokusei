@@ -76,7 +76,8 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 native insertion rectangle. The core is white in dark appearance and uses native
 ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
-ellipses plus a 4.6-point gradient fringe. The transparent glow image is rendered
+ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
+the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
 once per caret height/backing scale and its opacity is animated by Core Animation;
 no per-frame SwiftUI rendering or timer is needed. Emphasized editors place their
 existing padding inside the native text viewport, preserving glyph positions while

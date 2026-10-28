@@ -323,7 +323,8 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         let scale = CGFloat(image.width) / root.bounds.width
         let bitmap = NSBitmapImageRep(cgImage: image)
         let foreground = bitmap.colorAt(x: Int(rect.midX * scale), y: Int(rect.midY * scale))!.usingColorSpace(.sRGB)!
-        let background = bitmap.colorAt(x: Int((rect.midX + 14) * scale), y: Int(rect.midY * scale))!.usingColorSpace(.sRGB)!
+        // Sample above the line: a point to the right can hit placeholder ink.
+        let background = bitmap.colorAt(x: Int((rect.midX + 14) * scale), y: Int((rect.minY - 12) * scale))!.usingColorSpace(.sRGB)!
         func luminance(_ color: NSColor) -> Double {
             func linear(_ value: CGFloat) -> Double {
                 let value = Double(value)
@@ -380,7 +381,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         for _ in 0..<26 {
             try await Task.sleep(for: .milliseconds(100))
             try require(caret.superlayer != nil && !caret.isHidden,
-                        "Native blinking interrupted the breathing caret; key=\(window.isKeyWindow), active=\(NSApp.isActive), focused=\(window.firstResponder === input)")
+                        "Native blinking interrupted the breathing caret; key=\(window.isKeyWindow), active=\(NSApp.isActive), focused=\(window.firstResponder === input), frontmost=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown")")
             opacitySamples.append(core.presentation()?.opacity ?? core.opacity)
         }
         try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,

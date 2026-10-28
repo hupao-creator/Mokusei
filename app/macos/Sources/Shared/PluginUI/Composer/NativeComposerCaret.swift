@@ -112,18 +112,19 @@ private struct ComposerCaretGlow: View {
     let height: CGFloat
 
     var body: some View {
+        let scale = height / 25
         ZStack {
             Ellipse().fill(Color(red: 1, green: 0.78, blue: 0.21))
-                .frame(width: 16, height: height * 0.68)
-                .blur(radius: 10).offset(y: -height * 0.24).opacity(0.65)
+                .frame(width: 16 * scale, height: height * 0.68)
+                .blur(radius: 10 * scale).offset(y: -height * 0.24).opacity(0.65)
             Ellipse().fill(Color(red: 0.24, green: 0.66, blue: 1))
-                .frame(width: 14, height: height * 0.60)
-                .blur(radius: 9).offset(y: height * 0.25).opacity(0.65)
+                .frame(width: 14 * scale, height: height * 0.60)
+                .blur(radius: 9 * scale).offset(y: height * 0.25).opacity(0.65)
             Capsule().fill(LinearGradient(colors: [
                 Color(red: 1, green: 0.93, blue: 0.61), .white,
                 Color(red: 0.72, green: 0.9, blue: 1)
             ], startPoint: .top, endPoint: .bottom))
-                .frame(width: 4.6, height: height).blur(radius: 3).opacity(0.8)
+                .frame(width: 4.6, height: height).blur(radius: 3 * scale).opacity(0.8)
         }
         .frame(width: 80, height: height + 80)
     }
