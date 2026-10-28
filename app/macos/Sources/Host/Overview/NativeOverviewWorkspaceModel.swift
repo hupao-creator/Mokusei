@@ -58,6 +58,10 @@ public final class NativeOverviewWorkspaceModel {
     public var visibleFilters: [NativeOverviewFilter] { filters.filter { $0.count > 0 } }
     public private(set) var sceneKey = "\u{0}default"
     public private(set) var items: [NativeOverviewItem] = []
+    /// Global eligible cards, before tags/search and report coverage. Nil means
+    /// no catalog has been projected yet; an unloaded workspace is not empty.
+    public private(set) var globalConversationCount: Int?
+    public private(set) var hasEstablishedConversation = false
     public private(set) var revisions: [NativeOverviewLayoutRevision] = []
     public private(set) var recoveryEpoch: UInt64 = 0
     public private(set) var operations: [NativeOverviewMokuOperation] = []
@@ -86,6 +90,7 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private(set) var filterContextFacts: [JSONValue] = []
     @ObservationIgnored private var filterMembers: [String: NativeOverviewMembership] = [:]
     @ObservationIgnored private var allMembers = NativeOverviewMembership()
+    @ObservationIgnored private var globalThreadIDs = Set<JSONText>()
     @ObservationIgnored private var overviewEntries: [ApplicationThreadRef: (JSONValue, NativeOverviewApplicationEntry)] = [:]
     @ObservationIgnored private var operationProjectionReady = false
     @ObservationIgnored private var operationTranscript: JSONValue?
@@ -426,6 +431,10 @@ public final class NativeOverviewWorkspaceModel {
         filterMembers.removeAll(keepingCapacity: true)
         allMembers = NativeOverviewMembership(collection(tags: [], kind: nil))
         let candidates = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)
+        globalConversationCount = workspace.catalog.revision >= 0 ? candidates.count : nil
+        globalThreadIDs = Set(candidates.threads.map(\.id))
+        hasEstablishedConversation = !candidates.applications.isEmpty
+            || candidates.threads.contains { $0.observation.latestExecution != nil }
         // The same few labels recur across many cards and child selections.
         // This synchronous rebuild owns the memo; nothing survives a locale,
         // catalog or authority change, and no raw catalog content is retained.
@@ -470,6 +479,8 @@ public final class NativeOverviewWorkspaceModel {
                 "aliases": .array(filter.aliases.map(JSONValue.text)), "count": .integer(filter.count), "threads": .array(threads)])
         }
     }
+
+    func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
     private func project(_ collection: NativeOverviewCollection) throws -> [NativeOverviewItem] {
         var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
@@ -592,6 +603,7 @@ public final class NativeOverviewWorkspaceModel {
         try? await workspace.client.updateOverviewContext(nil)
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
         membershipFacts = nil; filterMembers.removeAll(); allMembers = .init(); applicationsByRef.removeAll()
+        globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
     }
 }
 

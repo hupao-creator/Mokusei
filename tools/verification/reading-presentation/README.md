@@ -1,8 +1,37 @@
 # Reading-page background presentation replay
 
+## Empty workspace and first dispatch
+
+```sh
+python3 tools/verification/reading-presentation/run.py --moku-landing
+```
+
+Runs six `NativeMokuLandingTests` against the production workspace, catalog,
+Overview and Moku presentation. The real shell waits for Moku hydration before
+centering. Installed public snapshots cover durable shells before native admission,
+failed dispatch, a successful result followed by Talk/another pending creation,
+global membership versus scoped search, archive/delete reentry, directory-only
+documents and snapshot rehydration. Mounted production surfaces also check Talk
+beside the live editor, failed submission draft retention, Escape, narrow resize,
+Settings/history cover and remount.
+
+Catalog transactions pass through the actual preparation/installation boundary.
+Fixture send callbacks replace unavailable remote admission; no Runtime, model
+provider, installed profile or microphone is used. The independent
+[Moku backend replay](../moku/README.md) verifies actual creation/admission and audit
+records. The [visual demo](../../../demos/moku-landing/README.md) additionally checks
+cursor movement, light/dark pixel contrast and attachment layout. These are native
+behavior checks, not optical frame pacing. The launcher requires all six cases
+without skips; plain headless Swift runs explicitly skip this display-dependent suite.
+
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
+
+CI uses `--isolated-input` to compile the same history-composer, browser-viewport
+and Report test sources into one AppKit host. It executes exactly the four
+input/responder methods deferred by SwiftPM, requiring all four to pass without
+skips, while their remaining methods execute in the normal Swift shards.
 
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
@@ -129,6 +158,17 @@ python3 tools/verification/reading-presentation/run.py --tag-glass
 ```
 
 This runs seven `NativeOverviewTagGlassTests` cases against production Chrome.
+CI uses `--tag-glass-captures` for the two WindowServer pixel cases, because the
+other five already run in its Swift shards. Both modes reject skips and retain
+the same assertions. A verified shared CI build avoids repeating SwiftPM build;
+ordinary local invocations still build current sources.
+WindowServer capture explicitly scales to the requested two-pixels-per-point
+buffer. On a 1x screen the default only downsizes, leaving padded space instead
+of the 2x coordinates required by the unchanged pixel assertions.
+Moving frames use a WindowServer stream started before input. Complete pixel
+buffers are copied off the main actor; pixel scans and PNG/JSON writes happen
+after capture stops, so they cannot consume the short animation. Reading-page
+opacity samples use the actual AppKit front position and one shared bitmap.
 They check selected-child titles, directory widths, narrow and zoomed layouts,
 menu input ownership and interrupted close/reopen transitions. The parent title
 stays frozen while its child glass returns, then updates after exit. Controls
@@ -166,8 +206,9 @@ optical frame pacing or drive the physical pointer.
 MOKUSEI_TAG_SWITCH_ARTIFACTS=/tmp/tag-switch-evidence python3 tools/verification/reading-presentation/run.py --tag-glass
 ```
 
-The optional directory retains before/during/after PNGs and `pixels.json` with
-the measured widths and corner insets. Screen-capture access is required.
+The launcher retains before/during/after PNGs and `pixels.json` under the run's
+`switch` evidence directory by default, including failed captures. The variable
+above overrides that destination. Screen-capture access is required.
 See the [recording diagnosis and native before/after evidence](evidence/switch-clipping.md).
 
 The short-child regression additionally captures this process's WindowServer
@@ -175,7 +216,8 @@ window during the production glass return animation. Its selected `OpenAgent`
 parent is wider than the single `配置修复` child, as in the reported recording.
 Pixels must extend beyond both sides of the settled child viewport below the
 parent; the old fixed-width clip paints neither strip. Set
-`MOKUSEI_TAG_MORPH_ARTIFACTS=/tmp/tag-morph-evidence` to retain PNG samples.
+`MOKUSEI_TAG_MORPH_ARTIFACTS=/tmp/tag-morph-evidence` to override the default
+`morph` evidence directory for PNG samples.
 The same artifact flag also records a fresh opening at target offsets 0/50/100/150/220/320/450ms, with actual WindowServer capture intervals in `opening-times.json`. Compare identical fixtures before and after a motion change; these are sampled keyframes, not an optical latency or FPS measurement.
 This case needs screen-capture access and skips the moving-pixel assertions
 when the system has Reduce Motion enabled. It exercises the real accessibility

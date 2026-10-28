@@ -18,6 +18,16 @@ import MokuseiUI
     @ObservationIgnored var frontAppearances = 0
     @ObservationIgnored var renderedText = ""
     @ObservationIgnored var historyContentTop: CGFloat?
+    @ObservationIgnored weak var frontProbe: NSView?
+}
+private struct ReadingFrontProbe: NSViewRepresentable {
+    let fixture: ReadingFixture
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        fixture.frontProbe = view
+        return view
+    }
+    func updateNSView(_ view: NSView, context: Context) {}
 }
 private struct ReadingReplay: View {
     let fixture: ReadingFixture
@@ -27,7 +37,8 @@ private struct ReadingReplay: View {
             onClose: { fixture.open = false }) {
             Text(fixture.text).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 1, green: 0, blue: 0)).onAppear { fixture.parentAppearances += 1 }
                 .onChange(of: fixture.text, initial: true) { _, text in fixture.renderedText = text }
-        } front: { Text("Conversation detail").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 0, green: 0, blue: 1)).onAppear { fixture.frontAppearances += 1 } }
+        } front: { Text("Conversation detail").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 0, green: 0, blue: 1))
+                .background(ReadingFrontProbe(fixture: fixture)).onAppear { fixture.frontAppearances += 1 } }
     }
 }
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
@@ -71,12 +82,14 @@ struct NativeReadingPagePresentationTests {
         try await SwiftUIReplay.wait { !fixture.open && fixture.renderedText == "Latest overview" }
         #expect(fixture.parentAppearances == count)
     }
-    private func pixel(_ window: NSWindow, x: Double) throws -> NSColor {
+    private func pixels(_ window: NSWindow) throws -> (left: NSColor, right: NSColor) {
         let root = try #require(window.contentView)
         let bitmap = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
         root.cacheDisplay(in: root.bounds, to: bitmap)
-        return try #require(bitmap.colorAt(x: Int(Double(bitmap.pixelsWide) * x),
-            y: bitmap.pixelsHigh / 3)?.usingColorSpace(.sRGB))
+        return try (#require(bitmap.colorAt(x: Int(Double(bitmap.pixelsWide) * 0.1),
+            y: bitmap.pixelsHigh / 3)?.usingColorSpace(.sRGB)),
+            #require(bitmap.colorAt(x: Int(Double(bitmap.pixelsWide) * 0.95),
+            y: bitmap.pixelsHigh / 3)?.usingColorSpace(.sRGB)))
     }
 
     @Test func ordinaryDetailSlidesOpaqueOverTheVisibleOverview() async throws {
@@ -85,11 +98,18 @@ struct NativeReadingPagePresentationTests {
         let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
         defer { window.close() }
         try await SwiftUIReplay.wait { fixture.parentAppearances == 1 }
-        let baseline = try pixel(window, x: 0.1)
+        let baseline = try pixels(window).left
+        let root = try #require(window.contentView)
         fixture.open = true
         try await SwiftUIReplay.wait { fixture.motion.active && fixture.frontAppearances == 1 }
-        try await Task.sleep(for: .milliseconds(500))
-        let left = try pixel(window, x: 0.1), right = try pixel(window, x: 0.95)
+        // active precedes asynchronous animation preparation. Measure the real
+        // AppKit front before reading both pixels from one coherent frame.
+        try await SwiftUIReplay.wait {
+            guard fixture.motion.active, let probe = fixture.frontProbe else { return false }
+            let frame = probe.convert(probe.bounds, to: root)
+            return frame.minX > root.bounds.width * 0.4 && frame.minX < root.bounds.width * 0.75
+        }
+        let (left, right) = try pixels(window)
         // Compare with the rendered baseline to accommodate display color
         // management. Fading exposes the gray window and loses red contrast.
         #expect(left.redComponent - left.greenComponent >

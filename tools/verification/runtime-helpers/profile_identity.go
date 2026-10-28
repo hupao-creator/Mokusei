@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 func verifyProfileIdentity() error {
@@ -142,7 +142,7 @@ func verifyProfileIdentity() error {
 		if err = os.WriteFile(path, data, 0600); err != nil {
 			return err
 		}
-		command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "RuntimeShutdownInteropTests/testCanonicalProfileIdentity")
+		command := swiftfixture.Test(ctx, "--filter", "RuntimeShutdownInteropTests/testCanonicalProfileIdentity")
 		command.Env = append(os.Environ(), "MOKUSEI_PROFILE_IDENTITY_MANIFEST="+path)
 		var output bytes.Buffer
 		command.Stdout, command.Stderr = io.MultiWriter(os.Stdout, &output), os.Stderr

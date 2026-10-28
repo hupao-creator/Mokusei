@@ -59,6 +59,18 @@ media events are fixed local fixtures.
   Replacement rechecks work admitted after the save and fences concurrent native
   admission. The new Harness receives the exact note on its next input; switching
   back preserves an empty note without an extra model request.
+
+- Successor configuration adoption when terminal publication races context
+  collection or a native follow-up rejection, across typed inputs, lifecycle
+  events and the durable outbox. Unknown/wrapped admission failures retain the
+  uncertain delivery instead of automatically replaying it.
+- Same-owner relay media and exact spoken-result identity across model, routing,
+  target-selection and target-catalog changes; retired tools, host replacement
+  and failed cleanup still enforce their ownership boundaries.
+- Native voice configuration reconnection, preserved unadmitted handoffs,
+  settings reverted after a reconnect token, retained device ownership,
+  Stop/cleanup-failure rejection and slow settings admission without blocking
+  media polling. Pending speech prevents premature reconnection.
 - Readable initial Moku shells even when native Probe/Describe fails or blocks,
   restoration of an unapplied shell, atomic configured replacement, and restart
   settlement of unfinished tool and assistant audit entries.

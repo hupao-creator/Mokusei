@@ -18,6 +18,8 @@ struct NativeComposerEditor: NSViewRepresentable {
     var onSubmit: () -> Void
     var onEscape: (() -> Void)?
     var submitOnReturn = false
+    var emphasizedInsertionPoint = false
+    var reduceCaretMotion = false
     var onPaste: (([NSItemProvider], NSRange) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -98,6 +100,8 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.pasteAttachments = unavailable ? nil : onPaste
         editor.isEditable = !unavailable
         editor.isSelectable = !unavailable
+        editor.emphasizedInsertionPoint = emphasizedInsertionPoint
+        editor.reduceCaretMotion = reduceCaretMotion
         scroll.hasVerticalScroller = showsScroller
         coordinator.applySelectionRequest()
         if let window = editor.window {
@@ -201,6 +205,16 @@ struct NativeComposerEditor: NSViewRepresentable {
     var focusChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?
     var pasteAttachments: (([NSItemProvider], NSRange) -> Void)?
+    var emphasizedInsertionPoint = false {
+        didSet {
+            guard emphasizedInsertionPoint != oldValue else { return }
+            if emphasizedInsertionPoint { wantsLayer = true }
+            caret.remove()
+            needsDisplay = true
+        }
+    }
+    var reduceCaretMotion = false { didSet { caret.reduceMotion = reduceCaretMotion } }
+    private let caret = NativeComposerCaret()
     private(set) var operationDepth = 0
     private func editing(_ operation: () -> Void) {
         operationDepth += 1
@@ -224,6 +238,35 @@ struct NativeComposerEditor: NSViewRepresentable {
     override func keyDown(with event: NSEvent) {
         if hasMarkedText() || handleKey?(event) != true { super.keyDown(with: event) }
     }
+    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
+        guard emphasizedInsertionPoint, !hasMarkedText() else {
+            caret.remove()
+            super.drawInsertionPoint(in: rect, color: color, turnedOn: flag)
+            return
+        }
+        guard shouldDrawInsertionPoint, window?.isKeyWindow == true,
+              !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
+            caret.remove()
+            return
+        }
+        // AppKit owns color and blink cadence, including appearance changes.
+        if flag { caret.show(at: rect, color: color, in: self) }
+        else { caret.hide() }
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: nil)
+        caret.remove()
+        if let window {
+            for name in [NSWindow.didResignKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
+                NotificationCenter.default.addObserver(self, selector: #selector(caretWindowChanged), name: name, object: window)
+            }
+        }
+    }
+    @objc private func caretWindowChanged() {
+        if window?.isKeyWindow != true || window?.occlusionState.contains(.visible) != true { caret.remove() }
+    }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted { focusChanged?() }
@@ -231,7 +274,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     }
     override func resignFirstResponder() -> Bool {
         let accepted = super.resignFirstResponder()
-        if accepted { focusChanged?() }
+        if accepted { caret.remove(); focusChanged?() }
         return accepted
     }
 }

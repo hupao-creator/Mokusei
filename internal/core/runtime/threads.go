@@ -340,6 +340,20 @@ func (h *threadHandle) commit(ctx context.Context, state json.RawMessage, cancel
 	return nil
 }
 func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.RawMessage, error)) (string, error) {
+	// Moku's native starts must see one saved/applied configuration through
+	// durable admission. Take this gate before the execution locks, matching
+	// ordinary sends and avoiding a settings-save/native-start lock inversion.
+	h.mu.Lock()
+	configuredAdmission := h.beforeNativeAdmission != nil
+	h.mu.Unlock()
+	if configuredAdmission {
+		unlock, err := h.runtime.configurationLock(ctx)
+		if err != nil {
+			return "", err
+		}
+		defer unlock()
+		ctx = context.WithValue(ctx, configurationContextKey{}, h.runtime)
+	}
 	cancellation, releaseCancellation := h.runtime.cancellationState(h.id)
 	defer releaseCancellation()
 	cancellation.mu.Lock()
@@ -852,6 +866,10 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 		executionID = e.ExecutionID
 		started = false
 	} else {
+		if err := r.checkMokuSendConfiguration(t); err != nil {
+			unlockAdmission()
+			return SendResult{}, err
+		}
 		executionID, err = newID()
 		if err != nil {
 			unlockAdmission()
@@ -1048,6 +1066,9 @@ func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, a
 	if e := t.Observation.LatestExecution; e == nil || e.ExecutionID != admission.executionID || !e.Terminal() {
 		return "", errors.New("ended execution has no durable terminal outcome")
 	}
+	if err := r.checkMokuSendConfiguration(t); err != nil {
+		return "", err
+	}
 	id, err := newID()
 	if err != nil {
 		return "", err
@@ -1062,6 +1083,25 @@ func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, a
 	owner.currentExecution = id
 	owner.mu.Unlock()
 	return id, nil
+}
+
+func (r *Runtime) checkMokuSendConfiguration(thread model.ThreadRecord) error {
+	if !thread.Moku || thread.Observation.BackgroundWork != nil {
+		// Native background work pins the handle's configuration even after its
+		// foreground execution ends. New foreground input can use that same
+		// admitted configuration until the background owner has drained.
+		return nil
+	}
+	change, err := r.MokuConfigurationChange(thread.HarnessID)
+	if err != nil {
+		return err
+	}
+	if change.Applied != nil && change.Pending {
+		// The old execution may finish after the coordinator prepares its
+		// follow-up. Return before reserving a successor with that old profile.
+		return plugin.ErrMokuConfigurationPending
+	}
+	return nil
 }
 
 func (r *Runtime) settleSendFailure(owner *threadHandle, id string, cause error) {

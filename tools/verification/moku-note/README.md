@@ -27,6 +27,9 @@ resources use the packaged `Contents/Resources` path. A startup guard validates
 the paths and bundles before mounting Cocoa and writes `runtime-isolation.json`
 with its PID, cwd, arguments and resource paths. `launch.json`, stdout/stderr,
 the result and `cleanup.json` are retained with the evidence.
+Exposure failures also print the submission/catalog events, foreground state and
+mounted viewport/tracker diagnostics. They distinguish a missing completed view
+from a rejected Runtime receipt without changing arming or coverage admission.
 
 Finish SwiftPM builds before staging. Native replays acquire one nonblocking
 graphical-session lock. `--isolation-only` validates packaging without mounting

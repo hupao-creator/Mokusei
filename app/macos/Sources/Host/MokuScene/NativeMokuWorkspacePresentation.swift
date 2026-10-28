@@ -32,6 +32,7 @@ public final class NativeMokuWorkspacePresentation {
     public private(set) var dockMode: MokuCharacterMode = .idle
     public private(set) var running = false
     public private(set) var sessionIdle = true
+    public private(set) var landing = false
     public private(set) var tagAgentRunning = false
     public private(set) var talk: String?
     public private(set) var talkID: JSONText?
@@ -69,6 +70,7 @@ public final class NativeMokuWorkspacePresentation {
     @ObservationIgnored private var harnessPresentation: HarnessMokuPresentation?
     @ObservationIgnored private var requestedPresenting = false
     @ObservationIgnored private var queue = NativeMokuDisplayQueue()
+    @ObservationIgnored private var landingInitialized = false
 
     public init(workspace: NativeWorkspaceModel, overview: NativeOverviewWorkspaceModel) {
         self.workspace = workspace; self.overview = overview
@@ -140,6 +142,7 @@ public final class NativeMokuWorkspacePresentation {
         let currentTranscript = execution.map { execution in
             (moku?.transcript?.arrayValue ?? []).filter { $0["executionId"] == .string(execution.executionID) }
         } ?? []
+        reconcileLanding(transcript: currentTranscript, executionActive: execution?.status == .running || execution?.status == .waitingForUser)
         // The overview also presents completed routes. Only a running route in
         // THIS execution owns the Dock, even when the next activity is delayed.
         activeOperation = overview.featuredOperation.flatMap { operation in
@@ -182,6 +185,36 @@ public final class NativeMokuWorkspacePresentation {
         queue.receive(scope: scope, status: execution?.status, latest: latest,
             items: items.compactMap(Self.displayItem), reset: mutation == nil)
         publishDisplay()
+    }
+
+    private func reconcileLanding(transcript: [JSONValue], executionActive: Bool) {
+        guard workspace.catalog.moku != nil, let count = overview.globalConversationCount else {
+            landing = false; landingInitialized = false
+            return
+        }
+        if count == 0 {
+            landing = true; landingInitialized = true
+            return
+        }
+        if landingInitialized && !landing { return }
+        let dispatches = transcript.filter { $0["type"]?.stringValue == "tool-operation" }
+            .compactMap { NativeMokuDispatch(operation: $0, executionIsActive: executionActive) }
+        let pending = dispatches.contains { $0.phase == .dispatching }
+        let started = dispatches.contains { dispatch in
+            dispatch.threadID.map { overview.containsGlobalThread(JSONText($0)) } == true
+        }
+        if !landingInitialized {
+            landing = pending && !overview.hasEstablishedConversation
+            landingInitialized = true
+        } else if landing {
+            // CreateThread publishes a durable shell before native admission.
+            // Keep that first shell behind landing until its public success, or
+            // another admitted conversation arrives. A failed empty shell is
+            // not proof that the first task was accepted.
+            if started || (!pending && (dispatches.isEmpty || overview.hasEstablishedConversation)) {
+                landing = false
+            }
+        }
     }
 
     private func updatePresenting() {

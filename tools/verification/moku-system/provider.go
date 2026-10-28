@@ -12,7 +12,6 @@ import (
 
 type object = map[string]any
 type provider struct {
-	stability      *stabilityReport
 	childrenWake   chan struct{}
 	barriers       map[string]*responseBarrier
 	scopeChecks    map[string]bool
@@ -25,7 +24,6 @@ type provider struct {
 	mu             sync.Mutex
 	requests       []object
 	requestCount   int
-	crashInputs    map[string]int
 	activeRequests int
 	failures       []string
 }
@@ -144,16 +142,6 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p.mu.Lock()
 	req["fixtureRole"] = role
-	if role == "child" {
-		for marker := range p.crashInputs {
-			if latestUserContains(req["input"], marker) {
-				p.crashInputs[marker]++
-				if p.crashInputs[marker] > 1 {
-					p.failures = append(p.failures, "crashed child input replayed: "+marker)
-				}
-			}
-		}
-	}
 	p.mu.Unlock()
 	if role == "read" && !hasCompletedChildEvidence(req["input"]) {
 		p.mu.Lock()

@@ -106,8 +106,6 @@ The production window uses AppKit bridges for its real traffic-light controls
 and window-scoped canvas scroll routing. Window content, the navigation capsule,
 drag and pinch recognition remain SwiftUI.
 
-The migration specification is [issue #503](https://github.com/xinyuan0801/OpenAgent/issues/503).
-
 The historical transition contract and restoration are documented in
 [Overview card transitions](../../../app/macos/Sources/Host/Overview/README.md).
 `NativeOverviewTransitionTests` also samples ordinary exit opacity and geometry,

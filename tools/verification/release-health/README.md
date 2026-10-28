@@ -2,6 +2,10 @@
 
 Run from the repository root on Apple Silicon macOS:
 
+Nested builds and replays reuse the toolchain running this driver. This keeps
+the pinned local bootstrap and CI's installed compiler consistent without
+bootstrapping a second Go installation in every CI consumer.
+
 ```sh
 ./scripts/go.sh run ./tools/verification/release-health -output /tmp/mokusei-health-run
 # Also exercise the installed native Codex binary against a loopback model server:
@@ -55,11 +59,6 @@ before retrying a timed-out native gate.
   [combination runner](../moku-system/README.md) for generated cases and remaining
   scope. It is explicitly skipped when no native path is supplied.
 
-
-Run `make check-stability` separately for the real daemon crash and 30-minute
-single-process RSS/FD/native-process gate described in the
-[Moku system guide](../moku-system/README.md#real-process-crashes-and-continuous-resource-gate).
-The ordinary release runner does not implicitly run this long target.
 
 These checks do not establish multi-hour/day memory/FD stability, production
 provider availability, real-account authentication, model quality, or guaranteed

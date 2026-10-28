@@ -30,11 +30,19 @@ type VoiceSession struct {
 	sequence, generation, contextRevision                  int64
 	contextHash                                            string
 	contextMu, speechMu                                    sync.Mutex
+	configurationMu                                        sync.Mutex
 	events                                                 []plugin.VoiceEvent
 	listeners                                              map[string]func(plugin.VoiceEvent)
 	closeListeners                                         map[string]func()
 	delegationListeners                                    map[string]func(plugin.VoiceDelegation)
 	requestListeners                                       map[string]func(context.Context, plugin.VoiceDelegation, string) error
+	configurationListeners                                 map[string]func(plugin.VoiceDelegation, error)
+	configurationRequest                                   *plugin.VoiceDelegation
+	configurationRetired                                   bool
+	speechReceipts                                         map[string]*voiceSpeechReceipt
+	nativeAdmissionDone                                    chan struct{}
+	nativeCancellationDone                                 chan struct{}
+	nativeCancellationErr                                  error
 	requests                                               map[string]plugin.VoiceDelegation
 	order                                                  []string
 	forwarded, projected, matched, nativeItems, deliveries map[string]bool
@@ -327,6 +335,12 @@ func (v *VoiceSession) FenceInput(id string) {
 		return
 	}
 	v.generation++
+	for _, receipt := range v.speechReceipts {
+		if !receipt.closed {
+			receipt.closed = true
+			close(receipt.done)
+		}
+	}
 	generation := v.generation
 	v.currentInput = id
 	v.mu.Unlock()
@@ -385,6 +399,18 @@ func (v *VoiceSession) Speak(ctx context.Context, speech plugin.VoiceSpeech) err
 	v.mu.Unlock()
 	if !live {
 		return nil
+	}
+	if speech.RequireReceipt {
+		if err := v.awaitSpeechReceipt(ctx, speech); err != nil {
+			if errors.Is(err, context.Canceled) && ctx.Err() == nil {
+				return nil
+			}
+			if ctx.Err() == nil && !v.Closed() {
+				message := "播报准备未完成：" + err.Error()
+				v.publish(plugin.VoiceEvent{Type: "speech-error", Generation: &speech.Generation, DeliveryID: speech.DeliveryID, Text: &message})
+			}
+			return err
+		}
 	}
 	v.publish(plugin.VoiceEvent{Type: "speech", Generation: &speech.Generation, DeliveryID: speech.DeliveryID})
 	_, err := v.native.server.Call(ctx, "thread/realtime/appendSpeech", Map{"threadId": v.threadID, "text": speech.Text})
@@ -452,6 +478,13 @@ func (v *VoiceSession) Stop(ctx context.Context) error {
 				}
 				c()
 			}
+			cleanup, cancelCleanup := context.WithTimeout(context.Background(), 8*time.Second)
+			if err := v.waitCancelledNativeAdmission(cleanup); err != nil {
+				v.mu.Lock()
+				v.stopErr = errors.Join(v.stopErr, err)
+				v.mu.Unlock()
+			}
+			cancelCleanup()
 			v.mu.Lock()
 			v.phase = "closed"
 			v.mu.Unlock()
@@ -775,7 +808,7 @@ func (h *Handle) PrepareNativeVoice(ctx context.Context, entries []plugin.Contex
 		}
 		v.mu.Lock()
 		h.voiceRetired = h.voiceRetired || v.remoteRequested
-		warm := h.voiceRetired && !h.closed && v.stopErr == nil && v.remoteClosed
+		warm := h.voiceRetired && !h.closed && v.stopErr == nil && v.remoteClosed && !v.configurationRetired
 		v.mu.Unlock()
 		h.mu.Unlock()
 		if warm {
@@ -816,6 +849,8 @@ func (h *Handle) PrepareNativeVoice(ctx context.Context, entries []plugin.Contex
 	h.native.mu.Lock()
 	h.native.emit = func(event Map) { h.receiveFrom(native, event) }
 	h.native.nativeAdmit = h.admitVoice
+	h.native.nativeConfigurationRejected = v.configurationRejected
+	h.native.nativeAdmissionCancelled = v.cancelNativeAdmission
 	h.native.mu.Unlock()
 	if e = v.SyncContext(ctx, entries); e != nil {
 		_ = v.Close()
@@ -845,13 +880,26 @@ func (h *Handle) admitVoice(turnID string) (string, error) {
 		return "", errors.New("previous native voice execution still active")
 	}
 	h.voiceAdmitting = true
+	v.mu.Lock()
+	done := make(chan struct{})
+	v.nativeAdmissionDone = done
+	v.mu.Unlock()
 	h.mu.Unlock()
-	defer func() { h.mu.Lock(); h.voiceAdmitting = false; h.mu.Unlock() }()
+	defer func() {
+		h.mu.Lock()
+		h.voiceAdmitting = false
+		h.mu.Unlock()
+		close(done)
+	}()
 	request, e := v.claimRequest()
 	if e != nil {
 		return "", e
 	}
-	executionID, e := h.context.ExecutionAdmission.Accept(h.lifetime, func(id string) (json.RawMessage, error) {
+	// Media still owns an input waiting for admission. Once Accept commits,
+	// execution and request publication retain the handle's independent life.
+	projected := false
+	executionID, e := h.context.ExecutionAdmission.Accept(v.lifetime, func(id string) (json.RawMessage, error) {
+		projected = true
 		h.mu.Lock()
 		defer h.mu.Unlock()
 		next, e := StageExecutionChecked(h.state, id, inputMap(model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: request.Text}}}), now(), rawMap(h.context.ReadThread().Settings))
@@ -861,6 +909,17 @@ func (h *Handle) admitVoice(turnID string) (string, error) {
 		return raw(next), nil
 	})
 	if e != nil {
+		if e == context.Canceled && v.lifetime.Err() == context.Canceled && !projected {
+			v.mu.Lock()
+			v.nativeCancellationDone = make(chan struct{})
+			v.mu.Unlock()
+			return "", errNativeVoiceAdmissionCancelled
+		}
+		if e == plugin.ErrMokuConfigurationPending {
+			v.mu.Lock()
+			v.configurationRequest = &request
+			v.mu.Unlock()
+		}
 		return "", e
 	}
 	h.mu.Lock()

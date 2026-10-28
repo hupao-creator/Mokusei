@@ -124,7 +124,7 @@ func run() error {
 					e = command(step, log, *native, "--version")
 				}
 				if e == nil {
-					e = command(step, log, "./scripts/go.sh", args...)
+					e = command(step, log, filepath.Join(runtime.GOROOT(), "bin", "go"), args...)
 				}
 			}
 			stop()

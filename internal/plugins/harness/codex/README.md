@@ -63,6 +63,25 @@ Owner, execution, delivery and accepted-input generation fence speech. Duplicate
 
 The [native Swift media client](../../../../app/macos/Sources/Voice/README.md) owns microphone, WebRTC and playback. [voice_feedback_test.go](voice_feedback_test.go) covers exact ASR/handoff/answer identity association; source text/generation must match uniquely, and a late final may complete only the candidate captured at handoff.
 
+Pending Moku settings reject a native start before Core/tool admission. Only
+this exact rejection can return the captured handoff for configuration recovery,
+after the old process, tool bridge and in-flight notification have drained.
+Other native failures remain uncertain. Complete model/instruction/tool changes
+rebuild the native owner; reconnect does not pretend an existing realtime peer
+supports an in-place rebind or prewarm the configuration being retired.
+
+Moku-native speech can request a playback-readiness receipt. The adapter emits
+`speech-ready` with the exact delivery/generation and waits up to ten seconds
+before appending audio. Input-generation changes, cancellation and Stop release
+the wait; repeated acknowledgements cannot append speech again. Relay and
+private-discussion speech do not require this receipt.
+
+Stopping media also cancels native admission still waiting for the settings
+gate. An exact cancellation before projection retires the unadmitted native
+turn through its interrupt acknowledgement, allowing normal realtime shutdown
+to finish. Failed interrupt acknowledgement remains a visible cleanup failure;
+generic, joined and possibly projected errors keep the ordinary fault path.
+
 Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
 
 ## Initial response cards

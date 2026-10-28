@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 // Replay the production RPC decoder, reducer, durable reopen and compact scopes.
@@ -113,7 +113,7 @@ func verifyUsage(ctx context.Context) {
 	if verificationConfig.swiftUsage {
 		path := filepath.Join(root, "usage-fixtures.json")
 		check(os.WriteFile(path, data, 0600) == nil, "write Swift usage fixtures")
-		command := exec.CommandContext(ctx, "/usr/bin/xcrun", "swift", "test", "--package-path", "app/macos", "--filter", "PiTokenUsageTests")
+		command := swiftfixture.Test(ctx, "--filter", "PiTokenUsageTests")
 		command.Env = append(os.Environ(), "MOKUSEI_PI_USAGE_FIXTURES="+path)
 		var output bytes.Buffer
 		command.Stdout = &output

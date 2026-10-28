@@ -1,4 +1,6 @@
 import AppKit
+import CoreMedia
+import CoreVideo
 import Observation
 import MokuseiPluginUI
 import ScreenCaptureKit
@@ -8,6 +10,85 @@ import Testing
 import MokuseiTestSupport
 #endif
 @testable import MokuseiUI
+
+/// Copy complete WindowServer frames off the main actor. Retaining the capture
+/// pool's pixel buffers would stall delivery; PNG conversion belongs after stop.
+private final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendable {
+    private let lock = NSLock()
+    private var frames: [CGImage] = []
+    var ready: Bool { lock.withLock { !frames.isEmpty } }
+    func take() -> [CGImage] { lock.withLock { let result = frames; frames = []; return result } }
+
+    func stream(_ stream: SCStream, didOutputSampleBuffer sample: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard type == .screen, sample.isValid,
+              let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
+              attachments.first?[.status] as? Int == SCFrameStatus.complete.rawValue,
+              let buffer = sample.imageBuffer,
+              CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA,
+              lock.withLock({ frames.count < 60 }) else { return }
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(buffer) else { return }
+        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
+        let stride = CVPixelBufferGetBytesPerRow(buffer)
+        // Desktop/window transitions can briefly return a transformed thumbnail.
+        // Its transparent border is unrelated to the glass inside our opaque app.
+        let bytes = base.assumingMemoryBound(to: UInt8.self)
+        guard [0.02, 0.5, 0.98].allSatisfy({ x in
+            [0.1, 0.5, 0.9].allSatisfy { y in
+                bytes[Int(Double(height) * y) * stride + Int(Double(width) * x) * 4 + 3] > 250
+            }
+        }) else { return }
+        let data = Data(bytes: base, count: stride * height)
+        guard let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+                bytesPerRow: stride, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return }
+        lock.withLock { frames.append(image) }
+    }
+}
+
+@MainActor private func captureTagWindow(_ window: NSWindow, filter: SCContentFilter,
+                                        configuration: SCStreamConfiguration) async throws -> CGImage {
+    var complete: CGImage?
+    for _ in 0..<20 {
+        let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        let bitmap = NSBitmapImageRep(cgImage: image)
+        if [0.02, 0.5, 0.98].allSatisfy({ x in
+            [0.1, 0.5, 0.9].allSatisfy { y in
+                (bitmap.colorAt(x: Int(Double(bitmap.pixelsWide) * x),
+                                y: Int(Double(bitmap.pixelsHigh) * y))?.alphaComponent ?? 0) > 0.99
+            }
+        }) { complete = image; break }
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        try await Task.sleep(for: .milliseconds(100))
+    }
+    return try #require(complete, "WindowServer did not provide an untransformed full-window capture")
+}
+
+@MainActor private func captureGlassMotion(filter: SCContentFilter, configuration: SCStreamConfiguration,
+                                         action: () throws -> Void) async throws -> [CGImage] {
+    configuration.pixelFormat = kCVPixelFormatType_32BGRA
+    configuration.colorSpaceName = CGColorSpace.sRGB
+    configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+    let frames = TagGlassFrames()
+    let stream = SCStream(filter: filter, configuration: configuration, delegate: nil)
+    try stream.addStreamOutput(frames, type: .screen, sampleHandlerQueue: DispatchQueue(label: "tag-glass-capture"))
+    try await stream.startCapture()
+    do {
+        try await SwiftUIReplay.wait { frames.ready }
+        _ = frames.take()
+        try action()
+        try await Task.sleep(for: .milliseconds(400))
+        try await stream.stopCapture()
+        return frames.take()
+    } catch {
+        try? await stream.stopCapture()
+        throw error
+    }
+}
 
 @MainActor @Observable private final class TagGlassFixture {
     let children: Bool
@@ -80,8 +161,7 @@ private struct TagGlassBounds: ViewModifier {
 struct NativeOverviewTagGlassTests {
     /// Compare the production prefix with unconstrained native glyph layout,
     /// then capture it in the real glass/scroll hierarchy at compact widths.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func prefixesKeepNativeGlyphBoundsInCompactChips() async throws {
+    @Test func prefixesKeepNativeGlyphBoundsInCompactChips() async throws {
         let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_ICON_ARTIFACTS"].map {
             URL(fileURLWithPath: $0, isDirectory: true)
         }
@@ -158,6 +238,7 @@ struct NativeOverviewTagGlassTests {
                         let configuration = SCStreamConfiguration()
                         configuration.width = Int(window.frame.width * 2)
                         configuration.height = Int(window.frame.height * 2)
+                        configuration.scalesToFit = true
                         configuration.ignoreShadowsSingleWindow = true
                         configuration.showsCursor = false
                         // WindowServer may briefly return a system window
@@ -218,13 +299,18 @@ struct NativeOverviewTagGlassTests {
         let configuration = SCStreamConfiguration()
         configuration.width = Int(window.frame.width * 2)
         configuration.height = Int(window.frame.height * 2)
+        // The pixel oracle uses two pixels per point on both 1x and 2x
+        // screens. Without upscaling, ScreenCaptureKit pads a 1x image.
+        configuration.scalesToFit = true
         configuration.ignoreShadowsSingleWindow = true
         configuration.showsCursor = false
         let parentBounds = try #require(fixture.bounds[parent.id])
         let titlebar = window.frame.height - root.bounds.height
         var measurements: [[String: String]] = []
-        func snapshot(_ name: String) async throws -> NSBitmapImageRep {
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        func snapshot(_ name: String, image supplied: CGImage? = nil) async throws -> NSBitmapImageRep {
+            let image: CGImage
+            if let supplied { image = supplied }
+            else { image = try await captureTagWindow(window, filter: filter, configuration: configuration) }
             let bitmap = NSBitmapImageRep(cgImage: image)
             if let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_SWITCH_ARTIFACTS"] {
                 let url = URL(fileURLWithPath: directory, isDirectory: true)
@@ -234,8 +320,8 @@ struct NativeOverviewTagGlassTests {
             }
             return bitmap
         }
-        @discardableResult func capture(_ name: String) async throws -> Int {
-            let bitmap = try await snapshot(name)
+        @discardableResult func capture(_ name: String, image: CGImage? = nil) async throws -> Int {
+            let bitmap = try await snapshot(name, image: image)
             // On black, the real glass forms four continuous spans. Compare
             // the second span's upper edge and equator, independently of the
             // layout anchors (which already describe the animation endpoint).
@@ -268,11 +354,14 @@ struct NativeOverviewTagGlassTests {
             return middle[1].count
         }
         let expandedWidth = try await capture("before")
+        // Arm continuous capture before input: separate screenshot requests can
+        // miss a short resize even when their pixel analysis is deferred.
+        let shrinkingFrames = try await captureGlassMotion(filter: filter, configuration: configuration) {
+            _ = try #require(Self.element(id: design.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
+        }
         var shrinkingWidths: [Int] = []
-        _ = try #require(Self.element(id: design.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
-        for index in 0..<12 {
-            shrinkingWidths.append(try await capture("shrinking-\(index)"))
-            try await Task.sleep(for: .milliseconds(10))
+        for (index, image) in shrinkingFrames.enumerated() {
+            shrinkingWidths.append(try await capture("shrinking-\(index)", image: image))
         }
         try await Task.sleep(for: .milliseconds(350))
         let compactWidth = try await capture("after")
@@ -285,11 +374,10 @@ struct NativeOverviewTagGlassTests {
         try Self.action("按标签筛选", id: parent.id, in: root)
         try await SwiftUIReplay.wait { Self.element(id: child.id, in: root) != nil }
         try await Task.sleep(for: .milliseconds(400))
-        _ = try #require(Self.element(id: child.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
-        for index in 0..<20 {
-            try await capture("expanding-\(index)")
-            try await Task.sleep(for: .milliseconds(10))
+        let expandingFrames = try await captureGlassMotion(filter: filter, configuration: configuration) {
+            _ = try #require(Self.element(id: child.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
         }
+        for (index, image) in expandingFrames.enumerated() { try await capture("expanding-\(index)", image: image) }
         try await Task.sleep(for: .milliseconds(350))
         try await capture("restored")
         #expect(fixture.selected == child)
@@ -348,11 +436,14 @@ struct NativeOverviewTagGlassTests {
         let configuration = SCStreamConfiguration()
         configuration.width = Int(window.frame.width * 2)
         configuration.height = Int(window.frame.height * 2)
+        configuration.scalesToFit = true
         configuration.ignoreShadowsSingleWindow = true
         configuration.showsCursor = false
         let titlebar = window.frame.height - root.bounds.height
-        func capture(_ name: String) async throws -> NSBitmapImageRep {
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        func capture(_ name: String, image supplied: CGImage? = nil) async throws -> NSBitmapImageRep {
+            let image: CGImage
+            if let supplied { image = supplied }
+            else { image = try await captureTagWindow(window, filter: filter, configuration: configuration) }
             let bitmap = NSBitmapImageRep(cgImage: image)
             if let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_MORPH_ARTIFACTS"] {
                 let url = URL(fileURLWithPath: directory, isDirectory: true)
@@ -362,10 +453,12 @@ struct NativeOverviewTagGlassTests {
             return bitmap
         }
         let baseline = try await capture("settled")
-        try Self.action("关闭子标签菜单", id: parent.id, in: root)
+        let closingFrames = try await captureGlassMotion(filter: filter, configuration: configuration) {
+            try Self.action("关闭子标签菜单", id: parent.id, in: root)
+        }
         var leftPixels = 0, rightPixels = 0
-        for index in 0..<12 {
-            let bitmap = try await capture("closing-\(index)")
+        for (index, image) in closingFrames.enumerated() {
+            let bitmap = try await capture("closing-\(index)", image: image)
             var left = 0, right = 0
             // Stay below the parent and outside the settled child viewport.
             // A clipped morph cannot paint either of these strips.
@@ -381,7 +474,6 @@ struct NativeOverviewTagGlassTests {
                 }
             }
             leftPixels = max(leftPixels, left); rightPixels = max(rightPixels, right)
-            try await Task.sleep(for: .milliseconds(10))
         }
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             #expect(leftPixels > 20, "Left capsule end never rendered outside the short child viewport: \(leftPixels)")
@@ -430,8 +522,7 @@ struct NativeOverviewTagGlassTests {
 
     /// Exercise the production glass menu, actions, labels and canvas input
     /// regions. The title must remain frozen while the retiring row is drawn.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func childSelectionSemanticsAndMenuInputSurviveOpenAndClose() async throws {
+    @Test func childSelectionSemanticsAndMenuInputSurviveOpenAndClose() async throws {
         let app = NSApplication.shared
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) {
@@ -553,8 +644,7 @@ struct NativeOverviewTagGlassTests {
         }
     }
 
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func longChildTitleStaysInFilterBarAtNarrowWidthsAndWindowZoom() async throws {
+    @Test func longChildTitleStaysInFilterBarAtNarrowWidthsAndWindowZoom() async throws {
         for (width, scale) in [(620.0, 1.0), (540.0, 1.0), (360.0, 1.0), (1000.0, 2.0), (720.0, 2.0), (1242.0, 2.0), (1000.0, 1.0)] {
             let fixture = TagGlassFixture(children: true, longNames: true)
             let logicalWidth = width / scale

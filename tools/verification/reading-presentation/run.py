@@ -12,13 +12,17 @@ def main():
     source = Path(__file__).resolve().parent
     repo = source.parents[2]
     package = repo / "app/macos"
-    subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
+    if os.environ.get("MOKUSEI_SWIFT_SKIP_BUILD") != "1":
+        subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
     developer = Path(subprocess.check_output(["xcrun", "--show-sdk-platform-path"], text=True).strip()) / "Developer"
     frameworks = developer / "Library/Frameworks"
     toolchain = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip()).parent.parent
     args = ["-g", "-plugin-path", str(toolchain / "lib/swift/host/plugins/testing"),
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks)]
+    glass_captures = "--tag-glass-captures" in sys.argv
+    isolated_input = "--isolated-input" in sys.argv
+    tag_glass = "--tag-glass" in sys.argv or glass_captures
     suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
@@ -33,20 +37,26 @@ def main():
              "NativeMarkdownLocalImageTests" if "--local-images" in sys.argv else
              "NativeMarkdownRegressionTests" if "--markdown" in sys.argv else
              "NativeMokuHistoryComposerTests" if "--moku-composer" in sys.argv else
+             "NativeMokuLandingTests" if "--moku-landing" in sys.argv else
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
-             "NativeOverviewTagGlassTests" if "--tag-glass" in sys.argv else "NativeReadingPagePresentationTests")
+             "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
-    tests = package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{suite}.swift"
+    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests"]
+              if isolated_input else [suite])
+    tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
-    evidence = repo / ".scratch/reading-presentation" / suite
+    evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     try:
         replay.acquire()
-        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, tests], extra_args=args)
+        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
+        if tag_glass:
+            environment.setdefault("MOKUSEI_TAG_SWITCH_ARTIFACTS", str(replay.workspace / "evidence/switch"))
+            environment.setdefault("MOKUSEI_TAG_MORPH_ARTIFACTS", str(replay.workspace / "evidence/morph"))
         if "--initial-response" in sys.argv:
             fixture = replay.workspace / "initial-response.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/initial-response", "-output", str(fixture)], cwd=repo, check=True)
@@ -56,7 +66,14 @@ def main():
             fixture = replay.workspace / "harness-forms.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/opencode/cases/renderer", "-forms-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_HARNESS_FORM_FIXTURE"] = str(fixture)
-        status = replay.run(["--no-parallel", "--filter", suite], timeout=90, launch_services=False, env=environment)
+        isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
+                            "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
+                            "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
+                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack"]
+        selected = ("|".join(isolated_methods) if isolated_input else
+                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
+                    if glass_captures else suite)
+        status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
         output = (replay.root / "stdout.log").read_text()
         print(output, end="")
         result = subprocess.CompletedProcess([], status, stdout=output)
@@ -64,21 +81,27 @@ def main():
     finally:
         replay.export(evidence)
         replay.close()
-    count = (3 if "--rolling-numbers" in sys.argv else
+    count = (4 if isolated_input else
+             3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              14 if "--overview-search" in sys.argv else
-             6 if "--overview-mounting" in sys.argv else
+             6 if "--overview-mounting" in sys.argv or "--moku-landing" in sys.argv else
              2 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              8 if "--browser-viewport" in sys.argv else
-             7 if "--tag-glass" in sys.argv or "--markdown" in sys.argv or "--moku-composer" in sys.argv else
+             2 if glass_captures else
+             7 if tag_glass or "--markdown" in sys.argv or "--moku-composer" in sys.argv else
              10 if "--moku-note-tests" in sys.argv else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if isolated_input:
+        for name in isolated_methods:
+            if f"Test {name}() passed" not in result.stdout:
+                raise SystemExit("FAIL: incomplete isolated input replay: " + name)
     if "--application-navigation" in sys.argv:
         if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 2 test cases passed" not in result.stdout:
             raise SystemExit("FAIL: application and Git navigation cases did not both pass")

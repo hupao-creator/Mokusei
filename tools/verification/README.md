@@ -1,5 +1,12 @@
 # Functional integration replays
 
+The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
+tools to hosted gates and explains their independent value. A current-revision
+CI pass replaces an equivalent local run. Standalone visual/research tools are
+not automatically merge requirements; additional local acceptance needs a named
+uncovered defect and trigger. Real CLI checks have a hosted
+`CI` workflow dispatch (`extended=true`); they do not require self-hosted Macs.
+
 Retained evidence uses neutral `/Users/example` paths and numbered `.worktrees`
 directories. Archive owner names are also anonymized. Evidence-file and archive
 checksums describe the sanitized copies; measurements and historical build
@@ -15,10 +22,7 @@ baseline comparison, headless admission and the eight XCTest fixture skips.
 For real native CLI + mock LLM combinations spanning Moku, child tasks, scoped
 Report/Tag, faults, public actions and restart, see [Moku system verification](moku-system/README.md)
 and `make check-system` (requires `MOKUSEI_SYSTEM_CODEX`).
-`make check-stability` adds real daemon SIGKILL/recovery and a continuous
-30-minute, minimum-100-cycle resource gate with owned-process exit checks.
-It also requires a new `STABILITY_OUTPUT` evidence directory and is deliberately
-separate from the fast checks.
+
 
 For the sequential release gate runner, retained JSON/log evidence, isolated
 headless lifecycle checks and optional installed-CLI mock-provider verification,
@@ -33,6 +37,9 @@ workspaces, retain path/PID diagnostics and clean up the owned app on timeout.
 Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
+For empty-workspace Moku centering, global catalog membership and first-dispatch
+admission, run `python3 tools/verification/reading-presentation/run.py --moku-landing`;
+see the [production landing replay](reading-presentation/README.md#empty-workspace-and-first-dispatch).
 For the research-only comparison removing all Thread-card Liquid Glass, see the [isolated glass benchmark and Chinese report](overview-glass/README.md).
 `python3 tools/verification/overview-centering/verify-geometry.py` checks the current
 production camera's framing anchor through AppKit without requiring Git history.
@@ -43,6 +50,11 @@ For script-driven navigation of the real macOS app, protocol validation and seed
 chaos traces, see the [semantic interaction replay](native-interaction/README.md).
 For mounted conversation/history controls, disclosure, scrolling and 150-turn
 windowing in the same production app, see the [reading interaction replay](thread-interaction/README.md).
+
+CI builds Swift once and verifies its exact manifest before replay launchers use
+`MOKUSEI_SWIFT_SKIP_BUILD=1`; see [the shared command helper](swiftfixture/README.md).
+Local commands keep their default build behavior. UI shards and independent
+replays run on separate hosted runners, not competing windows in one session.
 
 Run from the repository root with `./scripts/go.sh`. These executable integration drivers complement the package tests. They exercise production boundaries against fixed protocol fixtures, temporary databases/profiles or loopback model services. Failures return nonzero. Build the runtime with `make runtime` before the native settings launcher.
 
@@ -90,3 +102,10 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/artificialanalysis/lifecycle` | Independent Context host registration/enablement, runtime catalog/settings/history reset, shared acquisition, cancellation, drain, fallback and bounds |
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
+
+The Runtime replay also drives the production Tag and Report participants with
+inherited and independent execution profiles. Gated native discovery checks
+settings-save conflicts without batch retry consumption, validation of matching
+idle-session reuse, unchanged admitted steering and next-batch profile adoption.
+It also checks cold Open settlement of an orphan and background work that needs
+Close after Interrupt, including native state flushes during cleanup.

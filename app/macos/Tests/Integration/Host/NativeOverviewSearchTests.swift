@@ -9,7 +9,10 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 @testable import MokuseiUI
 
-@MainActor private final class SearchTagGeometry { var bounds: [String: CGRect] = [:] }
+@MainActor private final class SearchTagGeometry {
+    var bounds: [String: CGRect] = [:]
+    var size = CGSize.zero
+}
 
 /// In-memory public catalog and real production model/chrome/canvas. No runtime
 /// is started, no provider is loaded and no user preferences/history are read.
@@ -419,10 +422,14 @@ struct NativeOverviewSearchTests {
                 window.contentView = NSHostingView(rootView: NativeOverviewWorkspaceView(model: model,
                     callbacks: .init(openThread: { _, _ in }, openApplication: { _, _ in }, onSettings: {}))
                     .environment(\.overviewSearchMorphDuration, 1.6).preferredColorScheme(dark ? .dark : .light)
+                    // Keep the component's logical viewport exact when AppKit constrains
+                    // the host window to a smaller CI display.
+                    .frame(width: CGFloat(width), height: 480)
                     .overlayPreferenceValue(OverviewSearchTagBounds.self) { anchors in
                         GeometryReader { reader in
                             Color.clear.onChange(of: anchors.mapValues { reader[$0] }, initial: true) { _, bounds in
                                 geometry.bounds = bounds
+                                geometry.size = reader.size
                             }
                         }.allowsHitTesting(false)
                     })
@@ -430,6 +437,7 @@ struct NativeOverviewSearchTests {
                 window.makeKeyAndOrderFront(nil)
                 try await Task.sleep(for: .milliseconds(300))
                 try await capture(window, name: name + "-tags")
+                #expect(geometry.size == CGSize(width: width, height: 480))
                 let selectedFrame = try #require(geometry.bounds[selected.id])
                 #expect(geometry.bounds["__all__"] != nil && geometry.bounds["__scroll__"] != nil)
                 model.beginSearch()

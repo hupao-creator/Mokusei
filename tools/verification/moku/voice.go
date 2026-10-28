@@ -209,29 +209,32 @@ func (s *voiceReplaySystem) complete(summary string) {
 }
 
 type voiceReplaySession struct {
-	mu                     sync.Mutex
-	id                     string
-	lifetime               context.Context
-	open                   plugin.OpenContext
-	closed                 bool
-	generation             int64
-	sequence               int64
-	nextHandler            int
-	closeHandlers          map[int]func()
-	eventHandlers          map[int]func(plugin.VoiceEvent)
-	delegates              map[int]func(plugin.VoiceDelegation)
-	requests               map[int]func(context.Context, plugin.VoiceDelegation, string) error
-	events                 []plugin.VoiceEvent
-	rejected               []string
-	preparedEntries        []plugin.ContextEntry
-	synchronized           []plugin.ContextEntry
-	syncCount              int
-	forceGenerationAdvance bool
-	speeches               chan plugin.VoiceSpeech
-	stopOnce               sync.Once
-	stopStarted            chan struct{}
-	stopRelease            <-chan struct{}
-	stopError              error
+	mu                      sync.Mutex
+	id                      string
+	lifetime                context.Context
+	open                    plugin.OpenContext
+	closed                  bool
+	generation              int64
+	sequence                int64
+	nextHandler             int
+	closeHandlers           map[int]func()
+	eventHandlers           map[int]func(plugin.VoiceEvent)
+	delegates               map[int]func(plugin.VoiceDelegation)
+	requests                map[int]func(context.Context, plugin.VoiceDelegation, string) error
+	configurationRecoveries map[int]func(plugin.VoiceDelegation, error)
+	configurationClose      func(context.Context) error
+	speechRelease           <-chan struct{}
+	events                  []plugin.VoiceEvent
+	rejected                []string
+	preparedEntries         []plugin.ContextEntry
+	synchronized            []plugin.ContextEntry
+	syncCount               int
+	forceGenerationAdvance  bool
+	speeches                chan plugin.VoiceSpeech
+	stopOnce                sync.Once
+	stopStarted             chan struct{}
+	stopRelease             <-chan struct{}
+	stopError               error
 }
 
 func (s *voiceReplaySession) ID() string   { return s.id }
@@ -328,6 +331,16 @@ func (s *voiceReplaySession) RejectInput(id string) {
 func (s *voiceReplaySession) Speak(ctx context.Context, speech plugin.VoiceSpeech) error {
 	select {
 	case s.speeches <- speech:
+		s.mu.Lock()
+		release := s.speechRelease
+		s.mu.Unlock()
+		if release != nil {
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -393,7 +406,9 @@ func (s *voiceReplaySession) admitNative(ctx context.Context, request plugin.Voi
 		return "", errors.New("native voice admission missing")
 	}
 	executionID, err := s.open.ExecutionAdmission.Accept(ctx, func(id string) (json.RawMessage, error) {
-		return json.Marshal(model.PublicObservation{LatestExecution: &model.PublicExecution{ExecutionID: id, Status: "running", StartedAt: time.Now().UnixMilli()}})
+		observation := s.open.ReadThread().Observation
+		observation.LatestExecution = &model.PublicExecution{ExecutionID: id, Status: "running", StartedAt: time.Now().UnixMilli()}
+		return json.Marshal(observation)
 	})
 	if err != nil {
 		return "", err

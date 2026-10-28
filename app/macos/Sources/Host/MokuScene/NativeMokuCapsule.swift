@@ -10,17 +10,18 @@ enum NativeMokuCapsuleLayout {
     /// radius from this value).
     static let cornerRadius: CGFloat = 29
 
-    static func frame(in viewport: CGRect) -> CGRect {
-        let bottom = max(24, min(36, viewport.height * 0.05))
-        let width = min(560, max(0, viewport.width - 48))
+    static func frame(in viewport: CGRect, landing: Bool = false) -> CGRect {
+        let bottom = landing ? 24 : max(24, min(36, viewport.height * 0.05))
+        let width = min(landing ? 680 : 560, max(0, viewport.width - 48))
         return CGRect(x: viewport.midX - width / 2, y: viewport.minY + 24,
                       width: width, height: max(0, viewport.height - bottom - 24))
     }
 
-    static func surface(in frame: CGRect, expanded: Bool, height: CGFloat) -> CGRect {
+    static func surface(in frame: CGRect, expanded: Bool, height: CGFloat, centered: Bool = false) -> CGRect {
         let width = expanded ? frame.width : min(idleSize.width, frame.width)
         let height = expanded ? height : idleSize.height
-        return CGRect(x: frame.midX - width / 2, y: frame.maxY - height, width: width, height: height)
+        return CGRect(x: frame.midX - width / 2, y: centered ? frame.midY - height / 2 : frame.maxY - height,
+                      width: width, height: height)
     }
 
     static func idleSurface(in viewport: CGRect) -> CGRect {

@@ -12,8 +12,8 @@ settling, without restoring the retired AppKit scene host.
 All Moku capsule surfaces use the approved theme-aware gradient over native clear
 glass: warm black in dark appearance and pearl white in light appearance, fading
 toward the bottom with a fine warm edge. Production density is 85%. The shared
-material covers the Dock (idle, composer, Talk and note), history composer and
-interaction panel; the latter retains its existing explicit dark appearance.
+material covers the Dock (idle, composer, Talk and note), landing notices, history
+composer and interaction panel; the latter retains its existing explicit dark appearance.
 Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
 caret, eyes and the external reasoning Arc retain their existing theme ownership.
 The material does not change layout, clipping, voice ownership or motion clocks.
@@ -28,7 +28,41 @@ The shared input row places the attachment plus between Moku's eyes and the edit
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
+An initialized workspace with no globally eligible, unarchived conversation cards
+opens the same Dock at the visual center: 680×76 points, 16-point text and at least
+24-point horizontal viewport margins. Moku and its archived history do not count
+as ordinary cards. Membership is measured before tags, search and report coverage,
+including documents exposed only inside a directory. Loading is not an empty
+workspace. Archiving/deleting the last eligible conversation restores landing;
+filtering to no results does not. No one-time onboarding flag is persisted.
+
+Submitting input keeps the center open. A durable first-task shell can precede
+native admission, so it remains behind landing while `create_thread` is pending.
+A successful public result for an eligible Thread returns the Dock to its existing
+bottom seat. Failure without an admitted conversation keeps the center available;
+an independently admitted conversation also ends it. Existing workspaces hydrate
+at the bottom. The same surface and Reduce Motion policy own the transition.
+
+Talk and dispatch notices appear above the open landing composer without taking
+its editor, focus or draft. They reuse ordinary selectable Talk/dispatch content,
+outside-click dismissal and the deadline that starts only after actual presentation.
+Directory suggestions can temporarily cover the notice when vertical room is too
+short. Ordinary bottom-Dock notices retain their existing capsule presentation.
+The [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
+exercises real workspace/catalog/presentation integration; the
+[interactive visual fixture](../../../../../demos/moku-landing/README.md) retains the
+approved appearance and editor checks without a live Runtime.
+
 Directory completion opens above the editor within the same capsule. The editor stays seated at the bottom; scrolling suggestions are clipped to their own area. Selection keys and IME handling use the existing completion state. On macOS, native paste/drop imports files. The Dock and history capsule surfaces have no Moku context menu on right-click or Control-click. Native text editing menus and the voice control's own menu remain available. An accepted send consumes only its submitted draft revision; failure retains it.
+
+An empty or whitespace-only draft without attachments/directories mounts no Send
+button or circular background, including in accessibility. Its empty layout seat
+keeps the editor width stable. Attachment/directory-only input still exposes Send;
+importing, submission and unavailable states retain their ordinary admission rules.
+Moku editors use a solid 3-point caret in the native light/dark text color, with
+native blinking and 120ms interruptible same-line movement. There is no gradient
+or glow. IME composition uses the native caret; line changes stay immediate.
+Losing focus removes the layer, and Reduce Motion makes movement immediate.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it remains `Ask Moku…`; selected directories use `Ask Moku about <name>…` (Chinese: `向 Moku 询问关于 <name> 的问题…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 
@@ -101,6 +135,11 @@ history or changes the persistent note, ordinary replies or voice transcript.
 [NativeMokuNote](NativeMokuNote.swift) reads the persisted note and expands the same capsule, up to 480 points wide and bounded by the viewport. Markdown is read-only/selectable, with a fixed header and scrollable body. When the available note height is too short to show a complete body line below that header, the header scrolls with the body instead; the supported 5× app zoom therefore retains a usable reading viewport. The catalog's `lastExposure` is the only authority for the accessibility update indicator. Opening the panel does not acknowledge it. A user-opened panel or later body interaction can start a reading session; the production renderer must apply the exact note token, the key foreground window must remain visible, and each actual body viewport interval must stay stable for two seconds. Only complete coverage submits an authenticated receipt. Code, tables, images and local-file previews stay unknown in this first version. Each mounted window owns its partial coverage; failed receipts remain pending for a later same-version UI activity, with no optimistic indicator change.
 
 Coverage retains the union of settled ranges, so revisiting text does not accumulate duplicate intervals. Disconnect cancels the in-flight submission while retaining at most one completed receipt. Snapshot rehydration reconciles that receipt against the exact catalog incarnation/version before retrying; a new version, cleared note or released workspace discards it. The native note replay checks failed submission, same-version retry, stale pending eviction, short-note dwell and long-note viewport gaps/complete traversal. The backend's `-swift-note-exposure` replay connects the actual Swift tracker and sender to an isolated authenticated Runtime and checks the next Moku context.
+
+The fixed-header versus scrolling-header layout depends on the Dock's available
+viewport height, independently of the document's fitted height. An initially
+empty Markdown layout must not replace the scroll container when parsing
+finishes: replacing it retires the mounted renderer and its armed read session.
 
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
 

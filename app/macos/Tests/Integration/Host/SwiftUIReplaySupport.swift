@@ -8,6 +8,7 @@ import Testing
     /// tests (draft-only) never do. The test runner owns that initialization so
     /// replayed AppKit surfaces and plain draft tests share one safe entry point.
     private static var app: NSApplication { NSApp ?? NSApplication.shared }
+    private static var reportedEnvironment = false
 
     static func window<Content: View>(_ content: Content, width: CGFloat = 1180, height: CGFloat = 780, offscreen: Bool = false) -> NSWindow {
         let sharedApp = app
@@ -17,6 +18,10 @@ import Testing
         let window = ReplayWindow(contentRect: .init(x: 0, y: 0, width: width, height: height),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        if !reportedEnvironment {
+            print("NATIVE ENVIRONMENT systemReduceMotion=\(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion) backingScale=\(window.backingScaleFactor) screens=\(NSScreen.screens.map(\.frame))")
+            reportedEnvironment = true
+        }
         let host = NSHostingView(rootView: content.frame(width: width, height: height).accessibilityElement(children: .contain))
         host.frame = CGRect(x: 0, y: 0, width: width, height: height)
         window.contentView = host

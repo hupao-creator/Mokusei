@@ -36,7 +36,27 @@ public final class NativeVoiceMediaClient {
         var playback = NativeVoicePlayback()
         var startupOutcome: NativePerformance.Outcome = .cancelled
         let takeover: JSONText?
-        init(takeover: JSONText?) { self.takeover = takeover }
+        let reconnectFrom: JSONText?
+        var inputPending = false
+        var speechActive = false
+        var inputGeneration = -1
+        var inputResponseID: JSONText?
+        var speechReceipts: [SpeechReceipt] = []
+        var reconnectPending = false
+        var reconnectRetired = false
+        let muted: Bool
+        init(takeover: JSONText?, reconnectFrom: JSONText? = nil, muted: Bool = false) {
+            self.takeover = takeover; self.reconnectFrom = reconnectFrom; self.muted = muted
+        }
+    }
+
+    @MainActor
+    private final class SpeechReceipt {
+        let deliveryID: JSONText
+        let generation: Int
+        var confirmed = false
+        var responseID: JSONText?
+        init(deliveryID: JSONText, generation: Int) { self.deliveryID = deliveryID; self.generation = generation }
     }
 
     init(role: NativeVoiceMediaOwnership.Role,
@@ -75,11 +95,20 @@ public final class NativeVoiceMediaClient {
         guard !Task.isCancelled, state.available, attempt == nil, stopping == nil,
               state.phase == .closed || state.phase == .failed else { return }
         let attempt = Attempt(takeover: takeover)
+        install(attempt)
+        await runStartup(attempt)
+    }
+
+    private func install(_ attempt: Attempt) {
         self.attempt = attempt
         pendingTakeover = nil; state.occupiedOwner = nil
         inputTranscript = .init()
         state.mediaSuspended = false
-        state.phase = .preparing; state.error = ""; state.caption = ""; state.muted = false
+        state.phase = .preparing; state.error = ""; state.caption = ""; state.muted = attempt.muted
+    }
+
+    private func runStartup(_ attempt: Attempt) async {
+        guard self.attempt === attempt else { return }
         let startup = NativePerformance.begin(.voiceStartup, context: attempt.timingContext)
         await withTaskCancellationHandler {
             let acquisition = NativePerformance.begin(.voiceOwnership, context: attempt.timingContext)
@@ -102,6 +131,7 @@ public final class NativeVoiceMediaClient {
             try check(attempt)
             var preparation: [JSONText: JSONValue] = ["action": .text("prepare"), "requestId": .string(attempt.requestID)]
             if let takeover = attempt.takeover { preparation["takeover"] = .string(takeover) }
+            if let reconnectFrom = attempt.reconnectFrom { preparation["reconnectFrom"] = .string(reconnectFrom) }
             let prepared = try await measure(.voicePrepare) { try await command(.object(preparation)) }
             if let occupied = prepared.occupiedOwner {
                 try check(attempt)
@@ -129,7 +159,32 @@ public final class NativeVoiceMediaClient {
             media.onMessage = { [weak self, weak attempt] data in
                 guard let self, let attempt, self.attempt === attempt else { return }
                 attempt.playback.receive(data)
-                let type = (try? JSONValue(data: data))?["type"]?.stringValue
+                let event = try? JSONValue(data: data)
+                let type = event?["type"]?.stringValue
+                if type == "input_audio_buffer.speech_started" {
+                    attempt.inputPending = true; attempt.speechActive = true; attempt.inputResponseID = nil
+                }
+                if type == "input_audio_buffer.speech_stopped" { attempt.speechActive = false }
+                if type == "input_audio_buffer.cleared" { attempt.inputPending = false; attempt.speechActive = false }
+                if type == "response.created", let id = event?["response"]?["id"]?.voiceText {
+                    if let speech = attempt.speechReceipts.first(where: { $0.confirmed && $0.responseID == nil }) { speech.responseID = id }
+                    else if attempt.inputPending && attempt.inputResponseID == nil { attempt.inputResponseID = id }
+                }
+                if type == "response.done", let response = event?["response"], let id = response["id"]?.voiceText {
+                    if attempt.inputResponseID == id { attempt.inputPending = false; attempt.inputResponseID = nil }
+                    let failed = response["status"]?.stringValue == "failed" || response["status"]?.stringValue == "cancelled"
+                    let noAudio = response["output"]?.arrayValue.map { output in
+                        !output.contains { item in (item["content"]?.arrayValue ?? []).contains { ["audio", "output_audio"].contains($0["type"]?.stringValue ?? "") } }
+                    } ?? false
+                    if failed || noAudio {
+                        attempt.playback.completeWithoutAudio(id)
+                        attempt.speechReceipts.removeAll { $0.responseID == id }
+                    }
+                }
+                if (type == "output_audio_buffer.stopped" || type == "output_audio_buffer.cleared"), let id = event?["response_id"]?.voiceText {
+                    attempt.speechReceipts.removeAll { $0.responseID == id }
+                }
+                self.confirmSpeechIfReady(attempt)
                 if self.state.mediaSuspended && (type == "response.created" || type == "output_audio_buffer.started") {
                     do { try self.clearMediaBuffers(attempt) }
                     catch { self.fail(attempt, error) }
@@ -143,12 +198,14 @@ public final class NativeVoiceMediaClient {
             state.phase = .connecting
             let sdp = try await measure(.voiceOffer) { try await media.offer() }
             try check(attempt)
+            if attempt.muted { try media.setAudioEnabled(true, muted: true) }
             let answer = try await measure(.voiceRemoteSDP) { try await command(.object(["action": .text("start"), "sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID), "sdp": .text(sdp)])) }
             try check(attempt)
             guard let sdp = answer.sdp, !sdp.isEmpty else { throw NativeVoiceError("语音服务没有返回 SDP") }
             try await measure(.voiceConnect) { try await media.connect(answer: sdp) }
             try check(attempt)
             state.phase = .listening
+            confirmSpeechIfReady(attempt)
             attempt.startupOutcome = .completed
             media.setAnalysisEnabled(!visualizers.isEmpty)
         } catch {
@@ -175,11 +232,15 @@ public final class NativeVoiceMediaClient {
                             values: ["pollSucceeded": 1, "pollAfter": Double(attempt.after),
                                      "pollEvents": Double(result.events.count)])
                     }
+                    if let error = result.reconnectError { throw NativeVoiceError(error) }
+                    attempt.reconnectPending = result.reconnect
+                    attempt.reconnectRetired = result.reconnectRetired
                     for event in result.events where event.sequence > attempt.after {
                         attempt.after = event.sequence
                         self.receive(event, attempt: attempt)
                         guard self.attempt === attempt else { return }
                     }
+                    if self.reconnectIfReady(attempt) { return }
                     try await Task.sleep(for: .milliseconds(250))
                 } catch {
                     if !Task.isCancelled {
@@ -210,6 +271,18 @@ public final class NativeVoiceMediaClient {
             NativePerformance.event(.voiceMediaHealth, context: attempt.timingContext,
                 values: ["hostEventClass": category, "hostEventSequence": Double(event.sequence)])
         }
+        if event.type == "input", let generation = event.generation {
+            attempt.inputGeneration = max(attempt.inputGeneration, generation)
+            attempt.speechReceipts.removeAll { $0.generation < generation }
+        }
+        if event.type == "speech-ready", let delivery = event.deliveryID, let generation = event.generation,
+           generation >= attempt.inputGeneration, !attempt.speechReceipts.contains(where: { $0.deliveryID == delivery }) {
+            attempt.speechReceipts.append(SpeechReceipt(deliveryID: delivery, generation: generation))
+        }
+        if event.type == "speech-error", let delivery = event.deliveryID { attempt.speechReceipts.removeAll { $0.deliveryID == delivery } }
+        // A settings reconnect intentionally retires the old peer. Its closed
+        // event must not convert the retained call intent into an explicit Stop.
+        if attempt.reconnectPending && event.type == "closed" { return }
         inputTranscript.receive(event)
         onEvent?(event)
         guard self.attempt === attempt else { return }
@@ -220,6 +293,45 @@ public final class NativeVoiceMediaClient {
         case "transcript", "answer": state.caption = event.text ?? ""
         default: break
         }
+        confirmSpeechIfReady(attempt)
+    }
+
+    private func confirmSpeechIfReady(_ attempt: Attempt) {
+        guard self.attempt === attempt, state.phase == .listening, !state.mediaSuspended,
+              !attempt.inputPending, !attempt.speechActive,
+              attempt.playback.responseID == nil, attempt.playback.bufferedResponseID == nil, attempt.playback.playbackID == nil,
+              let speech = attempt.speechReceipts.first, !speech.confirmed, let sessionID = attempt.sessionID else { return }
+        speech.confirmed = true
+        Task { [weak self, weak attempt, weak speech] in
+            guard let self, let attempt, let speech, self.attempt === attempt,
+                  attempt.speechReceipts.contains(where: { $0 === speech }) else { return }
+            do {
+                _ = try await self.command(.object(["action": .text("ack-speech"), "sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID),
+                    "deliveryId": .string(speech.deliveryID), "generation": .integer(speech.generation)]))
+            } catch { self.fail(attempt, error) }
+        }
+    }
+
+    private func reconnectIfReady(_ previous: Attempt) -> Bool {
+        guard role == .moku, attempt === previous, previous.reconnectPending,
+              state.phase == .listening, !state.mediaSuspended, state.available else { return false }
+        if !previous.reconnectRetired {
+            guard !previous.inputPending, !previous.speechActive, previous.speechReceipts.isEmpty,
+                  previous.playback.responseID == nil, previous.playback.bufferedResponseID == nil,
+                  previous.playback.playbackID == nil else { return false }
+        }
+        let next = Attempt(takeover: nil, reconnectFrom: previous.requestID, muted: state.muted)
+        previous.poll?.cancel(); previous.poll = nil
+        previous.media?.close(); previous.media = nil
+        ownership.release(self, requestID: previous.requestID)
+        install(next)
+        // This is one continuation of the user's active call, fenced by its
+        // replacement attempt. Failure remains visible; there is no retry loop.
+        Task { [weak self, weak next] in
+            guard let self, let next else { return }
+            await self.runStartup(next)
+        }
+        return true
     }
 
     /// Called synchronously at the actual Moku submit action, before dispatch.
@@ -262,18 +374,25 @@ public final class NativeVoiceMediaClient {
     func resumeMedia(requestID: JSONText) {
         guard state.mediaSuspended, let attempt, attempt.requestID == requestID,
               let media = attempt.media else { return }
+        if attempt.reconnectPending && attempt.reconnectRetired {
+            state.mediaSuspended = false
+            _ = reconnectIfReady(attempt)
+            return
+        }
         do {
             // Drop speech/input accumulated around the handoff before enabling
             // the original peer. No server session is ever recreated here.
             try clearMediaBuffers(attempt)
             try media.setAudioEnabled(true, muted: state.muted)
             state.mediaSuspended = false
+            confirmSpeechIfReady(attempt)
         } catch { fail(attempt, error) }
     }
 
     private func clearMediaBuffers(_ attempt: Attempt) throws {
         guard let media = attempt.media, media.channelOpen else { throw NativeVoiceError("语音数据通道已断开") }
         var messages = attempt.playback.interrupt()
+        attempt.speechReceipts.removeAll { $0.confirmed }
         if !messages.contains(where: { $0["type"]?.stringValue == "output_audio_buffer.clear" }) {
             messages.append(.object(["type": .text("output_audio_buffer.clear")]))
         }
@@ -313,6 +432,9 @@ public final class NativeVoiceMediaClient {
             do {
                 _ = try await command(.object(["action": .text("stop"),
                     "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
+                if let reconnectFrom = attempt.reconnectFrom, attempt.sessionID == nil {
+                    _ = try await command(.object(["action": .text("stop"), "sessionId": .string(reconnectFrom), "ownershipId": .string(reconnectFrom)]))
+                }
                 state.phase = failed ? .failed : .closed
             } catch {
                 state.phase = .failed
