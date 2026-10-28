@@ -75,6 +75,13 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 2.6-point rounded caret, sized to 25/24 of the text size and centered in the
 native insertion rectangle. The core is white in dark appearance and uses native
 ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
+The halo preserves the approved study’s blurred 16-point warm and 14-point cool
+ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
+the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
+once per caret height/backing scale and its opacity is animated by Core Animation;
+no per-frame SwiftUI rendering or timer is needed. Emphasized editors place their
+existing padding inside the native text viewport, preserving glyph positions while
+leaving room for the glow before native scroll clipping.
 Light ink stays at 80–100% opacity throughout the cycle for contrast; dark-mode
 white ink breathes at 20–100%, while both halos fade fully.
 Core Animation breathes over 2.4 seconds; native blink callbacks do not hide it
