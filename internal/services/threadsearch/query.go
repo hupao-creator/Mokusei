@@ -180,10 +180,8 @@ func (m *Manager) Query(ctx context.Context, request QueryRequest) (result Query
 			continue
 		}
 		documents[key] = document
-		for _, chunk := range document.Chunks {
-			if keywords(request.Query, chunk.Text) {
-				scores[key] = max(scores[key], 2)
-			}
+		if keywords(request.Query, document.LiteralText) {
+			scores[key] = max(scores[key], 2)
 		}
 	}
 	event.DocumentCount = len(documents)

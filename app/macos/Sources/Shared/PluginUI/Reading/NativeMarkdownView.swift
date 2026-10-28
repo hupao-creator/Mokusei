@@ -13,6 +13,9 @@ public struct NativeMarkdownAppliedDocument: Equatable, Sendable {
 /// and attachment resolver; plain Markdown never creates a browser view.
 public struct NativeMarkdownView: View {
     public let text: String
+    // SwiftUI compares stored inputs before evaluating body. String equality
+    // alone can suppress a raw Unicode replacement before the task ID is read.
+    private let sourceBytes: Data
     public var streaming: Bool
     public var fontSize: CGFloat
     public var muted: Bool
@@ -31,7 +34,7 @@ public struct NativeMarkdownView: View {
                 openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
                 documentToken: String? = nil,
                 onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)? = nil) {
-        self.text = text; self.streaming = streaming
+        self.text = text; self.sourceBytes = Data(text.utf8); self.streaming = streaming
         self.fontSize = fontSize; self.muted = muted; self.openExternal = openExternal
         self.resolveMedia = resolveMedia; self.openExecution = openExecution
         self.documentToken = documentToken; self.onDocumentApplied = onDocumentApplied
@@ -74,7 +77,15 @@ public struct NativeMarkdownView: View {
     }
 }
 
-private struct MarkdownRevision: Equatable { let text: String; let streaming: Bool; let token: String? }
+struct MarkdownRevision: Equatable {
+    let text: String
+    let streaming: Bool
+    let token: String?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text.utf8.elementsEqual(rhs.text.utf8) && lhs.streaming == rhs.streaming && lhs.token == rhs.token
+    }
+}
 
 @MainActor
 private final class MarkdownViewModel: ObservableObject {
@@ -364,7 +375,13 @@ struct MarkdownInlineView: View {
 
 struct MarkdownCodeBlock: View {
     let source: String
+    private let sourceBytes: Data
     var selectionScope: String? = nil
+
+    init(source: String, selectionScope: String? = nil) {
+        self.source = source; self.sourceBytes = Data(source.utf8)
+        self.selectionScope = selectionScope
+    }
     var body: some View {
         NativeScrollView(.horizontal) {
             MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],

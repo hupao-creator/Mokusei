@@ -28,6 +28,8 @@ public struct ThreadMessage: View {
     public let id: JSONText
     public let author: Author
     public let content: String
+    // Preserve byte-distinct input at the outer SwiftUI comparison boundary too.
+    private let contentBytes: Data
     public let streaming: Bool
     public let steeringLabel: String?
     public let annotations: [ThreadMessageAnnotation]
@@ -46,6 +48,7 @@ public struct ThreadMessage: View {
                 resolveMedia: NativeMarkdownMediaResolver? = nil,
                 previewAttachment: ((JSONText) async throws -> Data)? = nil) {
         self.id = id; self.author = author; self.content = content; self.streaming = streaming
+        self.contentBytes = Data(content.utf8)
         self.steeringLabel = steeringLabel; self.annotations = annotations; self.attachments = attachments
         self.actions = actions; self.openExternal = openExternal; self.resolveMedia = resolveMedia; self.previewAttachment = previewAttachment
     }

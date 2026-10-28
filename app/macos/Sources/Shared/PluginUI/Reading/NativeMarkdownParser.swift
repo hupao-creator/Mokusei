@@ -11,8 +11,8 @@ enum MarkdownParser {
 
     static func parse(_ source: String) -> MarkdownDocument {
         let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        let prepared = extractFootnotes(protectBareURLs(normalized))
-        let main = prepareReferences(prepared.source, notes: prepared.notes)
+        let prepared = extractFootnotes(normalized)
+        let main = prepareReferences(protectBareURLs(prepared.source), notes: prepared.notes)
         let document = Document(parsing: main.source, options: [.disableSmartOpts])
         var converter = Converter(source: main.source, tokens: main.tokens)
         var blocks = converter.blocks(document.children)
@@ -22,7 +22,7 @@ enum MarkdownParser {
         while cursor < converter.references.count {
             let id = converter.references[cursor]
             if let note = prepared.notes.first(where: { $0.id == id }) {
-                let preparedNote = prepareReferences(note.source, notes: prepared.notes)
+                let preparedNote = prepareReferences(protectBareURLs(note.source), notes: prepared.notes)
                 let parsed = Document(parsing: preparedNote.source, options: [.disableSmartOpts])
                 var noteConverter = Converter(source: preparedNote.source, tokens: preparedNote.tokens, references: converter.references, referenceCounts: converter.referenceCounts)
                 let content = noteConverter.blocks(parsed.children)
@@ -235,7 +235,7 @@ enum MarkdownParser {
 
     private static let footnoteReference = try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\]"#)
     private static let whitespace = try! NSRegularExpression(pattern: "[ \t\r\n\u{000C}]+")
-    private static let footnoteDefinition = try! NSRegularExpression(pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[\^([^\]]+)\]:[ \t]*(.*)$"#)
+    private static let footnoteDefinition = try! NSRegularExpression(pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[\^([^\]\s]+)\]:[ \t]*(.*)$"#)
     private static let autolinkExpression = try! NSRegularExpression(
         pattern: #"(?i)(?:https?://|www\.)[^\s<>]+|[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+"#)
 
@@ -275,60 +275,57 @@ enum MarkdownParser {
         return result
     }
 
-    /// Protect source syntax before cmark splits emphasis or decodes entities.
-    /// AST ranges keep code, explicit links/images and raw HTML literal.
-    private static func protectedRanges(_ source: String) -> [NSRange] {
-        let rows = source.components(separatedBy: "\n")
-        let byteCount = source.utf8.count
-        var starts: [Int] = []; var offset = 0
-        for row in rows { starts.append(offset); offset += row.utf8.count + 1 }
-        var ranges: [NSRange] = []
-        func collect(_ node: any Markup) {
-            if node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML {
-                guard let range = node.range,
-                      starts.indices.contains(range.lowerBound.line - 1), starts.indices.contains(range.upperBound.line - 1) else { return }
-                let lower = starts[range.lowerBound.line - 1] + range.lowerBound.column - 1
-                let upper = starts[range.upperBound.line - 1] + range.upperBound.column - 1
-                guard lower >= 0, upper >= lower, upper <= byteCount else { return }
-                let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
-                let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
-                if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
-                    ranges.append(NSRange(first..<last, in: source))
-                }
-            } else { node.children.forEach(collect) }
-        }
-        collect(Document(parsing: source, options: [.disableSmartOpts]))
-        return ranges
-    }
+    private static let bareURLStart = try! NSRegularExpression(pattern: #"(?i)https?://|www\."#)
 
     private static func protectBareURLs(_ source: String) -> String {
         guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
-        let protected = protectedRanges(source)
-        let result = NSMutableString(string: source)
-        let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
-        for match in matches.reversed() {
-            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
-            var candidate = result.substring(with: match.range)
-            guard ["http://", "https://", "www."].contains(where: { candidate.lowercased().hasPrefix($0) }) else { continue }
-            while let last = candidate.last, ".,:;!?*_'\"".contains(last)
-                || (last == ")" && candidate.filter({ $0 == ")" }).count > candidate.filter({ $0 == "(" }).count) { candidate.removeLast() }
-            guard !candidate.isEmpty else { continue }
-            let range = NSRange(location: match.range.location, length: candidate.utf16.count)
-            let visible = unescapedURL(candidate)
-            let destination = visible.lowercased().hasPrefix("www.") ? "http://" + visible : visible
-            let label = visible.map { "\\[]*_`~".contains($0) ? "\\" + String($0) : String($0) }.joined()
-            result.replaceCharacters(in: range, with: "[" + label + "](<" + destination + ">)")
+        let visible = MarkdownSourceMap.ranges(source, visibleText: true).sorted { $0.range.location < $1.range.location }
+        let raw = source as NSString
+        var replacements: [(NSRange, String)] = []
+        var coveredEnd = 0
+        for region in visible {
+            var cursor = max(region.range.location, coveredEnd)
+            let end = NSMaxRange(region.range)
+            while cursor < end,
+                  let start = bareURLStart.firstMatch(in: source, range: NSRange(location: cursor, length: end - cursor)) {
+                let limit = region.cellEnd ?? raw.length
+                guard start.range.location < limit,
+                      let match = autolinkExpression.firstMatch(in: source, options: .anchored,
+                        range: NSRange(location: start.range.location, length: limit - start.range.location)) else {
+                    cursor = NSMaxRange(start.range); continue
+                }
+                cursor = NSMaxRange(match.range); coveredEnd = cursor
+                var candidate = raw.substring(with: match.range)
+                while let last = candidate.last, ".,:;!?*_'\"".contains(last)
+                    || (last == ")" && candidate.filter({ $0 == ")" }).count > candidate.filter({ $0 == "(" }).count) { candidate.removeLast() }
+                guard !candidate.isEmpty else { continue }
+                let range = NSRange(location: match.range.location, length: candidate.utf16.count)
+                let label = unescapedURLLabel(candidate).map { "\\[]*_`~|".contains($0) ? "\\" + String($0) : String($0) }.joined()
+                // Preserve source escapes for cmark to decode once. Generated
+                // pipes must remain escaped until after table cells are split.
+                let target = candidate.lowercased().hasPrefix("www.") ? "http://" + candidate : candidate
+                var destination = "", slashes = 0
+                for character in target {
+                    if character == "|", slashes % 2 == 0 { destination.append("\\") }
+                    destination.append(character)
+                    slashes = character == "\\" ? slashes + 1 : 0
+                }
+                if slashes % 2 == 1 { destination.append("\\") }
+                replacements.append((range, "[" + label + "](<" + destination + ">)"))
+            }
         }
+        let result = NSMutableString(string: source)
+        for (range, replacement) in replacements.reversed() { result.replaceCharacters(in: range, with: replacement) }
         return result as String
     }
 
-    private static func unescapedURL(_ source: String) -> String {
+    private static func unescapedURLLabel(_ source: String) -> String {
         var scalars = source.unicodeScalars.makeIterator()
         var result = ""
         while let scalar = scalars.next() {
             if scalar.value == 92, let next = scalars.next() {
-                // Match CommonMark's backslash escapes before constructing the
-                // explicit link. Angle destinations otherwise retain the slash.
+                // Decode the display label once. The generated destination
+                // retains its source escapes for cmark to decode separately.
                 let punctuation = (33...47).contains(next.value) || (58...64).contains(next.value)
                     || (91...96).contains(next.value) || (123...126).contains(next.value)
                 if !punctuation { result.unicodeScalars.append(scalar) }
@@ -340,13 +337,13 @@ enum MarkdownParser {
 
     private static func prepareReferences(_ source: String, notes: [Footnote]) -> (source: String, tokens: [String: String]) {
         guard !notes.isEmpty, source.contains("[^") else { return (source, [:]) }
-        let protected = protectedRanges(source)
+        let protected = MarkdownSourceMap.ranges(source, visibleText: false)
         let raw = source as NSString
         let result = NSMutableString(string: source)
         let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"
         var tokens: [String: String] = [:]
         for (index, match) in footnoteReference.matches(in: source, range: NSRange(location: 0, length: raw.length)).enumerated().reversed() {
-            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            guard !protected.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) else { continue }
             var cursor = match.range.location - 1, escapes = 0
             while cursor >= 0, raw.character(at: cursor) == 92 { escapes += 1; cursor -= 1 }
             guard escapes % 2 == 0 else { continue }

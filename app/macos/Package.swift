@@ -15,6 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", exact: "0.8.0"),
+        .package(url: "https://github.com/swiftlang/swift-cmark.git", exact: "0.9.0"),
         .package(url: "https://github.com/karwa/swift-url.git", exact: "0.4.2"),
         .package(url: "https://github.com/livekit/webrtc-xcframework.git", exact: "150.7871.02")
     ],
@@ -24,6 +25,8 @@ let package = Package(
         .target(name: "MokuseiPluginUI", dependencies: [
             "MokuseiCore", "MokuseiPluginAPI",
             .product(name: "Markdown", package: "swift-markdown"),
+            .product(name: "cmark-gfm", package: "swift-cmark"),
+            .product(name: "cmark-gfm-extensions", package: "swift-cmark"),
             .product(name: "WebURL", package: "swift-url")
         ], path: "Sources/Shared/PluginUI", exclude: ["README.md", "Shaders", "Resources/Palette.xcassets"], resources: [.process("Resources")],
             plugins: [.plugin(name: "CloudMetalCompiler")]),

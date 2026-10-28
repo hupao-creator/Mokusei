@@ -414,14 +414,43 @@ visual inspection; ordinary SwiftPM skips are not native replay evidence.
 python3 tools/verification/reading-presentation/run.py --markdown
 ```
 
-Runs seven native integration cases against production `ThreadMessage` and
+Runs eight native integration cases against production `ThreadMessage` and
 `NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
-footnotes, Unicode code preservation, folded labels and lazy continuations,
+footnotes, whitespace-containing ordinary reference labels, Unicode code preservation,
+NFC-to-NFD link replacement in a mounted reader, folded labels and lazy continuations,
 plain alternative text, partial/native copy, empty table columns, Command-arrow
 selection collapse, long ordered markers, inline-code table geometry, tight lists
 with empty quoted lines, and a percent-label footnote round trip through a
 horizontally scrolling table in the outer reading viewport. The replay needs a
 graphical session; it opens no external websites and makes no model requests.
+
+The SwiftPM `MarkdownSourceIdentityTests` also cover definition-shaped prose,
+multiline reference labels/titles, shifted inline source ranges after reference
+definitions, extracted footnote URLs and byte-distinct parser cache entries.
+`MarkdownRawSourceRenderingTests` retains the mounted `ThreadMessage` regression
+for NFC-to-NFD body and code replacement without changing a document token.
+`MarkdownSourceRangeTests` exercises Paragraph, ATX/Setext, table, code and HTML
+boundaries under quotes and lists, including multiple/multiline definitions,
+Unicode/Tab columns, LF/CRLF, trailing input, adjacent blocks and lazy code
+continuations with an adjacent real footnote. The lazy HTML/prose matrix checks
+attributes versus adjacent real references and full URLs across quote/list
+prefixes, omitted prefixes, spaces, tabs and CR/LF/CRLF; BOM/NUL fixtures check
+physical byte provenance through parser input normalization. It asserts both
+complete URLs and the absence of leaked footnote tokens. The native eight-case
+replay also renders a definition-prefixed Setext heading with literal code,
+a multiline HTML attribute beside a real footnote, and a complete lazy-line URL.
+`MarkdownFallbackSourceTests` covers normalization outside paragraph traces:
+BOM/NUL tables, header/body cells, inline code/HTML/links/images, escaped pipes,
+block literals and row-to-row changes in space/Tab container prefixes. `MarkdownTableRewriteTests` checks paragraph-to-header promotion with and without
+blank lines, literal code/HTML and URLs in the synthesized paragraph, and raw
+URL escapes against working explicit-link controls. It requires stable table
+column counts, complete targets/display labels and later-cell references, even
+without separator spaces. Indented code remains a literal control.
+The production native fixture combines a BOM-prefixed paragraph immediately
+before a table, header code, NUL, and an escaped-pipe URL before a later footnote
+cell.
+These run in the default Swift suite; the mounted source test requires a display.
+
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
