@@ -235,7 +235,9 @@ enum MarkdownParser {
 
     private static let footnoteReference = try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\]"#)
     private static let whitespace = try! NSRegularExpression(pattern: "[ \t\r\n\u{000C}]+")
-    private static let footnoteDefinition = try! NSRegularExpression(pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[\^([^\]]+)\]:[ \t]*(.*)$"#)
+    private static let footnoteDefinition = try! NSRegularExpression(pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[\^([^\]\s]+)\]:[ \t]*(.*)$"#)
+    private static let referenceDefinition = try! NSRegularExpression(
+        pattern: #"^([ \t]*(?:(?:>[ \t]*)|(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+))*)\[(?:\\.|[^\]\\])+\]:[ \t]*(.*)$"#)
     private static let autolinkExpression = try! NSRegularExpression(
         pattern: #"(?i)(?:https?://|www\.)[^\s<>]+|[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+"#)
 
@@ -303,7 +305,23 @@ enum MarkdownParser {
 
     private static func protectBareURLs(_ source: String) -> String {
         guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
-        let protected = protectedRanges(source)
+        var protected = protectedRanges(source)
+        // Reference definitions are absent from the AST. Rewriting their URL
+        // as an inline link destroys the definition before cmark can resolve it.
+        var offset = 0
+        var destinationOnNextLine = false
+        for line in source.components(separatedBy: "\n") {
+            let range = NSRange(location: 0, length: line.utf16.count)
+            if destinationOnNextLine {
+                protected.append(NSRange(location: offset, length: range.length))
+                destinationOnNextLine = false
+            } else if footnoteDefinition.firstMatch(in: line, range: range) == nil,
+                      let definition = referenceDefinition.firstMatch(in: line, range: range) {
+                protected.append(NSRange(location: offset, length: range.length))
+                destinationOnNextLine = definition.range(at: 2).length == 0
+            }
+            offset += range.length + 1
+        }
         let result = NSMutableString(string: source)
         let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
         for match in matches.reversed() {

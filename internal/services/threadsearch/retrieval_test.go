@@ -430,3 +430,34 @@ func TestCachedResultRechecksConcurrentDeletion(t *testing.T) {
 		t.Fatal("query stuck")
 	}
 }
+
+func TestLiteralSearchSpansChunkBoundaries(t *testing.T) {
+	f := newPerformanceFixture(t, time.Nanosecond)
+	token := strings.Repeat("identifier", 25)
+	f.seed(t, "boundary", "neutral", strings.Repeat("界", 1000)+token+strings.Repeat("尾", 1000), true)
+	f.seed(t, "distant", "neutral", "FIRST_KEYWORD "+strings.Repeat("界", 8000)+" SECOND_KEYWORD", true)
+	f.seed(t, "partial", "neutral", "FIRST_KEYWORD", true)
+	f.seed(t, "truncated", "neutral", strings.Repeat("界", maxChunks*1200)+" OUTSIDE_BOUND", true)
+	for _, available := range []bool{true, false} {
+		f.p.available.Store(available)
+		for _, tc := range []struct{ query, want string }{
+			{token, "boundary"}, {"FIRST_KEYWORD SECOND_KEYWORD", "distant"},
+		} {
+			out := f.query(t, tc.query, "boundary", "distant", "partial", "truncated")
+			if len(out.Hits) == 0 || out.Hits[0].Ref.ThreadID != tc.want || out.Hits[0].Score < 2 {
+				t.Fatalf("available=%v query=%q: %+v", available, tc.query, out)
+			}
+			for _, hit := range out.Hits[1:] {
+				if hit.Score >= 2 {
+					t.Fatalf("unrelated literal match: %+v", out)
+				}
+			}
+		}
+	}
+	if out := f.query(t, "OUTSIDE_BOUND", "truncated"); len(out.Hits) != 0 {
+		t.Fatalf("truncated content escaped index bound: %+v", out)
+	}
+	if out := f.query(t, token, "partial"); len(out.Hits) != 0 {
+		t.Fatalf("literal result escaped requested scope: %+v", out)
+	}
+}

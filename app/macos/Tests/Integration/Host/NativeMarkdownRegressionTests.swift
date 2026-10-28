@@ -31,6 +31,26 @@ struct NativeMarkdownRegressionTests {
         }, width: width, height: height)
     }
 
+    @MainActor private final class UnicodeSource: ObservableObject {
+        @Published var text = "[Distinct resource](http://127.0.0.1/caf\u{e9})"
+    }
+
+    private struct UnicodeReader: View {
+        @ObservedObject var source: UnicodeSource
+        var body: some View { NativeMarkdownView(text: source.text) }
+    }
+
+    @Test func mountedReaderUpdatesCanonicallyEquivalentLink() async throws {
+        let source = UnicodeSource()
+        let window = SwiftUIReplay.window(UnicodeReader(source: source), width: 700, height: 400)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { links(root).contains { $0.1.absoluteString.hasSuffix("caf%C3%A9") } }
+        source.text = "[Distinct resource](http://127.0.0.1/cafe\u{301})"
+        try await SwiftUIReplay.wait { links(root).contains { $0.1.absoluteString.hasSuffix("cafe%CC%81") } }
+        #expect(!links(root).contains { $0.1.absoluteString.hasSuffix("caf%C3%A9") })
+    }
+
     @Test func sourceSyntaxPreservesURLsFootnotesAndCode() async throws {
         let source = """
         http://127.0.0.1/a*b*c.html
@@ -43,7 +63,7 @@ struct NativeMarkdownRegressionTests {
 
         Entity: &#91;^x] then escaped: \\[^x].
 
-        Ref[^STRASSE]. Real[^rate%20value].
+        Ref[^STRASSE]. Real[^rate%20value]. Ordinary[^two words].
 
         ```text
         UNICODE_BEFORE\u{2028}UNICODE_AFTER
@@ -51,6 +71,7 @@ struct NativeMarkdownRegressionTests {
 
         Before [![Alt `CODE` *italic*](javascript:alert)](https://example.com/after) after.
 
+        [^two words]: https://example.com/reference
         [^x]: Unreferenced escaped note.
         [^straße]: FIRST_NOTE_LINE
         SECOND_NOTE_LINE
@@ -67,6 +88,7 @@ struct NativeMarkdownRegressionTests {
         #expect(!rendered.contains("Alt `CODE`"))
         #expect(texts(root).contains { $0.string.contains("FIRST_NOTE_LINE SECOND_NOTE_LINE") })
         let destinations = links(root).map { $0.1.absoluteString }
+        #expect(destinations.contains("https://example.com/reference"))
         #expect(destinations.contains("http://127.0.0.1/a*b*c.html"))
         #expect(destinations.contains("http://127.0.0.1/a~b~c.html"))
         #expect(destinations.contains("http://www.example.com/a*b*c.html"))

@@ -92,9 +92,9 @@ def main():
              6 if "--overview-mounting" in sys.argv or "--moku-landing" in sys.argv else
              2 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
-             8 if "--browser-viewport" in sys.argv else
+             8 if "--browser-viewport" in sys.argv or "--markdown" in sys.argv else
              2 if glass_captures else
-             7 if tag_glass or "--markdown" in sys.argv or "--moku-composer" in sys.argv else
+             7 if tag_glass or "--moku-composer" in sys.argv else
              10 if "--moku-note-tests" in sys.argv else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")

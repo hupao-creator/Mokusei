@@ -392,9 +392,10 @@ visual inspection; ordinary SwiftPM skips are not native replay evidence.
 python3 tools/verification/reading-presentation/run.py --markdown
 ```
 
-Runs seven native integration cases against production `ThreadMessage` and
+Runs eight native integration cases against production `ThreadMessage` and
 `NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
-footnotes, Unicode code preservation, folded labels and lazy continuations,
+footnotes, whitespace-containing ordinary reference labels, Unicode code preservation,
+NFC-to-NFD link replacement in a mounted reader, folded labels and lazy continuations,
 plain alternative text, partial/native copy, empty table columns, Command-arrow
 selection collapse, long ordered markers, inline-code table geometry, tight lists
 with empty quoted lines, and a percent-label footnote round trip through a

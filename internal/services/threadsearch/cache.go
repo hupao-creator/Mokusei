@@ -64,7 +64,7 @@ func (c *retrievalCache) document(ctx context.Context, snapshot store.Snapshot, 
 	if _, err := snapshot.Get(key, &document); err != nil {
 		return Document{}
 	}
-	size := int64(512 + len(document.Owner) + len(document.Fingerprint) + len(document.Version))
+	size := int64(512 + len(document.Owner) + len(document.Fingerprint) + len(document.Version) + len(document.LiteralText))
 	for _, chunk := range document.Chunks {
 		size += int64(256 + len(chunk.Title) + len(chunk.Text) + len(chunk.Hash) + cap(chunk.Vector)*4)
 	}

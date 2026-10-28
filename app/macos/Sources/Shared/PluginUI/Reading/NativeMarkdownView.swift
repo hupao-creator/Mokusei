@@ -74,7 +74,15 @@ public struct NativeMarkdownView: View {
     }
 }
 
-private struct MarkdownRevision: Equatable { let text: String; let streaming: Bool; let token: String? }
+struct MarkdownRevision: Equatable {
+    let text: String
+    let streaming: Bool
+    let token: String?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text.utf8.elementsEqual(rhs.text.utf8) && lhs.streaming == rhs.streaming && lhs.token == rhs.token
+    }
+}
 
 @MainActor
 private final class MarkdownViewModel: ObservableObject {
