@@ -34,6 +34,15 @@ Commands validate their execution/interaction identity before mutation. A follow
 
 The [Settings DTO](../model/state.go) contains ordinary Harness defaults, Moku's separate concrete execution profiles, plugin settings and desired plugin enablement. Ordinary thread settings are saved session configuration, not a live reference to global defaults. Thread configuration has its own CAS revision. Moku and background agents retain the configuration of already admitted work; newer saved settings apply at their next admission boundary.
 
+Changing Moku's Harness preference requires idle ordinary Agent Threads and
+Moku: running or waiting executions, native background work and pending inputs
+reject the save without changing settings. Actual cross-Harness replacement
+checks again and reserves the native admission boundary through old-owner
+cleanup and durable replacement. Its triggering queued Moku input may proceed
+on the new owner afterward. Private Report/Tag executions do not themselves
+block switching; an in-flight native admission still does. Unrelated settings
+retain their existing save behavior.
+
 Configuration admission uses a cancellable gate. A settings presentation that
 leaves its page releases its waiting HTTP request even when another native
 discovery still owns the gate; a cancelled waiter never enters the operation.

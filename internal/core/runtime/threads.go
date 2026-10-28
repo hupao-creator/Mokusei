@@ -577,6 +577,12 @@ func (r *Runtime) CreateThread(ctx context.Context, request CreateThreadRequest)
 	if err := validateInput(request.Input); err != nil {
 		return CreatedThread{}, err
 	}
+	// Reject a fenced creation before allocating its workspace or durable shell.
+	releaseService, err := r.beginServiceAdmission(false)
+	if err != nil {
+		return CreatedThread{}, err
+	}
+	defer releaseService()
 	id, err := newID()
 	if err != nil {
 		return CreatedThread{}, err
