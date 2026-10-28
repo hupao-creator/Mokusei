@@ -166,7 +166,12 @@ struct SettingsTextArea: NSViewRepresentable {
         view.placeholder = placeholder
         view.isEditable = isEnabled; view.isSelectable = isEnabled
         context.coordinator.installActivation(fieldActivation, editor: view)
-        if !view.hasMarkedText(), view.string != text { view.string = text }
+        if !view.hasMarkedText(), !view.string.utf16.elementsEqual(text.utf16) {
+            // External replacements start a new editing history; stale native
+            // undo ranges must never be applied to a different document.
+            view.undoManager?.removeAllActions(withTarget: view)
+            view.string = text
+        }
         scroll.alphaValue = isEnabled ? 1 : 0.5
         (scroll as? Surface)?.invalid = invalid
         (scroll as? Surface)?.enabled = isEnabled

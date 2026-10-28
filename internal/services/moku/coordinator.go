@@ -171,6 +171,9 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 	c.mu.Lock()
 	c.applied = shellConfiguration
 	for _, record := range records {
+		if record.MokuHistory {
+			continue
+		}
 		if record.Moku {
 			c.id = record.ID
 		} else if c.config.PendingDeliveries != nil && c.config.SendDelivery != nil {
@@ -452,7 +455,7 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 		if delivery != nil && delivery.owner != record.ID {
 			return errors.New("语音所属 Moku 已更换")
 		}
-		entries, err := c.sendContext(admissionCtx, request.Input, request.DirectoryTag)
+		entries, err := c.sendContext(admissionCtx, request.Input, request.DirectoryTag, request.DirectoryScopeID)
 		if err != nil {
 			return err
 		}
@@ -681,6 +684,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			// A host-harness change keeps Moku's own milestone history. Only an
 			// explicit history reset starts with no note.
 			configuration.PreserveNote = true
+			configuration.PreserveHistory = true
 			current, err = c.config.ReplaceSession(ctx, current.ID, configuration)
 			if err != nil {
 				return current, err

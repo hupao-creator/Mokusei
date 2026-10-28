@@ -16,6 +16,11 @@ MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
   --filter 'GitNativeTests|GitThreadExtensionTests|NativeArchivedThreadsTests|NativeOverviewSearchTests'
 ```
 
+Git line numbers follow LF physical lines. Inline Unicode line/paragraph and
+control separators render as visible single-unit glyphs within their source row;
+copy uses the original text, including those separators, rather than the display
+substitution. Native fixtures verify row geometry, tail visibility and exact copy.
+
 The Go replay creates disposable repositories. The Swift suites consume its production query fixtures; native UI execution requires macOS.
 The replay includes a linked worktree with 3172 ignored cache files, tracked
 ignored paths, nonignored additions, line-budget failure, deadline failure and

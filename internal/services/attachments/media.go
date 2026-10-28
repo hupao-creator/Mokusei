@@ -93,6 +93,12 @@ func sanitizeName(raw, extension string) string {
 		}
 		return r
 	}, name)
+	// A single-segment dotfile has no separate stem/extension. Once the
+	// leading dots are removed, appending that segment would duplicate it.
+	if strings.HasPrefix(name, ".") && !strings.Contains(strings.TrimLeft(name, "."), ".") &&
+		strings.EqualFold(extension, filepath.Ext(name)) {
+		extension = ""
+	}
 	name = strings.TrimLeft(name, ".")
 	if name == "" {
 		name = "file"

@@ -22,6 +22,9 @@ type AnswerValidation struct {
 	Errors            map[string]string          `json:"errors"`
 	ActiveQuestionIDs []string                   `json:"activeQuestionIds"`
 	Answers           map[string]json.RawMessage `json:"answers"`
+	// ValidatedFormValues contains native typed values, including active defaults.
+	// It is internal handoff data, never accepted from a client.
+	ValidatedFormValues map[string]any `json:"-"`
 }
 
 // ParsePublicJSONObjectAnswer accepts the JSON editor's encoded string, not an
@@ -74,7 +77,7 @@ func finiteQuestionJSON(value any) bool {
 // the process. Wire option IDs are checked before decoding native option values.
 func ValidatePublicInteractionAnswers(interaction PublicInteraction, input map[string]json.RawMessage) AnswerValidation {
 	result := AnswerValidation{
-		Errors: make(map[string]string), Answers: make(map[string]json.RawMessage),
+		Errors: make(map[string]string), Answers: make(map[string]json.RawMessage), ValidatedFormValues: make(map[string]any),
 		ActiveQuestionIDs: make([]string, 0, len(interaction.Questions)),
 	}
 	effective := make(map[string]any)
@@ -145,6 +148,7 @@ func ValidatePublicInteractionAnswers(interaction PublicInteraction, input map[s
 					err = errors.New(message)
 				} else if hasValue {
 					effective[question.ID] = value
+					result.ValidatedFormValues[question.ID] = value
 				}
 			}
 		} else {
@@ -274,9 +278,6 @@ func decodeQuestionFormAnswer(form PublicQuestionForm, encoded any, present bool
 	decode := func(value string) (string, error) {
 		if native, ok := form.OptionValues[value]; ok {
 			return native, nil
-		}
-		if form.OptionIDPrefix != "" && strings.HasPrefix(value, form.OptionIDPrefix) {
-			return "", errors.New("Choose an available option.")
 		}
 		return value, nil
 	}

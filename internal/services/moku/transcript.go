@@ -189,6 +189,9 @@ func userMessage(input model.AgentInput, id string, at int64) map[string]any {
 	return item
 }
 func (c *Coordinator) committed(record model.ThreadRecord) {
+	if record.MokuHistory {
+		return
+	}
 	c.mu.Lock()
 	if !c.running {
 		c.mu.Unlock()
@@ -301,7 +304,7 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 				return nil
 			}
 			subject, existsErr := c.config.Thread(subjectID)
-			if existsErr != nil || subject.Moku {
+			if existsErr != nil || subject.Moku || subject.MokuHistory {
 				return nil
 			}
 			record, err := c.ensure(ctx)
@@ -316,7 +319,7 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 				input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
 			}
 			input.Presentation = "internal"
-			entries, err := c.sendContext(ctx, input, nil)
+			entries, err := c.sendContext(ctx, input, nil, nil)
 			if err != nil {
 				return err
 			}

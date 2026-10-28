@@ -26,6 +26,7 @@ public struct HarnessThread: Hashable, Sendable {
     public let tagEmojis: [JSONText: JSONText]
     public let archived: Bool?
     public let moku: Bool?
+    public let mokuHistory: Bool
     public let note: ThreadNote?
     public let transcript: JSONValue?
 
@@ -55,12 +56,16 @@ public struct HarnessThread: Hashable, Sendable {
         tagEmojis = try SemanticTagLabel.decodeEmojis(r.required("tagEmojis"), names: tags)
         archived = try r.optionalBool("archived")
         moku = try r.optionalBool("moku")
+        mokuHistory = try r.optionalBool("mokuHistory") ?? false
         note = try r.values["note"].map { try ThreadNote(json: $0) }
         transcript = r.values["transcript"]
         // The note is Moku's own milestone recap; an ordinary thread must never
         // publish one, because only Moku may author it.
         if note != nil, moku != true {
             throw PluginContractError("thread.note requires a Moku thread")
+        }
+        if mokuHistory, moku == true || archived != true || note != nil {
+            throw PluginContractError("thread.mokuHistory requires a read-only archived conversation without a current Moku note")
         }
         if let moku {
             guard moku, archived == nil else {
@@ -78,7 +83,7 @@ public struct HarnessThread: Hashable, Sendable {
                 createdAt: Double, updatedAt: Double, title: JSONText, tags: [JSONText],
                 worktree: JSONValue? = nil, metadataState: JSONValue? = nil,
                 metadataRevision: Int? = nil, archived: Bool? = nil,
-                moku: Bool? = nil, note: ThreadNote? = nil,
+                moku: Bool? = nil, mokuHistory: Bool = false, note: ThreadNote? = nil,
                 transcript: JSONValue? = nil, tagEmojis: [JSONText: JSONText] = [:],
                 directoryTag: JSONText = "", directoryScope: JSONText = "") throws {
         var object: [JSONText: JSONValue] = [
@@ -94,6 +99,7 @@ public struct HarnessThread: Hashable, Sendable {
         object["metadataRevision"] = metadataRevision.map { .integer($0) }
         object["archived"] = archived.map(JSONValue.bool)
         object["moku"] = moku.map(JSONValue.bool)
+        if mokuHistory { object["mokuHistory"] = .bool(true) }
         object["note"] = note?.json
         object["transcript"] = transcript
         try self.init(json: .object(object))

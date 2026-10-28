@@ -33,6 +33,8 @@ struct NativeMokuComposerInput: View {
     /// Voice starts through Force Touch or its menu shortcut.
     var activeVoiceControls = AnyView(EmptyView())
     var voiceModeActive = false
+    var running = false
+    var onCancel: () -> Void = {}
     var availableHeight: CGFloat = 420
     var mentions: NativeMokuDirectoryMentions?
     var onMentionFrame: (CGRect?) -> Void = { _ in }
@@ -118,7 +120,7 @@ struct NativeMokuComposerInput: View {
                     suppressInitialFocus: suppressInitialFocus,
                     minHeight: 58, maxHeight: maxHeight, fontSize: 14, lineHeight: 20,
                     insets: .init(top: 19, left: 6, bottom: 19, right: 6), onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
-                    onFiles: { files in if !unavailable { Task { await draft.importFiles(files) } } },
+                    onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
                     selectionRequest: selectionRequest, onEditorStateChange: { state in
                         onEditorStateChange?(state)
                     }, onKeyDown: onKeyDown, submitOnReturn: true)
@@ -136,6 +138,15 @@ struct NativeMokuComposerInput: View {
                     .disabled(!voiceControlsVisible)
                     .allowsHitTesting(voiceControlsVisible)
                     .accessibilityHidden(!voiceControlsVisible)
+                if running && !voiceModeActive {
+                    Button(action: onCancel) {
+                        RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
+                            .frame(width: 32, height: 32).contentShape(Circle())
+                    }.buttonStyle(.plain).disabled(unavailable || readOnly)
+                        .help(localize("停止 Moku", "Stop Moku"))
+                        .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
+                        .accessibilityIdentifier("moku-stop")
+                }
                 Button(action: onSend) {
                     NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
                         .background(Color.primary.opacity(draft.canSubmit ? 0.18 : 0.06), in: Circle())
@@ -145,7 +156,7 @@ struct NativeMokuComposerInput: View {
             }.padding(.leading, 6).padding(.trailing, 13)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
-                Text(error).font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
+                Text(composerLocalized(error, locale: locale)).font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
             }
         }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
             .backgroundPreferenceValue(NativeMokuEditorAnchorKey.self) { anchor in
@@ -222,7 +233,7 @@ public struct NativeMokuHistoryComposer: View {
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
-            activeVoiceControls: activeVoiceControls, voiceModeActive: voiceModeActive, availableHeight: availableHeight,
+            activeVoiceControls: activeVoiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel, availableHeight: availableHeight,
             mentions: mentions, showsEyes: true,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
             onKeyDown: { mentions.handle($0, draft: draft) },

@@ -76,7 +76,7 @@ func (r *Runtime) EnsureMokuThread(ctx context.Context, harnessID string, settin
 			return t, nil
 		}
 	}
-	return r.createMokuShell(ctx, "", harnessID, settings, cwd, nil, false)
+	return r.createMokuShell(ctx, "", harnessID, settings, cwd, nil, false, false)
 }
 func (r *Runtime) ReplaceMokuThread(ctx context.Context, oldID, harnessID string, settings json.RawMessage, cwd string) (model.ThreadRecord, error) {
 	if oldID != "" {
@@ -84,7 +84,7 @@ func (r *Runtime) ReplaceMokuThread(ctx context.Context, oldID, harnessID string
 			return model.ThreadRecord{}, err
 		}
 	}
-	return r.createMokuShell(ctx, oldID, harnessID, settings, cwd, nil, false)
+	return r.createMokuShell(ctx, oldID, harnessID, settings, cwd, nil, false, false)
 }
 func (r *Runtime) EnsureConfiguredMokuThread(ctx context.Context, configuration MokuConfiguration) (model.ThreadRecord, error) {
 	threads, err := r.Threads()
@@ -100,7 +100,7 @@ func (r *Runtime) EnsureConfiguredMokuThread(ctx context.Context, configuration 
 	if !configuration.Unapplied {
 		applied = &configuration
 	}
-	return r.createMokuShell(ctx, "", configuration.HarnessID, configuration.Settings, configuration.Cwd, applied, false)
+	return r.createMokuShell(ctx, "", configuration.HarnessID, configuration.Settings, configuration.Cwd, applied, false, false)
 }
 func (r *Runtime) ReplaceConfiguredMokuThread(ctx context.Context, oldID string, configuration MokuConfiguration) (model.ThreadRecord, error) {
 	if oldID != "" {
@@ -112,9 +112,9 @@ func (r *Runtime) ReplaceConfiguredMokuThread(ctx context.Context, oldID string,
 	if !configuration.Unapplied {
 		applied = &configuration
 	}
-	return r.createMokuShell(ctx, oldID, configuration.HarnessID, configuration.Settings, configuration.Cwd, applied, configuration.PreserveNote)
+	return r.createMokuShell(ctx, oldID, configuration.HarnessID, configuration.Settings, configuration.Cwd, applied, configuration.PreserveNote, configuration.PreserveHistory)
 }
-func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, settings json.RawMessage, cwd string, applied *MokuConfiguration, preserveNote bool) (model.ThreadRecord, error) {
+func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, settings json.RawMessage, cwd string, applied *MokuConfiguration, preserveNote, preserveHistory bool) (model.ThreadRecord, error) {
 	if r.config.Harnesses[harnessID] == nil {
 		return model.ThreadRecord{}, fmt.Errorf("unknown Moku harness: %s", harnessID)
 	}
@@ -130,6 +130,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 	}
 	now := time.Now().UnixMilli()
 	thread := model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: harnessID, SessionState: json.RawMessage("null"), Settings: settings, Cwd: cwd, CreatedAt: now, UpdatedAt: now}, Moku: true, Title: "Moku", Tags: []string{}, TagEmojis: map[string]string{}, Transcript: []json.RawMessage{}}
+	retiredOwners := []string{}
 	_, err = r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		if applied != nil {
 			if err := r.assertAppliedConfiguration(tx, *applied); err != nil {
@@ -138,7 +139,7 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 		}
 		order := []string{}
 		for _, existing := range tx.Order("threads") {
-			if existing != oldID {
+			if existing != oldID || preserveHistory {
 				order = append(order, existing)
 			}
 		}
@@ -159,16 +160,62 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 				}
 				thread.Note = &note
 			}
-			for _, key := range tx.Keys("interaction-answer:" + oldID + ":") {
-				if err := tx.Delete(key); err != nil {
+			if preserveHistory {
+				// Native state can contain Moku-only instructions and tools. Keep
+				// it readable, but never turn it into an executable ordinary task.
+				archive := old
+				archive.Moku = false
+				archive.MokuHistory = true
+				archived := true
+				archive.Archived = &archived
+				archive.Note = nil
+				archive.Title = "Moku history · " + old.HarnessID
+				archive.UpdatedAt = now
+				archive.Revision++
+				if err := tx.Put("thread:"+oldID, archive); err != nil {
 					return err
 				}
-			}
-			if err := tx.Delete("thread:" + oldID); err != nil {
-				return err
-			}
-			if err := r.threadEvents(tx, &old, nil); err != nil {
-				return err
+				if err := r.threadEvents(tx, &old, &archive); err != nil {
+					return err
+				}
+			} else {
+				// An explicit history reset also retires previously switched
+				// Harness sessions, including their attachment ownership.
+				remove := map[string]bool{oldID: true}
+				for _, key := range tx.Keys("thread:") {
+					var previous model.ThreadRecord
+					if _, err := tx.Get(key, &previous); err != nil {
+						return err
+					}
+					if previous.MokuHistory {
+						remove[previous.ID] = true
+					}
+				}
+				kept := order[:0]
+				for _, existing := range order {
+					if !remove[existing] {
+						kept = append(kept, existing)
+					}
+				}
+				order = kept
+				for retiredID := range remove {
+					var previous model.ThreadRecord
+					if _, err := tx.Get("thread:"+retiredID, &previous); err != nil {
+						return err
+					}
+					for _, key := range tx.Keys("interaction-answer:" + retiredID + ":") {
+						if err := tx.Delete(key); err != nil {
+							return err
+						}
+					}
+					if err := tx.Delete("thread:" + retiredID); err != nil {
+						return err
+					}
+					if err := r.threadEvents(tx, &previous, nil); err != nil {
+						return err
+					}
+					retiredOwners = append(retiredOwners, retiredID)
+				}
 			}
 		} else {
 			for _, key := range tx.Keys("thread:") {
@@ -196,8 +243,10 @@ func (r *Runtime) createMokuShell(ctx context.Context, oldID, harnessID string, 
 		}
 		return r.threadEvents(tx, nil, &thread)
 	})
-	if err == nil && oldID != "" && r.config.Attachments != nil {
-		r.log("moku.attachments.release", r.config.Attachments.ReleaseOwner(ctx, oldID))
+	if err == nil && r.config.Attachments != nil {
+		for _, retiredID := range retiredOwners {
+			r.log("moku.attachments.release", r.config.Attachments.ReleaseOwner(ctx, retiredID))
+		}
 	}
 	return thread, err
 }

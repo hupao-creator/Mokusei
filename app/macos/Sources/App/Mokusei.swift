@@ -1,3 +1,4 @@
+import AppKit
 import MokuseiPluginUI
 import Observation
 import Darwin
@@ -39,10 +40,10 @@ private struct WorkspaceApp: App {
                 Button(session.model?.preferences.locale.text("退出", "Quit") ?? "Quit") { session.quit() }.keyboardShortcut("q")
             }
             CommandGroup(after: .toolbar) {
-                Button("Reload") { session.reload() }.keyboardShortcut("r").disabled(session.busy)
-                Button("Actual Size") { session.setZoom(0) }.keyboardShortcut("0")
-                Button("Zoom In") { session.setZoom(session.zoom + 0.5) }.keyboardShortcut("+")
-                Button("Zoom Out") { session.setZoom(session.zoom - 0.5) }.keyboardShortcut("-")
+                Button("Reload") { session.performWebCommand("mokuseiReloadFocusedWebContent:") { session.reload() } }.keyboardShortcut("r").disabled(session.busy)
+                Button("Actual Size") { session.performWebCommand("mokuseiResetFocusedWebContentZoom:") { session.setZoom(0) } }.keyboardShortcut("0")
+                Button("Zoom In") { session.performWebCommand("mokuseiZoomInFocusedWebContent:") { session.setZoom(session.zoom + 0.5) } }.keyboardShortcut("+")
+                Button("Zoom Out") { session.performWebCommand("mokuseiZoomOutFocusedWebContent:") { session.setZoom(session.zoom - 0.5) } }.keyboardShortcut("-")
                 Toggle("Collect Detailed Performance", isOn: Binding(get: { NativePerformance.mode == .detailed },
                     set: { session.setPerformance($0) }))
             }
@@ -55,6 +56,7 @@ private final class WorkspaceSession {
     var model: NativeWorkspaceModel?
     var presentation: NativeWorkspacePresentation?
     var error: String?
+    var quitSettingsBlocked = false
     var busy = false
     var zoom: Double = 0
     var generation = UUID()
@@ -65,8 +67,10 @@ private final class WorkspaceSession {
     private var performanceDirectory: URL?
     private var task: Task<Void, Never>?
     private var quitting = false
+    private var quitSavingSettings = false
     private var quitDeadline: Task<Void, Never>?
-    var scale: Double { min(5, max(0.25, pow(1.2, zoom))) }
+    private static let zoomRange = (log(0.25) / log(1.2))...(log(5) / log(1.2))
+    var scale: Double { pow(1.2, zoom) }
 
     init() {
         do {
@@ -79,7 +83,7 @@ private final class WorkspaceSession {
             startup.attachToRecording()
             zoomURL = profile.dataDirectory.appendingPathComponent("native-window-zoom.json")
             if let zoomURL, let data = try? Data(contentsOf: zoomURL),
-               let saved = try? JSONDecoder().decode(SavedZoom.self, from: data), saved.level.isFinite { zoom = saved.level }
+               let saved = try? JSONDecoder().decode(SavedZoom.self, from: data), saved.level.isFinite { setZoom(saved.level) }
             NativeTypography.registerFonts()
             let preferences = DesktopPreferences(directory: profile.dataDirectory)
             let client = RuntimeClient(profile: profile, launch: options.launch)
@@ -101,8 +105,12 @@ private final class WorkspaceSession {
         FileHandle.standardOutput.write(Data("[native-launch] ready pid=\(ProcessInfo.processInfo.processIdentifier)\n".utf8))
     }
     func setZoom(_ value: Double) {
-        guard value.isFinite else { return }; zoom = value
-        if let zoomURL, let data = try? JSONEncoder().encode(SavedZoom(level: value)) { try? data.write(to: zoomURL, options: .atomic) }
+        guard value.isFinite else { return }
+        zoom = min(Self.zoomRange.upperBound, max(Self.zoomRange.lowerBound, value))
+        if let zoomURL, let data = try? JSONEncoder().encode(SavedZoom(level: zoom)) { try? data.write(to: zoomURL, options: .atomic) }
+    }
+    func performWebCommand(_ selector: String, fallback: () -> Void) {
+        if !NSApp.sendAction(NSSelectorFromString(selector), to: nil, from: nil) { fallback() }
     }
     func setPerformance(_ enabled: Bool) {
         guard let performanceDirectory else { return }
@@ -120,25 +128,49 @@ private final class WorkspaceSession {
             presentation = NativeWorkspacePresentation(workspace: model); generation = UUID()
         }
     }
-    func quit() {
+    func quit(discardSettings: Bool = false) {
         guard !quitting else { finishQuit(); return }
         quitting = true; busy = true
+        quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
         task?.cancel()
         // Network/voice cleanup can outlive cancellation. The deadline must
         // not join that work; the epoch-fenced exit helper finishes it instead.
         quitDeadline = Task {
             do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            if quitSavingSettings {
+                rejectQuitForSettings(RuntimeError("SETTINGS_UNSAVED", "Saving settings timed out."))
+                return
+            }
             exitCleanup?.record(RuntimeError("QUIT_TIMEOUT", "Application exited while runtime cleanup continued"))
             finishQuit()
         }
         task = Task {
+            if !discardSettings {
+                do { try await model?.settingsModel.draft.flushForQuit() }
+                catch {
+                    guard !Task.isCancelled else { return }
+                    rejectQuitForSettings(error)
+                    return
+                }
+            }
+            guard !Task.isCancelled, quitting else { return }
+            quitSavingSettings = false
             do {
                 try await model?.stop()
                 exitCleanup?.disarm()
             } catch { exitCleanup?.record(error) }
             finishQuit()
         }
+    }
+    private func rejectQuitForSettings(_ error: Error) {
+        quitDeadline?.cancel(); quitDeadline = nil
+        task?.cancel(); task = nil
+        quitting = false; quitSavingSettings = false; busy = false
+        quitSettingsBlocked = true
+        self.error = model?.preferences.locale.text(
+            "设置尚未保存。可以继续编辑，或不保存并退出。\n\(error.localizedDescription)",
+            "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)") ?? error.localizedDescription
     }
     private func finishQuit() {
         quitDeadline?.cancel()
@@ -167,7 +199,14 @@ private struct WorkspaceWindow: View {
         .onAppear { session.start() }
         .onDisappear { session.quit() }
         .alert("Mokusei", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
-            Button("OK") { session.error = nil }
+            if session.quitSettingsBlocked {
+                Button(session.model?.preferences.locale.text("继续编辑", "Keep Editing") ?? "Keep Editing", role: .cancel) {
+                    session.error = nil; session.quitSettingsBlocked = false
+                }
+                Button(session.model?.preferences.locale.text("不保存并退出", "Quit Without Saving") ?? "Quit Without Saving", role: .destructive) {
+                    session.error = nil; session.quitSettingsBlocked = false; session.quit(discardSettings: true)
+                }
+            } else { Button("OK") { session.error = nil } }
         } message: { Text(session.error ?? "") }
     }
 }

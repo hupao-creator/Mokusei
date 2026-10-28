@@ -80,6 +80,9 @@ type RespondRequest struct {
 	ActionID      string                     `json:"actionId"`
 	Answers       map[string]json.RawMessage `json:"answers,omitempty"`
 	Message       string                     `json:"message,omitempty"`
+	// Supplied only by trusted public-answer preflight; clients cannot inject
+	// native values through the wire schema.
+	ValidatedFormValues map[string]any `json:"-"`
 }
 type HarnessActivity struct {
 	ExecutionID string `json:"executionId"`

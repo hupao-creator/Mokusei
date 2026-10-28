@@ -292,9 +292,14 @@ func ocHeadText(_ value: JSONText, points: Int) -> JSONText {
     return JSONText(codeUnits: Array(value.codeUnits.prefix(index)))
 }
 func ocPublicID(_ kind: String, _ parts: [JSONText]) -> JSONText {
-    var digest = SHA256(); digest.update(data: Data("mokusei.opencode.public-interaction.v1".utf8))
-    for part in parts { let data = Data(part.string.utf8); digest.update(data: Data("\(data.count):".utf8)); digest.update(data: data) }
-    return JSONText("opencode-\(kind)-" + digest.finalize().map { String(format: "%02x", $0) }.joined())
+    // Match Go encoding/json's v2 array encoding, including HTML-safe escapes.
+    let json = ocJSONStringID([.text("mokusei.opencode.public-interaction.v2")] + parts.map(JSONValue.string)).string
+        .replacingOccurrences(of: "<", with: "\\u003c")
+        .replacingOccurrences(of: ">", with: "\\u003e")
+        .replacingOccurrences(of: "&", with: "\\u0026")
+        .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
+        .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
+    return JSONText("opencode-\(kind)-" + SHA256.hash(data: Data(json.utf8)).map { String(format: "%02x", $0) }.joined())
 }
 
 func ocTrim(_ text: String) -> String { text.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))) }

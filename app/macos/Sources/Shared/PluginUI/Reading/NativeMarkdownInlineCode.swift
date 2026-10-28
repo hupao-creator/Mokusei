@@ -10,7 +10,8 @@ extension NSAttributedString.Key {
 /// Zero-drawing spacing cells reserve that padding without making code atomic:
 /// every code character remains native selectable text.
 final class MarkdownCodePaddingCell: NSTextAttachmentCell {
-    override func cellSize() -> NSSize { NSSize(width: 5, height: 1) }
+    nonisolated static let horizontalWidth: CGFloat = 5
+    override func cellSize() -> NSSize { NSSize(width: Self.horizontalWidth, height: 1) }
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {}
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?, characterIndex charIndex: Int) {}
 }
@@ -22,7 +23,7 @@ func markdownCodePadding(attributes: [NSAttributedString.Key: Any]) -> NSAttribu
     let cell = MarkdownCodePaddingCell()
     cell.setAccessibilityElement(false)
     attachment.attachmentCell = cell
-    attachment.bounds = CGRect(x: 0, y: 0, width: 5, height: 1)
+    attachment.bounds = CGRect(x: 0, y: 0, width: MarkdownCodePaddingCell.horizontalWidth, height: 1)
     let value = NSMutableAttributedString(attachment: attachment)
     var attributes = attributes
     attributes.removeValue(forKey: .link)
@@ -60,7 +61,7 @@ final class MarkdownCodeLayoutManager: MarkdownSelectionLayoutManager {
 }
 
 extension MarkdownTextView {
-    func copyWithoutCodePadding() -> Bool {
+    func copyMarkdownSelection() -> Bool {
         guard let storage = markdownStorage else { return false }
         let selection = markdownSelectedRange
         guard selection.length > 0, NSMaxRange(selection) <= storage.length else { return false }
@@ -69,7 +70,6 @@ extension MarkdownTextView {
         selected.enumerateAttribute(.nativeMarkdownPadding, in: NSRange(location: 0, length: selected.length)) { value, range, _ in
             if value as? Bool == true { padding.append(range) }
         }
-        guard !padding.isEmpty else { return false }
         for range in padding.reversed() { selected.deleteCharacters(in: range) }
         let copied = MarkdownPlatformActions.copy(selected.markdownPlainText())
         if let rich = try? selected.data(from: NSRange(location: 0, length: selected.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]) {

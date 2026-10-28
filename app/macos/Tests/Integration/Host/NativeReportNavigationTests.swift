@@ -1,4 +1,5 @@
 import AppKit
+import Network
 import Observation
 import SwiftUI
 import Testing
@@ -19,6 +20,38 @@ import MokuseiApplications
     var revision = "1"
     var scale: CGFloat = 1
     var backs = 0
+    var externalURLs: [URL] = []
+    let html = """
+        <html><body style='background:white;min-height:2400px'>
+        <h1>Report</h1>
+        <input id='ordinary' value='alpha beta gamma'>
+        <div id='editableTrue' contenteditable='true'>alpha beta gamma</div>
+        <div id='editableEmpty' contenteditable=''>alpha beta gamma</div>
+        <div id='editablePlain' contenteditable='plaintext-only'>alpha beta gamma</div>
+        <div id='shadowHost'></div>
+        <div id='closedShadowHost'></div>
+        <dialog id='modal'><p>Native modal</p><button>Close</button></dialog>
+        <form id='post' method='post' target='_blank'>
+          <input name='x' value='fixture-post-body'><button>Submit</button>
+        </form>
+        <script>
+        document.getElementById('shadowHost').attachShadow({mode:'open'}).innerHTML =
+          '<input id="shadowInput" value="alpha beta gamma">';
+        const closedRoot = document.getElementById('closedShadowHost').attachShadow({mode:'closed'});
+        closedRoot.innerHTML = '<input value="alpha beta gamma">';
+        const closedInput = closedRoot.querySelector('input');
+        window.focusClosedInput = () => { closedInput.focus(); closedInput.setSelectionRange(16, 16); };
+        window.readClosedInput = () => closedInput.value;
+        document.querySelector('#post button').addEventListener('click', event => window.postClickTrusted = event.isTrusted);
+        document.getElementById('post').addEventListener('submit', () => window.postSubmitted = true);
+        window.postInputEvents = [];
+        for (const type of ['mousedown', 'mouseup', 'click']) document.addEventListener(type, event => {
+          window.postInputEvents.push({type, trusted: event.isTrusted, tag: event.target.tagName,
+            id: event.target.id, x: event.clientX, y: event.clientY});
+        }, true);
+        </script>
+        </body></html>
+        """
     let motion = NativeReadingPageMotion()
 }
 
@@ -43,9 +76,9 @@ private struct ReportNavigationReplay: View {
                 NativeApplicationHTMLSurface(source: try! source,
                     thread: .init(threadID: "report", typeID: "report.document"), theme: .light,
                     suppressed: fixture.suppressed, locale: "en", readDocument: { source in
-                        ApplicationHTMLDocument(html: "<html><body style='background:white;min-height:2400px'><h1>Report</h1></body></html>",
+                        ApplicationHTMLDocument(html: JSONText(fixture.html),
                             contentRevision: source.contentRevision)
-                    }, openExternal: { _ in }, onBack: { fixture.backs += 1; fixture.motion.close() }, onSettings: {},
+                    }, openExternal: { fixture.externalURLs.append($0) }, onBack: { fixture.backs += 1; fixture.motion.close() }, onSettings: {},
                     onNativeNavigationChange: { fixture.ready = $0 }, onFailure: { Issue.record(Comment(rawValue: $0.message)) })
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
@@ -77,7 +110,12 @@ struct NativeReportNavigationTests {
         #expect(outsideHit !== navigation && outsideHit?.isDescendant(of: navigation) != true)
     }
 
-    @Test(.requiresDisplay) func reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() async throws {
+    @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for real WebKit mouse/key input: python3 tools/verification/reading-presentation/run.py --report-navigation"))
+    func reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() async throws {
+        let app = NSApplication.shared
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         let fixture = ReportNavigationFixture()
         let window = SwiftUIReplay.window(ReportNavigationReplay(fixture: fixture))
         window.styleMask.formUnion([.fullSizeContentView, .closable, .miniaturizable])
@@ -123,19 +161,147 @@ struct NativeReportNavigationTests {
         assertButtons(hidden: false)
         fixture.suppressed = false
         try await SwiftUIReplay.wait { portal(in: root) === replaced }
-        for scale: CGFloat in [1.44, 0.8, 1] {
+        func webView(in view: NSView) -> WKWebView? {
+            if let web = view as? WKWebView { return web }
+            return view.subviews.lazy.compactMap { webView(in: $0) }.first
+        }
+        let document = try #require(webView(in: root))
+        for scale: CGFloat in [5, 1.44, 0.8, 0.25, 1] {
             fixture.scale = scale
             try await Task.sleep(for: .milliseconds(100))
             let rect = replaced.convert(replaced.bounds, to: root)
             #expect(abs(rect.width - 148) < 1 && abs(rect.height - 58) < 1)
             try assertBack(replaced, in: root)
             assertButtons(hidden: false, navigation: replaced)
+            let headingTop = try #require(try await document.evaluateJavaScript("document.querySelector('h1').getBoundingClientRect().top") as? Double)
+            #expect(headingTop * Double(scale) * document.pageZoom >= 73,
+                "The document must reserve the navigation's physical safe area at every workspace scale")
         }
-        func webView(in view: NSView) -> WKWebView? {
-            if let web = view as? WKWebView { return web }
-            return view.subviews.lazy.compactMap { webView(in: $0) }.first
+        func key(_ code: UInt16, _ characters: String, modifiers: NSEvent.ModifierFlags = []) throws {
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                let event = try #require(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: modifiers,
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                    context: nil, characters: characters, charactersIgnoringModifiers: characters,
+                    isARepeat: false, keyCode: code))
+                window.sendEvent(event)
+            }
         }
-        let document = try #require(webView(in: root))
+        _ = try await document.evaluateJavaScript("""
+            document.body.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Escape', bubbles: true, cancelable: true
+            }));
+            """)
+        try await Task.sleep(for: .milliseconds(80))
+        try #require(fixture.backs == 0 && fixture.open,
+            "Document scripts cannot synthesize trusted host navigation shortcuts")
+        window.makeFirstResponder(document)
+        for id in ["ordinary", "editableTrue", "editableEmpty", "editablePlain", "shadowInput"] {
+            let target = id == "shadowInput"
+                ? "document.getElementById('shadowHost').shadowRoot.getElementById('shadowInput')"
+                : "document.getElementById('\(id)')"
+            _ = try await document.evaluateJavaScript("\(target).focus()")
+            try key(123, "\u{F702}", modifiers: .option)
+            try key(53, "\u{1b}")
+            try await Task.sleep(for: .milliseconds(80))
+            try #require(fixture.backs == 0 && fixture.open,
+                "Report navigation must leave the native editing keys with \(id)")
+        }
+        _ = try await document.evaluateJavaScript("window.focusClosedInput()")
+        #expect(try await document.evaluateJavaScript("document.getElementById('closedShadowHost').shadowRoot === null") as? Bool == true)
+        try key(123, "\u{F702}", modifiers: .option)
+        try key(7, "X", modifiers: .shift)
+        try await Task.sleep(for: .milliseconds(80))
+        try #require(fixture.backs == 0 && fixture.open)
+        #expect(try await document.evaluateJavaScript("window.readClosedInput()") as? String == "alpha beta Xgamma",
+            "Option-Left must retain native word movement even when the editor is hidden by a closed shadow root")
+        _ = try await document.evaluateJavaScript("document.getElementById('modal').showModal()")
+        try key(53, "\u{1b}")
+        try await Task.sleep(for: .milliseconds(80))
+        #expect(try await document.evaluateJavaScript("document.getElementById('modal').open") as? Bool == false)
+        try #require(fixture.backs == 0 && fixture.open)
+        let http = try ReportHTTPFixture()
+        defer { http.close() }
+        try await SwiftUIReplay.wait { http.port != nil }
+        let postURL = try http.url("/post")
+        let navigationDelegate = try #require(document.navigationDelegate)
+        let uiDelegate = try #require(document.uiDelegate)
+        let requests = ReportNavigationRequestWitness(navigation: navigationDelegate, ui: uiDelegate)
+        document.navigationDelegate = requests
+        document.uiDelegate = requests
+        defer {
+            document.navigationDelegate = navigationDelegate
+            document.uiDelegate = uiDelegate
+        }
+        _ = try await document.evaluateJavaScript("""
+            document.getElementById('post').action = '\(postURL.absoluteString)';
+            document.querySelector('#post button').scrollIntoView({block: 'center'});
+            """)
+        let buttonPoint = try #require(try await document.evaluateJavaScript("""
+            (() => { const rect = document.querySelector('#post button').getBoundingClientRect();
+              return [rect.x + rect.width / 2, rect.y + rect.height / 2]; })()
+            """) as? [Double])
+        try #require(buttonPoint.count == 2)
+        let postPoint = document.convert(NSPoint(x: buttonPoint[0],
+            y: document.isFlipped ? buttonPoint[1] : document.bounds.height - buttonPoint[1]), to: nil)
+        NSApp.unhide(nil); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+        try await SwiftUIReplay.wait { NSApp.isActive && window.isKeyWindow }
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            let event = try #require(NSEvent.mouseEvent(with: type, location: postPoint, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 1, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
+            // Deliver to this mounted WebKit view after acquiring native input;
+            // NSWindow can consume a synthesized mouse event before DOM input.
+            if type == .leftMouseDown {
+                document.mouseDown(with: event)
+                // WebKit defers delivery of the native mouse-down. Releasing
+                // immediately can reach the DOM first and produces no click.
+                let deadline = ContinuousClock.now + .seconds(3)
+                var received = false
+                while ContinuousClock.now < deadline {
+                    received = try await document.evaluateJavaScript("window.postInputEvents.some(event => event.type === 'mousedown')") as? Bool == true
+                    if received { break }
+                    try await Task.sleep(for: .milliseconds(10))
+                }
+                try #require(received, "WebKit must receive mouse-down before its matching release")
+            } else { document.mouseUp(with: event) }
+        }
+        try await Task.sleep(for: .milliseconds(80))
+        let nativeSubmit = try await document.evaluateJavaScript("window.postClickTrusted === true && window.postSubmitted === true") as? Bool
+        if nativeSubmit != true {
+            let diagnostics = try await document.evaluateJavaScript("""
+                (() => { const button = document.querySelector('#post button'), rect = button.getBoundingClientRect();
+                  return {events: window.postInputEvents, clickTrusted: window.postClickTrusted ?? null,
+                    submitted: window.postSubmitted ?? null, rect: {x:rect.x,y:rect.y,w:rect.width,h:rect.height},
+                    hit: document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)?.outerHTML,
+                    innerWidth, innerHeight, scrollY, modalOpen: document.getElementById('modal').open}; })()
+                """)
+            print("Report native POST input diagnostics: \(String(describing: diagnostics)); point=\(postPoint); view frame=\(document.frame) bounds=\(document.bounds) flipped=\(document.isFlipped) rootRect=\(document.convert(document.bounds, to: root)); policy=\(requests.events)")
+        }
+        try #require(nativeSubmit == true,
+            "The POST regression must use a real user gesture rather than WebKit's blocked automatic-popup path")
+        do {
+            try await SwiftUIReplay.wait {
+                SwiftUIReplay.text(in: root).contains("This form cannot submit in a new window. Its data has not been sent.")
+            }
+        } catch {
+            let form = try await document.evaluateJavaScript("""
+                (() => { const form = document.getElementById('post'); return {
+                  method: form.method, target: form.target, action: form.action,
+                  clickTrusted: window.postClickTrusted, submitted: window.postSubmitted,
+                  userActivation: navigator.userActivation.isActive, url: location.href
+                }; })()
+                """)
+            print("Report POST diagnostics: form=\(String(describing: form)); policy=\(requests.events); external=\(fixture.externalURLs); http=\(http.requests); AX=\(SwiftUIReplay.text(in: root).sorted())")
+            throw error
+        }
+        document.navigationDelegate = navigationDelegate
+        document.uiDelegate = uiDelegate
+        #expect(fixture.externalURLs.isEmpty, "A POST must never be passed to the URL-only external opener")
+        #expect(http.requests.isEmpty, "The rejected POST must not issue an HTTP request")
+        #expect(document.url?.scheme == "mokusei-html")
+        _ = try await document.evaluateJavaScript("document.activeElement?.blur(); window.scrollTo(0, 0)")
+        try await SwiftUIReplay.wait { portal(in: root) === replaced }
+        try await Task.sleep(for: .milliseconds(250))
         window.makeFirstResponder(replaced)
         _ = try await document.evaluateJavaScript("window.scrollTo(0, 300)")
         var intermediateSamples = 0
@@ -183,6 +349,17 @@ struct NativeReportNavigationTests {
             return portal(in: root) != nil && abs(top(replaced) - 8) < 0.5
         }
         assertButtons(hidden: false, navigation: replaced)
+        _ = try await document.evaluateJavaScript("window.scrollTo(0, 300)")
+        try await SwiftUIReplay.wait { buttons.allSatisfy(\.isHidden) }
+        let remote = try http.url()
+        _ = try await document.evaluateJavaScript("""
+            const next = document.createElement('a'); next.href = '\(remote.absoluteString)';
+            document.body.append(next); next.click();
+            """)
+        try await SwiftUIReplay.wait(timeout: .seconds(10)) { document.url == remote && !document.isLoading && portal(in: root) === replaced }
+        try await Task.sleep(for: .milliseconds(250))
+        assertButtons(hidden: false, navigation: replaced)
+        #expect(try await document.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Short destination")
         let point = replaced.convert(NSPoint(x: 115, y: 29), to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
@@ -230,4 +407,111 @@ struct NativeReportNavigationTests {
         #expect(presentation.selected == source && presentation.readingTarget == history)
     }
 
+}
+
+/// Observes public WebKit requests and forwards the exact objects to the
+/// production delegates, so failures distinguish policy from UI presentation.
+@MainActor
+private final class ReportNavigationRequestWitness: NSObject, WKNavigationDelegate, WKUIDelegate {
+    let navigation: any WKNavigationDelegate
+    let ui: any WKUIDelegate
+    var events: [String] = []
+
+    init(navigation: any WKNavigationDelegate, ui: any WKUIDelegate) {
+        self.navigation = navigation; self.ui = ui
+    }
+
+    private func record(_ action: WKNavigationAction, source: String) {
+        events.append("\(source) method=\(action.request.httpMethod ?? "nil") target=\(action.targetFrame.map { $0.isMainFrame ? "main" : "child" } ?? "new-window") url=\(action.request.url?.absoluteString ?? "nil")")
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+        record(action, source: "policy")
+        if navigation.webView?(webView, decidePolicyFor: action, decisionHandler: decisionHandler) == nil {
+            decisionHandler(.cancel)
+        }
+    }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        record(action, source: "new-window")
+        return ui.webView?(webView, createWebViewWith: configuration, for: action, windowFeatures: windowFeatures) ?? nil
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        self.navigation.webView?(webView, didCommit: navigation)
+    }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        self.navigation.webView?(webView, didFinish: navigation)
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        self.navigation.webView?(webView, didFail: navigation, withError: error)
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        self.navigation.webView?(webView, didFailProvisionalNavigation: navigation, withError: error)
+    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        navigation.webViewWebContentProcessDidTerminate?(webView)
+    }
+}
+
+/// Real loopback navigation verifies that a remote document receives fresh
+/// presentation state rather than inheriting the previous Report's scroll.
+@MainActor
+private final class ReportHTTPFixture {
+    private let listener: NWListener
+    private var connections: [NWConnection] = []
+    private var closed = false
+    private(set) var port: UInt16?
+    private(set) var requests: [String] = []
+
+    init() throws {
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
+        listener = try NWListener(using: parameters)
+        listener.stateUpdateHandler = { [weak self] state in
+            Task { @MainActor in
+                if case .ready = state { self?.port = self?.listener.port?.rawValue }
+            }
+        }
+        listener.newConnectionHandler = { [weak self] connection in
+            Task { @MainActor in
+                guard let self, !self.closed else { connection.cancel(); return }
+                self.connections.append(connection)
+                connection.start(queue: .main)
+                self.receive(connection, buffered: Data())
+            }
+        }
+        listener.start(queue: .main)
+    }
+
+    func url(_ path: String = "/short") throws -> URL {
+        try #require(port.flatMap { URL(string: "http://127.0.0.1:\($0)\(path)") })
+    }
+
+    private func receive(_ connection: NWConnection, buffered: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, complete, error in
+            Task { @MainActor in
+                guard let self, !self.closed, error == nil, let data else { connection.cancel(); return }
+                let request = buffered + data
+                guard request.count <= 8192 else { connection.cancel(); return }
+                guard request.range(of: Data("\r\n\r\n".utf8)) != nil else {
+                    if complete { connection.cancel() } else { self.receive(connection, buffered: request) }
+                    return
+                }
+                self.requests.append(String(decoding: request, as: UTF8.self).components(separatedBy: "\r\n").first ?? "")
+                let body = Data("<html><body><h1>Short destination</h1></body></html>".utf8)
+                let header = Data("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8)
+                connection.send(content: header + body, completion: .contentProcessed { _ in connection.cancel() })
+            }
+        }
+    }
+
+    func close() {
+        closed = true
+        listener.cancel()
+        connections.forEach { $0.cancel() }
+        connections.removeAll()
+    }
 }

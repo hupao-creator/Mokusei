@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -419,6 +420,9 @@ func (t *Thread) admitAutomaticLocked(ctx context.Context, session string) (stri
 	}
 	id, err := t.open.ExecutionAdmission.Accept(ctx, func(id string) (json.RawMessage, error) {
 		copy := clone(*t.state)
+		// JSON cloning omits empty maps; preserve their initialized identity before writes.
+		copy.AutomaticExecutions = maps.Clone(t.state.AutomaticExecutions)
+		copy.NativeExecutions = maps.Clone(t.state.NativeExecutions)
 		if err := copy.Begin(id, time.Now().UnixMilli()); err != nil {
 			return nil, err
 		}
@@ -1330,7 +1334,7 @@ func (t *Thread) respondInteractionLocked(ctx context.Context, pending *Interact
 		path := sessionPath(snapshot.SessionID, "")
 		if snapshot.Kind == "permission" {
 			if len(request.Answers) > 0 {
-				return errors.New("permission has no answer fields")
+				return &plugin.InteractionResponseNotSentError{Cause: errors.New("permission has no answer fields")}
 			}
 			if request.ActionID == "allow-session" {
 				var info Object
@@ -1364,7 +1368,7 @@ func (t *Thread) respondInteractionLocked(ctx context.Context, pending *Interact
 		}
 		answers, err := formAnswers(&snapshot, request)
 		if err != nil {
-			return err
+			return &plugin.InteractionResponseNotSentError{Cause: err}
 		}
 		return runtime.Request(ctx, "POST", path+"/form/"+url.PathEscape(snapshot.ID)+"/reply", Object{"answer": answers}, nil)
 	}()

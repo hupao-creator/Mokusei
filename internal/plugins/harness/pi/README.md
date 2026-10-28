@@ -10,6 +10,10 @@ The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
 and `DiscussionPreparer`. Installation of the external
 Pi CLI belongs to the application's Harness installation flow.
 
+The native Moku settings model menu retains the exact provider/model tuple in a
+length-prefixed selection identity. Slashes inside either native identifier do
+not collide or select another provider.
+
 ## Native ownership
 
 - RPC framing and native event decoding remain ordered, with an 8 MiB record

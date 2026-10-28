@@ -8,6 +8,18 @@ This target supplies design resources, Harness cards, Markdown reading, conversa
 
 [Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection uses the active reading selection palette consistently across blocks. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
+Markdown source preprocessing preserves code characters and recognizes footnotes
+before entity decoding; escaped syntax stays literal. Footnote labels use Unicode
+case folding and opaque URL-safe destination identities, including literal percent
+sequences. Lazy paragraph continuations remain in their note. Bare HTTP(S) URLs
+retain Markdown punctuation in their paths. Image alternative text flattens inline
+formatting and is shared by native partial and whole-document copies. Whole-table
+copies retain empty columns; keyboard navigation clears joined selection in every
+block. List marker widths and table inline-code padding participate in actual
+layout measurements. Footnote returns reveal references through nested table and
+conversation viewports. Run the [Markdown native replay](../../../../../tools/verification/reading-presentation/README.md#markdown-reading-regressions)
+for production rendering, selection, copying and navigation fixtures.
+
 `NativeMarkdownView` has an optional applied-document callback for Moku note exposure. It reports the requested document token only after the production parser result is applied, including when two versions produce equal blocks. The callback also reports conservative vertical-coverage eligibility from the production presentation tree: text headings, paragraphs, lists, quotes, rules and footnotes can qualify; code, tables, images and links that may load local previews cannot. Other readers omit the callback. The note host separately measures viewport, window qualification and dwell; a parser result by itself is never reading evidence.
 
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift) owns demand for settled execution bodies. Multiple disclosures share a turn resource; the last lease releases its payload. Explicit expansion mounts the full process rows, while a collapsed settled process retains its summary. Running/waiting content and pending interactions remain available.
@@ -50,7 +62,15 @@ for actual Go projections consumed by the native production card replay.
 
 Composer state and submitted revision belong to the workspace. Attachment upload, file selection and send receipts are shared by the Dock and conversation surfaces. Form components validate the public typed interaction schema and send through injected actions rather than bypassing Runtime admission.
 
-Clipboard TIFF preparation precedes attachment admission. Invalid TIFF does not
+[Forms/PublicInteractionQuestionnaire.swift](Forms/PublicInteractionQuestionnaire.swift)
+projects public form metadata consistently for the Dock and Reader fallback.
+Visible defaults populate the editor; optional absence remains valid. Hidden
+defaults participate in conditions without becoming steps, and inactive drafts
+stay local. Core retains schema validation and native answer conversion.
+
+Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
+
+Clipboard file/image paste reserves the draft synchronously before any item-provider decoding. The same draft-owned preparation lasts through attachment validation and staging, including oversized batches; Return and toolbar sends remain blocked until that operation resolves. Retired preparation cannot mutate a cleared or disposed draft. Clipboard TIFF preparation precedes attachment admission. Invalid TIFF does not
 consume a slot or fall through to generic image-file import; accompanying text
 remains available. Every published or persisted draft stays within the 20-file
 limit, including while policy discovery, image preparation or staging is pending.

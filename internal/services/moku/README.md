@@ -163,3 +163,7 @@ to fence the old native workers, inspect the native conversation, then invoke
 `acknowledge-confirmed-admitted` after confirming admission. Decisions are audited;
 the current runtime cannot reconcile its own uncertain attempts. Exactly-once
 provider effects cannot be guaranteed without provider idempotency support.
+
+Overview directory context carries `directoryScopeId`, the stable host-derived scope identity. Display tags never resolve a selected directory by basename. Explicit directory mentions still take precedence; an unresolved selected scope reads one catalog snapshot and includes only directories in that scope.
+
+A coordinating-Harness change starts its required new native session and preserves the prior session as read-only `mokuHistory`. Its original Harness keeps ownership of the opaque conversation representation; Moku does not merge native formats. An explicit history reset removes the current conversation and these prior sessions.

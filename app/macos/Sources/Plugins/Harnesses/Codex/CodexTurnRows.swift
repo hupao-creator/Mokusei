@@ -232,16 +232,22 @@ private struct CodexActivityRow: View {
 
 private func codexActivitySummary(_ activities: [CodexActivity]) -> (text: String, fullText: String) {
     var order: [String] = []; var counts: [String: Int] = [:]
+    var filePaths: Set<JSONText> = []
+    var unknownFileChanges = false
     for activity in activities {
         let kind = ["file", "command", "search"].contains(activity.kind) ? activity.kind : "other"
         if counts[kind] == nil { order.append(kind) }
-        counts[kind, default: 0] += 1
+        if kind == "file" {
+            if let paths = activity.filePaths { filePaths.formUnion(paths) }
+            else { unknownFileChanges = true }
+            counts[kind] = filePaths.count
+        } else { counts[kind, default: 0] += 1 }
     }
     let labels = order.enumerated().map { index, kind in
         let count = counts[kind]!
         let text: String
         switch kind {
-        case "file": text = "Touched \(count) \(count == 1 ? "file" : "files")"
+        case "file": text = unknownFileChanges ? "Changed files" : "Touched \(count) \(count == 1 ? "file" : "files")"
         case "command": text = "Ran \(count) \(count == 1 ? "command" : "commands")"
         case "search": text = "Searched \(count) \(count == 1 ? "time" : "times")"
         default: text = "Used \(count) \(count == 1 ? "tool" : "tools")"

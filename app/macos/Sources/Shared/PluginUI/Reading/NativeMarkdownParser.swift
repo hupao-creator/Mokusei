@@ -11,9 +11,10 @@ enum MarkdownParser {
 
     static func parse(_ source: String) -> MarkdownDocument {
         let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        let prepared = extractFootnotes(normalized)
-        let document = Document(parsing: prepared.source, options: [.disableSmartOpts])
-        var converter = Converter(source: prepared.source, footnotes: prepared.notes)
+        let prepared = extractFootnotes(protectBareURLs(normalized))
+        let main = prepareReferences(prepared.source, notes: prepared.notes)
+        let document = Document(parsing: main.source, options: [.disableSmartOpts])
+        var converter = Converter(source: main.source, tokens: main.tokens)
         var blocks = converter.blocks(document.children)
         var cursor = 0
         var noteBlocks: [(String, Int, [MarkdownBlock])] = []
@@ -21,8 +22,9 @@ enum MarkdownParser {
         while cursor < converter.references.count {
             let id = converter.references[cursor]
             if let note = prepared.notes.first(where: { $0.id == id }) {
-                let parsed = Document(parsing: note.source, options: [.disableSmartOpts])
-                var noteConverter = Converter(source: note.source, footnotes: prepared.notes, references: converter.references, referenceCounts: converter.referenceCounts)
+                let preparedNote = prepareReferences(note.source, notes: prepared.notes)
+                let parsed = Document(parsing: preparedNote.source, options: [.disableSmartOpts])
+                var noteConverter = Converter(source: preparedNote.source, tokens: preparedNote.tokens, references: converter.references, referenceCounts: converter.referenceCounts)
                 let content = noteConverter.blocks(parsed.children)
                 converter.references = noteConverter.references
                 converter.referenceCounts = noteConverter.referenceCounts
@@ -36,7 +38,7 @@ enum MarkdownParser {
             let count = converter.referenceCounts[id] ?? 1
             let backlinks = (1...max(1, count)).map { reference -> MarkdownSpan in
                 var span = MarkdownSpan(text: reference == 1 ? " ↩" : " ↩\(reference)")
-                span.link = "#mokusei-footnote-reference-\(id)-\(reference)"
+                span.link = "#mokusei-footnote-reference-\(anchorID(id))-\(reference)"
                 span.title = "Back to reference \(index)"; return span
             }
             if case .paragraph(let spans) = content.last {
@@ -49,15 +51,15 @@ enum MarkdownParser {
 
     private struct Converter {
         let lines: [String]
-        let footnotes: [Footnote]
+        let tokens: [String: String]
         var references: [String] = []
         var referenceCounts: [String: Int] = [:]
 
-        init(source: String, footnotes: [Footnote], references: [String] = [], referenceCounts: [String: Int] = [:]) {
+        init(source: String, tokens: [String: String], references: [String] = [], referenceCounts: [String: Int] = [:]) {
             // Source ranges are queried for table cells and footnote text nodes.
             // Splitting here keeps conversion linear in the document's length.
-            lines = source.components(separatedBy: .newlines)
-            self.footnotes = footnotes
+            lines = source.components(separatedBy: "\n")
+            self.tokens = tokens
             self.references = references
             self.referenceCounts = referenceCounts
         }
@@ -129,7 +131,7 @@ enum MarkdownParser {
 
         func listIsTight(_ children: MarkupChildren) -> Bool {
             func lastContentLine(_ node: any Markup) -> Int? {
-                if node is ListItem || node is UnorderedList || node is OrderedList || node is BlockQuote,
+                if node is ListItem || node is UnorderedList || node is OrderedList,
                    let last = Array(node.children).last { return lastContentLine(last) }
                 return node.range?.upperBound.line
             }
@@ -154,7 +156,7 @@ enum MarkdownParser {
             var style = style
             switch node {
             case let text as Markdown.Text:
-                return textSpans(collapsedWhitespace(text.string), style: style, escapedReferences: escapedReferences(in: text))
+                return textSpans(collapsedWhitespace(text.string), style: style)
             case let code as InlineCode:
                 style.text = code.code; style.code = true
                 if !style.linkContext, style.link == nil, let url = URL(string: code.code),
@@ -176,7 +178,7 @@ enum MarkdownParser {
                 return inlines(node.children, style: style)
             case let image as Markdown.Image:
                 style.image = MarkdownURLPolicy.sanitized(image.source)
-                style.text = image.plainText; style.title = image.title
+                style.text = plainImageText(image); style.title = image.title
                 // A blocked source still leaves its alternative text visible.
                 return [style]
             case is SoftBreak:
@@ -190,17 +192,14 @@ enum MarkdownParser {
             }
         }
 
-        mutating func textSpans(_ string: String, style: MarkdownSpan, escapedReferences: Set<Int>) -> [MarkdownSpan] {
+        mutating func textSpans(_ string: String, style: MarkdownSpan) -> [MarkdownSpan] {
             guard !string.isEmpty else { return [] }
-            guard !footnotes.isEmpty, string.contains("[^"), !style.linkContext else { return autolinks(string, style: style) }
+            guard !tokens.isEmpty, !style.linkContext else { return autolinks(string, style: style) }
             var result: [MarkdownSpan] = []
             let ns = string as NSString
             var cursor = 0
-            let matches = footnoteReference.matches(in: string, range: NSRange(location: 0, length: ns.length))
-            for (referenceIndex, match) in matches.enumerated() {
-                guard !escapedReferences.contains(referenceIndex) else { continue }
-                let id = normalizedID(ns.substring(with: match.range(at: 1)))
-                guard footnotes.contains(where: { $0.id == id }) else { continue }
+            for match in referenceToken.matches(in: string, range: NSRange(location: 0, length: ns.length)) {
+                guard let id = tokens[ns.substring(with: match.range)] else { continue }
                 if match.range.location > cursor {
                     result += autolinks(ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor)), style: style)
                 }
@@ -208,37 +207,31 @@ enum MarkdownParser {
                 var span = style
                 span.text = String((references.firstIndex(of: id) ?? 0) + 1)
                 referenceCounts[id, default: 0] += 1
-                span.superscript = true; span.link = "#mokusei-footnote-\(id)"
-                span.anchor = "mokusei-footnote-reference-\(id)-\(referenceCounts[id]!)"
+                span.superscript = true; span.link = "#mokusei-footnote-\(anchorID(id))"
+                span.anchor = "mokusei-footnote-reference-\(anchorID(id))-\(referenceCounts[id]!)"
                 result.append(span); cursor = NSMaxRange(match.range)
             }
             if cursor < ns.length { result += autolinks(ns.substring(from: cursor), style: style) }
             return result
         }
 
-        func escapedReferences(in node: Markdown.Text) -> Set<Int> {
-            guard !footnotes.isEmpty, node.string.contains("[^"), let range = node.range else { return [] }
-            let rows = lines
-            let first = range.lowerBound.line - 1, last = range.upperBound.line - 1
-            guard rows.indices.contains(first), rows.indices.contains(last) else { return [] }
-            var bytes: [UInt8] = []
-            for row in first...last {
-                let line = Array(rows[row].utf8)
-                let start = row == first ? min(line.count, max(0, range.lowerBound.column - 1)) : 0
-                let end = row == last ? min(line.count, max(start, range.upperBound.column - 1)) : line.count
-                bytes += line[start..<end]
-                if row != last { bytes.append(10) }
+        private func plainImageText(_ node: any Markup) -> String {
+            switch node {
+            case let text as Markdown.Text: text.string
+            case let code as InlineCode: code.code
+            case is SoftBreak, is LineBreak: " "
+            default: node.children.map(plainImageText).joined()
             }
-            let raw = String(decoding: bytes, as: UTF8.self) as NSString
-            var escaped = Set<Int>()
-            for (index, match) in footnoteReference.matches(in: raw as String, range: NSRange(location: 0, length: raw.length)).enumerated() {
-                var cursor = match.range.location - 1, count = 0
-                while cursor >= 0, raw.character(at: cursor) == 92 { count += 1; cursor -= 1 }
-                if count % 2 == 1 { escaped.insert(index) }
-            }
-            return escaped
         }
     }
+
+    // Internal destinations use an opaque ASCII identity, so URL parsing cannot
+    // decode a literal percent sequence or reinterpret punctuation in a label.
+    static func anchorID(_ id: String) -> String {
+        id.utf8.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static let referenceToken = try! NSRegularExpression(pattern: "\u{E000}mokusei-[A-Z0-9-]+\u{E001}")
 
     private static let footnoteReference = try! NSRegularExpression(pattern: #"\[\^([^\]\s]+)\]"#)
     private static let whitespace = try! NSRegularExpression(pattern: "[ \t\r\n\u{000C}]+")
@@ -251,7 +244,9 @@ enum MarkdownParser {
     }
 
     private static func normalizedID(_ id: String) -> String {
-        id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        id.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: .caseInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+            .precomposedStringWithCanonicalMapping
     }
 
     private static func autolinks(_ text: String, style: MarkdownSpan) -> [MarkdownSpan] {
@@ -280,9 +275,93 @@ enum MarkdownParser {
         return result
     }
 
+    /// Protect source syntax before cmark splits emphasis or decodes entities.
+    /// AST ranges keep code, explicit links/images and raw HTML literal.
+    private static func protectedRanges(_ source: String) -> [NSRange] {
+        let rows = source.components(separatedBy: "\n")
+        let byteCount = source.utf8.count
+        var starts: [Int] = []; var offset = 0
+        for row in rows { starts.append(offset); offset += row.utf8.count + 1 }
+        var ranges: [NSRange] = []
+        func collect(_ node: any Markup) {
+            if node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML {
+                guard let range = node.range,
+                      starts.indices.contains(range.lowerBound.line - 1), starts.indices.contains(range.upperBound.line - 1) else { return }
+                let lower = starts[range.lowerBound.line - 1] + range.lowerBound.column - 1
+                let upper = starts[range.upperBound.line - 1] + range.upperBound.column - 1
+                guard lower >= 0, upper >= lower, upper <= byteCount else { return }
+                let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
+                let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
+                if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
+                    ranges.append(NSRange(first..<last, in: source))
+                }
+            } else { node.children.forEach(collect) }
+        }
+        collect(Document(parsing: source, options: [.disableSmartOpts]))
+        return ranges
+    }
+
+    private static func protectBareURLs(_ source: String) -> String {
+        guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
+        let protected = protectedRanges(source)
+        let result = NSMutableString(string: source)
+        let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
+        for match in matches.reversed() {
+            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            var candidate = result.substring(with: match.range)
+            guard ["http://", "https://", "www."].contains(where: { candidate.lowercased().hasPrefix($0) }) else { continue }
+            while let last = candidate.last, ".,:;!?*_'\"".contains(last)
+                || (last == ")" && candidate.filter({ $0 == ")" }).count > candidate.filter({ $0 == "(" }).count) { candidate.removeLast() }
+            guard !candidate.isEmpty else { continue }
+            let range = NSRange(location: match.range.location, length: candidate.utf16.count)
+            let visible = unescapedURL(candidate)
+            let destination = visible.lowercased().hasPrefix("www.") ? "http://" + visible : visible
+            let label = visible.map { "\\[]*_`~".contains($0) ? "\\" + String($0) : String($0) }.joined()
+            result.replaceCharacters(in: range, with: "[" + label + "](<" + destination + ">)")
+        }
+        return result as String
+    }
+
+    private static func unescapedURL(_ source: String) -> String {
+        var scalars = source.unicodeScalars.makeIterator()
+        var result = ""
+        while let scalar = scalars.next() {
+            if scalar.value == 92, let next = scalars.next() {
+                // Match CommonMark's backslash escapes before constructing the
+                // explicit link. Angle destinations otherwise retain the slash.
+                let punctuation = (33...47).contains(next.value) || (58...64).contains(next.value)
+                    || (91...96).contains(next.value) || (123...126).contains(next.value)
+                if !punctuation { result.unicodeScalars.append(scalar) }
+                result.unicodeScalars.append(next)
+            } else { result.unicodeScalars.append(scalar) }
+        }
+        return result
+    }
+
+    private static func prepareReferences(_ source: String, notes: [Footnote]) -> (source: String, tokens: [String: String]) {
+        guard !notes.isEmpty, source.contains("[^") else { return (source, [:]) }
+        let protected = protectedRanges(source)
+        let raw = source as NSString
+        let result = NSMutableString(string: source)
+        let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"
+        var tokens: [String: String] = [:]
+        for (index, match) in footnoteReference.matches(in: source, range: NSRange(location: 0, length: raw.length)).enumerated().reversed() {
+            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            var cursor = match.range.location - 1, escapes = 0
+            while cursor >= 0, raw.character(at: cursor) == 92 { escapes += 1; cursor -= 1 }
+            guard escapes % 2 == 0 else { continue }
+            let id = normalizedID(raw.substring(with: match.range(at: 1)))
+            guard notes.contains(where: { $0.id == id }) else { continue }
+            let token = prefix + String(index) + "\u{E001}"
+            tokens[token] = id
+            result.replaceCharacters(in: match.range, with: token)
+        }
+        return (result as String, tokens)
+    }
+
     private static func extractFootnotes(_ source: String) -> (source: String, notes: [Footnote]) {
         guard source.contains("[^") else { return (source, []) }
-        var lines = source.components(separatedBy: .newlines)
+        var lines = source.components(separatedBy: "\n")
         var notes: [Footnote] = []
         // Parse once to identify literal regions before examining definition
         // syntax; a definition in a fence or HTML literal is never a footnote.
@@ -329,6 +408,12 @@ enum MarkdownParser {
                 } else if reduced.isEmpty, index + 1 < lines.count,
                           let next = continuation(lines[index + 1]), next.hasPrefix("    ") || next.hasPrefix("\t") {
                     body.append(""); lines[index] = ""; index += 1
+                } else if !reduced.isEmpty,
+                          footnoteDefinition.firstMatch(in: reduced, range: NSRange(reduced.startIndex..., in: reduced)) == nil,
+                          let paragraph = Array(Document(parsing: (body + [reduced]).joined(separator: "\n"), options: [.disableSmartOpts]).children).last as? Paragraph,
+                          let range = paragraph.range, range.lowerBound.line <= body.count,
+                          range.upperBound.line == body.count + 1 {
+                    body.append(reduced); lines[index] = ""; index += 1
                 } else { break }
             }
             if !notes.contains(where: { $0.id == id }) { notes.append(Footnote(id: id, source: body.joined(separator: "\n"))) }

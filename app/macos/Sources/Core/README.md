@@ -48,6 +48,8 @@ Uploads open without blocking and validate the file descriptor before copying,
 so special files cannot trap a cancelled import. Regular-file symlinks remain
 supported; identity and modification checks reject replacement during copying.
 Downloads retain the validated host basename, including `.partial`.
+Directory-list entries use their own host, target and entry name for UI identity,
+so distinct symlinks to the same target retain stable labels after redraws.
 
 Client appearance/language and the Thread-shell `glass world` preference live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
 

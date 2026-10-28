@@ -261,22 +261,22 @@ struct BrowserAnnotationEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                TextField("描述要修改的内容…", text: Binding(get: { session.comment }, set: { session.comment = BrowserText.limit($0, utf16: 10_000) }))
+                TextField(session.translate("描述要修改的内容…"), text: Binding(get: { session.comment }, set: { session.comment = BrowserText.limit($0, utf16: 10_000) }))
                     .textFieldStyle(.plain).font(.system(size: 14)).foregroundStyle(.white)
                     .focused($focused).disabled(session.capturing).onSubmit { session.captureAnnotation() }
-                    .accessibilityLabel("批注内容")
+                    .accessibilityLabel(session.translate("批注内容"))
                 Button { session.captureAnnotation() } label: { NativeIcon(name: "Check", size: 18).frame(width: 36, height: 36) }
                     .buttonStyle(.plain).foregroundStyle(Color(white: 0.19)).background(.white, in: Circle())
                     .disabled(session.capturing || session.comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .opacity(session.capturing || session.comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.4 : 1)
-                    .accessibilityLabel("添加批注")
+                    .accessibilityLabel(session.translate("添加批注"))
             }
             .padding(.leading, 18).padding(.trailing, 7).frame(height: 50)
             .background(BrowserAnnotationBackdrop()).clipShape(Capsule())
             .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 1))
             .shadow(color: .black.opacity(0.2), radius: 14, y: 4)
             if !session.captureError.isEmpty {
-                Text(session.captureError).font(.system(size: 11)).foregroundStyle(.white).lineLimit(1)
+                Text(session.localized(session.captureError)).font(.system(size: 11)).foregroundStyle(.white).lineLimit(1)
                     .padding(.horizontal, 7).padding(.vertical, 3).background(Color(white: 0.19), in: RoundedRectangle(cornerRadius: 5))
             }
         }

@@ -161,7 +161,25 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
                                 storage.enumerateAttribute(.init("MokuseiMarkdownAnchor"), in: NSRange(location: 0, length: storage.length)) { value, range, stop in
                                     if value as? String == fragment { found = range; stop.pointee = true }
                                 }
-                                if let found { text.scrollRangeToVisible(found); return true }
+                                if let found {
+                                    text.scrollRangeToVisible(found)
+                                    if let layout = text.layoutManager, let container = text.textContainer {
+                                        let glyphs = layout.glyphRange(forCharacterRange: found, actualCharacterRange: nil)
+                                        var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
+                                        rect.origin.x += text.textContainerOrigin.x
+                                        rect.origin.y += text.textContainerOrigin.y
+                                        // The nearest scroll view may be a table's horizontal
+                                        // viewport. Reveal the reference in every outer viewport.
+                                        var ancestor = text.superview
+                                        while let view = ancestor {
+                                            if let scroll = view as? NSScrollView, let document = scroll.documentView {
+                                                document.scrollToVisible(document.convert(rect, from: text))
+                                            }
+                                            ancestor = view.superview
+                                        }
+                                    }
+                                    return true
+                                }
                             }
                             return view.subviews.contains(where: findReference)
                         }
@@ -291,7 +309,9 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if !event.modifierFlags.contains(.command) { selectionScope?.clearOtherSelections(keeping: self) }
+        if !event.modifierFlags.contains(.command) || [123, 124, 125, 126, 115, 119, 116, 121].contains(event.keyCode) {
+            selectionScope?.clearOtherSelections(keeping: self)
+        }
         super.keyDown(with: event)
     }
 
@@ -301,7 +321,7 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     }
 
     override func copy(_ sender: Any?) {
-        if selectionScope?.copy() != true, !copyWithoutCodePadding() { super.copy(sender) }
+        if selectionScope?.copy() != true, !copyMarkdownSelection() { super.copy(sender) }
     }
 
     var markdownStorage: NSTextStorage? { textStorage }

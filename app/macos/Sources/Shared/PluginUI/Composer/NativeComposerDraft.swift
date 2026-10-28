@@ -19,7 +19,9 @@ public final class NativeComposerDraft {
     public var text = "" { didSet { editRevision &+= 1; persist() } }
     public private(set) var directories: [NativeComposerDirectory] = [] { didSet { persist(semanticChange: directories != oldValue) } }
     public private(set) var attachments: [NativeComposerAttachment] = [] { didSet { persist(semanticChange: attachments != oldValue) } }
-    public private(set) var importing = false
+    public var importing: Bool { staging || pastePreparation != nil }
+    private var staging = false
+    private var pastePreparation: NativeComposerPastePreparation?
     public private(set) var submitting = false
     public private(set) var clearing = false
     public private(set) var error: String?
@@ -73,10 +75,25 @@ public final class NativeComposerDraft {
         await importFiles(entries.map { .init(hostFile: $0.reference, name: $0.name, size: $0.size, mimeType: $0.mimeType) })
     }
 
-    public func insertDirectory(_ directory: NativeComposerDirectory) {
-        guard !isDisposed, !directories.contains(where: { $0.path == directory.path }), directories.count < Self.maximumDirectories else { return }
+    @discardableResult
+    public func insertDirectory(_ directory: NativeComposerDirectory) -> Bool {
+        guard !isDisposed, !directory.path.codeUnits.isEmpty else { return false }
+        if directories.contains(where: { $0.path == directory.path }) { return true }
+        guard directories.count < Self.maximumDirectories else { return false }
         directories.append(directory)
         directoryRevisions[directory.path] = UUID()
+        return true
+    }
+
+    public func preparePaste() -> NativeComposerPastePreparation? {
+        guard !isDisposed, !importing, !submitting, !clearing else { return nil }
+        let preparation = NativeComposerPastePreparation()
+        preparation.onFinish = { [weak self, weak preparation] in
+            guard let self, self.pastePreparation === preparation else { return }
+            self.pastePreparation = nil
+        }
+        pastePreparation = preparation
+        return preparation
     }
     public func removeDirectory(_ path: JSONText) {
         directories.removeAll { $0.path == path }; directoryRevisions[path] = nil
@@ -218,6 +235,7 @@ public final class NativeComposerDraft {
         guard !isDisposed, !clearing, !submitting else { return }
         let revision = editRevision, discarded = attachments, mentioned = directoryRevisions
         let importAtStart = activeImport
+        let pasteAtStart = pastePreparation
         clearing = true; error = nil
         defer { clearing = false }
         do {
@@ -225,6 +243,7 @@ public final class NativeComposerDraft {
             // A pre-clear import may publish chips while the clear receipt is
             // pending. Consume that whole operation, even if it already finished,
             // while preserving imports started after clear admission.
+            pasteAtStart?.finish()
             importAtStart?.retired = true
             if let importAtStart { finishImport(importAtStart) }
             let consumed = discarded + (importAtStart?.attachments ?? [])
@@ -252,7 +271,7 @@ public final class NativeComposerDraft {
         if !discardRemoteAttachments { remoteDiscardEnabled = false }
         guard !isDisposed else { return }
         persist(semanticChange: false)
-        isDisposed = true; lifetime.cancel()
+        isDisposed = true; pastePreparation?.finish(); lifetime.cancel()
         // A host switch or app exit retires the view, not the unsent draft.
         // Its staged IDs remain available to the next owner of this file.
         if persistence != nil {
@@ -270,10 +289,10 @@ public final class NativeComposerDraft {
 
     private func beginImport(count: Int?) -> AttachmentImport? {
         guard !isDisposed else { return nil }
-        guard !importing else { error = "附件正在处理中，请稍候"; return nil }
+        guard !staging else { error = "附件正在处理中，请稍候"; return nil }
         let remaining = Self.maximumAttachments - attachments.count
         guard remaining > 0, (count ?? 0) <= remaining else { error = "附件数量不能超过 20 个"; return nil }
-        importing = true; error = nil
+        staging = true; error = nil
         let operation = AttachmentImport()
         activeImport = operation
         return operation
@@ -281,7 +300,7 @@ public final class NativeComposerDraft {
     private func finishImport(_ operation: AttachmentImport) {
         guard activeImport === operation else { return }
         activeImport = nil
-        importing = false
+        staging = false
     }
     private func clearSubmitted(revision: UInt64, attachments sent: [NativeComposerAttachment], directories mentioned: [JSONText: UUID]) -> [JSONText] {
         if editRevision == revision { text = "" }

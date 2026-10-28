@@ -146,6 +146,9 @@ func (r *Runtime) harness(ctx context.Context, t model.ThreadRecord) (plugin.Har
 	return h, nil
 }
 func (r *Runtime) openThread(ctx context.Context, t model.ThreadRecord, injection *plugin.Injection) (*threadHandle, error) {
+	if t.MokuHistory {
+		return nil, errors.New("Moku history is read-only and cannot reopen a native session")
+	}
 	if err := r.operational(); err != nil {
 		return nil, err
 	}
@@ -265,6 +268,9 @@ func (h *threadHandle) commit(ctx context.Context, state json.RawMessage, cancel
 	defer h.stateMu.Unlock()
 	r := h.runtime
 	err = r.updateSessionThread(ctx, h.id, func(t *model.ThreadRecord) error {
+		if t.MokuHistory {
+			return errors.New("Moku history is read-only")
+		}
 		if err := h.ownsState(); err != nil {
 			return err
 		}
@@ -374,6 +380,9 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	t, err := h.runtime.sessionThread(h.id)
 	if err != nil {
 		return "", err
+	}
+	if t.MokuHistory || archived(&t) {
+		return "", errors.New("archived conversations cannot admit native execution")
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		return "", errors.New("another execution is already active")
@@ -784,7 +793,7 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if err != nil {
 		return SendResult{}, err
 	}
-	if t.Archived != nil && *t.Archived {
+	if t.MokuHistory || t.Archived != nil && *t.Archived {
 		return SendResult{}, errors.New("thread is archived")
 	}
 	if _, err := validateCwd(effectiveCwd(t)); err != nil {
@@ -1151,8 +1160,8 @@ func (r *Runtime) ReadThread(ctx context.Context, id, question string) (string, 
 	if err != nil {
 		return "", err
 	}
-	if t.Moku {
-		return "", errors.New("Moku thread cannot read itself")
+	if t.Moku || t.MokuHistory {
+		return "", errors.New("Moku conversations cannot start a native history question")
 	}
 	owner, err := r.openThread(ctx, t, nil)
 	if err != nil {
@@ -1200,6 +1209,7 @@ func (r *Runtime) RespondThread(ctx context.Context, id string, response model.R
 						return fmt.Errorf("invalid interaction answers: %v", checked.Errors)
 					}
 					response.Answers = checked.Answers
+					response.ValidatedFormValues = checked.ValidatedFormValues
 				}
 			}
 		}
@@ -1217,7 +1227,16 @@ func (r *Runtime) RespondThread(ctx context.Context, id string, response model.R
 		return err
 	}
 	response.ExecutionID = execution.ExecutionID
-	return owner.native.Respond(ctx, response)
+	err = owner.native.Respond(ctx, response)
+	var rejected *plugin.InteractionResponseNotSentError
+	if errors.As(err, &rejected) {
+		// Only an adapter's explicit pre-I/O rejection permits a new attempt.
+		// Unknown native outcomes retain their claim to prevent duplicate replies.
+		if releaseErr := r.releaseInteractionAnswer(context.WithoutCancel(ctx), id, execution.ExecutionID, response.InteractionID); releaseErr != nil {
+			return errors.Join(err, releaseErr)
+		}
+	}
+	return err
 }
 func (r *Runtime) DeleteThread(ctx context.Context, id string) error {
 	if err := r.begin(); err != nil {
@@ -1346,7 +1365,7 @@ func (r *Runtime) StartRecovery() {
 		return
 	}
 	for _, t := range threads {
-		if t.Moku || r.config.DisabledHarnesses[t.HarnessID] != "" {
+		if t.Moku || t.MokuHistory || r.config.DisabledHarnesses[t.HarnessID] != "" {
 			continue
 		}
 		if t.Observation.LatestExecution == nil || t.Observation.LatestExecution.Terminal() {

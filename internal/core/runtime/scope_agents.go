@@ -45,7 +45,7 @@ func (r *Runtime) DirectoryScopes() ([]plugin.DirectoryScope, error) {
 		return nil, err
 	}
 	for _, thread := range threads {
-		if !thread.Moku {
+		if !thread.Moku && !thread.MokuHistory {
 			scope := directoryScope(thread)
 			scopes[scope.ID] = scope
 		}

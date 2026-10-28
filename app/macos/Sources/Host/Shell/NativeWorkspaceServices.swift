@@ -221,14 +221,29 @@ public final class NativeWorkspaceServices {
     }
 
     public func openExternal(_ text: JSONText) async throws {
-        guard JSONText(text.string) == text, let url = URL(string: text.string) else { throw PluginContractError("无效的链接") }
+        do { try openExternalURL(text) }
+        catch {
+            // Harness readers may discard the thrown result; the host still
+            // owns visible feedback for a failed system handoff.
+            workspace?.report(error)
+            throw error
+        }
+    }
+
+    private func openExternalURL(_ text: JSONText) throws {
+        let locale = workspace?.preferences.locale ?? .english
+        guard JSONText(text.string) == text, let url = URL(string: text.string) else { throw PluginContractError(locale.text("无效的链接", "Invalid link")) }
         if url.isFileURL {
-            guard NSWorkspace.shared.open(url) else { throw PluginContractError("无法打开文件") }
+            guard NSWorkspace.shared.open(url) else { throw PluginContractError(locale.text("无法打开文件", "Could not open the file")) }
+            return
+        }
+        if url.scheme?.lowercased() == "mailto" {
+            guard NSWorkspace.shared.open(url) else { throw PluginContractError(locale.text("无法打开邮件链接，请检查默认邮件应用。", "Could not open the email link. Check your default mail app.")) }
             return
         }
         guard let parsed = WebURL(text.string), ["http", "https"].contains(parsed.scheme),
-              let external = URL(string: parsed.serialized()) else { throw PluginContractError("仅允许打开 HTTP(S) 链接和主机文件") }
-        guard NSWorkspace.shared.open(external) else { throw PluginContractError("无法打开链接") }
+              let external = URL(string: parsed.serialized()) else { throw PluginContractError(locale.text("仅允许打开 HTTP(S)、邮件链接和主机文件", "Only HTTP(S), email links and host files can be opened")) }
+        guard NSWorkspace.shared.open(external) else { throw PluginContractError(locale.text("无法打开链接", "Could not open the link")) }
     }
 
     public func knownDirectories() async throws -> [NativeComposerDirectory] {

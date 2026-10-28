@@ -23,7 +23,8 @@ type MokuConfiguration struct {
 	Unapplied        bool
 	// PreserveNote copies the persistent note when a replacement Thread takes
 	// over the same Moku history.
-	PreserveNote bool
+	PreserveNote    bool
+	PreserveHistory bool
 }
 type ConfigurationChange struct {
 	Settings            model.Settings

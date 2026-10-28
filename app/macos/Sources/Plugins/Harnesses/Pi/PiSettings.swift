@@ -265,7 +265,9 @@ private struct PiDefaultFields: View {
         return levels
     }
     private func modelKey(_ value: JSONValue) -> JSONText {
-        JSONText(codeUnits: (piText(value["provider"])?.codeUnits ?? []) + [47] + (piText(value["id"])?.codeUnits ?? []))
+        let provider = piText(value["provider"])?.codeUnits ?? []
+        // Length-prefix the provider: both native identifiers can contain slashes.
+        return JSONText(codeUnits: Array(String(provider.count).utf16) + [58] + provider + (piText(value["id"])?.codeUnits ?? []))
     }
     private func options(_ values: [(JSONText, String)], current: JSONText, label: String? = nil) -> [NativeSettingsOption] {
         [NativeSettingsOption(id: "", label: piLocalized(snapshot ? "请选择" : "Pi 原生默认", locale), disabled: snapshot)] +

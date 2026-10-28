@@ -21,15 +21,14 @@ struct OpenCodeInteractionPanel: View {
             if field["type"]?.stringValue != "external", let value = field["default"] { defaults[field.ocID("key")] = value }
         } }
         _values = State(initialValue: defaults)
+        _answers = State(initialValue: PublicInteractionQuestionnaire.initialAnswers(for: interaction))
     }
     private var form: JSONValue? { native?["kind"]?.stringValue == "form" ? native : nil }
     private var fields: [JSONValue] { ocActiveFields(form?["fields"]?.arrayValue ?? [], values: values) }
-    private var questions: [InteractionQuestionSpec] { interaction.questions.map { question in
-        .init(id: question.id, prompt: question.prompt.string, header: question.header?.string, multiple: question.multiple,
-              allowOther: question.allowOther, secret: question.secret, options: question.options.map { .init(value: $0.value, label: $0.label.string, description: $0.description?.string) })
-    } }
+    private var questionnaire: PublicInteractionQuestionnaire { .init(interaction: interaction, answers: answers) }
+    private var questions: [InteractionQuestionSpec] { questionnaire.questions }
     private var complete: Bool {
-        if form == nil { return questions.allSatisfy { answers.answered($0) } }
+        if form == nil { return questionnaire.canSubmit }
         return fields.allSatisfy { field in
             let value = values[field.ocID("key")]
             if field["type"]?.stringValue == "external" { return value == .bool(true) }
@@ -106,7 +105,7 @@ struct OpenCodeInteractionPanel: View {
                     if let values = value.arrayValue { payload?[question] = .multiple(values.map { encode(ocScalarText($0)) }) }
                     else { payload?[question] = .text(encode(ocScalarText(value))) }
                 }
-            } else { payload = answers.answersFor(questions).mapValues { switch $0 { case .single(let value): .text(value); case .multiple(let values): .multiple(values) } } }
+            } else { payload = questionnaire.answers.mapValues { switch $0 { case .single(let value): .text(value); case .multiple(let values): .multiple(values) } } }
         }
         let denial = action.intent == .deny && !ocTrim(message).isEmpty ? JSONText(ocTrim(message)) : nil
         let response = HarnessRespondRequest(interactionID: interaction.id, actionID: action.id, answers: payload, message: denial)

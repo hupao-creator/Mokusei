@@ -90,14 +90,18 @@ struct NativeComposerPasteTests {
         board.clearContents(); board.writeObjects(items)
         window.makeFirstResponder(input)
         input.setSelectedRange(NSRange(location: 7, length: 7))
+        let beforePaste = input.string
         try pasteKey(window: window, control: control)
         if content == .text {
             // Ctrl-V is a native macOS editing command for text-only clipboards.
             if !control {
-                // XCTest does not run the application's standard Edit command
-                // dispatcher. Exercise the native action left by the bridge.
                 #expect(NativeComposerPaste.attachmentProviders(from: board).isEmpty)
-                input.paste(nil)
+                // The isolated AppKit host dispatches Edit > Paste itself.
+                // A non-running test host may need the native action, but only
+                // while the shortcut has left the original editor text intact.
+                if !NSApp.isRunning, input.string.utf16.elementsEqual(beforePaste.utf16) {
+                    input.paste(nil)
+                }
                 try await Task.sleep(for: .milliseconds(100))
                 #expect(draft.text == "before 普通文本 👋 after")
                 #expect(input.string == draft.text)
@@ -151,6 +155,50 @@ struct NativeComposerPasteTests {
         #expect(editor(in: window.contentView!) === input)
         #expect(draft.text.isEmpty && draft.error == nil)
     }
+    @Test(.requiresDisplay, arguments: [20, 200])
+    func filePasteReservesDraftBeforeImmediateReturn(count: Int) async throws {
+        var sends = 0
+        let draft = NativeComposerDraft(services: .init(stageFiles: { files, _ in
+            files.enumerated().map { index, file in
+                .init(id: JSONText("reserved-\(index)"), path: JSONText("/tmp/reserved-\(index)"),
+                    name: JSONText(file.name), mimeType: JSONText(file.mimeType), size: file.size, kind: .file)
+            }
+        }, discardAttachments: { _ in }))
+        draft.text = "Keep this request until the paste is resolved"
+        let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
+            onSend: { _ in sends += 1 }, onCancel: {}), width: 560, height: 220)
+        defer { window.close() }
+        try await SwiftUIReplay.wait { editor(in: window.contentView!) != nil }
+        let input = try #require(editor(in: window.contentView!))
+        window.makeFirstResponder(input)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("fixture.txt")
+        try Data("fixture".utf8).write(to: file)
+        let board = NSPasteboard.general
+        let saved = (board.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types { if let bytes = item.data(forType: type) { copy.setData(bytes, forType: type) } }
+            return copy
+        }
+        defer { board.clearContents(); board.writeObjects(saved) }
+        board.clearContents()
+        board.writeObjects((0..<count).map { _ in
+            let item = NSPasteboardItem(); item.setString(file.absoluteString, forType: .fileURL); return item
+        })
+        input.paste(nil)
+        #expect(draft.importing && !draft.canSubmit)
+        input.keyDown(with: try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)))
+        #expect(sends == 0)
+        try await SwiftUIReplay.wait { !draft.importing }
+        #expect(sends == 0 && !draft.text.isEmpty)
+        #expect(draft.attachments.count == (count == 20 ? 20 : 0))
+        #expect((draft.error != nil) == (count > 20))
+    }
+
     @discardableResult
     private func pasteKey(window: NSWindow, control: Bool) throws -> NSEvent {
         let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero,

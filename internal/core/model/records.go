@@ -117,6 +117,7 @@ type ThreadRecord struct {
 	Tags             []string          `json:"tags"`
 	Archived         *bool             `json:"archived,omitempty"`
 	Moku             bool              `json:"moku,omitempty"`
+	MokuHistory      bool              `json:"mokuHistory,omitempty"`
 	Note             *ThreadNote       `json:"note,omitempty"`
 	Transcript       []json.RawMessage `json:"transcript,omitempty"`
 }

@@ -151,15 +151,18 @@ func (stateAdapter) Settle(request plugin.SettleRequest) (json.RawMessage, error
 }
 
 type handle struct {
-	open         plugin.OpenContext
-	ctx          context.Context
-	mode         string
-	mu           sync.Mutex
-	closed       bool
-	responses    atomic.Int64
-	sentCtx      context.Context
-	closeEntered chan struct{}
-	closeRelease chan struct{}
+	open               plugin.OpenContext
+	ctx                context.Context
+	mode               string
+	mu                 sync.Mutex
+	closed             bool
+	responses          atomic.Int64
+	responseNotSent    atomic.Bool
+	responseUncertain  atomic.Bool
+	requireTypedNumber atomic.Bool
+	sentCtx            context.Context
+	closeEntered       chan struct{}
+	closeRelease       chan struct{}
 }
 
 func (h *handle) Send(ctx context.Context, q plugin.SendRequest) error {
@@ -217,7 +220,19 @@ func (h *handle) Interrupt(ctx context.Context) error {
 	}
 	return nil
 }
-func (h *handle) Respond(context.Context, model.RespondRequest) error { h.responses.Add(1); return nil }
+func (h *handle) Respond(_ context.Context, request model.RespondRequest) error {
+	if h.responseNotSent.Swap(false) {
+		return &plugin.InteractionResponseNotSentError{Cause: errors.New("fixture local rejection")}
+	}
+	h.responses.Add(1)
+	if h.requireTypedNumber.Load() {
+		assert(request.ValidatedFormValues["count"] == float64(16), "validated numeric type was not handed to native adapter")
+	}
+	if h.responseUncertain.Swap(false) {
+		return errors.New("fixture native acknowledgement lost")
+	}
+	return nil
+}
 func (h *handle) Read(ctx context.Context, _ string) (string, error) {
 	if h.mode == "read" {
 		<-ctx.Done()

@@ -110,12 +110,210 @@ struct NativeBrowserViewportTests {
         }
 
         session.navigate(try fixture.url("/attachment"))
-        try await wait("main-frame download is rejected") { !session.loading && session.error != nil }
-        #expect(!session.ready && session.error == "网页下载已取消")
-        // This fixture mounts the viewport directly; the production Sidecard
-        // owns the error overlay and its visibility/suppression binding.
+        try await wait("main-frame download cancellation restores its successful source") { !session.loading && session.ready }
+        let retainedSource = try fixture.url("/page/binary")
+        #expect(session.error == nil && session.url == retainedSource.absoluteString)
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('marker').textContent")) as? String == "Main document remains visible")
         session.beginAnnotation()
-        #expect(!session.annotating && session.selection == nil)
+        #expect(session.annotating)
+        session.cancelAnnotation()
+
+        // With no successful source, a rejected top-level download still has
+        // no document to expose and must retain its explicit error state.
+        let empty = BrowserWebSession(store: .nonPersistent())
+        defer { empty.release() }
+        empty.navigate(try fixture.url("/attachment"))
+        try await wait("initial main-frame download is rejected") { !empty.loading && empty.error != nil }
+        #expect(!empty.ready && empty.error == "网页下载已取消")
+        empty.beginAnnotation()
+        #expect(!empty.annotating && empty.selection == nil)
+    }
+
+    @Test func popupDownloadsAndCancelledProvisionalNavigationKeepTheReadySourceDocument() async throws {
+        _ = NSApplication.shared
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        try await wait("browser HTTP fixture starts") { fixture.port != nil }
+        let window = NSWindow(contentRect: CGRect(x: 20, y: 20, width: 900, height: 600),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let session = BrowserWebSession(store: .nonPersistent())
+        let host = NSHostingView(rootView: Surface(session: session, state: State()))
+        window.contentView = host; window.orderBack(nil)
+        defer { session.release(); window.contentView = nil; window.close() }
+        let source = try fixture.url("/navigation")
+        session.navigate(source)
+        try await wait("navigation source is ready") { session.ready && !session.loading }
+        _ = try await session.webView.evaluateJavaScript("document.getElementById('download').click()")
+        // A canceled popup never changes the top-level navigation. Fence the
+        // check with a WebKit round trip after dispatching the link click.
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('marker').textContent")) as? String == "Ready source document")
+        #expect(session.ready && !session.loading && session.error == nil)
+        session.beginAnnotation()
+        #expect(session.annotating)
+        session.cancelAnnotation()
+
+        _ = try await session.webView.evaluateJavaScript("setTimeout(() => window.stop(), 150); location.href = '/slow';")
+        try await wait("provisional request starts and cancellation restores source readiness") {
+            fixture.requests.contains("/slow") && !session.webView.isLoading && !session.loading && session.ready
+        }
+        #expect(session.error == nil && session.pendingURL == nil && session.url == source.absoluteString)
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('marker').textContent")) as? String == "Ready source document")
+        _ = try await session.webView.evaluateJavaScript("document.getElementById('editable').value = 'still editable'")
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('editable').value")) as? String == "still editable")
+        session.beginAnnotation()
+        #expect(session.annotating)
+    }
+
+    @Test func nativeWordNavigationRemainsWithFocusedWebEditorsAndDialogs() async throws {
+        _ = NSApplication.shared
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        try await wait("browser HTTP fixture starts") { fixture.port != nil }
+        let window = NSWindow(contentRect: CGRect(x: 20, y: 20, width: 900, height: 600),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let session = BrowserWebSession(store: .nonPersistent())
+        let host = NSHostingView(rootView: Surface(session: session, state: State()))
+        window.contentView = host; window.makeKeyAndOrderFront(nil)
+        defer { session.release(); window.contentView = nil; window.close() }
+        session.navigate(try fixture.url("/navigation"))
+        try await wait("navigation source is ready") { session.ready && !session.loading }
+        var backs = 0
+        session.backToOverview = { backs += 1 }
+        session.setSuppressed(false)
+        host.layoutSubtreeIfNeeded()
+        window.makeFirstResponder(session.webView)
+        for expression in [
+            "document.getElementById('editable')",
+            "document.getElementById('shadow').shadowRoot.getElementById('shadow-editor')",
+            "window.closedEditor",
+            "document.getElementById('rich-editor')"
+        ] {
+            _ = try await session.webView.evaluateJavaScript("""
+                (() => { const editor = \(expression); editor.focus();
+                if (editor.setSelectionRange) editor.setSelectionRange(editor.value.length, editor.value.length);
+                else { const range = document.createRange(); range.selectNodeContents(editor); range.collapse(false); const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); } })()
+                """)
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .option,
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                characters: String(UnicodeScalar(NSLeftArrowFunctionKey)!), charactersIgnoringModifiers: String(UnicodeScalar(NSLeftArrowFunctionKey)!),
+                isARepeat: false, keyCode: 123))
+            window.sendEvent(event)
+            try await wait("native Option+Left moves within the editor") {
+                ((try await session.webView.evaluateJavaScript("(() => { const editor = \(expression); return editor.selectionStart ?? getSelection().anchorOffset; })()")) as? Int ?? 16) < 16
+            }
+            #expect(backs == 0)
+        }
+        _ = try await session.webView.evaluateJavaScript("document.getElementById('modal').showModal()")
+        let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53))
+        window.sendEvent(escape)
+        try await wait("Escape dismisses the native HTML dialog") {
+            (try await session.webView.evaluateJavaScript("document.getElementById('modal').open")) as? Bool == false
+        }
+        #expect(backs == 0)
+        _ = try await session.webView.evaluateJavaScript("document.activeElement?.blur(); window.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape', bubbles:true, composed:true}));")
+        _ = try await session.webView.evaluateJavaScript("document.getElementById('marker').textContent")
+        #expect(backs == 0)
+        window.makeFirstResponder(session.webView)
+        window.sendEvent(escape)
+        try await wait("unhandled Escape returns through the isolated navigation bridge") { backs == 1 }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for real annotation mouse input: python3 tools/verification/reading-presentation/run.py --browser-viewport"))
+    func annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets() async throws {
+        _ = NSApplication.shared
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        try await wait("browser HTTP fixture starts") { fixture.port != nil }
+        let window = NSWindow(contentRect: CGRect(x: 20, y: 20, width: 900, height: 600),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let session = BrowserWebSession(store: .nonPersistent())
+        let host = NSHostingView(rootView: Surface(session: session, state: State()))
+        window.contentView = host; window.makeKeyAndOrderFront(nil)
+        defer { session.release(); window.contentView = nil; window.close() }
+        session.navigate(try fixture.url("/navigation"))
+        try await wait("navigation source is ready") { session.ready && !session.loading }
+        session.setSuppressed(false); host.layoutSubtreeIfNeeded()
+        NSApp.unhide(nil); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+        try await wait("annotation fixture owns active native input") { NSApp.isActive && window.isKeyWindow }
+        var captures: [BrowserPendingAnnotation] = []
+        session.onAnnotation = { captures.append($0) }
+        for remove in [false, true] {
+            session.beginAnnotation()
+            try await wait("annotation selection installs") {
+                try await session.evaluateJSON("return typeof globalThis.__mokuseiAnnotationRead === 'function';") == .bool(true)
+            }
+            let rect = try await session.evaluateJSON("const r = document.getElementById('marker').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2};")
+            let x = try #require(rect["x"]?.numberValue), y = try #require(rect["y"]?.numberValue)
+            let point = session.webView.convert(CGPoint(x: x, y: session.webView.isFlipped ? y : session.webView.bounds.height - y), to: nil)
+            NSApp.unhide(nil); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+            try await wait("annotation input remains active") { NSApp.isActive && window.isKeyWindow }
+            for type: NSEvent.EventType in [.leftMouseDown, .leftMouseUp] {
+                let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                    eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
+                // Deliver to our mounted native WebKit view: NSWindow.sendEvent
+                // can consume a synthetic mouse event before WebKit receives it.
+                if type == .leftMouseDown { session.webView.mouseDown(with: event) }
+                else { session.webView.mouseUp(with: event) }
+            }
+            try await wait("native selection is available") { session.selection != nil }
+            _ = try await session.webView.evaluateJavaScript(remove ? "document.getElementById('marker').remove()" : "document.getElementById('marker').textContent = 'Updated text before capture'")
+            session.comment = "Capture current page"
+            session.captureAnnotation()
+            try await wait("annotation capture completes") { !session.capturing }
+            if remove {
+                #expect(captures.count == 1 && session.captureError == "网页选区已变化，请重新选择")
+                session.cancelAnnotation()
+            } else {
+                #expect(captures.count == 1)
+                #expect(captures.first?.selection.value["text"]?.stringValue == "Updated text before capture")
+                #expect(captures.first?.png.isEmpty == false)
+            }
+        }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop and key-window responder chain: python3 tools/verification/reading-presentation/run.py --browser-viewport"))
+    func focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom() async throws {
+        _ = NSApplication.shared
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        try await wait("browser HTTP fixture starts") { fixture.port != nil }
+        let window = NSWindow(contentRect: CGRect(x: 20, y: 20, width: 900, height: 600),
+                              styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let session = BrowserWebSession(store: .nonPersistent())
+        let state = State()
+        let host = NSHostingView(rootView: Surface(session: session, state: state))
+        window.contentView = host; window.makeKeyAndOrderFront(nil)
+        defer { session.release(); window.contentView = nil; window.close() }
+        session.navigate(try fixture.url("/zoom"))
+        try await wait("zoom fixture is ready") { session.ready && !session.loading }
+        host.layoutSubtreeIfNeeded()
+        let viewport = try #require(session.viewport)
+        session.setSuppressed(false)
+        NSApp.unhide(nil); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+        try await wait("focused document owns the application responder chain") { NSApp.isActive && window.isKeyWindow }
+        window.makeFirstResponder(session.webView)
+        let scale = state.scale, document = session.webView.url
+        #expect(NSApp.sendAction(NSSelectorFromString("mokuseiZoomInFocusedWebContent:"), to: nil, from: nil))
+        #expect(session.webView.pageZoom > 1 && state.scale == scale)
+        #expect(NSApp.sendAction(NSSelectorFromString("mokuseiResetFocusedWebContentZoom:"), to: nil, from: nil))
+        #expect(session.webView.pageZoom == 1 && state.scale == scale)
+        let requests = fixture.requestCounts["/zoom", default: 0]
+        #expect(NSApp.sendAction(NSSelectorFromString("mokuseiReloadFocusedWebContent:"), to: nil, from: nil))
+        try await wait("focused responder reloads only its native document") {
+            fixture.requestCounts["/zoom", default: 0] > requests && session.ready && !session.loading
+        }
+        #expect(session.webView.url == document && session.viewport === viewport && state.scale == scale)
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('upper') !== null")) as? Bool == true)
+
     }
 
     @Test func annotationPortalStaysAlignedWhenDocumentZoomPassesBothWebKitLimits() async throws {
@@ -271,6 +469,8 @@ private final class BrowserHTTPFixture {
     private var closed = false
     private(set) var port: UInt16?
     private(set) var responses = Set<String>()
+    private(set) var requests = Set<String>()
+    private(set) var requestCounts: [String: Int] = [:]
 
     init() throws {
         let parameters = NWParameters.tcp
@@ -314,6 +514,10 @@ private final class BrowserHTTPFixture {
     }
 
     private func respond(_ connection: NWConnection, path: String) {
+        requests.insert(path)
+        requestCounts[path, default: 0] += 1
+        // A held response lets the real source document cancel before commit.
+        if path == "/slow" { return }
         let mime: String, extra: String, body: String
         switch path {
         case "/attachment":
@@ -323,6 +527,21 @@ private final class BrowserHTTPFixture {
         case "/page/attachment", "/page/binary":
             mime = "text/html"; extra = ""
             body = "<html><body><p id='marker'>Main document remains visible</p><iframe src='/\(path.split(separator: "/").last!)'></iframe></body></html>"
+        case "/navigation":
+            mime = "text/html"; extra = ""
+            body = """
+                <html><body><p id='marker'>Ready source document</p>
+                <a id='download' href='/attachment' download target='_blank'>Download</a>
+                <input id='editable' value='alpha beta gamma'>
+                <div id='rich-editor' contenteditable='true'>alpha beta gamma</div>
+                <div id='shadow'></div><div id='closed-shadow'></div><dialog id='modal'><p>Modal content</p></dialog>
+                <script>
+                document.getElementById('shadow').attachShadow({mode:'open'}).innerHTML = '<input id="shadow-editor" value="alpha beta gamma">';
+                const closed = document.getElementById('closed-shadow').attachShadow({mode:'closed'});
+                window.closedEditor = document.createElement('input'); closedEditor.value = 'alpha beta gamma'; closed.append(closedEditor);
+                </script>
+                </body></html>
+                """
         case "/zoom":
             mime = "text/html"; extra = ""
             body = """

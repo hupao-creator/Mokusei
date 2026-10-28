@@ -60,7 +60,7 @@ func (c taskReadCapability) CaptureList(ctx context.Context, includeArchived boo
 	}
 	result := []plugin.OrdinaryTaskSnapshot{}
 	for _, t := range threads {
-		if t.Moku || (!includeArchived && archived(&t)) || !c.binding.Allows(directorytag.Scope(t.Cwd)) {
+		if t.Moku || t.MokuHistory || (!includeArchived && archived(&t)) || !c.binding.Allows(directorytag.Scope(t.Cwd)) {
 			continue
 		}
 		result = append(result, taskSnapshot(t))
@@ -140,7 +140,7 @@ func (c taskSnapshotCapability) record(ref model.ThreadRef) (*model.ThreadRecord
 			return nil, err
 		}
 	}
-	if !ok || t.Moku || (c.binding != nil && !c.binding.Allows(directorytag.Scope(t.Cwd))) {
+	if !ok || t.Moku || t.MokuHistory || (c.binding != nil && !c.binding.Allows(directorytag.Scope(t.Cwd))) {
 		return nil, nil
 	}
 	return &t, nil

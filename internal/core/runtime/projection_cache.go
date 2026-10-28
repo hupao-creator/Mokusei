@@ -161,7 +161,7 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 					entry.record.SessionState = value
 				}
 			}
-			if thread.Moku {
+			if thread.Moku || thread.MokuHistory {
 				entry.record.Transcript = auditPreview(thread.Transcript)
 			}
 			entries[index] = entry

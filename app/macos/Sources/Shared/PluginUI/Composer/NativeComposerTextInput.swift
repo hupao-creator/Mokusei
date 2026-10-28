@@ -9,6 +9,10 @@ public struct NativeComposerEditorState: Equatable, Sendable {
     public let selection: NSRange
     public let focused: Bool
     public let composing: Bool
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text.utf16.elementsEqual(rhs.text.utf16) && lhs.selection == rhs.selection
+            && lhs.focused == rhs.focused && lhs.composing == rhs.composing
+    }
     public init(text: String, selection: NSRange, focused: Bool, composing: Bool) {
         self.text = text; self.selection = selection; self.focused = focused; self.composing = composing
     }
@@ -55,12 +59,14 @@ public struct NativeComposerTextInput: View {
     private let selectionRequest: NativeComposerSelectionRequest?
     private let onSubmit: () -> Void
     private let onEscape: (() -> Void)?
-    private let onFiles: (([NativeComposerFile]) -> Void)?
+    private let onFiles: (([NativeComposerFile]) async -> Void)?
+    private let preparePaste: (() -> NativeComposerPastePreparation?)?
     private let onFocusChange: ((Bool) -> Void)?
     private let onEditorStateChange: ((NativeComposerEditorState) -> Void)?
     private let onKeyDown: ((NativeComposerKeyEvent) -> Bool)?
     private let submitOnReturn: Bool
     @State private var focused = false
+    @State private var pasting = false
     @State private var selection: NSRange?
     @State private var measuredHeight: CGFloat
     @Environment(\.locale) private var locale
@@ -74,7 +80,8 @@ public struct NativeComposerTextInput: View {
                 lineHeight: CGFloat = 20.925,
                 insets: NativeComposerInsets = NativeComposerInsets(top: 15, left: 16, bottom: 8, right: 16),
                 onSubmit: @escaping () -> Void, onEscape: (() -> Void)? = nil,
-                onFiles: (([NativeComposerFile]) -> Void)? = nil, onFocusChange: ((Bool) -> Void)? = nil,
+                onFiles: (([NativeComposerFile]) async -> Void)? = nil,
+                preparePaste: (() -> NativeComposerPastePreparation?)? = nil, onFocusChange: ((Bool) -> Void)? = nil,
                 selectionRequest: NativeComposerSelectionRequest? = nil,
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
@@ -87,7 +94,7 @@ public struct NativeComposerTextInput: View {
         self.minHeight = minHeight; self.maxHeight = max(minHeight, maxHeight)
         self.fontSize = fontSize; self.lineHeight = lineHeight; self.insets = insets
         self.selectionRequest = selectionRequest
-        self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.onFocusChange = onFocusChange
+        self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.preparePaste = preparePaste; self.onFocusChange = onFocusChange
         self.onEditorStateChange = onEditorStateChange; self.onKeyDown = onKeyDown
         self.submitOnReturn = submitOnReturn
         _measuredHeight = State(initialValue: minHeight)
@@ -97,7 +104,7 @@ public struct NativeComposerTextInput: View {
         NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
             selectionRequest: selectionRequest, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
-            onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: onSubmit, onEscape: onEscape,
+            onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
             submitOnReturn: submitOnReturn, onPaste: nativePaste)
             // Split the trailing line spacing around the glyphs to center a single line.
             .padding(EdgeInsets(top: insets.top + spacing / 2, leading: insets.left,
@@ -142,7 +149,8 @@ public struct NativeComposerTextInput: View {
             .dropDestination(for: URL.self) { urls, _ in
                 guard !unavailable, let onFiles else { return false }
                 let files = urls.filter(\.isFileURL).map(NativeComposerFile.init(url:))
-                guard !files.isEmpty else { return false }; onFiles(files); return true
+                guard !files.isEmpty else { return false }
+                Task { await onFiles(files) }; return true
             }
             .accessibilityLabel(placeholder)
     }
@@ -151,20 +159,26 @@ public struct NativeComposerTextInput: View {
         return { providers, range in paste(providers, selection: range) }
     }
     private func paste(_ providers: [NSItemProvider], selection nativeSelection: NSRange? = nil) {
-        guard !unavailable, let onFiles else { return }
+        guard !unavailable, !pasting, let onFiles else { return }
+        let preparation = preparePaste?()
+        if preparePaste != nil && preparation == nil { return }
+        // Reserve before the first provider await; Return and toolbar sends
+        // observe this same draft-owned operation throughout staging.
+        pasting = true
         let original = value
         let replacement: NSRange
         if let nativeSelection { replacement = nativeSelection }
         else if let selection { replacement = selection }
         else { replacement = NSRange(location: original.utf16.count, length: 0) }
         Task { @MainActor in
+            defer { preparation?.finish(); pasting = false }
             let content = await NativeComposerPaste.load(providers)
-            guard !unavailable else { return }
+            guard !unavailable, preparation?.isActive != false else { return }
             if let text = content.text {
-                if value == original { value = content.replacingText(in: value, selection: replacement) }
+                if value.utf16.elementsEqual(original.utf16) { value = content.replacingText(in: value, selection: replacement) }
                 else { value += text }
             }
-            if !content.files.isEmpty { onFiles(content.files) }
+            if !content.files.isEmpty { await onFiles(content.files) }
         }
     }
     private struct FocusRequest: Equatable { let key: Int; let context: String }

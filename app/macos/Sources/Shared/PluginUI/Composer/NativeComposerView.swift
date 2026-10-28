@@ -71,7 +71,7 @@ public struct NativeComposerView: View {
                     placeholder: localized(running ? "Moku 正在协调任务…" : "让 Moku 发起、协调或汇报任务…"),
                     disabled: disabled, focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: provider,
                     suppressInitialFocus: suppressInitialFocus,
-                    onSubmit: { if canSend { onSend() } }, onFiles: onPasteFiles,
+                    onSubmit: { if canSend { onSend() } }, onFiles: onPasteFiles.map { callback in { files in callback(files) } },
                     onFocusChange: { focused = $0 })
                 toolbar
             }
@@ -232,9 +232,25 @@ private struct ComposerButtonBody<Label: View>: View {
     }
 }
 
-func composerLocalized(_ text: String, locale: Locale) -> String {
+public func composerLocalized(_ text: String, locale: Locale) -> String {
     guard locale.language.languageCode?.identifier != "zh" else { return text }
+    let countPrefix = "附件数量不能超过 ", countSuffix = " 个"
+    if text.hasPrefix(countPrefix), text.hasSuffix(countSuffix),
+       let count = Int(text.dropFirst(countPrefix.count).dropLast(countSuffix.count)) {
+        return "You can attach up to \(count) files"
+    }
+    if text.hasPrefix("草稿未能保存到设备：") {
+        return "Could not save the draft on this device: " + text.dropFirst("草稿未能保存到设备：".count)
+    }
     return [
+        "无效的主机文件路径": "Invalid host file path",
+        "附件总大小不能超过 100 MB": "Attachments cannot exceed 100 MB in total",
+        "无路径的粘贴内容不能超过 20 MB": "Pasted content without a file path cannot exceed 20 MB",
+        "此 Thread 已归档或不可用，无法追加任务。": "This thread is archived or unavailable and cannot accept a follow-up.",
+        "请选择文件": "Choose files", "主机文件预览不可用": "Host file preview is unavailable",
+        "主机文件选择不可用": "Host file selection is unavailable",
+        "附件数量超过主机限制": "The attachments exceed the host file limit",
+        "附件大小超过主机限制": "The attachments exceed the host size limit",
         "Moku 正在协调任务…": "Moku is coordinating tasks…", "让 Moku 发起、协调或汇报任务…": "Ask Moku to start, coordinate, or report on tasks…",
         "添加图片或文件": "Add images or files", "停止 Moku": "Stop Moku", "发送": "Send", "Moku 附件": "Moku attachments",
         "从此设备导入": "Import from this device", "从主机选择文件": "Choose host files", "从主机选择目录": "Choose a host directory",

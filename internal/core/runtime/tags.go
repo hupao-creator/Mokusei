@@ -161,7 +161,7 @@ func (r *Runtime) RefreshApplicationDirectoryTags(ctx context.Context) error {
 		}
 		sources := []plugin.ThreadTagSnapshot{}
 		for _, thread := range threads {
-			if !thread.Moku {
+			if !thread.Moku && !thread.MokuHistory {
 				sources = append(sources, plugin.ThreadTagSnapshot{Thread: model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}, Tags: threadTags(thread)})
 			}
 		}
@@ -185,7 +185,7 @@ func (c tagsWriteCapability) EnsureInventory(ctx context.Context) error {
 		}
 		scoped := []model.ThreadRecord{}
 		for _, thread := range threads {
-			if thread.Moku || directorytag.Scope(thread.Cwd) != scope {
+			if thread.Moku || thread.MokuHistory || directorytag.Scope(thread.Cwd) != scope {
 				continue
 			}
 			scoped = append(scoped, thread)
@@ -512,7 +512,7 @@ func (c tagsWriteCapability) commit(tx *store.Tx, pool []tagDefinition, redirect
 	}
 	sources := []plugin.ThreadTagSnapshot{}
 	for _, thread := range threads {
-		if thread.Moku {
+		if thread.Moku || thread.MokuHistory {
 			continue
 		}
 		before := thread
@@ -562,7 +562,7 @@ func (c tagsWriteCapability) classifiable(tx *store.Tx, ref model.ThreadRef) (*m
 	if err != nil {
 		return nil, err
 	}
-	if !ok || thread.Moku {
+	if !ok || thread.Moku || thread.MokuHistory {
 		return nil, errors.New("thread cannot be classified")
 	}
 	if directorytag.Scope(thread.Cwd) != c.scopeID() {
@@ -675,7 +675,7 @@ func tagUsage(tx *store.Tx, scope, name string, pool []tagDefinition, redirects 
 	}
 	used := 0
 	for _, thread := range threads {
-		if thread.Moku || directorytag.Scope(thread.Cwd) != scope {
+		if thread.Moku || thread.MokuHistory || directorytag.Scope(thread.Cwd) != scope {
 			continue
 		}
 		for _, tag := range thread.Tags {

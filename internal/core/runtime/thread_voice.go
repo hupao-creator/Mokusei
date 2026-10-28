@@ -117,7 +117,7 @@ func (r *Runtime) voiceSource(ctx context.Context, id string) (threadvoice.Sourc
 	if err != nil {
 		return threadvoice.Source{}, err
 	}
-	if thread.Moku {
+	if thread.Moku || thread.MokuHistory {
 		return threadvoice.Source{}, errors.New("Moku is not an ordinary thread discussion target")
 	}
 	h, err := r.harness(ctx, thread)
@@ -147,7 +147,7 @@ func (r *Runtime) voiceSource(ctx context.Context, id string) (threadvoice.Sourc
 		if err != nil {
 			return nil, err
 		}
-		if source.Moku || source.Archived != nil && *source.Archived {
+		if source.Moku || source.MokuHistory || source.Archived != nil && *source.Archived {
 			return nil, errors.New("voice source thread unavailable")
 		}
 		paths := []string{source.Cwd}
@@ -211,7 +211,7 @@ func (r *Runtime) voiceSource(ctx context.Context, id string) (threadvoice.Sourc
 	return source, nil
 }
 func sameVoiceSource(a, b model.ThreadRecord) bool {
-	if a.Cwd != b.Cwd || a.HarnessID != b.HarnessID || a.Moku != b.Moku || !bytes.Equal(a.Settings, b.Settings) || (a.Worktree == nil) != (b.Worktree == nil) {
+	if a.Cwd != b.Cwd || a.HarnessID != b.HarnessID || a.Moku != b.Moku || a.MokuHistory != b.MokuHistory || !bytes.Equal(a.Settings, b.Settings) || (a.Worktree == nil) != (b.Worktree == nil) {
 		return false
 	}
 	if a.Worktree != nil && a.Worktree.Cwd != b.Worktree.Cwd {
