@@ -44,3 +44,28 @@ func TestReportSearchExcludesHiddenHTML(t *testing.T) {
 		t.Fatalf("search projection: %q", text)
 	}
 }
+
+func TestReaderTextHTMLSemantics(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"named entities", "<p>α control | &alpha; | &le; | &rarr; | &times; | &amp;</p>", "α control | α | ≤ | → | × | &"},
+		{"case sensitive entities", "<p>&Alpha; &alpha; &NotEqualTilde; &amp;lt;</p>", "Α α ≂̸ &lt;"},
+		{"inline boundaries", "<p>KEEP<span>WORD<strong>JOIN</strong></span>_52EE</p>", "KEEPWORDJOIN_52EE"},
+		{"comments and blocks", "<p>A<!-- hidden -->B<br>C</p><p>D</p>", "AB C D"},
+		{"nested templates", "<p>BEFORE</p><template><template>INNER</template>OUTER</template><p>AFTER</p>", "BEFORE AFTER"},
+		{"template raw text", "<template><script>'</template>'</script>HIDDEN</template><p>VISIBLE</p>", "VISIBLE"},
+		{"rcdata", "<textarea>VISIBLE_RC_<b>TAG</b>_KEEP &amp;</textarea>", "VISIBLE_RC_<b>TAG</b>_KEEP &"},
+		{"self closing svg", "<p>A<svg/>B</p>", "AB"},
+		{"self closing template", "<template/>HIDDEN</template><p>VISIBLE</p>", "VISIBLE"},
+		{"unclosed rcdata", "<textarea>A<b>B", "A<b>B"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := HTMLSearchText(c.source); got != c.want {
+				t.Errorf("search = %q, want %q", got, c.want)
+			}
+			if got := HTMLPreview(c.source, ""); got != c.want {
+				t.Errorf("preview = %q, want %q", got, c.want)
+			}
+		})
+	}
+}

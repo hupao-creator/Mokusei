@@ -9,7 +9,6 @@ import (
 	"html"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,6 +16,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	appvalue "github.com/hupao-creator/Mokusei/internal/plugins/applications/value"
 	"github.com/hupao-creator/Mokusei/internal/services/taglabel"
+	htmlnode "golang.org/x/net/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
@@ -226,7 +226,6 @@ func summarize(record model.VersionedRecord, value Data) Summary {
 	return Summary{ID: record.ID, Revision: record.Revision, Title: value.Title, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, RelatedThreadCount: len(value.RelatedExecutions), TagCount: len(ProjectTags(value).Tags), Archived: value.Archived}
 }
 
-var tagName = regexp.MustCompile(`(?i)^\s*(/?)\s*([a-z][\w:-]*)`)
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}
 
 // HTMLPreview scans once and never executes, sanitizes, or rewrites the document.
@@ -238,59 +237,41 @@ func HTMLSearchText(source string) string { return htmlReaderText(source, "", 0)
 
 func htmlReaderText(source, title string, limit int) string {
 	var visible strings.Builder
-	// HTML tag names are ASCII. Full Unicode lowercasing may change byte length
-	// and invalidate the offsets used to skip non-reader content below.
-	lower := asciiLower(source)
-	for cursor := 0; cursor < len(source); {
-		relative := strings.IndexByte(source[cursor:], '<')
-		if relative < 0 {
-			visible.WriteString(source[cursor:])
+	// Tokenization retains source-order hidden regions (even malformed head
+	// contents), decodes entities once, and treats textarea as RCDATA.
+	tokens := htmlnode.NewTokenizer(strings.NewReader(source))
+	var hidden []string
+	for {
+		kind := tokens.Next()
+		if kind == htmlnode.ErrorToken {
 			break
 		}
-		start := cursor + relative
-		visible.WriteString(source[cursor:start])
-		if strings.HasPrefix(source[start:], "<!--") {
-			end := strings.Index(source[start+4:], "-->")
-			if end < 0 {
-				break
+		token := tokens.Token()
+		switch kind {
+		case htmlnode.StartTagToken, htmlnode.SelfClosingTagToken:
+			if hiddenTags[token.Data] && !(token.Data == "svg" && kind == htmlnode.SelfClosingTagToken) {
+				// HTML ignores the self-closing flag on non-void HTML
+				// elements; SVG belongs to the foreign-content namespace.
+				hidden = append(hidden, token.Data)
 			}
-			cursor = start + 4 + end + 3
-			visible.WriteByte(' ')
-			continue
-		}
-		end := htmlTagEnd(source, start+1)
-		if end < 0 {
-			visible.WriteString(source[start:])
-			break
-		}
-		tag := source[start+1 : end]
-		match := tagName.FindStringSubmatch(tag)
-		if match == nil {
-			if strings.HasPrefix(strings.TrimSpace(tag), "!") || strings.HasPrefix(strings.TrimSpace(tag), "?") {
+			if len(hidden) == 0 && readerBlockTags[token.Data] {
 				visible.WriteByte(' ')
-			} else {
-				visible.WriteString(source[start : end+1])
 			}
-			cursor = end + 1
-			continue
+		case htmlnode.EndTagToken:
+			if len(hidden) > 0 {
+				if hidden[len(hidden)-1] == token.Data {
+					hidden = hidden[:len(hidden)-1]
+				}
+			} else if readerBlockTags[token.Data] {
+				visible.WriteByte(' ')
+			}
+		case htmlnode.TextToken:
+			if len(hidden) == 0 {
+				visible.WriteString(token.Data)
+			}
 		}
-		name := strings.ToLower(match[2])
-		if match[1] == "" && !strings.HasSuffix(strings.TrimSpace(tag), "/") && hiddenTags[name] {
-			closing := findClosingTag(lower, name, end+1)
-			if closing < 0 {
-				break
-			}
-			closingEnd := htmlTagEnd(source, closing+1)
-			if closingEnd < 0 {
-				break
-			}
-			cursor = closingEnd + 1
-		} else {
-			cursor = end + 1
-		}
-		visible.WriteByte(' ')
 	}
-	text := strings.Join(strings.Fields(decodePreviewEntities(visible.String())), " ")
+	text := strings.Join(strings.Fields(visible.String()), " ")
 	normalizedTitle := strings.Join(strings.Fields(title), " ")
 	if normalizedTitle != "" && strings.HasPrefix(text, normalizedTitle) {
 		rest := strings.TrimPrefix(text, normalizedTitle)
@@ -304,90 +285,15 @@ func htmlReaderText(source, title string, limit int) string {
 	}
 	return text
 }
-func asciiLower(value string) string {
-	data := []byte(value)
-	for index, c := range data {
-		if c >= 'A' && c <= 'Z' {
-			data[index] = c + ('a' - 'A')
-		}
-	}
-	return string(data)
-}
 
-var previewEntity = regexp.MustCompile(`(?i)&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);`)
-var previewNames = map[string]string{"amp": "&", "apos": "'", "copy": "©", "gt": ">", "hellip": "…", "lt": "<", "mdash": "—", "middot": "·", "nbsp": " ", "ndash": "–", "quot": "\"", "reg": "®"}
-
-func decodePreviewEntities(value string) string {
-	return previewEntity.ReplaceAllStringFunc(value, func(entity string) string {
-		name := entity[1 : len(entity)-1]
-		if strings.HasPrefix(name, "#") {
-			base := 10
-			digits := name[1:]
-			if strings.HasPrefix(digits, "x") || strings.HasPrefix(digits, "X") {
-				base = 16
-				digits = digits[1:]
-			}
-			point, err := strconv.ParseUint(digits, base, 32)
-			if err != nil || point == 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff) {
-				return " "
-			}
-			return string(rune(point))
-		}
-		if decoded, ok := previewNames[strings.ToLower(name)]; ok {
-			return decoded
-		}
-		return entity
-	})
-}
-func htmlTagEnd(source string, start int) int {
-	var quote byte
-	state := byte(0)
-	declaration := start < len(source) && (source[start] == '!' || source[start] == '?')
-	space := func(c byte) bool { return strings.ContainsRune("\t\n\f\r ", rune(c)) }
-	for index := start; index < len(source); index++ {
-		c := source[index]
-		switch {
-		case quote != 0:
-			if c == quote {
-				quote = 0
-			}
-		case declaration && (c == '\'' || c == '"'):
-			quote = c
-		case c == '>':
-			return index
-		case state == 1:
-			if space(c) {
-				continue
-			}
-			if c == '\'' || c == '"' {
-				quote = c
-				state = 0
-			} else {
-				state = 2
-			}
-		case state == 2:
-			if space(c) {
-				state = 0
-			}
-		case c == '=':
-			state = 1
-		}
-	}
-	return -1
-}
-func findClosingTag(source, name string, start int) int {
-	prefix := "</" + name
-	for start < len(source) {
-		offset := strings.Index(source[start:], prefix)
-		if offset < 0 {
-			return -1
-		}
-		candidate := start + offset
-		end := candidate + len(prefix)
-		if end == len(source) || strings.ContainsRune(" \t\n\r\f/>", rune(source[end])) {
-			return candidate
-		}
-		start = end
-	}
-	return -1
+// Structural boundaries separate words; inline markup and comments do not.
+var readerBlockTags = map[string]bool{
+	"address": true, "article": true, "aside": true, "blockquote": true,
+	"br": true, "dd": true, "details": true, "dialog": true, "div": true,
+	"dl": true, "dt": true, "fieldset": true, "figcaption": true, "figure": true,
+	"footer": true, "form": true, "h1": true, "h2": true, "h3": true,
+	"h4": true, "h5": true, "h6": true, "header": true, "hr": true,
+	"li": true, "main": true, "nav": true, "ol": true, "p": true,
+	"pre": true, "section": true, "summary": true, "table": true,
+	"td": true, "th": true, "tr": true, "ul": true, "textarea": true,
 }
