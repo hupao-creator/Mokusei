@@ -687,12 +687,15 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     let narrowCollapsed = fixture.state.capsuleFrame
     fixture.state.openNotePanelFromUser()
     try await wait("Long note did not render") { panelText()?.contains("Final milestone") == true }
+    func availableNoteSurface() -> CGRect {
+        NativeMokuCapsuleLayout.frame(in: fixture.state.dockViewport(in: host.bounds.size), landing: false)
+    }
     do {
         try await wait("Long note did not fill the available surface") {
-            fixture.state.capsuleFrame.height >= fixture.state.dockFrame(in: host.bounds.size).height - 1
+            fixture.state.capsuleFrame.height >= availableNoteSurface().height - 1
         }
     } catch {
-        throw Failure(description: "Long note surface \(fixture.state.capsuleFrame), available \(fixture.state.dockFrame(in: host.bounds.size)), host \(host.bounds)")
+        throw Failure(description: "Long note surface \(fixture.state.capsuleFrame), available \(availableNoteSurface()), host \(host.bounds)")
     }
     try await settle()
     try checkExpandedSurface(above: narrowCollapsed, label: "long-note-narrow-window")
