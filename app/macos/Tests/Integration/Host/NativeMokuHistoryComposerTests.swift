@@ -133,20 +133,27 @@ struct NativeMokuHistoryComposerTests {
         let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
             onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: { starts += 1 }), width: 560, height: 180)
         defer { window.close() }
-        try await SwiftUIReplay.wait { monitor(in: window.contentView!) != nil && window.isKeyWindow && NSApp.isActive }
-        let view = try #require(monitor(in: window.contentView!))
-        let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
-        func event(_ type: NSEvent.EventType, location: CGPoint? = nil) throws -> NSEvent {
-            try #require(NSEvent.mouseEvent(with: type, location: location ?? point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        try await SwiftUIReplay.wait {
+            guard let view = monitor(in: window.contentView!) else { return false }
+            return view.bounds.width > 100 && view.bounds.height >= 58 && window.isKeyWindow && NSApp.isActive
         }
-        func hold(duration: TimeInterval, location: CGPoint? = nil, drag: Bool = false) async throws {
-            let down = try event(.leftMouseDown, location: location)
-            let up = try event(.leftMouseUp, location: location)
-            let moved = try event(.leftMouseDragged, location: CGPoint(x: point.x + 20, y: point.y))
-            let sendUp: @MainActor @Sendable () -> Void = { NSApp.postEvent(up, atStart: true) }
-            let sendDrag: @MainActor @Sendable () -> Void = { NSApp.postEvent(moved, atStart: true) }
+        let view = try #require(monitor(in: window.contentView!))
+        let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view })
+        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint) -> NSEvent = { type, point in
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+        }
+        func hold(duration: TimeInterval, drag: Bool = false) async throws {
+            window.makeKeyAndOrderFront(nil)
+            try await SwiftUIReplay.wait { window.isKeyWindow && NSApp.isActive && recognizer.state == .possible }
+            let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
+            // Create each event when delivered: pre-creating the release gives
+            // AppKit a zero-duration gesture even though the timer waited.
+            let sendUp: @MainActor @Sendable () -> Void = { NSApp.postEvent(event(.leftMouseUp, point), atStart: true) }
+            let sendDrag: @MainActor @Sendable () -> Void = {
+                NSApp.postEvent(event(.leftMouseDragged, CGPoint(x: point.x + 20, y: point.y)), atStart: true)
+            }
             let release = Timer(timeInterval: duration, repeats: false) { _ in
                 MainActor.assumeIsolated { sendUp() }
             }
@@ -161,8 +168,9 @@ struct NativeMokuHistoryComposerTests {
                 RunLoop.main.add(timer, forMode: .eventTracking)
                 movement = timer
             }
-            NSApp.sendEvent(down)
+            NSApp.sendEvent(event(.leftMouseDown, point))
             try await Task.sleep(for: .seconds(duration + 0.1))
+            try await SwiftUIReplay.wait { recognizer.state == .possible }
             release.invalidate(); movement?.invalidate()
         }
         #expect(view.hitTest(.zero) == nil)
