@@ -11,11 +11,12 @@ import MokuseiPluginUI
 struct NativeComposerScrollTests {
     private func editor(in view: NSView) -> NSTextView? { SwiftUIReplay.editor(in: view) }
 
-    @Test(arguments: ["", "Hello Moku", "你好 Moku"])
-    func singleLineFitsWithoutScrolling(sample: String) async throws {
+    @Test(arguments: ["", "Hello Moku", "你好 Moku"], [false, true])
+    func singleLineFitsWithoutScrolling(sample: String, emphasized: Bool) async throws {
         let window = SwiftUIReplay.window(NativeComposerTextInput(value: .constant(sample), placeholder: "Ask Moku…",
             automaticFocus: false, minHeight: 58, maxHeight: 126, fontSize: 14, lineHeight: 20,
-            insets: .init(top: 19, left: 6, bottom: 19, right: 6), onSubmit: {}), width: 420, height: 58)
+            insets: .init(top: 19, left: 6, bottom: 19, right: 6), onSubmit: {},
+            emphasizedInsertionPoint: emphasized), width: 420, height: 58)
         defer { window.close() }
         try await Task.sleep(for: .milliseconds(150))
         let host = try #require(window.contentView)
@@ -38,7 +39,7 @@ struct NativeComposerScrollTests {
             + "完成后先给我一个 demo 预览，然后我再决定。" + (trailingNewline ? "\n" : "")
         let host = NSHostingView(rootView: NativeComposerTextInput(value: .constant(sample), placeholder: "Composer",
             automaticFocus: false, minHeight: compact ? 46 : 54, maxHeight: compact ? 126 : 180,
-            fontSize: compact ? 14 : 13.5, lineHeight: compact ? 20 : 20.925, insets: insets, onSubmit: {}))
+            fontSize: compact ? 14 : 13.5, lineHeight: compact ? 20 : 20.925, insets: insets, onSubmit: {}, emphasizedInsertionPoint: true))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 200),
             styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
