@@ -471,7 +471,11 @@ public struct NativeMokuDock: View {
             availableHeight: room,
             mentions: directoryMentions, onMentionFrame: { state.dockMentionHitRect = $0 },
             selectionRequest: directoryMentions.selectionRequest,
-            onEditorStateChange: directoryMentions.update,
+            initialSelection: state.retainedSelection,
+            onEditorStateChange: { editor in
+                if state.inputOpen, !editor.composing { state.retainSelection(editor.selection) }
+                directoryMentions.update(editor)
+            },
             onKeyDown: { directoryMentions.handle($0, draft: draft) },
             onEditorSeatChange: { editorBottomInset = $0 },
             onEscape: { state.setInputOpen(false) }, onSend: send)
