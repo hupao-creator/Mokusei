@@ -223,6 +223,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         if operationDepth == 0 { changed?() }
     }
     override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        caret.remove()
         editing { super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange) }
     }
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -245,13 +246,22 @@ struct NativeComposerEditor: NSViewRepresentable {
             return
         }
         guard shouldDrawInsertionPoint, window?.isKeyWindow == true,
-              !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
+              window?.occlusionState.contains(.visible) == true,
+              selectedRange().length == 0, !isHiddenOrHasHiddenAncestor, rect.intersects(visibleRect) else {
             caret.remove()
             return
         }
-        // AppKit owns color and blink cadence, including appearance changes.
+        // Off callbacks also erase the old insertion rectangle during movement.
+        // Keep the breathing layer alive, but only position it on an on callback.
         if flag { caret.show(at: rect, color: color, in: self) }
-        else { caret.hide() }
+    }
+    override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
+        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
+        if ranges.count != 1 || selectedRange().length != 0 { caret.remove() }
+    }
+    override func viewDidHide() {
+        super.viewDidHide()
+        caret.remove()
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
