@@ -16,6 +16,9 @@ func (c *Coordinator) RevokeDeviceMedia(ctx context.Context, device string) erro
 	v := c.voice
 	v.mu.Lock()
 	preparation, lease := v.preparation, v.active
+	if v.reconfiguration != nil && v.reconfiguration.device == device {
+		v.discardReconfigurationLocked()
+	}
 	if v.retiredDevice == device {
 		v.retired, v.retiredID, v.retiredDevice, v.retiredOwnership = nil, "", "", ""
 	}

@@ -446,24 +446,40 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		}
 		counted = true
 	}
-	stage = "open-session"
-	handle, err := r.ensureInstance(ctx)
-	if err != nil {
-		return err
-	}
-	observation = handle.Observation()
-	execution = observation.LatestExecution
-	if work.ExecutionID != "" && execution != nil && execution.ExecutionID == work.ExecutionID && (execution.Status == "completed" || busy(observation)) {
-		stage = "settlement"
-		if err = r.waitForSettlement(ctx, handle, work.ExecutionID); err != nil {
+	var handle plugin.PrivateSessionHandle
+	for {
+		stage = "open-session"
+		prepared, err := r.ensureInstance(ctx)
+		if err != nil {
 			return err
 		}
-		return finish("processed")
-	}
-	if busy(observation) {
-		stage = "interrupt"
-		if err = handle.Interrupt(ctx, nil); err != nil {
-			return err
+		handle = prepared.handle
+		observation = handle.Observation()
+		execution = observation.LatestExecution
+		if work.ExecutionID != "" && execution != nil && execution.ExecutionID == work.ExecutionID && (execution.Status == "completed" || busy(observation)) {
+			stage = "settlement"
+			if err = r.waitForSettlement(ctx, handle, work.ExecutionID); err != nil {
+				return err
+			}
+			return finish("processed")
+		}
+		if !prepared.needsConfiguration && !busy(observation) {
+			break
+		}
+		// Open can settle an orphan before returning. Its old configuration
+		// still needs replacement for this batch. Interrupt can also leave
+		// native background work alive, which must drain through Close first.
+		if busy(observation) {
+			stage = "interrupt"
+			if err = handle.Interrupt(ctx, nil); err != nil {
+				return err
+			}
+		}
+		if busy(handle.Observation()) {
+			stage = "dispose-orphan"
+			if err = r.dispose(); err != nil {
+				return err
+			}
 		}
 	}
 	if !counted {
@@ -505,10 +521,11 @@ func (r *Runner) settleStale(ctx context.Context) error {
 	if session == nil || !busy(session.Record.Observation) {
 		return nil
 	}
-	handle, err := r.ensureInstance(ctx)
+	prepared, err := r.ensureInstance(ctx)
 	if err != nil {
 		return err
 	}
+	handle := prepared.handle
 	if busy(handle.Observation()) {
 		if err = handle.Interrupt(ctx, nil); err != nil {
 			r.log("stale-interrupt", err)
@@ -519,10 +536,30 @@ func (r *Runner) settleStale(ctx context.Context) error {
 	}
 	return nil
 }
-func (r *Runner) ensureInstance(ctx context.Context) (plugin.PrivateSessionHandle, error) {
+
+type instancePreparation struct {
+	handle             plugin.PrivateSessionHandle
+	needsConfiguration bool
+}
+
+func (r *Runner) ensureInstance(ctx context.Context) (instancePreparation, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return instancePreparation{}, err
+		}
+		prepared, err := r.prepareInstance(ctx)
+		var conflict *model.Error
+		if !errors.As(err, &conflict) || conflict.Code != "BACKGROUND_CONFIGURATION_CHANGED" {
+			return prepared, err
+		}
+		// A save or native cleanup changed the source before work was admitted.
+		// Re-resolve without consuming an execution retry or delaying events.
+	}
+}
+func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, error) {
 	session, err := r.sessions.Read("primary")
 	if err != nil {
-		return nil, err
+		return instancePreparation{}, err
 	}
 	work := r.consumer.Work()
 	var observation model.PublicObservation
@@ -530,35 +567,39 @@ func (r *Runner) ensureInstance(ctx context.Context) (plugin.PrivateSessionHandl
 		observation = session.Record.Observation
 	}
 	retained := work != nil && work.ExecutionID != "" && observation.LatestExecution != nil && work.ExecutionID == observation.LatestExecution.ExecutionID
-	orphan := work == nil && busy(observation)
+	// A newly begun inbox batch can encounter a native execution left by a
+	// previous owner. Open it for cleanup before attempting idle configuration.
+	orphan := !retained && busy(observation)
 	if session == nil || (!retained && !orphan) {
 		configuration, err := r.configuration.Resolve(ctx, "primary")
 		if err != nil {
-			return nil, err
+			return instancePreparation{}, err
 		}
 		if session == nil || session.ConfigurationKey != configuration.ConfigurationKey {
 			r.mu.Lock()
 			handle := r.handle
 			r.mu.Unlock()
 			if handle != nil && busy(handle.Observation()) {
-				return handle, nil
+				return instancePreparation{handle: handle, needsConfiguration: true}, nil
 			}
 			if err = r.dispose(); err != nil {
-				return nil, err
+				return instancePreparation{}, err
 			}
-			configured, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: "primary", ExpectedRevision: configuration.SessionRevision, Configuration: configuration})
-			if err != nil {
-				return nil, err
-			}
-			session = &configured
 		}
+		// Even reuse must validate the resolved source: a settings save can
+		// race discovery while the old key still matches this idle session.
+		configured, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: "primary", ExpectedRevision: configuration.SessionRevision, Configuration: configuration})
+		if err != nil {
+			return instancePreparation{}, err
+		}
+		session = &configured
 	}
 	r.mu.Lock()
 	handle := r.handle
 	lifetime := r.ctx
 	r.mu.Unlock()
 	if handle != nil {
-		return handle, nil
+		return instancePreparation{handle: handle, needsConfiguration: orphan}, nil
 	}
 	opening, cancel := context.WithCancel(lifetime)
 	stop := context.AfterFunc(ctx, cancel)
@@ -567,7 +608,7 @@ func (r *Runner) ensureInstance(ctx context.Context) (plugin.PrivateSessionHandl
 	stop()
 	if err != nil {
 		cancel()
-		return nil, err
+		return instancePreparation{}, err
 	}
 	// Adopt even a late handle before checking cancellation. A failed Close must
 	// remain owned and report a cleanup failure instead of disappearing here.
@@ -580,9 +621,9 @@ func (r *Runner) ensureInstance(ctx context.Context) (plugin.PrivateSessionHandl
 	}
 	if err != nil {
 		closeErr := r.dispose()
-		return nil, errors.Join(err, closeErr)
+		return instancePreparation{}, errors.Join(err, closeErr)
 	}
-	return handle, nil
+	return instancePreparation{handle: handle, needsConfiguration: orphan}, nil
 }
 func (r *Runner) dispose() error {
 	r.mu.Lock()

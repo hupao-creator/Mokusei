@@ -8,6 +8,21 @@ A late occupied-owner preparation response cannot change the current device
 notice or takeover token. A late response that allocated a session still cleans
 up that obsolete session using its own request identity.
 
+Native Moku settings changes use an automatic, ownership-fenced media reconnect
+when the native peer cannot replace its complete execution configuration. This
+continues the user's existing call intent and mute state; it is not permission
+to start an idle call. Explicit Stop, disconnect and ownership replacement win
+over late reconnect completions. Failed reconnection remains visible rather than
+starting an unbounded retry loop. The native ownership suite uses the production
+client and controlled media/backend boundaries to exercise this behavior.
+
+Native Moku reply playback uses a delivery-ID readiness acknowledgement before
+the adapter starts the audio response. This orders pending speech ahead of the
+WebRTC response/buffer events even when sideband polling is delayed. Reconnection
+waits for the current utterance and playback buffer to settle; a peer already
+confirmed retired does not wait for events it can no longer produce. Direct
+realtime replies without a task handoff use the ordered media response boundary.
+
 ## Typed input and speech
 
 [NativeVoiceProtocol.swift](NativeVoiceProtocol.swift) tracks generating and buffered response identities separately. At a typed-input action the client synchronously cancels the observed response and clears active buffered audio over the ordered data channel before dispatch. `response.done` does not prove the playback buffer drained. Interrupted identities prevent delayed events from reviving an old response. Buffer clearing is not deferred/retried by a later caption or rejected submission.

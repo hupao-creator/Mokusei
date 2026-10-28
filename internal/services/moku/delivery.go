@@ -63,23 +63,25 @@ func (c *Coordinator) drainDeliveries(ctx context.Context, reported map[string]s
 	}
 }
 func (c *Coordinator) deliverTerminal(ctx context.Context, delivery plugin.MokuDelivery) error {
-	record, err := c.ensure(ctx)
-	if err != nil {
+	return retryConfigurationAdmission(func() error {
+		record, err := c.ensure(ctx)
+		if err != nil {
+			return err
+		}
+		serialized, err := json.Marshal(publicThread(delivery.Thread))
+		if err != nil {
+			return err
+		}
+		input := textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
+		input.Presentation = "internal"
+		entries, err := c.sendContext(ctx, input, nil, nil)
+		if err != nil {
+			return err
+		}
+		c.mu.Lock()
+		injection := c.injection
+		c.mu.Unlock()
+		_, err = c.config.SendDelivery(ctx, delivery.ID, record.ID, input, injection, entries)
 		return err
-	}
-	serialized, err := json.Marshal(publicThread(delivery.Thread))
-	if err != nil {
-		return err
-	}
-	input := textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
-	input.Presentation = "internal"
-	entries, err := c.sendContext(ctx, input, nil, nil)
-	if err != nil {
-		return err
-	}
-	c.mu.Lock()
-	injection := c.injection
-	c.mu.Unlock()
-	_, err = c.config.SendDelivery(ctx, delivery.ID, record.ID, input, injection, entries)
-	return err
+	})
 }

@@ -41,6 +41,10 @@ The synthetic replay checks:
   and uncertain sends are not replayed.
 - Interrupt settlement and session resume after process shutdown.
 - Native voice context injection, SDP response, polling and explicit stop acknowledgement.
+- Native voice configuration rejection before Core/tool admission, exact
+  handoff recovery only after process and bridge cleanup, generic/uncertain
+  rejection without automatic recovery, and concurrent configuration closure.
+  Use `-voice-configuration-only` for these external-process protocol fixtures.
 - Voice relay, direct owner and private discussion startup with a newer CLI.
   The focused `-voice-only` replay also accepts future, unversioned and empty
   user-agent strings when V3 works, and preserves native method/parameter

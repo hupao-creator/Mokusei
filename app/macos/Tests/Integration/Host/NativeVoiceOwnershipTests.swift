@@ -9,6 +9,226 @@ import MokuseiCore
 @MainActor
 @Suite(.serializedNative)
 struct NativeVoiceOwnershipTests {
+    @Test func nativeSettingsReconnectRetainsCallIntentAndMute() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        let previous = call.backend.ownershipID
+        call.client.toggleMute()
+        call.backend.reconnect = true
+        try await until { call.backend.starts == 2 && call.client.state.phase == .listening }
+        #expect(call.backend.reconnectFrom == .string(previous))
+        #expect(call.backend.prepares == 2 && call.media.offers == 2)
+        #expect(call.client.state.muted && !call.media.device.inputRunning)
+        #expect(call.backend.stops.isEmpty)
+        await call.client.stop()
+    }
+
+    @Test func nativeSettingsReconnectWaitsForCapturedSpeech() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        try call.media.message("input_audio_buffer.speech_started")
+        let polls = call.backend.polls
+        call.backend.reconnect = true
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.prepares == 1)
+        try call.media.message("input_audio_buffer.speech_stopped")
+        call.backend.reconnectRetired = true
+        call.backend.rawPollEvents = [
+            .object(["sequence": .integer(1), "type": .text("input"), "generation": .integer(1)]),
+            .object(["sequence": .integer(2), "type": .text("closed")])
+        ]
+        try await until { call.backend.starts == 2 && call.client.state.phase == .listening }
+        #expect(call.backend.prepares == 2)
+        await call.client.stop()
+    }
+
+    @Test func nativeReconnectDoesNotCutBufferedAudioOrNewSpeechForLateAnswers() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        try call.media.message("response.created", response: "old-answer")
+        try call.media.message("response.done", response: "old-answer")
+        call.backend.reconnect = true
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.prepares == 1)
+        try call.media.message("input_audio_buffer.speech_started")
+        try call.media.message("output_audio_buffer.stopped", response: "old-answer")
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("answer"), "text": .text("late old answer")])]
+        let following = call.backend.polls
+        try await until { call.backend.polls >= following + 2 }
+        #expect(call.backend.prepares == 1)
+        try call.media.message("input_audio_buffer.speech_stopped")
+        try call.media.message("response.created", response: "current-user-answer")
+        try call.media.doneWithoutAudio("current-user-answer")
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        await call.client.stop()
+    }
+
+    @Test func nativeReconnectWaitsForAcknowledgedDeliveryAndItsResponse() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("speech-ready"), "deliveryId": .text("pending-delivery"), "generation": .integer(0)])]
+        call.backend.reconnect = true
+        try await until { call.backend.speechAcks.count == 1 }
+        #expect(call.backend.prepares == 1)
+        // A delayed stop for another response cannot retire this delivery.
+        try call.media.message("output_audio_buffer.stopped", response: "older-answer")
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.prepares == 1 && call.backend.speechAcks.count == 1)
+        try call.media.message("response.created", response: "queued-answer")
+        try call.media.message("response.done", response: "queued-answer")
+        #expect(call.backend.prepares == 1)
+        try call.media.message("output_audio_buffer.started", response: "queued-answer")
+        try call.media.message("output_audio_buffer.stopped", response: "queued-answer")
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        await call.client.stop()
+    }
+
+    @Test func lateSpeechEventCannotResurrectDrainedDelivery() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("speech-ready"), "deliveryId": .text("drained-delivery"), "generation": .integer(0)])]
+        try await until { call.backend.speechAcks.count == 1 }
+        try call.media.message("response.created", response: "short-answer")
+        try call.media.message("response.done", response: "short-answer")
+        try call.media.message("output_audio_buffer.stopped", response: "short-answer")
+        // The sideband confirmation can arrive after the ordered media drain.
+        call.backend.rawPollEvents.append(.object(["sequence": .integer(2), "type": .text("speech"), "deliveryId": .text("drained-delivery"), "generation": .integer(0)]))
+        call.backend.reconnect = true
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        #expect(call.backend.speechAcks.count == 1)
+        await call.client.stop()
+    }
+
+    @Test func directRealtimeAnswerWithoutHandoffReleasesIdleReconnect() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        try call.media.message("input_audio_buffer.speech_started")
+        try call.media.message("input_audio_buffer.speech_stopped")
+        call.backend.reconnect = true
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.prepares == 1)
+        try call.media.message("response.created", response: "direct-greeting")
+        try call.media.doneWithoutAudio("direct-greeting")
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        await call.client.stop()
+    }
+
+    @Test func retiredNativePeerReconnectDoesNotWaitForSpeechStopped() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        try call.media.message("input_audio_buffer.speech_started")
+        call.backend.reconnect = true
+        call.backend.reconnectRetired = true
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        await call.client.stop()
+    }
+
+    @Test func supersededSpeechReadinessCannotBlockNewInput() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        call.backend.rawPollEvents = [
+            .object(["sequence": .integer(1), "type": .text("input"), "generation": .integer(2)]),
+            .object(["sequence": .integer(2), "type": .text("speech-ready"), "deliveryId": .text("stale-delivery"), "generation": .integer(1)])
+        ]
+        call.backend.reconnect = true
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        #expect(call.backend.speechAcks.isEmpty)
+        await call.client.stop()
+    }
+
+    @Test func speechReadyBeforeConnectionWaitsThenAcknowledges() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        let gate = VoiceGate()
+        call.backend.startGate = gate
+        let start = Task { await call.client.start() }
+        try await until { call.backend.starts == 1 }
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("speech-ready"), "deliveryId": .text("early-ready"), "generation": .integer(0)])]
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.speechAcks.isEmpty)
+        gate.open()
+        await start.value
+        try await until { call.backend.speechAcks.count == 1 }
+        await call.client.stop()
+    }
+
+    @Test func speechReadyWhileSuspendedAcknowledgesAfterMediaReturns() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku), thread = replay.call(.thread)
+        await call.client.start()
+        await thread.client.start()
+        #expect(call.client.state.mediaSuspended)
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("speech-ready"), "deliveryId": .text("suspended-ready"), "generation": .integer(0)])]
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.speechAcks.isEmpty)
+        await thread.client.stop()
+        try await until { call.backend.speechAcks.count == 1 }
+        await call.client.stop()
+    }
+
+    @Test func silentToolHandoffDoesNotWaitForFinalAudioBeforeAcknowledgement() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        try call.media.message("input_audio_buffer.speech_started")
+        try call.media.message("response.created", response: "tool-handoff")
+        try call.media.message("input_audio_buffer.speech_stopped")
+        call.backend.rawPollEvents = [.object(["sequence": .integer(1), "type": .text("speech-ready"), "deliveryId": .text("final-delivery"), "generation": .integer(1)])]
+        let polls = call.backend.polls
+        try await until { call.backend.polls >= polls + 2 }
+        #expect(call.backend.speechAcks.isEmpty)
+        try call.media.doneWithToolHandoff("tool-handoff")
+        try await until { call.backend.speechAcks.count == 1 }
+        try call.media.message("response.created", response: "final-audio")
+        try call.media.message("response.done", response: "final-audio")
+        try call.media.message("output_audio_buffer.stopped", response: "final-audio")
+        call.backend.reconnect = true
+        try await until { call.backend.prepares == 2 && call.client.state.phase == .listening }
+        await call.client.stop()
+    }
+
+    @Test func explicitStopFencesPendingNativeSettingsReconnect() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        let previous = call.backend.ownershipID
+        let gate = VoiceGate()
+        call.backend.prepareGate = gate
+        call.backend.reconnect = true
+        try await until { call.backend.prepares == 2 }
+        await call.client.stop()
+        gate.open()
+        try await until { call.backend.stops.count >= 3 }
+        #expect(call.backend.prepares == 2 && call.backend.starts == 1)
+        #expect(call.backend.stops.contains(previous))
+        #expect(call.client.state.phase == .closed)
+    }
+
+    @Test func failedNativeSettingsReconnectDoesNotRetry() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call(.moku)
+        await call.client.start()
+        call.backend.failure = "prepare"
+        call.backend.reconnect = true
+        try await until { call.client.state.phase == .failed }
+        #expect(call.backend.prepares == 2 && call.backend.starts == 1)
+        #expect(!call.client.state.error.codeUnits.isEmpty)
+        await call.client.stop()
+    }
+
     @Test func retiredPreparationCannotReplaceCurrentTakeoverIdentity() async throws {
         let oldOwner = JSONText(UUID().uuidString), newOwner = JSONText(UUID().uuidString)
         let oldResponse = try NativeVoiceResult(.object(["occupiedOwner": .object([
@@ -480,6 +700,11 @@ private final class ReplayCall {
 private final class ReplayVoiceBackend {
     var sessionID: JSONText = JSONText(UUID().uuidString)
     var prepares = 0, starts = 0, polls = 0
+    var reconnect = false
+    var reconnectRetired = false
+    var speechAcks: [JSONValue] = []
+    var reconnectFrom: JSONValue?
+    var ownershipID: JSONText = ""
     var stops: [JSONText] = []
     var failure = ""
     var prepareGate: VoiceGate?, startGate: VoiceGate?, stopGate: VoiceGate?, pollGate: VoiceGate?
@@ -490,6 +715,9 @@ private final class ReplayVoiceBackend {
         switch request["action"]?.stringValue {
         case "prepare":
             prepares += 1
+            ownershipID = request["requestId"]!.voiceText!
+            reconnectFrom = request["reconnectFrom"]
+            if reconnectFrom != nil { reconnect = false; reconnectRetired = false; rawPollEvents = [] }
             let id = JSONText(UUID().uuidString); sessionID = id
             if let prepareGate { await prepareGate.wait() }
             if failure == "prepare" { throw NativeVoiceError("prepare failed") }
@@ -507,7 +735,8 @@ private final class ReplayVoiceBackend {
                 response = delayedPollEvents
             } else { response = pollEvents }
             let events = response.map { event in JSONValue.object(["sequence": .integer(event.sequence), "type": .text(event.type)]) }
-            return try NativeVoiceResult(.object(["events": .array(events + rawPollEvents)]))
+            return try NativeVoiceResult(.object(["events": .array(events + rawPollEvents), "reconnect": .bool(reconnect), "reconnectRetired": .bool(reconnectRetired)]))
+        case "ack-speech": speechAcks.append(request)
         case "stop":
             stops.append(request["sessionId"]!.voiceText!)
             if let stopGate { await stopGate.wait() }
@@ -556,9 +785,22 @@ private final class ReplayMedia: NativeVoiceMediaTransport {
     }
     func setAnalysisEnabled(_ enabled: Bool) {}
     func close() { closed = true; device.close(); onFailure = nil; onMessage = nil; onInputAnalysis = nil }
+    func doneWithToolHandoff(_ id: String) throws {
+        onMessage?(try JSONValue.object(["type": .text("response.done"), "response": .object([
+            "id": .text(id), "status": .text("completed"), "output": .array([.object(["type": .text("function_call"), "name": .text("handoff"), "arguments": .text("{}")])])
+        ])]).encodedData())
+    }
+    func doneWithoutAudio(_ id: String) throws {
+        onMessage?(try JSONValue.object(["type": .text("response.done"), "response": .object([
+            "id": .text(id), "status": .text("completed"), "output": .array([.object(["type": .text("message"), "content": .array([.object(["type": .text("text"), "text": .text("hello")])])])])
+        ])]).encodedData())
+    }
     func message(_ type: String, response: String? = nil) throws {
         var event: [JSONText: JSONValue] = ["type": .text(type)]
-        if let response { event["response"] = .object(["id": .text(response)]) }
+        if let response {
+            if type.hasPrefix("output_audio_buffer.") { event["response_id"] = .text(response) }
+            else { event["response"] = .object(["id": .text(response)]) }
+        }
         onMessage?(try JSONValue.object(event).encodedData())
     }
 }
