@@ -517,6 +517,7 @@ public struct NativeWorkspaceView: View {
         } dock: {
             if let thread = model.catalog.moku {
                 NativeMokuDock(state: presentation.scene, draft: presentation.draft, cwd: JSONText(model.catalog.defaultCwd),
+                    landing: presentation.moku.landing,
                     mode: presentation.moku.dockMode, running: presentation.moku.running,
                     talk: presentation.moku.talk, reply: presentation.moku.reply, disabled: disabled,
                     interaction: presentation.moku.interaction, interactionIsQuestion: presentation.moku.interactionIsQuestion,
@@ -563,7 +564,7 @@ public struct NativeWorkspaceView: View {
                         onSettingsWithOrigin: { presentation.openSettings(origin: $0) },
                         onSettingsFrameChange: { presentation.setSettingsOrigin($0) }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
-                    clickExclusions: presentation.scene.outsideClickExclusions)
+                    clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing)
             } front: {
                 if let selected = presentation.selected, selected.typeID != "agent" {
                     presentation.applicationHost.detail(thread: selected, readingTarget: presentation.readingTarget,

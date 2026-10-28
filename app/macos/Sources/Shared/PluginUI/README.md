@@ -70,6 +70,17 @@ stay local. Core retains schema validation and native answer conversion.
 
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
 
+`NativeComposerTextInput` optionally emphasizes its insertion mark through
+[NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a solid
+3-point caret with the native light/dark text color and native blink cadence.
+Same-line movement interpolates over 120ms from the current presentation; repainting
+an unchanged rectangle does not restart movement. There is no gradient or glow.
+
+Marked text uses the native caret, and line changes bypass interpolation. Selection,
+loss of focus, hidden windows and detachment release the layer. Reduce Motion makes
+movement immediate while retaining the thicker mark and normal native blinking.
+Text, scroll clipping, selection and input-method ownership remain native.
+
 Clipboard file/image paste reserves the draft synchronously before any item-provider decoding. The same draft-owned preparation lasts through attachment validation and staging, including oversized batches; Return and toolbar sends remain blocked until that operation resolves. Retired preparation cannot mutate a cleared or disposed draft. Clipboard TIFF preparation precedes attachment admission. Invalid TIFF does not
 consume a slot or fall through to generic image-file import; accompanying text
 remains available. Every published or persisted draft stays within the 20-file
