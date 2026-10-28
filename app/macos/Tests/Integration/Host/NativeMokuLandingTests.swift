@@ -256,7 +256,8 @@ struct NativeMokuLandingTests {
             #expect(element(id: "moku-landing-notice", in: root) == nil)
             #expect(SwiftUIReplay.text(in: root).contains("你希望任务在哪个目录进行？"))
             #expect(faces(in: root).count == 1 && faces(in: root).first === face)
-            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { element(id: "moku-open-input", in: root) != nil }
+            _ = try #require(element(id: "moku-open-input", in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
             let followup = try #require(SwiftUIReplay.editor(in: root))
             followup.insertText("保留这份补充", replacementRange: .init(location: 0, length: 0))
