@@ -17,6 +17,7 @@ import MokuseiPluginUI
     let controls = NativeReadingInteractions()
     let visit = UUID()
     @ObservationIgnored var mounted: Set<JSONText> = []
+    @ObservationIgnored var appearances: [JSONText: Int] = [:]
     @ObservationIgnored var requested: Set<JSONText> = []
 
     init(count: Int = 5) { ids = (0..<count).map { JSONText("turn-\($0)") } }
@@ -67,7 +68,7 @@ private struct SidebarTurn: View {
             .init(id: JSONText(id.string + "-answer"), kind: .content,
                 node: AnyView(Text("回答 \(id.string)\n\n" + String(repeating: "正文保持可访问，切换目录仅加载选中的轮次。\n\n", count: 30))), finalReply: true)
         ], createdAt: 1, updatedAt: 2, status: "completed", completedAt: 1_700_000_000_000, active: false)
-        .onAppear { fixture.mounted.insert(id) }
+        .onAppear { fixture.mounted.insert(id); fixture.appearances[id, default: 0] += 1 }
         .onDisappear { fixture.mounted.remove(id) }
     }
 }
@@ -104,9 +105,9 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.state("history.sidebar")?["selectedRow"] == .text("turn-2"))
         #expect(fixture.mounted == ["turn-2", "turn-4"])
         #expect(fixture.state("timeline")?["top"] == .number(0))
-        let historyHandle = try #require(fixture.control("history")?["handle"])
+        let appearances = fixture.appearances["turn-2"]
         try await fixture.perform("history.open", value: .text("turn-2"))
-        #expect(fixture.control("history")?["handle"] == historyHandle)
+        #expect(fixture.appearances["turn-2"] == appearances)
         #expect(fixture.mounted == ["turn-2", "turn-4"])
         try await fixture.perform("visibility.work")
         try await fixture.perform("visibility.userMessages")
