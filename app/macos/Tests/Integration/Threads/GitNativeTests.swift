@@ -13,8 +13,10 @@ diff --git a/code.swift b/code.swift
 index 1111111..2222222 100644
 --- a/code.swift
 +++ b/code.swift
-@@ -1,2 +1,2 @@
+@@ -1,4 +1,4 @@
  let unchanged = true
+ Unicode line separator before\u{2028}NEXT_LINE_U2028
+ Unicode paragraph separator before\u{2029}NEXT_LINE_U2029
 -let value = 1
 +let value = 2
 \\ No newline at end of file
@@ -224,7 +226,34 @@ struct GitNativeTests {
         }
         added.setSelectedRange(NSRange(location: 0, length: (added.string as NSString).length))
         added.copy(nil)
-        #expect(NSPasteboard.general.string(forType: .string) == "let unchanged = true\nlet value = 2")
+        let original = "let unchanged = true\nUnicode line separator before\u{2028}NEXT_LINE_U2028\nUnicode paragraph separator before\u{2029}NEXT_LINE_U2029\nlet value = 2"
+        #expect(NSPasteboard.general.string(forType: .string)?.utf8.elementsEqual(original.utf8) == true)
+        #expect(!added.string.contains("\u{2028}") && !added.string.contains("\u{2029}"))
+        let manager = try #require(added.layoutManager)
+        let container = try #require(added.textContainer)
+        manager.ensureLayout(for: container)
+        let rendered = added.string as NSString
+        for (before, after) in [("Unicode line separator before", "NEXT_LINE_U2028"),
+                                ("Unicode paragraph separator before", "NEXT_LINE_U2029")] {
+            let first = rendered.range(of: before), last = rendered.range(of: after)
+            try #require(first.location != NSNotFound && last.location != NSNotFound)
+            let startGlyph = manager.glyphIndexForCharacter(at: first.location)
+            let endGlyph = manager.glyphIndexForCharacter(at: last.location)
+            let firstLine = manager.lineFragmentRect(forGlyphAt: startGlyph, effectiveRange: nil)
+            let lastLine = manager.lineFragmentRect(forGlyphAt: endGlyph, effectiveRange: nil)
+            #expect(firstLine.minY == lastLine.minY, "An in-line separator must not create an extra Git display row")
+        }
+        let lastCode = rendered.range(of: "let value = 2")
+        let finalLine = manager.lineFragmentRect(forGlyphAt: manager.glyphIndexForCharacter(at: lastCode.location), effectiveRange: nil)
+        #expect(finalLine.maxY <= added.bounds.height, "The final physical code line must remain inside the document height")
+        for (glyph, source) in [("↵", "\u{2028}"), ("¶", "\u{2029}")] {
+            let range = rendered.range(of: glyph)
+            try #require(range.location != NSNotFound && range.length == 1)
+            added.setSelectedRange(range)
+            added.copy(nil)
+            #expect(NSPasteboard.general.string(forType: .string)?.utf8.elementsEqual(source.utf8) == true,
+                "Copying a visible separator glyph must preserve the original source bytes")
+        }
         added.setSelectedRange(NSRange(location: 0, length: 0))
         for column in columns {
             if let scroll = column.enclosingScrollView {

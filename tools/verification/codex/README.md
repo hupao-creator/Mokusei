@@ -55,6 +55,10 @@ The synthetic replay checks:
   lists, process-exit uncertainty, unknown owners and settings retention. See
   [the lifecycle contract](../../../internal/core/runtime/README.md).
 
+The synthetic replay also sends a multi-file native activity through production
+event decoding, durable settlement and renderer projection, asserting that unique
+paths survive even when one activity contains several changes.
+
 ## Installed native CLI against a local Provider
 
 On macOS, provide the path to an installed **native Codex executable**, rather than an npm JavaScript launcher:

@@ -87,3 +87,13 @@ import UniformTypeIdentifiers
         }
     }
 }
+
+/// The draft owns paste admission across provider decoding and attachment staging.
+@MainActor public final class NativeComposerPastePreparation {
+    public private(set) var isActive = true
+    var onFinish: (() -> Void)?
+    public func finish() {
+        guard isActive else { return }
+        isActive = false; onFinish?(); onFinish = nil
+    }
+}

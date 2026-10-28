@@ -16,6 +16,14 @@ acknowledged only after its native prompt receipt; a rejected steer leaves the
 running execution available. Permission and form replies release the state lock
 while waiting for native HTTP, and interruption cancels and drains those replies.
 
+Idle native forms and terminal-state reconciliation use the same automatic
+execution admission; detached state clones preserve initialized ownership maps.
+Form replies consume Core-validated native values, including hidden defaults and
+conditional omission, rather than decoding numeric input a second time. A local
+pre-I/O rejection is explicitly classified for safe claim release and retry.
+The native Reader computes public interaction IDs with the same v2 JSON-array
+SHA-256 encoding as Go. The shared public-form fallback retains form metadata.
+
 The two embedded `.mjs` files are native OpenCode plugin resources. They have no JS
 build step and are loaded only by the external Harness. They register native hooks,
 forward calls to the authenticated loopback Go bridge, preserve native tool object

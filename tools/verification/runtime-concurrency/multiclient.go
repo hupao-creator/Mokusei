@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 )
 
@@ -149,6 +151,34 @@ func verifyMultiClientContracts() {
 	_, err = r.UpdateThreadSettings(ctx, before.ID, "fixture", first.SettingsRevision, raw(model.Object{"choice": "busy"}))
 	assert(err != nil, "settings changed during waiting execution")
 	fmt.Println("PASS SQLite two-client thread settings CAS and first-answer claim before native acknowledgement")
+
+	interaction.ID = "permission-retry"
+	waiting.Observation.LatestExecution.Interactions = []model.PublicInteraction{interaction}
+	must(native.open.SessionState.Commit(ctx, raw(waiting)))
+	response := model.RespondRequest{ExecutionID: current.Observation.LatestExecution.ExecutionID, InteractionID: interaction.ID, ActionID: "allow"}
+	native.responseNotSent.Store(true)
+	err = r.RespondThread(ctx, before.ID, response)
+	var rejected *plugin.InteractionResponseNotSentError
+	assert(errors.As(err, &rejected), "pre-I/O rejection lost its explicit classification")
+	must(r.RespondThread(ctx, before.ID, response))
+	assert(native.responses.Load() == 2, "local rejection consumed claim or reached native I/O")
+
+	interaction.ID = "permission-uncertain"
+	waiting.Observation.LatestExecution.Interactions = []model.PublicInteraction{interaction}
+	must(native.open.SessionState.Commit(ctx, raw(waiting)))
+	response.InteractionID = interaction.ID
+	native.responseUncertain.Store(true)
+	assert(r.RespondThread(ctx, before.ID, response) != nil, "uncertain native error not returned")
+	assert(r.RespondThread(ctx, before.ID, response) != nil && native.responses.Load() == 3, "uncertain reply released its duplicate-prevention claim")
+
+	limit := 16.0
+	interaction = model.PublicInteraction{ID: "numeric-typed", Kind: "question", Title: "Typed numeric answer", Actions: []model.PublicInteractionAction{{ID: "submit", Intent: "submit", Label: "Submit"}}, Questions: []model.PublicInteractionQuestion{{ID: "count", Prompt: "Count", AllowOther: true, Options: []model.PublicInteractionOption{}, Form: &model.PublicQuestionForm{Type: "integer", Required: true, Minimum: &limit, Maximum: &limit}}}}
+	waiting.Observation.LatestExecution.Interactions = []model.PublicInteraction{interaction}
+	must(native.open.SessionState.Commit(ctx, raw(waiting)))
+	native.requireTypedNumber.Store(true)
+	must(r.RespondThread(ctx, before.ID, model.RespondRequest{ExecutionID: current.Observation.LatestExecution.ExecutionID, InteractionID: interaction.ID, ActionID: "submit", Answers: map[string]json.RawMessage{"count": raw("0x10")}}))
+	native.requireTypedNumber.Store(false)
+	fmt.Println("PASS typed numeric handoff, retry after certain pre-I/O rejection, and retained claim after uncertain native I/O")
 
 	must(r.SetServiceDraining(true))
 	assert(cancelObserved(r, current).Status == "cancelled", "drain prevented cancellation")

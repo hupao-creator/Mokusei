@@ -26,13 +26,20 @@ def main():
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
              "NativeBrowserDialogTests" if "--browser-dialogs" in sys.argv else
+             "NativeBrowserViewportTests" if "--browser-viewport" in sys.argv else
+             "NativeComposerContrastTests" if "--composer-contrast" in sys.argv else
+             "NativeHarnessFormTests" if "--harness-forms" in sys.argv else
              "NativeOverviewSearchTests" if "--overview-search" in sys.argv else
              "NativeOverviewMountingIntegrationTests" if "--overview-mounting" in sys.argv else
              "NativeReportNavigationTests" if "--report-navigation" in sys.argv else
              "NativeSettingsTransitionTests" if "--settings-transition" in sys.argv else
              "NativeMarkdownLocalImageTests" if "--local-images" in sys.argv else
+             "NativeMarkdownRegressionTests" if "--markdown" in sys.argv else
+             "NativeMokuHistoryComposerTests" if "--moku-composer" in sys.argv else
+             "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
+             "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
-    thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv
+    thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     tests = package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{suite}.swift"
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
@@ -51,6 +58,10 @@ def main():
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/initial-response", "-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_INITIAL_RESPONSE_FIXTURES"] = str(fixture)
             environment["MOKUSEI_INITIAL_RESPONSE_ARTIFACTS"] = str(replay.workspace / "evidence")
+        if "--harness-forms" in sys.argv:
+            fixture = replay.workspace / "harness-forms.json"
+            subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/opencode/cases/renderer", "-forms-output", str(fixture)], cwd=repo, check=True)
+            environment["MOKUSEI_HARNESS_FORM_FIXTURE"] = str(fixture)
         selected = ("directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
                     if glass_captures else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
@@ -64,12 +75,15 @@ def main():
     count = (3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
-             4 if "--browser-dialogs" in sys.argv else
+             4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              14 if "--overview-search" in sys.argv else
              6 if "--overview-mounting" in sys.argv else
              2 if "--report-navigation" in sys.argv else
-             3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv else
-             2 if glass_captures else 7 if tag_glass else 5)
+             3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
+             8 if "--browser-viewport" in sys.argv else
+             2 if glass_captures else
+             7 if tag_glass or "--markdown" in sys.argv or "--moku-composer" in sys.argv else
+             10 if "--moku-note-tests" in sys.argv else 5)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

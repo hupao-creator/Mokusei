@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +58,7 @@ func headless(ctx context.Context, log io.Writer, cycles int) (err error) {
 		err = errors.Join(err, os.RemoveAll(root))
 	}()
 	binary := filepath.Join(root, "mokusei-runtime")
-	if err = command(ctx, log, "./scripts/go.sh", "build", "-race", "-o", binary, "./cmd/mokusei-runtime"); err != nil {
+	if err = command(ctx, log, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-race", "-o", binary, "./cmd/mokusei-runtime"); err != nil {
 		return err
 	}
 	// Deliberately omit credentials and inherited provider configuration. This gate

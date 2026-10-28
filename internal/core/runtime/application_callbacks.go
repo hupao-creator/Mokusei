@@ -60,7 +60,7 @@ func (r *Runtime) ArchiveExecutions(tx *store.Tx, references []model.ExecutionRe
 		if err != nil {
 			return err
 		}
-		if !exists || thread.Moku {
+		if !exists || thread.Moku || thread.MokuHistory {
 			continue
 		}
 		execution := thread.Observation.LatestExecution

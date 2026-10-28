@@ -126,6 +126,15 @@ Test Suite 'All tests' passed at 2026-10-27 18:26:34.121.
    The standalone native launcher compiles the same support source and rejects
    skipped tests rather than interpreting an incomplete green summary as coverage.
 
+## Native mouse tracking capability (C)
+
+The current Moku composer mouse/NFD case has an additional explicit AppKit-loop
+gate. A plain graphical SwiftPM run was observed to exit with status zero while
+inside native NSTextView mouse tracking, with no Swift Testing completion
+summary. `reading-presentation/run.py --moku-composer` exercises the real click
+and exact Unicode persistence in a running application; its seven-test replay
+must not skip. The local shared Swift reporter now rejects incomplete captures.
+
 ## The eight XCTest skips (C)
 
 These are explicit missing Go-fixture gates, not failed or disabled Swift assertions.
@@ -160,6 +169,24 @@ preserved, now with visible reasons.
 | `NativeMokuDispatchTests` | 1 | `MOKU_STATUS_NATIVE_FIXTURE`; Go dispatch snapshots |
 | `NativeVoiceInputTranscriptTests` | 2 | `MOKUSEI_VOICE_EVENT_EXPORT`; Go Codex event exports |
 | `NativeOverviewTagEmojiTests.applicationConversationProducerMatchesStrictDecoder` | 1 | `MOKUSEI_CONVERSATION_CONTRACT_EXPORT`; Go contract export |
+
+## Report WebKit input capability (C)
+
+The current `NativeReportNavigationTests` mounted-document case additionally
+drives trusted AppKit mouse/key events through production WebKit: a real POST
+form click, editable and closed-Shadow-DOM word movement, and HTML dialog Escape.
+It requires `MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY=1`, supplied by
+`python3 tools/verification/reading-presentation/run.py --report-navigation`.
+The route-state case in the same suite remains enabled in plain SwiftPM.
+
+A graphical session alone does not provide this event-loop capability. The plain
+SwiftPM process reported `NSApp.isRunning == false` and did not deliver the native
+mouse-down to the DOM; the isolated `NSApplication.run()` launcher passed both
+Report cases with every business assertion enabled. Plain SwiftPM therefore
+reports one additional explicit capability skip for this method. The historical
+baseline counts below predate that expanded input coverage. A green `make check`
+must be supplemented by the isolated Report replay, whose launcher rejects skips.
+No input wait or assertion was relaxed to accommodate the plain host.
 
 ## Verification results
 

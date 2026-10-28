@@ -39,7 +39,14 @@ func (*swiftFileHost) FilePolicy(context.Context) (model.AttachmentPolicy, error
 	return model.AttachmentPolicy{ImageBytes: 1 << 20, PDFBytes: 1 << 20, FileBytes: 1 << 20, MessageBytes: 2 << 20, MessageCount: 20}, nil
 }
 func (*swiftFileHost) BrowseFiles(context.Context, *model.HostFileReference) (model.HostDirectory, error) {
-	return model.HostDirectory{}, errors.New("unused")
+	result := model.HostDirectory{Reference: model.HostFileReference{Path: "/fixture"}}
+	for _, name := range []string{"target.txt", "alias-a", "alias-b"} {
+		result.Entries = append(result.Entries, model.HostFileEntry{
+			Reference: model.HostFileReference{Path: "/fixture/target.txt"}, Name: name,
+			Size: 76, MimeType: "text/plain",
+		})
+	}
+	return result, nil
 }
 func (*swiftFileHost) StageHostFiles(context.Context, []model.HostFileReference) ([]model.Attachment, error) {
 	return nil, errors.New("unused")

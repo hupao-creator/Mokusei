@@ -27,6 +27,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     var capturing = false
     var suppressed = true
     @ObservationIgnored var backToOverview: (() -> Void)?
+    @ObservationIgnored var translate: (String) -> String = { $0 }
     @ObservationIgnored var onAnnotation: ((BrowserPendingAnnotation) -> Void)?
     @ObservationIgnored weak var viewport: BrowserViewportNativeView?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
@@ -42,9 +43,10 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     @ObservationIgnored private var historyResponses: [WKBackForwardListItem: Int] = [:]
     @ObservationIgnored private var documentStatus = 0
     @ObservationIgnored private var completedDocumentURL: URL?
+    @ObservationIgnored private var completedDocumentStatus = 0
+    @ObservationIgnored private var navigationCommitted = false
     @ObservationIgnored private var sameDocumentCandidate = false
     @ObservationIgnored private var released = false
-    @ObservationIgnored private var keyboardMonitor: Any?
     @ObservationIgnored private var snapshotBusy = false
     @ObservationIgnored private var snapshots: [(WKSnapshotConfiguration, CheckedContinuation<NativePlatformImage, Error>)] = []
     @ObservationIgnored private var activeSnapshot: (UUID, CheckedContinuation<NativePlatformImage, Error>)?
@@ -63,7 +65,6 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         webView.navigationDelegate = self; webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.underPageBackgroundColor = .clear
-        webView.onBackToOverview = { [weak self] in self?.backToOverview?() }
         webView.onCancelAnnotation = { [weak self] in self?.cancelAnnotation() }
         webView.onReloadDocument = { [weak self] force in self?.reloadFocusedDocument(fromOrigin: force) }
         webView.onDocumentZoomChanged = { [weak self] in
@@ -76,21 +77,11 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             webView.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in Task { @MainActor in self?.syncState() } },
             webView.observe(\.canGoForward, options: [.new]) { [weak self] _, _ in Task { @MainActor in self?.syncState() } }
         ]
-        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let consumed = MainActor.assumeIsolated {
-                guard let self, !self.released, !self.suppressed, event.window === self.webView.window,
-                      let responder = event.window?.firstResponder as? NSView,
-                      responder === self.webView || responder.isDescendant(of: self.webView),
-                      (responder as? NSTextInputClient)?.hasMarkedText() != true else { return false }
-                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                let escape = event.keyCode == 53 && flags.intersection([.command, .control, .shift]).isEmpty
-                let back = event.keyCode == 123 && flags == .option
-                if escape && self.annotating { self.cancelAnnotation(); return true }
-                if escape || back { self.webView.window?.makeFirstResponder(nil); self.backToOverview?(); return true }
-                return false
-            }
-            return consumed ? nil : event
-        }
+        // DOM owns editing shortcuts, including shadow-tree inputs and native
+        // dialogs. Bridge only an unhandled navigation key from the isolated world.
+        webView.configuration.userContentController.add(BrowserNavigationMessages(session: self), contentWorld: .world(name: "MokuseiBrowser"), name: "mokuseiBrowserNavigation")
+        webView.configuration.userContentController.addUserScript(WKUserScript(source: BrowserPageScripts.navigationKeys,
+            injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .world(name: "MokuseiBrowser")))
     }
 
     func navigate(_ target: URL) {
@@ -104,6 +95,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         historyStartPending = false
         cancelAnnotation()
         pendingURL = target; loading = true; ready = false; error = nil
+        navigationCommitted = false
         sameDocumentCandidate = allowSameDocument && documentResponseOK && sameDocument(target, completedDocumentURL)
         if !sameDocumentCandidate { documentResponseOK = false }
         receivedDocumentResponse = false
@@ -145,6 +137,9 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             url = current.absoluteString
         }
         title = webView.title ?? ""; canGoBack = webView.canGoBack; canGoForward = webView.canGoForward
+        if loading, !webView.isLoading, !navigationCommitted, error == nil, completedDocumentURL != nil {
+            finishCancelledNavigation()
+        }
         if !webView.isLoading, sameDocumentCandidate, webView.url == pendingURL {
             pendingURL = nil; loading = false; ready = documentResponseOK && error == nil; sameDocumentCandidate = false
         }
@@ -158,9 +153,9 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         guard !released, let target = navigationAction.request.url else { decisionHandler(.cancel); return }
-        let main = navigationAction.targetFrame?.isMainFrame ?? true
+        let main = navigationAction.targetFrame?.isMainFrame == true
         if navigationAction.shouldPerformDownload {
-            if main { report("网页下载已取消") }
+            if main { rejectMainFrameDownload() }
             decisionHandler(.cancel); return
         }
         if navigationAction.targetFrame == nil {
@@ -187,7 +182,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void) {
         let disposition = (navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")?.lowercased() ?? ""
         guard navigationResponse.canShowMIMEType, !disposition.hasPrefix("attachment") else {
-            if navigationResponse.isForMainFrame { report("网页下载已取消") }
+            if navigationResponse.isForMainFrame { rejectMainFrameDownload() }
             decisionHandler(.cancel); return
         }
         if navigationResponse.isForMainFrame {
@@ -211,6 +206,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         guard navigation === activeNavigation else { return }
+        navigationCommitted = true
         self.webView.synchronizeDocumentZoom()
         syncState()
     }
@@ -229,15 +225,56 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         syncState(); loading = false; ready = documentResponseOK && error == nil; pendingURL = nil
         self.webView.synchronizeDocumentZoom()
         completedDocumentURL = ready ? webView.url : nil
+        completedDocumentStatus = documentStatus
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { fail(navigation, failure) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) { fail(navigation, failure) }
     private func fail(_ navigation: WKNavigation?, _ failure: Error) {
         guard !released, navigation === activeNavigation else { return }
         let native = failure as NSError
-        if native.code == NSURLErrorCancelled || (error != nil && native.domain == "WebKitErrorDomain" && native.code == 102) { return }
+        if native.domain == NSURLErrorDomain, native.code == NSURLErrorCancelled {
+            if !webView.isLoading { finishCancelledNavigation() }
+            return
+        }
+        if native.domain == "WebKitErrorDomain", native.code == 102 {
+            if error != nil { return }
+            if completedDocumentURL != nil {
+                if !webView.isLoading { finishCancelledNavigation() }
+                return
+            }
+        }
         loading = false; ready = false; documentResponseOK = false; error = failure.localizedDescription
         cancelAnnotation(); viewport?.setSuppressed(true)
+    }
+    private func rejectMainFrameDownload() {
+        // WebKit may report a target=_blank download as a main-frame action.
+        // Canceling before commit leaves the source document intact. Preserve
+        // that document rather than turning its unrelated state into an error.
+        if completedDocumentURL != nil {
+            if loading { finishCancelledNavigation() }
+        } else { report("网页下载已取消") }
+    }
+    private func finishCancelledNavigation() {
+        loading = false; pendingURL = nil; sameDocumentCandidate = false
+        if !navigationCommitted, let completedDocumentURL {
+            url = completedDocumentURL.absoluteString
+            documentStatus = completedDocumentStatus
+            documentResponseOK = true; error = nil
+        }
+        ready = documentResponseOK && error == nil
+    }
+    func handleNavigationKey() {
+        guard !released, !suppressed, pageDialog == nil, webView.window?.attachedSheet == nil else { return }
+        if annotating { cancelAnnotation(); return }
+        webView.window?.makeFirstResponder(nil)
+        backToOverview?()
+    }
+    func localized(_ source: String) -> String {
+        if source.hasPrefix("网页响应失败（HTTP "), source.hasSuffix("）") {
+            let status = source.dropFirst("网页响应失败（HTTP ".count).dropLast()
+            return translate("网页响应失败（HTTP {status}）").replacingOccurrences(of: "{status}", with: String(status))
+        }
+        return translate(source)
     }
     private func report(_ message: String) {
         loading = false; ready = false; documentResponseOK = false; error = message
@@ -270,17 +307,17 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor () -> Void) {
         guard !released, !suppressed, pageDialog == nil, let window = webView.window else { completionHandler(); return }
-        let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: "好")
+        let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: translate("好"))
         alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { _ in completionHandler() })
     }
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor (Bool) -> Void) {
         guard !released, !suppressed, pageDialog == nil, let window = webView.window else { completionHandler(false); return }
-        let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: "好"); alert.addButton(withTitle: "取消")
+        let alert = NSAlert(); alert.messageText = String(message.prefix(4000)); alert.addButton(withTitle: translate("好")); alert.addButton(withTitle: translate("取消"))
         alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { completionHandler($0 == .alertFirstButtonReturn) })
     }
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor (String?) -> Void) {
         guard !released, !suppressed, pageDialog == nil, let window = webView.window else { completionHandler(nil); return }
-        let alert = NSAlert(); alert.messageText = String(prompt.prefix(4000)); alert.addButton(withTitle: "好"); alert.addButton(withTitle: "取消")
+        let alert = NSAlert(); alert.messageText = String(prompt.prefix(4000)); alert.addButton(withTitle: translate("好")); alert.addButton(withTitle: translate("取消"))
         let input = NSTextField(string: defaultText ?? ""); input.frame = CGRect(x: 0, y: 0, width: 300, height: 24); alert.accessoryView = input
         alert.beginSheetModal(for: window, completionHandler: ownPageDialog(alert.window) { completionHandler($0 == .alertFirstButtonReturn ? input.stringValue : nil) })
     }
@@ -305,11 +342,11 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
         download.delegate = self; download.cancel()
-        if navigationAction.targetFrame?.isMainFrame ?? true { report("网页下载已取消") }
+        if navigationAction.targetFrame?.isMainFrame == true { rejectMainFrameDownload() }
     }
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
         download.delegate = self; download.cancel()
-        if navigationResponse.isForMainFrame { report("网页下载已取消") }
+        if navigationResponse.isForMainFrame { rejectMainFrameDownload() }
     }
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping @MainActor (URL?) -> Void) { completionHandler(nil); download.cancel() }
 
@@ -322,7 +359,9 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         annotationTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let raw = try await self.evaluateJSON("return await (\(BrowserPageScripts.selection));")
+                let touchHint = try JSONValue.text(self.translate("轻点元素或拖动框选 · 再点批注按钮取消")).encodedData()
+                let mouseHint = try JSONValue.text(self.translate("点击元素或拖拽框选 · Esc 取消")).encodedData()
+                let raw = try await self.evaluateJSON("globalThis.__mokuseiAnnotationHints = {touch: \(String(decoding: touchHint, as: UTF8.self)), mouse: \(String(decoding: mouseHint, as: UTF8.self))}; return await (\(BrowserPageScripts.selection));")
                 guard self.currentAnnotation(token), raw != .null else { if self.currentAnnotation(token) { self.cancelAnnotation() }; return }
                 self.selection = try BrowserSelection(raw)
                 self.viewport?.refreshEditor()
@@ -355,6 +394,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             do {
                 let raw = try await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;")
                 guard self.currentAnnotation(token) else { return }
+                guard raw != .null else { throw PluginContractError("网页选区已变化，请重新选择") }
                 let selection = try BrowserSelection(raw)
                 let titleValue = try await self.evaluateJSON("return document.title.slice(0, 2048);")
                 let title: JSONText
@@ -368,6 +408,8 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 config.afterScreenUpdates = true
                 let image = try await self.snapshot(config)
                 guard self.currentAnnotation(token) else { return }
+                let after = try await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;")
+                guard after == raw else { throw PluginContractError("网页选区已变化，请重新选择") }
                 let pixels = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
                 guard let pixels else { throw PluginContractError("截图失败") }
                 let png = try await NativeRasterPreparation.shared.png(pixels)
@@ -430,16 +472,15 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         guard !released else { return }
         cancelAnnotation(); released = true; generation += 1
         cancelPageDialog()
-        if let keyboardMonitor { NSEvent.removeMonitor(keyboardMonitor) }
-        keyboardMonitor = nil
         observations.removeAll()
         navigationGenerations.removeAllObjects(); historyResponses.removeAll()
         let abandoned = snapshots; snapshots.removeAll()
         for (_, continuation) in abandoned { continuation.resume(throwing: CancellationError()) }
         activeSnapshot?.1.resume(throwing: CancellationError()); activeSnapshot = nil; snapshotBusy = false
         webView.stopLoading(); webView.navigationDelegate = nil; webView.uiDelegate = nil
-        webView.onBackToOverview = nil; webView.onCancelAnnotation = nil
+        webView.onCancelAnnotation = nil
         webView.onReloadDocument = nil; webView.onDocumentZoomChanged = nil
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "mokuseiBrowserNavigation", contentWorld: .world(name: "MokuseiBrowser"))
         webView.configuration.userContentController.removeAllUserScripts()
         webView.removeFromSuperview(); viewport?.setSuppressed(true); viewport = nil
         backToOverview = nil; onAnnotation = nil
@@ -474,7 +515,6 @@ private final class BrowserPageDialog {
 
 @MainActor
 final class BrowserWKWebView: WKWebView {
-    var onBackToOverview: (() -> Void)?
     var onCancelAnnotation: (() -> Void)?
     var onReloadDocument: ((Bool) -> Void)?
     var onDocumentZoomChanged: (() -> Void)?
@@ -523,9 +563,19 @@ final class BrowserWKWebView: WKWebView {
     override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let escape = event.keyCode == 53 && flags.intersection([.command, .control, .shift]).isEmpty
-        let back = event.keyCode == 123 && flags == .option
         if escape && annotationActive { onCancelAnnotation?(); return }
-        if escape || back { window?.makeFirstResponder(nil); onBackToOverview?(); return }
         super.keyDown(with: event)
+    }
+}
+
+/// The content controller owns this bridge, while the presentation owns the
+/// session. A weak link lets releasing the session retire WebKit completely.
+@MainActor
+private final class BrowserNavigationMessages: NSObject, WKScriptMessageHandler {
+    weak var session: BrowserWebSession?
+    init(session: BrowserWebSession) { self.session = session }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "mokuseiBrowserNavigation", message.body as? String == "back" else { return }
+        session?.handleNavigationKey()
     }
 }

@@ -30,6 +30,15 @@ struct BrowserPendingAnnotation: Identifiable {
     let selection: BrowserSelection
     let png: Data
 
+    init(id: UUID, comment: String, url: String, title: JSONText, selection: BrowserSelection, png: Data) {
+        self.id = id; self.comment = comment
+        // Navigation may use credentials; conversation metadata never owns them.
+        var location = URLComponents(string: url)
+        location?.user = nil; location?.password = nil
+        self.url = location?.url?.absoluteString ?? ""
+        self.title = title; self.selection = selection; self.png = png
+    }
+
     func json(screenshotID: JSONText? = nil) -> JSONValue {
         var fields = selection.value.objectValue ?? [:]
         fields["id"] = .text(id.uuidString.lowercased()); fields["comment"] = .text(comment.trimmingCharacters(in: .whitespacesAndNewlines))

@@ -17,6 +17,12 @@ final class RuntimeHostFilesInteropTests: XCTestCase {
         let client = RuntimeClient(profile: profile)
         do {
             try await client.start()
+            let listing = try await client.hostDirectory()
+            XCTAssertEqual(listing.entries.map(\.name), ["target.txt", "alias-a", "alias-b"])
+            XCTAssertEqual(Set(listing.entries.map(\.id)).count, 3, "Each named directory entry needs a stable UI identity")
+            XCTAssertEqual(Set(listing.entries.map { $0.reference.path }).count, 1, "Aliases retain the same authenticated target")
+            let reloaded = try await client.hostDirectory(listing.reference)
+            XCTAssertEqual(reloaded.entries.map(\.id), listing.entries.map(\.id))
             let regular = directory.appendingPathComponent("regular.bin")
             let expected = Data(String(repeating: "file boundary fixture\n", count: 10_000).utf8)
             try expected.write(to: regular)

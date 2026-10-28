@@ -46,6 +46,11 @@ The native adapter retains reasoning prefixes for completion reconciliation;
 assistant text comes from streamed deltas and authoritative completed items
 without a second unused accumulated copy.
 
+File-change activities retain their unique native paths through completion and
+renderer projection. The native execution summary counts distinct paths across
+activities, so one patch touching several files reports its actual file scope.
+A source without path facts uses a neutral changed-files label.
+
 ## Voice
 
 [voice.go](voice.go) uses the unmodified app-server's V3 WebRTC/sideband protocol. Voice is not gated by CLI version or user-agent format: all three paths share the real `thread/realtime/start` request and subsequent protocol events to determine compatibility. There is no separate capability probe before microphone permission and SDP creation. Unsupported startup methods or V3 parameters (`-32601` / `-32602`) add a Chinese compatibility diagnostic while retaining the native RPC error, and end that media attempt without automatic retries or protocol downgrade. Native provider/login checks still apply.

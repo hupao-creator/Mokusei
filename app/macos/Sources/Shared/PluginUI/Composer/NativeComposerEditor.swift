@@ -62,9 +62,9 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
         var replacedText = false
         // Remember ignored model updates too: they must not be replayed after commit.
-        if coordinator.lastModel != value {
+        if coordinator.lastModel?.utf16.elementsEqual(value.utf16) != true {
             coordinator.lastModel = value
-            if !editor.hasMarkedText(), editor.string != value {
+            if !editor.hasMarkedText(), !editor.string.utf16.elementsEqual(value.utf16) {
                 let oldSelection = editor.selectedRange()
                 editor.string = value
                 replacedText = true
@@ -87,13 +87,16 @@ struct NativeComposerEditor: NSViewRepresentable {
             editor.textColor = .labelColor
             editor.insertionPointColor = .labelColor
         }
+        editor.pasteAttachments = unavailable ? nil : onPaste
         editor.isEditable = !unavailable
         editor.isSelectable = !unavailable
         scroll.hasVerticalScroller = showsScroller
         coordinator.applySelectionRequest()
         if let window = editor.window {
             if focused && focusEnabled && !unavailable && window.firstResponder !== editor { window.makeFirstResponder(editor) }
-            else if (!focused || !focusEnabled || unavailable) && window.firstResponder === editor { window.makeFirstResponder(nil) }
+            // A mouse click can make AppKit first responder before the next
+            // SwiftUI focus report. Only explicit availability changes may blur it.
+            else if (!focusEnabled || unavailable) && window.firstResponder === editor { window.makeFirstResponder(nil) }
         }
     }
 
@@ -140,7 +143,7 @@ struct NativeComposerEditor: NSViewRepresentable {
             // that arrived before SwiftUI has applied it to the native editor.
             if synchronizeText {
                 lastModel = state.text
-                if parent.value != state.text { parent.value = state.text }
+                if !parent.value.utf16.elementsEqual(state.text.utf16) { parent.value = state.text }
             }
             if parent.selection != state.selection { parent.selection = state.selection }
             if parent.focused != state.focused { parent.focused = state.focused }
@@ -188,6 +191,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     var changed: (() -> Void)?
     var focusChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?
+    var pasteAttachments: (([NSItemProvider], NSRange) -> Void)?
     private(set) var operationDepth = 0
     private func editing(_ operation: () -> Void) {
         operationDepth += 1
@@ -202,6 +206,12 @@ struct NativeComposerEditor: NSViewRepresentable {
         editing { super.insertText(string, replacementRange: replacementRange) }
     }
     override func unmarkText() { editing { super.unmarkText() } }
+    override func paste(_ sender: Any?) {
+        let providers = NativeComposerPaste.attachmentProviders(from: .general)
+        if !hasMarkedText(), !providers.isEmpty, let pasteAttachments {
+            pasteAttachments(providers, selectedRange())
+        } else { super.paste(sender) }
+    }
     override func keyDown(with event: NSEvent) {
         if hasMarkedText() || handleKey?(event) != true { super.keyDown(with: event) }
     }

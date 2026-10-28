@@ -53,7 +53,7 @@ func (r *Runtime) ForkThread(ctx context.Context, id string, request json.RawMes
 	if err != nil {
 		return "", err
 	}
-	if source.Moku {
+	if source.Moku || source.MokuHistory {
 		return "", errors.New("Moku thread cannot be forked")
 	}
 	if archived(&source) || source.Observation.BackgroundWork != nil {
@@ -175,6 +175,9 @@ func (r *Runtime) SetArchived(ctx context.Context, id string, value bool) error 
 	err := r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
 		if t.Moku {
 			return errors.New("Moku thread cannot be archived")
+		}
+		if t.MokuHistory && !value {
+			return errors.New("Moku history is read-only and cannot be unarchived")
 		}
 		t.Archived = &value
 		return nil

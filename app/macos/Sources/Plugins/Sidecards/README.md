@@ -12,11 +12,28 @@ The shared [NativePlugins](../../Composition/NativePlugins.swift) composition re
 
 Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
 
-Rejected subframe downloads do not replace the main page's ready/error state.
+Rejected subframe and new-window downloads do not replace the main page's ready/error state. Canceling an uncommitted navigation restores the last successful document's address and annotation readiness; a stale navigation cannot settle a newer one.
 Annotation placement follows WebKit's applied page zoom at its limits, while
 menu zoom commands retain their accumulated level for consistent reversal.
 
-Browser state and drafts are isolated by thread. Native view/session generations reject late results after a switch or teardown. Collapsing or covering a card is distinct from ending its underlying activity.
+Browser drafts are isolated by profile and thread and remain in memory for the
+application process. Returning to Overview releases WebKit and native dialogs,
+while preserving unsent annotation comments, screenshots, supplementary text and
+pending execution recovery. Deleting an annotation only removes that annotation;
+remaining supplementary text stays editable and can be sent on its own. Accepted
+send receipts consume their exact batch even after its presentation unmounts.
+Native view/session generations reject late page callbacks after a switch or
+teardown. Collapsing or covering a card is distinct from ending its underlying
+activity.
+
+Annotation metadata strips URL credentials before any conversation/model payload
+is built. Capturing an element re-reads its current locator and text, rejects a
+removed target, and checks that the selection is unchanged across the native
+snapshot. DOM editing controls, shadow-tree editors and modal dialogs retain their
+native editing semantics. Option+Left remains with WebKit, including editors in
+closed shadow roots; unhandled Escape crosses the isolated WebKit bridge and
+⌘K remains available for global Overview navigation. Browser chrome, errors and accessibility labels
+use the current host translation.
 
 Page-owned file pickers and JavaScript dialogs close with a negative result when the browser is suppressed, its document navigates, or its session is released. Their WebKit callbacks complete once, including when AppKit delivers a delayed sheet completion. Cancellation retains dialog ownership across synchronous reentrant navigation; normal completion releases ownership before the page can open its next dialog. `NativeBrowserDialogTests` obtains WebKit parameters from a local HTML fixture and exercises these native sheets without external pages.
 
@@ -30,11 +47,17 @@ Verification uses the existing sidecard navigation, conversation, browser annota
 
 `NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
 verify that iframe attachment and unsupported-MIME responses preserve the
-main page, while main-frame downloads remain rejected. Its annotation replay
+main page. A rejected main-frame download likewise retains a successful source document; an initial download without a source remains an explicit error. The same fixture covers new-window downloads, cancellation before document commit, native word navigation in DOM/shadow editors and dialogs, and annotation capture after target mutation/removal. Its annotation replay
 compares DOM geometry and the production native editor portal after zoom commands
 pass both WebKit limits. Run `xcrun swift test --package-path app/macos --no-parallel
 --filter 'NativeBrowserViewportTests|NativeBrowserAnnotationTests'` in a graphical
-macOS session.
+macOS session. `python3 tools/verification/reading-presentation/run.py --browser-viewport`
+runs all eight viewport cases in an isolated AppKit event loop, including focused
+document Reload/Zoom through the real responder chain without changing host zoom.
+Plain SwiftPM retains the portal geometry, document layers, cookie isolation and
+navigation/cancellation cases. The annotation mouse-input and focused responder-
+chain cases explicitly require this native replay capability; a display alone
+cannot establish AppKit event-loop/key-window ownership.
 
 The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session discards unsent attachments (only the existing text draft is persisted). The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
 

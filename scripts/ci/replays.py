@@ -28,6 +28,7 @@ def main():
         "MOKU_STATUS_NATIVE_FIXTURE": str(output / "moku-status.json"),
         "MOKUSEI_VOICE_EVENT_EXPORT": str(output / "voice-events.json"),
         "MOKUSEI_CONVERSATION_CONTRACT_EXPORT": str(output / "conversation.json"),
+        "MOKUSEI_HARNESS_FORM_FIXTURE": str(output / "harness-forms.json"),
     }
     groups = {
         "runtime": [(name, go + ["./tools/verification/" + name]) for name in [
@@ -44,6 +45,7 @@ def main():
             ("voice", go + ["./tools/verification/codex", "-voice-only"]),
             ("conversation", [args.go, "test", "-count=1", "./internal/hosts/applicationhost",
                               "-run", "^TestConversationProjectionCarriesCurrentSemanticDecoration$"]),
+            ("harness-forms", go + ["./tools/verification/opencode/cases/renderer", "-forms-output", fixtures["MOKUSEI_HARNESS_FORM_FIXTURE"]]),
         ],
         "interop": [
             ("swift-deltas", go + ["./tools/verification/transport", "-swift-deltas"]),

@@ -28,6 +28,7 @@ final class MarkdownSelectionScope {
     private var anchorRange = NSRange(location: 0, length: 0)
     private var granularity: NSSelectionGranularity = .selectByCharacter
     private var joined = false
+    private var selectedViews = Set<ObjectIdentifier>()
     private var applyingSelection = false
 
     static func register(_ view: MarkdownTextView, id: String) -> MarkdownSelectionScope {
@@ -41,6 +42,7 @@ final class MarkdownSelectionScope {
 
     func unregister(_ view: MarkdownTextView) {
         views.remove(view)
+        selectedViews.remove(ObjectIdentifier(view))
         view.setDocumentSelectionActive(false)
         if anchor === view { end() }
         if view.markdownHasFocus { invalidateSelectionAppearance() }
@@ -66,7 +68,7 @@ final class MarkdownSelectionScope {
     }
 
     func begin(_ view: MarkdownTextView, event: NSEvent) {
-        end(); joined = false
+        end(); joined = false; selectedViews.removeAll()
         if event.modifierFlags.contains(.shift), let persistentAnchor {
             anchor = persistentAnchor; anchorRange = persistentRange; granularity = .selectByCharacter
             extend(to: event.locationInWindow); return
@@ -90,6 +92,7 @@ final class MarkdownSelectionScope {
         guard let destination else { return }
         let last = destination.offset
         joined = first != last
+        selectedViews.removeAll()
         let target = destination.element
         let targetIndex = min(target.string.utf16.count, target.characterIndexForInsertion(at: target.convert(point, from: nil)))
         let targetRange = target.selectionRange(forProposedRange: NSRange(location: targetIndex, length: 0), granularity: granularity)
@@ -108,6 +111,7 @@ final class MarkdownSelectionScope {
                 range = first < last ? NSRange(location: 0, length: NSMaxRange(targetRange))
                     : NSRange(location: targetRange.location, length: length - targetRange.location)
             } else { range = NSRange(location: 0, length: length) }
+            if index >= min(first, last), index <= max(first, last) { selectedViews.insert(ObjectIdentifier(view)) }
             view.setMarkdownSelectedRange(range)
         }
     }
@@ -122,7 +126,7 @@ final class MarkdownSelectionScope {
 
     func clearOtherSelections(keeping view: MarkdownTextView) {
         guard !applyingSelection else { return }
-        joined = false
+        joined = false; selectedViews.removeAll()
         for other in views.allObjects {
             other.setDocumentSelectionActive(false)
             if other !== view { other.setMarkdownSelectedRange(NSRange(location: 0, length: 0)) }
@@ -139,7 +143,9 @@ final class MarkdownSelectionScope {
         applyingSelection = true
         defer { applyingSelection = false }
         joined = true
+        selectedViews.removeAll()
         for view in orderedViews {
+            selectedViews.insert(ObjectIdentifier(view))
             view.setMarkdownSelectedRange(NSRange(location: 0, length: view.markdownString.utf16.count))
             view.setDocumentSelectionActive(true)
         }
@@ -151,7 +157,10 @@ final class MarkdownSelectionScope {
         var previous: MarkdownTextView?
         for view in orderedViews {
             let range = view.markdownSelectedRange
-            guard range.length > 0, NSMaxRange(range) <= view.markdownString.utf16.count else { continue }
+            // Empty table cells still occupy a selected column. Their native
+            // range is necessarily empty, so retain explicit document membership.
+            guard range.length > 0 || (view.markdownString.isEmpty && selectedViews.contains(ObjectIdentifier(view))),
+                  NSMaxRange(range) <= view.markdownString.utf16.count else { continue }
             if let previous {
                 let first = previous.convert(previous.bounds, to: nil)
                 let second = view.convert(view.bounds, to: nil)

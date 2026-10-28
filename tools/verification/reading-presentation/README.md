@@ -1,5 +1,20 @@
 # Reading-page background presentation replay
 
+The Moku composer's native click/NFD-persistence case uses the isolated AppKit
+loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
+must complete all seven tests without skips to certify it.
+
+`--harness-forms` generates its interaction fixture through the production Go
+OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
+Reader. It checks colliding provider/model choices, default/optional/hidden/
+conditional fields, exact Go public IDs and cancellation without required answers.
+
+`--browser-viewport` mounts the real loopback Browser fixtures, including cancelled
+navigation, popup downloads, native editing keys, and annotation capture after
+page changes. `--composer-contrast` additionally checks the mounted host directory
+picker's 50-reference limit through its real accessibility controls, then selects
+the same directory after removing a reference. Both use the AppKit event loop.
+
 ## Application page navigation
 
 ```sh
@@ -87,6 +102,23 @@ exit at its first native file panel without a complete test summary, even with
 status 0, so that runner explicitly skips it. Normal file selection returning
 URLs and positive alert/confirm clicks are not covered by these cases. No
 external page, model request, global input or installed app is used.
+
+## Browser viewport and navigation
+
+```sh
+python3 tools/verification/reading-presentation/run.py --browser-viewport
+```
+
+Runs all eight `NativeBrowserViewportTests` in the isolated AppKit event loop.
+Real loopback HTTP fixtures cover rejected iframe/new-window downloads, canceled
+provisional navigation, native word navigation in ordinary and shadow-root text
+editors, modal Escape, annotation capture after target mutation/removal, document
+zoom, native portal layers and thread-isolated cookies. It uses only events sent
+to its own windows and makes no external page or model request. Run serially with
+other native replays and SwiftPM builds. Plain SwiftPM still runs the existing
+portal geometry, render layers and navigation cases. The real annotation mouse
+input and focused document responder-chain tests explicitly skip without this
+native replay capability; both run without skips in this eight-test launcher.
 
 ## Overview tag bar
 
@@ -207,8 +239,12 @@ python3 tools/verification/reading-presentation/run.py --report-navigation
 ```
 
 Runs the two existing `NativeReportNavigationTests` cases in the isolated AppKit
-runner. A production Report loads fixture HTML in WebKit, opens through the
-reading stack, replaces its document, changes workspace zoom (0.8×/1×/1.44×),
+runner. The mounted-document case requires its running AppKit event loop for
+trusted WebKit mouse/key delivery and explicitly skips in plain SwiftPM; the
+route-state case still runs there. A green plain Swift run needs this replay to
+complete Report input coverage. A production Report loads fixture HTML in WebKit,
+opens through the reading stack, replaces its document, changes workspace zoom
+(0.25×/0.8×/1×/1.44×/5×),
 scrolls to collapse/reveal and reverses an in-flight collapse. Intermediate samples
 require the three real window buttons to share the navigation portal's vertical
 offset; the collapsed endpoint requires all buttons hidden. Checks cover native
@@ -217,6 +253,13 @@ activation/deminiaturize/full-screen-exit notifications without losing the hidde
 state, document focus and the dispatched back-button click. Leaving the Report
 must restore ordinary window controls. The second case checks return to the
 source execution and ordinary thread return to Overview.
+
+The same mounted case keeps top content outside the fixed navigation safe area,
+checks native word movement in closed Shadow DOM and Escape in editable elements
+and a native HTML dialog, and rejects script-generated navigation keys. Its real
+POST form click must show the non-GET new-window rejection notice without an
+external open or HTTP request. Navigating from a collapsed Report to a short
+loopback HTTP page must restore the native navigation and window controls.
 
 This uses real production views and document scroll events, not a duplicated
 animation implementation. It does not exercise physical hover, actual macOS
@@ -305,3 +348,20 @@ no installed app or paid model. These fixtures do not toggle the user's Reduce
 Motion preference, prove physical display frame pacing or cover real account
 startup. System Reduce Motion and the 120ms visual entrance require separate
 visual inspection; ordinary SwiftPM skips are not native replay evidence.
+
+## Markdown reading regressions
+
+```sh
+python3 tools/verification/reading-presentation/run.py --markdown
+```
+
+Runs seven native integration cases against production `ThreadMessage` and
+`NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
+footnotes, Unicode code preservation, folded labels and lazy continuations,
+plain alternative text, partial/native copy, empty table columns, Command-arrow
+selection collapse, long ordered markers, inline-code table geometry, tight lists
+with empty quoted lines, and a percent-label footnote round trip through a
+horizontally scrolling table in the outer reading viewport. The replay needs a
+graphical session; it opens no external websites and makes no model requests.
+
+The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.

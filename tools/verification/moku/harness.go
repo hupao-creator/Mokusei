@@ -445,7 +445,7 @@ func newReplayConfiguration(root string, r *runtimepkg.Runtime, h *replayNativeH
 			return r.EnsureConfiguredMokuThread(ctx, runtimepkg.MokuConfiguration{Unapplied: c.Unapplied, HarnessID: c.HarnessID, Settings: c.Settings, Cwd: c.Cwd, AppliedSettings: c.AppliedSettings, SettingsRevision: c.SettingsRevision})
 		},
 		ReplaceSession: func(ctx context.Context, old string, c moku.SessionConfiguration) (model.ThreadRecord, error) {
-			return r.ReplaceConfiguredMokuThread(ctx, old, runtimepkg.MokuConfiguration{Unapplied: c.Unapplied, HarnessID: c.HarnessID, Settings: c.Settings, Cwd: c.Cwd, AppliedSettings: c.AppliedSettings, SettingsRevision: c.SettingsRevision, PreserveNote: c.PreserveNote})
+			return r.ReplaceConfiguredMokuThread(ctx, old, runtimepkg.MokuConfiguration{Unapplied: c.Unapplied, HarnessID: c.HarnessID, Settings: c.Settings, Cwd: c.Cwd, AppliedSettings: c.AppliedSettings, SettingsRevision: c.SettingsRevision, PreserveNote: c.PreserveNote, PreserveHistory: c.PreserveHistory})
 		},
 		ConfigureSession: func(ctx context.Context, id string, revision int64, c moku.SessionConfiguration) error {
 			return r.ConfigureMokuThread(ctx, id, revision, c.HarnessID, c.Settings, c.AppliedSettings, c.SettingsRevision, c.Cwd)

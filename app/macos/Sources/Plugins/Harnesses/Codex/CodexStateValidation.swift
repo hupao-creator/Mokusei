@@ -136,11 +136,12 @@ private enum CodexStateAdmission {
         keys(value, ["step", "status"]) && bounded(value["step"], persistedText) && member(value["status"], ["pending", "inProgress", "completed"])
     }
     static func activity(_ value: JSONValue) -> Bool {
-        keys(value, ["id", "kind", "label", "status", "detail", "toolName", "toolCall"]) && canonical(value["id"], 1_024) &&
+        keys(value, ["id", "kind", "label", "status", "detail", "toolName", "toolCall", "filePaths"]) && canonical(value["id"], 1_024) &&
             member(value["kind"], ["command", "file", "tool", "search", "agent", "subagent", "review", "hook"]) &&
             bounded(value["label"], detail) && member(value["status"], ["running", "completed", "failed", "cancelled"]) &&
             optional(value, "detail", { bounded($0, detail) }) && optional(value, "toolCall", { $0.boolValue != nil }) &&
-            optional(value, "toolName", { nonEmpty($0, 1_024) })
+            optional(value, "toolName", { nonEmpty($0, 1_024) }) &&
+            optional(value, "filePaths", { $0.arrayValue?.allSatisfy { nonEmpty($0, persistedText) } == true })
     }
     static func foreground(_ value: JSONValue) -> Bool {
         guard integer(value["sequence"], minimum: 1) else { return false }

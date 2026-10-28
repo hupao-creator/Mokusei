@@ -226,8 +226,8 @@ func (r *Runtime) UpdateThreadSettings(ctx context.Context, id, harnessID string
 	if source.HarnessID != harnessID {
 		return result, errors.New("thread harness does not match")
 	}
-	if source.Moku {
-		return result, errors.New("Moku execution settings are owned by application settings")
+	if source.Moku || source.MokuHistory {
+		return result, errors.New("Moku execution settings cannot be edited through a thread")
 	}
 	if source.SettingsRevision != expected {
 		return result, nil
@@ -248,6 +248,9 @@ func (r *Runtime) UpdateThreadSettings(ctx context.Context, id, harnessID string
 		return result, err
 	}
 	err = r.UpdateThread(ctx, id, func(t *model.ThreadRecord) error {
+		if t.MokuHistory {
+			return errors.New("Moku history is read-only")
+		}
 		if t.SettingsRevision != expected || !same(t.Settings, source.Settings) || t.HarnessID != source.HarnessID {
 			result = ThreadSettingsResult{Status: "conflict", SettingsRevision: t.SettingsRevision, Settings: model.CloneRaw(t.Settings)}
 			return errThreadSettingsConflict

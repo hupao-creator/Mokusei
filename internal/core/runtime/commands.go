@@ -164,6 +164,9 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		if err != nil {
 			return nil, err
 		}
+		if thread.MokuHistory {
+			return nil, errors.New("Moku history is read-only")
+		}
 		if thread.Moku {
 			r.mu.Lock()
 			moku := r.config.Moku

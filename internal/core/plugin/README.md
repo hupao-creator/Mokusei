@@ -15,6 +15,12 @@
 
 Handle.Send 接收 `SendRequest`。存在 `Admitted` 回调时，适配器在本次输入持久保留后调用一次；新执行在 native dispatch 前准入，follow-up 可等待原生接受后确认，避免把被拒绝的 steering 标记为已送达；旧输入的流式更新不能为新 steering 输入代办准入。Interrupt 和 Close 必须撤销接纳并排空本 Handle 的 native 工作和子进程。
 
+`Handle.Respond` may return `InteractionResponseNotSentError` only when no native
+I/O for that answer began. This explicit guarantee permits Core to release the
+answer claim for a corrected retry. Transport errors or an unknown native outcome
+retain their claim. Validated public-form values supplied by Core are already
+native typed values, including defaults and conditional omission.
+
 共享 `GeneratedThreadMetadata{}` 与 `WithGeneratedThreadMetadata` 提供真实的模型命名策略：保留已接受输入、异步请求 title/emoji、45 秒超时、CAS、防止旧结果覆盖新输入，以及中断和恢复。命名失败不把已经接受的用户发送改成失败。包装器保留底层 Voice、NativeVoice 和 CompletedReply 能力。
 
 语音通过 `VoiceSession` 表达 start、poll、heartbeat、input fencing、speech、delegation、event 和 stop 的生命周期。过期 poll cursor 可以返回错误。私有 discussion 只提供 Ask/Close，以及可选 native voice，不允许推进原始任务。

@@ -93,6 +93,15 @@ Moku always uses its built-in coordination instructions. Saved routing guidance 
 
 ## Talk and notes
 
+The built-in prompt defines the user's visible communication surfaces as Talk,
+the persistent note, and all content in ordinary Agent Threads, including Moku's
+delegated instructions. Moku's own assistant messages, including normal and final
+replies, are not visible and do not count as communicating with the user. Anything
+the user needs to know or respond to must reach a visible surface: Talk for short
+immediate answers, questions, confirmations and updates; the note for persistent
+milestone recaps; and the relevant Agent Thread for detailed task discussion and
+deliverables. Runtime voice delivery remains separate.
+
 `talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions and the built-in Moku prompt, including coordination reached through voice. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
 
 `update_note` requires `text` and an `expected` basis containing `noteId`,
@@ -154,3 +163,7 @@ to fence the old native workers, inspect the native conversation, then invoke
 `acknowledge-confirmed-admitted` after confirming admission. Decisions are audited;
 the current runtime cannot reconcile its own uncertain attempts. Exactly-once
 provider effects cannot be guaranteed without provider idempotency support.
+
+Overview directory context carries `directoryScopeId`, the stable host-derived scope identity. Display tags never resolve a selected directory by basename. Explicit directory mentions still take precedence; an unresolved selected scope reads one catalog snapshot and includes only directories in that scope.
+
+A coordinating-Harness change starts its required new native session and preserves the prior session as read-only `mokuHistory`. Its original Harness keeps ownership of the opaque conversation representation; Moku does not merge native formats. An explicit history reset removes the current conversation and these prior sessions.

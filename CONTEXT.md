@@ -28,6 +28,10 @@ Mokusei coordinates work performed by native agent runtimes.
 
 **Moku Thread**: The conversation in which Moku communicates with the user and coordinates ordinary Agent Threads.
 
+**Moku conversation history**: A previous Moku Thread retained for reading after
+changing its coordinating Harness. It remains Moku-owned history, with no
+authority to resume execution or become an ordinary Agent Thread.
+
 **Report Agent**: The private agent that reviews task evidence and maintains report documents within one Directory Scope. Its conversation is distinct from those documents.
 
 **Tag Agent**: The private agent that maintains a five-slot semantic tag pool within one Directory Scope and assigns eligible ordinary Agent Threads, including archived threads, to that pool.

@@ -73,7 +73,7 @@ func (c *Coordinator) deliverTerminal(ctx context.Context, delivery plugin.MokuD
 	}
 	input := textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
 	input.Presentation = "internal"
-	entries, err := c.sendContext(ctx, input, nil)
+	entries, err := c.sendContext(ctx, input, nil, nil)
 	if err != nil {
 		return err
 	}

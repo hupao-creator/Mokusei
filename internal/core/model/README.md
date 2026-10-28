@@ -11,6 +11,12 @@ Public DTOs, command schemas and validation live in this package. Native session
   解析后的规范化 URL 进入可信输入；批注的附件边界继续采用同一 WHATWG 解析规则，避免后续解析器拒绝合法的 URL 路径或重新解释原始写法。
 - `ParsePublicObservation`、`ParsePublicExecution`、响应 DTO 的严格 JSON 解码及 `ValidatePublicInteractionAnswers` 处理公开交互边界。字符上限沿用 UTF-16 单位。表单 regex 使用 ECMAScript 规则和有限匹配时间。
 
+Public form preflight also produces internal typed native values, including active
+defaults. Runtime passes those values to the Harness without reinterpreting the
+original numeric text. Client JSON cannot supply this trusted handoff. Free text
+remains literal even when it begins with an internal option-ID prefix; advertised
+choice membership is enforced separately.
+
 Source: [commands.go](commands.go), [command_validation.go](command_validation.go), [validate.go](validate.go), [records.go](records.go), [state.go](state.go). The authenticated wire version belongs to [transport](../../platform/transport/README.md).
 
 Verification: `./scripts/go.sh run -race ./tools/verification/command-boundaries` from the repository root.
@@ -27,3 +33,5 @@ extra fields and out-of-range numbers before Runtime admission.
 string. It returns that Harness's installation facts independently. The existing
 zero-argument `harness:detect-installations` command remains explicit environment
 refresh and batch recovery.
+
+`ThreadRecord.mokuHistory` marks an archived, read-only conversation retained when the coordinating Harness changes. It retains the original Harness payload and transcript but no Moku note; Runtime forbids execution, fork and unarchiving. Current Moku identity remains singular.

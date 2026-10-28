@@ -2,6 +2,12 @@
 
 Before merging code, require the current revision's complete CI results or equivalent local verification. Do not repeat checks locally when CI has actually executed the same assertions. `make check` remains the local entry point: Go formatting, package boundaries and static registration, allowed external Harness JS resources, `go vet ./...`, Go/Swift builds, the complete Swift suite, concurrency properties, module tests and directory-tag checks.
 
+`make check-swift` streams the full Swift run through the shared CI reporter and
+retains its log, actual process status and JSON summary under `.build/check-swift`.
+It requires complete XCTest and Swift Testing summaries with matching counts;
+an early process exit with status zero is a failure. Use the report and named
+native launchers to distinguish an incomplete run from explicit capability skips.
+
 The no-Node check rejects npm manifests and JS/TS source outside the four explicitly allowed external Pi/OpenCode shims. It includes Go files outside the shipped binary and across build tags. It does not substitute for reviewing process lifetimes, data ownership or the behavior of injected plugin capabilities.
 
 Install the repository-local hook with `make install-hooks`. `.githooks/pre-commit` runs `make lint` without modifying files. The hook checks the working tree; when partially staging, inspect `git diff --cached` and ensure the committed contents match the validated files. A fresh checkout still needs explicit checks even if hooks have not been installed.

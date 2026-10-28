@@ -153,6 +153,17 @@ func main() {
 	must(e)
 	defer os.RemoveAll(temp)
 	repo := attachments.New(filepath.Join(temp, "attachments"))
+	for _, item := range []struct{ source, stored string }{
+		{".env", "env"}, {".gitignore", "gitignore"}, {".config.json", "config.json"},
+	} {
+		path := filepath.Join(temp, item.source)
+		must(os.WriteFile(path, []byte("safe dotfile fixture\n"), 0600))
+		files, err := repo.Stage(ctx, []attachments.Import{{Source: "path", Path: path, DisplayName: item.source}})
+		must(err)
+		assert(len(files) == 1 && files[0].Name == item.stored && filepath.Base(files[0].Path) == item.stored,
+			"dotfile import duplicated its extension")
+		must(repo.Discard(ctx, []string{files[0].ID}))
+	}
 	data := []byte{0x89, 'P', 'N', 'G', 13, 10, 26, 10, 1, 2, 3, 4}
 	envelope, _ := json.Marshal(map[string]string{"$mokuseiArrayBuffer": base64.StdEncoding.EncodeToString(data)})
 	staged, e := repo.Stage(ctx, []attachments.Import{{Source: "bytes", DisplayName: "../proof.png", Bytes: envelope}})

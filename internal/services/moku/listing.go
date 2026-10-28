@@ -93,7 +93,7 @@ func ListThreads(records []model.ThreadRecord, raw json.RawMessage) (json.RawMes
 	}
 	matching := make([]model.ThreadRecord, 0, len(records))
 	for _, thread := range records {
-		if thread.Moku || thread.Archived != nil && *thread.Archived {
+		if thread.Moku || thread.MokuHistory || thread.Archived != nil && *thread.Archived {
 			continue
 		}
 		if len(statuses) > 0 && !mokuIncludes(statuses, ThreadListStatus(thread)) {

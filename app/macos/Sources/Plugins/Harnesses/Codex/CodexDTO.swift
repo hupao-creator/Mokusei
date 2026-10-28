@@ -132,6 +132,7 @@ struct CodexActivity: Sendable, Hashable, Identifiable {
     var status: String { raw["status"]!.stringValue! }
     var detail: String? { raw["detail"]?.stringValue }
     var toolCall: Bool { raw["toolCall"]?.boolValue == true }
+    var filePaths: [JSONText]? { raw["filePaths"]?.arrayValue?.compactMap { if case .string(let text) = $0 { return text }; return nil } }
 }
 
 struct CodexInteraction: Sendable, Hashable, Identifiable {

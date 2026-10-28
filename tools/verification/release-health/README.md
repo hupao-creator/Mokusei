@@ -2,6 +2,10 @@
 
 Run from the repository root on Apple Silicon macOS:
 
+Nested builds and replays reuse the toolchain running this driver. This keeps
+the pinned local bootstrap and CI's installed compiler consistent without
+bootstrapping a second Go installation in every CI consumer.
+
 ```sh
 ./scripts/go.sh run ./tools/verification/release-health -output /tmp/mokusei-health-run
 # Also exercise the installed native Codex binary against a loopback model server:

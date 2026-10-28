@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 public struct ConversationExecutionPane: View {
     private let presentation: ConversationSidecardPresentation
+    @Environment(\.locale) private var locale
 
     public init(presentation: ConversationSidecardPresentation) { self.presentation = presentation }
 
@@ -61,8 +62,8 @@ public struct ConversationExecutionPane: View {
                         onSubmit: { Task { await presentation.send() } },
                         onEscape: presentation.context.close,
                         onFiles: presentation.context.attachmentImport == nil ? nil : { files in
-                            Task { await presentation.importFiles(files) }
-                        })
+                            await presentation.importFiles(files)
+                        }, preparePaste: presentation.attachments.preparePaste)
                         .accessibilityLabel(t("输入消息"))
                         .accessibilityIdentifier("conversation-sidecard-input")
 
@@ -108,7 +109,7 @@ public struct ConversationExecutionPane: View {
         }
     }
 
-    private func t(_ value: String) -> String { presentation.context.translate(value) }
+    private func t(_ value: String) -> String { composerLocalized(presentation.context.translate(value), locale: locale) }
 
     private var placeholder: String {
         if presentation.context.thread.archived == true { return t("此 Thread 已归档") }

@@ -117,6 +117,15 @@ type Handle interface {
 	// child process owned by this handle. Repeated calls are safe.
 	Close() error
 }
+
+// InteractionResponseNotSentError certifies that no native I/O for this
+// response began. Core may release its durable claim only for this error.
+// Transport failures and uncertain native acknowledgements must not use it.
+type InteractionResponseNotSentError struct{ Cause error }
+
+func (e *InteractionResponseNotSentError) Error() string { return e.Cause.Error() }
+func (e *InteractionResponseNotSentError) Unwrap() error { return e.Cause }
+
 type SendRequest struct {
 	// Admitted is called exactly once after this input is durably retained.
 	// New executions admit before native dispatch; follow-ups may wait for native

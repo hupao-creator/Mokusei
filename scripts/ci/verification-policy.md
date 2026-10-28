@@ -19,7 +19,7 @@ revision cannot certify the new revision.
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh and cache ownership | Linux `adapters` replay group; scripted external peers and loopback services |
 | Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Three disjoint shards after one macOS build; display skips fail CI; DirectoryTag is included once |
-| Generated Swift fixtures | Go-produced initial-response, Moku status, voice-event and conversation contracts reach real Swift consumers | Four fixture producers before the full suite |
+| Generated Swift fixtures | Go-produced initial-response, Moku status, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five fixture producers before the Swift shards |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage and native profile leases | Six existing interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
 

@@ -120,7 +120,7 @@ public struct NativeComposerAttachmentChips: View {
             chip(name: draft.name.string, icon: "Paperclip", size: size, pending: true, failed: false, help: "",
                  remove: { onRemove(draft.id) }, removeLabel: removeLabel)
         case .failed(let error):
-            chip(name: draft.name.string, icon: "Paperclip", size: nil, pending: false, failed: true, help: error,
+            chip(name: draft.name.string, icon: "Paperclip", size: nil, pending: false, failed: true, help: composerLocalized(error, locale: locale),
                  remove: { onRemove(draft.id) }, removeLabel: removeLabel)
         }
     }

@@ -477,6 +477,7 @@ private struct GitDiffTextLayout {
     @MainActor private static let lineWidths = NativeLineWidthCache()
     private var displayRows: [DisplayRow] = []
     private var copyableRanges: [NSRange] = []
+    private let sourceText: NSString
     let text: NSAttributedString
     let palette: GitDiffColors
     let addition: Bool
@@ -493,6 +494,7 @@ private struct GitDiffTextLayout {
         gutter = max(40, CGFloat(String(maxNumber).count) * 7.3 + 24)
         var y: CGFloat = 0, widest: CGFloat = 0
         let output = NSMutableAttributedString(string: "")
+        let source = NSMutableString(capacity: 0)
         for row in file.rows {
             let line = addition ? row.new : row.old
             let paragraph = NSMutableParagraphStyle()
@@ -510,7 +512,22 @@ private struct GitDiffTextLayout {
             case .noNewline: value = line == nil ? "" : (locale == "en-US" ? "No final newline" : "文件末尾无换行"); separator = false
             }
             let offset = output.length
-            output.append(NSAttributedString(string: value + "\n", attributes: [
+            source.append(value + "\n")
+            // Git rows count LF physical lines. Visible one-code-unit glyphs
+            // prevent TextKit from inventing rows for in-line separators;
+            // selection offsets still address the untouched source for copy.
+            let displayed = value.unicodeScalars.map { scalar -> String in
+                switch scalar.value {
+                case 0x000B: "␋"
+                case 0x000C: "␌"
+                case 0x000D: "␍"
+                case 0x0085: "␤"
+                case 0x2028: "↵"
+                case 0x2029: "¶"
+                default: String(scalar)
+                }
+            }.joined()
+            output.append(NSAttributedString(string: displayed + "\n", attributes: [
                 .font: separator ? NativePlatformFont.systemFont(ofSize: 12) : font,
                 .foregroundColor: separator ? palette.muted : palette.foreground,
                 .paragraphStyle: paragraph,
@@ -540,10 +557,11 @@ private struct GitDiffTextLayout {
                 changed: line?.changed == true, buffer: line == nil && !separator,
                 separator: separator, separatorTop: row.separatorTop))
             // Native font measurement includes wide Unicode and combining marks.
-            widest = max(widest, Self.lineWidths.width(value.replacingOccurrences(of: "\t", with: "    "), font: font))
+            widest = max(widest, Self.lineWidths.width(displayed.replacingOccurrences(of: "\t", with: "    "), font: font))
             y += row.height
         }
         text = output
+        sourceText = source.copy() as! NSString
         contentWidth = ceil(widest + gutter + 24); contentHeight = y
         accessibilityLabel = locale == "en-US" ? (addition ? "New version" : "Previous version") : (addition ? "修改后" : "修改前")
     }
@@ -558,7 +576,7 @@ private struct GitDiffTextLayout {
     func copiedText(selections: [NSRange]) -> String? {
         // Gutters, omitted-context labels and split-alignment placeholders are
         // presentation, and must not become code when a selection is copied.
-        let source = text.string as NSString
+        let source = sourceText
         var fragments: [String] = []
         for selection in selections {
             guard selection.location != NSNotFound, selection.location <= source.length,

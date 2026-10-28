@@ -418,7 +418,16 @@ public struct NativeMokuDock: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay(alignment: .bottomTrailing) {
-            if voiceControlVisible && (!inputPresent || voiceModeActive) {
+            if running && !inputPresent && !voiceModeActive {
+                Button(action: onCancel) {
+                    RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
+                        .frame(width: 30, height: 30).contentShape(Circle())
+                }.buttonStyle(.plain).disabled(disabled)
+                    .help(localize("停止 Moku", "Stop Moku"))
+                    .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
+                    .accessibilityIdentifier("moku-stop")
+                    .padding(.trailing, 7).frame(height: rowHeight)
+            } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
                 voiceControls.fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { voiceControlsFrame = $0 }
                     .padding(.trailing, 3).frame(height: rowHeight)
@@ -458,7 +467,7 @@ public struct NativeMokuDock: View {
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,
             retainedDirectories: retaining ? state.retainedDirectories : nil,
-            activeVoiceControls: voiceControls, voiceModeActive: voiceModeActive,
+            activeVoiceControls: voiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel,
             availableHeight: room,
             mentions: directoryMentions, onMentionFrame: { state.dockMentionHitRect = $0 },
             selectionRequest: directoryMentions.selectionRequest,

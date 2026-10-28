@@ -76,6 +76,7 @@ private struct HTMLDocumentSession: View {
     @State private var ready = false
     @State private var scrollHidden = false
     @State private var hovered = false
+    @State private var navigationNotice: String?
     @FocusState private var navigationFocused: Bool
 
     private var english: Bool { locale.string.hasPrefix("en") }
@@ -97,7 +98,7 @@ private struct HTMLDocumentSession: View {
                         }
                     }, onPresentation: { hidden in
                         scrollHidden = hidden
-                    }, onHover: { hovered = $0 })
+                    }, onHover: { hovered = $0 }, onNavigationNotice: { navigationNotice = $0 })
                     .id(loadedGeneration)
             }
             if let failure {
@@ -122,9 +123,21 @@ private struct HTMLDocumentSession: View {
             }
         }
         .clipped()
+        .overlay(alignment: .bottom) {
+            if let navigationNotice {
+                HStack(spacing: 12) {
+                    Text(navigationNotice)
+                    Button(english ? "Dismiss" : "关闭") { self.navigationNotice = nil }
+                }
+                .padding(14)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(20)
+                .accessibilityIdentifier("report.navigation-notice")
+            }
+        }
         .preferredColorScheme(theme == .dark ? .dark : .light)
         .task(id: refresh) {
-            document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false
+            document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false; navigationNotice = nil
             onNativeNavigationChange(false)
             do {
                 let result = try await readDocument(source)
@@ -205,6 +218,7 @@ private typealias HTMLViewRepresentable = NSViewRepresentable
 
 @MainActor
 private struct HTMLWebDocument: HTMLViewRepresentable {
+    @Environment(\.nativeWindowContentScale) private var contentScale
     let document: ApplicationHTMLDocument
     let thread: ApplicationThreadRef
     let theme: PluginTheme
@@ -218,6 +232,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
     let onNavigation: (HTMLNavigationIntent) -> Void
     let onPresentation: (Bool) -> Void
     let onHover: (Bool) -> Void
+    let onNavigationNotice: (String) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -231,7 +246,10 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         context.coordinator.input = self
         view.onHover = onHover
         view.suppressed = suppressed
-        (view.documentView as? HTMLDocumentWebView)?.applyAppearance(theme)
+        if let document = view.documentView as? HTMLDocumentWebView {
+            document.applyAppearance(theme)
+            document.setWorkspaceScale(contentScale)
+        }
     }
 
     static func dismantleNSView(_ view: HTMLDocumentContainer, coordinator: Coordinator) {
@@ -270,6 +288,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             controller.addUserScript(WKUserScript(source: Self.observerScript,
                 injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: Self.world))
             view.zoomPreferences = HTMLZoomPreferences.shared(at: input.zoomPreferencesURL)
+            view.setWorkspaceScale(input.contentScale)
             view.restoreZoom(for: documentURL)
             view.navigationDelegate = self; view.uiDelegate = self
             view.applyAppearance(input.theme)
@@ -297,11 +316,16 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation else { return }; input.onReady()
+            guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            (webView as? HTMLDocumentWebView)?.updateSafeArea()
+            input.onReady()
         }
 
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation, let url = webView.url else { return }
+            // A new document owns its scroll state, including remote pages
+            // reached from a Report whose navigation was collapsed.
+            input.onPresentation(false)
             (webView as? HTMLDocumentWebView)?.restoreZoom(for: url)
         }
 
@@ -338,7 +362,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             guard permitDirectAddress(url) else { decisionHandler(.cancel); return }
             if action.targetFrame == nil {
                 decisionHandler(.cancel)
-                openExternal(url)
+                openNewWindowRequest(action.request)
             } else {
                 decisionHandler(HTMLDocumentScheme.matches(url, documentURL) || Self.isHTTP(url) ? .allow : .cancel)
             }
@@ -346,8 +370,21 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            guard owns(webView), action.targetFrame == nil, let url = action.request.url else { return nil }
-            openExternal(url); return nil
+            guard owns(webView), action.targetFrame == nil else { return nil }
+            openNewWindowRequest(action.request); return nil
+        }
+
+        private func openNewWindowRequest(_ request: URLRequest) {
+            guard active, !input.suppressed, let url = request.url, Self.isHTTP(url) else { return }
+            // NSWorkspace accepts only a URL. WebKit may keep a form's body
+            // outside URLRequest, so replaying it ourselves is not lossless.
+            guard (request.httpMethod ?? "GET").uppercased() == "GET" else {
+                input.onNavigationNotice(input.locale.string.hasPrefix("en")
+                    ? "This form cannot submit in a new window. Its data has not been sent."
+                    : "此表单无法在新窗口中提交，表单数据尚未发送。")
+                return
+            }
+            openExternal(url)
         }
 
         private func openExternal(_ url: URL) {
@@ -396,29 +433,39 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
                 padding-block-start: max(var(--mokusei-safe-area-top), var(--mokusei-html-top-space, 0px)) !important;
               }`;
             (document.head || root).append(style);
-            let hidden = false;
-            const present = () => send({event: 'presentation', hidden});
-            const scroll = target => {
-              const top = target?.scrollTop ?? 0;
-              const next = hidden ? top > 40 : top > 80;
-              if (next !== hidden) { hidden = next; present(); }
-            };
-            document.addEventListener('scroll', event => {
-              if (!event.isTrusted) return;
-              if (event.target === document) scroll(document.scrollingElement);
-              else if (event.target instanceof HTMLElement) {
-                const rect = event.target.getBoundingClientRect();
-                if (rect.width >= innerWidth / 2 && rect.height >= innerHeight / 2 && rect.top < innerHeight && rect.bottom > 0) scroll(event.target);
-              }
-            }, {capture: true, passive: true});
-            scroll(document.scrollingElement); present();
           }
+          let hidden = false;
+          const present = () => send({event: 'presentation', hidden});
+          const scroll = target => {
+            const top = target?.scrollTop ?? 0;
+            const next = hidden ? top > 40 : top > 80;
+            if (next !== hidden) { hidden = next; present(); }
+          };
+          document.addEventListener('scroll', event => {
+            if (!event.isTrusted) return;
+            if (event.target === document) scroll(document.scrollingElement);
+            else if (event.target instanceof HTMLElement) {
+              const rect = event.target.getBoundingClientRect();
+              if (rect.width >= innerWidth / 2 && rect.height >= innerHeight / 2 && rect.top < innerHeight && rect.bottom > 0) scroll(event.target);
+            }
+          }, {capture: true, passive: true});
+          scroll(document.scrollingElement); present();
           setTimeout(() => window.addEventListener('keydown', event => {
             if (!event.isTrusted || event.defaultPrevented || event.isComposing) return;
             let intent;
             if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',') intent = 'settings';
-            else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && (event.key === 'Escape' || (event.altKey && event.key === 'ArrowLeft'))) {
-              if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [inert]')) return;
+            // Option-Left belongs to WebKit. A closed shadow root can hide an
+            // editable target even from composedPath and activeElement.
+            else if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === 'Escape') {
+              const ownsEditing = element => element instanceof Element &&
+                (element.isContentEditable || element.closest('input, textarea, select, dialog[open], [role="dialog"], [inert]'));
+              const path = event.composedPath();
+              let focused = document.activeElement;
+              while (focused) {
+                path.push(focused);
+                focused = focused.shadowRoot?.activeElement;
+              }
+              if (path.some(ownsEditing) || document.querySelector('dialog:modal')) return;
               intent = 'back';
             }
             if (intent) { event.preventDefault(); send({event: 'navigation', intent}); }
@@ -972,7 +1019,28 @@ private final class HTMLZoomPreferences {
 private final class HTMLDocumentWebView: WKWebView {
     private var documentZoomLevel: Double = 0
     private var zoomHostname = ""
+    private var workspaceScale: CGFloat = 1
     var zoomPreferences: HTMLZoomPreferences?
+
+    func setWorkspaceScale(_ scale: CGFloat) {
+        guard workspaceScale != scale else { return }
+        workspaceScale = scale
+        updateSafeArea()
+    }
+
+    func updateSafeArea() {
+        // Navigation stays in window points while both workspace and document
+        // zoom scale CSS pixels. Reserve the same physical clearance in either.
+        let factor = Double(workspaceScale) * pageZoom
+        let top = 74 / factor
+        let left = 160 / factor
+        evaluateJavaScript("""
+            if (location.protocol === 'mokusei-html:') {
+              document.documentElement.style.setProperty('--mokusei-safe-area-top', '\(top)px', 'important');
+              document.documentElement.style.setProperty('--mokusei-safe-area-left', '\(left)px', 'important');
+            }
+            """, in: nil, in: .world(name: "Mokusei.HTML.Presentation")) { _ in }
+    }
 
     func applyAppearance(_ theme: PluginTheme) {
         appearance = NSAppearance(named: theme == .dark ? .darkAqua : .aqua)
@@ -986,6 +1054,7 @@ private final class HTMLDocumentWebView: WKWebView {
         zoomHostname = url.host?.lowercased() ?? ""
         documentZoomLevel = zoomPreferences?.level(for: zoomHostname) ?? 0
         pageZoom = HTMLZoomPreferences.visibleFactor(documentZoomLevel)
+        updateSafeArea()
     }
 
 
@@ -1000,5 +1069,6 @@ private final class HTMLDocumentWebView: WKWebView {
         documentZoomLevel = level
         zoomPreferences?.setLevel(level, for: zoomHostname)
         pageZoom = HTMLZoomPreferences.visibleFactor(level)
+        updateSafeArea()
     }
 }

@@ -32,11 +32,20 @@ public struct SerializedNativeTrait: TestTrait, SuiteTrait, TestScoping {
     public func provideScope(for test: Test, testCase: Test.Case?,
                              performing function: @Sendable () async throws -> Void) async throws {
         await NativeTestGate.shared.acquire()
+        // Native SDK exits can precede the runner's summary. Opt-in ownership
+        // markers identify the active fixture without logging its user data.
+        let tracing = ProcessInfo.processInfo.environment["MOKUSEI_NATIVE_TEST_GATE_TRACE"] == "1"
+        func trace(_ phase: String) {
+            if tracing { FileHandle.standardOutput.write(Data("NATIVE_GATE \(phase): \(test.id)\n".utf8)) }
+        }
+        trace("begin")
         do {
             try Task.checkCancellation()
             try await function()
+            trace("end")
             await NativeTestGate.shared.release()
         } catch {
+            trace("error")
             await NativeTestGate.shared.release()
             throw error
         }

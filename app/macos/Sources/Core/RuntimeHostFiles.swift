@@ -34,7 +34,9 @@ public struct RuntimeHostFileEntry: Codable, Equatable, Sendable, Identifiable {
     public let isDirectory: Bool
     public let size: Int
     public let mimeType: String
-    public var id: String { reference.path }
+    // A directory entry keeps its own identity even when aliases resolve to
+    // the same authenticated file reference.
+    public var id: String { "\(reference.hostID.utf8.count):\(reference.hostID)\(reference.path.utf8.count):\(reference.path)\(name)" }
 }
 
 public struct RuntimeHostDirectory: Codable, Equatable, Sendable {

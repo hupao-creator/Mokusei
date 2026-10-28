@@ -79,53 +79,21 @@ struct NativeMokuNoteContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Text(localize("Moku 笔记", "Moku Note"))
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if let note {
-                    Text(note.date, format: .dateTime.month().day().hour().minute())
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .accessibilityIdentifier("moku-note-updated")
+        Group {
+            if availableHeight < headerHeight + 44 {
+                // At large app zoom, fixed chrome can leave less than a line.
+                // Let the header scroll with the body in this short viewport.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) { header; noteBody }
+                }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    header
+                    ScrollView { noteBody }
+                        .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
+                        .frame(height: availableHeight - headerHeight)
                 }
-                Button(action: onClose) {
-                    NativeIcon(name: "X", size: 12, strokeWidth: 1.7)
-                        .frame(width: 24, height: 24).contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(localize("收起 Moku 笔记", "Close Moku note"))
-                .accessibilityIdentifier("moku-note-close")
             }
-            .frame(height: 24)
-            .padding(.horizontal, 18).padding(.top, 18)
-            ScrollView {
-                Group {
-                    if let note {
-                        NativeMarkdownView(text: note.text, fontSize: 13, openExternal: openExternal,
-                            documentToken: note.documentToken,
-                            onDocumentApplied: { exposure.applied($0) })
-                            .id(note.documentToken)
-                            .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,
-                                routeEligible: routeEligible))
-                            .accessibilityIdentifier("moku-note-content")
-                    } else {
-                        Text(localize("Moku 还没有写笔记。", "Moku has not written a note yet."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("moku-note-empty")
-                    }
-                }
-                .padding(.horizontal, 18).padding(.bottom, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-            }
-            .scrollIndicators(.automatic)
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(width: width, height: max(0, availableHeight - headerHeight))
         }
         .frame(width: width, height: availableHeight, alignment: .top)
         .clipped()
@@ -141,6 +109,51 @@ struct NativeMokuNoteContent: View {
         .onDisappear { exposure.endSession() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("moku-note-panel")
+    }
+    private var header: some View {
+        HStack(spacing: 12) {
+            Text(localize("Moku 笔记", "Moku Note"))
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if let note {
+                Text(note.date, format: .dateTime.month().day().hour().minute())
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("moku-note-updated")
+            }
+            Button(action: onClose) {
+                NativeIcon(name: "X", size: 12, strokeWidth: 1.7)
+                    .frame(width: 24, height: 24).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(localize("收起 Moku 笔记", "Close Moku note"))
+            .accessibilityIdentifier("moku-note-close")
+        }
+        .frame(height: 24)
+        .padding(.horizontal, 18).padding(.top, 18)
+    }
+    private var noteBody: some View {
+        Group {
+            if let note {
+                NativeMarkdownView(text: note.text, fontSize: 13, openExternal: openExternal,
+                    documentToken: note.documentToken,
+                    onDocumentApplied: { exposure.applied($0) })
+                    .id(note.documentToken)
+                    .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,
+                        routeEligible: routeEligible))
+                    .accessibilityIdentifier("moku-note-content")
+            } else {
+                Text(localize("Moku 还没有写笔记。", "Moku has not written a note yet."))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("moku-note-empty")
+            }
+        }
+        .padding(.horizontal, 18).padding(.bottom, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
     }
 }
 

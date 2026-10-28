@@ -29,7 +29,7 @@ runs overlap, so their counts are not unique coverage totals.
 ## Parallel execution and the time budget
 
 The normal workflow runs Linux checks/replays alongside two macOS preparation
-jobs. One macOS job warms Go binaries and generates the four real Go fixtures;
+jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
 the other **always builds** current Swift sources and all test targets. It lists
 methods from that binary, then partitions every discovered suite into three
 balanced groups. Historical suite weights affect placement only: new suites are
@@ -83,7 +83,29 @@ Native groups require the current Swift build. The
 [verification policy](verification-policy.md) records each gate's independent
 value, triggers and the limited hardware/signed-package acceptance that remains.
 
-Raw test logs and JSON summaries are retained as Actions artifacts even when
+Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
+`.build/check-swift` as its output directory. It streams the real `xcrun swift
+test` output while retaining `swift-tests.log`, the command and actual exit code
+in `swift-status.json`, and the framework counts/errors in `swift-summary.json`.
+Success requires exit status zero, both frameworks' completion summaries and
+matching case/skip counts. A process that exits zero partway through Swift
+Testing fails this check. A complete run still does not certify skipped native
+flows; run their named launchers separately.
+
+To inspect an existing capture without starting Swift, supply its actual process
+status explicitly:
+
+```sh
+python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
+  --exit-code 0 --output-dir /tmp/swift-log-review
+```
+
+The no-argument CI mode audits collected shard/replay artifacts and writes
+`swift-summary.json` under `RUNNER_TEMP`. Local capture and distributed CI share
+`swift_reporting.py`; CI adds manifest and observed-identity checks.
+
+Artifacts are refreshed when the same job is retried; per-attempt raw job logs
+remain available in GitHub Actions. Raw test logs and JSON summaries are retained as Actions artifacts even when
 tests fail. Missing logs are reported as not run, never as zero failures.
 Hosted runner execution is established by actual workflow results, not by local
 YAML validation or local tests.
@@ -92,3 +114,39 @@ YAML validation or local tests.
 actual reporter with temporary Go packages: pass, parent/subtest failure, skips,
 panic, package failure before tests, build failure and no tests. It also rejects
 truncated, malformed and absent captures. CI runs the same verifier on Linux.
+
+## Pull request merge gates
+
+The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
+requires changes to `main` to go through a pull request. Before merging, the
+branch must be up to date with `main`, and these GitHub Actions checks must pass:
+
+- `Go / Linux`
+- `Complete coverage and under-ten-minute budget`
+
+The complete-coverage check includes every default job and the wall-clock budget.
+Optional extended dispatches use a distinct aggregate check name and cannot
+satisfy this required default check.
+
+All code-review conversations must be resolved. General PR timeline comments
+have no resolution state and are not covered by this rule. The required number
+of approving reviews is zero; the review gate is resolution of outstanding
+conversations.
+
+There are no bypass actors, including repository administrators. Force pushes
+and deletion of `main` are blocked. Check results must come from the GitHub
+Actions app (integration ID `15368`).
+
+GitHub stores this ruleset separately from the workflow. When adding or renaming
+required CI jobs, coordinate the required-check contexts with the workflow and
+update this list before merging. A stale context blocks merging indefinitely;
+an omitted context leaves that job outside the merge gate. Keep optional,
+manually dispatched jobs out of the required PR checks.
+
+Inspect the effective configuration with the locally authenticated `gh` CLI:
+
+```sh
+gh api repos/hupao-creator/Mokusei/rulesets/26004586
+gh api repos/hupao-creator/Mokusei/rules/branches/main
+gh pr checks <number> --repo hupao-creator/Mokusei --required
+```

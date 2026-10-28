@@ -12,6 +12,9 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	runtimepkg "github.com/hupao-creator/Mokusei/internal/core/runtime"
+	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 	"github.com/hupao-creator/Mokusei/internal/services/moku"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -185,7 +188,7 @@ func noteAudit(record model.ThreadRecord, name, text string) bool {
 // runNoteRuntimeReplay checks the durable record, host replacement migration and
 // history reset against the real SQLite store and runtime.
 func runNoteRuntimeReplay() {
-	root, e := os.MkdirTemp("", "mokusei-moku-note-")
+	root, e := os.MkdirTemp("", "moku-note-replay-")
 	mokuReplayMust(e)
 	defer os.RemoveAll(root)
 	h := &replayNativeHarness{nativeModel: "first-model", wake: make(chan struct{}, 128)}
@@ -264,9 +267,93 @@ func runNoteRuntimeReplay() {
 	configuration, e := s.r.ReadMokuConfiguration()
 	mokuReplayMust(e)
 	configuration.PreserveNote = true
+	configuration.PreserveHistory = true
+	scopesBefore, e := s.r.DirectoryScopes()
+	mokuReplayMust(e)
+	mokuReplayMust(s.r.UpdateThread(mokuReplayContext(), old.ID, func(thread *model.ThreadRecord) error {
+		thread.Transcript = append(thread.Transcript, mokuReplayRaw(map[string]any{
+			"type": "message", "id": "archive-bounded-preview", "role": "user", "executionId": old.Observation.LatestExecution.ExecutionID,
+			"content": strings.Repeat("archive body ", 2000), "reasoning": strings.Repeat("private reasoning ", 1000),
+		}))
+		return nil
+	}))
 	replacement, e := s.r.ReplaceConfiguredMokuThread(mokuReplayContext(), old.ID, configuration)
 	mokuReplayMust(e)
 	mokuReplayCheck(replacement.ID != old.ID, "Moku host replacement did not create a new Thread")
+	archive, e := s.r.Thread(old.ID)
+	mokuReplayMust(e)
+	mokuReplayCheck(archive.MokuHistory && !archive.Moku && archive.Archived != nil && *archive.Archived && archive.Note == nil, "host replacement did not retain a read-only history archive")
+	mokuReplayCheck(string(archive.SessionState) == string(old.SessionState) && len(archive.Transcript) >= len(old.Transcript), "history archive changed native conversation bytes")
+	mokuReplayCheck(s.r.SetArchived(mokuReplayContext(), old.ID, false) != nil, "Moku history could be reactivated as an ordinary thread")
+	_, e = s.r.SendThread(mokuReplayContext(), old.ID, mokuReplayText("must not execute archived Moku").Input)
+	mokuReplayCheck(e != nil, "Moku archive accepted execution")
+	h.mu.Lock()
+	openedBeforeRead := len(h.opened)
+	h.mu.Unlock()
+	_, e = s.r.ReadThread(mokuReplayContext(), old.ID, "must not run Moku-only history instructions")
+	mokuReplayCheck(e != nil, "native history question reopened a Moku archive")
+	_, e = s.r.UpdateThreadSettings(mokuReplayContext(), old.ID, archive.HarnessID, archive.SettingsRevision, archive.Settings)
+	mokuReplayCheck(e != nil, "read-only Moku history settings could be edited")
+	content, e := s.r.ReadThreadContent(mokuReplayContext(), old.ID, transport.ContentScope{Kind: "conversation"}, nil)
+	mokuReplayMust(e)
+	mokuReplayCheck(content != nil && len(content.Value) > 0, "Moku archive lost pure conversation projection")
+	h.mu.Lock()
+	openedAfterRead := len(h.opened)
+	h.mu.Unlock()
+	mokuReplayCheck(openedAfterRead == openedBeforeRead, "read-only archive projection opened a native process")
+	_, e = s.db.Update(mokuReplayContext(), func(tx *store.Tx) error {
+		return s.r.ArchiveExecutions(tx, []model.ExecutionRef{{Thread: model.ThreadRef{TypeID: "agent", ThreadID: archive.ID}, ExecutionID: archive.Observation.LatestExecution.ExecutionID}}, false)
+	})
+	mokuReplayMust(e)
+	unchangedArchive, e := s.r.Thread(archive.ID)
+	mokuReplayMust(e)
+	mokuReplayCheck(unchangedArchive.Archived != nil && *unchangedArchive.Archived, "application archive propagation reactivated Moku history")
+	readTasks, e := plugin.Require[plugin.OrdinaryTaskReadCapability](s.r.RuntimeCapabilities("archive-isolation-replay"), plugin.OrdinaryTaskReadCapabilityKey)
+	mokuReplayMust(e)
+	ordinary, e := readTasks.CaptureList(mokuReplayContext(), true)
+	mokuReplayMust(e)
+	for _, task := range ordinary {
+		mokuReplayCheck(task.Ref.ThreadID != archive.ID, "ordinary task list exposed private Moku history")
+	}
+	ref := model.ThreadRef{TypeID: "agent", ThreadID: archive.ID}
+	ordinaryArchive, e := readTasks.Get(mokuReplayContext(), ref)
+	mokuReplayMust(e)
+	mokuReplayCheck(ordinaryArchive == nil, "ordinary task Get exposed private Moku history")
+	_, e = readTasks.CaptureHistory(mokuReplayContext(), ref)
+	mokuReplayCheck(e != nil, "ordinary history capability exposed private Moku history")
+	scopesAfter, e := s.r.DirectoryScopes()
+	mokuReplayMust(e)
+	mokuReplayCheck(string(mokuReplayRaw(scopesBefore)) == string(mokuReplayRaw(scopesAfter)), "Moku history created an ordinary directory scope")
+	mokuReplayCheck(directorytag.Scope(archive.Cwd) != "inbox", "scope-isolation fixture unexpectedly used Inbox")
+	tagWriter, e := plugin.Require[plugin.SemanticTagsWriteCapability](s.r.RuntimeCapabilities("archive-isolation-replay"), plugin.SemanticTagsWriteCapabilityKey)
+	mokuReplayMust(e)
+	_, e = tagWriter.Execute(mokuReplayContext(), plugin.SemanticTagOperation{Kind: "assign", Thread: &ref, Tags: []string{}}, plugin.BackgroundWriteOptions{RequestID: "reject-private-history"})
+	mokuReplayCheck(e != nil && strings.Contains(e.Error(), "cannot be classified"), "tag capability did not reject the private Moku history subject")
+	events, e := s.db.Snapshot().Events()
+	mokuReplayMust(e)
+	for _, event := range events {
+		if event.Subject.ID == archive.ID {
+			mokuReplayCheck(event.Subject.TypeID == "moku", "retired Moku changed lifecycle subject type")
+		}
+	}
+	archiveCatalog, e := s.r.Snapshot()
+	mokuReplayMust(e)
+	boundedPreview := false
+	for _, thread := range archiveCatalog.Threads {
+		if thread.ID != archive.ID {
+			continue
+		}
+		for _, raw := range thread.Transcript {
+			var item map[string]any
+			mokuReplayMust(json.Unmarshal(raw, &item))
+			if item["id"] == "archive-bounded-preview" {
+				content, _ := item["content"].(string)
+				_, reasoningPresent := item["reasoning"]
+				boundedPreview = len([]rune(content)) == 600 && !reasoningPresent
+			}
+		}
+	}
+	mokuReplayCheck(boundedPreview, "Moku archive catalog exposed an unbounded transcript")
 	mokuReplayCheck(replacement.Note != nil && replacement.Note.Text == "# Durable\n- Pending review" && replacement.Note.Revision == 2, "host replacement did not copy the note")
 	mokuReplayCheck(replacement.Note.ID == incarnation, "host replacement changed the note incarnation")
 	mokuReplayCheck(replacement.Note.LastExposure != nil && replacement.Note.LastExposure.Text == stored.Note.Text && replacement.Note.ReadingRevision == 1, "host replacement lost the old text evidence")
@@ -314,6 +401,8 @@ func runNoteRuntimeReplay() {
 	afterReset := s.record()
 	mokuReplayCheck(afterReset.ID != replacement.ID, "history reset kept the Moku Thread identity")
 	mokuReplayCheck(afterReset.Note == nil, "history reset kept the note")
+	_, e = s.r.Thread(old.ID)
+	mokuReplayCheck(e != nil, "history reset kept a retired Harness archive")
 	response, e = s.r.Invoke(mokuReplayContext(), "moku:record-note-exposure", []json.RawMessage{requested})
 	mokuReplayMust(e)
 	mokuReplayCheck(response.(runtimepkg.NoteExposureResult).Status == "stale", "history reset accepted old incarnation")

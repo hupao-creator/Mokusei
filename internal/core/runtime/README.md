@@ -14,12 +14,17 @@ does not change `note.updatedAt`, create lifecycle events or wake Moku.
 
 [threads.go](threads.go) owns thread identity, execution admission and serialized session access. Harness session data remains opaque; each Harness validates it and produces its public observation and renderer projection. Accepted work belongs to the service and survives client disconnection.
 
-Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions. Loading a reading page does not reopen a native execution process. Settled execution details are fetched on disclosure; live turns retain the information needed for output and interactions.
+Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions. Loading a reading page does not reopen a native execution process. A coordinating-Harness change retains the prior Moku record as an archived, read-only `mokuHistory` conversation, including its native state and attachment ownership. These histories cannot be unarchived, forked, reconfigured or executed; native history questions and automatic admission also reject them. The Moku history reader requests pure renderer projections without reopening a native process. An explicit Moku history reset removes them and releases their attachments. Settled execution details are fetched on disclosure; live turns retain the information needed for output and interactions.
 
 Thread enumeration preserves stored order and appends unlisted records with
 linear identity reconciliation. Committed-thread subscribers receive owned
 records: native state, settings, metadata and transcript bytes are copied without
 re-encoding the complete history; the public observation remains deeply detached.
+
+Interaction replies claim their execution/interaction identity durably before
+native I/O. Only an explicit adapter guarantee that no I/O began releases that
+claim; an uncertain acknowledgement never permits duplicate submission. Public
+form preflight passes typed native values through the internal response handoff.
 
 Commands validate their execution/interaction identity before mutation. A follow-up whose reserved execution ended before input was retained may reserve a successor once. A dispatched failure is not automatically resent or used to rewrite an already terminal execution. Cancellation is fenced to its admitted execution, so a late interrupt cannot cancel a successor.
 
@@ -53,7 +58,7 @@ Enablement is captured by the composition at startup. Saving desired `harness:`,
 
 ## Lifecycle and directory scopes
 
-[lifecycle.go](lifecycle.go) records facts in the same transaction as their business change. Subject identity/type and event source are distinct. Durable consumers retain batches, retries, receipts and outcomes; live subscriptions observe new commits without replaying old events. Moku receives ordinary terminal notifications through its durable outbox and direct user-input facts through live subscriptions. Background agents own their own processing queues.
+[lifecycle.go](lifecycle.go) records facts in the same transaction as their business change. Subject identity/type and event source are distinct. Retired Moku histories retain their `moku` subject type and are excluded from ordinary-task capabilities, semantic-tag mutation and directory-scope discovery. Durable consumers retain batches, retries, receipts and outcomes; live subscriptions observe new commits without replaying old events. Moku receives ordinary terminal notifications through its durable outbox and direct user-input facts through live subscriptions. Background agents own their own processing queues.
 
 Lifecycle subscriptions skip store revisions that cannot change their input.
 Live subscriptions track the event generation; durable subscriptions track the

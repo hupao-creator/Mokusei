@@ -83,6 +83,102 @@ struct NativeMokuHistoryComposerTests {
         #expect(!draft.isDisposed)
         #expect(draft.text == "发送后继续写草稿")
     }
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+                   "Requires AppKit native mouse tracking: python3 tools/verification/reading-presentation/run.py --moku-composer"))
+    func ordinaryClickFocusesAndPersistsExactUnicodeReplacement() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let persistence = NativeComposerDraftPersistence(storageDirectory: directory, scope: "moku")
+        let services = NativeComposerServices(stageFiles: { _, _ in [] }, discardAttachments: { _ in })
+        let draft = NativeComposerDraft(services: services, persistence: persistence)
+        let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
+            suppressInitialFocus: true, onSend: { _ in }, onCancel: {}), width: 560, height: 220)
+        defer { window.close() }
+        try await SwiftUIReplay.wait { editor(in: window.contentView!) != nil }
+        let input = try #require(editor(in: window.contentView!))
+        window.makeFirstResponder(nil)
+        let point = input.convert(CGPoint(x: 12, y: 8), to: nil)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 1, clickCount: 1, pressure: 0))
+        // NSTextView can enter synchronous selection tracking inside mouseDown.
+        // Queue the real release first so that tracking can consume the complete
+        // click without waiting for this test's main-actor continuation.
+        NSApp.postEvent(up, atStart: true)
+        NSApp.sendEvent(down)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(window.firstResponder === input)
+        input.insertText("é", replacementRange: NSRange(location: 0, length: input.string.utf16.count))
+        input.insertText("e\u{301}", replacementRange: NSRange(location: 0, length: input.string.utf16.count))
+        try await SwiftUIReplay.wait { Array(draft.text.utf16) == [0x65, 0x301] }
+        #expect(Array(input.string.utf16) == [0x65, 0x301])
+        let restored = NativeComposerDraft(services: services, persistence: persistence)
+        #expect(Array(restored.text.utf16) == [0x65, 0x301])
+    }
+
+    @Test func historyExposesExecutionStopAndFirstQuestionCancel() async throws {
+        let app = NSApplication.shared
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
+        var stops = 0
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        let composer = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp", running: true,
+            onSend: { _ in }, onCancel: { stops += 1 }), width: 560, height: 180)
+        defer { composer.close() }
+        let root = try #require(composer.contentView)
+        try await SwiftUIReplay.wait { element(id: "moku-stop", in: root) != nil }
+        _ = try #require(element(id: "moku-stop", in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
+        #expect(stops == 1)
+
+        let question = PublicInteractionQuestion(id: "first", prompt: "A required first answer", multiple: false,
+            allowOther: false, secret: false, options: [.init(value: "yes", label: "Yes")])
+        let request = PublicInteraction(id: "wizard", kind: .question, title: "Two questions", actions: [
+            .init(id: "submit", intent: .submit, label: "Submit"), .init(id: "cancel", intent: .cancel, label: "Cancel")
+        ], questions: [question, .init(id: "second", prompt: "Another required answer", multiple: false,
+            allowOther: false, secret: false, options: [.init(value: "no", label: "No")])])
+        let intervention = NativeMokuDockIntervention(threadID: "moku", harnessID: "fixture", executionID: "execution",
+            threadTitle: "Moku", request: request, questions: PublicInteractionQuestionnaire.specs(for: request), submitActionID: "submit")
+        var response: HarnessRespondRequest?
+        let panel = SwiftUIReplay.window(NativeMokuDockInteractionPanel(intervention: intervention,
+            disabled: false, respond: { response = $0 }), width: 640, height: 360)
+        defer { panel.close() }
+        let panelRoot = try #require(panel.contentView)
+        try await SwiftUIReplay.wait { element(id: "moku-interaction-action-cancel", in: panelRoot) != nil }
+        #expect(element(id: "moku-interaction-action-submit", in: panelRoot) == nil)
+        _ = try #require(element(id: "moku-interaction-action-cancel", in: panelRoot)).perform(NSSelectorFromString("accessibilityPerformPress"))
+        try await SwiftUIReplay.wait { response != nil }
+        #expect(response?.actionID == "cancel" && response?.answers == nil)
+    }
+
+    private func element(id: String, in root: NSView) -> NSObject? {
+        var seen = Set<ObjectIdentifier>()
+        func visit(_ object: AnyObject) -> NSObject? {
+            guard seen.insert(ObjectIdentifier(object)).inserted, seen.count < 10000,
+                  let item = object as? NSObject else { return nil }
+            let identity = NSSelectorFromString("accessibilityIdentifier")
+            if item.responds(to: identity), item.perform(identity)?.takeUnretainedValue() as? String == id { return item }
+            let children = NSSelectorFromString("accessibilityChildren")
+            if item.responds(to: children), let values = item.perform(children)?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = visit(value) { return found } }
+            }
+            // SwiftUI exposes some bridge nodes only through the legacy AX
+            // attribute API, even when their ancestors use modern children.
+            let legacy = NSSelectorFromString("accessibilityAttributeValue:")
+            if item.responds(to: legacy), let values = item.perform(legacy, with: "AXChildren")?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = visit(value) { return found } }
+            }
+            if let view = item as? NSView {
+                for child in view.subviews { if let found = visit(child) { return found } }
+            }
+            return nil
+        }
+        _ = root.window?.accessibilityChildren()
+        return visit(root.window ?? root)
+    }
+
     @Test(arguments: [320.0, 560.0])
     func historyInputGrowsToTheOriginalDockLimit(width: Double) async throws {
         _ = NSApplication.shared

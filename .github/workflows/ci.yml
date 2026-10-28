@@ -142,6 +142,7 @@ jobs:
           name: go-linux-test-evidence
           path: ${{ runner.temp }}/ci-go
           if-no-files-found: warn
+          overwrite: true
           retention-days: 14
 
   replays:
@@ -175,6 +176,7 @@ jobs:
           name: integration-${{ matrix.group }}-evidence
           path: ${{ runner.temp }}/replays
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   native-go:
@@ -213,6 +215,7 @@ jobs:
           name: macos-preparation-evidence
           path: ${{ runner.temp }}/preparation
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   swift-build:
@@ -270,6 +273,7 @@ jobs:
           name: macos-build-evidence
           path: ${{ runner.temp }}/build-evidence
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   mac:
@@ -323,6 +327,7 @@ jobs:
           printf '%s\n' "MOKU_STATUS_NATIVE_FIXTURE=$RUNNER_TEMP/preparation/ci-fixtures/moku-status.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKUSEI_VOICE_EVENT_EXPORT=$RUNNER_TEMP/preparation/ci-fixtures/voice-events.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKUSEI_CONVERSATION_CONTRACT_EXPORT=$RUNNER_TEMP/preparation/ci-fixtures/conversation.json" >> "$GITHUB_ENV"
+          printf '%s\n' "MOKUSEI_HARNESS_FORM_FIXTURE=$RUNNER_TEMP/preparation/ci-fixtures/harness-forms.json" >> "$GITHUB_ENV"
           # Only the disposable runner account is changed. The stock image
           # disables both effects, which invalidates real animation/glass tests.
           defaults write com.apple.universalaccess reduceMotion -bool false
@@ -349,6 +354,7 @@ jobs:
             ${{ runner.temp }}/evidence
             !${{ runner.temp }}/evidence/ci-native/mokusei-runtime
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   external:
@@ -419,10 +425,11 @@ jobs:
           name: native-cli-${{ matrix.kind }}-evidence
           path: ${{ runner.temp }}/external
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   verification:
-    name: Complete coverage and under-ten-minute budget
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage and time budget' || 'Complete coverage and under-ten-minute budget' }}
     if: ${{ always() }}
     needs: [go, replays, native-go, swift-build, mac, external]
     runs-on: ubuntu-latest
@@ -451,6 +458,7 @@ jobs:
           name: swift-coverage-summary
           path: ${{ runner.temp }}/swift-summary.json
           if-no-files-found: warn
+          overwrite: true
           retention-days: 7
 
       - name: Enforce every required job and whole-attempt duration

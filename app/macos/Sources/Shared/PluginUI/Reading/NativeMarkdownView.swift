@@ -220,6 +220,7 @@ private struct MarkdownBlockView: View, Equatable {
                 MarkdownContent(blocks: children, options: quoteOptions)
             }.fixedSize(horizontal: false, vertical: true).padding(.vertical, 3)
         case .list(let items):
+            let markerWidth = markerWidth(items)
             VStack(alignment: .leading, spacing: items.first?.tight == false ? 14 : 5) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     HStack(alignment: .top, spacing: 0) {
@@ -233,7 +234,7 @@ private struct MarkdownBlockView: View, Equatable {
                                     muted: options.muted, lineHeight: options.fontSize * 1.8,
                                     selectionScope: options.anchorPrefix, openLink: options.openLink)
                             }
-                        }.frame(width: 23, height: options.fontSize * 1.8, alignment: .leading)
+                        }.frame(width: markerWidth, height: options.fontSize * 1.8, alignment: .leading)
                         MarkdownContent(blocks: item.blocks, options: options, compact: item.tight)
                     }
                 }
@@ -251,7 +252,14 @@ private struct MarkdownBlockView: View, Equatable {
                     selectionScope: options.anchorPrefix, openLink: options.openLink)
                     .frame(width: 23, height: options.fontSize * 1.8, alignment: .leading)
                 MarkdownContent(blocks: children, options: options, compact: true)
-            }.background(MarkdownAnchor(identifier: options.anchorPrefix + "-mokusei-footnote-" + id))
+            }.background(MarkdownAnchor(identifier: options.anchorPrefix + "-mokusei-footnote-" + MarkdownParser.anchorID(id)))
+        }
+    }
+
+    private func markerWidth(_ items: [MarkdownListItem]) -> CGFloat {
+        let font = NativeTypography.interPlatformFont(size: options.fontSize)
+        return items.reduce(CGFloat(23)) { width, item in
+            item.checked == nil ? max(width, ceil((item.marker as NSString).size(withAttributes: [.font: font]).width) + 6) : width
         }
     }
 
