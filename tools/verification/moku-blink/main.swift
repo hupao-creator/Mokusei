@@ -21,6 +21,7 @@ private struct Failure: Error, CustomStringConvertible { var description: String
     var focus = 0.0
     var probeFrame = CGRect.zero
     var referenceFrame = CGRect.zero
+    let reducedCharacter = NativeMokuCharacterMotion()
 }
 private struct Scene: View {
     let fixture: Fixture
@@ -51,9 +52,14 @@ private struct Scene: View {
             // Reduce Motion is a read-only system environment value. Exercise
             // the same production component's input without altering OS prefs.
             if fixture.reduceMotion {
-                NativeMokuRunningEyes(reduceMotion: true, capsuleSize: fixture.state.capsuleFrame.size,
-                                      cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                    .frame(width: 34, height: 25)
+                NativeMokuCharacterSurface(controller: fixture.reducedCharacter,
+                    input: .init(expression: .idle, focus: 0, running: true, reasoning: nil,
+                        presentsReasoning: false, executionKey: "reduced-orbit",
+                        capsuleSize: fixture.state.capsuleFrame.size,
+                        cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
+                        motion: true, reduceMotion: true, dark: false), seat: .decorations)
+                    .frame(width: fixture.state.capsuleFrame.width + 24,
+                           height: fixture.state.capsuleFrame.height + 24)
                     .position(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.midY)
             }
         }
@@ -258,6 +264,20 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         print("PASS continuous focus transitions: \(frames) frames, difference=\(maximumDifference)")
     }
     if CommandLine.arguments.contains("--orbit-only") {
+        func character(in view: NSView) -> NativeMokuCharacterMotion? {
+            if let canvas = view as? NativeMokuCharacterCanvas, canvas.seat == .face { return canvas.controller }
+            return view.subviews.lazy.compactMap { character(in: $0) }.first
+        }
+        func waitForRetirement() async throws {
+            let deadline = ProcessInfo.processInfo.systemUptime + 5
+            while let character = character(in: host), character.isTransitioning
+                || (0..<3).contains(where: { character.pose["d\($0)a"] > 0.001 }) {
+                guard ProcessInfo.processInfo.systemUptime < deadline else {
+                    throw Failure(description: "Running decoration did not finish its handoff")
+                }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+        }
         func coloredPixels(_ name: String) async throws -> [Int] {
             let image = try await stableCapture()
             try png(image, directory.appendingPathComponent(name + ".png"))
@@ -317,6 +337,12 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             throw Failure(description: "Inactive orbit did not freeze")
         }
         fixture.phase = .active
+        fixture.running = false
+        // Let the ordinary Dock finish its real exit before mounting a separate
+        // reduced-motion input. Otherwise its retiring dots contaminate the
+        // supposedly static reference during the first half-second.
+        try await Task.sleep(for: .milliseconds(50))
+        try await waitForRetirement()
         fixture.reduceMotion = true
         try await Task.sleep(for: .milliseconds(200))
         let still = try await coloredPixels("orbit-reduced")
@@ -335,6 +361,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             fixture.running = state != "idle" && state != "cancelled"
             fixture.state.setInputOpen(state == "input")
             try await Task.sleep(for: .milliseconds(650))
+            try await waitForRetirement()
             guard try await coloredPixels("orbit-exit-" + state).isEmpty else {
                 throw Failure(description: "Running dots survived \(state)")
             }

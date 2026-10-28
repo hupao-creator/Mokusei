@@ -19,18 +19,8 @@ struct NativeMokuRunningEyes: View {
     var body: some View {
         TimelineView(.animation(paused: !active)) { context in
             let milliseconds = elapsed + (resumedAt.map { max(0, context.date.timeIntervalSince($0)) * 1000 } ?? 0)
-            let path = orbitPath(in: capsuleSize)
-            let frame = MokuRunningStory.sample(time: milliseconds / MokuRunningStory.beatMS, still: reduceMotion,
-                                               restingY: 300 + (capsuleSize.height / 2 + orbitOffset) / 0.075,
-                                               restingSpacing: (dotRadius * 2 + gap) / 0.075) { angle in
-                let phase = (angle - .pi / 2) / (2 * .pi)
-                let progress = (phase.truncatingRemainder(dividingBy: 1) + 1).truncatingRemainder(dividingBy: 1)
-                let point = path.trimmedPath(from: 0, to: progress).currentPoint
-                    ?? CGPoint(x: capsuleSize.width / 2, y: capsuleSize.height + orbitOffset)
-                // The story blends lift/landing in authored coordinates before painting.
-                return CGPoint(x: 320 + (point.x - capsuleSize.width / 2) / 0.075,
-                               y: 300 + (point.y - capsuleSize.height / 2) / 0.075)
-            }
+            let frame = NativeMokuRunningGeometry.sample(milliseconds: milliseconds, capsuleSize: capsuleSize,
+                                                        cornerRadius: cornerRadius, still: reduceMotion)
             ZStack {
                 NativeMokuBlinkingEyes(expression: .idle, focus: 0)
                     .scaleEffect(x: frame.eyes.scaleX, y: frame.eyes.scaleY)
@@ -56,7 +46,26 @@ struct NativeMokuRunningEyes: View {
         .accessibilityHidden(true)
     }
 
-    private func orbitPath(in size: CGSize) -> Path {
+}
+
+/// Both the standalone orbit replay and the persistent character host sample
+/// the same authored path. The host owns role clocks and handoffs.
+enum NativeMokuRunningGeometry {
+    static func sample(milliseconds: Double, capsuleSize: CGSize, cornerRadius: CGFloat, still: Bool) -> MokuRunningFrame {
+        let path = orbitPath(in: capsuleSize, cornerRadius: cornerRadius)
+        return MokuRunningStory.sample(time: milliseconds / MokuRunningStory.beatMS, still: still,
+            restingY: 300 + (capsuleSize.height / 2 + 5.5) / 0.075, restingSpacing: 8 / 0.075) { angle in
+            let phase = (angle - .pi / 2) / (2 * .pi)
+            let progress = (phase.truncatingRemainder(dividingBy: 1) + 1).truncatingRemainder(dividingBy: 1)
+            let point = path.trimmedPath(from: 0, to: progress).currentPoint
+                ?? CGPoint(x: capsuleSize.width / 2, y: capsuleSize.height + 5.5)
+            return CGPoint(x: 320 + (point.x - capsuleSize.width / 2) / 0.075,
+                           y: 300 + (point.y - capsuleSize.height / 2) / 0.075)
+        }
+    }
+
+    private static func orbitPath(in size: CGSize, cornerRadius: CGFloat) -> Path {
+        let orbitOffset: CGFloat = 5.5
         // Offset the visible glass contour by both dot radius and clear space.
         let rect = CGRect(origin: .zero, size: size).insetBy(dx: -orbitOffset, dy: -orbitOffset)
         let radius = max(0, min(cornerRadius, min(size.width, size.height) / 2)) + orbitOffset

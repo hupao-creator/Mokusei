@@ -29,6 +29,7 @@ headless lifecycle checks and optional installed-CLI mock-provider verification,
 see [release runtime health](release-health/README.md).
 
 For shared native loading-cloud motion, see the [Swift cloud replay](cloud-motion/README.md).
+For public Harness thinking text and native Arc lifecycle, see the [Moku reasoning replay](moku-reasoning/README.md).
 For Note viewport evidence and authenticated Swift/Runtime/context round trips,
 see the [Note replay](moku-note/README.md). Its native launcher, Talk dismissal
 and reading-presentation stage inputs, build artifacts and resources in temporary
