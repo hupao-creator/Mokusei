@@ -47,3 +47,9 @@ production conversation components, suppresses retained hidden controls, and
 admits commands only while the selected thread page is mounted. Internal history
 transitions, content-resource states and geometry are observed by the mounted
 components; the Host does not decode a Harness timeline or mutate its data.
+
+A Settings return retains the page only for animation. While `settingsClosing`
+is true, section selection and mounted-control mutations are unavailable, so a
+rapid caller cannot receive a success for a page that is already retiring. Close,
+Back and Overview remain available. The production navigation replay exercises
+this rejection immediately after initiating Back without waiting for animation.
