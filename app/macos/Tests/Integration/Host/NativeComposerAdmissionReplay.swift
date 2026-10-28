@@ -10,6 +10,31 @@ import MokuseiPluginAPI
 
 @MainActor @Suite(.serializedNative, .serialized)
 struct NativeComposerAdmissionReplay {
+    @Test func acceptedAttachmentConsumptionIsIdentityScopedAndIdempotent() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let persistence = NativeComposerDraftPersistence(storageDirectory: directory, scope: "receipts")
+        let other = NativeComposerDraftPersistence(storageDirectory: directory, scope: "other-thread")
+        let file = NativeComposerStoredAttachment(id: "staged-A", path: "/fixture", name: "same.txt", mimeType: "text/plain", size: 1, kind: .file)
+        let sent = NativeComposerAttachment(id: "chip-A", name: "same.txt", status: .ready(file))
+        let pending = NativeComposerAttachment(id: "chip-B", name: "same.txt", status: .pending(size: 1, mimeType: "text/plain"))
+        let revision = try persistence.save(text: "new text", directories: [], attachments: [sent, pending])
+        try other.save(text: "other text", directories: [], attachments: [sent])
+        #expect(try persistence.consumeAcceptedAttachments(["chip-A": "wrong-file"]) == nil)
+        #expect(try persistence.consumeAcceptedAttachments(["wrong-chip": "staged-A"]) == nil)
+        #expect(try persistence.loadText()?.revision == revision)
+        #expect(try persistence.consumeAcceptedAttachments(["chip-A": "staged-A"]) != nil)
+        let consumedRevision = try #require(try persistence.loadText()?.revision)
+        #expect(try persistence.consumeAcceptedAttachments(["chip-A": "staged-A"]) == nil)
+        #expect(try persistence.loadText()?.revision == consumedRevision)
+        let stored = try #require(try RuntimeDraftStore(storageDirectory: directory, scope: "receipts").load())
+        #expect(stored["text"] == .text("new text"))
+        #expect(stored["attachments"]?.arrayValue?.count == 1)
+        #expect(stored["attachments"]?.arrayValue?.first?["id"] == .text("chip-B"))
+        #expect(stored["attachments"]?.arrayValue?.first?["status"] == .text("pending"))
+        #expect(try other.load()?.attachments.map(\.id) == ["chip-A"])
+    }
+
     @Test(arguments: [0, 19], [false, true])
     func excessTIFFNeverMakesPersistedDraftUnreadable(existingCount: Int, disposeDuringImport: Bool) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
