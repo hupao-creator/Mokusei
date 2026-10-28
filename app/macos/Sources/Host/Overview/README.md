@@ -6,6 +6,16 @@
 
 Rebuilding membership partitions eligible Agent Threads by canonical scope once, so each directory and child scans only its scope. Application candidates still follow the full selection rules, including unscoped documents and covered executions. The partition exists only during that rebuild; it does not retain another catalog or change equal-date ordering.
 
+That rebuild also publishes global conversation availability before filtering,
+search and report coverage, including directory-only documents. Moku uses these
+facts for its empty-workspace landing; an unloaded catalog remains unknown. While
+the first creation awaits native admission, the canvas and filters stay covered
+by landing so a durable, unadmitted shell cannot replace the primary input. Ordinary
+eligibility rules, including archived and failed/interrupted visibility, are shared
+with Overview rather than reimplemented by the Dock. The
+[native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
+checks this distinction against real catalog transactions.
+
 The same rebuild also normalizes each distinct tag/label once and supplies those keys to the existing selection rules. This memo is local to the synchronous rebuild, bounded by its distinct labels, and discarded before another locale/catalog revision can use it. Standalone selection calls retain the ordinary normalization path.
 
 The `glassWorld` preference controls only the outer shells of Thread cards. Enabled shells use regular glass with the existing success tint for completed Threads; disabled shells use the opaque overview surface with a soft border. Both styles stay inside the same animated card frame, so geometry, opacity and exit behavior remain shared. Semantic badges retain their own glass composition, and Follow-up, plan, tag and Moku surfaces are unaffected.
