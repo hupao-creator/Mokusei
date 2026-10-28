@@ -150,8 +150,7 @@ ordinary `go test` is not evidence of native combination coverage.
 This is not yet the full combination gate. Cross-Harness chains, concurrent dependent
 tasks within a scope, broader generated command sequences, exact uncertain-admission
 crash windows, steering races, worktrees/attachments/Context, voice combinations
-remain outside this gate; see the historical scope in
-[the full objective](https://github.com/xinyuan0801/OpenAgent/issues/542).
+remain outside this gate.
 It starts with one child per scope and can add forks and successive executions;
 the system matrix uses graceful composition restart. External Context acquisition is disabled. The separate
 [release runner](../release-health/README.md) and module checks support this work

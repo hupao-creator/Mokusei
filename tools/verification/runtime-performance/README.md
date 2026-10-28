@@ -42,3 +42,5 @@ python3 tools/verification/runtime-performance/prepare_baseline.py c17a3fcb .bui
 同一 overlay 也可用于 Moku `-performance` 和 Codex `-stream-performance` 的可执行回放。基线不能运行依赖新 API 的完整新增回归；性能 fixture 使用原公开 API。先单独编译，再在没有编译/其他采样的窗口顺序运行两个二进制。
 
 运行前协调独占 CPU 时段；不要并行构建、回放、GUI 或截图。这些是本地边界微基准，不能据此宣称真实模型端到端延迟或 GUI 帧率收益。具体规模、原始结果、环境、验证和未测边界见 [本次审计报告](AUDIT.md)。
+
+归档测量 JSON 已移除旧仓库的模块路径字段；测量数值、源码版本、依赖版本和可执行文件 SHA 保持原值。此项元数据脱敏不代表重新测量。
