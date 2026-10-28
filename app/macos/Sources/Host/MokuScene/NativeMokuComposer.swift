@@ -8,11 +8,22 @@ extension EnvironmentValues {
     @Entry var nativeOfflineDraftEditing = false
 }
 
-/// Measure the editor within its own input row, independent of menu expansion.
-struct NativeMokuEditorAnchorKey: PreferenceKey {
-    static var defaultValue: Anchor<CGRect>? { nil }
-    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
-        value = nextValue() ?? value
+/// Shared completion chrome. The Dock mounts it above the fixed input row so
+/// insertion cannot animate the editor separately from its persistent face.
+struct NativeMokuComposerCompletion: View {
+    let mentions: NativeMokuDirectoryMentions
+    let draft: NativeComposerDraft
+    let maxHeight: CGFloat
+    var onFrame: (CGRect?) -> Void = { _ in }
+
+    var body: some View {
+        NativeMokuDirectoryMentionList(mentions: mentions, maxHeight: maxHeight,
+            onChoose: { mentions.choose($0, draft: draft) })
+            .clipped()
+            .padding(.horizontal, 12).padding(.top, 12)
+            .overlay(alignment: .bottom) { Color.primary.opacity(0.08).frame(height: 1).padding(.horizontal, 18) }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { onFrame($0) }
+            .onDisappear { onFrame(nil) }
     }
 }
 
@@ -40,6 +51,7 @@ struct NativeMokuComposerInput: View {
     var onCancel: () -> Void = {}
     var availableHeight: CGFloat = 420
     var mentions: NativeMokuDirectoryMentions?
+    var includesCompletion = true
     var onMentionFrame: (CGRect?) -> Void = { _ in }
     var showsEyes = false
     var selectionRequest: NativeComposerSelectionRequest?
@@ -53,6 +65,8 @@ struct NativeMokuComposerInput: View {
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var inputHeight: CGFloat = 58
+    @State private var editorRowHeight: CGFloat = 58
+    @State private var errorHeight: CGFloat = 0
     @State private var hostPicker: NativeComposerHostFilePicker.Mode?
 
     private var completionVisible: Bool { mentions?.isOpen == true && !readOnly }
@@ -86,21 +100,15 @@ struct NativeMokuComposerInput: View {
     }
     var body: some View {
         VStack(spacing: 0) {
-            if let mentions, completionVisible {
-                NativeMokuDirectoryMentionList(mentions: mentions,
-                    maxHeight: max(0, availableHeight - inputHeight - 12),
-                    onChoose: { mentions.choose($0, draft: draft) })
-                    .clipped()
-                    .padding(.horizontal, 12).padding(.top, 12)
-                    .overlay(alignment: .bottom) { Color.primary.opacity(0.08).frame(height: 1).padding(.horizontal, 18) }
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { onMentionFrame($0) }
-                    .onDisappear { onMentionFrame(nil) }
+            if includesCompletion, let mentions, completionVisible {
+                NativeMokuComposerCompletion(mentions: mentions, draft: draft,
+                    maxHeight: max(0, availableHeight - inputHeight - 12), onFrame: onMentionFrame)
                     .transition(.opacity)
             }
             input
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputHeight = $0 }
         }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
-            .animation(.smooth(duration: 0.42, extraBounce: 0), value: completionVisible)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: includesCompletion && completionVisible)
             .onDisappear { onMentionFrame(nil) }
             .sheet(item: $hostPicker) { mode in NativeComposerHostFilePicker(draft: draft, mode: mode) }
     }
@@ -147,7 +155,6 @@ struct NativeMokuComposerInput: View {
                     .accessibilityAction(named: Text(localize("开始语音", "Start voice"))) {
                         if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
                     }
-                    .anchorPreference(key: NativeMokuEditorAnchorKey.self, value: .bounds) { $0 }
                 // Keep the seat while it opens, without mounting an inactive
                 // voice entry. The workspace retains the media client itself.
                 ZStack {
@@ -183,16 +190,19 @@ struct NativeMokuComposerInput: View {
                     }
                 }.frame(width: 32, height: 32)
             }.padding(.leading, 6).padding(.trailing, 13)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { editorRowHeight = $0 }
                 .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
                 Text(composerLocalized(error, locale: locale)).font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { errorHeight = $0 }
+                    .onDisappear { errorHeight = 0 }
             }
         }.foregroundStyle(.primary).disabled(editingUnavailable || readOnly)
-            .backgroundPreferenceValue(NativeMokuEditorAnchorKey.self) { anchor in
-                GeometryReader { proxy in
-                    let inset = anchor.map { proxy.size.height - proxy[$0].midY } ?? 29
-                    Color.clear.onChange(of: inset, initial: true) { _, value in onEditorSeatChange(value) }
-                }
+            // Sizes are local to the row. Resolving an editor anchor through
+            // an animating ancestor also includes its transient translation,
+            // which must not be fed back into the face's bottom inset.
+            .onChange(of: editorRowHeight / 2 + errorHeight, initial: true) { _, inset in
+                onEditorSeatChange(inset)
             }
     }
     private var attachmentButton: some View {
