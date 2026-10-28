@@ -5,7 +5,7 @@ import SwiftUI
 import MokuseiCore
 import MokuseiHarnessCodex
 import MokuseiPluginAPI
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 @testable import MokuseiUI
 
 @MainActor @Observable private final class Fixture {
@@ -25,7 +25,6 @@ import MokuseiPluginUI
     var filteredEmpty = false
     var original = false
     var dark = false
-    var reduceMotion = false
     var running = false
     var prompt = "优化 landing page，让首个任务从 Moku 开始。"
     var status = "没有会话 · 中心输入"
@@ -149,7 +148,6 @@ private struct Surface: View {
         .coordinateSpace(name: "workspace")
         .modifier(NativeWorkspaceWindowSurface())
         .environment(\.locale, Locale(identifier: "zh-Hans"))
-        .environment(\.accessibilityReduceMotion, fixture.reduceMotion)
         .preferredColorScheme(fixture.dark ? .dark : .light)
     }
 }
@@ -396,14 +394,16 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         input.insertText("优化 landing page", replacementRange: .init(location: 0, length: input.string.utf16.count))
         try await wait("Restoring input did not restore Send") { accessible("moku-send", in: self.window.contentView!) }
-        fixture.reduceMotion = true
-        try await Task.sleep(for: .milliseconds(200))
-        input.insertText("!", replacementRange: .init(location: NSNotFound, length: 0))
-        input.updateInsertionPointStateAndRestartTimer(true)
-        try await wait("Reduce Motion caret did not update") { self.fixture.draft.text == "优化 landing page!" && !caret.isHidden }
-        try require(caret.animation(forKey: "typing") == nil, "Reduce Motion still animates the caret")
-        input.insertText("优化 landing page", replacementRange: .init(location: 0, length: input.string.utf16.count))
-        fixture.reduceMotion = false
+        // SwiftUI's system accessibility environment is read-only. Exercise the
+        // production layer's reduced-motion input without changing OS settings.
+        let reduced = NativeComposerCaret()
+        reduced.reduceMotion = true
+        let origin = CGRect(x: 20, y: 10, width: 1, height: 20)
+        reduced.show(at: origin, color: .textColor, in: input)
+        reduced.show(at: origin.offsetBy(dx: 30, dy: 0), color: .textColor, in: input)
+        try require(reduced.layer.animation(forKey: "typing") == nil && reduced.layer.frame.midX == 50.5,
+                    "Reduce Motion did not position the production caret immediately")
+        reduced.remove()
         fixture.outcome = .failure
         pressReturn()
         try await wait("Return did not begin the production send path") { self.fixture.running }
@@ -444,8 +444,11 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         fixture.dark = true
         try await Task.sleep(for: .milliseconds(700))
         let darkInput = editor(in: window.contentView!)!
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(darkInput)
         darkInput.insertText("Moku", replacementRange: .init(location: 0, length: darkInput.string.utf16.count))
+        darkInput.updateInsertionPointStateAndRestartTimer(true)
         try await wait("Dark composer did not mount its caret") {
             darkInput.layer?.sublayers?.contains { $0.name == "composer-insertion-point" } == true
         }
