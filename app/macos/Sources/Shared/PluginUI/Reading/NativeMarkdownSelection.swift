@@ -133,12 +133,6 @@ final class MarkdownSelectionScope {
         }
     }
 
-    var hasJoinedSelection: Bool { joined && orderedViews.contains { $0.markdownSelectedRange.length > 0 } }
-
-    func canSelectAll() -> Bool {
-        orderedViews.contains { $0.markdownSelectedRange != NSRange(location: 0, length: $0.markdownString.utf16.count) }
-    }
-
     func selectAll() {
         applyingSelection = true
         defer { applyingSelection = false }

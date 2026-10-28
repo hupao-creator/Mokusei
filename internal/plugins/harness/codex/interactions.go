@@ -159,7 +159,7 @@ func EncodeInteractionResponse(method string, p, interaction, response Map) (Map
 			if !ok {
 				return nil, "", fmt.Errorf("unknown Codex question: %s", id)
 			}
-			vv := []any{}
+			var vv []any
 			if s, ok := v.(string); ok {
 				vv = []any{s}
 			} else {

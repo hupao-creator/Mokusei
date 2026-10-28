@@ -179,7 +179,7 @@ struct NativeOverviewEntryTests {
             if !fixture.state.isLayingOut, fixture.state.presentedPlacements.first(where: { $0.id == "thread" })?.columns == 1 { break }
         }
         try await Task.sleep(for: .milliseconds(750))
-        let content = try #require(window.contentView)
+        _ = try #require(window.contentView)
         let frame = try #require(fixture.frames["thread"])
         let scale = fixture.state.camera.liveTransform.scale
         #expect(abs(frame.width - 360 * scale) < 1)
