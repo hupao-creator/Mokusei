@@ -85,7 +85,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/opencode` | Settings, credentials, timeout and frozen renderer comparison; see README for native CLI cases |
 | `./tools/verification/settings` | Real Swift settings flow against Go daemon and external CLI fixture; workspace prefetch, scope cache, HTTP read coalescing, bounded failure retry, teardown, installation invalidation and reconnect |
 | `./tools/verification/settings-shell` | Schema, normalization, CAS, diagnostic bounds and redaction |
-| `./tools/verification/artificialanalysis` | Cold/warm cache, detail/provenance matching, persisted cache and output bounds |
+| `./tools/verification/artificialanalysis` | [Intelligence Index v5](artificialanalysis/README.md) version/metric contracts, cache isolation, cold/warm cache, detail/provenance matching and output bounds; opt-in live website check |
 | `./tools/verification/artificialanalysis/lifecycle` | Independent Context host registration/enablement, runtime catalog/settings/history reset, shared acquisition, cancellation, drain, fallback and bounds |
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
