@@ -240,7 +240,7 @@ public struct NativeMokuHistoryComposer: View {
             onKeyDown: { mentions.handle($0, draft: draft) },
             onSend: { guard !disabled else { return }; Task { await draft.submit(onSend) } })
             .fixedSize(horizontal: false, vertical: true)
-            .background { ZStack { NativeMokuCapsuleGlass(usesThemeTint: true).id(colorScheme); voiceBackground } }
+            .background { ZStack { NativeMokuCapsuleGlass().id(colorScheme); voiceBackground } }
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
             .overlay {

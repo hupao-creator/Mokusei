@@ -127,12 +127,12 @@ struct MokuGradientDemo: View {
     @ViewBuilder
     private func surface(material: DemoMaterial) -> some View {
         if material != .original {
-            GradientCapsuleMaterial(strength: strength, opaque: opaque, light: material == .light)
+            NativeMokuCapsuleGlass(interactive: false, strength: strength, forceOpaque: opaque)
         } else if opaque {
             RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
                 .fill(Color(nsColor: MokuGeometry.bodyColor))
         } else {
-            NativeMokuCapsuleGlass(interactive: false, usesThemeTint: true)
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
         }
     }
 
@@ -164,7 +164,7 @@ struct MokuGradientDemo: View {
                     .frame(width: 150).accessibilityLabel("移动背景")
                 Toggle("降低透明度预览", isOn: $reduceTransparency)
                 Spacer()
-                Text(opaque ? "降低透明度已启用 · 实色回退" : "原生材质实验 · 输入文字可编辑 · 尚未接入正式界面")
+                Text(opaque ? "降低透明度已启用 · 实色回退" : "生产材质预览 · 输入文字可编辑 · 参数仅作用于 demo")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
             }
         }
@@ -174,39 +174,6 @@ struct MokuGradientDemo: View {
 
     private func toggleExpansion() {
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { expanded.toggle() }
-    }
-}
-
-/// The gradient is above the glass sampling layer, below the text. Its stops
-/// describe surface density; system refraction still comes from native glass.
-private struct GradientCapsuleMaterial: View {
-    let strength: Double
-    let opaque: Bool
-    let light: Bool
-    private let shape = RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-
-    var body: some View {
-        if opaque {
-            shape.fill(light ? Color(red: 0.96, green: 0.95, blue: 0.92) : Color(red: 0.12, green: 0.11, blue: 0.10))
-        } else {
-            Color.clear
-                .glassEffect(.clear, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
-                .overlay {
-                    shape.fill(LinearGradient(stops: [
-                        .init(color: (light ? Color(red: 1, green: 0.99, blue: 0.96) : .black).opacity(0.99 * strength), location: 0),
-                        .init(color: (light ? Color(red: 0.98, green: 0.97, blue: 0.94) : Color(red: 0.04, green: 0.035, blue: 0.03)).opacity(0.96 * strength), location: 0.40),
-                        .init(color: (light ? Color(red: 0.94, green: 0.91, blue: 0.85) : Color(red: 0.16, green: 0.13, blue: 0.10)).opacity(0.70 * strength), location: 0.72),
-                        .init(color: (light ? Color(red: 1, green: 0.97, blue: 0.88) : Color(red: 0.38, green: 0.33, blue: 0.26)).opacity(0.12 * strength), location: 1),
-                    ], startPoint: .top, endPoint: .bottom))
-                }
-                .overlay {
-                    shape.strokeBorder(LinearGradient(stops: [
-                        .init(color: .white.opacity((light ? 0.48 : 0.04) * strength), location: 0),
-                        .init(color: .white.opacity(0.08 * strength), location: 0.55),
-                        .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),
-                    ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                }
-        }
     }
 }
 

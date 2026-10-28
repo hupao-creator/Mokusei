@@ -9,6 +9,21 @@ settling, without restoring the retired AppKit scene host.
 
 ## Dock and composer
 
+All Moku capsule surfaces use the approved theme-aware gradient over native clear
+glass: warm black in dark appearance and pearl white in light appearance, fading
+toward the bottom with a fine warm edge. Production density is 85%. The shared
+material covers the Dock (idle, composer, Talk and note), history composer and
+interaction panel; the latter retains its existing explicit dark appearance.
+Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
+caret, eyes and the external reasoning Arc retain their existing theme ownership.
+The material does not change layout, clipping, voice ownership or motion clocks.
+The [material demo](../../../../../demos/moku-gradient-material/README.md) now
+compiles this same production material; its regular-glass option is a historical
+baseline, and adjustable density/opaque simulation are local preview controls.
+Material validation includes [glass-world captures](../../../../../tools/verification/overview-input/README.md#glass-world-live-changes-and-fixed-production-captures)
+for both appearances, the mounted history composer/note suites, and the native
+Talk, character-transition and voice-cloud replays described below.
+
 The shared input row places the attachment plus between Moku's eyes and the editor. It reuses the workspace draft's device file chooser; hosts with file browsing also offer host files and directories through the existing picker. The control has a localized help/accessibility label and is disabled while attachment import or the owning surface is unavailable.
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.

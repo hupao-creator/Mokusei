@@ -521,7 +521,7 @@ public struct NativeMokuDock: View {
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
         .background {
             ZStack {
-                NativeMokuCapsuleGlass(usesThemeTint: true).id(colorScheme)
+                NativeMokuCapsuleGlass().id(colorScheme)
                 voiceBackground
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
