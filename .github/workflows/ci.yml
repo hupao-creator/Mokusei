@@ -5,6 +5,11 @@ name: CI
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      extended:
+        description: 'Also run pinned native CLIs, system matrices and the full 30-minute stability gate'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -92,7 +97,7 @@ jobs:
       - name: Go unit tests (including directory tags)
         if: ${{ !cancelled() }}
         run: |
-          packages="$(go list ./cmd/... ./internal/...)"
+          packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost)"
           portable_packages=()
           while IFS= read -r package; do
             if [[ "$package" != */internal/tooling/devtool ]]; then
@@ -133,12 +138,103 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  external:
+    name: Native CLIs and 30-minute stability / macOS
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
+    runs-on: macos-26
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the verified external CLI versions in temporary storage
+        run: |
+          npm install --prefix "$RUNNER_TEMP/cli" --no-audit --no-fund \
+            @openai/codex@0.163.0 @earendil-works/pi-coding-agent@1.0.0 @opencode/cli@2.0.25
+          printf '%s\n' "$RUNNER_TEMP/cli/node_modules/.bin" >> "$GITHUB_PATH"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'cli/node_modules'
+          binaries = [path for path in root.rglob('codex') if path.is_file()
+                      and not path.is_symlink() and os.access(path, os.X_OK)
+                      and path.open('rb').read(4) in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe')]
+          if len(binaries) != 1:
+              raise SystemExit(f'Expected one native Codex binary, found {binaries}')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'MOKUSEI_SYSTEM_CODEX={binaries[0]}\n')
+          PY
+      - name: Native CLI protocol and system verification
+        run: |
+          mkdir -p "$RUNNER_TEMP/extended"
+          set -o pipefail
+          node --version
+          "$MOKUSEI_SYSTEM_CODEX" --version
+          pi --version
+          opencode --version
+          go run -race ./tools/verification/codex -real-only -real-codex "$MOKUSEI_SYSTEM_CODEX" 2>&1 | tee "$RUNNER_TEMP/extended/codex.log"
+          go run -race ./tools/verification/pi -mode native -timeout 10m 2>&1 | tee "$RUNNER_TEMP/extended/pi.log"
+          go run -race ./tools/verification/opencode -native-cli "$(command -v opencode)" 2>&1 | tee "$RUNNER_TEMP/extended/opencode.log"
+          make check-system GO=go 2>&1 | tee "$RUNNER_TEMP/extended/system.log"
+      - name: Real crash recovery and full stability qualification
+        if: ${{ !cancelled() && env.MOKUSEI_SYSTEM_CODEX != '' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/extended"
+          set -o pipefail
+          STABILITY_OUTPUT="$RUNNER_TEMP/extended/stability" make check-stability GO=go 2>&1 | tee "$RUNNER_TEMP/extended/stability.log"
+      - name: Retain native CLI and stability evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extended-native-evidence
+          path: ${{ runner.temp }}/extended
+          if-no-files-found: error
+          retention-days: 14
+
+  replays:
+    name: Integration / ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [runtime, adapters]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      # The Console OAuth replay evaluates the shipped native-client JS in Node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay production boundaries against isolated peers
+        run: python3 scripts/ci/replays.py "${{ matrix.group }}" --output "$RUNNER_TEMP/replays"
+      - name: Retain replay evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-${{ matrix.group }}-evidence
+          path: ${{ runner.temp }}/replays
+          if-no-files-found: error
+          retention-days: 14
+
   swift:
     name: Swift UI and native Go / macOS
     # Package.swift and the Metal plugin require macOS 26. macos-15/14 can
     # neither run these test binaries nor validate their AppKit behavior.
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -216,23 +312,28 @@ jobs:
         working-directory: app/macos
         run: xcrun swift build --build-tests --force-resolved-versions
 
-      - name: Swift directory-tag integration tests
+      - name: Generate cross-language Swift fixtures
         if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
-        timeout-minutes: 5
-        working-directory: app/macos
-        run: |
-          set -o pipefail
-          xcrun swift test --skip-build --no-parallel --filter NativeOverviewDirectoryTagTests 2>&1 |
-            tee "$RUNNER_TEMP/swift-directory-tags.log"
+        run: python3 scripts/ci/replays.py fixtures --output "$RUNNER_TEMP/ci-fixtures"
 
       - name: Swift full test suite
         if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
         timeout-minutes: 20
         working-directory: app/macos
+        env:
+          MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY: '1'
         run: |
           set -o pipefail
           # AppKit fixtures share application/window state across suites.
           xcrun swift test --skip-build --no-parallel 2>&1 | tee "$RUNNER_TEMP/swift-tests.log"
+
+      - name: Go and Swift interoperability and native process lifecycle
+        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
+        run: python3 scripts/ci/replays.py interop --output "$RUNNER_TEMP/ci-interop"
+
+      - name: Isolated native user flows
+        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
+        run: python3 scripts/ci/replays.py native --output "$RUNNER_TEMP/ci-native"
 
       - name: Summarize Swift tests and enforce execution
         if: ${{ always() }}
@@ -246,8 +347,12 @@ jobs:
           name: macos-test-evidence
           path: |
             ${{ runner.temp }}/ci-native-go
-            ${{ runner.temp }}/swift-directory-tags.log
+            ${{ runner.temp }}/ci-fixtures
+            ${{ runner.temp }}/ci-interop
+            ${{ runner.temp }}/ci-native
             ${{ runner.temp }}/swift-tests.log
             ${{ runner.temp }}/swift-summary.json
+            .scratch/reading-presentation
+            .scratch/moku-note-production
           if-no-files-found: warn
           retention-days: 14

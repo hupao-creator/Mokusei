@@ -18,6 +18,9 @@ checks the WindowServer session and available screens; it reports an explicit
 skip when unavailable. `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos`
 exercises this admission path without changing the desktop. This is a simulated
 absence of display capability, not proof from a physically disconnected machine.
+Hosted CI intentionally does not set that override and rejects display skips.
+Fixture-gated methods may defer only to their required Go/AppKit replay step;
+see the [verification policy](../../../../scripts/ci/verification-policy.md).
 
 The isolated reading-presentation launcher compiles the same support source with
 the selected tests. Their conditional `SWIFT_PACKAGE` import lets SwiftPM share

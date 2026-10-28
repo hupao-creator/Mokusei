@@ -29,6 +29,9 @@ session and display visibly skip when those capabilities are absent; fixture-gat
 Go/native replays also print their required launcher. A green headless run does
 not certify those skipped UI or cross-language flows. The [Swift test audit](../../tools/verification/swift-tests/README.md)
 records the failure/skip inventory and reproduction commands.
+Hosted macOS CI now runs graphical tests and the Go/AppKit fixture launchers,
+rejecting unexpected skips. Its current-revision results replace equivalent
+local runs under the [verification policy](../../scripts/ci/verification-policy.md).
 
 The application, runtime-exit helper and Probe enter the shared
 [native profile lease](Sources/Core/RuntimeProfileClientLease.swift) boundary

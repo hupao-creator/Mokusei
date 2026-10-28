@@ -8,8 +8,30 @@ rows = ["| Run / framework | tests | suites | issues | skipped | executed |",
         "| --- | ---: | ---: | ---: | ---: | ---: |"]
 errors = []
 results = []
-for label, filename in [("Directory tags", "swift-directory-tags.log"),
-                        ("Full suite", "swift-tests.log")]:
+# These methods run under their live Go fixture or isolated AppKit launcher in
+# the required replay steps below. No capability or newly introduced skip is
+# allowed to turn a partial Swift run into complete CI coverage.
+xctest_launchers = {
+    "MokuseiCoreTests.GoDeltaInteropTests.testGoGeneratedDeltasReconstructNativeContent",
+    "MokuseiCoreTests.IntegerWireTests.testExportActualSwiftRequestsToGo",
+    "MokuseiCoreTests.RuntimeHostFilesInteropTests.testNativeUploadsAndDownloadsCrossTheGoTransportBoundary",
+    "MokuseiCoreTests.RuntimeSettingsCapacityInteropTests.testColdSettingsBurstAndCancellation",
+    "MokuseiCoreTests.RuntimeShutdownInteropTests.testCanonicalProfileIdentity",
+    "MokuseiCoreTests.RuntimeShutdownInteropTests.testStaleDiscoveryRecovery",
+    "MokuseiCoreTests.RuntimeShutdownInteropTests.testReopenAfterFailedShutdown",
+    "MokuseiGitIntegrationTests.PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage",
+}
+swift_launchers = {
+    "retiringPageCancelsItsSheetAndCompletesExactlyOnce(dialog:retirement:)",
+    "hiddenPageCannotPresentNewSheet(dialog:)",
+    "acceptedPromptAllowsReentrantNextDialog()",
+    "navigationCancellationRejectsReentrantPageDialog(navigateAgain:)",
+    "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:)",
+    "dailySettingsFlow()",
+    "directorySelectionResizeKeepsRoundedGlass()",
+    "shortChildMorphKeepsBothCapsuleEnds()",
+}
+for label, filename in [("Full suite", "swift-tests.log")]:
     path = Path(os.environ["RUNNER_TEMP"]) / filename
     if not path.is_file():
         errors.append(f"{label}: no test log; tests did not run.")
@@ -17,6 +39,11 @@ for label, filename in [("Directory tags", "swift-directory-tags.log"),
     log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", path.read_text(errors="replace"))
     if "Requires a logged-in WindowServer session and a display" in log:
         errors.append(f"{label}: native display tests skipped; hosted UI coverage is required.")
+    skipped_xctest = {f"{suite}.{method}" for suite, method in re.findall(
+        r"Test Case '-\[([^ ]+) ([^\]]+)\]' skipped", log)}
+    skipped_swift = set(re.findall(r"(?m)^[➜↷✘] Test (.+?) skipped(?:[.:]| because)", log))
+    for name in sorted((skipped_xctest - xctest_launchers) | (skipped_swift - swift_launchers)):
+        errors.append(f"{label}: unexpected skip: {name}")
     executed = 0
 
     # Read only XCTest's final aggregate, not each repeated suite total.
@@ -68,9 +95,18 @@ for label, filename in [("Directory tags", "swift-directory-tags.log"),
     if executed <= 0:
         errors.append(f"{label}: no tests executed (skips do not count).")
 
+for group in ("fixtures", "interop", "native"):
+    path = Path(os.environ["RUNNER_TEMP"]) / ("ci-" + group) / "report.json"
+    if not path.is_file():
+        errors.append(f"{group}: required replay report missing.")
+        continue
+    replay = json.loads(path.read_text())
+    if replay.get("errors") or not replay["checks"] or any(check["status"] != "passed" for check in replay["checks"]):
+        errors.append(f"{group}: required replays failed or did not complete.")
+
 rows += ["", "tests are framework-reported totals; executed excludes skipped tests.",
-         "Directory tags also appear in the full run; do not add the runs together.",
-         "Headless / fixture-gated skips are not coverage of native user flows."]
+         "Only named live-fixture/isolated-host methods may defer to the required replay steps.",
+         "Directory tags execute once in the full suite. Display-capability skips fail CI."]
 report = "\n".join(rows) + "\n"
 destination = Path(os.environ["RUNNER_TEMP"]) / "swift-summary.json"
 destination.write_text(json.dumps({"runs": results, "errors": errors}, indent=2) + "\n")

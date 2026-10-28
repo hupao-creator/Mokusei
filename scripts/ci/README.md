@@ -1,7 +1,7 @@
 # Continuous integration
 
 [The workflow](../../.github/workflows/ci.yml) runs portable Go checks on Linux
-and native Go plus headless Swift checks on macOS 26 arm64. `scripts/go.sh` is
+and native Go plus graphical Swift checks on macOS 26 arm64. `scripts/go.sh` is
 the local Apple Silicon bootstrap; Actions installs the `go.mod` toolchain
 with setup-go so Linux does not invoke a Darwin-only wrapper. CGO and system
 SQLite remain enabled. The Darwin profile-rotation tests run on macOS, and
@@ -28,11 +28,26 @@ runs overlap, so their counts are not unique coverage totals.
 
 Swift reports XCTest and Swift Testing separately. XCTest failures and Swift
 Testing issues are framework counts, not interchangeable assertion counts.
-DirectoryTag is repeated inside the full suite and must not be added twice.
-`MOKUSEI_TEST_HEADLESS=1` deliberately exercises capability admission; the
-display-dependent tests visibly skip. This does not verify native user flows
-or a physically display-less machine. Keep the local graphical `make check`
-and affected [native replays](../../tools/verification/README.md).
+DirectoryTag runs once inside the full suite. CI does not force headless mode;
+missing display capability and unexpected skipped methods fail the report.
+The exact allowlist contains only methods executed through the required live Go
+fixtures or isolated AppKit launchers. Four Go producers supply the remaining
+Swift fixtures before the full suite. All three replay reports must complete.
+
+`replays.py` runs the existing integration commands serially within each group,
+records command/exit/status/log evidence from before execution, kills its owned
+process group on timeout, and rejects native test skips. Linux runs `runtime`
+and `adapters`; macOS runs `fixtures`, `interop` and `native` around the full
+Swift suite. It does not recreate product logic. Reproduce a group with
+`python3 scripts/ci/replays.py GROUP --go ./scripts/go.sh --output /tmp/new-evidence`.
+Native groups require the current Swift build; for local full-suite fixture use,
+export the four paths recorded by the `fixtures` group.
+
+Dispatch `CI` with `extended=true` for pinned external CLI loopback verification,
+Moku system matrices and the full 30-minute stability gate. These checks are
+separate from the fast PR jobs and never need a real model account. See the
+[value and execution policy](verification-policy.md) for triggers, equivalent
+local-check replacement and the limited hardware acceptance that remains.
 
 Raw test logs and JSON summaries are retained as Actions artifacts even when
 tests fail. Missing logs are reported as not run, never as zero failures.

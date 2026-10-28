@@ -1,5 +1,12 @@
 # Functional integration replays
 
+The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
+tools to hosted gates and explains their independent value. A current-revision
+CI pass replaces an equivalent local run. Standalone visual/research tools are
+not automatically merge requirements; additional local acceptance needs a named
+uncovered defect and trigger. Real CLI and full stability checks have a hosted
+`CI` workflow dispatch (`extended=true`); they do not require self-hosted Macs.
+
 Retained evidence uses neutral `/Users/example` paths and numbered `.worktrees`
 directories. Archive owner names are also anonymized. Evidence-file and archive
 checksums describe the sanitized copies; measurements and historical build

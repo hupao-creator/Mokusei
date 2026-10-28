@@ -80,8 +80,7 @@ private struct TagGlassBounds: ViewModifier {
 struct NativeOverviewTagGlassTests {
     /// Compare the production prefix with unconstrained native glyph layout,
     /// then capture it in the real glass/scroll hierarchy at compact widths.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func prefixesKeepNativeGlyphBoundsInCompactChips() async throws {
+    @Test func prefixesKeepNativeGlyphBoundsInCompactChips() async throws {
         let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_ICON_ARTIFACTS"].map {
             URL(fileURLWithPath: $0, isDirectory: true)
         }
@@ -430,8 +429,7 @@ struct NativeOverviewTagGlassTests {
 
     /// Exercise the production glass menu, actions, labels and canvas input
     /// regions. The title must remain frozen while the retiring row is drawn.
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func childSelectionSemanticsAndMenuInputSurviveOpenAndClose() async throws {
+    @Test func childSelectionSemanticsAndMenuInputSurviveOpenAndClose() async throws {
         let app = NSApplication.shared
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) {
@@ -553,8 +551,7 @@ struct NativeOverviewTagGlassTests {
         }
     }
 
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires isolated native glass/window capture: python3 tools/verification/reading-presentation/run.py --tag-glass"))
-    func longChildTitleStaysInFilterBarAtNarrowWidthsAndWindowZoom() async throws {
+    @Test func longChildTitleStaysInFilterBarAtNarrowWidthsAndWindowZoom() async throws {
         for (width, scale) in [(620.0, 1.0), (540.0, 1.0), (360.0, 1.0), (1000.0, 2.0), (720.0, 2.0), (1242.0, 2.0), (1000.0, 1.0)] {
             let fixture = TagGlassFixture(children: true, longNames: true)
             let logicalWidth = width / scale
