@@ -4,6 +4,7 @@ import SwiftUI
 import Testing
 import MokuseiCore
 import MokuseiPluginUI
+@testable import MokuseiUI
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
 #endif
@@ -14,6 +15,46 @@ import MokuseiTestSupport
        .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
                 "Requires the AppKit loop: python3 tools/verification/reading-presentation/run.py --model-selector"))
 struct NativeModelSelectorReplayTests {
+    @Test func applicationEscapeCancelsPickerBeforeSettingsNavigation() async throws {
+        let fixture = ModelSelectorFixture()
+        var closes = 0
+        let window = mount(fixture)
+        let escape = NativeSettingsEscapeHandler.EscapeView { closes += 1 }
+        let root = try #require(window.contentView)
+        root.addSubview(escape)
+        defer { escape.dispose(); window.orderOut(nil); window.contentView = nil }
+        try await settle()
+        for label in ["Model", "Reasoning effort", "Model"] {
+            let button = try selector(label, window)
+            button.performClick(nil)
+            try await settle()
+            let popup = try popupContent()
+            if label == "Reasoning effort" {
+                let slider = try #require(views(popup).compactMap { $0 as? NSSlider }.first)
+                #expect(popup.window?.makeFirstResponder(slider) == true)
+            }
+            // Use NSApplication, not content.keyDown/window.sendEvent: only the
+            // application route includes the Settings keyDown local monitor.
+            try applicationEscape(window)
+            try await settle()
+            #expect(closes == 0)
+            #expect(!NSApp.windows.contains { $0.isVisible && containsPopup($0.contentView) })
+            #expect(window.firstResponder === button)
+            #expect(fixture.model == "sol")
+            #expect(fixture.effort == "native/high")
+            #expect(fixture.changes == 0)
+        }
+        try applicationEscape(window)
+        #expect(closes == 1)
+    }
+
+    private func applicationEscape(_ window: NSWindow) throws {
+        let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+        NSApp.sendEvent(event)
+    }
+
     @Test func modelListPreservesIdentityAndKeyboardCancellation() async throws {
         let fixture = ModelSelectorFixture()
         let window = mount(fixture)

@@ -2,6 +2,12 @@ import AppKit
 import MokuseiCore
 import SwiftUI
 
+/// A document-level Escape monitor must give its focused control's transient
+/// presentation first refusal before navigating away from the document.
+@MainActor public protocol NativeSettingsEscapeCancelling: AnyObject {
+    func cancelSettingsPresentation() -> Bool
+}
+
 /// Model identities and the order of reasoning choices belong to the Harness.
 /// This control never derives capabilities, defaults or wire values from labels.
 public struct NativeModelSelector: View {
@@ -73,7 +79,7 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
     static func dismantleNSView(_ view: ModelSelectorButton, coordinator: ()) { view.dispose() }
 }
 
-@MainActor private final class ModelSelectorButton: NSButton, NSPopoverDelegate {
+@MainActor private final class ModelSelectorButton: NSButton, NSPopoverDelegate, NativeSettingsEscapeCancelling {
     private var value: JSONText = ""
     private var options: [NativeSettingsOption] = []
     private var presentation = NativeModelSelector.Presentation.models
@@ -152,6 +158,12 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
             } else { super.keyDown(with: event) }
         }
     }
+    func cancelSettingsPresentation() -> Bool {
+        guard popover?.isShown == true else { return false }
+        dismiss(restoreFocus: true)
+        return true
+    }
+
     override func accessibilityPerformShowMenu() -> Bool { open(); return popover?.isShown == true }
     @objc private func toggle() { if popover?.isShown == true { dismiss(restoreFocus: true) } else { open() } }
 
@@ -240,7 +252,7 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
     }
 }
 
-@MainActor final class ModelSelectorContent: NSView {
+@MainActor final class ModelSelectorContent: NSView, NativeSettingsEscapeCancelling {
     private var value: JSONText
     private var options: [NativeSettingsOption]
     private let presentation: NativeModelSelector.Presentation
@@ -457,6 +469,11 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
                 }
             }
         }
+    }
+    func cancelSettingsPresentation() -> Bool {
+        guard isActive(), let dismiss else { return false }
+        dismiss()
+        return true
     }
     override func cancelOperation(_ sender: Any?) { dismiss?() }
     override func accessibilityPerformCancel() -> Bool { dismiss?(); return true }

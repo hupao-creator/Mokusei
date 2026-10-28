@@ -96,6 +96,7 @@ def main():
         "MokuseiGitIntegrationTests.PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage",
     }
     swift_launchers = {
+        "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/applicationEscapeCancelsPickerBeforeSettingsNavigation()",
         "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/modelListPreservesIdentityAndKeyboardCancellation()",
         "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/reasoningMapsNativeStepsResetAndModelNavigation()",
         "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/refreshRetiresPopupAndSingleChoiceRemainsSelectable()",

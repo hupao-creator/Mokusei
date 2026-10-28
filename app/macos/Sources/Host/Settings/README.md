@@ -177,3 +177,8 @@ without forcing native cache invalidation; this refreshes capabilities even when
 installation paths stay unchanged. OpenCode can return a native catalog before
 optional account checks complete: it labels that uncertainty and rereads without
 forcing another probe. No settings navigation or Map layout is changed.
+
+Escape cancels the focused model/reasoning selector's open native popover before
+page navigation, without changing its value. The next Escape returns from Settings.
+`NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
+through NSApplication to cover this precedence, focus restoration and reopening.
