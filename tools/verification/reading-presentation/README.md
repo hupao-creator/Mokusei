@@ -1,5 +1,26 @@
 # Reading-page background presentation replay
 
+## Thread history sidebar
+
+```sh
+python3 tools/verification/reading-presentation/run.py --thread-sidebar
+```
+
+Mounts the production conversation, lazy TOC, timeline and turn components in an
+isolated AppKit host. Four integration cases cover selection and Back scroll
+retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
+inherited history, deletion, arriving successors and external result anchors.
+A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
+locates an old turn outside the current window. This is a resource-demand check,
+not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
+author accessibility and save settled dark/light screenshots under
+`.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
+
+The ordinary Swift suite also discovers these cases; forced headless admission
+skips their graphical assertions explicitly. The isolated launcher requires all
+four cases without skips. Existing `--moku-execution-links` separately covers
+deferred bodies and exact-result following through all four real Harness renderers.
+
 ## Empty workspace and first dispatch
 
 ```sh

@@ -26,8 +26,8 @@ The fixture has `interaction-a`, `interaction-b` and `interaction-c` with 1, 8 a
 150 completed turns respectively. Each turn includes reasoning, three completed
 tool activities, command output, Unicode, Markdown, a code block and a table.
 The command/tool records are fixture data; no command is actually executed. The
-150-turn case exercises the production timeline's 120-row window and load-earlier
-button. A fixed epoch keeps timeline content and ordering repeatable.
+150-turn case exercises the lazy sidebar index while only the current and selected
+historical turn bodies are mounted. A fixed epoch keeps ordering repeatable.
 
 To seed a profile independently, its parent must exist and the profile itself
 must not exist:

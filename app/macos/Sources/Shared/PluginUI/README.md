@@ -78,6 +78,32 @@ for production rendering, selection, copying and navigation fixtures.
 
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
+[ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
+conversation's turn index as a left-hand TOC. The selected mark is longer and
+brighter; hover or keyboard focus reveals a bounded prompt/answer preview. The
+viewport-bounded, independently scrollable index includes inherited history and
+the current turn, without mounting historical bodies or parsing every answer.
+The shared `NativeScrollView` retains native viewport behavior with hidden TOC
+indicators. Up/Down and Home/End move focus; Return/Space activates the focused
+entry. One stable keyboard
+responder survives entry recycling, and Escape retains the document Back action.
+Accessible names include the ordinal and prompt, and the selected/current states
+are exposed separately.
+Selecting history uses the existing scoped document and Back restores the retained
+current scroll position. New turns do not replace an open historical execution;
+removed destinations show the unavailable document and retain return navigation.
+Execution sidecards keep their single-execution presentation.
+
+[ThreadReadingHeader.swift](Conversation/ThreadReadingHeader.swift) places the
+mounted turn's resolved author under the title, beside execution/user-message
+visibility controls. Narrow widths wrap the controls and truncate the visible
+author while preserving its complete accessible label, tooltip and text selection.
+The author comes from the actual Harness-rendered body, including runtime model
+overrides; manifests cannot invent it. Completion time, duration and usage remain
+in the footer. Inherited transcripts containing several turns retain each turn's
+author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
+covers mounted navigation, author updates, long indices and responsive layout.
+
 ## Cards, composer and forms
 
 Shared Harness card components keep task identity, usage, plan and extension layout consistent. Plan rows have a native glass highlight only for an actual in-progress step; empty plans render no section. The emoji/follow-up control keeps a stable circular glass surface and native focus/action semantics. Loading-cloud palette is supplied by the Harness rather than selected by identity inside the renderer.

@@ -27,6 +27,7 @@ def main():
     tag_glass = "--tag-glass" in sys.argv or glass_captures
     suite = ("NativeModelSelectorReplayTests" if "--model-selector" in sys.argv else
              "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
+             "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
              "NativeBrowserDialogTests" if "--browser-dialogs" in sys.argv else
@@ -58,6 +59,8 @@ def main():
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
         if "--model-selector" in sys.argv:
             environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
+        if "--thread-sidebar" in sys.argv:
+            environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
         if tag_glass:
@@ -89,6 +92,7 @@ def main():
         replay.close()
     count = (3 if "--model-selector" in sys.argv else
              4 if isolated_input else
+             4 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
