@@ -43,6 +43,8 @@ extension RuntimeClient {
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var dark = false
     var mounted = true
+    var voice = false
+    var phase = ScenePhase.active
     var revision = 0
     var talkAudit: [JSONValue] = []
     init(directory: URL) throws {
@@ -54,8 +56,12 @@ extension RuntimeClient {
             applications: .init(projectionCapabilities: { _, _ in throw CancellationError() },
                                 rendererContext: { _, _, _ in throw CancellationError() }))
         presentation = NativeMokuWorkspacePresentation(workspace: workspace, overview: overview)
-        workspace.onCatalogChange = { [weak presentation] event in presentation?.receive(event) }
-        workspace.onConnectionChange = { [weak presentation] status in presentation?.receive(.connection(status)) }
+        workspace.onCatalogChange = { [weak overview, weak presentation] event in
+            overview?.receive(event); presentation?.receive(event)
+        }
+        workspace.onConnectionChange = { [weak overview, weak presentation] status in
+            overview?.receive(.connection(status)); presentation?.receive(.connection(status))
+        }
     }
     func record(text: String?, execution: String = "e1", status: PublicExecution.Status = .running,
                 sequence: Int = 1, offset: Int = 0, kind: String = "reasoning") throws -> HarnessThread {
@@ -100,13 +106,15 @@ private struct Scene: View {
             if fixture.mounted {
                 NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp",
                     mode: fixture.presentation.dockMode, running: fixture.presentation.running,
-                    voiceBackground: AnyView(NativeVoiceCloud(level: 0.1, pitchHz: 220, confidence: 0.99,
-                        capturedAt: ProcessInfo.processInfo.systemUptime, listening: true, motionEnabled: true)),
-                    presentation: fixture.presentation, onSend: { _ in }, onCancel: {})
+                    interaction: fixture.presentation.interaction,
+                    interactionIsQuestion: fixture.presentation.interactionIsQuestion,
+                    voiceControls: AnyView(Text("Voice")), voiceStatusVisible: fixture.voice, voiceModeActive: fixture.voice,
+                    presentation: fixture.presentation, note: .init(id: "note", text: "A fixture note for Arc ownership.", revision: 1, updatedAt: 1), onSend: { _ in }, onCancel: {})
             }
         } settings: { Color.clear }
         .background(fixture.dark ? Color(red: 0.09, green: 0.10, blue: 0.088) : Color(red: 0.962, green: 0.958, blue: 0.938))
         .environment(\.colorScheme, fixture.dark ? .dark : .light)
+        .environment(\.scenePhase, fixture.phase)
     }
 }
 @MainActor private func wait(_ message: String, _ condition: () -> Bool) async throws {
@@ -116,16 +124,12 @@ private struct Scene: View {
         try await Task.sleep(for: .milliseconds(20))
     }
 }
-@MainActor private func canvas(_ view: NSView) -> NativeMokuCapsuleReasoningCanvas? {
-    if let view = view as? NativeMokuCapsuleReasoningCanvas { return view }
+@MainActor private func canvas(_ view: NSView) -> NativeMokuCharacterCanvas? {
+    if let view = view as? NativeMokuCharacterCanvas, view.seat == .decorations { return view }
     return view.subviews.lazy.compactMap { canvas($0) }.first
 }
-@MainActor private func talk(_ view: NSView) -> NativeMokuTalkScrollView? {
-    if let view = view as? NativeMokuTalkScrollView { return view }
-    return view.subviews.lazy.compactMap { talk($0) }.first
-}
-@MainActor private func eye(_ view: NSView) -> NativeMokuCapsuleEyeCanvas? {
-    if let view = view as? NativeMokuCapsuleEyeCanvas { return view }
+@MainActor private func eye(_ view: NSView) -> NativeMokuCharacterCanvas? {
+    if let view = view as? NativeMokuCharacterCanvas, view.seat == .face { return view }
     return view.subviews.lazy.compactMap { eye($0) }.first
 }
 private func png(_ image: CGImage, _ url: URL) throws {
@@ -173,20 +177,20 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     let window = NSWindow(contentRect: CGRect(x: 180, y: 180, width: 900, height: 520),
         styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
     window.level = .floating // Keep this auxiliary window out of Stage Manager thumbnail transforms.
-    window.title = "Production Moku Reasoning integration — isolated fixture"
+    window.title = "Production Moku Thinking Arc — isolated fixture"
     window.isReleasedWhenClosed = false; window.contentView = host; window.makeKeyAndOrderFront(nil)
     NSApp.activate()
     defer { window.close() }
     try await wait("mounted production contour") { canvas(host) != nil && fixture.scene.windowVisible }
-    try require(fixture.presentation.reasoning == nil && canvas(host)?.animation.content == nil, "No-reasoning run displayed old text")
-    let text = "先读已有实现，确认文字方向和阅读节奏。接着沿横条外轮廓展开，让新的思路顺着边缘流动。原生生产组件正在接收真实的公开活动数据结构。"
+    try require(fixture.presentation.reasoning == nil && canvas(host)?.controller.currentReasoning == nil, "No-reasoning run displayed old text")
+    var text = "先读已有实现，确认文字方向和阅读节奏。接着沿开口圆弧展开，让新的思路顺着文字推进。原生生产组件正在接收真实的公开活动数据结构。"
     try await fixture.send(text: text)
-    try await wait("real Harness→presentation→Dock→canvas") { canvas(host)?.animation.content?.sourceText == text }
-    try require(canvas(host)!.animation.content?.segmentKey == fixture.presentation.reasoning?.segmentKey,
+    try await wait("real Harness→presentation→Dock→canvas") { canvas(host)?.controller.currentReasoning?.sourceText == text }
+    try require(canvas(host)!.controller.currentReasoning?.segmentKey == fixture.presentation.reasoning?.segmentKey,
         "Dock bypassed live production projection")
     try require(eye(host) != nil, "Production blinking eyes were replaced")
-    try require(canvas(host)!.hasScheduledFrame, "Visible reasoning has no frame timer")
-    if CommandLine.arguments.contains("--negative-control") { canvas(host)!.stop() }
+    try require(canvas(host)!.controller.hasScheduledFrame, "Visible reasoning has no frame timer")
+    if CommandLine.arguments.contains("--negative-control") { fixture.phase = .inactive }
     try await Task.sleep(for: .milliseconds(650))
     var target: SCWindow?
     for _ in 0..<40 {
@@ -225,7 +229,9 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         var mask = sagePixels(crop)
         // Exclude the body/rim too: the window's green zoom button and glass
         // reflection are not reasoning. Keep only the external letter region.
-        let body = view.track.body.insetBy(dx: -8, dy: -8)
+        let size = view.controller.input?.capsuleSize ?? .zero
+        let body = CGRect(x: view.bounds.midX - size.width / 2, y: view.bounds.midY - size.height / 2,
+                          width: size.width, height: size.height).insetBy(dx: -8, dy: -8)
         for y in 0..<crop.height {
             for x in 0..<crop.width where body.contains(CGPoint(x: Double(x) / sx, y: Double(y) / sy)) {
                 mask[y * crop.width + x] = 0
@@ -233,51 +239,97 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         }
         return mask
     }
+    // The accepted Arc rests after input, so motion evidence must admit an
+    // actual append instead of expecting the retired perpetual contour loop.
+    text += " 新的字素保持顺序，正在缓缓进入。"
+    try await fixture.send(text: text)
     let first = try await capture("01-stream-light-a")
     try await Task.sleep(for: .milliseconds(240))
     let second = try await capture("02-stream-light-b")
     let count = second.reduce(0) { $0 + Int($1) }
-    try require(count > 80 && first != second, "no naturally changing reasoning pixels")
+    try require(count > 80 && first != second, "no naturally changing reasoning pixels; ink=\(count), clock=\(canvas(host)!.controller.reasoningAnimation.clock)")
     let originalKey = fixture.presentation.reasoning!.segmentKey
-    let originalClock = canvas(host)!.animation.clock
+    let originalClock = canvas(host)!.controller.reasoningAnimation.clock
     try await fixture.send(text: text + "👩🏽‍💻 新的内容连续进入。")
-    try await wait("stream append delivered") { canvas(host)?.animation.content?.sourceText?.hasSuffix("新的内容连续进入。") == true }
-    try require(fixture.presentation.reasoning?.segmentKey == originalKey && canvas(host)!.animation.clock > originalClock,
+    try await wait("stream append delivered") { canvas(host)?.controller.currentReasoning?.sourceText.hasSuffix("新的内容连续进入。") == true }
+    try require(fixture.presentation.reasoning?.segmentKey == originalKey && canvas(host)!.controller.reasoningAnimation.clock > originalClock,
         "Stream append reset execution reader")
+    let highRateClock = canvas(host)!.controller.reasoningAnimation.clock
+    var streamed = text
+    for index in 0..<20 {
+        streamed += " \(index)"
+        try await fixture.send(text: streamed)
+        try await Task.sleep(for: .milliseconds(8))
+    }
+    try require(canvas(host)!.controller.reasoningAnimation.clock - highRateClock > 80,
+        "Frequent source updates starved the activity clock")
     try await fixture.send(text: "窗口尾部继续", offset: 800)
-    try await wait("UTF16 offset delivered") { canvas(host)?.animation.content?.sourceOffset == 800 }
+    try await wait("UTF16 offset delivered") { canvas(host)?.controller.currentReasoning?.sourceOffset == 800 }
     try await fixture.send(text: "", sequence: 2)
-    try await wait("empty reasoning cleared") { canvas(host)?.animation.content == nil }
+    try await wait("empty reasoning cleared") { canvas(host)?.controller.currentReasoning == nil }
     try await fixture.send(text: "开始新的推理段", sequence: 3)
-    try await wait("new sequence") { canvas(host)?.animation.content != nil }
+    try await wait("new sequence") { canvas(host)?.controller.currentReasoning != nil }
     try require(fixture.presentation.reasoning?.segmentKey != originalKey, "Reasoning segment identity reused")
-    try await fixture.send(text: "assistant", sequence: 4, kind: "assistant-text")
-    try await wait("assistant role clears contour despite queued mode") { canvas(host)?.animation.content == nil }
+    let decomposed = "Cafe\u{301}"
+    try await fixture.send(text: decomposed, sequence: 4)
+    try await wait("decomposed UTF16 source") {
+        canvas(host)?.controller.currentReasoning?.sourceText.utf16.elementsEqual(decomposed.utf16) == true
+    }
+    let composed = "Café"
+    try await fixture.send(text: composed, sequence: 4)
+    try await wait("canonical-equivalent source revision reaches the reader") {
+        canvas(host)?.controller.currentReasoning?.sourceText.utf16.elementsEqual(composed.utf16) == true
+    }
+    try await fixture.send(text: "tool", sequence: 5, kind: "tool-call")
+    try await wait("tool foreground clears current arc") { canvas(host)?.controller.currentReasoning == nil }
+    try await fixture.send(text: "assistant", sequence: 6, kind: "assistant-text")
+    try await wait("assistant role clears contour despite queued mode") { canvas(host)?.controller.currentReasoning == nil }
+    try await wait("retiring glyphs settle without retaining a live source") { canvas(host)?.controller.isRetiringReasoning == false }
     for status in [PublicExecution.Status.completed, .failed, .interrupted, .waitingForUser] {
-        try await fixture.send(text: "terminal stale payload", status: status, sequence: 5)
-        try await wait("terminal reasoning retired") { fixture.presentation.reasoning == nil && canvas(host)?.animation.content == nil }
+        try await fixture.send(text: "terminal stale payload", status: status, sequence: 7)
+        try await wait("terminal reasoning retired") { fixture.presentation.reasoning == nil && canvas(host)?.controller.currentReasoning == nil }
     }
     try await fixture.send(text: nil, execution: "e2")
     try require(fixture.presentation.reasoning == nil, "New execution retained old reasoning")
     try await fixture.send(text: "第二次执行的思路，必须与前一次隔离。", execution: "e2")
-    try await wait("replacement execution") { canvas(host)?.animation.content?.segmentKey.contains("e2") == true }
+    try await wait("replacement execution") { canvas(host)?.controller.currentReasoning?.segmentKey.contains("e2") == true }
     try require(fixture.presentation.reasoning?.segmentKey != originalKey, "Execution change reused old reader")
+    fixture.talkAudit = [.object([
+        "type": .text("tool-operation"), "name": .text("list_threads"), "id": .text("route"),
+        "executionId": .text("e2"), "arguments": .object([:])
+    ])]
+    try await fixture.send(text: "当前推理必须让位给专属操作。", execution: "e2", sequence: 2)
+    try await wait("public dedicated operation covers reasoning") {
+        fixture.presentation.activeOperation != nil && fixture.presentation.reasoning == nil
+            && canvas(host)?.controller.currentReasoning == nil
+    }
+    fixture.talkAudit = []
+    try await fixture.send(text: "当前操作结束，恢复最新的合法推理。", execution: "e2", sequence: 3)
+    try await wait("dedicated operation releases the current arc") { canvas(host)?.controller.currentReasoning != nil }
     fixture.scene.setInputOpen(true)
-    try await wait("composer suppresses contour") { canvas(host)?.animation.content == nil }
+    try await wait("composer suppresses contour") { canvas(host)?.controller.currentReasoning == nil }
     // A real send seals the retiring editor snapshot until the next input opens.
     // That retained draft must not suppress the newly running execution's reader.
     fixture.scene.retainDraft(fixture.draft, seal: true)
     fixture.scene.setInputOpen(false)
     try require(fixture.scene.capsuleSealed, "Submission regression did not retain its sealed draft")
-    try await wait("current reasoning restores after sealed composer submission") { canvas(host)?.animation.content != nil }
+    try await wait("current reasoning restores after sealed composer submission") { canvas(host)?.controller.currentReasoning != nil }
+    fixture.scene.setNotePanelOpen(true)
+    try await wait("note covers the live arc") { canvas(host)?.controller.currentReasoning == nil }
+    fixture.scene.setNotePanelOpen(false)
+    try await wait("current arc restores after note") { canvas(host)?.controller.currentReasoning != nil }
+    fixture.voice = true
+    try await wait("voice covers the live arc") { canvas(host)?.controller.currentReasoning == nil }
+    fixture.voice = false
+    try await wait("current arc restores after voice") { canvas(host)?.controller.currentReasoning != nil }
     fixture.scene.setSearchActive(true)
-    try await wait("covered Dock clears contour") { canvas(host)?.animation.content == nil }
+    try await wait("covered Dock clears contour") { canvas(host)?.controller.currentReasoning == nil }
     try await fixture.send(text: nil, execution: "e3")
     fixture.scene.setSearchActive(false)
     try await Task.sleep(for: .milliseconds(150))
-    try require(canvas(host)?.animation.content == nil, "Navigation restore resurrected expired reasoning")
+    try require(canvas(host)?.controller.currentReasoning == nil, "Navigation restore resurrected expired reasoning")
     try await fixture.send(text: text, execution: "e3")
-    try await wait("third execution ready") { canvas(host)?.animation.content != nil }
+    try await wait("third execution ready") { canvas(host)?.controller.currentReasoning != nil }
     fixture.dark = true
     NSApp.appearance = NSAppearance(named: .darkAqua)
     try await Task.sleep(for: .milliseconds(180))
@@ -285,17 +337,26 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     // Exercise actual hide/show notifications. This replay does not attempt
     // programmatic miniaturization and makes no claim about that path.
     window.orderOut(nil)
-    try await wait("hidden window timer stops") { canvas(host)?.hasScheduledFrame == false }
+    try await wait("hidden window timer stops") { canvas(host)?.controller.hasScheduledFrame == false }
     window.makeKeyAndOrderFront(nil)
-    try await wait("visible timer resumes") { canvas(host)?.hasScheduledFrame == true }
+    try await wait("visible timer resumes") { canvas(host)?.controller.hasScheduledFrame == true }
     await fixture.client.fixtureAvailability(.disconnected)
-    try await wait("disconnect clears live reasoning") { fixture.presentation.reasoning == nil && canvas(host)?.animation.content == nil }
+    try await wait("disconnect clears live reasoning") { fixture.presentation.reasoning == nil && canvas(host)?.controller.currentReasoning == nil }
     await fixture.client.fixtureAvailability(.connected)
-    try await wait("reconnected current content") { canvas(host)?.animation.content != nil }
+    try await wait("reconnected current content") { canvas(host)?.controller.currentReasoning != nil }
     fixture.mounted = false
     try await wait("canvas removed") { canvas(host) == nil }
     fixture.mounted = true
-    try await wait("new production canvas") { canvas(host)?.animation.content != nil }
+    try await wait("new production canvas") { canvas(host)?.controller.currentReasoning != nil }
+    try await fixture.send(text: "让我想一想。", execution: "e3", sequence: 2)
+    try await wait("short current segment") { canvas(host)?.controller.currentReasoning?.text == "让我想一想。" }
+    try await Task.sleep(for: .milliseconds(700))
+    let settledGlyphs = canvas(host)!.controller.reasoningAnimation.glyphs
+    try await Task.sleep(for: .milliseconds(250))
+    try require(settledGlyphs == canvas(host)!.controller.reasoningAnimation.glyphs,
+                "Short arc text did not settle after input stopped")
+    _ = try await capture("04-short-settled")
+    try await fixture.send(text: text, execution: "e3", sequence: 3)
     // Observe the real blink clock while reasoning frames and source updates run.
     var closedEye = false, reopenedEye = false, openEyeInk = 0
     let until = ProcessInfo.processInfo.systemUptime + 6
@@ -335,25 +396,25 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         "arguments": .object(["text": .text("共同验证 Talk、光云与眨眼；reasoning 暂时让位。")]),
         "result": .object(["ok": .bool(true)])
     ])]
-    try await fixture.send(text: text, execution: "e3")
+    try await fixture.send(text: text, execution: "e3", sequence: 3)
     try await wait("talk takes priority over current reasoning") {
-        fixture.scene.talkPresentation.presented && canvas(host)?.animation.content == nil
+        fixture.scene.talkPresentation.presented && canvas(host)?.controller.currentReasoning == nil
     }
     try await wait("joint talk reaches the production text view") {
-        talk(host)?.messageView.string == "共同验证 Talk、光云与眨眼；reasoning 暂时让位。"
+        fixture.scene.talkPresentation.message?.text == "共同验证 Talk、光云与眨眼；reasoning 暂时让位。"
     }
     try await Task.sleep(for: .milliseconds(500))
     try require(fixture.presentation.reasoning != nil && eye(host) === residentEye
-        && canvas(host)?.animation.content == nil && fixture.scene.capsuleFrame.width > 136,
+        && canvas(host)?.controller.currentReasoning == nil && fixture.scene.capsuleFrame.width > 136,
         "Talk replaced the eye surface, lost priority or destroyed the live reasoning source")
     _ = try await capture("09-talk-cloud-priority")
     fixture.scene.dismissTalk()
-    try await wait("current reasoning restores after talk") { canvas(host)?.animation.content != nil }
+    try await wait("current reasoning restores after talk") { canvas(host)?.controller.currentReasoning != nil }
     try await Task.sleep(for: .milliseconds(500))
-    try require(eye(host) === residentEye && talk(host) == nil, "Talk retirement replaced the eye clock or left old text")
+    try require(eye(host) === residentEye && !fixture.scene.talkPresentation.presented, "Talk retirement replaced the eye clock or left old text")
     _ = try await capture("10-reasoning-cloud-restored")
     try await fixture.send(text: nil, execution: "e3", status: .completed)
-    try await wait("final completion clears canvas and timer") { canvas(host)?.animation.content == nil && canvas(host)?.hasScheduledFrame == false }
+    try await wait("final completion clears canvas and timer") { canvas(host)?.controller.currentReasoning == nil && canvas(host)?.controller.isRetiringReasoning == false && canvas(host)?.controller.isTransitioning == false }
     let completedPixels = try await capture("06-completed")
     let completedInk = completedPixels.reduce(0) { $0 + Int($1) }
     try require(completedInk < 5, "Completed execution left stale reasoning pixels: \(completedInk)")
@@ -370,14 +431,16 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             var failure: String?
             do { try await replay() } catch { failure = String(describing: error) }
             let url = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("result.json")
-            try! JSONSerialization.data(withJSONObject: ["ok": failure == nil, "message": failure ?? "production reasoning data path, contour frames and lifecycle"]).write(to: url)
+            try! JSONSerialization.data(withJSONObject: ["ok": failure == nil, "message": failure ?? "production reasoning data path, Arc frames and lifecycle"]).write(to: url)
             if let failure { print("FAIL \(failure)") }
             NSApp.terminate(nil)
         }
     }
 }
 @main struct Main {
-    @MainActor static func main() {
+    @MainActor static func main() throws {
+        try prepareIsolatedNativeReplay()
+        NativeTypography.registerFonts()
         let app = NSApplication.shared; let delegate = Delegate(); app.delegate = delegate
         app.setActivationPolicy(.regular); app.run(); withExtendedLifetime(delegate) {}
     }

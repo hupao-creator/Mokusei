@@ -40,9 +40,21 @@ public final class NativeMokuWorkspacePresentation {
     public private(set) var reply: NativeMokuDockReply?
     public private(set) var intervention: NativeMokuDockIntervention?
     public private(set) var activeOperation: NativeOverviewMokuOperation?
+    public private(set) var activity: HarnessActivity?
     public private(set) var displayToken: UInt64 = 0
     public private(set) var error: String?
     public var interactionIsQuestion: Bool { intervention?.isQuestion == true }
+    public var executionKey: String? {
+        guard let thread = workspace.catalog.moku, let execution = thread.observation.latestExecution else { return nil }
+        return nativeMokuPresentationTuple([.string(thread.id), .string(thread.harnessID), .string(execution.executionID)])
+    }
+    /// Foreground reasoning is live execution content, separate from the FIFO
+    /// role leases. A tool, answer, terminal state or disconnect retires it now;
+    /// the animation host alone may finish painting an already visible snapshot.
+    public var reasoning: MokuReasoningContent? {
+        workspace.runtimeAvailable && activeOperation == nil ? reasoningContent : nil
+    }
+    private var reasoningContent: MokuReasoningContent?
     public var interaction: AnyView? {
         guard let intervention else { return nil }
         return AnyView(NativeMokuDockInteractionPanel(intervention: intervention,
@@ -117,6 +129,14 @@ public final class NativeMokuWorkspacePresentation {
             guard let id = run["agentId"]?.stringValue else { return false }
             return id == "tag.agent" || id.hasPrefix("tag.agent.")
         }
+        activity = harnessPresentation?.activity.flatMap { value in
+            execution?.status == .running && value.executionID == execution?.executionID ? value : nil
+        }
+        if let moku, let activity, case .reasoning(let text, let offset) = activity.body {
+            reasoningContent = MokuReasoningContent(sourceText: text.string, sourceOffset: offset ?? 0,
+                segmentKey: nativeMokuPresentationTuple([.string(moku.id), .string(moku.harnessID),
+                    .string(activity.executionID), .integer(activity.sequence)]))
+        } else { reasoningContent = nil }
         let currentTranscript = execution.map { execution in
             (moku?.transcript?.arrayValue ?? []).filter { $0["executionId"] == .string(execution.executionID) }
         } ?? []
@@ -140,8 +160,8 @@ public final class NativeMokuWorkspacePresentation {
         intervention = moku.flatMap(Self.intervention)
         queue.minimumDisplayMilliseconds = sessionIdle ? 800 : 2_000
         updatePresenting()
-        // Reasoning activities stay in the harness payload but are not a Dock role.
-        // A running execution with only reasoning therefore remains running.
+        // The live Arc above owns reasoning immediately. It does not wait for
+        // queued generic tool roles, nor does reading backlog delay a new role.
         let latest: NativeMokuDisplayItem
         if let value = harnessPresentation?.activity, value.executionID == execution?.executionID,
            let item = Self.displayItem(value) {
@@ -219,7 +239,7 @@ public final class NativeMokuWorkspacePresentation {
     private static func displayItem(_ activity: HarnessActivity) -> NativeMokuDisplayItem? {
         let mode: MokuCharacterMode
         switch activity.body {
-        case .reasoning: return nil
+        case .reasoning: mode = .running
         case .toolCall(_, let name): mode = dedicatedTool(name.string) || name == "talk" ? .running : .namedTool(name.string)
         case .assistantText: mode = .running
         }

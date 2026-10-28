@@ -50,6 +50,15 @@ struct NativeMokuCapsuleEyes: Shape {
     }
 
     init(expression: MokuExpression, focus: Double, blink: Double = 1) {
+        let eyes = Self.resolved(expression: expression, focus: focus)
+        self.init(left: eyes.left, right: eyes.right, blink: blink)
+    }
+
+    init(left: MokuEye, right: MokuEye, blink: Double = 1) {
+        self.left = left; self.right = right; self.blink = blink
+    }
+
+    static func resolved(expression: MokuExpression, focus: Double) -> (left: MokuEye, right: MokuEye) {
         let idle = MokuGeometry.expressions[expression == .focus ? .idle : expression]!
         let target = MokuGeometry.expressions[.focus]!
         func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * focus }
@@ -59,9 +68,7 @@ struct NativeMokuCapsuleEyes: Shape {
                     w: mix(a.w, b.w), h: mix(a.h, b.h), radius: mix(a.radius, b.radius),
                     rotation: mix(a.rotation, b.rotation), opacity: 1)
         }
-        left = resolve(idle.left, target.left)
-        right = resolve(idle.right, target.right)
-        self.blink = blink
+        return (resolve(idle.left, target.left), resolve(idle.right, target.right))
     }
 
     private static func data(_ eye: MokuEye) -> EyeData {

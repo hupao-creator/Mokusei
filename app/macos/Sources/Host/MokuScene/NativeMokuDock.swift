@@ -28,6 +28,7 @@ public struct NativeMokuDock: View {
     public let cwd: JSONText
     public var mode: MokuCharacterMode
     public var running: Bool
+    public var reasoning: MokuReasoningContent?
     public var talk: String?
     public var reply: NativeMokuDockReply?
     public var disabled: Bool
@@ -50,6 +51,7 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var hovered = false
     @State private var hoverTask: Task<Void, Never>?
     @State private var capsuleHeight: CGFloat = 58
@@ -63,9 +65,16 @@ public struct NativeMokuDock: View {
     @State private var voiceControlsFrame = CGRect.zero
     @State private var voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
     @State private var dispatchDetail: NativeMokuTalkMessage?
+    @State private var character = NativeMokuCharacterMotion()
+    @State private var reasoningRequested = false
+    @State private var reasoningSeatReserved = false
+    @State private var reasoningReady = false
+    @State private var reasoningTransition = 0
+    @State private var retainedReasoningGlyphs: [MokuReasoningGlyph] = []
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
-                mode: MokuCharacterMode = .idle, running: Bool = false, talk: String? = nil,
+                mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
+                talk: String? = nil,
                 reply: NativeMokuDockReply? = nil, disabled: Bool = false,
                 interaction: AnyView? = nil, interactionIsQuestion: Bool = false,
                 voiceControls: AnyView = AnyView(EmptyView()),
@@ -82,6 +91,7 @@ public struct NativeMokuDock: View {
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
         self.state = state; self.draft = draft; self.cwd = cwd; self.mode = mode; self.running = running
+        self.reasoning = reasoning
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
         self.interactionIsQuestion = interactionIsQuestion; self.voiceControls = voiceControls
         self.voiceBackground = voiceBackground
@@ -158,6 +168,23 @@ public struct NativeMokuDock: View {
     }
     private var runningFeedback: Bool {
         running && mode == .running && !expanded && !inputPresent && interaction == nil && !voiceModeActive
+            && !(reasoningEligible && reasoningReady)
+    }
+    private var incomingReasoning: MokuReasoningContent? {
+        guard running else { return nil }
+        if let presentation { return presentation.reasoning }
+        return reasoning
+    }
+    private var reasoningEligible: Bool {
+        incomingReasoning != nil && !expanded && !inputPresent && interaction == nil && !voiceModeActive
+            && !disabled && !state.dockCovered && state.overviewVisible && state.windowVisible
+    }
+    private var reasoningGlyphs: [MokuReasoningGlyph] {
+        let incoming = incomingReasoning.map { $0.text.map { MokuReasoningGlyph(value: String($0), position: 0.5, opacity: 1) } }
+            ?? retainedReasoningGlyphs
+        // A FIFO may still paint an earlier, wider glyph after it leaves the
+        // latest tail; keep that envelope until its actual retirement ends.
+        return incoming + character.paintedReasoningGlyphs
     }
     private var eyeExpression: MokuExpression {
         if state.inputOpen { return .focus }
@@ -179,15 +206,24 @@ public struct NativeMokuDock: View {
             let availableSurface = CGRect(x: frame.midX - width / 2, y: frame.minY,
                                           width: width, height: frame.height)
             let surface = NativeMokuCapsuleLayout.surface(in: availableSurface, expanded: expanded, height: rowHeight + noteHeight)
-            let panel = NativeMokuCapsuleLayout.panel(in: viewport, above: surface,
+            let arcSize = NativeMokuCapsuleLayout.idleSurface(in: viewport).size
+            let arcBody = CGRect(x: surface.midX - arcSize.width / 2,
+                                 y: surface.maxY - rowHeight / 2 - arcSize.height / 2,
+                                 width: arcSize.width, height: arcSize.height)
+            let placement = reasoningSeatReserved
+                ? NativeMokuReasoningPlacement.fit(surface: surface, arcBody: arcBody, viewport: viewport, glyphs: reasoningGlyphs)
+                : NativeMokuReasoningPlacement(surface: surface)
+            let panel = NativeMokuCapsuleLayout.panel(in: viewport, above: placement.surface,
                                                      question: interactionIsQuestion)
             let noteButtonRect: CGRect? = nil
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
-                        surface: surface, rowHeight: rowHeight, noteHeight: noteHeight)
+                        surface: surface, rowHeight: rowHeight, noteHeight: noteHeight,
+                        decorationPadding: placement.decorationPadding)
                     .nativeCanvasNavigationRegion()
-                    .position(x: surface.midX, y: surface.midY)
-                    .animation(surfaceAnimation, value: surface)
+                    .scaleEffect(placement.scale)
+                    .position(x: placement.surface.midX, y: placement.surface.midY)
+                    .animation(surfaceAnimation, value: placement)
                 if let interaction {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
@@ -198,7 +234,7 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
-            .onChange(of: HitLayout(surface: surface, panel: panel, interaction: interaction != nil, noteButton: noteButtonRect), initial: true) { _, layout in
+            .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil, noteButton: noteButtonRect), initial: true) { _, layout in
                 guard state.overviewVisible else {
                     state.dockHitRects = []
                     state.dockMentionHitRect = nil
@@ -269,6 +305,41 @@ public struct NativeMokuDock: View {
             }
         }
         .onChange(of: incomingTalk, initial: true) { _, message in state.receiveTalk(message) }
+        .onAppear {
+            character.onReasoningRetired = {
+                guard !reasoningRequested else { return }
+                withAnimation(surfaceAnimation) { reasoningSeatReserved = false }
+                retainedReasoningGlyphs = []
+            }
+        }
+        .onChange(of: incomingReasoning, initial: true) { _, content in
+            if let content {
+                retainedReasoningGlyphs = content.text.map { .init(value: String($0), position: 0.5, opacity: 1) }
+            }
+        }
+        .onChange(of: reasoningEligible, initial: true) { _, eligible in
+            reasoningRequested = eligible
+            reasoningTransition += 1
+            let request = reasoningTransition
+            if eligible {
+                if reasoningSeatReserved && reasoningReady { return }
+                if reasoningSeatReserved { reasoningReady = true; return }
+                // Establish the space before revealing external ink. Fast reversals
+                // redirect the existing SwiftUI geometry rather than snapping home.
+                withAnimation(surfaceAnimation, completionCriteria: .removed) {
+                    reasoningSeatReserved = true
+                } completion: {
+                    guard request == reasoningTransition && reasoningRequested else { return }
+                    reasoningReady = true
+                }
+            } else {
+                let hadInk = reasoningReady
+                reasoningReady = false
+                if !hadInk || reduceMotion {
+                    withAnimation(surfaceAnimation) { reasoningSeatReserved = false }
+                }
+            }
+        }
         .onChange(of: note, initial: true) { previous, value in
             if previous?.documentToken != value?.documentToken { noteContentHeight = 0 }
             state.reconcileNoteExposure(value)
@@ -322,6 +393,9 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: presentation?.displayToken, initial: true) { _, _ in acknowledgePresentation() }
         .onDisappear {
+            character.onReasoningRetired = nil
+            reasoningRequested = false; reasoningReady = false; reasoningSeatReserved = false
+            reasoningTransition += 1; retainedReasoningGlyphs = []
             state.setTalkPresented(false)
             state.setNotePanelOpen(false)
             state.dockHitRects = []
@@ -341,10 +415,17 @@ public struct NativeMokuDock: View {
         var interaction: Bool
         var noteButton: CGRect?
     }
-    private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat, noteHeight: CGFloat) -> some View {
+    private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat, noteHeight: CGFloat,
+                         decorationPadding: CGFloat) -> some View {
         let idleWidth = min(NativeMokuCapsuleLayout.idleSize.width, width)
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let followsEditor = inputPresent && displayedMessage == nil
+        let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
+            running: runningFeedback, reasoning: incomingReasoning,
+            presentsReasoning: reasoningEligible && reasoningReady, executionKey: presentation?.executionKey,
+            capsuleSize: CGSize(width: surface.width, height: rowHeight), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
+            motion: scenePhase == .active && state.windowVisible && !state.dockCovered,
+            reduceMotion: reduceMotion, dark: colorScheme == .dark)
         return ZStack(alignment: .bottomLeading) {
             if composerMounted {
                 composer(room: room).frame(width: width).fixedSize(horizontal: false, vertical: true)
@@ -379,15 +460,8 @@ public struct NativeMokuDock: View {
             // glass above it changes height. The inset is measured inside
             // the input, so menu and shell animation cannot affect it.
             HStack(alignment: .center, spacing: 15) {
-                Group {
-                    if runningFeedback {
-                        Color.clear
-                    } else {
-                        NativeMokuBlinkingEyes(expression: eyeExpression, focus: expanded ? 1 : 0)
-                    }
-                }
-                    .animation(surfaceAnimation, value: expanded)
-                    .animation(surfaceAnimation, value: eyeExpression)
+                NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .face)
+                    .frame(width: 58, height: 49)
                     .frame(width: 34, height: 25)
                     .allowsHitTesting(false).accessibilityHidden(true)
                 if let message = displayedMessage {
@@ -441,13 +515,12 @@ public struct NativeMokuDock: View {
                 voiceBackground
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
-        .overlay {
+        .overlay(alignment: .bottom) {
             // Orbit ink lives outside the glass; never include it in the capsule clip.
-            if runningFeedback {
-                NativeMokuRunningEyes(reduceMotion: reduceMotion, capsuleSize: surface.size,
-                                      cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
-                    .allowsHitTesting(false)
-            }
+            NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .decorations)
+                .frame(width: surface.width + decorationPadding * 2, height: rowHeight + decorationPadding * 2)
+                .offset(y: decorationPadding)
+                .allowsHitTesting(false)
         }
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)
         .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)

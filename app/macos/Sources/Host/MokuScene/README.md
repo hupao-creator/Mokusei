@@ -26,6 +26,39 @@ geometry. Expanding the composer, note or notification does not change that
 reservation or trigger a card repack; those surfaces retain their existing
 interaction/overlay ownership.
 
+## Thinking arc
+
+The current public Harness reasoning foreground supplies a
+[MokuReasoningContent](../Moku/MokuReasoningContent.swift) identified by Thread,
+Harness, execution and foreground sequence, including its UTF-16 source offset.
+The live projection is separate from generic display-role leases: assistant/tool
+foreground changes, terminal states and disconnects immediately retire its
+content. A visible handoff may finish painting its captured glyphs, but it cannot
+restore an expired source or delay a user interaction until a backlog is read.
+
+The native arc keeps the capsule body. Its open circular span is 288°, centered
+at −110°, with radius half the capsule's largest dimension plus 19 points.
+CoreText paints 12.5-point medium glyphs with 1.3-point tracking in their tangent
+direction, including the inverted lower edge. Short text centers by measured
+width; the two ends fade. The glyph FIFO follows absolute source positions,
+retains unread middle input and at most 112 measured graphemes, and settles on
+the latest complete-grapheme tail of at most 56 Unicode code points. Same-segment
+append preserves the reading clock; segment/execution changes, known source gaps
+or revisions reset its reader. Reduce Motion shows the latest tail directly.
+
+The arc model and painter own no timer. The persistent activity host coordinates
+eyes, running dots and the text's gather/reveal handoff from their currently
+painted state. Composer, notes, Talk/dispatch, voice and permission/question
+surfaces retain priority. The Dock reserves visible ink space by continuously
+lifting the capsule, eyes and arc together only as far as the viewport requires;
+Overview's fixed bottom reservation and card packing stay unchanged.
+
+Validation uses the [native reasoning replay](../../../../../tools/verification/moku-reasoning/README.md),
+which drives Runtime fixture transactions through the real Harness, workspace
+projection and Dock. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
+reuses the production Arc; its historical circular and contour tabs remain
+comparison-only.
+
 ## Talk, dispatch and notes
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
@@ -54,7 +87,7 @@ Input/permission interactions take precedence over the note; leaving Overview or
 
 The current user transcript takes precedence over Talk/dispatch while present. Partial/final snapshots replace the same session/item; final or handoff alone does not hide it. The first nonempty assistant item or explicitly associated Moku answer consumes it once. Duplicate assistant fragments cannot hide a newer input, and a late final cannot resurrect a consumed item. Owner/media termination clears the projection. [Native voice](../../Voice/README.md) owns these identities and microphone lifecycle; mounting the Dock/history or cloud never starts media.
 
-The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Moku reasoning trace is not rendered in the Dock or history.
+The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Active voice presentation covers the thinking arc; the history composer does not mount it.
 
 Force Touch uses AppKit's stage-2 deep click in
 [NativeForceTouchVoiceTrigger](../VoiceControls/NativeForceTouchVoiceTrigger.swift),
