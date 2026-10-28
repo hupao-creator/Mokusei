@@ -6,6 +6,10 @@ import cmark_gfm_extensions
 /// Columns on inline nodes are logical columns, not positions in a source line
 /// whose quote/list prefix may be absent (lazy continuation) or contain a tab.
 enum MarkdownSourceMap {
+    struct Region {
+        let range: NSRange
+        let cellEnd: Int?
+    }
     private struct Coordinates {
         let count: Int
         let physicalStart: Int
@@ -31,6 +35,7 @@ enum MarkdownSourceMap {
         let firstLine: Int
         let columnOrigin: Int
         let lines: [Line]
+        var tableCellEnd: Int? = nil
         func offset(line: Int, column: Int) -> Int? {
             let index = line - firstLine
             guard lines.indices.contains(index) else { return nil }
@@ -38,7 +43,7 @@ enum MarkdownSourceMap {
         }
     }
 
-    static func ranges(_ source: String, visibleText: Bool) -> [NSRange] {
+    static func ranges(_ source: String, visibleText: Bool) -> [Region] {
         let bytes = Array(source.utf8)
         let rows = bytes.split(separator: 10, omittingEmptySubsequences: false)
         var starts: [Int] = []; var position = 0
@@ -162,44 +167,95 @@ enum MarkdownSourceMap {
             return Block(firstLine: Int(cmark_node_get_start_line(node)),
                          columnOrigin: Int(cmark_node_get_start_column(node) - 1 + node.pointee.internal_offset), lines: lines)
         }
-        func cell(_ node: UnsafeMutablePointer<cmark_node>) -> Block? {
-            let number = Int(cmark_node_get_start_line(node))
-            guard inputLines.indices.contains(number - 1),
-                  let row = cmark_node_parent(node), let table = cmark_node_parent(row) else { return nil }
-            let input = inputLines[number - 1]
-            let tableColumn = Int(cmark_node_get_start_column(table)) - 1
-            let origin = cmark_gfm_extensions_get_table_row_is_header(row) != 0
-                ? tableColumn : tableOrigins.columns[number] ?? tableColumn
-            var first = origin + Int(cmark_node_get_start_column(node)) - 1 - tableColumn
-            var end = origin + Int(cmark_node_get_end_column(node)) - tableColumn
-            guard first >= 0, end >= first, end <= input.content.count else { return nil }
-            // The table extension trims cells and removes backslashes before
-            // pipes. Carry their positions through that transform, then verify
-            // against the actual cell buffer before using any inline coordinates.
+        // The finalized table keeps the paragraph buffer and its trace. Header
+        // columns index that entire buffer, including any paragraph split out of it.
+        var tableBlocks: [UInt: Block] = [:]
+        func tableBlock(_ node: UnsafeMutablePointer<cmark_node>) -> Block? {
+            let key = UInt(bitPattern: node)
+            if let cached = tableBlocks[key] { return cached }
+            guard let mapped = block(node) else { return nil }
+            tableBlocks[key] = mapped
+            return mapped
+        }
+        func transformed(_ node: UnsafeMutablePointer<cmark_node>, input: [UInt8],
+                         position: (Int) -> Int?) -> Block? {
+            var first = 0, end = input.count
             let whitespace: Set<UInt8> = [9, 10, 11, 12, 13, 32]
-            while first < end, whitespace.contains(input.content[first]) { first += 1 }
-            while end > first, whitespace.contains(input.content[end - 1]) { end -= 1 }
-            guard let start = input.coordinates.offset(first) else { return nil }
+            while first < end, whitespace.contains(input[first]) { first += 1 }
+            while end > first, whitespace.contains(input[end - 1]) { end -= 1 }
+            guard let start = position(first) else { return nil }
             var content: [UInt8] = [], offsets = [start]
             var cursor = first
             while cursor < end {
-                if input.content[cursor] == 92, cursor + 1 < end, input.content[cursor + 1] == 124 { cursor += 1 }
-                content.append(input.content[cursor]); cursor += 1
-                guard let physical = input.coordinates.offset(cursor) else { return nil }
+                if input[cursor] == 92, cursor + 1 < end, input[cursor + 1] == 124 { cursor += 1 }
+                content.append(input[cursor]); cursor += 1
+                guard let physical = position(cursor) else { return nil }
                 offsets.append(physical)
             }
             let actual = UnsafeBufferPointer(start: node.pointee.content.ptr, count: Int(node.pointee.content.size))
             guard content.elementsEqual(actual) else { return nil }
-            let coordinates = Coordinates(count: content.count, physicalStart: start, virtualSpaces: 0, sourceOffsets: offsets)
-            return Block(firstLine: number,
-                         columnOrigin: Int(cmark_node_get_start_column(node) - 1 + node.pointee.internal_offset),
-                         lines: [Line(content: content, coordinates: coordinates)])
+            var lines: [Line] = [], begin = 0
+            for index in content.indices where content[index] == 10 {
+                let limit = index + 1
+                let coordinates = Coordinates(count: limit - begin, physicalStart: offsets[begin], virtualSpaces: 0,
+                                              sourceOffsets: Array(offsets[begin...limit]))
+                lines.append(Line(content: Array(content[begin..<limit]), coordinates: coordinates))
+                begin = limit
+            }
+            if begin < content.count {
+                let coordinates = Coordinates(count: content.count - begin, physicalStart: offsets[begin], virtualSpaces: 0,
+                                              sourceOffsets: Array(offsets[begin...]))
+                lines.append(Line(content: Array(content[begin...]), coordinates: coordinates))
+            }
+            return Block(firstLine: Int(cmark_node_get_start_line(node)),
+                         columnOrigin: Int(cmark_node_get_start_column(node) - 1 + node.pointee.internal_offset), lines: lines)
         }
-        var result: [NSRange] = []
+        func prefix(_ node: UnsafeMutablePointer<cmark_node>) -> Block? {
+            guard cmark_node_get_start_line(node) == 0,
+                  let table = cmark_node_next(node), String(cString: cmark_node_get_type_string(table)) == "table",
+                  let mapped = tableBlock(table), mapped.lines.count > 1 else { return nil }
+            // cmark synthesizes this paragraph without source positions. Its
+            // bytes come from all traced lines preceding the actual header.
+            let lines = mapped.lines.dropLast()
+            var input: [UInt8] = [], offsets: [Int] = []
+            for line in lines {
+                input.append(contentsOf: line.content)
+                for column in line.content.indices {
+                    guard let offset = line.coordinates.offset(column) else { return nil }
+                    offsets.append(offset)
+                }
+            }
+            guard let last = lines.last, let end = last.coordinates.offset(last.content.count) else { return nil }
+            offsets.append(end)
+            return transformed(node, input: input, position: { offsets.indices.contains($0) ? offsets[$0] : nil })
+        }
+        func cell(_ node: UnsafeMutablePointer<cmark_node>) -> Block? {
+            let number = Int(cmark_node_get_start_line(node))
+            guard let row = cmark_node_parent(node), let table = cmark_node_parent(row) else { return nil }
+            let tableColumn = Int(cmark_node_get_start_column(table)) - 1
+            let input: Line, origin: Int
+            if cmark_gfm_extensions_get_table_row_is_header(row) != 0 {
+                guard let mapped = tableBlock(table), let header = mapped.lines.last else { return nil }
+                input = header
+                origin = -(Int(table.pointee.content.size) - header.content.count)
+            } else {
+                guard inputLines.indices.contains(number - 1) else { return nil }
+                input = inputLines[number - 1]
+                origin = tableOrigins.columns[number] ?? tableColumn
+            }
+            let first = origin + Int(cmark_node_get_start_column(node)) - 1 - tableColumn
+            let end = origin + Int(cmark_node_get_end_column(node)) - tableColumn
+            guard first >= 0, end >= first, end <= input.content.count else { return nil }
+            var mapped = transformed(node, input: Array(input.content[first..<end]),
+                                     position: { input.coordinates.offset(first + $0) })
+            if let last = mapped?.lines.last { mapped?.tableCellEnd = last.coordinates.offset(last.content.count) }
+            return mapped
+        }
+        var result: [Region] = []
         func collect(_ node: UnsafeMutablePointer<cmark_node>, context: Block? = nil) {
             let type = String(cString: cmark_node_get_type_string(node))
             let context = type == "table_cell" ? cell(node)
-                : (type == "paragraph" || type == "heading") ? block(node) : context
+                : type == "paragraph" ? (block(node) ?? prefix(node)) : type == "heading" ? block(node) : context
             let literal = ["code_block", "html_block", "code", "html_inline", "link", "image"].contains(type)
             if visibleText && literal { return }
             if visibleText ? type == "text" : literal {
@@ -225,7 +281,12 @@ enum MarkdownSourceMap {
                     let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
                     let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
                     if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
-                        result.append(NSRange(first..<last, in: source))
+                        var cellEnd: Int?
+                        if let end = context?.tableCellEnd, end >= 0, end <= bytes.count,
+                           let index = String.Index(source.utf8.index(source.utf8.startIndex, offsetBy: end), within: source) {
+                            cellEnd = NSRange(source.startIndex..<index, in: source).length
+                        }
+                        result.append(Region(range: NSRange(first..<last, in: source), cellEnd: cellEnd))
                     }
                 }
                 return

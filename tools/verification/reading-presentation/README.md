@@ -441,9 +441,14 @@ replay also renders a definition-prefixed Setext heading with literal code,
 a multiline HTML attribute beside a real footnote, and a complete lazy-line URL.
 `MarkdownFallbackSourceTests` covers normalization outside paragraph traces:
 BOM/NUL tables, header/body cells, inline code/HTML/links/images, escaped pipes,
-block literals and row-to-row changes in space/Tab container prefixes. The
-production native fixture starts with the BOM table and includes a NUL before a
-later cell's complete URL, with a real reference immediately before literal code.
+block literals and row-to-row changes in space/Tab container prefixes. `MarkdownTableRewriteTests` checks paragraph-to-header promotion with and without
+blank lines, literal code/HTML and URLs in the synthesized paragraph, and raw
+URL escapes against working explicit-link controls. It requires stable table
+column counts, complete targets/display labels and later-cell references, even
+without separator spaces. Indented code remains a literal control.
+The production native fixture combines a BOM-prefixed paragraph immediately
+before a table, header code, NUL, and an escaped-pipe URL before a later footnote
+cell.
 These run in the default Swift suite; the mounted source test requires a display.
 
 

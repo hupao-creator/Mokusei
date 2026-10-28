@@ -275,37 +275,57 @@ enum MarkdownParser {
         return result
     }
 
+    private static let bareURLStart = try! NSRegularExpression(pattern: #"(?i)https?://|www\."#)
+
     private static func protectBareURLs(_ source: String) -> String {
         guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
-        // Only rewrite URLs that begin in actual prose. Reference definitions
-        // (including multiline labels/titles) are absent from the inline AST;
-        // a definition-shaped paragraph continuation remains a Text node.
-        let visible = MarkdownSourceMap.ranges(source, visibleText: true)
-        let result = NSMutableString(string: source)
-        let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
-        for match in matches.reversed() {
-            guard visible.contains(where: { NSLocationInRange(match.range.location, $0) }) else { continue }
-            var candidate = result.substring(with: match.range)
-            guard ["http://", "https://", "www."].contains(where: { candidate.lowercased().hasPrefix($0) }) else { continue }
-            while let last = candidate.last, ".,:;!?*_'\"".contains(last)
-                || (last == ")" && candidate.filter({ $0 == ")" }).count > candidate.filter({ $0 == "(" }).count) { candidate.removeLast() }
-            guard !candidate.isEmpty else { continue }
-            let range = NSRange(location: match.range.location, length: candidate.utf16.count)
-            let visible = unescapedURL(candidate)
-            let destination = visible.lowercased().hasPrefix("www.") ? "http://" + visible : visible
-            let label = visible.map { "\\[]*_`~".contains($0) ? "\\" + String($0) : String($0) }.joined()
-            result.replaceCharacters(in: range, with: "[" + label + "](<" + destination + ">)")
+        let visible = MarkdownSourceMap.ranges(source, visibleText: true).sorted { $0.range.location < $1.range.location }
+        let raw = source as NSString
+        var replacements: [(NSRange, String)] = []
+        var coveredEnd = 0
+        for region in visible {
+            var cursor = max(region.range.location, coveredEnd)
+            let end = NSMaxRange(region.range)
+            while cursor < end,
+                  let start = bareURLStart.firstMatch(in: source, range: NSRange(location: cursor, length: end - cursor)) {
+                let limit = region.cellEnd ?? raw.length
+                guard start.range.location < limit,
+                      let match = autolinkExpression.firstMatch(in: source, options: .anchored,
+                        range: NSRange(location: start.range.location, length: limit - start.range.location)) else {
+                    cursor = NSMaxRange(start.range); continue
+                }
+                cursor = NSMaxRange(match.range); coveredEnd = cursor
+                var candidate = raw.substring(with: match.range)
+                while let last = candidate.last, ".,:;!?*_'\"".contains(last)
+                    || (last == ")" && candidate.filter({ $0 == ")" }).count > candidate.filter({ $0 == "(" }).count) { candidate.removeLast() }
+                guard !candidate.isEmpty else { continue }
+                let range = NSRange(location: match.range.location, length: candidate.utf16.count)
+                let label = unescapedURLLabel(candidate).map { "\\[]*_`~|".contains($0) ? "\\" + String($0) : String($0) }.joined()
+                // Preserve source escapes for cmark to decode once. Generated
+                // pipes must remain escaped until after table cells are split.
+                let target = candidate.lowercased().hasPrefix("www.") ? "http://" + candidate : candidate
+                var destination = "", slashes = 0
+                for character in target {
+                    if character == "|", slashes % 2 == 0 { destination.append("\\") }
+                    destination.append(character)
+                    slashes = character == "\\" ? slashes + 1 : 0
+                }
+                if slashes % 2 == 1 { destination.append("\\") }
+                replacements.append((range, "[" + label + "](<" + destination + ">)"))
+            }
         }
+        let result = NSMutableString(string: source)
+        for (range, replacement) in replacements.reversed() { result.replaceCharacters(in: range, with: replacement) }
         return result as String
     }
 
-    private static func unescapedURL(_ source: String) -> String {
+    private static func unescapedURLLabel(_ source: String) -> String {
         var scalars = source.unicodeScalars.makeIterator()
         var result = ""
         while let scalar = scalars.next() {
             if scalar.value == 92, let next = scalars.next() {
-                // Match CommonMark's backslash escapes before constructing the
-                // explicit link. Angle destinations otherwise retain the slash.
+                // Decode the display label once. The generated destination
+                // retains its source escapes for cmark to decode separately.
                 let punctuation = (33...47).contains(next.value) || (58...64).contains(next.value)
                     || (91...96).contains(next.value) || (123...126).contains(next.value)
                 if !punctuation { result.unicodeScalars.append(scalar) }
@@ -323,7 +343,7 @@ enum MarkdownParser {
         let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"
         var tokens: [String: String] = [:]
         for (index, match) in footnoteReference.matches(in: source, range: NSRange(location: 0, length: raw.length)).enumerated().reversed() {
-            guard !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
+            guard !protected.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) else { continue }
             var cursor = match.range.location - 1, escapes = 0
             while cursor >= 0, raw.character(at: cursor) == 92 { escapes += 1; cursor -= 1 }
             guard escapes % 2 == 0 else { continue }
