@@ -157,6 +157,7 @@ struct NativeOverviewTagGlassTests {
                         let configuration = SCStreamConfiguration()
                         configuration.width = Int(window.frame.width * 2)
                         configuration.height = Int(window.frame.height * 2)
+                        configuration.scalesToFit = true
                         configuration.ignoreShadowsSingleWindow = true
                         configuration.showsCursor = false
                         // WindowServer may briefly return a system window
@@ -217,6 +218,9 @@ struct NativeOverviewTagGlassTests {
         let configuration = SCStreamConfiguration()
         configuration.width = Int(window.frame.width * 2)
         configuration.height = Int(window.frame.height * 2)
+        // The pixel oracle uses two pixels per point on both 1x and 2x
+        // screens. Without upscaling, ScreenCaptureKit pads a 1x image.
+        configuration.scalesToFit = true
         configuration.ignoreShadowsSingleWindow = true
         configuration.showsCursor = false
         let parentBounds = try #require(fixture.bounds[parent.id])
@@ -347,6 +351,7 @@ struct NativeOverviewTagGlassTests {
         let configuration = SCStreamConfiguration()
         configuration.width = Int(window.frame.width * 2)
         configuration.height = Int(window.frame.height * 2)
+        configuration.scalesToFit = true
         configuration.ignoreShadowsSingleWindow = true
         configuration.showsCursor = false
         let titlebar = window.frame.height - root.bounds.height

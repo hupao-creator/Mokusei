@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"io"
 	"net"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 type staleDiscoveryCase struct {

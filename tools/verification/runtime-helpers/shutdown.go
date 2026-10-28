@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/platform/daemon"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 func verifyFailedShutdown(ctx context.Context, directory, executable string) {

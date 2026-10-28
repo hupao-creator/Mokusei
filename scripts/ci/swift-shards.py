@@ -41,8 +41,8 @@ def prepare():
     weights = json.loads((ROOT / "scripts/ci/swift-suite-weights.json").read_text())
     # Account for the real boundary replays sharing each native session. This
     # lets shorter replay lanes consume more Swift work without GUI overlap.
-    replays = [("interop-wire", 95), ("interop-process", 105),
-               ("native-controls", 60), ("native-capture", 60), ("native-runtime", 100)]
+    replays = [("interop-wire", 86), ("interop-process", 98),
+               ("native-controls", 104), ("native-capture", 120), ("native-runtime", 121)]
     shards = [{"suites": [], "tests": [], "replay": name, "estimatedSeconds": seconds}
               for name, seconds in replays]
     for suite in sorted(suites, key=lambda name: (-weights.get(name, 1), name)):

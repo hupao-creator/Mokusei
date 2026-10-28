@@ -10,7 +10,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"io"
 	"net"
 	"net/http"
@@ -29,6 +28,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/codex"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 func main() {

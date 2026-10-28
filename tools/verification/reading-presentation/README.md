@@ -4,6 +4,11 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
+CI uses `--isolated-input` to compile the same history-composer, browser-viewport
+and Report test sources into one AppKit host. It executes exactly the four
+input/responder methods deferred by SwiftPM, requiring all four to pass without
+skips, while their remaining methods execute in the normal Swift shards.
+
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
 Reader. It checks colliding provider/model choices, default/optional/hidden/
@@ -133,6 +138,9 @@ CI uses `--tag-glass-captures` for the two WindowServer pixel cases, because the
 other five already run in its Swift shards. Both modes reject skips and retain
 the same assertions. A verified shared CI build avoids repeating SwiftPM build;
 ordinary local invocations still build current sources.
+WindowServer capture explicitly scales to the requested two-pixels-per-point
+buffer. On a 1x screen the default only downsizes, leaving padded space instead
+of the 2x coordinates required by the unchanged pixel assertions.
 They check selected-child titles, directory widths, narrow and zoomed layouts,
 menu input ownership and interrupted close/reopen transitions. The parent title
 stays frozen while its child glass returns, then updates after exit. Controls

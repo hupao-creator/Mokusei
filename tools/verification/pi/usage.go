@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 // Replay the production RPC decoder, reducer, durable reopen and compact scopes.

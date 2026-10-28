@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 	"os"
 	"path/filepath"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
+	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 func verifySwiftVoice(ctx context.Context, r *core.Runtime, root, threadID string) {

@@ -379,7 +379,7 @@ jobs:
           name: macos-${{ matrix.name }}-evidence
           path: |
             ${{ runner.temp }}/evidence
-            !${{ runner.temp }}/evidence/ci-native/mokusei-runtime
+            !${{ runner.temp }}/evidence/**/mokusei-runtime
           if-no-files-found: error
           overwrite: true
           retention-days: 7
