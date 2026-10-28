@@ -1,12 +1,14 @@
 import AppKit
 import QuartzCore
+import SwiftUI
 
 /// Owns only the insertion mark's presentation; AppKit retains text and selection.
 @MainActor final class NativeComposerCaret {
     let layer = CALayer()
     private let core = CALayer()
-    private let warmGlow = CALayer()
-    private let coolGlow = CALayer()
+    private let glow = CALayer()
+    private var glowHeight: CGFloat = 0
+    private var glowScale: CGFloat = 0
     private var hasFrame = false
     private var darkAppearance = true
     var reduceMotion = false {
@@ -20,17 +22,8 @@ import QuartzCore
     init() {
         layer.name = "composer-insertion-point"
         layer.anchorPoint = .zero
-        for glow in [warmGlow, coolGlow] {
-            glow.shadowOffset = .zero
-            glow.shadowRadius = 6
-            glow.shadowOpacity = 1
-            glow.opacity = 0.65
-            layer.addSublayer(glow)
-        }
-        warmGlow.backgroundColor = NSColor(srgbRed: 1, green: 0.78, blue: 0.21, alpha: 0.18).cgColor
-        warmGlow.shadowColor = NSColor(srgbRed: 1, green: 0.78, blue: 0.21, alpha: 1).cgColor
-        coolGlow.backgroundColor = NSColor(srgbRed: 0.24, green: 0.66, blue: 1, alpha: 0.18).cgColor
-        coolGlow.shadowColor = NSColor(srgbRed: 0.24, green: 0.66, blue: 1, alpha: 1).cgColor
+        glow.name = "composer-insertion-glow"
+        layer.addSublayer(glow)
         core.name = "composer-insertion-core"
         core.cornerRadius = 1.3
         layer.addSublayer(core)
@@ -60,14 +53,20 @@ import QuartzCore
             darkAppearance = dark
             core.removeAnimation(forKey: "breathing")
         }
-        for (glow, center) in [(warmGlow, height * 0.24), (coolGlow, height * 0.76)] {
-            glow.frame = CGRect(x: -0.7, y: center - height * 0.18, width: 4, height: height * 0.36)
-            glow.cornerRadius = 2
-            glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
+        let scale = editor.window?.backingScaleFactor ?? 2
+        if glowHeight != height || glowScale != scale {
+            // Rasterize the reference's actual blurred shapes once per geometry,
+            // not on native blink callbacks or each animation frame.
+            let renderer = ImageRenderer(content: ComposerCaretGlow(height: height))
+            renderer.scale = scale
+            if let image = renderer.cgImage {
+                glow.contents = image
+                glowHeight = height
+                glowScale = scale
+            }
         }
-        for part in [layer, core, warmGlow, coolGlow] {
-            part.contentsScale = editor.window?.backingScaleFactor ?? 2
-        }
+        glow.frame = CGRect(x: 1.3 - 40, y: -40, width: 80, height: height + 80)
+        for part in [layer, core, glow] { part.contentsScale = scale }
         hasFrame = true
         CATransaction.commit()
         updateBreathing()
@@ -81,7 +80,7 @@ import QuartzCore
     }
 
     private func updateBreathing() {
-        for part in [core, warmGlow, coolGlow] {
+        for part in [core, glow] {
             if reduceMotion || !hasFrame {
                 part.removeAnimation(forKey: "breathing")
             } else if part.animation(forKey: "breathing") == nil {
@@ -102,8 +101,31 @@ import QuartzCore
 
     func remove() {
         layer.removeAllAnimations()
-        for part in [core, warmGlow, coolGlow] { part.removeAllAnimations() }
+        for part in [core, glow] { part.removeAllAnimations() }
         layer.removeFromSuperlayer()
         hasFrame = false
+    }
+}
+
+/// Matches the approved cursor study; the extra canvas preserves the blur tails.
+private struct ComposerCaretGlow: View {
+    let height: CGFloat
+
+    var body: some View {
+        let scale = height / 25
+        ZStack {
+            Ellipse().fill(Color(red: 1, green: 0.78, blue: 0.21))
+                .frame(width: 16 * scale, height: height * 0.68)
+                .blur(radius: 10 * scale).offset(y: -height * 0.24).opacity(0.65)
+            Ellipse().fill(Color(red: 0.24, green: 0.66, blue: 1))
+                .frame(width: 14 * scale, height: height * 0.60)
+                .blur(radius: 9 * scale).offset(y: height * 0.25).opacity(0.65)
+            Capsule().fill(LinearGradient(colors: [
+                Color(red: 1, green: 0.93, blue: 0.61), .white,
+                Color(red: 0.72, green: 0.9, blue: 1)
+            ], startPoint: .top, endPoint: .bottom))
+                .frame(width: 4.6, height: height).blur(radius: 3 * scale).opacity(0.8)
+        }
+        .frame(width: 80, height: height + 80)
     }
 }
