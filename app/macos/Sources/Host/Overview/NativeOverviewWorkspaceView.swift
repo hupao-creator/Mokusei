@@ -33,14 +33,16 @@ public struct NativeOverviewWorkspaceView: View {
     public let callbacks: NativeOverviewWorkspaceCallbacks
     public var interactionPaused: Bool
     public var clickExclusions: NativeClickExclusions
+    public var landing: Bool
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
     private var locale: DesktopLocale { model.workspace.preferences.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
-                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init()) {
+                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
+        self.landing = landing
     }
     public var body: some View {
         GeometryReader { geometry in
@@ -50,8 +52,8 @@ public struct NativeOverviewWorkspaceView: View {
                 NativeOverviewCanvas(items: model.items, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
-                    visible: model.facts.overviewVisible && model.facts.documentVisible,
-                    cloudAnimationsEnabled: !model.facts.settingsOpen,
+                    visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
+                    cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
                     glassWorld: model.workspace.preferences.glassWorld,
                     interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
@@ -60,7 +62,10 @@ public struct NativeOverviewWorkspaceView: View {
                         NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbacks)
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
                     }
-                if model.items.isEmpty && model.error == nil {
+                    .opacity(landing ? 0 : 1)
+                    .allowsHitTesting(!landing)
+                    .accessibilityHidden(landing)
+                if !landing && model.items.isEmpty && model.error == nil {
                     NativeOverviewEmptyState(title: emptyTitle, detail: emptyDetail)
                 }
                 if let error = model.error ?? model.canvasState.layoutError {
@@ -89,10 +94,10 @@ public struct NativeOverviewWorkspaceView: View {
             }
             .overlay {
                 NativeOverviewRefreshDecoration(operation: model.featuredOperation,
-                    visible: model.facts.overviewVisible && model.facts.documentVisible).allowsHitTesting(false)
+                    visible: model.facts.overviewVisible && model.facts.documentVisible && !landing).allowsHitTesting(false)
             }
             .overlay(alignment: .top) {
-                NativeOverviewChrome(filters: model.visibleFilters, selectedTag: model.selectedTag,
+                NativeOverviewChrome(filters: landing ? [] : model.visibleFilters, selectedTag: model.selectedTag,
                     selectedScope: model.selectedScope, selectedKind: model.tagSelection?.kind,
                     cameraManual: model.canvasState.camera.manual,
                     focusFilterRequestKey: model.focusFilterRequestKey, strings: chromeStrings,
