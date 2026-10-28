@@ -100,6 +100,7 @@ private struct Scene: View {
         greatestEyeStep = max(greatestEyeStep, step)
         observations.append(["state": name, "clock": controller.clock, "eyeStep": step,
             "dt": dt, "transitioning": controller.isTransitioning,
+            "faceFrame": NSStringFromRect(face.convert(face.bounds, to: nil)),
             "runningClock": controller.runningMilliseconds,
             "reasoning": controller.currentReasoning != nil, "arcAlpha": pose["arcAlpha"],
             "retiring": controller.isRetiringReasoning])
@@ -131,6 +132,41 @@ private struct Scene: View {
     }
 
     try await observe("idle", milliseconds: 100)
+    let idleFace = face.convert(face.bounds, to: nil)
+    let inputStart = observations.count
+    fixture.state.setInputOpen(true)
+    try await observe("idle-to-input-full", milliseconds: 750)
+    let inputFace = face.convert(face.bounds, to: nil)
+    guard idleFace.midX - inputFace.midX > 100 else {
+        throw Failure(description: "Input did not move the mounted eye seat to the editor")
+    }
+    fixture.state.setInputOpen(false)
+    try await observe("input-to-idle-full", milliseconds: 750)
+    fixture.state.setInputOpen(true)
+    try await observe("idle-to-input-reverse", milliseconds: 100)
+    fixture.state.setInputOpen(false)
+    try await observe("input-to-idle-reverse", milliseconds: 750)
+    fixture.state.setInputOpen(true)
+    try await observe("input-reopen-full", milliseconds: 750)
+    fixture.state.setInputOpen(false)
+    try await observe("input-collapse-reverse", milliseconds: 100)
+    fixture.state.setInputOpen(true)
+    try await observe("input-reverse-to-open", milliseconds: 750)
+    fixture.state.setInputOpen(false)
+    try await observe("input-final-close", milliseconds: 750)
+    // The mounted seat must stay between its real resting positions. Shape-only
+    // checks miss a parent-layout jump even when every eye pose is continuous.
+    // One point permits native backing alignment, not a second vertical excursion.
+    let left = min(idleFace.midX, inputFace.midX) - 1
+    let right = max(idleFace.midX, inputFace.midX) + 1
+    let bottom = min(idleFace.midY, inputFace.midY) - 1
+    let top = max(idleFace.midY, inputFace.midY) + 1
+    for frame in observations[inputStart...] {
+        let rect = NSRectFromString(frame["faceFrame"] as! String)
+        guard (left...right).contains(rect.midX), (bottom...top).contains(rect.midY) else {
+            throw Failure(description: "\(frame["state"]!): eye seat escaped input trajectory: \(rect)")
+        }
+    }
     fixture.running = true; fixture.mode = .running
     try await observe("idle-to-running", milliseconds: 650)
     try await observe("running-orbit", milliseconds: 4300, images: false)
@@ -196,7 +232,7 @@ private struct Scene: View {
         .write(to: output.appendingPathComponent("frames.json"))
     return ["samples": observations.count, "screenshots": screenshots, "maximumEyeStep": greatestEyeStep,
             "nativeFrames": controller.frameCount,
-            "checks": ["single persistent eye seat", "bounded inter-frame eye motion", "running clock continuation",
+            "checks": ["single persistent eye seat", "input screen-space trajectory", "bounded inter-frame eye motion", "running clock continuation",
                        "append does not redirect", "rapid reversal", "inactive pause", "narrow/short arc fit", "retired glyph cleanup"]]
 }
 

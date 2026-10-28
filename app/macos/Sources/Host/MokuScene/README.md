@@ -28,6 +28,11 @@ The shared input row places the attachment plus between Moku's eyes and the edit
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
+The eyes retain the last open editor seat while the composer retires. Geometry
+reported by the shrinking, read-only composer cannot move that seat; reopening
+resumes live editor measurements. The native transition replay checks the mounted
+eye seat's window-space trajectory through full and interrupted input transitions.
+
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
 24-point horizontal viewport margins. Moku and its archived history do not count

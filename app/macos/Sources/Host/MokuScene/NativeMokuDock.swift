@@ -626,7 +626,12 @@ public struct NativeMokuDock: View {
                 directoryMentions.update(editor)
             },
             onKeyDown: { directoryMentions.handle($0, draft: draft) },
-            onEditorSeatChange: { editorBottomInset = $0 },
+            onEditorSeatChange: {
+                // The retiring editor remains mounted inside a shrinking capsule.
+                // Its new anchor would redirect the eyes mid-collapse; keep the
+                // last open seat until live editing resumes.
+                if state.inputOpen { editorBottomInset = $0 }
+            },
             onEscape: { if !landing { state.setInputOpen(false) } }, onSend: send)
     }
 
