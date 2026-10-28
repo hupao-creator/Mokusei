@@ -41,6 +41,7 @@ struct NativeMokuComposerInput: View {
     var onMentionFrame: (CGRect?) -> Void = { _ in }
     var showsEyes = false
     var selectionRequest: NativeComposerSelectionRequest?
+    var initialSelection: NSRange?
     var onEditorStateChange: ((NativeComposerEditorState) -> Void)?
     var onKeyDown: ((NativeComposerKeyEvent) -> Bool)?
     var onEditorSeatChange: (CGFloat) -> Void = { _ in }
@@ -129,7 +130,7 @@ struct NativeMokuComposerInput: View {
                     insets: .init(top: landing ? 26 : 19, left: 6, bottom: landing ? 26 : 19, right: 6),
                     onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
                     onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
-                    selectionRequest: selectionRequest, onEditorStateChange: { state in
+                    selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
                         onEditorStateChange?(state)
                     }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
                     .anchorPreference(key: NativeMokuEditorAnchorKey.self, value: .bounds) { $0 }

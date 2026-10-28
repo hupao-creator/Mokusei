@@ -54,6 +54,9 @@ import MokuseiPluginUI
     @ObservationIgnored var retainedText = ""
     @ObservationIgnored var retainedAttachments: [NativeComposerAttachment] = []
     @ObservationIgnored var retainedDirectories: [NativeComposerDirectory] = []
+    /// Caret/selection of the last open Dock editor. It outlives the editor
+    /// view so reopening restores the reader's place instead of resetting it.
+    @ObservationIgnored var retainedSelection: NSRange?
     @ObservationIgnored var capsuleSealed = false
     @ObservationIgnored var coordinatorFrame: CGRect?
     @ObservationIgnored var settingsOrigin = CGRect.zero
@@ -238,6 +241,10 @@ import MokuseiPluginUI
         guard !capsuleSealed else { return }
         retainedText = draft.text; retainedAttachments = draft.attachments; retainedDirectories = draft.directories
         capsuleSealed = seal
+    }
+    func retainSelection(_ selection: NSRange) {
+        guard selection.location != NSNotFound else { return }
+        retainedSelection = selection
     }
     public func openSettings(origin: CGRect = .zero) {
         guard !settingsOpen || settingsClosing else { return }
