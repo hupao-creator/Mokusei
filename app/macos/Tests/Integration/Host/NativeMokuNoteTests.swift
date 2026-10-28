@@ -60,13 +60,13 @@ struct NativeMokuNoteTests {
         #expect(sample(-40).action == nil)
         #expect(sample(24, phase: .began, inverted: false).action == .note)
         #expect(sample(0, x: -12, phase: .began).action == nil)
-        #expect(sample(0, x: -12).action == .input)
+        #expect(sample(0, x: -12).action == nil)
         #expect(sample(0, x: -50).action == nil)
         #expect(sample(0, x: 30, phase: .began).action == nil)
-        #expect(sample(0, x: 30, phase: .began, inverted: false).action == .input)
+        #expect(sample(0, x: 30, phase: .began, inverted: false).action == nil)
     }
 
-    @Test func touchSwipeUsesTheSameThresholdAndExistingNoteInputState() {
+    @Test func touchSwipeUsesTheSameThresholdAndIgnoresLeftwardInput() {
         let state = NativeMokuSceneState()
         state.setWindowVisible(true)
         var touch = NativeMokuTouchSwipeSequence()
@@ -80,9 +80,8 @@ struct NativeMokuNoteTests {
         #expect(touch.move(to: CGPoint(x: 80, y: 240), eligible: true) == nil)
         touch.cancel()
         #expect(touch.begin(at: start, eligible: true, inside: true) == true)
-        #expect(touch.move(to: CGPoint(x: 136, y: 322), eligible: true) == .input)
-        state.setInputOpen(true)
-        #expect(state.inputOpen && !state.notePanelOpen)
+        #expect(touch.move(to: CGPoint(x: 136, y: 322), eligible: true) == nil)
+        #expect(!state.inputOpen && state.notePanelOpen)
         #expect(touch.move(to: CGPoint(x: 100, y: 280), eligible: true) == nil)
         state.settle()
     }

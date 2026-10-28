@@ -1,25 +1,22 @@
 import SwiftUI
 import AppKit
 
-enum NativeMokuSwipeAction { case note, input }
+enum NativeMokuSwipeAction { case note }
 
 /// Physical finger deltas use the same threshold and direction dominance on
 /// the Mac trackpad. Each contact can request one action only.
 private struct NativeMokuSwipeIntent {
     static let minimumDistance: CGFloat = 24
     private var upward: CGFloat = 0
-    private var leftward: CGFloat = 0
-    private var verticalTravel: CGFloat = 0
     private var horizontalTravel: CGFloat = 0
     private(set) var triggered = false
 
     mutating func sample(_ delta: CGPoint) -> NativeMokuSwipeAction? {
-        upward -= delta.y; leftward -= delta.x
-        horizontalTravel += abs(delta.x); verticalTravel += abs(delta.y)
+        upward -= delta.y
+        horizontalTravel += abs(delta.x)
         guard !triggered else { return nil }
         let action: NativeMokuSwipeAction?
         if upward >= Self.minimumDistance && upward > horizontalTravel * 1.5 { action = .note }
-        else if leftward >= Self.minimumDistance && leftward > verticalTravel * 1.5 { action = .input }
         else { action = nil }
         if action != nil { triggered = true }
         return action
@@ -111,7 +108,6 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
     var isActive: () -> Bool
     var isInside: (CGPoint) -> Bool
     var openNote: () -> Void
-    var openInput: () -> Void
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
@@ -120,7 +116,7 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
     }
     func updateNSView(_ view: MonitorView, context: Context) {
         view.isActive = isActive; view.isInside = isInside
-        view.openNote = openNote; view.openInput = openInput
+        view.openNote = openNote
     }
     static func dismantleNSView(_ view: MonitorView, coordinator: ()) { view.stop() }
 
@@ -128,7 +124,6 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
         var isActive: () -> Bool = { false }
         var isInside: (CGPoint) -> Bool = { _ in false }
         var openNote: () -> Void = {}
-        var openInput: () -> Void = {}
         private var monitor: Any?
         private var sequence = NativeMokuSwipeSequence()
         override var isFlipped: Bool { true }
@@ -145,7 +140,6 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
                 inside: isInside(convert(event.locationInWindow, from: nil)))
             switch result.action {
             case .note: openNote()
-            case .input: openInput()
             case nil: break
             }
             return result.consume ? nil : event
