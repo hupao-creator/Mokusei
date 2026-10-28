@@ -40,6 +40,11 @@ invoking from elsewhere. The default toolchain is the one running this command.
 
 The fixtures contain synthetic credentials only. They do not verify production
 OAuth accounts, paid upstream models, remote billing responses, or the Swift UI.
+The foreground provider waits for the production activity callback after each
+live segment before sending the next, including the assistant transition before
+the terminal marker. Native SSE may coalesce nearby
+updates; a fixed delay cannot certify two observable stream windows. The replay
+still requires both windows, the point limit, UTF-16 offset and exact sequence.
 
 The compressed renderer fixture records the previous implementation’s public output,
 not runtime migration data. Replaying it requires only Go; no Node generator or
