@@ -408,8 +408,8 @@ private struct CodexProfileFields: View {
     var body: some View {
         VStack(alignment: .leading, spacing: page ? 0 : 14) {
             CodexSettingsField(label: t("模型"), description: page ? nil : selected?.description, page: page) {
-                CodexSettingsSelect(page: page, label: label + " " + t("模型"),
-                                    selection: binding("model", setter: selectModel), options: modelOptions).nativeSettingsControl("model")
+                NativeModelSelector(value: binding("model", setter: selectModel), options: modelOptions,
+                                    accessibilityLabel: label + " " + t("模型")).nativeSettingsControl("model")
                     .disabled(disabled)
             }
             if explicitThinking { thinkingField } else { effortField }
@@ -486,20 +486,25 @@ private struct CodexProfileFields: View {
         ]
     }
 
+    private var modelLink: NativeModelSelector.ModelLink {
+        .init(value: binding("model", setter: selectModel), options: modelOptions, label: t("模型"))
+    }
+
     private var thinkingField: some View {
         CodexSettingsField(label: "Thinking", description: page ? nil : selected?.thinking["reason"]?.stringValue, page: page) {
-            CodexSettingsSelect(page: page, label: label + " Thinking", selection: Binding(
+            NativeModelSelector(value: Binding(
                 get: { value["thinking"].map(codexThinkingKey) ?? "" },
                 set: { key in
                     if let choice = choices.first(where: { codexThinkingKey($0) == key }) { update("thinking", choice) }
-                }), options: thinkingOptions).nativeSettingsControl("thinking")
+                }), options: thinkingOptions, presentation: .reasoning, model: modelLink,
+                accessibilityLabel: label + " Thinking").nativeSettingsControl("thinking")
                 .disabled(disabled || choices.isEmpty)
         }
     }
     private var effortField: some View {
         CodexSettingsField(label: t("推理强度"), description: page ? nil : effortUnavailableReason ?? efforts.first(where: { $0.value == value.text("effort") })?.description, page: page) {
-            CodexSettingsSelect(page: page, label: label + " " + t("推理强度"),
-                                selection: binding("effort"), options: effortOptions).nativeSettingsControl("effort")
+            NativeModelSelector(value: binding("effort"), options: effortOptions,
+                                presentation: .reasoning, model: modelLink, accessibilityLabel: label + " " + t("推理强度")).nativeSettingsControl("effort")
                 .disabled(disabled || capabilityUnavailable || (executionSnapshot && fixedEffort && value.text("effort") == nil))
         }
     }

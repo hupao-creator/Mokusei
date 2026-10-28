@@ -145,7 +145,7 @@ private struct OpenCodeProfileFields: View {
             }, options: providerOptions).nativeSettingsControl("provider").disabled(disabled)
         }
         NativeSettingsRow(label: t("模型")) {
-            NativeSettingsSelect(value: Binding(get: { selected.map { ocJSONStringID([$0["provider"]!, $0["id"]!]) } ?? value.ocText("model") ?? "" }, set: { key in
+            NativeModelSelector(value: Binding(get: { selected.map { ocJSONStringID([$0["provider"]!, $0["id"]!]) } ?? value.ocText("model") ?? "" }, set: { key in
                 let model = models.first { ocJSONStringID([$0["provider"]!, $0["id"]!]) == key }
                 var next = base.objectValue ?? [:]
                 next["provider"] = model?["provider"] ?? value["provider"]; next["model"] = model?["id"]
@@ -158,13 +158,13 @@ private struct OpenCodeProfileFields: View {
         }
         if explicitThinking {
             NativeSettingsRow(label: t("推理选择")) {
-                NativeSettingsSelect(value: Binding(get: { value["thinking"].map { ocJSONStringID([$0]) } ?? "" }, set: { key in
+                NativeModelSelector(value: Binding(get: { value["thinking"].map { ocJSONStringID([$0]) } ?? "" }, set: { key in
                     change(ocReplacing(value, key: "thinking", value: choices.first { ocJSONStringID([$0]) == key }))
-                }), options: thinkingOptions).nativeSettingsControl("thinking").disabled(disabled || choices.isEmpty)
+                }), options: thinkingOptions, presentation: .reasoning).nativeSettingsControl("thinking").disabled(disabled || choices.isEmpty)
             }
         } else {
             NativeSettingsRow(label: t("OpenCode 模型变体")) {
-                NativeSettingsSelect(value: binding("variant") { change(ocReplacing(value, key: "variant", value: $0)) }, options: variantOptions).nativeSettingsControl("variant")
+                NativeModelSelector(value: binding("variant") { change(ocReplacing(value, key: "variant", value: $0)) }, options: variantOptions).nativeSettingsControl("variant")
                     .disabled(disabled || selected == nil || selected?["unavailableReason"] != nil)
             }
         }

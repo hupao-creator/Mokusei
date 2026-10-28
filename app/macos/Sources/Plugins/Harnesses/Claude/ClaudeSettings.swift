@@ -109,7 +109,7 @@ struct ClaudeThreadSettingsView: View {
             }
             ClaudeModelField(value:Binding(get:{ exactModel },set:{ chooseModel($0) }), models:models, required:true, disabled:disabled)
             ClaudeSelectionField(label:t("Thinking（必选）"),value:Binding(get:{ claudeThinkingKey(thinking) },set:{ key in thinking = choices.first { claudeThinkingKey($0) == key } }),
-                options:[NativeSettingsOption(id:"",label:t("请选择 Thinking"),disabled:true)] + choices.map { NativeSettingsOption(id:JSONText(claudeThinkingKey($0)),label:claudeThinkingLabel($0)) }).nativeSettingsControl("thinking")
+                options:[NativeSettingsOption(id:"",label:t("请选择 Thinking"),disabled:true)] + choices.map { NativeSettingsOption(id:JSONText(claudeThinkingKey($0)),label:claudeThinkingLabel($0)) }, reasoning: true).nativeSettingsControl("thinking")
                 .disabled(disabled || choices.isEmpty)
             if let reason = selected?["thinking"]?["reason"]?.stringValue { Text(reason).foregroundStyle(NativePalette.thread.muted.swiftUI) }
             ClaudePermissionField(value:$permission, disabled:disabled)
@@ -199,7 +199,7 @@ struct ClaudeHarnessSettingsView: View {
             ClaudeModelField(value: Binding(get: { exactModel }, set: { changeModelValue($0) }), models: models,
                              required: props.executionSnapshot, disabled: false)
             ClaudeSelectionField(label: t("推理强度"), value: Binding(get: { profile["effort"]?.stringValue ?? "" },
-                set: { change("effort", $0.isEmpty ? nil : .text($0)) }), options: effortOptions).nativeSettingsControl("effort")
+                set: { change("effort", $0.isEmpty ? nil : .text($0)) }), options: effortOptions, reasoning: true).nativeSettingsControl("effort")
                 .disabled(modelText.isEmpty || (props.executionSnapshot && !claudeValidModel(modelText, required: true)) || (efforts.isEmpty && !(props.executionSnapshot && selected?["thinking"]?.claudeKind == "fixed" && profile["effort"] != nil)))
             if props.executionSnapshot, selected?["thinking"]?.claudeKind == "unknown" || selected == nil {
                 NativeSettingsNotice(message: selected?["thinking"]?["reason"]?.stringValue ?? t("无法确认此模型的推理强度能力。"), kind: .warning)
@@ -278,7 +278,7 @@ private struct ClaudeModelField: View {
     var body: some View {
         NativeSettingsRow(label: t("模型"), description: selected?["description"]?.stringValue,
                           layout: formPage ? .inline : .stacked) {
-            NativeSettingsSelect(value: Binding(get: { selection }, set: { key in
+            NativeModelSelector(value: Binding(get: { selection }, set: { key in
                 if key == customKey { custom = true; return }
                 custom = false
                 value = models.first { modelKey($0) == key }?.claudeID("value") ?? ""
@@ -310,10 +310,16 @@ private struct ClaudeSelectionField: View {
     let label:String
     @Binding var value:String
     let options:[NativeSettingsOption]
+    var reasoning = false
     @Environment(\.nativeSettingsFormPage) private var formPage
     var body: some View {
         NativeSettingsRow(label:label,layout:formPage ? .inline : .stacked) {
-            NativeSettingsSelect(value:Binding(get:{JSONText(value)},set:{ value = $0.string }),options:options)
+            if reasoning {
+                NativeModelSelector(value: Binding(get: { JSONText(value) }, set: { value = $0.string }),
+                                    options: options, presentation: .reasoning)
+            } else {
+                NativeSettingsSelect(value:Binding(get:{JSONText(value)},set:{ value = $0.string }),options:options)
+            }
         }
     }
 }

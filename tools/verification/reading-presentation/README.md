@@ -415,3 +415,18 @@ runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 streaming follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
+
+## Model and reasoning selector
+
+`python3 tools/verification/reading-presentation/run.py --model-selector` runs
+three mounted production-selector cases in the isolated AppKit application loop.
+They cover exact IDs, disabled choices, keyboard commit/cancellation/type-ahead,
+slider actions and reset, the model-list subpage, capability refresh, and a single
+fixed choice. Light/dark model lists and the reasoning panel are rendered under
+`.scratch/reading-presentation/NativeModelSelectorReplayTests`. These component
+renders do not certify WindowServer compositing or physical input delivery.
+
+SwiftPM defers these three methods to this launcher because transient popovers
+need a running AppKit application. The default CI `native-controls` replay group
+runs them and the coverage collector requires their observed passing outcomes;
+a skipped or incomplete replay is a failure.
