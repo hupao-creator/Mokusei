@@ -61,21 +61,21 @@ struct NativeOverviewCenteringTests {
         fixture.items[0].carouselEligible = true
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: 1400, height: 950)
         defer { window.close() }
-        try await settle(fixture)
-        try verifyClearance(fixture)
+        try await settle(fixture, in: window)
+        try verifyClearance(fixture, in: window)
         let envelope = fixture.frames.values.reduce(CGRect.null) { $0.union($1) }
-        #expect(abs(envelope.minY - 103) < 0.5)
-        #expect(abs(envelope.maxY - 735) < 0.5)
+        #expect(abs(envelope.minY - 103) < 1 / window.backingScaleFactor)
+        #expect(abs(envelope.maxY - 735) < 1 / window.backingScaleFactor)
         #expect(fixture.state.camera.transform.scale == 1)
         let appearances = fixture.appearances
         for extent in [(2, 2), (2, 1), (1, 1)] {
             fixture.items[1].columns = extent.0
             fixture.items[1].rows = extent.1
-            try await settle(fixture)
+            try await settle(fixture, in: window)
             fixture.state.camera.pan(deltaX: -170, deltaY: 230)
             fixture.state.camera.returnToAuto()
-            try await settle(fixture)
-            try verifyClearance(fixture)
+            try await settle(fixture, in: window)
+            try verifyClearance(fixture, in: window)
         }
         #expect(fixture.appearances == appearances)
     }
@@ -89,18 +89,18 @@ struct NativeOverviewCenteringTests {
         }
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: 1400, height: 950)
         defer { window.close() }
-        try await settle(fixture)
-        try verifyClearance(fixture)
+        try await settle(fixture, in: window)
+        try verifyClearance(fixture, in: window)
         // The old 3×4 envelope misses the Dock by 2.8pt at readable scale.
         // A 4×3 packing is a real fitting witness; inset preference must yield.
         #expect(fixture.state.presentedPlacements.map { $0.column + $0.columns }.max() == 4)
         #expect(fixture.state.presentedPlacements.map { $0.row + $0.rows }.max() == 3)
         fixture.size = .init(width: 860, height: 600)
-        try await settle(fixture)
+        try await settle(fixture, in: window)
         #expect(fixture.state.camera.carouselTargetID != nil)
         fixture.size = .init(width: 1292, height: 858)
-        try await settle(fixture)
-        try verifyClearance(fixture)
+        try await settle(fixture, in: window)
+        try verifyClearance(fixture, in: window)
     }
 
     @Test(.requiresDisplay, arguments: [CGSize(width: 500, height: 600), CGSize(width: 620, height: 600),
@@ -111,8 +111,8 @@ struct NativeOverviewCenteringTests {
             let fixture = CenteringFixture(size: size, count: count)
             let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: size.width, height: size.height)
             defer { window.close() }
-            try await settle(fixture)
-            try verify(fixture)
+            try await settle(fixture, in: window)
+            try verify(fixture, in: window)
         }
     }
 
@@ -120,7 +120,7 @@ struct NativeOverviewCenteringTests {
         let fixture = CenteringFixture(size: .init(width: 1180, height: 780), count: 16)
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture))
         defer { window.close() }
-        try await settle(fixture)
+        try await settle(fixture, in: window)
         for suspension in ["none", "interaction", "hidden"] {
             fixture.state.camera.setManualTransform(.init(scale: 1.2, x: -500, y: 350))
             if suspension == "interaction" {
@@ -134,9 +134,9 @@ struct NativeOverviewCenteringTests {
             fixture.visible = true
             fixture.state.camera.setVisible(true)
             try await SwiftUIReplay.wait { fixture.state.camera.isAnimating }
-            try await settle(fixture)
+            try await settle(fixture, in: window)
             #expect(!fixture.state.camera.manual)
-            try verify(fixture)
+            try verify(fixture, in: window)
         }
     }
 
@@ -149,7 +149,7 @@ struct NativeOverviewCenteringTests {
         window.contentView = NSHostingView(rootView: CenteringCanvas(fixture: fixture, constrained: false))
         window.makeKeyAndOrderFront(nil)
         defer { window.close() }
-        try await settle(fixture)
+        try await settle(fixture, in: window)
         let appearances = fixture.appearances
         let screen = try #require(window.screen)
         let frameInset = window.frame.height - window.contentRect(forFrameRect: window.frame).height
@@ -164,8 +164,8 @@ struct NativeOverviewCenteringTests {
             // Refit is deliberately coalesced; settle must include the actual
             // submitted motion, rather than accepting the previous idle frame.
             try await SwiftUIReplay.wait { fixture.state.camera.isAnimating }
-            try await settle(fixture)
-            try verify(fixture)
+            try await settle(fixture, in: window)
+            try verify(fixture, in: window)
             #expect(fixture.appearances == appearances)
         }
     }
@@ -177,10 +177,10 @@ struct NativeOverviewCenteringTests {
             memory: .init(current: (sceneKey: "centering", view: .init(transform: saved, manual: manual))))
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture))
         defer { window.close() }
-        try await settle(fixture)
+        try await settle(fixture, in: window)
         #expect(fixture.state.camera.manual == manual)
         if manual { #expect(fixture.state.camera.transform == saved) }
-        else { try verify(fixture) }
+        else { try verify(fixture, in: window) }
     }
 
     @Test func translatedContentKeepsTheSameAvailableRegionCenter() {
@@ -200,14 +200,14 @@ struct NativeOverviewCenteringTests {
         }
     }
 
-    private func settle(_ fixture: CenteringFixture) async throws {
+    private func settle(_ fixture: CenteringFixture, in window: NSWindow) async throws {
         try await SwiftUIReplay.wait {
             fixture.viewport == fixture.size && fixture.state.camera.viewport == fixture.cameraViewport(fixture.viewport) &&
             fixture.state.presentedPlacements.count == fixture.items.count && !fixture.state.isLayingOut &&
             !fixture.state.camera.isAnimating && !fixture.state.camera.returning &&
             !fixture.state.camera.hasScheduledMotion &&
             Set(fixture.state.presentedPlacements.map(\.member)) == Set(fixture.items.map(\.member)) &&
-            fixture.frames.count == fixture.items.count && projectionError(fixture) < 0.5
+            fixture.frames.count == fixture.items.count && projectionError(fixture) < 1 / window.backingScaleFactor
         }
     }
 
@@ -222,7 +222,7 @@ struct NativeOverviewCenteringTests {
         }.max() ?? .infinity
     }
 
-    private func verify(_ fixture: CenteringFixture) throws {
+    private func verify(_ fixture: CenteringFixture, in window: NSWindow) throws {
         let measured = fixture.frames.values.reduce(CGRect.null) { $0.union($1) }
         let viewport = fixture.cameraViewport(fixture.viewport)
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
@@ -231,21 +231,22 @@ struct NativeOverviewCenteringTests {
         print("CENTERING viewport=\(fixture.viewport) toolbar=\(viewport.toolbarBottom) count=\(fixture.items.count) " +
               "scale=\(fixture.state.camera.transform.scale) measured=\(measured) " +
               "centerError=(\(measured.midX - expectedX),\(measured.midY - expectedY)) projectionError=\(projectionError(fixture))")
-        #expect(abs(measured.midX - expectedX) < 0.5)
-        #expect(abs(measured.midY - expectedY) < 0.5)
+        #expect(abs(measured.midX - expectedX) < 1 / window.backingScaleFactor)
+        #expect(abs(measured.midY - expectedY) < 1 / window.backingScaleFactor)
     }
 
-    private func verifyClearance(_ fixture: CenteringFixture) throws {
-        try verify(fixture)
+    private func verifyClearance(_ fixture: CenteringFixture, in window: NSWindow) throws {
+        try verify(fixture, in: window)
         let envelope = fixture.frames.values.reduce(CGRect.null) { $0.union($1) }
         let viewport = fixture.cameraViewport(fixture.viewport)
         let dock = NativeMokuCapsuleLayout.idleSurface(in: CGRect(origin: .zero, size: fixture.viewport))
         let above = envelope.minY - viewport.toolbarBottom
         let below = dock.minY - envelope.maxY
         print("CONTROL-GAPS viewport=\(fixture.viewport) above=\(above) below=\(below) bounds=\(envelope)")
-        #expect(above >= -0.5 && below >= -0.5)
-        #expect(abs(above - below) < 0.5)
-        #expect(envelope.minX >= -0.5 && envelope.maxX <= fixture.viewport.width + 0.5)
+        #expect(above >= -1 / window.backingScaleFactor && below >= -1 / window.backingScaleFactor)
+        // Preserve the original one-physical-pixel Retina tolerance on 1x CI displays.
+        #expect(abs(above - below) < 1 / window.backingScaleFactor)
+        #expect(envelope.minX >= -1 / window.backingScaleFactor && envelope.maxX <= fixture.viewport.width + 1 / window.backingScaleFactor)
         #expect(fixture.state.camera.carouselTargetID == nil)
         #expect(fixture.state.camera.transform.scale >= fixture.state.camera.minimumScale)
     }

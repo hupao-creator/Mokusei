@@ -19,6 +19,11 @@ skip when unavailable. `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/ma
 exercises this admission path without changing the desktop. This is a simulated
 absence of display capability, not proof from a physically disconnected machine.
 Hosted CI intentionally does not set that override and rejects display skips.
+Its disposable account enables motion/transparency before launching tests;
+local tests never change system accessibility preferences. Rendered geometry
+comparisons use one physical pixel from the actual window's backing scale, so
+1x hosted screens and 2x Retina screens enforce equivalent precision. Pure
+geometry assertions retain their original numerical precision.
 Fixture-gated methods may defer only to their required Go/AppKit replay step;
 see the [verification policy](../../../../scripts/ci/verification-policy.md).
 

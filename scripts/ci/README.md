@@ -30,6 +30,11 @@ Swift reports XCTest and Swift Testing separately. XCTest failures and Swift
 Testing issues are framework counts, not interchangeable assertion counts.
 DirectoryTag runs once inside the full suite. CI does not force headless mode;
 missing display capability and unexpected skipped methods fail the report.
+The disposable runner's Reduce Motion and Reduce Transparency preferences are
+explicitly disabled before graphical tests: the stock image enables both. No
+local test command changes the developer's preferences. Rendered geometry checks
+use the actual window backing scale for one-physical-pixel precision; the pure
+camera mathematics keep their existing tolerances.
 The exact allowlist contains only methods executed through the required live Go
 fixtures or isolated AppKit launchers. Four Go producers supply the remaining
 Swift fixtures before the full suite. All three replay reports must complete.

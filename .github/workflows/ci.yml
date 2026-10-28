@@ -297,6 +297,26 @@ jobs:
           fingerprint="$({ xcodebuild -version; xcrun swift --version; xcrun --sdk macosx --show-sdk-version; } | shasum -a 256 | cut -d' ' -f1)"
           printf 'fingerprint=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare the disposable graphical test session
+        if: ${{ !cancelled() && steps.xcode.outcome == 'success' }}
+        run: |
+          # runner-images/configure-system.sh disables motion and transparency.
+          # Tests observing transitions/materials need those real effects enabled.
+          # Only this ephemeral CI account is changed, never a developer's Mac.
+          defaults read com.apple.universalaccess reduceMotion
+          defaults read com.apple.universalaccess reduceTransparency
+          defaults write com.apple.universalaccess reduceMotion -bool false
+          defaults write com.apple.universalaccess reduceTransparency -bool false
+          xcrun swift -e '
+          import AppKit
+          print("Native CI screens:", NSScreen.screens.map { ($0.frame, $0.backingScaleFactor) })
+          print("Reduce Motion:", NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+          print("Reduce Transparency:", NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency)
+          precondition(CGSessionCopyCurrentDictionary() != nil && !NSScreen.screens.isEmpty)
+          precondition(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+          precondition(!NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency)
+          '
+
       - uses: actions/cache@v4
         with:
           path: app/macos/.build
