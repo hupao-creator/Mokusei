@@ -32,6 +32,9 @@ workspaces, retain path/PID diagnostics and clean up the owned app on timeout.
 Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
+For empty-workspace Moku centering, global catalog membership and first-dispatch
+admission, run `python3 tools/verification/reading-presentation/run.py --moku-landing`;
+see the [production landing replay](reading-presentation/README.md#empty-workspace-and-first-dispatch).
 For the research-only comparison removing all Thread-card Liquid Glass, see the [isolated glass benchmark and Chinese report](overview-glass/README.md).
 `python3 tools/verification/overview-centering/verify-geometry.py` checks the current
 production camera's framing anchor through AppKit without requiring Git history.
@@ -89,3 +92,10 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/artificialanalysis/lifecycle` | Independent Context host registration/enablement, runtime catalog/settings/history reset, shared acquisition, cancellation, drain, fallback and bounds |
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
+
+The Runtime replay also drives the production Tag and Report participants with
+inherited and independent execution profiles. Gated native discovery checks
+settings-save conflicts without batch retry consumption, validation of matching
+idle-session reuse, unchanged admitted steering and next-batch profile adoption.
+It also checks cold Open settlement of an orphan and background work that needs
+Close after Interrupt, including native state flushes during cleanup.

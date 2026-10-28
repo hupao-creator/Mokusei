@@ -125,6 +125,12 @@ func (p *peer) receive(frame object) error {
 	if id == nil {
 		return nil
 	}
+	if handled, err := p.voiceConfigurationFixture(method, params, id); handled {
+		return err
+	}
+	if handled, err := p.voiceReceiptFixture(method, params, id); handled {
+		return err
+	}
 	if handled, err := p.recoveryFixture(method, params, id); handled {
 		return err
 	}
@@ -357,6 +363,9 @@ func (p *peer) receive(frame object) error {
 		}
 		if e := p.event("thread/realtime/sdp", object{"threadId": p.session, "sdp": "fixture-answer-sdp"}); e != nil {
 			return e
+		}
+		if os.Getenv("MOKUSEI_CODEX_REPLAY_VOICE_CONFIGURATION") == "1" {
+			return p.send(object{"id": id, "result": object{}})
 		}
 		// Native flat ASR notifications: no media, model or canonical history.
 		for _, notification := range []struct {

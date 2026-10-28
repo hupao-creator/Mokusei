@@ -11,6 +11,13 @@ The coordinator's serial queue observes cancellation while waiting, so abandoned
 input and voice preparation release their claims before a slow owner finishes.
 Cancellation of a waiter does not interrupt the admitted owner.
 
+If an execution ends while preparing its follow-up, Runtime checks saved versus
+applied settings before admitting a successor. The coordinator prepares fresh
+settings, instructions and context once when Core confirms that no input was
+consumed. This covers typed, lifecycle-event and durable outbox inputs. An exact
+native `ErrExecutionEnded` can provide that guarantee; wrapped or uncertain
+native failures cannot authorize replay or clear an uncertain outbox attempt.
+
 ## Tools and creation
 
 [tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. Inclusive property hints expose choices from closed union branches without replacing their exact validation. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution.
@@ -136,6 +143,28 @@ do not load unrelated Thread histories.
 Relay requests still waiting for target admission belong to the media lease and
 leave the queue when that lease ends. Once admission begins, the service owns
 the request independently of media cancellation.
+
+Relay media belongs to the Moku conversation and survives same-owner model,
+routing and target-schema changes. Reopening the task engine retains the media
+identity and exact spoken-result ownership. Native media belongs to its native
+handle; replacing the Moku Thread or explicitly stopping voice still retires
+media and waits for cleanup.
+Before reopening a same-owner handle, Moku captures pending terminal replies
+from that handle. Delayed terminal handling can therefore deliver the exact
+native reply after replacement, rather than losing it or substituting a summary.
+
+Native voice does not admit a new task with pending execution configuration.
+The authenticated owner can continue its existing call through configuration
+reconnection. A captured handoff is eligible for automatic resubmission only
+when the adapter confirms that no Core execution or injected tool was admitted
+and the retired native process has drained. Cleanup failure, explicit media stop
+or lost ownership revokes that recovery. Unknown native failures remain errors,
+never permission to repeat a potentially consumed request.
+Native Moku speech waits for the same device's delivery-ID readiness receipt
+before producing audio. Duplicate receipts cannot replay the reply, and media
+stop/generation retirement cancels waiting speech. This handshake gives the
+client a playback boundary without guessing ordering between sideband polling
+and WebRTC events; relay and private-discussion speech keep their existing path.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/moku` and `./scripts/go.sh test -race ./internal/services/moku` from the repository root. The runner also exports production-shaped Talk/dispatch/note records for native UI replays.
 

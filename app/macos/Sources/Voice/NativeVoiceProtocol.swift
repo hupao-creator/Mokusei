@@ -20,6 +20,8 @@ struct NativeVoiceEvent: Sendable {
     let transcript: VoiceTranscriptMessage?
     let sessionID: JSONText?
     let replyToItemID: JSONText?
+    let generation: Int?
+    let deliveryID: JSONText?
 
     init(_ value: JSONValue) throws {
         guard let sequence = value["sequence"]?.intValue, sequence >= 0,
@@ -30,6 +32,8 @@ struct NativeVoiceEvent: Sendable {
         text = value["text"]?.voiceText
         sessionID = value["sessionId"]?.voiceText
         replyToItemID = value["replyToItemId"]?.voiceText
+        generation = value["generation"]?.intValue
+        deliveryID = value["deliveryId"]?.voiceText
         if type == "transcript", let session = value["sessionId"]?.voiceText,
            let item = value["itemId"]?.voiceText, !session.codeUnits.isEmpty, !item.codeUnits.isEmpty,
            let role = value["role"]?.stringValue.flatMap(VoiceTranscriptMessage.Role.init(rawValue:)),
@@ -47,6 +51,9 @@ struct NativeVoiceResult: Sendable {
     let occupiedOwner: NativeVoiceOccupiedOwner?
     let sdp: String?
     let events: [NativeVoiceEvent]
+    let reconnect: Bool
+    let reconnectRetired: Bool
+    let reconnectError: String?
     let supported: Bool
     let available: Bool
     let messages: [VoiceTranscriptMessage]
@@ -67,6 +74,9 @@ struct NativeVoiceResult: Sendable {
         } else { occupiedOwner = nil }
         sdp = value["sdp"]?.stringValue
         events = try (value["events"]?.arrayValue ?? []).map(NativeVoiceEvent.init)
+        reconnect = value["reconnect"]?.boolValue ?? false
+        reconnectRetired = value["reconnectRetired"]?.boolValue ?? false
+        reconnectError = value["reconnectError"]?.stringValue
         supported = value["supported"]?.boolValue ?? false
         available = value["available"]?.boolValue ?? false
         messages = try (value["messages"]?.arrayValue ?? []).map { message in
@@ -117,6 +127,12 @@ struct NativeVoicePlayback {
             if playbackID == id { playbackID = nil }
             if bufferedResponseID == id { bufferedResponseID = nil }
         }
+    }
+
+    mutating func completeWithoutAudio(_ id: JSONText) {
+        if responseID == id { responseID = nil }
+        if bufferedResponseID == id { bufferedResponseID = nil }
+        if playbackID == id { playbackID = nil }
     }
 
     mutating func interrupt() -> [JSONValue] {

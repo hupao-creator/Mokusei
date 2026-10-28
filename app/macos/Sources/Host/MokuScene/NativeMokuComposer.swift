@@ -27,6 +27,7 @@ struct NativeMokuComposerInput: View {
     var focusRequestKey = 0
     var suppressInitialFocus = false
     var maxHeight: CGFloat = 126
+    var landing = false
     var retainedText: String?
     var retainedAttachments: [NativeComposerAttachment]?
     var retainedDirectories: [NativeComposerDirectory]?
@@ -56,6 +57,11 @@ struct NativeMokuComposerInput: View {
     private var editingUnavailable: Bool { (disabled && !offlineDraftEditing) || draft.clearing || draft.isDisposed }
     private var voiceControlsVisible: Bool {
         voiceModeActive
+    }
+    private var hasInput: Bool {
+        !NativeComposerSubmissionPolicy.trimmedText(retainedText ?? draft.text).isEmpty
+            || !(retainedAttachments ?? draft.attachments).isEmpty
+            || !(retainedDirectories ?? draft.directories).isEmpty
     }
     private var placeholder: String {
         let directories = retainedDirectories ?? draft.directories
@@ -118,12 +124,14 @@ struct NativeMokuComposerInput: View {
                     placeholder: placeholder, disabled: editingUnavailable, readOnly: readOnly,
                     focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
                     suppressInitialFocus: suppressInitialFocus,
-                    minHeight: 58, maxHeight: maxHeight, fontSize: 14, lineHeight: 20,
-                    insets: .init(top: 19, left: 6, bottom: 19, right: 6), onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
+                    minHeight: landing ? 76 : 58, maxHeight: maxHeight,
+                    fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
+                    insets: .init(top: landing ? 26 : 19, left: 6, bottom: landing ? 26 : 19, right: 6),
+                    onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
                     onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
                     selectionRequest: selectionRequest, onEditorStateChange: { state in
                         onEditorStateChange?(state)
-                    }, onKeyDown: onKeyDown, submitOnReturn: true)
+                    }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
                     .anchorPreference(key: NativeMokuEditorAnchorKey.self, value: .bounds) { $0 }
                 // Keep the seat while it opens, without mounting an inactive
                 // voice entry. The workspace retains the media client itself.
@@ -147,12 +155,18 @@ struct NativeMokuComposerInput: View {
                         .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
                         .accessibilityIdentifier("moku-stop")
                 }
-                Button(action: onSend) {
-                    NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
-                        .background(Color.primary.opacity(draft.canSubmit ? 0.18 : 0.06), in: Circle())
-                }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly)
-                    .opacity(!unavailable && draft.canSubmit ? 1 : 0.3)
-                    .accessibilityLabel(localize("发送", "Send")).accessibilityIdentifier("moku-send")
+                // Retain the editor's width when the first/last character
+                // changes, but mount no button or background for an empty draft.
+                ZStack {
+                    if hasInput {
+                        Button(action: onSend) {
+                            NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
+                                .background(Color.primary.opacity(0.18), in: Circle())
+                        }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly)
+                            .opacity(!unavailable && draft.canSubmit ? 1 : 0.3)
+                            .accessibilityLabel(localize("发送", "Send")).accessibilityIdentifier("moku-send")
+                    }
+                }.frame(width: 32, height: 32)
             }.padding(.leading, 6).padding(.trailing, 13)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
