@@ -164,7 +164,7 @@ public struct BrowserSidecardPane: View {
     }
 
     private var annotationDetails: some View {
-        ScrollView {
+        NativeScrollView {
             if let id = presentation.selectedAnnotationID, let index = presentation.pending.firstIndex(where: { $0.id == id }) {
                 VStack(spacing: 4) {
                     HStack {

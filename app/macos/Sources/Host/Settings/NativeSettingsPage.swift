@@ -71,7 +71,7 @@ import SwiftUI
                     Color.clear.frame(height: compact ? 8 : 28)
                         .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
                     ScrollViewReader { reader in
-                        ScrollView {
+                        NativeScrollView {
                             VStack(alignment: .leading, spacing: 0) {
                                 Color.clear.frame(height: 0).id("top")
                                 if !model.runtimeAvailable {
@@ -169,7 +169,7 @@ import SwiftUI
             // space must stay fixed when the rest of Settings is zoomed.
             Color.clear.frame(height: NativeWindowNavigationGeometry.safeAreaTop / contentScale)
                 .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
-            ScrollView(compact ? .horizontal : .vertical) {
+            NativeScrollView(compact ? .horizontal : .vertical) {
                 let tabs = compact ? AnyLayout(HStackLayout(spacing: 4)) : AnyLayout(VStackLayout(spacing: 3))
                 tabs {
                     ForEach(sections, id: \.self) { id in
@@ -347,7 +347,7 @@ import SwiftUI
     private func agentDetail(_ harness: AnyHarnessPlugin) -> some View {
         let id = harness.descriptor.id.string
         let state = model.installationState(id)
-        return ScrollView {
+        return NativeScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 14) {
                     Text(harness.descriptor.displayName.string).font(.system(size: 13, weight: .semibold))
@@ -363,7 +363,7 @@ import SwiftUI
                         .modifier(SettingsAgentParagraph()).padding(.top, 10)
                 }
                 if let error = model.installationErrors[id] ?? (state == .error ? model.installations[id]?.message : nil) {
-                    ScrollView {
+                    NativeScrollView {
                         Text(verbatim: error).modifier(SettingsAgentParagraph(error: true))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(GeometryReader { message in

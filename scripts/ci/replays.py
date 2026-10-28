@@ -77,7 +77,8 @@ def main():
     groups["native-runtime"] = groups["native"][:3]
     groups["native-capture"] = [groups["native"][3], groups["native"][5]]
     groups["native-controls"] = [groups["native"][4],
-        ("isolated-input", [sys.executable, "tools/verification/reading-presentation/run.py", "--isolated-input"])]
+        ("isolated-input", [sys.executable, "tools/verification/reading-presentation/run.py", "--isolated-input"]),
+        ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"])]
     groups["native"].extend(groups["native-controls"][1:])
     if args.group == "fixtures":
         environment.update(fixtures)

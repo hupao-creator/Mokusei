@@ -29,6 +29,9 @@ headless lifecycle checks and optional installed-CLI mock-provider verification,
 see [release runtime health](release-health/README.md).
 
 For shared native loading-cloud motion, see the [Swift cloud replay](cloud-motion/README.md).
+For the windowless shared native scrollbar/control-state replay, run
+`python3 tools/verification/scrollbars/run.py`; see its [coverage and visual
+limitations](scrollbars/README.md). It also runs in CI's `native-controls` lane.
 For public Harness thinking text and native Arc lifecycle, see the [Moku reasoning replay](moku-reasoning/README.md).
 For Note viewport evidence and authenticated Swift/Runtime/context round trips,
 see the [Note replay](moku-note/README.md). Its native launcher, Talk dismissal

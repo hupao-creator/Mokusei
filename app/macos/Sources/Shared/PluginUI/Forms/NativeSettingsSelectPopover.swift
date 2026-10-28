@@ -392,7 +392,7 @@ private struct SettingsSelectShadow: View {
     var commit: ((Int) -> Void)?
     var cancel: (() -> Void)?
     var advanceFocus: ((Bool) -> Void)?
-    private let scroll = NSScrollView()
+    private let scroll = NativeStyledScrollView()
     private let document = SettingsSelectDocument()
     private var rows: [SettingsSelectOptionButton] = []
     private var active: Int
@@ -411,7 +411,7 @@ private struct SettingsSelectShadow: View {
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: preferredHeight))
         setAccessibilityElement(true); setAccessibilityRole(.menu)
         scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
-        scroll.scrollerStyle = .overlay; scroll.documentView = document
+        NativeScrollbarStyle.apply(to: scroll); scroll.documentView = document
         scroll.frame = bounds.insetBy(dx: 5, dy: 5); scroll.autoresizingMask = [.width, .height]
         addSubview(scroll)
         var y: CGFloat = 0

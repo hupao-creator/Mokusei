@@ -89,13 +89,13 @@ struct NativeMokuNoteContent: View {
                 // Let the header scroll with the body in this short viewport.
                 // Use the Dock's capacity, not the initially empty document's
                 // fitted height: changing branches would retire its read session.
-                ScrollView {
+                NativeScrollView {
                     VStack(alignment: .leading, spacing: 12) { header; noteBody; historyEntry }
                 }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     header
-                    ScrollView { noteBody }
+                    NativeScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
                         .frame(height: max(0, height - headerHeight - footerHeight))
                     historyEntry

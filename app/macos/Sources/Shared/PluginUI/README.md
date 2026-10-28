@@ -2,6 +2,58 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+## Scrollbars
+
+[NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;
+`NativeStyledScrollView` is its AppKit counterpart. Both use native mini scrollers
+for the narrow, rounded, subdued appearance of the reference. The system owns
+colors, hover/tracking, fade timing and accessibility rather than a custom thumb
+or gesture. AppKit's preferred style preserves Always, When Scrolling and
+Automatically based on input device, including live preference/device changes.
+Always may reserve a native gutter; it intentionally takes priority over the
+transient reference appearance. No global appearance, swizzling, window-wide
+traversal, wheel monitor, preference write or replacement scroll-position model
+is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
+stay on the native rendering path; this component adds no animation.
+
+The SwiftUI adapter is a noninteractive background **inside its own content**.
+Do not attach it outside a viewport: nested code/table panes must configure their
+own scroll view rather than the surrounding timeline. Existing `ScrollPosition`,
+`ScrollViewReader`, geometry callbacks, bounce policies and enabled axes remain
+at their callers. Explicitly hidden navigation/chip indicators stay hidden.
+
+Inventory and integration boundaries:
+
+| Owner | Scrollable surfaces | Integration |
+| --- | --- | --- |
+| Shared conversation | Timeline, activities, Markdown code and tables | SwiftUI wrapper; timeline diagnostics remain timeline-owned |
+| Shared composer | Native multiline editor, attachment strip | AppKit subclass; attachment indicators remain hidden |
+| Settings and shared selects | Main form, section strip, agent/error detail, native textareas and option menu | Wrapper/subclass only; bindings, validation and menu focus unchanged |
+| Moku | Note (including short viewport), directory completion, Talk, dispatch details and interaction bodies | Wrapper; completion uses native drag/accessibility instead of its old custom thumb |
+| Overview | Tag/filter navigation strips | Wrapper; existing hidden indicators and canvas input routing retained |
+| Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
+| Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper |
+| WebKit Browser | Main document, subframes and page-owned overflow | Native WebKit; removed the injected transparent 2px CSS override. Page-authored styling remains page-owned |
+
+Settings, the general model selector, Thread Detail TOC and Note are parallel
+work areas. Changes here are limited to viewport construction and removal of
+local style overrides; do not replace their page structure, state or navigation
+when integrating. A new TOC/model menu should use the same wrapper or AppKit
+subclass and retain its own selection/reveal logic. The baseline includes main's
+Note history (#106) and Overview framing (#107).
+
+Run `python3 tools/verification/scrollbars/run.py` from the repository root for
+the windowless production AppKit boundary replay. It checks repeated configuration,
+document/clip/scroller identity, selection and scroll offsets, native targets,
+enabled axes, four appearances and preference-notification isolation. It never
+opens a window or changes system preferences. Headless Swift tests use
+`MOKUSEI_TEST_HEADLESS=1`; display cases report skips, not passes. These checks
+cannot certify rendered thumb pixels, hover/fade timing, actual accessibility
+preference changes, mounted SwiftUI geometry or physical mouse/trackpad feel.
+Existing mounted composer, reading, Markdown, Settings, Git, Note and Browser
+suites supply hosted graphical coverage; manual visual comparison with the
+reference remains unperformed when only headless execution is allowed.
+
 ## Reading and execution disclosure
 
 [Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text. Streaming revisions do not enter the Markdown parser. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.

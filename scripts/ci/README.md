@@ -117,6 +117,9 @@ exit status, logs and interrupted work. Reproduce a group locally with
 Native groups require the current Swift build. The
 [verification policy](verification-policy.md) records each gate's independent
 value, triggers and the limited hardware/signed-package acceptance that remains.
+The `native-controls` group also runs the [windowless scrollbar replay](../../tools/verification/scrollbars/README.md),
+which compiles the production viewport policy and checks native control state
+without creating a window. It does not count as rendered scrollbar coverage.
 
 Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
 `.build/check-swift` as its output directory. It streams the real `xcrun swift

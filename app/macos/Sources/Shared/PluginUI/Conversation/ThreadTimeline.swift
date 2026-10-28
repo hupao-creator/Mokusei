@@ -76,24 +76,22 @@ private enum TimelineConstructionProfile {
     }
 }
 
-/// SwiftUI follows the user's global scroller preference, which can turn the
-/// reading timeline into a wide, persistent legacy scrollbar. Keep this one
-/// reading surface narrow and transient without replacing native scrolling.
-private struct TimelineScrollerConfiguration: NSViewRepresentable {
+/// Diagnostics attach only to the timeline; shared styling belongs to NativeScrollView.
+private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
     var active: Bool
     var operation: UInt64?
-    func makeNSView(context: Context) -> TimelineScrollerConfigurationView {
-        TimelineScrollerConfigurationView()
+    func makeNSView(context: Context) -> TimelineDiagnosticsAttachmentView {
+        TimelineDiagnosticsAttachmentView()
     }
-    func updateNSView(_ view: TimelineScrollerConfigurationView, context: Context) {
+    func updateNSView(_ view: TimelineDiagnosticsAttachmentView, context: Context) {
         view.active = active
         view.operation = operation
         view.configure()
     }
-    static func dismantleNSView(_ view: TimelineScrollerConfigurationView, coordinator: ()) { view.diagnostics.detach() }
+    static func dismantleNSView(_ view: TimelineDiagnosticsAttachmentView, coordinator: ()) { view.diagnostics.detach() }
 }
 
-@MainActor private final class TimelineScrollerConfigurationView: NSView {
+@MainActor private final class TimelineDiagnosticsAttachmentView: NSView {
     let diagnostics = TimelineScrollDiagnostics()
     var active = true
     var operation: UInt64?
@@ -104,11 +102,6 @@ private struct TimelineScrollerConfiguration: NSViewRepresentable {
     func configure() {
         let scroll = window == nil ? nil : enclosingScrollView
         diagnostics.attach(to: scroll, enabled: active, context: operation)
-        guard let scroll else { return }
-        scroll.scrollerStyle = .overlay
-        scroll.autohidesScrollers = true
-        scroll.verticalScroller?.controlSize = .mini
-        scroll.horizontalScroller?.controlSize = .mini
     }
 }
 
@@ -180,7 +173,7 @@ public struct HarnessMessageTimeline: View {
             let _ = TimelineConstructionProfile.record(2, context: performanceOperation)
             GeometryReader { bounds in
                 let _ = TimelineConstructionProfile.record(3, context: performanceOperation)
-                ScrollView(.vertical) {
+                NativeScrollView(.vertical) {
                     let _ = TimelineConstructionProfile.record(4, context: performanceOperation)
                     VStack(alignment: .leading, spacing: 0) {
                         Color.clear.frame(height: 0).id(TimelineEdge.top)
@@ -211,7 +204,7 @@ public struct HarnessMessageTimeline: View {
                     .padding(.top, readingNavigation != nil ? 94 : bounds.size.width >= 1024 ? 24 : bounds.size.width <= 540 ? 28 : 44)
                     .padding(.bottom, 36).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
-                    .background(TimelineScrollerConfiguration(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
+                    .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
                 }
                 .scrollIndicators(.automatic)
                 .scrollPosition($position)

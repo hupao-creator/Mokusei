@@ -100,7 +100,7 @@ struct NativeGitDetail: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(props.entry.view.snapshot.root.string).font(NativeTypography.inter(size: 10)).foregroundStyle(NativeAppKitPalette.thread.muted.swiftUI)
                 .lineLimit(1).help(props.entry.view.snapshot.root.string).padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 12)
-            ScrollView {
+            NativeScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(model.visibleFiles) { file in
                         NativeGitFileButton(file: file, selected: model.selectedPath == file.path) { model.select(path: file.path) }

@@ -76,7 +76,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     let editor = SettingsPlainTextView()
     let interactionLease = NativeSettingsControlLease()
     var updateInteraction: (() -> Void)?
-    private let scroll = NSScrollView()
+    private let scroll = NativeStyledScrollView()
     private let grip = SettingsTextAreaGrip()
     private let border = CALayer()
     private var invalid = false
@@ -93,7 +93,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
         wantsLayer = true; border.borderWidth = 1; border.cornerRadius = 7
         layer?.addSublayer(border)
         scroll.drawsBackground = false; scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true; scroll.scrollerStyle = .overlay
+        NativeScrollbarStyle.apply(to: scroll)
         scroll.contentView.drawsBackground = false
         editor.drawsBackground = false; editor.isRichText = false; editor.allowsUndo = true
         editor.font = NativeTypography.settingsNSFont(size: 13)
