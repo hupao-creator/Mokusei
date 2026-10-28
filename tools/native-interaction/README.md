@@ -196,7 +196,9 @@ controls reject operations.
 | Role | Observation / operation |
 | --- | --- |
 | `conversation` | Current/history destination, selected historical row, parent visibility, transition state |
-| `history.toggle`, `history.open`, `history.close` | Real history list and document callbacks |
+| `history.sidebar` | TOC selected/current/focused row identities and total entry count |
+| `history.open`, `history.current`, `history.close` | Mounted TOC entry, current-turn and document Back callbacks |
+| `turn.author` | Resolved author shown below the active document title |
 | `visibility.userMessages`, `visibility.work` | Current document's independent visibility values and toggles |
 | `loadEarlier`, `jumpLatest` | Mounted earlier-window and latest buttons |
 | `timeline` | Top, content height, viewport, following, visible row IDs/count, first index and total count |

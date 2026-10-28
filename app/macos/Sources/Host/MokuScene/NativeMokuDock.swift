@@ -489,18 +489,26 @@ public struct NativeMokuDock: View {
         }
         .overlay(alignment: .top) {
             if state.notePanelOpen {
-                NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
-                                      routeEligible: state.notePanelOpen && state.overviewVisible
-                                          && !state.dockCovered && !navigationDisabled,
-                                      openExternal: openExternal, openExecution: openExecution,
-                                      onContentHeightChange: { noteContentHeight = $0 },
-                                      claimOpenArm: { state.claimNoteOpenArm() },
-                                      onExposure: { state.recordNoteExposure($0) },
-                                      onClose: { state.setNotePanelOpen(false) })
-                    // The reading document lays out at its final width; only
-                    // the enclosing glass bounds interpolate and clip it.
-                    .transaction { $0.animation = nil }
-                    .transition(.opacity)
+                ZStack {
+                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
+                                          routeEligible: state.notePanelOpen && state.overviewVisible
+                                              && !state.dockCovered && !navigationDisabled,
+                                          openExternal: openExternal, openExecution: openExecution,
+                                          onContentHeightChange: { noteContentHeight = $0 },
+                                          claimOpenArm: { state.claimNoteOpenArm() },
+                                          onExposure: { state.recordNoteExposure($0) },
+                                          onClose: { state.setNotePanelOpen(false) },
+                                          onOpenHistory: { state.setMokuOpen(true) })
+                        // Keep native Markdown layout discrete without cancelling
+                        // the surrounding ink transition with this transaction.
+                        .transaction { $0.animation = nil }
+                }
+                .compositingGroup()
+                // Retire ink before the shrinking shell carries the header
+                // through the eyes. The shell keeps its ordinary 420ms morph.
+                .transition(.asymmetric(
+                    insertion: .opacity.animation(surfaceAnimation),
+                    removal: .opacity.animation(reduceMotion ? nil : .easeOut(duration: 0.12))))
             }
         }
         .overlay(alignment: .bottomLeading) {

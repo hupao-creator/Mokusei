@@ -91,6 +91,7 @@ type Event struct {
 	Method     string      `json:"method,omitempty"`
 	Title      string      `json:"title,omitempty"`
 	Message    string      `json:"message,omitempty"`
+	Prefill    *string     `json:"prefill,omitempty"`
 	Options    []string    `json:"options,omitempty"`
 	Timeout    *float64    `json:"timeout,omitempty"`
 	Completion *Completion `json:"completion,omitempty"`
@@ -394,6 +395,15 @@ func decodeEvent(frame map[string]any) (*Event, error) {
 		e.Title, err = piOptionalText(frame, "title", "interaction title")
 		if err != nil {
 			return nil, err
+		}
+		if method == "editor" {
+			if value, exists := frame["prefill"]; exists {
+				prefill, err := piText(value, "editor prefill")
+				if err != nil {
+					return nil, err
+				}
+				e.Prefill = &prefill
+			}
 		}
 		e.Message, err = piOptionalText(frame, "message", "interaction message")
 		if err != nil {

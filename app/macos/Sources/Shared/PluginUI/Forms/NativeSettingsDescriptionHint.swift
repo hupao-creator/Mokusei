@@ -29,6 +29,31 @@ public struct NativeSettingsDescriptionHint: View {
     }
 
     public var body: some View {
+        if settingsFormPage {
+            HStack(spacing: 6) {
+                copyText(label, size: localAgentDetail ? 11 : 14, weight: localAgentDetail ? 400 : 500,
+                         lineHeight: localAgentDetail ? 16.5 : 21)
+                    .contentShape(Rectangle()).onTapGesture { onActivateLabel?() }
+                Button { presented.toggle() } label: { Image(systemName: "questionmark.circle") }
+                    .buttonStyle(.borderless)
+                    .help(description)
+                    .accessibilityLabel(NativePluginLocalization.localize("说明", locale: locale) + ": " + label)
+                    .accessibilityHint(description)
+                    .popover(isPresented: $presented) {
+                        Text(description).font(.callout).textSelection(.enabled)
+                            .padding().frame(idealWidth: 280, maxWidth: 320)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                Spacer(minLength: 0)
+            }
+            .onChange(of: presented) { _, visible in onVisibilityChange?(visible) }
+            .onDisappear { presented = false; onVisibilityChange?(false) }
+        } else {
+            customBody
+        }
+    }
+
+    private var customBody: some View {
         HStack(alignment: .center, spacing: 6) {
             copyText(label, size: localAgentDetail ? 11 : settingsFormPage ? 14 : 13, weight: localAgentDetail ? 400 : 500,
                      lineHeight: localAgentDetail ? 16.5 : settingsFormPage ? 21 : 19.5)

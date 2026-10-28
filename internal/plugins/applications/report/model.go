@@ -228,49 +228,39 @@ func summarize(record model.VersionedRecord, value Data) Summary {
 
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}
 
-// HTMLPreview scans once and never executes, sanitizes, or rewrites the document.
+// HTMLPreview parses static reader text without executing or rewriting the document.
 func HTMLPreview(source, title string) string { return htmlReaderText(source, title, MaxPreviewLength) }
 
-// HTMLSearchText shares the established reader-text scan, without the card's
+// HTMLSearchText shares the reader-text projection, without the card's
 // excerpt truncation. It never executes script, reads files or loads resources.
 func HTMLSearchText(source string) string { return htmlReaderText(source, "", 0) }
 
 func htmlReaderText(source, title string, limit int) string {
 	var visible strings.Builder
-	// Tokenization retains source-order hidden regions (even malformed head
-	// contents), decodes entities once, and treats textarea as RCDATA.
-	tokens := htmlnode.NewTokenizer(strings.NewReader(source))
-	var hidden []string
-	for {
-		kind := tokens.Next()
-		if kind == htmlnode.ErrorToken {
-			break
+	// The tree builder owns namespace changes, HTML integration points and
+	// raw-text/RCDATA state. A tokenizer alone treats SVG <style/> as an
+	// unclosed HTML style element and consumes the remaining document.
+	root, _ := htmlnode.Parse(strings.NewReader(source))
+	var visit func(*htmlnode.Node)
+	visit = func(node *htmlnode.Node) {
+		if node.Type == htmlnode.ElementNode && hiddenTags[node.Data] {
+			return
 		}
-		token := tokens.Token()
-		switch kind {
-		case htmlnode.StartTagToken, htmlnode.SelfClosingTagToken:
-			if hiddenTags[token.Data] && !(token.Data == "svg" && kind == htmlnode.SelfClosingTagToken) {
-				// HTML ignores the self-closing flag on non-void HTML
-				// elements; SVG belongs to the foreign-content namespace.
-				hidden = append(hidden, token.Data)
-			}
-			if len(hidden) == 0 && readerBlockTags[token.Data] {
-				visible.WriteByte(' ')
-			}
-		case htmlnode.EndTagToken:
-			if len(hidden) > 0 {
-				if hidden[len(hidden)-1] == token.Data {
-					hidden = hidden[:len(hidden)-1]
-				}
-			} else if readerBlockTags[token.Data] {
-				visible.WriteByte(' ')
-			}
-		case htmlnode.TextToken:
-			if len(hidden) == 0 {
-				visible.WriteString(token.Data)
-			}
+		block := node.Type == htmlnode.ElementNode && node.Namespace == "" && readerBlockTags[node.Data]
+		if block {
+			visible.WriteByte(' ')
+		}
+		if node.Type == htmlnode.TextNode {
+			visible.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+		if block {
+			visible.WriteByte(' ')
 		}
 	}
+	visit(root)
 	text := strings.Join(strings.Fields(visible.String()), " ")
 	normalizedTitle := strings.Join(strings.Fields(title), " ")
 	if normalizedTitle != "" && strings.HasPrefix(text, normalizedTitle) {

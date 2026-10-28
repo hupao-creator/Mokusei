@@ -1,5 +1,26 @@
 # Reading-page background presentation replay
 
+## Thread history sidebar
+
+```sh
+python3 tools/verification/reading-presentation/run.py --thread-sidebar
+```
+
+Mounts the production conversation, lazy TOC, timeline and turn components in an
+isolated AppKit host. Four integration cases cover selection and Back scroll
+retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
+inherited history, deletion, arriving successors and external result anchors.
+A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
+locates an old turn outside the current window. This is a resource-demand check,
+not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
+author accessibility and save settled dark/light screenshots under
+`.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
+
+The ordinary Swift suite also discovers these cases; forced headless admission
+skips their graphical assertions explicitly. The isolated launcher requires all
+four cases without skips. Existing `--moku-execution-links` separately covers
+deferred bodies and exact-result following through all four real Harness renderers.
+
 ## Empty workspace and first dispatch
 
 ```sh
@@ -31,8 +52,8 @@ must complete all seven tests without skips to certify it.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport
 and Report test sources into one AppKit host. It executes exactly the five
-input/responder and native-panel methods deferred by SwiftPM, requiring all five to pass without
-skips, while their remaining methods execute in the normal Swift shards.
+input/responder and native-panel methods deferred by SwiftPM, requiring all five
+to pass without skips, while their remaining methods execute in the normal Swift shards.
 
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
@@ -403,6 +424,11 @@ graphical session; it opens no external websites and makes no model requests.
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
+The note suite also activates the expanded production Dock's bottom-right
+history button through accessibility, with and without a note, checking real
+scene navigation and draft preservation. Its short-viewport Markdown case
+includes the history footer so the footer cannot consume the reading viewport.
+
 ## Moku execution links
 
 `python3 tools/verification/reading-presentation/run.py --moku-execution-links`
@@ -411,9 +437,26 @@ readers with delayed content resources. It checks exact result positioning,
 streaming follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
 
+## Report controls and recovery
 
-Report regressions: `--report-controls` runs the two focused regression cases. `--report-navigation` runs four cases, including actual
+`--report-controls` runs the two focused regression cases.
+`--report-navigation` runs four cases, including actual
 WebKit confirm/prompt acceptance, alert completion, file-panel cancellation and
 a loopback binary response that must preserve the loaded report. The production
 Report detail is also mounted with a recovering HTML capability to ensure it
 does not retain a duplicate failure overlay at the same content revision.
+
+## Model and reasoning selector
+
+`python3 tools/verification/reading-presentation/run.py --model-selector` runs
+three mounted production-selector cases in the isolated AppKit application loop.
+They cover exact IDs, disabled choices, keyboard commit/cancellation/type-ahead,
+slider actions and reset, the model-list subpage, capability refresh, and a single
+fixed choice. Light/dark model lists and the reasoning panel are rendered under
+`.scratch/reading-presentation/NativeModelSelectorReplayTests`. These component
+renders do not certify WindowServer compositing or physical input delivery.
+
+SwiftPM defers these three methods to this launcher because transient popovers
+need a running AppKit application. The default CI `native-controls` replay group
+runs them and the coverage collector requires their observed passing outcomes;
+a skipped or incomplete replay is a failure.

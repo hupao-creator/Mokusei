@@ -17,11 +17,14 @@ The Swift [Report application](../../../../app/macos/Sources/Plugins/Application
 Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
 
 
-Preview and search share a non-executing HTML tokenizer. It decodes standard
+Preview and search share a non-executing HTML tree parser. It decodes standard
 entities once, joins inline text without invented spaces, separates structural
 blocks, preserves textarea RCDATA, and excludes nested hidden regions including
-templates. This is static source text, not computed CSS visibility or live form
-state.
+templates. The parser handles SVG/MathML namespaces, self-closing foreign
+elements, CDATA and HTML integration points before text projection. Malformed
+markup follows HTML tree repair: for example, plain text misplaced in head
+is moved to the visible body, while title content stays hidden. This is static
+source text, not computed CSS visibility or live form state.
 
 The native Report surface owns load failure and Retry state. Report detail does
 not retain a second error overlay after the surface recovers. Page alert,

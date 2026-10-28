@@ -115,3 +115,5 @@ The deterministic replay includes mixed state/catalog sharing. Add
 Closing the adapter cancels and joins all discovery flights, including those
 superseded by refresh. A failed native process cleanup remains observable and
 fences replacement discovery until a new adapter is constructed.
+
+Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.

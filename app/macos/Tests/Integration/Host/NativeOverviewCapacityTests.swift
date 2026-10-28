@@ -11,6 +11,7 @@ import MokuseiTestSupport
     let state = NativeOverviewCanvasState()
     var scene = "capacity"
     var reduceMotion = false
+    var revisions: [NativeOverviewLayoutRevision] = []
     var size = CGSize(width: 1420, height: 900)
     var items: [NativeOverviewItem] = [
         .init(id: "large", columns: 2, rows: 2, carouselEligible: true),
@@ -26,7 +27,8 @@ private struct CapacityCanvas: View {
     let fixture: CapacityFixture
     var body: some View {
         var canvas = NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.scene, state: fixture.state,
-                             selectionID: fixture.scene, toolbarBottom: 58, cloudAnimationsEnabled: false) { item in
+                             selectionID: fixture.scene, toolbarBottom: 58, cloudAnimationsEnabled: false,
+                             revisions: fixture.revisions) { item in
             Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("capacity")) } action: {
                     fixture.frames[item.id] = $0
@@ -341,6 +343,99 @@ struct NativeOverviewCapacityTests {
         #expect(fixture.state.layoutSolveCount == solves)
     }
 
+    @Test(arguments: [false, true], [false, true])
+    func footprintChangeBeforeInsertionRefitKeepsAutomaticFraming(reduceMotion: Bool, queued: Bool) async throws {
+        let fixture = CapacityFixture()
+        fixture.reduceMotion = reduceMotion
+        fixture.items = [.init(id: "original")]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        let inserted = fixture.items + [.init(id: "new")]
+        if queued {
+            // Runtime revisions retain both states even when SwiftUI only sees
+            // the final items. Drain the production FIFO without an input event.
+            var grown = inserted
+            grown[1].rows = 2
+            fixture.revisions = [
+                .init(revision: 1, sceneKey: fixture.scene, items: inserted),
+                .init(revision: 2, sceneKey: fixture.scene, items: grown)
+            ]
+            fixture.items = grown
+        } else {
+            fixture.items = inserted
+            try await SwiftUIReplay.wait {
+                fixture.state.presentedPlacements.count == 2 && !fixture.state.isLayingOut
+            }
+            #expect(fixture.state.camera.hasScheduledMotion)
+            // First content may arrive before the insertion's delayed camera
+            // move has acquired the spatial stage.
+            fixture.items[1].rows = 2
+        }
+        try await settle(fixture, in: window)
+        try expectWholeCollection(fixture, in: window)
+        let frames = try fixture.items.map { try #require(fixture.frames[$0.id]) }
+        let envelope = frames.reduce(CGRect.null) { $0.union($1) }
+        let viewport = try #require(fixture.state.camera.viewport)
+        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+        #expect(abs(envelope.midX - (region.left + region.width / 2)) < 1)
+        #expect(abs(envelope.midY - (region.top + region.height / 2)) < 1)
+        let transform = fixture.state.camera.liveTransform
+        try await Task.sleep(for: .milliseconds(750))
+        #expect(!fixture.state.camera.hasScheduledMotion)
+        #expect(fixture.state.camera.liveTransform == transform)
+        fixture.state.camera.returnToAuto()
+        try await settle(fixture, in: window)
+        #expect(fixture.state.camera.liveTransform == transform)
+    }
+
+    @Test(arguments: [false, true])
+    func consecutiveFootprintChangesKeepPendingReadingTarget(reduceMotion: Bool) async throws {
+        let fixture = CapacityFixture()
+        fixture.reduceMotion = reduceMotion
+        fixture.items = [.init(id: "original")]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        let original = fixture.state.camera.liveTransform
+        fixture.items[0].columns = 3
+        try await SwiftUIReplay.wait {
+            fixture.state.presentedPlacements.first?.columns == 3 && !fixture.state.isLayingOut
+        }
+        let pendingTarget = try #require(fixture.state.camera.automaticFitTarget)
+        #expect(pendingTarget != original)
+        #expect(fixture.state.camera.hasScheduledMotion)
+        // Growth needs a small translation to stay visible. Shrinkage before
+        // that translation must retain its target, not the old sampled camera.
+        fixture.items[0].columns = 2
+        try await settle(fixture, in: window)
+        try expectWholeCollection(fixture, in: window)
+        #expect(fixture.state.camera.liveTransform == pendingTarget)
+        try await Task.sleep(for: .milliseconds(750))
+        #expect(!fixture.state.camera.hasScheduledMotion)
+        #expect(fixture.state.camera.liveTransform == pendingTarget)
+    }
+
+    @Test(arguments: [false, true])
+    func settledFilterFramingPreservesReadingPositionOnFootprintChange(reduceMotion: Bool) async throws {
+        let fixture = CapacityFixture()
+        fixture.reduceMotion = reduceMotion
+        fixture.items = [.init(id: "original"), .init(id: "other")]
+        let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
+        defer { window.close() }
+        try await settle(fixture, in: window)
+        fixture.scene = "filtered"
+        fixture.items.removeLast()
+        try await settle(fixture, in: window)
+        let transform = fixture.state.camera.liveTransform
+        let origin = try #require(fixture.frames["original"]).origin
+        fixture.items[0].rows = 2
+        try await settle(fixture, in: window)
+        try expectWholeCollection(fixture, in: window)
+        #expect(fixture.state.camera.liveTransform == transform)
+        #expect(fixture.frames["original"]?.origin == origin)
+    }
+
     @Test(arguments: [false, true])
     func insertionDoesNotResetManualPan(reduceMotion: Bool) async throws {
         let fixture = CapacityFixture()
@@ -354,6 +449,7 @@ struct NativeOverviewCapacityTests {
         let manual = fixture.state.camera.liveTransform
         let original = try #require(fixture.frames["original"])
         fixture.items.append(.init(id: "new"))
+        fixture.items[1].rows = 2
         try await settle(fixture, in: window)
         try await Task.sleep(for: .milliseconds(750))
         #expect(fixture.state.camera.manual)

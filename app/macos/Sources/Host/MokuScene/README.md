@@ -142,6 +142,15 @@ comparison-only.
 
 ## Talk, dispatch and notes
 
+The expanded note's bottom-right **Moku history** button opens the existing
+Moku conversation reader, including its archived-session picker. It remains
+available when the note or conversation is empty; the reader owns the empty
+conversation state. The native button supports keyboard and accessibility
+activation with localized labels. Its footer reserves reading space in normal
+windows and scrolls with the header/body in short viewports, including 5× zoom.
+Opening history uses the scene's ordinary navigation path, closing the note
+without changing its exposure receipt or the workspace draft.
+
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
 Text shorter than the Talk viewport is vertically centered beside the eyes.
@@ -171,6 +180,13 @@ empty Markdown layout must not replace the scroll container when parsing
 finishes: replacing it retires the mounted renderer and its armed read session.
 
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
+
+Note ink has its own composited transition outside the native document's
+non-animated layout transaction. Header and Markdown fade together over 120ms
+on dismissal, before the 420ms glass contraction carries the header through the
+eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
+removes both animations. Closing only dismisses this read-only presentation;
+it does not clear the catalog note or change the composer draft.
 
 ## Voice display
 

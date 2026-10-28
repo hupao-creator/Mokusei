@@ -39,3 +39,5 @@ display-only `directoryTag`. The scope must be nonempty, at most 4096 UTF-16 uni
 and contain no NUL; a display tag never identifies a selected directory.
 
 `ThreadRecord.mokuHistory` marks an archived, read-only conversation retained when the coordinating Harness changes. It retains the original Harness payload and transcript but no Moku note; Runtime forbids execution, fork and unarchiving. Current Moku identity remains singular.
+
+Native string default admission and public answers share `ValidatePublicQuestionString`: UTF-16 length, ECMAScript patterns (including all four dot line terminators), email shape, WHATWG URI and date formats. Date-time accepts signed expanded ISO years and JavaScript Date.toString offset/comment forms; unknown legacy timezone abbreviations are rejected.

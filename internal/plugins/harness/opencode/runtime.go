@@ -167,18 +167,6 @@ func ReadVersion(ctx context.Context, path, cwd string, env map[string]string) (
 	return strings.Join(m[1:4], "."), nil
 }
 
-type limitedBuffer struct {
-	bytes.Buffer
-	limit int
-}
-
-func (b *limitedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > b.limit {
-		return 0, errors.New("OpenCode startup response exceeds limit")
-	}
-	return b.Buffer.Write(p)
-}
-
 // NewRuntime starts one server using OpenCode's native storage and authentication.
 func NewRuntime(ctx context.Context, opts Options) (*Runtime, error) {
 	if err := ctx.Err(); err != nil {

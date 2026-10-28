@@ -588,11 +588,9 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 		}
 		// Even reuse must validate the resolved source: a settings save can
 		// race discovery while the old key still matches this idle session.
-		configured, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: "primary", ExpectedRevision: configuration.SessionRevision, Configuration: configuration})
-		if err != nil {
+		if _, err := r.sessions.Configure(ctx, plugin.ConfigureSessionRequest{SessionKey: "primary", ExpectedRevision: configuration.SessionRevision, Configuration: configuration}); err != nil {
 			return instancePreparation{}, err
 		}
-		session = &configured
 	}
 	r.mu.Lock()
 	handle := r.handle

@@ -59,7 +59,6 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.addUserScript(WKUserScript(source: BrowserPageScripts.permissionDenial, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page))
-        configuration.userContentController.addUserScript(WKUserScript(source: BrowserPageScripts.scrollbar, injectionTime: .atDocumentEnd, forMainFrameOnly: false, in: .world(name: "MokuseiBrowser")))
         webView = BrowserWKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self; webView.uiDelegate = self
@@ -520,7 +519,6 @@ final class BrowserWKWebView: WKWebView {
     var onDocumentZoomChanged: (() -> Void)?
     var annotationActive = false
     private(set) var documentZoomLevel: Double = 0
-    var rawDocumentZoomFactor: CGFloat { CGFloat(pow(1.2, documentZoomLevel)) }
     private let zoomMemory: BrowserDocumentZoomMemory
 
     override init(frame frameRect: CGRect, configuration: WKWebViewConfiguration) {

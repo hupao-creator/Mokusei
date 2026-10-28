@@ -48,17 +48,6 @@ struct SettingsAgentParagraph: ViewModifier {
     }
 }
 
-struct SettingsTextButton: ButtonStyle {
-    @State private var hovered = false
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(NativeTypography.settings(size: 11, weight: 580)).padding(.horizontal, 13).frame(height: 32)
-            .foregroundStyle(hovered ? NativeAppKitPalette.overview.ink.swiftUI : NativeAppKitPalette.overview.muted.swiftUI)
-            .background(hovered ? NativeAppKitPalette.pair(0x20211e, 0xe0e5da, alpha: 0.05).swiftUI : .clear, in: RoundedRectangle(cornerRadius: 8))
-            .contentShape(Rectangle())
-            .onHover { hovered = $0 }
-    }
-}
-
 /// Keep programmatic entry focus without presenting it as keyboard navigation.
 struct SettingsNavigationFocusRing: ViewModifier {
     let visible: Bool
@@ -74,41 +63,10 @@ struct SettingsNavigationFocusRing: ViewModifier {
     }
 }
 
-struct SettingsActionButton: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-    var danger = false
-    var confirming = false
-    @State private var hovered = false
-    func makeBody(configuration: Configuration) -> some View {
-        let filled = danger && (confirming || (hovered && enabled))
-        configuration.label.font(NativeTypography.settings(size: 12, weight: danger ? 580 : 400)).padding(.horizontal, danger ? 13 : 12).frame(minHeight: 32)
-            .foregroundStyle(filled ? NativeAppKitPalette.pair(0xffffff, 0x20211f).swiftUI : danger ? NativeAppKitPalette.overview.danger.swiftUI : NativeAppKitPalette.settings.text.swiftUI)
-            .background(filled ? NativeAppKitPalette.overview.danger.swiftUI : danger ? NativeAppKitPalette.pair(0xfbf4f3, 0x38332f).swiftUI : NativeAppKitPalette.settings.input.swiftUI, in: RoundedRectangle(cornerRadius: danger ? 8 : 6))
-            .overlay(RoundedRectangle(cornerRadius: danger ? 8 : 6).stroke(filled ? NativeAppKitPalette.overview.danger.swiftUI : danger ? NativeAppKitPalette.pair(0xd0a9a1, 0x85675e).swiftUI : NativeAppKitPalette.settings.inputBorder.swiftUI))
-            .opacity(enabled ? 1 : 0.45)
-            .onHover { hovered = $0 }
-    }
-}
-
 struct SettingsSpinner: View {
-    var icon = "LoaderCircle"
     var size: CGFloat = 14
     var body: some View {
-        TimelineView(.animation(minimumInterval: NativeFrameRate.interval)) { clock in
-            NativeIcon(name: icon, size: size, strokeWidth: 2)
-                .rotationEffect(.degrees(clock.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.8) / 0.8 * 360))
-        }.frame(width: size, height: size).accessibilityHidden(true)
-    }
-}
-
-struct SettingsTextAreaResizeGrip: View {
-    var body: some View {
-        Canvas { context, _ in
-            for inset in [CGFloat(4), 7, 10] {
-                var line = Path(); line.move(to: CGPoint(x: inset, y: 12)); line.addLine(to: CGPoint(x: 12, y: inset))
-                context.stroke(line, with: .color(NativeAppKitPalette.settings.muted.swiftUI.opacity(0.5)), lineWidth: 1)
-            }
-        }.frame(width: 14, height: 14).contentShape(Rectangle()).accessibilityHidden(true)
+        ProgressView().controlSize(.small).frame(width: size, height: size).accessibilityHidden(true)
     }
 }
 
@@ -130,16 +88,17 @@ struct SettingsTextArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = Surface()
         scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
-        scroll.scrollerStyle = .overlay; scroll.drawsBackground = false; scroll.contentView.drawsBackground = false
+        NativeScrollbarStyle.apply(to: scroll); scroll.borderType = .bezelBorder
+        scroll.drawsBackground = true; scroll.backgroundColor = .textBackgroundColor
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
-        scroll.focusRingType = .none
+        scroll.focusRingType = .exterior
         let view = Editor()
-        view.drawsBackground = false; view.focusRingType = .none; view.allowsUndo = true
+        view.drawsBackground = true; view.allowsUndo = true
         view.isRichText = false; view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticTextReplacementEnabled = false; view.isAutomaticSpellingCorrectionEnabled = false
         view.font = .systemFont(ofSize: 13); view.textColor = NativeAppKitPalette.settings.text
         view.insertionPointColor = NativeAppKitPalette.settings.text
-        view.backgroundColor = NativeAppKitPalette.settings.input
+        view.backgroundColor = .textBackgroundColor
         view.textContainerInset = NSSize(width: 10, height: 7)
         view.textContainer?.lineFragmentPadding = 0
         let paragraph = NSMutableParagraphStyle(); paragraph.minimumLineHeight = 18.2; paragraph.maximumLineHeight = 18.2
@@ -154,7 +113,6 @@ struct SettingsTextArea: NSViewRepresentable {
             coordinator?.compositionChanged(composing, editor: view)
         }
         view.escape = { [weak coordinator = context.coordinator] in coordinator?.parent.onEscape() }
-        view.focusChanged = { [weak scroll] focused in scroll?.focused = focused }
         scroll.documentView = view
         return scroll
     }
@@ -173,8 +131,6 @@ struct SettingsTextArea: NSViewRepresentable {
             view.string = text
         }
         scroll.alphaValue = isEnabled ? 1 : 0.5
-        (scroll as? Surface)?.invalid = invalid
-        (scroll as? Surface)?.enabled = isEnabled
         if let surface = scroll as? Surface {
             surface.updateInteraction = { [weak surface, weak view] in
                 guard let surface, let view else { return }
@@ -187,58 +143,12 @@ struct SettingsTextArea: NSViewRepresentable {
             if focusRequest > 0 { DispatchQueue.main.async { [weak view] in if let view { view.window?.makeFirstResponder(view) } } }
         }
     }
-    final class Surface: NSScrollView {
+    final class Surface: NativeStyledScrollView {
         let interactionLease = NativeSettingsControlLease()
         var updateInteraction: (() -> Void)?
-        private let border = CALayer()
-        var invalid = false { didSet { updateBorder(animated: window != nil); needsDisplay = true } }
-        var enabled = true { didSet { updateBorder(animated: window != nil); needsDisplay = true } }
-        var focused = false { didSet { updateBorder(animated: window != nil); needsDisplay = true } }
-        override init(frame: NSRect) {
-            super.init(frame: frame)
-            wantsLayer = true; border.cornerRadius = 7; border.borderWidth = 1; layer?.addSublayer(border)
-        }
-        required init?(coder: NSCoder) { nil }
-        override var wantsDefaultClipping: Bool { false }
-        override func layout() {
-            super.layout()
-            CATransaction.begin(); CATransaction.setDisableActions(true); border.frame = bounds; CATransaction.commit()
-        }
         override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow(); updateBorder(animated: false)
+            super.viewDidMoveToWindow()
             if window == nil { interactionLease.remove() } else { updateInteraction?() }
-        }
-        private func updateBorder(animated: Bool) {
-            var next: CGColor!
-            effectiveAppearance.performAsCurrentDrawingAppearance {
-                next = (invalid ? NativeAppKitPalette.settings.danger : focused && enabled ? NativeAppKitPalette.settings.accent : NativeAppKitPalette.settings.inputBorder).cgColor
-            }
-            let previous = border.presentation()?.borderColor ?? border.borderColor
-            guard previous.map({ !CFEqual($0, next) }) ?? true else { return }
-            CATransaction.begin(); CATransaction.setDisableActions(true); border.borderColor = next; CATransaction.commit()
-            border.removeAnimation(forKey: "settingsBorder")
-            if animated, let previous {
-                let animation = CABasicAnimation(keyPath: "borderColor")
-                animation.preferredFrameRateRange = NativeFrameRate.preferredRange
-                animation.fromValue = previous; animation.toValue = next; animation.duration = 0.12
-                animation.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.1, 0.25, 1)
-                border.add(animation, forKey: "settingsBorder")
-            }
-        }
-        override func draw(_ dirtyRect: NSRect) {
-            let background = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 7, yRadius: 7)
-            NativeAppKitPalette.settings.input.setFill(); background.fill()
-            super.draw(dirtyRect)
-            if focused && enabled {
-                let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: -3.5, dy: -3.5), xRadius: 10.5, yRadius: 10.5)
-                NativeAppKitPalette.color(0x426b9a, alpha: 0.22).setStroke(); outline.lineWidth = 3; outline.stroke()
-            }
-        }
-        override func viewDidChangeEffectiveAppearance() {
-            super.viewDidChangeEffectiveAppearance(); updateBorder(animated: true); needsDisplay = true
-            if let editor = documentView as? NSTextView {
-                editor.textColor = NativeAppKitPalette.settings.text; editor.insertionPointColor = NativeAppKitPalette.settings.text
-            }
         }
     }
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
@@ -285,7 +195,6 @@ struct SettingsTextArea: NSViewRepresentable {
     final class Editor: NSTextView {
         var compositionChanged: ((Bool) -> Void)?
         var escape: (() -> Void)?
-        var focusChanged: ((Bool) -> Void)?
         var placeholder: String? { didSet { if oldValue != placeholder { needsDisplay = true } } }
         override func draw(_ dirtyRect: NSRect) {
             super.draw(dirtyRect)
@@ -312,16 +221,6 @@ struct SettingsTextArea: NSViewRepresentable {
         }
         override func cancelOperation(_ sender: Any?) {
             if hasMarkedText() { super.cancelOperation(sender) } else { escape?() }
-        }
-        override func becomeFirstResponder() -> Bool {
-            let accepted = super.becomeFirstResponder()
-            if accepted { focusChanged?(true) }
-            return accepted
-        }
-        override func resignFirstResponder() -> Bool {
-            let accepted = super.resignFirstResponder()
-            if accepted { focusChanged?(false) }
-            return accepted
         }
     }
 }

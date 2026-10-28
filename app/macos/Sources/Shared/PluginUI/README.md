@@ -2,6 +2,58 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+## Scrollbars
+
+[NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;
+`NativeStyledScrollView` is its AppKit counterpart. Both use native mini scrollers
+for the narrow, rounded, subdued appearance of the reference. The system owns
+colors, hover/tracking, fade timing and accessibility rather than a custom thumb
+or gesture. AppKit's preferred style preserves Always, When Scrolling and
+Automatically based on input device, including live preference/device changes.
+Always may reserve a native gutter; it intentionally takes priority over the
+transient reference appearance. No global appearance, swizzling, window-wide
+traversal, wheel monitor, preference write or replacement scroll-position model
+is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
+stay on the native rendering path; this component adds no animation.
+
+The SwiftUI adapter is a noninteractive background **inside its own content**.
+Do not attach it outside a viewport: nested code/table panes must configure their
+own scroll view rather than the surrounding timeline. Existing `ScrollPosition`,
+`ScrollViewReader`, geometry callbacks, bounce policies and enabled axes remain
+at their callers. Explicitly hidden navigation/chip indicators stay hidden.
+
+Inventory and integration boundaries:
+
+| Owner | Scrollable surfaces | Integration |
+| --- | --- | --- |
+| Shared conversation | Timeline, activities, Markdown code and tables | SwiftUI wrapper; timeline diagnostics remain timeline-owned |
+| Shared composer | Native multiline editor, attachment strip | AppKit subclass; attachment indicators remain hidden |
+| Settings and shared selects | Main form, section strip, agent/error detail, native textareas, option and model menus | Wrapper/subclass only; bindings, validation and menu focus unchanged |
+| Moku | Note (including short viewport), directory completion, Talk, dispatch details and interaction bodies | Wrapper; completion uses native drag/accessibility instead of its old custom thumb |
+| Overview | Tag/filter navigation strips | Wrapper; existing hidden indicators and canvas input routing retained |
+| Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
+| Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper |
+| WebKit Browser | Main document, subframes and page-owned overflow | Native WebKit; removed the injected transparent 2px CSS override. Page-authored styling remains page-owned |
+
+Settings, the general model selector, Thread Detail TOC and Note are parallel
+work areas. Changes here are limited to viewport construction and removal of
+local style overrides; do not replace their page structure, state or navigation
+when integrating. A new TOC/model menu should use the same wrapper or AppKit
+subclass and retain its own selection/reveal logic. The baseline includes main's
+Note history (#106) and Overview framing (#107).
+
+Run `python3 tools/verification/scrollbars/run.py` from the repository root for
+the windowless production AppKit boundary replay. It checks repeated configuration,
+document/clip/scroller identity, selection and scroll offsets, native targets,
+enabled axes, four appearances and preference-notification isolation. It never
+opens a window or changes system preferences. Headless Swift tests use
+`MOKUSEI_TEST_HEADLESS=1`; display cases report skips, not passes. These checks
+cannot certify rendered thumb pixels, hover/fade timing, actual accessibility
+preference changes, mounted SwiftUI geometry or physical mouse/trackpad feel.
+Existing mounted composer, reading, Markdown, Settings, Git, Note and Browser
+suites supply hosted graphical coverage; manual visual comparison with the
+reference remains unperformed when only headless execution is allowed.
+
 ## Reading and execution disclosure
 
 [Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text. Streaming revisions do not enter the Markdown parser. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.
@@ -25,6 +77,32 @@ for production rendering, selection, copying and navigation fixtures.
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift) owns demand for settled execution bodies. Multiple disclosures share a turn resource; the last lease releases its payload. Explicit expansion mounts the full process rows, while a collapsed settled process retains its summary. Running/waiting content and pending interactions remain available.
 
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
+
+[ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
+conversation's turn index as a left-hand TOC. The selected mark is longer and
+brighter; hover or keyboard focus reveals a bounded prompt/answer preview. The
+viewport-bounded, independently scrollable index includes inherited history and
+the current turn, without mounting historical bodies or parsing every answer.
+The shared `NativeScrollView` retains native viewport behavior with hidden TOC
+indicators. Up/Down and Home/End move focus; Return/Space activates the focused
+entry. One stable keyboard
+responder survives entry recycling, and Escape retains the document Back action.
+Accessible names include the ordinal and prompt, and the selected/current states
+are exposed separately.
+Selecting history uses the existing scoped document and Back restores the retained
+current scroll position. New turns do not replace an open historical execution;
+removed destinations show the unavailable document and retain return navigation.
+Execution sidecards keep their single-execution presentation.
+
+[ThreadReadingHeader.swift](Conversation/ThreadReadingHeader.swift) places the
+mounted turn's resolved author under the title, beside execution/user-message
+visibility controls. Narrow widths wrap the controls and truncate the visible
+author while preserving its complete accessible label, tooltip and text selection.
+The author comes from the actual Harness-rendered body, including runtime model
+overrides; manifests cannot invent it. Completion time, duration and usage remain
+in the footer. Inherited transcripts containing several turns retain each turn's
+author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
+covers mounted navigation, author updates, long indices and responsive layout.
 
 ## Cards, composer and forms
 
@@ -105,6 +183,11 @@ results are discarded without changing the new import's status or error.
 Settings Harness editors share the native select, row/group, defaults toggle and
 CLI status components. CLI status accepts an optional action in the shared notice
 row so a Harness can expose refresh without building a separate status layout.
+`nativeSettingsFormPage` scopes the system popup, rounded fields, switches,
+popover help and bezel-bordered NSTextView presentation to Settings. Other
+surfaces keep their existing control presentation. The adapters preserve field
+activation, native composition/Undo and semantic interaction registrations;
+Harnesses remain responsible for available options and dependent selections.
 
 ## Motion and materials
 
@@ -182,3 +265,39 @@ note. They never fall through to external navigation.
 Timeline anchors retain document coordinates through nested rows. If a requested
 position is initially clamped because Markdown has not finished layout, content
 growth retries that location until it is reachable or the user scrolls.
+
+## Model and reasoning selection
+
+[NativeModelSelector](Forms/NativeModelSelector.swift) is the shared native capsule
+and popover for Harness model choices. Its model list scrolls, marks the current
+choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
+type-ahead, Enter, Escape and Tab. The reasoning presentation shows a discrete
+purple slider in the Harness's supplied option order. A single choice remains a
+button; an unselected/default value does not paint a falsely selected slider knob.
+An enabled empty-ID option supplies the reset action; the component never invents
+a model default. An optional `ModelLink` opens the model list in the same popover.
+
+Callers retain exact `JSONText` IDs, capability discovery, custom identifiers,
+model-dependent draft updates, default mapping and persistence. Codex, Claude,
+Pi's catalog-backed forms and OpenCode use this control; Pi's free-text native
+configuration stays editable, and OpenCode variants use the list presentation
+because variant names do not imply an intensity order. Other form controls are
+independent. Existing Settings interaction IDs and discrete-change admission are
+preserved. AppKit owns popover dismissal, native slider actions and accessibility;
+capability changes, detachment and parent scrolling retire open popovers.
+
+The mounted `NativeModelSelectorReplayTests` exercises real controls and bindings
+for opaque IDs, disabled rows, keyboard cancellation, native slider actions,
+reset, model navigation, catalog refresh and one-choice capabilities. Run `python3 tools/verification/reading-presentation/run.py --model-selector`
+in the AppKit loop, alongside the existing `ClaudeSettingsControlReplayTests`
+and Harness-form replay. The launcher retains light/dark model-list and
+reasoning-panel renders under `.scratch/reading-presentation/NativeModelSelectorReplayTests`. These renders inspect component
+pixels, not WindowServer shadow/compositing or physical pointer delivery.
+
+`NativeModelSelectorHeadlessTests` also drives the production list, slider, reset
+and model-navigation bindings without creating a window. It covers stale profile
+callbacks and exact native IDs under `MOKUSEI_TEST_HEADLESS=1`; it does not replace
+the popover opening/dismissal, focus or WindowServer replay above. Setting
+`MOKUSEI_MODEL_SELECTOR_HEADLESS_ARTIFACTS` captures the unmounted production
+content in both appearances without creating or ordering a window; popover
+chrome, screen placement and compositing remain outside those renders.
