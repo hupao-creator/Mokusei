@@ -30,8 +30,17 @@ The shared input row places the attachment plus between Moku's eyes and the edit
 
 The eyes retain the last open editor seat while the composer retires. Geometry
 reported by the shrinking, read-only composer cannot move that seat; reopening
-resumes live editor measurements. The native transition replay checks the mounted
-eye seat's window-space trajectory through full and interrupted input transitions.
+resumes live editor measurements. The Dock mounts directory completion above
+the input as a separate overlay,
+sharing its menu chrome with the history composer. Its measured target height
+expands the shell without inserting rows into the editor's own layout. The
+editor and the single persistent eye seat therefore share the shell's bottom
+edge throughout the animation. The eye inset uses the input row's local height
+and the error footer's height; it does not resolve an anchor through animated
+ancestors, which would feed the shell's transient translation back into the face.
+The native transition replay checks the mounted eye seat's window-space trajectory through full and
+interrupted input transitions, plus its alignment with the actual editor during
+menu opening, filtering, Escape and rapid reversal in bottom and landing layouts.
 
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
