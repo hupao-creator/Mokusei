@@ -66,7 +66,10 @@ interaction/overlay ownership.
 
 Text shorter than the Talk viewport is vertically centered beside the eyes.
 Overflow keeps its bottom anchor and follows new text only while the reader is
-at the tail; the same layout applies to the voice transcript.
+at the tail; the same layout applies to the voice transcript. The Dock's Stop
+square is revealed by pointer hover, keyboard focus or VoiceOver focus and fades
+out otherwise. The Button itself stays in the accessibility tree, while pointer
+hit testing follows the visual state so an invisible square cannot be clicked.
 
 Each notification expires 60 seconds after its first actual presentation, using a
 monotonic deadline retained by the scene. Refreshes and in-place operation updates

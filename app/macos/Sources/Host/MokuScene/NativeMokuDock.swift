@@ -53,6 +53,8 @@ public struct NativeMokuDock: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovered = false
     @State private var hoverTask: Task<Void, Never>?
+    @FocusState private var stopFocused: Bool
+    @AccessibilityFocusState private var stopAccessibilityFocused: Bool
     @State private var capsuleHeight: CGFloat = 58
     @State private var capsuleFraction: CGFloat = 0
     @State private var submitting = false
@@ -157,6 +159,7 @@ public struct NativeMokuDock: View {
         return CGRect(x: surface.minX, y: surface.maxY - height, width: surface.width, height: height)
     }
     private var talkTrailing: CGFloat { voiceControlVisible ? 48 : NativeMokuTalkTypography.trailing }
+    private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else { return max(landing ? 76 : 58, capsuleHeight) }
         if message.dispatch != nil { return 58 }
@@ -485,9 +488,16 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .bottomTrailing) {
             if running && !inputPresent && !voiceModeActive {
                 Button(action: onCancel) {
+                    // Hide only the drawn square, not the Button: a fully
+                    // transparent button is pruned from the accessibility tree.
                     RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                         .frame(width: 30, height: 30).contentShape(Circle())
+                        .opacity(stopVisible ? 1 : 0)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.12), value: stopVisible)
                 }.buttonStyle(.plain).disabled(disabled)
+                    .focused($stopFocused)
+                    .accessibilityFocused($stopAccessibilityFocused)
+                    .allowsHitTesting(stopVisible)
                     .help(localize("停止 Moku", "Stop Moku"))
                     .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
                     .accessibilityIdentifier("moku-stop")
