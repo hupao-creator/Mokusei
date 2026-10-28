@@ -411,10 +411,12 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await Task.sleep(for: .milliseconds(300))
     try await capture("dark-note-expanded")
 
-    // Left swipe on the retained Moku row switches from note to composer.
+    // Horizontal swipes leave the note alone; clicking its retained row opens input.
     let noteRow = CGPoint(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.maxY - 22)
     _ = try await scroll(0, x: 30, point: noteRow, inverted: false)
-    try await wait("Left swipe from note did not open composer") { fixture.state.inputOpen }
+    try require(fixture.state.notePanelOpen && !fixture.state.inputOpen, "Left swipe from note opened composer")
+    try await click(noteRow)
+    try await wait("Click from note did not open composer") { fixture.state.inputOpen }
     // Composer and interaction panels take priority over the note.
     try require(!fixture.state.notePanelOpen, "Opening the composer kept the note panel")
     try await settle()
@@ -484,14 +486,31 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await capture("dark-note-collapsed-again")
     try await click(CGPoint(x: collapsed.midX, y: collapsed.midY))
     try await Task.sleep(for: .milliseconds(100))
-    try require(!fixture.state.notePanelOpen && !fixture.state.inputOpen, "Single click still opened a mode")
+    try await wait("Single click did not open input") { fixture.state.inputOpen }
+    try require(!fixture.state.notePanelOpen, "Single click opened note")
+    try await settle()
+    try require((window.firstResponder as? NSTextView)?.isEditable == true, "Click entry did not focus editor")
+    fixture.state.setInputOpen(false)
+    try await settle()
     _ = try await scroll(0, x: 40)
     try require(!fixture.state.inputOpen, "Right swipe opened the composer")
     _ = try await scroll(0, x: -12)
     try require(!fixture.state.inputOpen, "Small left touch opened the composer")
     _ = try await scroll(0, x: -16, phase: .changed)
-    try await wait("Left swipe did not open the Moku composer") { fixture.state.inputOpen }
-    try require(!fixture.state.notePanelOpen, "Left swipe opened the note")
+    try require(!fixture.state.inputOpen && !fixture.state.notePanelOpen, "Left swipe opened a mode")
+    fixture.state.setInputOpen(false)
+    try await settle()
+
+    fixture.state.receiveTalk(.init(id: "click-entry-notification", text: "Selectable notification text"))
+    try await settle()
+    let messageRow = fixture.state.capsuleFrame
+    try await click(CGPoint(x: messageRow.minX + 120, y: messageRow.midY))
+    try require(!fixture.state.inputOpen, "Clicking notification prose opened input")
+    try require(axTexts(host).contains("Selectable notification text"),
+                "Clicking notification prose dismissed its text")
+    try await click(CGPoint(x: messageRow.minX + 32, y: messageRow.midY))
+    try await wait("Clicking notification eyes did not open input") { fixture.state.inputOpen }
+    fixture.state.dismissTalk()
     fixture.state.setInputOpen(false)
     try await settle()
 
@@ -518,6 +537,8 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try require(!fixture.state.notePanelOpen, "Scroll starting on voice controls acquired the note")
     try await click(controlPoint)
     try require(fixture.voiceControlClicks == 1 && !fixture.state.notePanelOpen, "Voice button click was stolen")
+    try await click(voicePoint)
+    try require(!fixture.state.inputOpen && !fixture.state.notePanelOpen, "Voice click changed the composer seat")
     _ = try await scroll(0, x: -40, point: voicePoint)
     try require(!fixture.state.inputOpen && !fixture.state.notePanelOpen, "Voice left swipe changed the composer seat")
     for (y, x, phase, momentum, precise) in [

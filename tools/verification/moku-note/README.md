@@ -10,6 +10,7 @@ python3 tools/verification/moku-note/run.py --skip-build --records .scratch/note
 
 The first native mode mounts the production Dock and Markdown renderer with
 Coordinator-generated records. It checks short-note dwell, opening/closing,
+click-to-input and note-to-input focus, ignored horizontal swipes,
 in-place updates, unsupported content, long-note gaps and complete overlapping
 viewport coverage, plus pending submission failure/retry and voice presentation.
 The Go/Swift mode starts a temporary authenticated Runtime, sends the actual
