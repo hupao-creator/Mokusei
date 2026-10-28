@@ -37,6 +37,7 @@ def main():
              "NativeMarkdownLocalImageTests" if "--local-images" in sys.argv else
              "NativeMarkdownRegressionTests" if "--markdown" in sys.argv else
              "NativeMokuHistoryComposerTests" if "--moku-composer" in sys.argv else
+             "NativeMokuLandingTests" if "--moku-landing" in sys.argv else
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
@@ -86,7 +87,7 @@ def main():
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              14 if "--overview-search" in sys.argv else
-             6 if "--overview-mounting" in sys.argv else
+             6 if "--overview-mounting" in sys.argv or "--moku-landing" in sys.argv else
              2 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              8 if "--browser-viewport" in sys.argv else

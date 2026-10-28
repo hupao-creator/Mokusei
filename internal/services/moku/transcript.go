@@ -288,46 +288,48 @@ func (c *Coordinator) eventsLoop(ctx context.Context) {
 			continue
 		}
 		err := c.admitSettings(ctx, func(ctx context.Context) error {
-			if err := ctx.Err(); err != nil {
+			return retryConfigurationAdmission(func() error {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				subjectID := ""
+				if event.record != nil {
+					subjectID = event.record.ID
+				} else if event.userInput != nil {
+					subjectID = event.userInput.Subject.ID
+				}
+				if subjectID == "" {
+					return nil
+				}
+				if c.config.IsDeleting != nil && c.config.IsDeleting(subjectID) {
+					return nil
+				}
+				subject, existsErr := c.config.Thread(subjectID)
+				if existsErr != nil || subject.Moku || subject.MokuHistory {
+					return nil
+				}
+				record, err := c.ensure(ctx)
+				if err != nil {
+					return err
+				}
+				var input model.AgentInput
+				if event.userInput != nil {
+					input = userThreadInputNotification(*event.userInput, subject)
+				} else {
+					serialized, _ := json.Marshal(publicThread(*event.record))
+					input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
+				}
+				input.Presentation = "internal"
+				entries, err := c.sendContext(ctx, input, nil, nil)
+				if err != nil {
+					return err
+				}
+				c.mu.Lock()
+				injection := c.injection
+				c.mu.Unlock()
+				_, err = c.config.SendSession(ctx, record.ID, input, injection, entries, nil)
 				return err
-			}
-			subjectID := ""
-			if event.record != nil {
-				subjectID = event.record.ID
-			} else if event.userInput != nil {
-				subjectID = event.userInput.Subject.ID
-			}
-			if subjectID == "" {
-				return nil
-			}
-			if c.config.IsDeleting != nil && c.config.IsDeleting(subjectID) {
-				return nil
-			}
-			subject, existsErr := c.config.Thread(subjectID)
-			if existsErr != nil || subject.Moku || subject.MokuHistory {
-				return nil
-			}
-			record, err := c.ensure(ctx)
-			if err != nil {
-				return err
-			}
-			var input model.AgentInput
-			if event.userInput != nil {
-				input = userThreadInputNotification(*event.userInput, subject)
-			} else {
-				serialized, _ := json.Marshal(publicThread(*event.record))
-				input = textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
-			}
-			input.Presentation = "internal"
-			entries, err := c.sendContext(ctx, input, nil, nil)
-			if err != nil {
-				return err
-			}
-			c.mu.Lock()
-			injection := c.injection
-			c.mu.Unlock()
-			_, err = c.config.SendSession(ctx, record.ID, input, injection, entries, nil)
-			return err
+			})
 		})
 		c.queue.Unlock()
 		if err != nil && ctx.Err() == nil {

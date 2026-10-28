@@ -39,6 +39,7 @@ func (r *Runtime) PendingMokuDeliveries() ([]plugin.MokuDelivery, error) {
 	return result, nil
 }
 func (r *Runtime) SendMokuDelivery(ctx context.Context, deliveryID, id string, input model.AgentInput, injection *plugin.Injection, entries []plugin.ContextEntry) (plugin.SessionSendResult, error) {
+	attemptEpoch := ""
 	attempt := func() error {
 		r.mokuDeliveryMu.Lock()
 		defer r.mokuDeliveryMu.Unlock()
@@ -59,15 +60,44 @@ func (r *Runtime) SendMokuDelivery(ctx context.Context, deliveryID, id string, i
 			}
 			delivery.AttemptEpoch = r.mokuDeliveryEpoch
 			delivery.Uncertain = true
-			return tx.Put(mokuDeliveryPrefix+deliveryID, delivery)
+			if err := tx.Put(mokuDeliveryPrefix+deliveryID, delivery); err != nil {
+				return err
+			}
+			attemptEpoch = delivery.AttemptEpoch
+			return nil
 		})
 		return err
 	}
 	ctx = context.WithValue(ctx, mokuDeliveryAttemptKey{}, attempt)
-	return r.SendMokuThread(ctx, id, input, injection, entries, func(plugin.SessionSendResult) error {
+	result, err := r.SendMokuThread(ctx, id, input, injection, entries, func(plugin.SessionSendResult) error {
 		_, err := r.config.Store.Update(context.WithoutCancel(ctx), func(tx *store.Tx) error { return tx.Delete(mokuDeliveryPrefix + deliveryID) })
 		return err
 	})
+	if err != plugin.ErrMokuConfigurationPending || attemptEpoch == "" {
+		return result, err
+	}
+	// Only Core's exact pre-consumption result can revoke an attempt. In the
+	// native-send path it follows ErrExecutionEnded, whose contract proves that
+	// the Harness retained/dispatched nothing. Transport failures remain uncertain.
+	r.mokuDeliveryMu.Lock()
+	defer r.mokuDeliveryMu.Unlock()
+	_, releaseErr := r.config.Store.Update(context.WithoutCancel(ctx), func(tx *store.Tx) error {
+		var delivery plugin.MokuDelivery
+		found, readErr := tx.Get(mokuDeliveryPrefix+deliveryID, &delivery)
+		if readErr != nil {
+			return readErr
+		}
+		if !found || !delivery.Uncertain || delivery.AttemptEpoch != attemptEpoch {
+			return errors.New("Moku delivery attempt changed before configuration retry")
+		}
+		delivery.Uncertain = false
+		delivery.AttemptEpoch = ""
+		return tx.Put(mokuDeliveryPrefix+deliveryID, delivery)
+	})
+	if releaseErr != nil {
+		return result, errors.Join(err, releaseErr)
+	}
+	return result, err
 }
 
 func queueMokuDelivery(tx *store.Tx, thread model.ThreadRecord) error {

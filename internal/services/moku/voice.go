@@ -20,13 +20,16 @@ type voiceDelivery struct {
 	delegationID string
 	generation   int64 // protected by voiceController.mu after admission
 	lease        *mokuVoiceLease
+	reply        string
+	hasReply     bool
 }
 
 type mokuVoicePreparation struct {
-	id     string
-	device string
-	ctx    context.Context
-	cancel context.CancelFunc
+	id        string
+	device    string
+	ctx       context.Context
+	cancel    context.CancelFunc
+	reconnect *voiceReconfiguration
 }
 
 type mokuVoiceLease struct {
@@ -35,11 +38,14 @@ type mokuVoiceLease struct {
 	requestID             string
 	device                string
 	owner                 string
+	native                bool
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	unsubscribeClose      func()
 	unsubscribeDelegation func()
 	unsubscribeContext    func() bool
+	unsubscribeRecovery   func()
+	resume                *plugin.VoiceDelegation
 }
 
 type mokuVoiceTeardown struct {
@@ -50,16 +56,20 @@ type mokuVoiceTeardown struct {
 type voiceController struct {
 	c                *Coordinator
 	mu               sync.Mutex
+	replyMu          sync.Mutex
 	commands         chan struct{}
 	admissions       chan struct{}
 	preparation      *mokuVoicePreparation
 	active           *mokuVoiceLease
 	retired          plugin.VoiceSession
+	retiredLease     *mokuVoiceLease
 	retiredID        string
 	retiredDevice    string
 	retiredOwnership string
 	deliveries       map[string]*voiceDelivery
+	pendingSpeeches  map[*voiceDelivery]bool
 	teardowns        map[*mokuVoiceLease]*mokuVoiceTeardown
+	reconfiguration  *voiceReconfiguration
 }
 
 func newVoiceController(c *Coordinator) *voiceController {
@@ -70,13 +80,16 @@ func newVoiceController(c *Coordinator) *voiceController {
 }
 
 type mokuVoiceCommand struct {
-	Action      string
-	RequestID   string
-	SessionID   string
-	OwnershipID string
-	Takeover    string
-	SDP         string
-	After       int64
+	Action        string
+	RequestID     string
+	SessionID     string
+	OwnershipID   string
+	Takeover      string
+	ReconnectFrom string
+	DeliveryID    string
+	Generation    int64
+	SDP           string
+	After         int64
 }
 
 var mokuVoiceUUID = regexp.MustCompile(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$`)
@@ -101,16 +114,33 @@ func parseMokuVoiceCommand(raw json.RawMessage) (mokuVoiceCommand, error) {
 				return result, invalid
 			}
 		}
+		if raw, exists := value["reconnectFrom"]; exists {
+			keys = append(keys, "reconnectFrom")
+			if result.Takeover != "" || json.Unmarshal(raw, &result.ReconnectFrom) != nil || !mokuVoiceUUID.MatchString(result.ReconnectFrom) {
+				return result, invalid
+			}
+		}
 		if json.Unmarshal(value["requestId"], &result.RequestID) != nil || !mokuVoiceUUID.MatchString(result.RequestID) {
 			return result, invalid
 		}
-	case "start", "poll", "stop", "heartbeat":
+	case "start", "poll", "stop", "heartbeat", "ack-speech":
 		keys = append(keys, "ownershipId")
 		if json.Unmarshal(value["ownershipId"], &result.OwnershipID) != nil || !mokuVoiceUUID.MatchString(result.OwnershipID) {
 			return result, invalid
 		}
 		if json.Unmarshal(value["sessionId"], &result.SessionID) != nil || !mokuVoiceUUID.MatchString(result.SessionID) {
 			return result, invalid
+		}
+		if result.Action == "ack-speech" {
+			keys = append(keys, "deliveryId", "generation")
+			if json.Unmarshal(value["deliveryId"], &result.DeliveryID) != nil || result.DeliveryID == "" || len(result.DeliveryID) > 1024 {
+				return result, invalid
+			}
+			var generation *float64
+			if json.Unmarshal(value["generation"], &generation) != nil || generation == nil || *generation < 0 || *generation > 9007199254740991 || math.Trunc(*generation) != *generation {
+				return result, invalid
+			}
+			result.Generation = int64(*generation)
 		}
 		if result.Action == "start" {
 			keys = append(keys, "sdp")
@@ -183,7 +213,20 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		if events == nil {
 			events = []plugin.VoiceEvent{}
 		}
-		return map[string]any{"events": events}, nil
+		reconnect, err := v.configurationReconnect(ctx, request, device)
+		if err != nil {
+			return nil, err
+		}
+		result := map[string]any{"events": events, "reconnect": reconnect}
+		v.mu.Lock()
+		result["reconnectRetired"] = reconnect && v.retiredID == request.SessionID
+		v.mu.Unlock()
+		v.mu.Lock()
+		if recovery := v.reconfiguration; recovery != nil && recovery.device == device && recovery.ownership == request.OwnershipID && recovery.session == request.SessionID && recovery.err != nil {
+			result["reconnectError"] = recovery.err.Error()
+		}
+		v.mu.Unlock()
+		return result, nil
 	}
 	var preparation *mokuVoicePreparation
 	var detachPrepare func() bool
@@ -203,8 +246,20 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 			occupiedID, occupiedDevice = v.preparation.id, v.preparation.device
 		} else if v.active != nil {
 			occupiedID, occupiedDevice = v.active.requestID, v.active.device
+		} else if v.reconfiguration != nil {
+			occupiedID, occupiedDevice = v.reconfiguration.ownership, v.reconfiguration.device
 		}
-		if occupiedID != "" && request.Takeover == "" {
+		if request.ReconnectFrom != "" {
+			reconnect := v.reconfiguration
+			if reconnect == nil || reconnect.device != device || reconnect.ownership != request.ReconnectFrom || v.preparation != nil || (v.active != nil && v.active.requestID != request.ReconnectFrom) {
+				v.mu.Unlock()
+				detachPrepare()
+				cancel()
+				return nil, model.NewError("VOICE_OWNERSHIP_CHANGED", "语音重连所有权已经变化")
+			}
+			preparation.reconnect = reconnect
+		}
+		if occupiedID != "" && request.Takeover == "" && request.ReconnectFrom == "" {
 			v.mu.Unlock()
 			detachPrepare()
 			cancel()
@@ -215,6 +270,9 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 			detachPrepare()
 			cancel()
 			return nil, model.NewError("VOICE_OWNERSHIP_CHANGED", "语音所有权已经变化，请重新查看后接管")
+		}
+		if request.ReconnectFrom == "" {
+			v.discardReconfigurationLocked()
 		}
 		previous := v.preparation
 		v.preparation = preparation
@@ -235,6 +293,11 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		}()
 	}
 	if request.Action == "stop" {
+		v.mu.Lock()
+		if recovery := v.reconfiguration; recovery != nil && recovery.device == device && (recovery.ownership == request.OwnershipID || v.preparation != nil && v.preparation.id == request.OwnershipID && v.preparation.reconnect == recovery) {
+			v.discardReconfigurationLocked()
+		}
+		v.mu.Unlock()
 		// Cancellation precedes the command queue: callers can stop a slow
 		// preparation before receiving its eventual native session identity.
 		v.mu.Lock()
@@ -257,13 +320,29 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		if err := preparation.ctx.Err(); err != nil {
 			return nil, err
 		}
+		locked := false
+		if preparation.reconnect != nil {
+			if err := v.c.queue.Lock(preparation.ctx); err != nil {
+				return nil, err
+			}
+			defer v.c.queue.Unlock()
+			locked = true
+			if err := v.closeConfigurationOwner(preparation.ctx, preparation.reconnect); err != nil {
+				return nil, err
+			}
+		}
+		if err := v.waitConfigurationRecovery(preparation.ctx, preparation.reconnect); err != nil {
+			return nil, err
+		}
 		if err := v.stop(ctx); err != nil {
 			return nil, err
 		}
-		if err := v.c.queue.Lock(preparation.ctx); err != nil {
-			return nil, err
+		if !locked {
+			if err := v.c.queue.Lock(preparation.ctx); err != nil {
+				return nil, err
+			}
+			defer v.c.queue.Unlock()
 		}
-		defer v.c.queue.Unlock()
 		var lease *mokuVoiceLease
 		err := v.c.admitSettings(preparation.ctx, func(admissionCtx context.Context) error {
 			var prepareErr error
@@ -280,6 +359,12 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 			_ = v.stop(context.WithoutCancel(ctx))
 			return nil, err
 		}
+		v.mu.Lock()
+		if preparation.reconnect != nil && v.reconfiguration == preparation.reconnect {
+			lease.resume = preparation.reconnect.pending
+			v.reconfiguration = nil
+		}
+		v.mu.Unlock()
 		installed = true
 		return map[string]any{"sessionId": lease.id, "ownershipId": lease.requestID}, nil
 	}
@@ -300,6 +385,16 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	if err != nil {
 		return nil, err
 	}
+	if request.Action == "ack-speech" {
+		receiver, ok := lease.session.(plugin.VoiceSpeechReceipt)
+		if !ok {
+			return nil, errors.New("语音播放确认不可用")
+		}
+		if err := receiver.ConfirmSpeech(ctx, request.DeliveryID, request.Generation); err != nil {
+			return nil, err
+		}
+		return map[string]any{}, nil
+	}
 	if request.Action == "heartbeat" {
 		lease.session.Heartbeat()
 		return map[string]any{}, nil
@@ -310,6 +405,7 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	if err != nil {
 		return nil, err
 	}
+	v.resumeConfigurationInput(lease)
 	return map[string]any{"sdp": sdp}, nil
 }
 
@@ -348,7 +444,7 @@ func (v *voiceController) prepareSession(ctx context.Context, preparation *mokuV
 		stopErr := session.Stop(context.WithoutCancel(ctx))
 		return nil, errors.Join(errors.New("Voice preparation owner retired"), stopErr)
 	}
-	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, ctx: preparation.ctx, cancel: preparation.cancel}
+	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, native: record.HarnessID == "codex", ctx: preparation.ctx, cancel: preparation.cancel}
 	if err := v.attach(lease); err != nil {
 		return nil, errors.Join(err, v.stop(context.WithoutCancel(ctx)))
 	}
@@ -427,6 +523,18 @@ func (v *voiceController) attach(lease *mokuVoiceLease) error {
 		source.OnRequest(func(ctx context.Context, request plugin.VoiceDelegation, executionID string) error {
 			return v.nativeRequest(ctx, lease, request, executionID)
 		})
+	}
+	if source, ok := lease.session.(plugin.VoiceConfigurationRecoverySource); ok {
+		unsubscribe := source.OnConfigurationRecovery(func(request plugin.VoiceDelegation, err error) { v.recoveredNativeConfiguration(lease, request, err) })
+		v.mu.Lock()
+		if v.active == lease {
+			lease.unsubscribeRecovery = unsubscribe
+			unsubscribe = nil
+		}
+		v.mu.Unlock()
+		if unsubscribe != nil {
+			unsubscribe()
+		}
 	}
 	unsubscribeDelegation := lease.session.OnDelegation(func(request plugin.VoiceDelegation) {
 		v.c.launch(func(ctx context.Context) { v.delegate(ctx, lease, request) })
@@ -550,12 +658,21 @@ func (v *voiceController) retire(lease *mokuVoiceLease) {
 	}
 	v.active = nil
 	v.retired, v.retiredID = lease.session, lease.id
+	v.retiredLease = lease
 	v.retiredDevice, v.retiredOwnership = lease.device, lease.requestID
 	v.deliveries = make(map[string]*voiceDelivery)
 	teardown := &mokuVoiceTeardown{done: make(chan struct{})}
 	v.teardowns[lease] = teardown
 	unsubscribeClose, unsubscribeDelegation := lease.unsubscribeClose, lease.unsubscribeDelegation
 	unsubscribeContext := lease.unsubscribeContext
+	unsubscribeRecovery := lease.unsubscribeRecovery
+	// Configuration retirement must drain native handoffs before releasing
+	// this callback; explicit Stop/revocation has already discarded recovery.
+	if v.reconfiguration != nil && v.reconfiguration.ownership == lease.requestID {
+		unsubscribeRecovery = nil
+	} else {
+		lease.unsubscribeRecovery = nil
+	}
 	lease.unsubscribeClose, lease.unsubscribeDelegation = nil, nil
 	lease.unsubscribeContext = nil
 	v.mu.Unlock()
@@ -568,6 +685,9 @@ func (v *voiceController) retire(lease *mokuVoiceLease) {
 	}
 	if unsubscribeDelegation != nil {
 		unsubscribeDelegation()
+	}
+	if unsubscribeRecovery != nil {
+		unsubscribeRecovery()
 	}
 	// Codex invokes OnClose synchronously from stopOnce. Join cleanup on another
 	// goroutine so retirement never recursively enters Stop or blocks the native
@@ -693,6 +813,8 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 	if execution == nil || !execution.Terminal() {
 		return
 	}
+	v.replyMu.Lock()
+	defer v.replyMu.Unlock()
 	v.mu.Lock()
 	delivery := v.deliveries[execution.ExecutionID]
 	delete(v.deliveries, execution.ExecutionID)
@@ -700,16 +822,34 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 		v.mu.Unlock()
 		return
 	}
+	if v.pendingSpeeches == nil {
+		v.pendingSpeeches = make(map[*voiceDelivery]bool)
+	}
+	v.pendingSpeeches[delivery] = true
 	lease := delivery.lease
-	speech := plugin.VoiceSpeech{DeliveryID: delivery.deliveryID, DelegationID: delivery.delegationID, Generation: delivery.generation}
+	speech := plugin.VoiceSpeech{DeliveryID: delivery.deliveryID, DelegationID: delivery.delegationID, Generation: delivery.generation, RequireReceipt: delivery.lease.native}
+	reply, hasReply := delivery.reply, delivery.hasReply
 	v.mu.Unlock()
+	releaseSpeech := func() {
+		v.mu.Lock()
+		delete(v.pendingSpeeches, delivery)
+		v.mu.Unlock()
+	}
+	launched := false
+	defer func() {
+		if !launched {
+			releaseSpeech()
+		}
+	}()
 	current, err := v.c.current()
 	if err != nil || current.ID != record.ID {
 		return
 	}
 	switch execution.Status {
 	case "completed":
-		if v.c.config.CompletedReply != nil {
+		if hasReply {
+			speech.Text = reply
+		} else if v.c.config.CompletedReply != nil {
 			speech.Text, _ = v.c.config.CompletedReply(record.ID, execution.ExecutionID)
 		} else if execution.Summary != nil {
 			speech.Text = *execution.Summary
@@ -722,7 +862,8 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 	if speech.Text == "" {
 		return
 	}
-	v.c.launch(func(ctx context.Context) {
+	launched = v.c.launch(func(ctx context.Context) {
+		defer releaseSpeech()
 		linked, cancel := voiceLeaseContext(ctx, lease)
 		defer cancel()
 		v.c.report("voice-speech", lease.session.Speak(linked, speech))
@@ -734,6 +875,9 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	v.mu.Lock()
 	lease := v.active
+	if lease == nil && v.reconfiguration != nil && v.retiredLease != nil && v.reconfiguration.ownership == v.retiredLease.requestID {
+		lease = v.retiredLease
+	}
 	v.mu.Unlock()
 	if lease == nil {
 		return nil
@@ -754,6 +898,9 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	current, err := v.c.current()
 	if err != nil || current.ID != owner || lease.owner != owner {
 		return errors.New("Moku native owner replaced")
+	}
+	if err := v.rejectStaleNativeConfiguration(lease); err != nil {
+		return err
 	}
 	v.mu.Lock()
 	active := v.active == lease

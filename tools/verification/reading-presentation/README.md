@@ -1,5 +1,29 @@
 # Reading-page background presentation replay
 
+## Empty workspace and first dispatch
+
+```sh
+python3 tools/verification/reading-presentation/run.py --moku-landing
+```
+
+Runs six `NativeMokuLandingTests` against the production workspace, catalog,
+Overview and Moku presentation. The real shell waits for Moku hydration before
+centering. Installed public snapshots cover durable shells before native admission,
+failed dispatch, a successful result followed by Talk/another pending creation,
+global membership versus scoped search, archive/delete reentry, directory-only
+documents and snapshot rehydration. Mounted production surfaces also check Talk
+beside the live editor, failed submission draft retention, Escape, narrow resize,
+Settings/history cover and remount.
+
+Catalog transactions pass through the actual preparation/installation boundary.
+Fixture send callbacks replace unavailable remote admission; no Runtime, model
+provider, installed profile or microphone is used. The independent
+[Moku backend replay](../moku/README.md) verifies actual creation/admission and audit
+records. The [visual demo](../../../demos/moku-landing/README.md) additionally checks
+cursor movement, light/dark pixel contrast and attachment layout. These are native
+behavior checks, not optical frame pacing. The launcher requires all six cases
+without skips; plain headless Swift runs explicitly skip this display-dependent suite.
+
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
