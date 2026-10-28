@@ -61,7 +61,7 @@ reference remains unperformed when only headless execution is allowed.
 [Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection uses the active reading selection palette consistently across blocks. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
 Markdown source preprocessing preserves code characters and recognizes footnotes
-before entity decoding; escaped syntax stays literal. Labels containing whitespace remain ordinary reference links rather than footnotes. Bare-URL rewriting uses visible inline AST ranges, leaving multiline reference labels and titles untouched while preserving URLs in definition-shaped prose. Parser cache keys, stored SwiftUI inputs (including message and code-block wrappers), document revisions and rendered text comparisons preserve raw UTF-8 identity, so canonically equivalent Unicode sources cannot substitute URL or copy bytes. Footnote labels use Unicode
+before entity decoding; escaped syntax stays literal. Labels containing whitespace remain ordinary reference links rather than footnotes. Bare-URL rewriting uses visible inline AST ranges, leaving multiline reference labels and titles untouched while preserving URLs in definition-shaped prose. Paragraph/Setext inline positions are aligned past removed definitions, accounting for the underline and following-block boundary; code protection follows the AST-confirmed matching backtick run (including lazy continuation), and multiline HTML retains container-column offsets so literal footnote syntax stays intact. Parser cache keys, stored SwiftUI inputs (including message and code-block wrappers), document revisions and rendered text comparisons preserve raw UTF-8 identity, so canonically equivalent Unicode sources cannot substitute URL or copy bytes. Footnote labels use Unicode
 case folding and opaque URL-safe destination identities, including literal percent
 sequences. Lazy paragraph continuations remain in their note. Bare HTTP(S) URLs
 retain Markdown punctuation in their paths. Image alternative text flattens inline
@@ -104,6 +104,8 @@ in the footer. Inherited transcripts containing several turns retain each turn's
 author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
 covers mounted navigation, author updates, long indices and responsive layout.
 
+Remote Markdown images use URLSession HTTP caching and revalidation, with no process-wide URL-only body cache. New document loads therefore honor `Cache-Control: no-store`; mounted images retain their current raster. The streamed 24 MiB body limit and decoded pixel limit remain enforced.
+
 ## Cards, composer and forms
 
 Shared Harness card components keep task identity, usage, plan and extension layout consistent. Plan rows have a native glass highlight only for an actual in-progress step; empty plans render no section. The emoji/follow-up control keeps a stable circular glass surface and native focus/action semantics. Loading-cloud palette is supplied by the Harness rather than selected by identity inside the renderer.
@@ -145,6 +147,8 @@ projects public form metadata consistently for the Dock and Reader fallback.
 Visible defaults populate the editor; optional absence remains valid. Hidden
 defaults participate in conditions without becoming steps, and inactive drafts
 stay local. Core retains schema validation and native answer conversion.
+
+Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
 

@@ -16,6 +16,7 @@ public struct BrowserSidecardPane: View {
             let detailsHeight = presentation.detailsExpanded && !presentation.pending.isEmpty ? min(260, geometry.size.height * 0.36) : 0
             VStack(spacing: 0) {
                 toolbar
+                if let notice = session?.notice { errorLabel(notice) }
                 if !addressError.isEmpty { errorLabel(addressError) }
                 if let session, !session.captureError.isEmpty && !session.annotating { errorLabel(session.captureError) }
                 ZStack(alignment: .bottom) {

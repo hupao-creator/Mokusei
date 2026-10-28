@@ -61,7 +61,8 @@ Reader. It checks colliding provider/model choices, default/optional/hidden/
 conditional fields, exact Go public IDs and cancellation without required answers.
 
 `--browser-viewport` mounts the real loopback Browser fixtures, including cancelled
-navigation, popup downloads, native editing keys, and annotation capture after
+navigation, SPA history traversal, blocked protocols and popup POST notices,
+popup downloads, native editing keys, and annotation capture after
 page changes. `--composer-contrast` additionally checks the mounted host directory
 picker's 50-reference limit through its real accessibility controls, then selects
 the same directory after removing a reference. Both use the AppKit event loop.
@@ -428,7 +429,13 @@ multiline reference labels/titles, shifted inline source ranges after reference
 definitions, extracted footnote URLs and byte-distinct parser cache entries.
 `MarkdownRawSourceRenderingTests` retains the mounted `ThreadMessage` regression
 for NFC-to-NFD body and code replacement without changing a document token.
-These run in the default Swift suite; the latter requires a display.
+`MarkdownSourceRangeTests` exercises Paragraph, ATX/Setext, table, code and HTML
+boundaries under quotes and lists, including multiple/multiline definitions,
+Unicode/Tab columns, LF/CRLF, trailing input, adjacent blocks and lazy code
+continuations with an adjacent real footnote. It asserts both
+complete URLs and the absence of leaked footnote tokens. The native eight-case
+replay also renders a definition-prefixed Setext heading with literal code.
+These run in the default Swift suite; the mounted source test requires a display.
 
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.

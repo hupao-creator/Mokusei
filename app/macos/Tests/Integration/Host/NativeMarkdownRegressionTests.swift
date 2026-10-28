@@ -71,6 +71,10 @@ struct NativeMarkdownRegressionTests {
 
         Before [![Alt `CODE` *italic*](javascript:alert)](https://example.com/after) after.
 
+        [setext]: https://example.com/target
+        `literal [^rate%20value]` and https://example.com/set*ext*path
+        ===
+
         [^two words]: https://example.com/reference
         [^x]: Unreferenced escaped note.
         [^straße]: FIRST_NOTE_LINE
@@ -89,6 +93,8 @@ struct NativeMarkdownRegressionTests {
         #expect(texts(root).contains { $0.string.contains("FIRST_NOTE_LINE SECOND_NOTE_LINE") })
         let destinations = links(root).map { $0.1.absoluteString }
         #expect(destinations.contains("https://example.com/reference"))
+        #expect(destinations.contains("https://example.com/set*ext*path"))
+        #expect(rendered.contains("literal [^rate%20value]"))
         #expect(destinations.contains("http://127.0.0.1/a*b*c.html"))
         #expect(destinations.contains("http://127.0.0.1/a~b~c.html"))
         #expect(destinations.contains("http://www.example.com/a*b*c.html"))

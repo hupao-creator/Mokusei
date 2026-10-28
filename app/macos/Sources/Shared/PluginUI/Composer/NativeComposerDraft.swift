@@ -222,6 +222,7 @@ public final class NativeComposerDraft {
                 _ = clearSubmitted(revision: revision, attachments: sentAttachments, directories: mentionedRevisions)
             } else {
                 try consumePersisted(revision: persistedRevision, attachments: sentAttachments, directories: Set(mentionedRevisions.keys))
+                try consumeAcceptedAttachments(sentAttachments)
             }
         } catch { record(error) }
         // Removing a chip or disposing a surface cannot delete bytes still
@@ -350,6 +351,26 @@ public final class NativeComposerDraft {
             owner.text = consumed.text; owner.directories = consumed.directories; owner.attachments = consumed.attachments
             owner.savedRevision = consumed.revision
             owner.directoryRevisions = Dictionary(uniqueKeysWithValues: consumed.directories.map { ($0.path, UUID()) })
+            owner.restoring = false
+        }
+    }
+
+    private func consumeAcceptedAttachments(_ sent: [NativeComposerAttachment]) throws {
+        let identities = Dictionary(uniqueKeysWithValues: sent.compactMap { draft in
+            draft.attachment.map { (draft.id, $0.id) }
+        })
+        guard let persistence,
+              let consumed = try persistence.consumeAcceptedAttachments(identities) else { return }
+        for owner in Self.owners.compactMap(\.value) where !owner.isDisposed
+            && owner.persistence?.identity == persistence.identity {
+            // Patch live chips instead of restoring a snapshot, preserving new
+            // text, previews and imports that are still awaiting their stage result.
+            owner.restoring = true
+            owner.attachments.removeAll { draft in
+                guard let file = draft.attachment else { return false }
+                return identities[draft.id] == file.id
+            }
+            if owner.savedRevision == consumed.previousRevision { owner.savedRevision = consumed.revision }
             owner.restoring = false
         }
     }

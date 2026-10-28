@@ -42,6 +42,10 @@ public struct NativeComposerDraftPersistence: Sendable {
 
     @MainActor func load() throws -> Snapshot? {
         guard let value = try store.load() else { return nil }
+        return try decode(value)
+    }
+
+    @MainActor private func decode(_ value: JSONValue) throws -> Snapshot {
         guard let revision = value["revision"]?.stringValue, UUID(uuidString: revision) != nil,
               case let .string(text) = value["text"], let directories = value["directories"]?.arrayValue,
               directories.count <= NativeComposerDraft.maximumDirectories,
@@ -117,6 +121,31 @@ public struct NativeComposerDraftPersistence: Sendable {
         try store.save(.object(["revision": .text(revision), "text": .string(textValue),
                                "directories": .array(directoryValues), "attachments": .array(attachmentValues)]))
         return revision
+    }
+
+    /// Accepted files are consumed by both chip and staged-file identity even
+    /// when a successor has edited the draft. Preserve the other serialized
+    /// fields verbatim: decoding for restoration turns pending imports into
+    /// failures, which must not interrupt a live successor's import.
+    @MainActor
+    func consumeAcceptedAttachments(_ identities: [JSONText: JSONText]) throws -> (previousRevision: String, revision: String)? {
+        guard !identities.isEmpty, let raw = try store.load() else { return nil }
+        let snapshot = try decode(raw)
+        let removed = Set(snapshot.attachments.filter { draft in
+            guard let file = draft.attachment else { return false }
+            return identities[draft.id] == file.id
+        }.map(\.id))
+        guard !removed.isEmpty else { return nil }
+        // decode has validated the root and attachment array at this boundary.
+        var value = raw.objectValue!
+        let revision = UUID().uuidString
+        value["revision"] = .text(revision)
+        value["attachments"] = .array(value["attachments"]!.arrayValue!.filter {
+            guard case .string(let id) = $0["id"] else { return true }
+            return !removed.contains(id)
+        })
+        try store.save(.object(value))
+        return (snapshot.revision, revision)
     }
 
     /// A late accepted receipt consumes only its exact persisted draft. Edits

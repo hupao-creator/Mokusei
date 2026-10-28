@@ -279,18 +279,54 @@ enum MarkdownParser {
     /// AST ranges keep code, explicit links/images and raw HTML literal.
     private static func sourceRanges(_ source: String, visibleText: Bool = false) -> [NSRange] {
         let rows = source.components(separatedBy: "\n")
-        let byteCount = source.utf8.count
+        let bytes = Array(source.utf8)
+        let byteCount = bytes.count
         var starts: [Int] = []; var offset = 0
         for row in rows { starts.append(offset); offset += row.utf8.count + 1 }
+        let document = Document(parsing: source, options: [.disableSmartOpts])
+        var blockStarts = Set<Int>()
+        func collectBlockStarts(_ node: any Markup) {
+            if node is any BlockMarkup, let start = node.range?.lowerBound.line { blockStarts.insert(start) }
+            node.children.forEach(collectBlockStarts)
+        }
+        collectBlockStarts(document)
+        // The AST establishes that this opener is a code span. Its exact-width
+        // closing run gives the physical endpoint even when lazy continuation
+        // omits container prefixes that cmark's multiline columns assume.
+        func codeEnd(from start: Int) -> Int? {
+            guard bytes.indices.contains(start), bytes[start] == 96 else { return nil }
+            var cursor = start
+            while cursor < bytes.count, bytes[cursor] == 96 { cursor += 1 }
+            let width = cursor - start
+            while cursor < bytes.count {
+                guard bytes[cursor] == 96 else { cursor += 1; continue }
+                let run = cursor
+                while cursor < bytes.count, bytes[cursor] == 96 { cursor += 1 }
+                if cursor - run == width { return cursor }
+            }
+            return nil
+        }
         var ranges: [NSRange] = []
-        func collect(_ node: any Markup, lineOffset: Int = 0) {
+        func collect(_ node: any Markup, lineOffset: Int = 0, blockColumnOffset: Int = 0) {
             var lineOffset = lineOffset
-            // cmark removes leading reference definitions from paragraph text
-            // without advancing inline source lines. The block still ends at
-            // the real source line, so align its inline subtree to that end.
-            if node is Paragraph, let end = node.range?.upperBound.line,
+            var blockColumnOffset = blockColumnOffset
+            // cmark strips leading definitions without advancing inline lines.
+            // Setext headings also include their underline, and can include the
+            // next input line in their block range. Locate that known heading's
+            // delimiter without treating a following block as heading content.
+            if node is Paragraph || node is Heading, let block = node.range,
                let inlineEnd = Array(node.children).last?.range?.upperBound.line {
-                lineOffset = max(0, end - inlineEnd)
+                blockColumnOffset = block.lowerBound.column - 1
+                var contentEnd = block.upperBound.line
+                if let heading = node as? Heading, block.lowerBound.line < contentEnd,
+                   rows.indices.contains(contentEnd - 1) {
+                    let marker = heading.level == 1 ? "=" : "-"
+                    let endRow = rows[contentEnd - 1]
+                    let isUnderline = endRow.range(of: "^[ \t>]*" + marker + "+[ \t]*$", options: .regularExpression) != nil
+                    if blockStarts.contains(contentEnd) || !isUnderline { contentEnd -= 1 }
+                    contentEnd -= 1
+                }
+                lineOffset = max(0, contentEnd - inlineEnd)
             }
             let literal = node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML
             if visibleText && literal { return }
@@ -298,16 +334,19 @@ enum MarkdownParser {
                 guard let range = node.range,
                       starts.indices.contains(range.lowerBound.line + lineOffset - 1), starts.indices.contains(range.upperBound.line + lineOffset - 1) else { return }
                 let lower = starts[range.lowerBound.line + lineOffset - 1] + range.lowerBound.column - 1
-                let upper = starts[range.upperBound.line + lineOffset - 1] + range.upperBound.column - 1
+                // cmark's multiline HTML endpoint omits block_offset.
+                let endColumnOffset = node is InlineHTML && range.lowerBound.line < range.upperBound.line ? blockColumnOffset : 0
+                var upper = starts[range.upperBound.line + lineOffset - 1] + range.upperBound.column - 1 + endColumnOffset
+                if node is InlineCode, let end = codeEnd(from: lower) { upper = end }
                 guard lower >= 0, upper >= lower, upper <= byteCount else { return }
                 let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
                 let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
                 if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
                     ranges.append(NSRange(first..<last, in: source))
                 }
-            } else { node.children.forEach { collect($0, lineOffset: lineOffset) } }
+            } else { node.children.forEach { collect($0, lineOffset: lineOffset, blockColumnOffset: blockColumnOffset) } }
         }
-        collect(Document(parsing: source, options: [.disableSmartOpts]))
+        collect(document)
         return ranges
     }
 

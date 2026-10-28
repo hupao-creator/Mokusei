@@ -8,6 +8,7 @@ import MokuseiTestSupport
 #endif
 import MokuseiCore
 @testable import MokuseiSidecardBrowser
+@testable import MokuseiPluginUI
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeBrowserViewportTests {
@@ -161,6 +162,40 @@ struct NativeBrowserViewportTests {
         #expect((try await session.webView.evaluateJavaScript("document.getElementById('marker').textContent")) as? String == "Ready source document")
         _ = try await session.webView.evaluateJavaScript("document.getElementById('editable').value = 'still editable'")
         #expect((try await session.webView.evaluateJavaScript("document.getElementById('editable').value")) as? String == "still editable")
+        session.beginAnnotation()
+        #expect(session.annotating)
+    }
+
+    @Test func spaHistoryAndRejectedActionsPreserveTheLiveDocument() async throws {
+        _ = NSApplication.shared
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        try await wait("HTTP starts") { fixture.port != nil }
+        let session = BrowserWebSession(store: .nonPersistent())
+        defer { session.release() }
+        let source = try fixture.url("/navigation")
+        session.navigate(source)
+        try await wait("source ready") { session.ready && !session.loading }
+        _ = try await session.webView.evaluateJavaScript("document.getElementById('editable').value = 'unsent'; history.pushState({}, '', '/spa')")
+        try await wait("pushState address") { session.url == (try fixture.url("/spa")).absoluteString }
+        for _ in 0..<2 {
+            session.back()
+            try await wait("back address") { session.webView.url == source && session.url == source.absoluteString && session.ready && !session.loading }
+            session.forward()
+            try await wait("forward address") { session.webView.url == (try fixture.url("/spa")) && session.url == session.webView.url?.absoluteString && session.ready && !session.loading }
+        }
+        for target in ["mailto:qa@example.invalid", "about:blank"] {
+            _ = try await session.webView.evaluateJavaScript("location.href = '\(target)'")
+            try await wait("blocked notice") { session.notice == "已阻止打开该地址" }
+            #expect(session.ready && session.error == nil)
+            #expect((try await session.webView.evaluateJavaScript("document.getElementById('editable').value")) as? String == "unsent")
+            session.notice = nil
+        }
+        _ = try await session.webView.evaluateJavaScript("const f=document.createElement('form'); f.method='post'; f.target='_blank'; f.action='/popup-post'; document.body.append(f); f.submit()")
+        try await wait("POST rejection notice") { session.notice == "未提交：不支持在新窗口中打开此请求" }
+        #expect(!fixture.requests.contains("/popup-post"))
+        #expect(session.ready && session.error == nil && !session.loading)
+        #expect((try await session.webView.evaluateJavaScript("document.getElementById('editable').value")) as? String == "unsent")
         session.beginAnnotation()
         #expect(session.annotating)
     }
@@ -459,6 +494,26 @@ struct NativeBrowserViewportTests {
     }
 }
 
+@MainActor @Suite(.serializedNative)
+struct NativeMarkdownHTTPMediaTests {
+    @Test func noStoreReloadsChangedBytesAtTheSameURL() async throws {
+        let fixture = try BrowserHTTPFixture()
+        defer { fixture.close() }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while fixture.port == nil {
+            try #require(ContinuousClock.now < deadline)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let loader = MarkdownMediaCache()
+        let url = try fixture.url("/no-store-image")
+        let first = try await loader.load(url)
+        let second = try await loader.load(url)
+        #expect(String(decoding: first, as: UTF8.self) == "image-version-1")
+        #expect(String(decoding: second, as: UTF8.self) == "image-version-2")
+        #expect(fixture.requestCounts["/no-store-image"] == 2)
+    }
+}
+
 /// Small loopback fixture: real HTTP headers make WebKit distinguish iframe
 /// downloads from successful main-frame documents. Every accepted socket closes.
 @MainActor
@@ -520,6 +575,9 @@ private final class BrowserHTTPFixture {
         if path == "/slow" { return }
         let mime: String, extra: String, body: String
         switch path {
+        case "/no-store-image":
+            mime = "image/png"; extra = "Cache-Control: no-store\r\n"
+            body = "image-version-\(requestCounts[path, default: 0])"
         case "/attachment":
             mime = "text/plain"; extra = "Content-Disposition: attachment; filename=fixture.txt\r\n"; body = "iframe attachment"
         case "/binary":

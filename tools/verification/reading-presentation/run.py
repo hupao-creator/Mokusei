@@ -102,7 +102,8 @@ def main():
              6 if "--overview-mounting" in sys.argv or "--moku-landing" in sys.argv else
              2 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
-             8 if "--browser-viewport" in sys.argv or "--markdown" in sys.argv else
+             10 if "--browser-viewport" in sys.argv else
+             8 if "--markdown" in sys.argv else
              2 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
              11 if "--moku-note-tests" in sys.argv else 5)
