@@ -141,6 +141,9 @@ ordinary local invocations still build current sources.
 WindowServer capture explicitly scales to the requested two-pixels-per-point
 buffer. On a 1x screen the default only downsizes, leaving padded space instead
 of the 2x coordinates required by the unchanged pixel assertions.
+Moving frames are acquired before pixel scans and PNG/JSON writes, so evidence
+processing does not consume the short animation being measured. Reading-page
+opacity samples use the actual AppKit front position and one shared bitmap.
 They check selected-child titles, directory widths, narrow and zoomed layouts,
 menu input ownership and interrupted close/reopen transitions. The parent title
 stays frozen while its child glass returns, then updates after exit. Controls

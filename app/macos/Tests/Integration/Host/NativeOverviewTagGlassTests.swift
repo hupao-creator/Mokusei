@@ -226,8 +226,10 @@ struct NativeOverviewTagGlassTests {
         let parentBounds = try #require(fixture.bounds[parent.id])
         let titlebar = window.frame.height - root.bounds.height
         var measurements: [[String: String]] = []
-        func snapshot(_ name: String) async throws -> NSBitmapImageRep {
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        func snapshot(_ name: String, image supplied: CGImage? = nil) async throws -> NSBitmapImageRep {
+            let image: CGImage
+            if let supplied { image = supplied }
+            else { image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) }
             let bitmap = NSBitmapImageRep(cgImage: image)
             if let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_SWITCH_ARTIFACTS"] {
                 let url = URL(fileURLWithPath: directory, isDirectory: true)
@@ -237,8 +239,8 @@ struct NativeOverviewTagGlassTests {
             }
             return bitmap
         }
-        @discardableResult func capture(_ name: String) async throws -> Int {
-            let bitmap = try await snapshot(name)
+        @discardableResult func capture(_ name: String, image: CGImage? = nil) async throws -> Int {
+            let bitmap = try await snapshot(name, image: image)
             // On black, the real glass forms four continuous spans. Compare
             // the second span's upper edge and equator, independently of the
             // layout anchors (which already describe the animation endpoint).
@@ -271,11 +273,17 @@ struct NativeOverviewTagGlassTests {
             return middle[1].count
         }
         let expandedWidth = try await capture("before")
-        var shrinkingWidths: [Int] = []
+        var shrinkingFrames: [CGImage] = []
         _ = try #require(Self.element(id: design.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
-        for index in 0..<12 {
-            shrinkingWidths.append(try await capture("shrinking-\(index)"))
+        // Pixel scans and PNG/JSON writes can consume the whole short morph on
+        // a hosted CPU. Acquire the real frames first; inspect them afterwards.
+        for _ in 0..<12 {
+            shrinkingFrames.append(try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration))
             try await Task.sleep(for: .milliseconds(10))
+        }
+        var shrinkingWidths: [Int] = []
+        for (index, image) in shrinkingFrames.enumerated() {
+            shrinkingWidths.append(try await capture("shrinking-\(index)", image: image))
         }
         try await Task.sleep(for: .milliseconds(350))
         let compactWidth = try await capture("after")
@@ -289,10 +297,12 @@ struct NativeOverviewTagGlassTests {
         try await SwiftUIReplay.wait { Self.element(id: child.id, in: root) != nil }
         try await Task.sleep(for: .milliseconds(400))
         _ = try #require(Self.element(id: child.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
-        for index in 0..<20 {
-            try await capture("expanding-\(index)")
+        var expandingFrames: [CGImage] = []
+        for _ in 0..<20 {
+            expandingFrames.append(try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration))
             try await Task.sleep(for: .milliseconds(10))
         }
+        for (index, image) in expandingFrames.enumerated() { try await capture("expanding-\(index)", image: image) }
         try await Task.sleep(for: .milliseconds(350))
         try await capture("restored")
         #expect(fixture.selected == child)
@@ -355,8 +365,10 @@ struct NativeOverviewTagGlassTests {
         configuration.ignoreShadowsSingleWindow = true
         configuration.showsCursor = false
         let titlebar = window.frame.height - root.bounds.height
-        func capture(_ name: String) async throws -> NSBitmapImageRep {
-            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        func capture(_ name: String, image supplied: CGImage? = nil) async throws -> NSBitmapImageRep {
+            let image: CGImage
+            if let supplied { image = supplied }
+            else { image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) }
             let bitmap = NSBitmapImageRep(cgImage: image)
             if let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_MORPH_ARTIFACTS"] {
                 let url = URL(fileURLWithPath: directory, isDirectory: true)
@@ -367,9 +379,14 @@ struct NativeOverviewTagGlassTests {
         }
         let baseline = try await capture("settled")
         try Self.action("关闭子标签菜单", id: parent.id, in: root)
+        var closingFrames: [CGImage] = []
+        for _ in 0..<12 {
+            closingFrames.append(try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration))
+            try await Task.sleep(for: .milliseconds(10))
+        }
         var leftPixels = 0, rightPixels = 0
-        for index in 0..<12 {
-            let bitmap = try await capture("closing-\(index)")
+        for (index, image) in closingFrames.enumerated() {
+            let bitmap = try await capture("closing-\(index)", image: image)
             var left = 0, right = 0
             // Stay below the parent and outside the settled child viewport.
             // A clipped morph cannot paint either of these strips.
@@ -385,7 +402,6 @@ struct NativeOverviewTagGlassTests {
                 }
             }
             leftPixels = max(leftPixels, left); rightPixels = max(rightPixels, right)
-            try await Task.sleep(for: .milliseconds(10))
         }
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             #expect(leftPixels > 20, "Left capsule end never rendered outside the short child viewport: \(leftPixels)")
