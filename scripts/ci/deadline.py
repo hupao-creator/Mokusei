@@ -23,6 +23,13 @@ def run(command, *, timeout=900, **kwargs):
     process = subprocess.Popen(command, start_new_session=True, **kwargs)
     try:
         return process.wait(timeout=seconds)
+    except subprocess.TimeoutExpired as error:
+        limit = ("the shared 840s execution deadline includes runner queueing and setup"
+                 if os.environ.get("MOKUSEI_CI_STARTED_AT") else "the command's execution limit was reached")
+        raise TimeoutError(
+            f"CI command exhausted its {seconds:.1f}s allowance; "
+            f"{limit}. "
+            "This is incomplete execution, not a test assertion failure.") from error
     finally:
         if process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

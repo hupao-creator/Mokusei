@@ -120,7 +120,14 @@ def main():
         print(record["status"].upper(), record["name"], flush=True)
         if record["status"] != "passed":
             path = output / record["log"]
-            print(path.read_text(errors="replace")[-12000:] if path.exists() else record.get("error", "No log"))
+            # The log can exist but be empty when the whole-run deadline kills a
+            # newly started command. Always expose the runner's failure separately.
+            message = f"{record['name']}: exit={record.get('exit_code')}, seconds={record['seconds']}, error={record.get('error', 'command failed')}"
+            print(message, flush=True)
+            print(path.read_text(errors="replace")[-12000:] if path.exists() else "No command log")
+            if "GITHUB_STEP_SUMMARY" in os.environ:
+                with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                    summary.write(f"\n### Replay failure: {record['name']}\n\n{message}\n\nLog: `{path}`\n")
 
     if any(record["status"] != "passed" for record in records):
         raise SystemExit(1)

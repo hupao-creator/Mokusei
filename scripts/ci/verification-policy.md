@@ -11,6 +11,14 @@ remain useful for iteration and diagnosis; their existence does not make every
 tool mandatory for every change. Historical logs and checks from a different
 revision cannot certify the new revision.
 
+Plan focused local checks first and require the actual hosted merge gates for
+the final revision. Do not add a full local `make check` merely before or after
+equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
+coordination. Documentation-only diffs proven by the workflow's conservative
+path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
+and manual dispatches run all checks below. Native tests outside a proven
+documentation scope are not claimed as executed.
+
 ## Default hosted gates
 
 | Gate | Independent value | Execution |
@@ -37,6 +45,12 @@ in parallel, with serial GUI work inside each runner. All discovered method IDs
 must appear exactly once; weights are scheduling hints, never a coverage list.
 Owned commands share an 840-second deadline and final status/time checks retain
 cleanup headroom. Actual hosted wall time is the acceptance evidence.
+The aggregate also reports job queues and elapsed time across retries. This
+does not relax the per-attempt limit. Preserve each attempt's evidence and select
+the latest execution of each required slot; never fall back from a new failure
+to an old success. Re-run failed jobs only after diagnosis shows a retry is
+appropriate. A same-commit passing retry does not establish that the first
+failure was harmless.
 
 ## Extended hosted gate
 
