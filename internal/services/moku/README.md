@@ -167,3 +167,10 @@ provider effects cannot be guaranteed without provider idempotency support.
 Overview directory context carries `directoryScopeId`, the stable host-derived scope identity. Display tags never resolve a selected directory by basename. Explicit directory mentions still take precedence; an unresolved selected scope reads one catalog snapshot and includes only directories in that scope.
 
 A coordinating-Harness change starts its required new native session and preserves the prior session as read-only `mokuHistory`. Its original Harness keeps ownership of the opaque conversation representation; Moku does not merge native formats. An explicit history reset removes the current conversation and these prior sessions.
+
+Cross-Harness memory consists only of the existing note. Replacement copies its
+exact state, and the next outgoing input includes it through the ordinary note
+context path. Empty notes stay empty. Switching does not request compact or
+generate a summary. Runtime requires idle ordinary tasks and Moku both when
+saving a different Harness preference and when replacing the native owner;
+unrelated configuration edits keep their existing admission behavior.

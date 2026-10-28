@@ -54,6 +54,11 @@ media events are fixed local fixtures.
   and shutdown waiting for a contributor that has not yet released its work.
 - Real configuration admission locks, deferred settings while running, idle
   snapshot adoption, and distinct saved/applied settings after SQLite reopen.
+- Cross-Harness selection rejects active Moku and running, waiting, pending or
+  native-background ordinary tasks, while unrelated settings remain editable.
+  Replacement rechecks work admitted after the save and fences concurrent native
+  admission. The new Harness receives the exact note on its next input; switching
+  back preserves an empty note without an extra model request.
 - Readable initial Moku shells even when native Probe/Describe fails or blocks,
   restoration of an unapplied shell, atomic configured replacement, and restart
   settlement of unfinished tool and assistant audit entries.

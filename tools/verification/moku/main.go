@@ -56,6 +56,7 @@ func runMokuReplays() error {
 		{"note contract", runNoteSchemaReplay},
 		{"note orchestrator and audit", func() error { runNoteOrchestratorReplay(); return nil }},
 		{"note persistence and migration", func() error { runNoteRuntimeReplay(); return nil }},
+		{"idle Harness switching and note handoff", runHarnessSwitchReplay},
 		{"Git worktree creation", runWorktreeCreationReplay},
 		{"runtime admission and SQLite", runRuntimeReplay},
 		{"execution-fenced public cancellation", runFencedMokuCancellationReplay},
