@@ -72,5 +72,7 @@ pixels beyond all four sides of the capsule, rejects any colored pixel touching 
 and under Reduce Motion. It also checks that tool ownership, expanded input,
 idle and cancellation remove the dots, and a new run restores them. Since the
 system Reduce Motion environment value is read-only, the static check
-mounts the same production running-eye component with its Reduce Motion input
-enabled, without changing the system preference. Static dots must remain three separate groups with enough visible pixel area for the production 5-point diameter. The screenshot crop includes 12 points outside the glass on each side, covering the outward-offset path and exposing clipping regressions. Each WindowServer frame is retained as `orbit-*.png` for animation review.
+waits for the ordinary Dock's animated retirement, then mounts the production
+character host's decoration seat with its Reduce Motion input enabled, without
+changing the system preference. This reference checks static dots; it does not
+change the OS preference or certify the complete settings-to-Dock preference path. Static dots must remain three separate groups with enough visible pixel area for the production 5-point diameter. The screenshot crop includes 12 points outside the glass on each side, covering the outward-offset path and exposing clipping regressions. Each WindowServer frame is retained as `orbit-*.png` for animation review.
