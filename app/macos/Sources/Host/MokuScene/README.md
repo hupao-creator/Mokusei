@@ -181,6 +181,13 @@ finishes: replacing it retires the mounted renderer and its armed read session.
 
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
 
+Note ink has its own composited transition outside the native document's
+non-animated layout transaction. Header and Markdown fade together over 120ms
+on dismissal, before the 420ms glass contraction carries the header through the
+eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
+removes both animations. Closing only dismisses this read-only presentation;
+it does not clear the catalog note or change the composer draft.
+
 ## Voice display
 
 The current user transcript takes precedence over Talk/dispatch while present. Partial/final snapshots replace the same session/item; final or handoff alone does not hide it. The first nonempty assistant item or explicitly associated Moku answer consumes it once. Duplicate assistant fragments cannot hide a newer input, and a late final cannot resurrect a consumed item. Owner/media termination clears the projection. [Native voice](../../Voice/README.md) owns these identities and microphone lifecycle; mounting the Dock/history or cloud never starts media.
