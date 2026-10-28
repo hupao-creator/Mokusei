@@ -63,11 +63,18 @@ func main() {
 	reject("moku:record-note-exposure", map[string]any{"noteId": validNoteID, "revision": model.MaximumSafeInteger + 1, "signal": model.NoteExposureSignal})
 	reject("moku:record-note-exposure", map[string]any{"noteId": validNoteID, "revision": 1, "signal": "understood"})
 	reject("moku:record-note-exposure", map[string]any{"noteId": validNoteID, "revision": 1, "signal": model.NoteExposureSignal, "text": "client asserted"})
+	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": 1})
+	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": ""})
+	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": "scope\x00"})
+	reject("moku:submit", map[string]any{"input": nil, "directoryScopeId": strings.Repeat("x", 4097)})
 	_, err = runtime.Invoke(ctx, "state:load", nil)
 	must(err)
 	must(model.ValidateCommandArguments("thread:fork", []json.RawMessage{raw(map[string]any{"threadId": "missing", "request": nil})}))
 	must(model.ValidateCommandArguments("application:query", []json.RawMessage{raw(map[string]any{"pluginId": "report", "operationId": "report.html", "input": nil})}))
 	must(model.ValidateCommandArguments("moku:stage-attachments", []json.RawMessage{raw(nil)}))
+	must(model.ValidateCommandArguments("moku:submit", []json.RawMessage{raw(map[string]any{"input": nil})}))
+	must(model.ValidateCommandArguments("moku:submit", []json.RawMessage{raw(map[string]any{"input": nil, "directoryTag": "Project", "directoryScopeId": "scope-1"})}))
+	must(model.ValidateCommandArguments("moku:submit", []json.RawMessage{raw(map[string]any{"input": nil, "directoryScopeId": strings.Repeat("x", 4096)})}))
 	// GO-2026-5026 must be rejected by the public parser before a media URL
 	// can reach a Harness; legitimate IDNs must retain their normalization.
 	for _, kind := range []string{"image-url", "audio-url"} {
@@ -97,7 +104,7 @@ func main() {
 		}
 	}
 	fmt.Println("PASS public media URL parser: ASCII-only Punycode rejected; ASCII and internationalized domains preserved")
-	fmt.Println("PASS real Runtime command admission: required fields, null/boolean distinction, UTF-16 strings, UTF-8 JSON payload limits, closed scopes and attachment counts; valid opaque null/empty imports preserved")
+	fmt.Println("PASS real Runtime command admission: required fields, null/boolean distinction, UTF-16 strings, UTF-8 JSON payload limits, closed scopes, Moku submit directory scopes and attachment counts; valid opaque null/empty imports preserved")
 }
 func must(err error) {
 	if err != nil {

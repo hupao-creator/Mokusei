@@ -245,7 +245,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		allowed = []string{"id", "decision"}
 		required = allowed
 	case "moku:submit":
-		allowed = []string{"input", "directoryTag", "voiceInput"}
+		allowed = []string{"input", "directoryTag", "directoryScopeId", "voiceInput"}
 		required = []string{"input"}
 	case "harness:settings-presentation":
 		object, ok := value.(map[string]any)
@@ -315,7 +315,14 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return errors.New("invalid execution owner")
 	}
 	if directory, exists := object["directoryTag"]; exists {
-		return text(directory, 256)
+		if err = text(directory, 256); err != nil {
+			return err
+		}
+	}
+	// Moku requires the host-derived scope to resolve a selected directory;
+	// the display tag alone is not an identity.
+	if scope, exists := object["directoryScopeId"]; exists {
+		return text(scope, 4096)
 	}
 	return nil
 }

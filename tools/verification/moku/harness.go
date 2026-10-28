@@ -74,6 +74,7 @@ type replayNativeHarness struct {
 	inputs           []replayNativeInput
 	beforeThreadSend func(context.Context) error
 	doubleAdmission  bool
+	beforeClose      func(string) error
 }
 
 type replayNativeInput struct {
@@ -369,6 +370,14 @@ func (n *replayNativeHandle) Interrupt(ctx context.Context) error {
 func (n *replayNativeHandle) Respond(context.Context, model.RespondRequest) error { return nil }
 func (n *replayNativeHandle) Read(context.Context, string) (string, error)        { return "history", nil }
 func (n *replayNativeHandle) Close() error {
+	n.h.mu.Lock()
+	before := n.h.beforeClose
+	n.h.mu.Unlock()
+	if before != nil {
+		if err := before(n.open.ThreadID); err != nil {
+			return err
+		}
+	}
 	o := n.open.ReadThread().Observation
 	if o.BackgroundWork == nil {
 		return nil
@@ -386,10 +395,14 @@ type replaySystem struct {
 }
 
 func startReplaySystem(root string, h *replayNativeHarness, reasons ...string) *replaySystem {
+	return startReplaySystemWithHarnesses(root, h, map[string]plugin.Harness{"mock": h}, reasons...)
+}
+
+func startReplaySystemWithHarnesses(root string, h *replayNativeHarness, harnesses map[string]plugin.Harness, reasons ...string) *replaySystem {
 	db, e := store.Open(filepath.Join(root, "state.sqlite"))
 	mokuReplayMust(e)
 	h.db = db
-	r, e := runtimepkg.New(mokuReplayContext(), runtimepkg.Config{Store: db, Workspaces: h.workspaces, Harnesses: map[string]plugin.Harness{"mock": h}, Attachments: attachments.New(filepath.Join(root, "attachments")), DataDir: root, DefaultCwd: root, Log: func(kind string, e error) {
+	r, e := runtimepkg.New(mokuReplayContext(), runtimepkg.Config{Store: db, Workspaces: h.workspaces, Harnesses: harnesses, Attachments: attachments.New(filepath.Join(root, "attachments")), DataDir: root, DefaultCwd: root, Log: func(kind string, e error) {
 		if e != nil {
 			h.mu.Lock()
 			h.errors = append(h.errors, kind+": "+e.Error())
@@ -400,6 +413,7 @@ func startReplaySystem(root string, h *replayNativeHarness, reasons ...string) *
 	mokuReplayMust(e)
 	h.r = r
 	cfg := newReplayConfiguration(root, r, h)
+	cfg.Harnesses = harnesses
 	c, e := moku.New(cfg)
 	mokuReplayMust(e)
 	r.SetMoku(c)

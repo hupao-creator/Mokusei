@@ -57,6 +57,7 @@ public struct NativeComposerTextInput: View {
     private let lineHeight: CGFloat
     private let insets: NativeComposerInsets
     private let selectionRequest: NativeComposerSelectionRequest?
+    private let initialSelection: NSRange?
     private let onSubmit: () -> Void
     private let onEscape: (() -> Void)?
     private let onFiles: (([NativeComposerFile]) async -> Void)?
@@ -83,6 +84,7 @@ public struct NativeComposerTextInput: View {
                 onFiles: (([NativeComposerFile]) async -> Void)? = nil,
                 preparePaste: (() -> NativeComposerPastePreparation?)? = nil, onFocusChange: ((Bool) -> Void)? = nil,
                 selectionRequest: NativeComposerSelectionRequest? = nil,
+                initialSelection: NSRange? = nil,
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
                 submitOnReturn: Bool = false) {
@@ -94,6 +96,7 @@ public struct NativeComposerTextInput: View {
         self.minHeight = minHeight; self.maxHeight = max(minHeight, maxHeight)
         self.fontSize = fontSize; self.lineHeight = lineHeight; self.insets = insets
         self.selectionRequest = selectionRequest
+        self.initialSelection = initialSelection
         self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.preparePaste = preparePaste; self.onFocusChange = onFocusChange
         self.onEditorStateChange = onEditorStateChange; self.onKeyDown = onKeyDown
         self.submitOnReturn = submitOnReturn
@@ -102,7 +105,7 @@ public struct NativeComposerTextInput: View {
 
     public var body: some View {
         NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
-            selectionRequest: selectionRequest, focusEnabled: focusEnabled, unavailable: unavailable,
+            selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
             submitOnReturn: submitOnReturn, onPaste: nativePaste)

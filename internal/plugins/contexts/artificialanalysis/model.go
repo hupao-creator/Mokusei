@@ -12,22 +12,37 @@ import (
 )
 
 const SourceID = "artificial-analysis"
+const IntelligenceIndexVersion = "5.0"
+const cacheSchemaVersion = 2
 const MaxFactsBytes = 8 * 1024 * 1024
 const MaxCatalogBytes = 64 * 1024
 const MaxFormattedBytes = 24 * 1024
 const ContextTimeoutMS = 21000
 
-var BenchmarkIDs = []string{"hleText", "terminalBenchV21", "tau3Banking"}
+var BenchmarkIDs = []string{"aaBriefcaseV11", "automationBenchAA", "gdpPDF", "frontierCodeV20", "terminalBenchV40", "omniscienceV11Accuracy", "omniscienceV11HallucinationRate", "hleDiamond", "critPtV2Hard", "terminalBenchScienceV01"}
 
 type Configuration struct {
 	Reasoning bool   `json:"reasoning"`
 	Effort    string `json:"effort,omitempty"`
 }
 type BenchmarkScores struct {
-	HLEText          *float64 `json:"hleText"`
-	TerminalBenchV21 *float64 `json:"terminalBenchV21"`
-	Tau3Banking      *float64 `json:"tau3Banking"`
+	AABriefcaseV11                  *float64 `json:"aaBriefcaseV11"`
+	AutomationBenchAA               *float64 `json:"automationBenchAA"`
+	GDPPDF                          *float64 `json:"gdpPDF"`
+	FrontierCodeV20                 *float64 `json:"frontierCodeV20"`
+	TerminalBenchV40                *float64 `json:"terminalBenchV40"`
+	OmniscienceV11Accuracy          *float64 `json:"omniscienceV11Accuracy"`
+	OmniscienceV11HallucinationRate *float64 `json:"omniscienceV11HallucinationRate"`
+	HLEDiamond                      *float64 `json:"hleDiamond"`
+	CritPtV2Hard                    *float64 `json:"critPtV2Hard"`
+	TerminalBenchScienceV01         *float64 `json:"terminalBenchScienceV01"`
 }
+
+// values follows BenchmarkIDs for both detailed and compact context output.
+func (s BenchmarkScores) values() []*float64 {
+	return []*float64{s.AABriefcaseV11, s.AutomationBenchAA, s.GDPPDF, s.FrontierCodeV20, s.TerminalBenchV40, s.OmniscienceV11Accuracy, s.OmniscienceV11HallucinationRate, s.HLEDiamond, s.CritPtV2Hard, s.TerminalBenchScienceV01}
+}
+
 type Facts struct {
 	EvaluatedModel                      string          `json:"evaluatedModel"`
 	Deprecated                          bool            `json:"deprecated"`
@@ -51,10 +66,11 @@ type Release struct {
 	Evaluations []Evaluation `json:"evaluations"`
 }
 type Snapshot struct {
-	Source       string    `json:"source"`
-	ObservedAt   *string   `json:"observedAt"`
-	Availability string    `json:"availability"`
-	Releases     []Release `json:"releases"`
+	Source                   string    `json:"source"`
+	IntelligenceIndexVersion string    `json:"intelligenceIndexVersion,omitempty"`
+	ObservedAt               *string   `json:"observedAt"`
+	Availability             string    `json:"availability"`
+	Releases                 []Release `json:"releases"`
 }
 type Identity struct {
 	Selector           string   `json:"selector"`
@@ -96,11 +112,12 @@ type persistedConfiguration struct {
 	Facts         *Facts        `json:"facts,omitempty"`
 }
 type persistedSnapshot struct {
-	SchemaVersion  int                      `json:"schemaVersion"`
-	Source         string                   `json:"source"`
-	ObservedAt     string                   `json:"observedAt"`
-	FetchedAt      string                   `json:"fetchedAt"`
-	Configurations []persistedConfiguration `json:"configurations"`
+	SchemaVersion            int                      `json:"schemaVersion"`
+	IntelligenceIndexVersion string                   `json:"intelligenceIndexVersion"`
+	Source                   string                   `json:"source"`
+	ObservedAt               string                   `json:"observedAt"`
+	FetchedAt                string                   `json:"fetchedAt"`
+	Configurations           []persistedConfiguration `json:"configurations"`
 }
 type target struct {
 	Slug, ReleaseSlug, ReleaseName string
@@ -114,7 +131,7 @@ func snapshot(current *persistedSnapshot) Snapshot {
 	if current == nil {
 		return unavailable()
 	}
-	result := Snapshot{Source: SourceID, ObservedAt: &current.ObservedAt, Availability: "unavailable", Releases: []Release{}}
+	result := Snapshot{Source: SourceID, IntelligenceIndexVersion: current.IntelligenceIndexVersion, ObservedAt: &current.ObservedAt, Availability: "unavailable", Releases: []Release{}}
 	indexes := map[string]int{}
 	for _, entry := range current.Configurations {
 		if entry.Facts == nil {
@@ -171,12 +188,19 @@ func keys(value map[string]any, required, optional []string) bool {
 	}
 	return true
 }
-func nonnegative(value any) *float64 {
+func finite(value any) *float64 {
 	number, ok := value.(float64)
-	if !ok || math.IsNaN(number) || math.IsInf(number, 0) || number < 0 {
+	if !ok || math.IsNaN(number) || math.IsInf(number, 0) {
 		return nil
 	}
 	return &number
+}
+func nonnegative(value any) *float64 {
+	number := finite(value)
+	if number == nil || *number < 0 {
+		return nil
+	}
+	return number
 }
 func proportion(value any) *float64 {
 	number := nonnegative(value)
@@ -214,8 +238,13 @@ func validFacts(value any) bool {
 	if !keys(scores, BenchmarkIDs, nil) {
 		return false
 	}
-	for _, value := range scores {
-		if value != nil && proportion(value) == nil {
+	for key, value := range scores {
+		// Elo has no proportion bounds; every other v5 component is a rate.
+		if key == "aaBriefcaseV11" {
+			if value != nil && finite(value) == nil {
+				return false
+			}
+		} else if value != nil && proportion(value) == nil {
 			return false
 		}
 	}
@@ -229,7 +258,7 @@ func parsePersisted(data []byte) (*persistedSnapshot, error) {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return nil, err
 	}
-	if !keys(value, []string{"schemaVersion", "source", "observedAt", "fetchedAt", "configurations"}, nil) || value["schemaVersion"] != float64(1) || value["source"] != SourceID || !iso(text(value["observedAt"])) || !iso(text(value["fetchedAt"])) {
+	if !keys(value, []string{"schemaVersion", "intelligenceIndexVersion", "source", "observedAt", "fetchedAt", "configurations"}, nil) || value["schemaVersion"] != float64(cacheSchemaVersion) || value["intelligenceIndexVersion"] != IntelligenceIndexVersion || value["source"] != SourceID || !iso(text(value["observedAt"])) || !iso(text(value["fetchedAt"])) {
 		return nil, fmt.Errorf("invalid evaluation cache envelope")
 	}
 	entries, ok := value["configurations"].([]any)

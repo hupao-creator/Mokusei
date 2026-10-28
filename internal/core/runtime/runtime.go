@@ -75,6 +75,7 @@ type Runtime struct {
 	serviceMu           sync.Mutex
 	serviceDraining     bool
 	serviceAdmissions   int
+	mokuHarnessChanging bool
 	threadCacheMu       sync.Mutex
 	threadCacheRevision uint64
 	projectionMu        sync.Mutex

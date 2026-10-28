@@ -293,6 +293,9 @@ func (s *Source) refreshGeneration(identities []AcquisitionIdentity) error {
 	if response.status != "ok" {
 		return errors.New("Artificial Analysis model index is unavailable")
 	}
+	if err := validateIndexVersion(response.body); err != nil {
+		return err
+	}
 	index := parseIndex(response.body)
 	if len(index) == 0 {
 		return errors.New("Artificial Analysis model index has no configurations")
@@ -386,7 +389,7 @@ dispatch:
 		return errors.New("Artificial Analysis configuration cache is too large")
 	}
 	now := isoNow(s.options.Now())
-	next := persistedSnapshot{SchemaVersion: 1, Source: SourceID, ObservedAt: now, FetchedAt: now, Configurations: configurations}
+	next := persistedSnapshot{SchemaVersion: cacheSchemaVersion, IntelligenceIndexVersion: IntelligenceIndexVersion, Source: SourceID, ObservedAt: now, FetchedAt: now, Configurations: configurations}
 	data, err := json.Marshal(next)
 	if err != nil {
 		return err

@@ -62,6 +62,31 @@ func embeddedArrays(html string) []embedded {
 	}
 	return result
 }
+
+func validateIndexVersion(html string) error {
+	// The page's evaluation metadata identifies the methodology for both the
+	// headline score and task cost. Model field names alone survive major changes.
+	const marker = `\"intelligenceIndex\":{`
+	found := false
+	for {
+		index := strings.Index(html, marker)
+		if index < 0 {
+			break
+		}
+		start := index + len(marker) - 1
+		var metadata map[string]any
+		if err := json.Unmarshal([]byte(readEmbeddedJSON(html, start)), &metadata); err != nil || metadata["slug"] != "artificial-analysis-intelligence-index" || metadata["name"] != "Artificial Analysis Intelligence Index v"+IntelligenceIndexVersion {
+			return fmt.Errorf("AA Intelligence Index version is unsupported or invalid")
+		}
+		found = true
+		html = html[start+1:]
+	}
+	if !found {
+		return fmt.Errorf("AA Intelligence Index version is unavailable")
+	}
+	return nil
+}
+
 func configurationIdentity(value any) *target {
 	v := record(value)
 	release := record(v["release"])
@@ -115,6 +140,9 @@ func parseIndex(html string) []target {
 	return configurations
 }
 func parsePage(html, expected string) (target, Facts, error) {
+	if err := validateIndexVersion(html); err != nil {
+		return target{}, Facts{}, err
+	}
 	var model any
 	marker := `\"currentModel\":`
 	if index := strings.Index(html, marker); index >= 0 {
@@ -147,6 +175,26 @@ func parsePage(html, expected string) (target, Facts, error) {
 		name = identity.Slug
 	}
 	deprecated, _ := v["deprecated"].(bool)
-	facts := Facts{EvaluatedModel: name, Deprecated: deprecated, IntelligenceIndex: nonnegative(v["intelligenceIndex"]), MedianOutputTokensPerSecond: nonnegative(record(v["timescaleData"])["medianOutputSpeed"]), CostPerIntelligenceIndexTaskUSD: nonnegative(record(record(v["intelligenceIndexCostPerTask"])["cost"])["total"]), BenchmarkScores: BenchmarkScores{HLEText: proportion(v["hle"]), TerminalBenchV21: proportion(v["terminalBench21"]), Tau3Banking: proportion(v["tauBanking"])}, MedianTimeToFirstAnswerTokenSeconds: nonnegative(record(v["timeToFirstAnswerToken"])["total"]), InputUSDPer1MTokens: nonnegative(v["price1mInputTokens"]), OutputUSDPer1MTokens: nonnegative(v["price1mOutputTokens"])}
+	facts := Facts{
+		EvaluatedModel: name, Deprecated: deprecated,
+		IntelligenceIndex:               nonnegative(v["intelligenceIndex"]),
+		MedianOutputTokensPerSecond:     nonnegative(record(v["timescaleData"])["medianOutputSpeed"]),
+		CostPerIntelligenceIndexTaskUSD: nonnegative(record(record(v["intelligenceIndexCostPerTask"])["cost"])["total"]),
+		BenchmarkScores: BenchmarkScores{
+			AABriefcaseV11:                  finite(record(record(v["briefcaseBreakdown"])["overall"])["elo"]),
+			AutomationBenchAA:               proportion(v["automationBenchPartialScore"]),
+			GDPPDF:                          proportion(v["gdpPdfAllPass"]),
+			FrontierCodeV20:                 proportion(v["frontierCode20"]),
+			TerminalBenchV40:                proportion(v["terminalBench40"]),
+			OmniscienceV11Accuracy:          proportion(v["omniscienceAccuracy"]),
+			OmniscienceV11HallucinationRate: proportion(v["omniscienceHallucinationRate"]),
+			HLEDiamond:                      proportion(v["hleDiamond"]),
+			CritPtV2Hard:                    proportion(v["critptAgenticHard"]),
+			TerminalBenchScienceV01:         proportion(v["terminalBenchScience"]),
+		},
+		MedianTimeToFirstAnswerTokenSeconds: nonnegative(record(v["timeToFirstAnswerToken"])["total"]),
+		InputUSDPer1MTokens:                 nonnegative(v["price1mInputTokens"]),
+		OutputUSDPer1MTokens:                nonnegative(v["price1mOutputTokens"]),
+	}
 	return *identity, facts, nil
 }
