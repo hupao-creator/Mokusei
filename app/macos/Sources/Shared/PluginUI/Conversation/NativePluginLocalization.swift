@@ -18,6 +18,9 @@ public enum NativePluginLocalization {
         "尚未收到回复": "No response received", "执行已结束": "Execution ended",
         "没有可显示的回复": "No response to display", "尚无可显示的回复": "No response to display yet",
 
+        "使用上下方向键选择轮次，按回车阅读": "Use Up and Down to choose a turn, then Return to read it",
+        "对话目录": "Conversation contents", "当前轮次": "Current turn",
+        "第 {count} 轮对话": "Turn {count}", "按回车阅读这轮对话": "Press Return to read this turn",
         "历史对话": "Conversation history", "前 1 轮对话": "1 previous turn",
         "窗口控制": "Window controls", "窗口与返回导航": "Window and back navigation",
         "前 {count} 轮对话": "{count} previous turns", "返回当前会话": "Back to current conversation",

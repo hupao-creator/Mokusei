@@ -65,7 +65,8 @@ public struct ThreadConversation: View {
     public let renderRow: ((JSONText) -> AnyView)?
     @Environment(\.locale) private var locale
     @Environment(\.threadDetailNavigation) private var navigation
-    @State private var historyOpen = false
+    @State private var authors: [JSONText: JSONValue] = [:]
+    @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
@@ -76,7 +77,6 @@ public struct ThreadConversation: View {
     @State private var navigationRevision = 0
     @State private var pageMotion = NativeReadingPageMotion()
     @State private var navigationToken: UUID?
-    @FocusState private var historyToggleFocused: Bool
 
     public init(threadId: JSONText, title: String, icon: String? = nil, rows: [ThreadConversationRow],
                 readingTarget: ThreadConversationReadingTarget? = nil, running: Bool = false,
@@ -94,6 +94,7 @@ public struct ThreadConversation: View {
     }
     private var visibleRows: [ThreadConversationRow] {
         if case let .execution(id) = context?.presentation { return rows.filter { $0.execution?.id == id } }
+        let excluded = excluded
         return rows.filter { row in row.execution.map { !excluded.contains($0.id) } ?? true }
     }
     private var lastExecutionIndex: Int? { visibleRows.lastIndex { $0.execution != nil } }
@@ -101,7 +102,13 @@ public struct ThreadConversation: View {
         guard let lastExecutionIndex else { return [] }
         return Set(visibleRows.prefix(lastExecutionIndex).filter { $0.execution != nil }.map(\.id))
     }
-    private var inheritedHistory: Bool { visibleRows.contains { $0.history } }
+    private var tocRows: [ThreadConversationRow] { visibleRows.filter { $0.execution != nil || $0.history } }
+    private var currentRow: ThreadConversationRow? { visibleRows.last { $0.execution != nil } }
+    private var selectedRowID: JSONText? {
+        if case .history = destination { return selectedPage?.id }
+        if case .unavailable = destination { return nil }
+        return inlineRow ?? currentRow?.id
+    }
     private var effectiveRunningID: JSONText? {
         guard let runningTurnId, !excluded.contains(runningTurnId) else { return nil }
         if case let .execution(id) = context?.presentation, id != runningTurnId { return nil }
@@ -119,7 +126,7 @@ public struct ThreadConversation: View {
         if case .document = destination { return false }; return true
     }
     private var selectedPage: ThreadConversationRow? {
-        if case let .history(id) = destination { return visibleRows.first { $0.id == id && (readingTarget?.position == .result || historicalIDs.contains(id)) } }
+        if case let .history(id) = destination { return visibleRows.first { $0.id == id } }
         return nil
     }
     private var resultVisit: Bool {
@@ -138,7 +145,7 @@ public struct ThreadConversation: View {
                     Text(localize("这轮对话已不可用。")).foregroundStyle(NativePalette.thread.danger.swiftUI)
                 }
             } else {
-                pageStack.nativeReadingScope(interactionScope)
+                readingLayout.nativeReadingScope(interactionScope)
             }
         }
         .font(NativeTypography.inter(size: 16))
@@ -146,8 +153,8 @@ public struct ThreadConversation: View {
         .foregroundStyle(NativePalette.thread.ink.swiftUI)
         .background(NativePalette.thread.canvas.swiftUI)
         .onChange(of: threadId, initial: true) { _, _ in
-            historyOpen = false; userMessages = false; manualWork = nil
-            destination = .document(inline: nil); consumedRequest = nil; acceptedAnchor = nil; locatedRequest = nil
+            userMessages = false; manualWork = nil
+            destination = .document(inline: nil); consumedRequest = nil; requestedDestination = nil; acceptedAnchor = nil; locatedRequest = nil
             consumeReadingTarget()
         }
         .onChange(of: effectiveRunningID) { _, _ in manualWork = nil }
@@ -170,6 +177,25 @@ public struct ThreadConversation: View {
         ThreadConversationIndex(executionIDs: rows.compactMap { $0.execution?.id },
                                 hasInheritedHistory: rows.contains { $0.history || $0.execution?.readable == false })
     }
+    private var readingLayout: some View {
+        GeometryReader { bounds in
+            HStack(spacing: 0) {
+                if !executionCard && (tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
+                    ThreadHistorySidebar(rows: tocRows, selected: selectedRowID, current: currentRow?.id,
+                        availableWidth: bounds.size.width, focusRevision: sidebarFocusRevision, select: selectRow)
+                        .padding(.leading, 4).padding(.vertical, 64)
+                        .nativeReadingScope("sidebar")
+                        .zIndex(1)
+                }
+                pageStack
+            }
+            .onKeyPress(.escape) {
+                guard readingPage else { return .ignored }
+                closeHistory()
+                return .handled
+            }
+        }
+    }
     private var pageStack: some View {
         GeometryReader { _ in
             NativeReadingPageStack(open: readingPage, identity: readingIdentity, motion: pageMotion,
@@ -177,13 +203,15 @@ public struct ThreadConversation: View {
                 HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
                     suspended: readingPage, followOutput: true, followKey: effectiveRunningID,
-                    followPaused: historyOpen || inlineRow.map { historicalIDs.contains($0) } == true,
+                    followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
                     onJumpToLatest: {
-                        historyOpen = false; destination = .document(inline: nil); acceptedAnchor = nil
-                    }, showOlderRows: historyOpen, pinnedRowId: inlineRow,
+                        destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
+                    }, showOlderRows: false, pinnedRowId: inlineRow,
                     readingTarget: readingPage ? nil : scrollTarget, locatedRequestId: locatedRequest,
                     onLocated: { locatedRequest = $0 })
                     .environment(\.threadDetailVisibility, visibility)
+                    .environment(\.threadAuthorInHeader, true)
+                    .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
                     .environment(\.nativeInteractionQuestionInDocument, true)
                     .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
                     .nativeReadingScope("current")
@@ -200,7 +228,8 @@ public struct ThreadConversation: View {
             .nativeReadingObservation("state", role: "conversation", value: .object([
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),
                 "historyRow": selectedPage.map { .string($0.id) } ?? .null,
-                "historyOpen": .bool(historyOpen), "userMessages": .bool(userMessages), "work": .bool(work),
+                "selectedRow": selectedRowID.map(JSONValue.string) ?? .null,
+                "userMessages": .bool(userMessages), "work": .bool(work),
                 "rowCount": .integer(visibleRows.count), "historicalCount": .integer(historicalIDs.count),
                 "transitioning": .bool(pageMotion.active)
             ]))
@@ -220,28 +249,13 @@ public struct ThreadConversation: View {
         VStack(alignment: .leading, spacing: 0) {
             heading(title, emoji: icon ?? "📝")
             if let actions { actions.padding(.top, 15) }
-            if !executionCard && !rows.isEmpty {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    if !historicalIDs.isEmpty || inheritedHistory {
-                        Button(action: toggleHistory) {
-                            HStack(spacing: 5) {
-                                NativeIcon(name: "ChevronRight", size: 13).rotationEffect(.degrees(historyOpen ? 90 : 0))
-                                Text(inheritedHistory ? localize("历史对话") : historicalIDs.count == 1 ? localize("前 1 轮对话") : localize("前 {count} 轮对话").replacingOccurrences(of: "{count}", with: String(historicalIDs.count)))
-                            }.font(NativeTypography.inter(size: 12))
-                        }.buttonStyle(.plain).focused($historyToggleFocused).accessibilityValue(historyOpen ? localize("已展开") : localize("已收起"))
-                            .nativeReadingAction("history", role: "history.toggle", label: localize("历史对话"),
-                                value: .bool(historyOpen), action: toggleHistory)
-                    }
-                    Spacer(minLength: 0)
-                    filterButton(userMessages ? "隐藏用户消息" : "显示用户消息", icon: userMessages ? "EyeOff" : "Eye",
-                        id: "userMessages", role: "visibility.userMessages", value: userMessages) { userMessages.toggle() }
-                    filterButton(work ? "收起执行过程" : "显示执行过程", icon: "ListFilter",
-                        id: "work", role: "visibility.work", value: work) { manualWork = !work }
-                }.foregroundStyle(NativePalette.thread.muted.swiftUI)
-                    .padding(.top, 12).padding(.bottom, historyOpen ? 12 : 0)
-                    .overlay(alignment: .bottom) { if historyOpen { Divider().overlay(NativePalette.thread.lineSoft.swiftUI) } }
-                    .padding(.bottom, historyOpen ? 24 : 16)
-                    .accessibilityElement(children: .contain).accessibilityLabel(localize("消息显示"))
+            if !rows.isEmpty {
+                let selected = selectedRowID
+                let authorID = visibleRows.first { $0.id == selected }?.execution?.id
+                ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
+                    showsFilters: !executionCard, users: userMessages, work: work,
+                    toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
+                    .padding(.top, 12).padding(.bottom, 16)
             } else { Color.clear.frame(height: 16) }
         }
     }
@@ -256,22 +270,13 @@ public struct ThreadConversation: View {
         }
     }
     private var documentRows: [ThreadTimelineRow] {
-        visibleRows.enumerated().map { index, row in
-            let node: AnyView
-            if row.history {
-                node = historyOpen ? content(row) : AnyView(EmptyView())
-            } else if historicalIDs.contains(row.id) && row.id != inlineRow {
-                node = historyOpen ? AnyView(ThreadHistoryEntry(row: row) {
-                    destination = .history(row.id); navigationRevision += 1
-                }) : AnyView(EmptyView())
-            } else {
-                let divider = historyOpen && index > 0 && (visibleRows[index - 1].history || historicalIDs.contains(visibleRows[index - 1].id))
-                node = AnyView(VStack(alignment: .leading, spacing: 0) {
-                    if divider { Divider().overlay(NativePalette.thread.lineSoft.swiftUI).padding(.vertical, 24) }
-                    content(row)
-                })
-            }
-            return ThreadTimelineRow(id: row.id, createdAt: row.createdAt, node: node)
+        let historical = historicalIDs
+        // The sidebar owns history navigation. Do not keep empty historical
+        // slots in the content window or acquire their scoped body resources.
+        return visibleRows.filter { row in
+            !row.history && (!historical.contains(row.id) || row.id == inlineRow)
+        }.map { row in
+            ThreadTimelineRow(id: row.id, createdAt: row.createdAt, node: content(row))
         }
     }
     private func content(_ row: ThreadConversationRow) -> AnyView {
@@ -282,7 +287,7 @@ public struct ThreadConversation: View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
-                              showBack: navigation == nil, onBack: closeHistory)
+                              showBack: navigation == nil, focusHeading: destination == requestedDestination, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
         .nativeReadingActive(!pageMotion.active)
@@ -296,16 +301,21 @@ public struct ThreadConversation: View {
         pageMotion.close()
     }
     private func finishClosingHistory() {
-        destination = .document(inline: nil); navigationRevision += 1
-        historyToggleFocused = true
+        destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
+        navigationRevision += 1; sidebarFocusRevision += 1
     }
-    private func toggleHistory() { historyOpen.toggle() }
-    private func filterButton(_ title: String, icon: String, id: String, role: String, value: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 5) { NativeIcon(name: icon, size: 12); Text(localize(title)) }
-                .font(NativeTypography.inter(size: 10)).padding(.vertical, 4).padding(.horizontal, 6)
-        }.buttonStyle(.plain)
-            .nativeReadingAction(id, role: role, label: localize(title), value: .bool(value), action: action)
+    private func selectRow(_ id: JSONText) {
+        guard visibleRows.contains(where: { $0.id == id }) else { return }
+        // Invalidate an interrupted Back animation before selecting another
+        // turn; its delayed completion must not replace the new destination.
+        pageMotion.cancel()
+        requestedDestination = nil; acceptedAnchor = nil
+        if id == currentRow?.id {
+            destination = .document(inline: nil)
+        } else {
+            destination = .history(id)
+        }
+        navigationRevision += 1
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
     private func consumeReadingTarget() {
@@ -342,7 +352,10 @@ public struct ThreadConversation: View {
         requestedDestination = destination
     }
     private func promoteCurrentPage() {
-        guard !resultVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id }), !historicalIDs.contains(id) else { return }
+        if case let .document(inline?) = destination, !visibleRows.contains(where: { $0.id == inline }) {
+            destination = .document(inline: nil)
+        }
+        guard !resultVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id && !$0.history }), !historicalIDs.contains(id) else { return }
         let promoted = ConversationDestination.document(inline: id)
         if requestedDestination == destination { requestedDestination = promoted }
         destination = promoted
@@ -371,35 +384,6 @@ public struct ThreadDetailEmptyState: View {
     }
 }
 
-private struct ThreadHistoryEntry: View {
-    let row: ThreadConversationRow
-    let open: () -> Void
-    @State private var summary = ""
-    @Environment(\.locale) private var locale
-    var body: some View {
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(entryTitle).font(NativeTypography.inter(size: 14, weight: 500)).underline(color: NativePalette.thread.line.swiftUI).lineLimit(1)
-                Text(summary).font(NativeTypography.inter(size: 13)).foregroundStyle(NativePalette.thread.muted.swiftUI).lineLimit(1)
-                if let at = row.execution?.completedAt {
-                    Text(formatThreadTimestamp(at)).font(NativeTypography.mono(size: 14)).foregroundStyle(NativePalette.thread.muted.swiftUI).padding(.top, 2)
-                }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8).contentShape(Rectangle())
-        }.buttonStyle(.plain).padding(.top, 2).padding(.bottom, 12)
-            .nativeReadingAction("open", role: "history.open", label: entryTitle, value: .string(row.id), action: open)
-            .help(row.execution?.prompt ?? "")
-            .task(id: String((row.execution?.answer ?? "").prefix(1024))) {
-                summary = await NativeMarkdownSummary.plainText(row.execution?.answer ?? "", limit: 1024)
-            }
-    }
-    private var entryTitle: String {
-        let prompt = row.execution?.prompt ?? ""
-        if prompt.isEmpty { return NativePluginLocalization.localize("历史对话", locale: locale) }
-        let text = String(prompt.prefix(240)).split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        return prompt.count > 240 ? text + "…" : text
-    }
-}
-
 private struct ThreadHistoryDocument: View {
     let threadId: JSONText
     let page: ThreadConversationRow?
@@ -410,9 +394,11 @@ private struct ThreadHistoryDocument: View {
     let locatedRequestId: JSONText?
     let onLocated: (JSONText) -> Void
     let showBack: Bool
+    let focusHeading: Bool
     let onBack: () -> Void
     @Environment(\.locale) private var locale
     @State private var users = false
+    @State private var authors: [JSONText: JSONValue] = [:]
     @State private var manualWork: Bool?
     private var work: Bool { manualWork ?? (result && active) }
     @FocusState private var headingFocused: Bool
@@ -423,13 +409,15 @@ private struct ThreadHistoryDocument: View {
             followOutput: result, followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: users, work: work))
+            .environment(\.threadAuthorInHeader, page?.execution != nil)
+            .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
             .overlay(alignment: .topLeading) {
                 if showBack { Button(action: onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 30) }
                     .buttonStyle(.plain).background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 7))
                     .overlay(RoundedRectangle(cornerRadius: 7).stroke(NativePalette.thread.line.swiftUI))
                     .padding(16).help(localize("返回当前会话")).accessibilityLabel(localize("返回当前会话"))
                 }
-            }.nativeOnExitCommand(perform: onBack).onAppear { headingFocused = true }
+            }.nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
             .nativeReadingAction("close", role: "history.close", label: localize("返回当前会话"), action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
                 "rowId": page.map { .string($0.id) } ?? .null,
@@ -439,7 +427,7 @@ private struct ThreadHistoryDocument: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 18) {
             if let page { Text(emoji(page.id)).font(.system(size: 44)).accessibilityHidden(true) }
-            Text(page?.execution?.prompt ?? localize("历史执行不可用"))
+            Text(page.map { $0.execution?.prompt ?? localize("历史对话") } ?? localize("历史执行不可用"))
                 .font(NativeTypography.inter(size: 40, weight: 650)).tracking(-0.8)
                 .lineLimit(2).truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -447,14 +435,8 @@ private struct ThreadHistoryDocument: View {
                 .foregroundStyle(NativePalette.thread.inkStrong.swiftUI).accessibilityAddTraits(.isHeader)
                 .focusable().focusEffectDisabled().focused($headingFocused)
             if page != nil {
-                HStack(spacing: 10) {
-                    Spacer()
-                    Button(localize(users ? "隐藏用户消息" : "显示用户消息"), action: toggleUsers)
-                        .nativeReadingAction("userMessages", role: "visibility.userMessages", label: localize("显示用户消息"), value: .bool(users), action: toggleUsers)
-                    Button(localize(work ? "收起执行过程" : "显示执行过程"), action: toggleWork)
-                        .nativeReadingAction("work", role: "visibility.work", label: localize("显示执行过程"), value: .bool(work), action: toggleWork)
-                }.buttonStyle(.plain).font(NativeTypography.inter(size: 10))
-                    .foregroundStyle(NativePalette.thread.muted.swiftUI)
+                ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] }, showsAuthor: page?.execution != nil,
+                    users: users, work: work, toggleUsers: toggleUsers, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
         }.padding(.bottom, 28)
