@@ -156,10 +156,10 @@ The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the 
 
 Holding the text editor for 0.5 seconds starts the workspace-owned voice client
 through [NativeMokuLongPressVoiceMonitor](../VoiceControls/NativeMokuLongPressVoiceMonitor.swift).
-Landing, bottom-Dock and history editors share this entrance. The passive observer
-preserves native click/focus and cancels on drag, release, keyboard/scroll input,
-lost window activity, unavailable input or unmount. Its timer also samples during
-AppKit text tracking. Only the editor is eligible; eyes, attachment/send controls,
+Landing, bottom-Dock and history editors share this entrance. The native press recognizer
+preserves ordinary click/focus and cancels on movement, early release,
+lost window activity, unavailable input or unmount. AppKit tracks the delivered
+event stream, including native text selection. Only the editor is eligible; eyes, attachment/send controls,
 notes and directory suggestions are excluded. Release after activation keeps the
 voice session running and retains the draft. The localized placeholder/help and
 VoiceOver Start voice action expose the entrance. Force Touch and the former

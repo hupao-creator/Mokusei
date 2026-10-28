@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// A passive observer over only the editor, so attachment/send controls and
-/// native text selection retain their ordinary mouse-down ownership.
+/// The native recognizer observes the editor without taking its hit testing.
 struct NativeMokuLongPressVoiceMonitor: NSViewRepresentable {
     var isActive: () -> Bool
     var canStart: () -> Bool
@@ -20,11 +19,9 @@ struct NativeMokuLongPressVoiceMonitor: NSViewRepresentable {
 
     static func dismantleNSView(_ view: MonitorView, coordinator: ()) { view.stop() }
 
-    @MainActor final class MonitorView: NSView {
-        private var monitor: Any?
-        private var timer: Timer?
-        private var origin: CGPoint?
-        private var deadline: TimeInterval = 0
+    @MainActor final class MonitorView: NSView, NSGestureRecognizerDelegate {
+        private var press: NSPressGestureRecognizer?
+        private var resignObserver: NSObjectProtocol?
         private var isActive: () -> Bool = { false }
         private var canStart: () -> Bool = { false }
         private var start: () -> Void = {}
@@ -34,17 +31,33 @@ struct NativeMokuLongPressVoiceMonitor: NSViewRepresentable {
 
         func update(isActive: @escaping () -> Bool, canStart: @escaping () -> Bool, start: @escaping () -> Void) {
             self.isActive = isActive; self.canStart = canStart; self.start = start
-            if !isActive() || !canStart() { cancelPress() }
+            press?.isEnabled = isActive() && canStart()
         }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             stop()
-            guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp, .leftMouseDragged, .keyDown, .scrollWheel]) { [weak self] event in
-                MainActor.assumeIsolated { self?.receive(event) }
-                return event
-            }
+            guard let window, let content = window.contentView else { return }
+            let press = NSPressGestureRecognizer(target: self, action: #selector(held(_:)))
+            press.minimumPressDuration = 0.5
+            press.allowableMovement = 4
+            press.buttonMask = 1
+            // Keep AppKit's press delay: a short click or drag fails the
+            // recognizer and forwards the original events to the text editor.
+            // Otherwise NSTextView can consume drag/release in its nested
+            // selection loop before the recognizer can cancel the hold.
+            press.delegate = self
+            press.isEnabled = isActive() && canStart()
+            content.addGestureRecognizer(press)
+            self.press = press
+            resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification,
+                object: window, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        self.press?.isEnabled = false
+                        self.press?.isEnabled = self.isActive() && self.canStart()
+                    }
+                }
         }
 
         override func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -53,57 +66,28 @@ struct NativeMokuLongPressVoiceMonitor: NSViewRepresentable {
         }
 
         func stop() {
-            cancelPress()
-            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+            if let press { press.view?.removeGestureRecognizer(press); self.press = nil }
+            if let resignObserver { NotificationCenter.default.removeObserver(resignObserver); self.resignObserver = nil }
         }
 
-        private func cancelPress() {
-            timer?.invalidate(); timer = nil; origin = nil
+        func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent) -> Bool {
+            event.type == .leftMouseDown && event.window === window && event.clickCount == 1
+                && event.modifierFlags.intersection([.control, .option, .command, .shift]).isEmpty
+                && !isHiddenOrHasHiddenAncestor && isActive() && canStart()
+                && bounds.contains(convert(event.locationInWindow, from: nil))
         }
 
-        func receive(_ event: NSEvent) {
-            switch event.type {
-            case .leftMouseDown:
-                cancelPress()
-                guard event.window === window, event.clickCount == 1,
-                      event.modifierFlags.intersection([.control, .option, .command, .shift]).isEmpty,
-                      !isHiddenOrHasHiddenAncestor, isActive(), canStart(),
-                      visibleRect.contains(convert(event.locationInWindow, from: nil)),
-                      let window else { return }
-                origin = window.convertPoint(toScreen: event.locationInWindow)
-                deadline = ProcessInfo.processInfo.systemUptime + 0.5
-                // NSTextView can run a nested tracking loop during mouseDown.
-                // Sampling in both modes catches movement/release even when that
-                // loop takes events before the local event monitor sees them.
-                let timer = Timer(timeInterval: 0.02, repeats: true) { [weak self] _ in
-                    MainActor.assumeIsolated {
-                        self?.sample(at: NSEvent.mouseLocation, pressed: NSEvent.pressedMouseButtons & 1 != 0,
-                            now: ProcessInfo.processInfo.systemUptime)
-                    }
-                }
-                self.timer = timer
-                RunLoop.main.add(timer, forMode: .common)
-                RunLoop.main.add(timer, forMode: .eventTracking)
-            case .leftMouseDragged:
-                cancelPress()
-            case .leftMouseUp, .keyDown, .scrollWheel:
-                cancelPress()
-            default: break
-            }
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: NSGestureRecognizer) -> Bool {
+            window?.isKeyWindow == true && NSApp.isActive && !isHiddenOrHasHiddenAncestor
+                && isActive() && canStart() && bounds.contains(gestureRecognizer.location(in: self))
         }
 
-        func sample(at point: CGPoint, pressed: Bool, now: TimeInterval) {
-            guard let origin else { return }
-            guard pressed, let window, window.isKeyWindow, NSApp.isActive,
-                  !isHiddenOrHasHiddenAncestor, isActive(), canStart(),
-                  hypot(point.x - origin.x, point.y - origin.y) <= 4,
-                  visibleRect.contains(convert(window.convertPoint(fromScreen: point), from: nil)) else {
-                cancelPress(); return
-            }
-            guard now >= deadline else { return }
-            // Clear before starting: presentation can synchronously retire this
-            // editor. Release never stops the workspace-owned voice session.
-            cancelPress()
+        func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: NSGestureRecognizer) -> Bool { true }
+
+        @objc private func held(_ recognizer: NSPressGestureRecognizer) {
+            guard recognizer.state == .began, isActive(), canStart() else { return }
+            // Release belongs to the gesture, not the workspace media lifetime.
             start()
         }
     }

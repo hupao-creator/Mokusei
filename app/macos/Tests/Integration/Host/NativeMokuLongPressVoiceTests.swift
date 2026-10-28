@@ -26,8 +26,8 @@ struct NativeMokuLongPressVoiceTests {
         let event = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
             timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
             context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
-        view.receive(event)
-        view.sample(at: window.convertPoint(toScreen: point), pressed: true, now: ProcessInfo.processInfo.systemUptime + 1)
+        let recognizer = NSPressGestureRecognizer()
+        #expect(!view.gestureRecognizer(recognizer, shouldAttemptToRecognizeWith: event))
         #expect(starts == 0)
     }
 }

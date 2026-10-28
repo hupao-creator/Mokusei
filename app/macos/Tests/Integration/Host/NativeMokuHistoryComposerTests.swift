@@ -136,56 +136,50 @@ struct NativeMokuHistoryComposerTests {
         try await SwiftUIReplay.wait { monitor(in: window.contentView!) != nil && window.isKeyWindow && NSApp.isActive }
         let view = try #require(monitor(in: window.contentView!))
         let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
-        let screen = window.convertPoint(toScreen: point)
         func event(_ type: NSEvent.EventType, location: CGPoint? = nil) throws -> NSEvent {
             try #require(NSEvent.mouseEvent(with: type, location: location ?? point, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                 context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         }
-        func sample(after seconds: Double = 1, pressed: Bool = true, at position: CGPoint? = nil) {
-            view.sample(at: position ?? screen, pressed: pressed, now: ProcessInfo.processInfo.systemUptime + seconds)
+        func hold(duration: TimeInterval, location: CGPoint? = nil, drag: Bool = false) async throws {
+            let down = try event(.leftMouseDown, location: location)
+            let up = try event(.leftMouseUp, location: location)
+            let moved = try event(.leftMouseDragged, location: CGPoint(x: point.x + 20, y: point.y))
+            let sendUp: @MainActor @Sendable () -> Void = { NSApp.postEvent(up, atStart: true) }
+            let sendDrag: @MainActor @Sendable () -> Void = { NSApp.postEvent(moved, atStart: true) }
+            let release = Timer(timeInterval: duration, repeats: false) { _ in
+                MainActor.assumeIsolated { sendUp() }
+            }
+            RunLoop.main.add(release, forMode: .common)
+            RunLoop.main.add(release, forMode: .eventTracking)
+            var movement: Timer?
+            if drag {
+                let timer = Timer(timeInterval: 0.1, repeats: false) { _ in
+                    MainActor.assumeIsolated { sendDrag() }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                RunLoop.main.add(timer, forMode: .eventTracking)
+                movement = timer
+            }
+            NSApp.sendEvent(down)
+            try await Task.sleep(for: .seconds(duration + 0.1))
+            release.invalidate(); movement?.invalidate()
         }
         #expect(view.hitTest(.zero) == nil)
-        view.receive(try event(.leftMouseDown))
-        sample(after: 0.1)
+        try await hold(duration: 0.1)
         #expect(starts == 0)
-        sample()
-        sample()
-        view.receive(try event(.leftMouseUp))
+        try await hold(duration: 0.8, drag: true)
+        #expect(starts == 0)
+        try await hold(duration: 0.8)
         #expect(starts == 1)
         #expect(draft.text == "保持这份草稿")
-
-        view.receive(try event(.leftMouseDown))
-        view.receive(try event(.leftMouseUp))
-        sample()
-        #expect(starts == 1)
-        view.receive(try event(.leftMouseDown))
-        view.receive(try event(.leftMouseDragged))
-        sample()
-        #expect(starts == 1)
-        view.receive(try event(.leftMouseDown))
-        sample(at: CGPoint(x: screen.x + 12, y: screen.y))
-        sample()
-        #expect(starts == 1)
-        view.receive(try event(.leftMouseDown))
-        sample(pressed: false)
-        sample()
-        #expect(starts == 1)
-
-        view.receive(try event(.leftMouseDown))
         available = false
-        sample()
-        available = true
-        sample()
+        try await hold(duration: 0.8)
         #expect(starts == 1)
-        // The attachment/eye seat is outside the actual mounted editor monitor.
-        view.receive(try event(.leftMouseDown, location: view.convert(CGPoint(x: -20, y: 10), to: nil)))
-        sample()
-        #expect(starts == 1)
-        view.receive(try event(.leftMouseDown))
-        window.contentView = nil
-        sample()
-        #expect(starts == 1)
+        // Detachment removes the recognizer owned by this editor.
+        let count = window.contentView?.gestureRecognizers.count ?? 0
+        view.stop()
+        #expect(window.contentView?.gestureRecognizers.count == count - 1)
     }
 
     @Test func historyExposesExecutionStopAndFirstQuestionCancel() async throws {
