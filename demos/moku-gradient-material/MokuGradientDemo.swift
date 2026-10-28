@@ -4,7 +4,7 @@ import SwiftUI
 struct MokuGradientDemo: View {
     @State private var strength = 0.85
     @State private var backdrop = DemoBackdrop.sand
-    @State private var comparison = true
+    @State private var display = DemoDisplay.pair
     @State private var expanded = true
     @State private var reduceTransparency = false
     @State private var draft = "帮我整理今天的灵感，\n把值得继续的想法留在这里。"
@@ -20,10 +20,9 @@ struct MokuGradientDemo: View {
             ZStack {
                 MaterialBackdrop(style: backdrop, offset: backgroundOffset)
                 HStack(spacing: 36) {
-                    if comparison {
-                        specimen(proposal: false)
+                    ForEach(display.materials) { material in
+                        specimen(material: material)
                     }
-                    specimen(proposal: true)
                 }
                 .padding(.horizontal, 44)
             }
@@ -40,7 +39,7 @@ struct MokuGradientDemo: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 7) {
                 Text("Moku / 渐变玻璃").font(.system(size: 25, weight: .medium))
-                Text("上深下透，让光从底部浮出来。")
+                Text("深色与浅色，同样让光从底部浮出来。")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
             }
             Spacer()
@@ -53,17 +52,18 @@ struct MokuGradientDemo: View {
         .padding(.horizontal, 32).padding(.vertical, 25)
     }
 
-    private func specimen(proposal: Bool) -> some View {
-        // Clear glass on a bright backdrop needs dark ink at low density.
-        let ink: Color = proposal && strength < 0.5 && backdrop != .night && !opaque ? .black : .white
+    private func specimen(material: DemoMaterial) -> some View {
+        // At low density the backdrop, rather than the tint, determines contrast.
+        let ink: Color = material != .original && strength < 0.5 && !opaque
+            ? (backdrop == .night ? .white : .black) : (material == .light ? .black : .white)
         return VStack(spacing: 0) {
             HStack(spacing: 9) {
-                Circle().fill(proposal ? Color(red: 0.93, green: 0.76, blue: 0.53) : .white.opacity(0.6))
+                Circle().fill(material == .dark ? Color(red: 0.93, green: 0.76, blue: 0.53) : .white.opacity(0.8))
                     .frame(width: 5, height: 5)
-                Text(proposal ? "渐变提案" : "当前材质")
+                Text(material.rawValue)
                     .font(.system(size: 12, weight: .semibold))
                 Spacer()
-                Text(proposal ? "GRADIENT" : "ORIGINAL")
+                Text(material.caption)
                     .font(.system(size: 9, weight: .medium, design: .monospaced)).tracking(2)
             }
             .foregroundStyle(backdrop == .paper ? Color.black.opacity(0.7) : Color.white.opacity(0.8))
@@ -85,9 +85,9 @@ struct MokuGradientDemo: View {
                 if expanded {
                     TextField("向 Moku 询问…", text: $draft, axis: .vertical)
                         .font(.system(size: 25, weight: .regular))
-                        .lineSpacing(9).lineLimit(3...5)
+                        .lineSpacing(9).lineLimit(3, reservesSpace: true)
                         .textFieldStyle(.plain).foregroundStyle(ink)
-                        .accessibilityLabel(proposal ? "渐变面板输入" : "原材质面板输入")
+                        .accessibilityLabel("\(material.rawValue)面板输入")
                     HStack {
                         Image(systemName: "plus").font(.system(size: 17, weight: .light))
                         Text("留一点空间，给下一个想法。")
@@ -103,15 +103,17 @@ struct MokuGradientDemo: View {
             .frame(width: expanded ? nil : NativeMokuCapsuleLayout.idleSize.width,
                    height: expanded ? 270 : NativeMokuCapsuleLayout.idleSize.height)
             .frame(maxWidth: expanded ? 560 : nil, alignment: .leading)
-            .background { surface(proposal: proposal) }
-            .shadow(color: .black.opacity(proposal ? 0.18 : 0.12), radius: 22, y: 12)
+            .background { surface(material: material) }
+            .environment(\.colorScheme, material == .light ? .light : .dark)
+            .shadow(color: .black.opacity(material == .dark ? 0.18 : 0.12), radius: 22, y: 12)
             .frame(height: 294, alignment: .bottom)
-            .accessibilityIdentifier(proposal ? "proposal-panel" : "baseline-panel")
+            .accessibilityIdentifier("\(material.id)-panel")
             Spacer(minLength: 28)
             NativeMokuCapsuleEyes(expression: .idle, focus: 0)
                 .fill(ink.opacity(0.94))
                 .frame(width: NativeMokuCapsuleLayout.idleSize.width, height: NativeMokuCapsuleLayout.idleSize.height)
-                .background { surface(proposal: proposal) }
+                .background { surface(material: material) }
+                .environment(\.colorScheme, material == .light ? .light : .dark)
                 .shadow(color: .black.opacity(0.16), radius: 12, y: 6)
             Text("168 × 44 · 悬浮胶囊")
                 .font(.system(size: 10)).foregroundStyle(backdrop == .paper ? .black.opacity(0.55) : .white.opacity(0.65))
@@ -123,9 +125,9 @@ struct MokuGradientDemo: View {
     }
 
     @ViewBuilder
-    private func surface(proposal: Bool) -> some View {
-        if proposal {
-            GradientCapsuleMaterial(strength: strength, opaque: opaque)
+    private func surface(material: DemoMaterial) -> some View {
+        if material != .original {
+            GradientCapsuleMaterial(strength: strength, opaque: opaque, light: material == .light)
         } else if opaque {
             RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
                 .fill(Color(nsColor: MokuGeometry.bodyColor))
@@ -143,12 +145,16 @@ struct MokuGradientDemo: View {
                 Text(strength, format: .percent.precision(.fractionLength(0)))
                     .font(.system(size: 12, design: .monospaced)).frame(width: 38, alignment: .trailing)
                 Divider().frame(height: 18)
-                Toggle("原材质对比", isOn: $comparison).accessibilityIdentifier("comparison-toggle")
+                Picker("展示", selection: $display) {
+                    ForEach(DemoDisplay.allCases) { item in Text(item.rawValue).tag(item) }
+                }
+                .labelsHidden().pickerStyle(.segmented).frame(width: 260)
+                .accessibilityIdentifier("display-picker")
                 Spacer()
                 Button(expanded ? "收起面板" : "展开面板", action: toggleExpansion)
                     .accessibilityIdentifier("expand-toggle")
                 Button("恢复推荐") {
-                    strength = 0.85; backdrop = .sand; comparison = true
+                    strength = 0.85; backdrop = .sand; display = .pair
                     expanded = true; backgroundOffset = 0; reduceTransparency = false
                 }
             }
@@ -176,29 +182,55 @@ struct MokuGradientDemo: View {
 private struct GradientCapsuleMaterial: View {
     let strength: Double
     let opaque: Bool
+    let light: Bool
     private let shape = RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)
 
     var body: some View {
         if opaque {
-            shape.fill(Color(red: 0.12, green: 0.11, blue: 0.10))
+            shape.fill(light ? Color(red: 0.96, green: 0.95, blue: 0.92) : Color(red: 0.12, green: 0.11, blue: 0.10))
         } else {
             Color.clear
                 .glassEffect(.clear, in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                 .overlay {
                     shape.fill(LinearGradient(stops: [
-                        .init(color: .black.opacity(0.99 * strength), location: 0),
-                        .init(color: Color(red: 0.04, green: 0.035, blue: 0.03).opacity(0.96 * strength), location: 0.40),
-                        .init(color: Color(red: 0.16, green: 0.13, blue: 0.10).opacity(0.70 * strength), location: 0.72),
-                        .init(color: Color(red: 0.38, green: 0.33, blue: 0.26).opacity(0.12 * strength), location: 1),
+                        .init(color: (light ? Color(red: 1, green: 0.99, blue: 0.96) : .black).opacity(0.99 * strength), location: 0),
+                        .init(color: (light ? Color(red: 0.98, green: 0.97, blue: 0.94) : Color(red: 0.04, green: 0.035, blue: 0.03)).opacity(0.96 * strength), location: 0.40),
+                        .init(color: (light ? Color(red: 0.94, green: 0.91, blue: 0.85) : Color(red: 0.16, green: 0.13, blue: 0.10)).opacity(0.70 * strength), location: 0.72),
+                        .init(color: (light ? Color(red: 1, green: 0.97, blue: 0.88) : Color(red: 0.38, green: 0.33, blue: 0.26)).opacity(0.12 * strength), location: 1),
                     ], startPoint: .top, endPoint: .bottom))
                 }
                 .overlay {
                     shape.strokeBorder(LinearGradient(stops: [
-                        .init(color: .white.opacity(0.04 * strength), location: 0),
+                        .init(color: .white.opacity((light ? 0.48 : 0.04) * strength), location: 0),
                         .init(color: .white.opacity(0.08 * strength), location: 0.55),
                         .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),
                     ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
                 }
+        }
+    }
+}
+
+private enum DemoMaterial: String, Identifiable {
+    case dark = "深色渐变", light = "浅色渐变", original = "原材质"
+    var id: String { caption.lowercased() }
+    var caption: String {
+        switch self {
+        case .dark: "DARK"
+        case .light: "LIGHT"
+        case .original: "ORIGINAL"
+        }
+    }
+}
+
+private enum DemoDisplay: String, Identifiable, CaseIterable {
+    case pair = "深浅对比", dark = "深色", light = "浅色", original = "原材质"
+    var id: String { rawValue }
+    var materials: [DemoMaterial] {
+        switch self {
+        case .pair: [.dark, .light]
+        case .dark: [.dark]
+        case .light: [.light]
+        case .original: [.original]
         }
     }
 }
