@@ -130,7 +130,7 @@ struct SettingsTextArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = Surface()
         scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
-        scroll.scrollerStyle = .overlay; scroll.drawsBackground = false; scroll.contentView.drawsBackground = false
+        NativeScrollbarStyle.apply(to: scroll); scroll.drawsBackground = false; scroll.contentView.drawsBackground = false
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)
         scroll.focusRingType = .none
         let view = Editor()
@@ -187,7 +187,7 @@ struct SettingsTextArea: NSViewRepresentable {
             if focusRequest > 0 { DispatchQueue.main.async { [weak view] in if let view { view.window?.makeFirstResponder(view) } } }
         }
     }
-    final class Surface: NSScrollView {
+    final class Surface: NativeStyledScrollView {
         let interactionLease = NativeSettingsControlLease()
         var updateInteraction: (() -> Void)?
         private let border = CALayer()

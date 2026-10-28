@@ -138,10 +138,6 @@ struct NativeMokuDirectoryMentionList: View {
     let maxHeight: CGFloat
     let onChoose: (NativeComposerDirectory) -> Void
     @State private var contentHeight: CGFloat = 260
-    @State private var scroll = ScrollMetrics()
-    @State private var scrollPosition = ScrollPosition()
-    @State private var dragOrigin: CGFloat?
-    @State private var hovered = false
     @Environment(\.locale) private var locale
 
     var body: some View {
@@ -153,7 +149,7 @@ struct NativeMokuDirectoryMentionList: View {
         let matches = mentions.matches
         let selectedIndex = mentions.index
         return ScrollViewReader { proxy in
-            ScrollView(.vertical) {
+            NativeScrollView(.vertical) {
                 VStack(spacing: 0) {
                     if matches.isEmpty {
                         statusRow(emptyLabel)
@@ -169,14 +165,6 @@ struct NativeMokuDirectoryMentionList: View {
                 .padding(5)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height + 2 } action: { contentHeight = $0 }
             }
-            .scrollIndicators(.never)
-            .scrollPosition($scrollPosition)
-            .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-                ScrollMetrics(offset: geometry.contentOffset.y + geometry.contentInsets.top,
-                    content: geometry.contentSize.height, viewport: geometry.containerSize.height)
-            } action: { _, value in scroll = value }
-            .overlay(alignment: .trailing) { scrollIndicator }
-            .onHover { hovered = $0 }
             .scrollBounceBehavior(.basedOnSize)
             .onChange(of: ActiveOption(paths: matches.map(\.path), index: selectedIndex), initial: true) { _, active in
                 guard active.paths.indices.contains(active.index) else { return }
@@ -187,35 +175,6 @@ struct NativeMokuDirectoryMentionList: View {
         .foregroundStyle(.primary)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("已知目录"))
-    }
-
-    private var scrollIndicator: some View {
-        GeometryReader { geometry in
-            let track = max(0, geometry.size.height - 12)
-            let height = min(track, max(24, track * scroll.viewport / max(1, scroll.content)))
-            let travel = max(0, track - height)
-            let overflow = max(0, scroll.content - scroll.viewport)
-            if overflow > 1 {
-                Capsule().fill(Color.primary.opacity(hovered || dragOrigin != nil ? 0.28 : 0.14))
-                    .frame(width: 3, height: height)
-                    .frame(width: 12, height: height)
-                    .contentShape(Rectangle())
-                    .offset(y: 6 + min(1, max(0, scroll.offset / overflow)) * travel)
-                    .highPriorityGesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                        .onChanged { value in
-                            if dragOrigin == nil { dragOrigin = scroll.offset }
-                            let target = (dragOrigin ?? 0) + value.translation.height / max(1, travel) * overflow
-                            scrollPosition.scrollTo(y: min(overflow, max(0, target)))
-                        }
-                        .onEnded { _ in dragOrigin = nil })
-            }
-        }.frame(width: 12).accessibilityHidden(true)
-    }
-
-    private struct ScrollMetrics: Equatable {
-        var offset: CGFloat = 0
-        var content: CGFloat = 0
-        var viewport: CGFloat = 0
     }
 
     private func statusRow(_ text: String) -> some View {

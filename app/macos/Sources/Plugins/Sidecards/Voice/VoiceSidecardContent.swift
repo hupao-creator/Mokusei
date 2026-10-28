@@ -77,7 +77,7 @@ public struct VoiceSidecardContent: View {
     private func conversation(compact: Bool) -> some View {
         GeometryReader { geometry in
             let messages = presentation.state.messages
-            ScrollView(.vertical) {
+            NativeScrollView(.vertical) {
                 VStack(spacing: 0) {
                     if messages.isEmpty {
                         emptyState(compact: compact)

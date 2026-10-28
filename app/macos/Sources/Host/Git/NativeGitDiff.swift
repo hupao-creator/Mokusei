@@ -47,7 +47,7 @@ public struct NativeGitDiffView: View {
     }
 
     public var body: some View {
-        ScrollView(.vertical) {
+        NativeScrollView(.vertical) {
             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 ForEach(document.files) { file in
                     Section {
@@ -662,7 +662,7 @@ private struct GitDiffColumn: GitDiffPlatformRepresentable {
 
 /// Vertical scrolling belongs to the surrounding pinned-section reader. Each
 /// side synchronizes horizontal scrolling with its peer, with gutters pinned.
-private final class GitDiffHorizontalScroll: NSScrollView {
+private final class GitDiffHorizontalScroll: NativeStyledScrollView {
     private let code = GitDiffTextView(frame: .zero, textContainer: nil)
     private var scrollSync: GitDiffScrollSync?
     var horizontalOffset: CGFloat { contentView.bounds.minX }
@@ -670,7 +670,7 @@ private final class GitDiffHorizontalScroll: NSScrollView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         borderType = .noBorder; hasVerticalScroller = false; hasHorizontalScroller = true
-        autohidesScrollers = false; scrollerStyle = .legacy
+        NativeScrollbarStyle.apply(to: self)
         drawsBackground = false; documentView = code
         contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: contentView)

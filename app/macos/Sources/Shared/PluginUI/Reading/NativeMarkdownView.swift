@@ -366,7 +366,7 @@ struct MarkdownCodeBlock: View {
     let source: String
     var selectionScope: String? = nil
     var body: some View {
-        ScrollView(.horizontal) {
+        NativeScrollView(.horizontal) {
             MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
                                    fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, selectionScope: selectionScope, openLink: { _ in })
                 .frame(width: max(1, codeWidth), alignment: .leading)
@@ -392,7 +392,7 @@ private struct MarkdownTableView: View {
 
     var body: some View {
         let columnWidths = widths
-        return ScrollView(.horizontal) {
+        return NativeScrollView(.horizontal) {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     GridRow {
