@@ -215,6 +215,10 @@ public final class NativeWorkspacePresentation {
     }
 
     public func showOverview(focusFilter: Bool = false) {
+        if scene.settingsOpen {
+            guard settingsNavigation.requestClose(model: workspace.settingsModel,
+                onClose: { scene.closeSettings(origin: $0) }) else { return }
+        }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
         if selected != nil, !scene.cameraActive, !scene.settingsOpen { messageMotion.close() }
@@ -310,8 +314,10 @@ public final class NativeWorkspacePresentation {
     public func sendMoku(_ submission: NativeComposerSubmission) async throws {
         var request: [JSONText: JSONValue] = ["input": submission.input]
         if selected == nil, !scene.mokuOpen, !scene.cameraActive, !scene.settingsOpen,
-           let filter = overview.filters.first(where: { $0.tag == overview.selectedTag }), filter.isDirectory {
-            request["directoryTag"] = .text(filter.tag)
+           let filter = overview.filters.first(where: {
+               $0.matches(overview.selectedTag, kind: overview.tagSelection?.kind, scope: overview.selectedScope)
+           }), filter.isDirectory {
+            request["directoryScopeId"] = .text(filter.scope)
         }
         workspace.dismissOperationError()
         await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
@@ -487,7 +493,9 @@ public struct NativeWorkspaceView: View {
             }
         } thread: {
             if (presentation.scene.mokuOpen || presentation.scene.cameraActive), let thread = model.catalog.moku {
-                NativeMokuThreadView(harnessHost: model.harnessHost, thread: thread, draft: presentation.draft, readingTarget: presentation.scene.readingTarget,
+                NativeMokuThreadView(harnessHost: model.harnessHost, thread: thread, draft: presentation.draft,
+                    archiveThreads: model.catalog.threads.filter(\.mokuHistory),
+                    readingTarget: presentation.scene.readingTarget,
                     running: presentation.moku.running, disabled: disabled,
                     activeVoiceControls: AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)),
                     voiceBackground: AnyView(NativeMokuVoiceCloud(client: model.voice.moku,

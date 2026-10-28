@@ -74,7 +74,8 @@ enum NativeMarkdownCellMetrics {
                 minimum = max(minimum, (String(character) as NSString).size(withAttributes: [.font: font]).width)
             }
         }
-        let result = Metrics(natural: ceil(text.size().width) + 23, minimum: ceil(minimum) + 23)
+        let padding = CGFloat(spans.filter(\.code).count) * MarkdownCodePaddingCell.horizontalWidth * 2
+        let result = Metrics(natural: ceil(text.size().width + padding) + 23, minimum: ceil(minimum) + 23)
         let count = cost(spans)
         if count <= 32_768 {
             while order.count >= 1024 || retainedCharacters + count > 512 * 1024 {

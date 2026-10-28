@@ -22,7 +22,7 @@ func (r *Runtime) appendEvent(tx *store.Tx, kind string, subject store.Subject, 
 	scope := ""
 	if subject.Kind == "thread" && subject.TypeID == "agent" && subject.ID != "" {
 		var thread model.ThreadRecord
-		if ok, e := tx.Get("thread:"+subject.ID, &thread); e == nil && ok && !thread.Moku {
+		if ok, e := tx.Get("thread:"+subject.ID, &thread); e == nil && ok && !thread.Moku && !thread.MokuHistory {
 			scope = directorytag.Scope(thread.Cwd)
 		}
 	}
@@ -36,18 +36,20 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 	if record == nil {
 		return nil
 	}
-	if !record.Moku {
+	if !record.Moku && !record.MokuHistory {
 		if err := rememberDirectoryScope(tx, *record); err != nil {
 			return err
 		}
 	}
-	if next == nil || (!next.Moku && !searchVisible(*next)) {
+	if next == nil || next.MokuHistory || (!next.Moku && !searchVisible(*next)) {
 		if err := threadsearch.DeleteOwner(tx, "thread:"+record.ID); err != nil {
 			return err
 		}
 	}
 	typeID := "agent"
-	if record.Moku {
+	// Retiring a coordinating conversation does not change its subject type.
+	// Ordinary-task subscribers must never interpret old Moku state as a task.
+	if record.Moku || record.MokuHistory {
 		typeID = "moku"
 	}
 	subject := store.Subject{Kind: "thread", ID: record.ID, TypeID: typeID}
@@ -103,7 +105,7 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 				}
 			}
 		}
-		if !next.Moku && after.Terminal() {
+		if !next.Moku && !next.MokuHistory && after.Terminal() {
 			if err := queueMokuDelivery(tx, *next); err != nil {
 				return err
 			}

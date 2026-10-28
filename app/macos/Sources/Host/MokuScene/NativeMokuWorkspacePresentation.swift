@@ -15,7 +15,7 @@ public struct NativeMokuDockIntervention: Equatable, Sendable {
     public let request: PublicInteraction
     public let questions: [InteractionQuestionSpec]
     public let submitActionID: JSONText?
-    public var isQuestion: Bool { !questions.isEmpty }
+    public var isQuestion: Bool { request.kind == .question }
     public var identity: JSONText {
         JSONText(nativeMokuPresentationTuple([.string(threadID), .string(request.id)]))
     }
@@ -191,14 +191,7 @@ public final class NativeMokuWorkspacePresentation {
         for interaction in execution.interactions where !interaction.actions.isEmpty {
             let submit = interaction.kind == .question ? interaction.actions.first { $0.intent == .submit } : nil
             if interaction.kind == .question && (interaction.questions.isEmpty || submit == nil) { continue }
-            let questions = submit == nil ? [] : interaction.questions.map { question in
-                InteractionQuestionSpec(id: question.id, prompt: question.prompt.string, header: question.header?.string,
-                    multiple: question.multiple, allowOther: question.allowOther, secret: question.secret,
-                    options: question.options.enumerated().map { index, option in
-                        InteractionQuestionOption(id: JSONText(codeUnits: question.id.codeUnits + Array(":\(index)".utf16)),
-                            value: option.value, label: option.label.string, description: option.description?.string)
-                    })
-            }
+            let questions = submit == nil ? [] : PublicInteractionQuestionnaire.specs(for: interaction)
             return NativeMokuDockIntervention(threadID: thread.id, harnessID: thread.harnessID,
                 executionID: execution.executionID, threadTitle: thread.title.string, request: interaction,
                 questions: questions, submitActionID: submit?.id)
@@ -362,17 +355,22 @@ private struct NativeMokuDisplayItem: Equatable {
     private func cancel() { generation &+= 1; timer?.cancel(); timer = nil }
 }
 
-private struct NativeMokuDockInteractionPanel: View {
+struct NativeMokuDockInteractionPanel: View {
     let intervention: NativeMokuDockIntervention
     let disabled: Bool
     let respond: (HarnessRespondRequest) async throws -> Void
-    @State private var answers = InteractionAnswers()
+    @State private var answers: InteractionAnswers
     @State private var step = 0
     @State private var busyActionID: JSONText?
     @Environment(\.locale) private var locale
-    private var questions: [InteractionQuestionSpec] { intervention.questions }
+    init(intervention: NativeMokuDockIntervention, disabled: Bool, respond: @escaping (HarnessRespondRequest) async throws -> Void) {
+        self.intervention = intervention; self.disabled = disabled; self.respond = respond
+        _answers = State(initialValue: PublicInteractionQuestionnaire.initialAnswers(for: intervention.request))
+    }
+    private var questionnaire: PublicInteractionQuestionnaire { .init(interaction: intervention.request, answers: answers) }
+    private var questions: [InteractionQuestionSpec] { questionnaire.questions }
     private var current: InteractionQuestionSpec? { questions.isEmpty ? nil : questions[min(step, questions.count - 1)] }
-    private var currentAnswered: Bool { current.map { answers.answered($0) } ?? true }
+    private var currentAnswered: Bool { current.map { questionnaire.errors[$0.id] == nil } ?? true }
     private var lastStep: Bool { step >= questions.count - 1 }
     private var busy: Bool { disabled || busyActionID != nil }
     private let ink = Color(red: 247 / 255, green: 245 / 255, blue: 238 / 255)
@@ -390,7 +388,12 @@ private struct NativeMokuDockInteractionPanel: View {
             }.font(.system(size: intervention.isQuestion ? 10 : 8, weight: .bold, design: .monospaced))
                 .foregroundStyle(ink.opacity(0.56)).padding(.bottom, intervention.isQuestion ? 9 : 4)
             if let current {
-                ScrollView { NativeMokuDockQuestionField(question: current, answers: $answers, disabled: busy).id(current.id) }
+                ScrollView {
+                    if intervention.request.questions.contains(where: { $0.form != nil }) {
+                        InteractionQuestionField(question: current, answers: $answers, disabled: busy, style: .form)
+                            .id(current.id)
+                    } else { NativeMokuDockQuestionField(question: current, answers: $answers, disabled: busy).id(current.id) }
+                }
                     .scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 GeometryReader { geometry in
@@ -413,13 +416,14 @@ private struct NativeMokuDockInteractionPanel: View {
                     }
                 } else {
                     HStack(spacing: 7) {
+                        actionButtons
                         if !lastStep {
                             if step > 0 { previousButton }
                             Button(localize("下一步", "Next")) { step += 1 }
                                 .buttonStyle(NativeMokuInteractionButtonStyle(primary: true, question: true))
                                 .disabled(busy || !currentAnswered)
+                                .accessibilityIdentifier("moku-interaction-next")
                         } else {
-                            actionButtons
                             if step > 0 { previousButton }
                         }
                     }
@@ -428,15 +432,20 @@ private struct NativeMokuDockInteractionPanel: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity).foregroundStyle(ink)
         .environment(\.colorScheme, .dark)
+        .onChange(of: questions.map(\.id)) { previous, next in
+            let currentID = previous.isEmpty ? nil : previous[min(step, previous.count - 1)]
+            step = currentID.flatMap { next.firstIndex(of: $0) } ?? min(step, max(0, next.count - 1))
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(intervention.isQuestion ? localize("用户问题", "User question") : localize("权限请求", "Permission request"))
     }
     private var actionButtons: some View {
-        ForEach(intervention.request.actions, id: \.id) { action in
+        ForEach(intervention.request.actions.filter { !intervention.isQuestion || $0.id != intervention.submitActionID || lastStep }, id: \.id) { action in
             Button(busyActionID == action.id ? localize("处理中…", "Working…") : action.label.string) { submit(action.id) }
                 .buttonStyle(NativeMokuInteractionButtonStyle(primary: action.intent == .allow || action.intent == .submit || action.id == intervention.submitActionID,
                     question: intervention.isQuestion))
-                .disabled(busy || (action.id == intervention.submitActionID && !currentAnswered))
+                .disabled(busy || (action.id == intervention.submitActionID && !questionnaire.canSubmit))
+                .accessibilityIdentifier("moku-interaction-action-\(action.id.string)")
         }
     }
     private var previousButton: some View {
@@ -444,10 +453,10 @@ private struct NativeMokuDockInteractionPanel: View {
             .buttonStyle(NativeMokuInteractionButtonStyle(primary: false, question: true)).disabled(busy)
     }
     private func submit(_ actionID: JSONText) {
-        guard !busy, actionID != intervention.submitActionID || currentAnswered else { return }
+        guard !busy, actionID != intervention.submitActionID || questionnaire.canSubmit else { return }
         busyActionID = actionID
         let response = HarnessRespondRequest(interactionID: intervention.request.id, actionID: actionID,
-            answers: actionID == intervention.submitActionID ? answers.answersFor(questions).mapValues { value in
+            answers: actionID == intervention.submitActionID ? questionnaire.answers.mapValues { value in
                 switch value { case .single(let text): .text(text); case .multiple(let values): .multiple(values) }
             } : nil)
         Task {

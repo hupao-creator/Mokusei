@@ -10,7 +10,6 @@ import (
 	"net/mail"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -394,114 +393,21 @@ func validateField(f Object, value any) error {
 	return nil
 }
 func formAnswers(v *Interaction, request model.RespondRequest) (Object, error) {
-	known := map[string]bool{}
-	for _, f := range v.Fields {
-		known[questionID(v, str(f["key"]))] = true
-	}
-	for key := range request.Answers {
-		if !known[key] {
-			return nil, errors.New("unknown OpenCode response field")
+	values := request.ValidatedFormValues
+	if values == nil {
+		// Standalone adapter callers enter the same public boundary as Runtime.
+		checked := model.ValidatePublicInteractionAnswers(publicInteraction(v), request.Answers)
+		if !checked.Valid {
+			return nil, fmt.Errorf("invalid OpenCode answers: %v", checked.Errors)
 		}
+		values = checked.ValidatedFormValues
 	}
 	answers := Object{}
-	for _, f := range v.Fields {
-		key, kind := str(f["key"]), str(f["type"])
-		raw, has := request.Answers[questionID(v, key)]
-		active := true
-		for _, value := range array(f["when"]) {
-			condition := object(value)
-			actual, exists := answers[str(condition["key"])]
-			matches := false
-			if values, ok := actual.([]string); ok {
-				matches = slices.Contains(values, str(condition["value"]))
-			} else {
-				a, _ := json.Marshal(actual)
-				b, _ := json.Marshal(condition["value"])
-				matches = string(a) == string(b)
-			}
-			if !exists || (condition["op"] == "eq" && !matches) || (condition["op"] == "neq" && matches) {
-				active = false
-			}
+	for _, field := range v.Fields {
+		key := str(field["key"])
+		if value, present := values[questionID(v, key)]; present {
+			answers[key] = value
 		}
-		if !active {
-			if has {
-				return nil, fmt.Errorf("inactive OpenCode field %s", key)
-			}
-			continue
-		}
-		value, exists := f["default"]
-		if has {
-			var encoded any
-			if err := json.Unmarshal(raw, &encoded); err != nil {
-				return nil, err
-			}
-			decode := func(s string) (string, error) {
-				for _, o := range fieldOptions(f) {
-					if optionID(v, key, str(o["value"])) == s {
-						return str(o["value"]), nil
-					}
-				}
-				if strings.HasPrefix(s, "opencode-option-") {
-					return "", errors.New("unknown OpenCode option")
-				}
-				return s, nil
-			}
-			if kind == "multiselect" {
-				items := []string{}
-				if s, ok := encoded.(string); ok {
-					items = []string{s}
-				} else {
-					var err error
-					items, err = stringList(encoded)
-					if err != nil {
-						return nil, err
-					}
-				}
-				for i, s := range items {
-					d, err := decode(s)
-					if err != nil {
-						return nil, err
-					}
-					items[i] = d
-				}
-				value = items
-			} else {
-				s, ok := encoded.(string)
-				if !ok {
-					return nil, errors.New("form expects encoded scalar answer")
-				}
-				d, err := decode(s)
-				if err != nil {
-					return nil, err
-				}
-				switch kind {
-				case "number", "integer":
-					n, err := strconv.ParseFloat(strings.TrimSpace(d), 64)
-					if err != nil {
-						return nil, err
-					}
-					value = n
-				case "boolean", "external":
-					if d != "true" && d != "false" {
-						return nil, errors.New("invalid boolean answer")
-					}
-					value = d == "true"
-				default:
-					value = d
-				}
-			}
-			exists = true
-		}
-		if !exists {
-			if f["required"] == true || kind == "external" {
-				return nil, fmt.Errorf("required OpenCode field %s", key)
-			}
-			continue
-		}
-		if err := validateField(f, value); err != nil {
-			return nil, err
-		}
-		answers[key] = value
 	}
 	return answers, nil
 }

@@ -41,6 +41,8 @@ type SessionConfiguration struct {
 	// PreserveNote carries the persistent milestone note into a replacement
 	// Thread. A history reset leaves it false so the new Thread starts clean.
 	PreserveNote bool
+	// PreserveHistory retains the retired native session as read-only history.
+	PreserveHistory bool
 }
 type Configuration struct {
 	HarnessEnabled           func(string) bool
@@ -87,9 +89,10 @@ type Configuration struct {
 	ReportFailure             func(string, error)
 }
 type SubmitRequest struct {
-	Input        model.AgentInput `json:"input"`
-	DirectoryTag *string          `json:"directoryTag,omitempty"`
-	VoiceInput   *struct {
+	Input            model.AgentInput `json:"input"`
+	DirectoryTag     *string          `json:"directoryTag,omitempty"`
+	DirectoryScopeID *string          `json:"directoryScopeId,omitempty"`
+	VoiceInput       *struct {
 		SessionID   string `json:"sessionId"`
 		OwnershipID string `json:"ownershipId"`
 		InputID     string `json:"inputId"`

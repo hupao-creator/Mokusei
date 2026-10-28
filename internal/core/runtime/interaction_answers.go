@@ -14,9 +14,7 @@ import (
 // not permit another client to apply an answer a second time. Command receipts
 // reconcile the original attempt; a later fresh command is already handled.
 func (r *Runtime) claimInteractionAnswer(ctx context.Context, id, executionID, interactionID string) error {
-	identity, _ := json.Marshal([]string{executionID, interactionID})
-	digest := sha256.Sum256(identity)
-	key := "interaction-answer:" + id + ":" + hex.EncodeToString(digest[:])
+	key := interactionAnswerKey(id, executionID, interactionID)
 	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
 		var thread model.ThreadRecord
 		ok, err := tx.Get("thread:"+id, &thread)
@@ -36,6 +34,19 @@ func (r *Runtime) claimInteractionAnswer(ctx context.Context, id, executionID, i
 			}
 		}
 		return model.NewError("INTERACTION_STALE", "This interaction has already been handled or is no longer pending")
+	})
+	return err
+}
+
+func interactionAnswerKey(id, executionID, interactionID string) string {
+	identity, _ := json.Marshal([]string{executionID, interactionID})
+	digest := sha256.Sum256(identity)
+	return "interaction-answer:" + id + ":" + hex.EncodeToString(digest[:])
+}
+
+func (r *Runtime) releaseInteractionAnswer(ctx context.Context, id, executionID, interactionID string) error {
+	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
+		return tx.Delete(interactionAnswerKey(id, executionID, interactionID))
 	})
 	return err
 }

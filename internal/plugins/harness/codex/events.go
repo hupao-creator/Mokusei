@@ -67,6 +67,9 @@ func ParseActivity(i Map) Map {
 		r["kind"] = "file"
 		r["label"] = "修改文件"
 		r["detail"] = compact(i["changes"])
+		if paths := activityFilePaths(i); paths != nil {
+			r["filePaths"] = paths
+		}
 	case "mcpToolCall", "dynamicToolCall":
 		r["kind"] = "tool"
 		r["label"] = first(str(i["tool"]), "调用 Mokusei 工具")
@@ -124,8 +127,39 @@ func CompletedActivity(i Map) Map {
 			detail = compact(i["error"])
 		}
 	}
-	return Map{"type": "activity-end", "activityId": str(i["id"]), "status": status, "detail": detail}
+	event := Map{"type": "activity-end", "activityId": str(i["id"]), "status": status, "detail": detail}
+	if i["type"] == "fileChange" {
+		event["filePaths"] = activityFilePaths(i)
+	}
+	return event
 }
 func validMessageID(id string) bool {
 	return id != "" && id == strings.TrimSpace(id) && len(id) <= 1024 && !strings.ContainsRune(id, 0)
+}
+
+func activityFilePaths(item Map) []any {
+	changes := arr(item["changes"])
+	if len(changes) == 0 {
+		return nil
+	}
+	paths := []any{}
+	seen := map[string]bool{}
+	bytes := 0
+	for _, change := range changes {
+		path := str(obj(change)["path"])
+		if path == "" || strings.ContainsRune(path, 0) {
+			return nil
+		}
+		if !seen[path] {
+			bytes += len(path)
+			// Retain bounded identity facts rather than a truncated file count.
+			// An oversized native activity is displayed with an unknown count.
+			if bytes > stMaxDetail {
+				return nil
+			}
+			seen[path] = true
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }

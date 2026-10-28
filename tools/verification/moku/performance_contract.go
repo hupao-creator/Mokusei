@@ -11,6 +11,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 	"github.com/hupao-creator/Mokusei/internal/services/moku"
 )
 
@@ -41,6 +42,7 @@ func runContextReadContractReplay() error {
 	mokuReplayCheck(reads.Load() == 0, "unneeded workspace hints read all Threads")
 	w.mu.Lock()
 	entries := append([]plugin.ContextEntry{}, w.sends[len(w.sends)-1].context...)
+	w.records["same-name-source"] = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "same-name-source", Cwd: "/other/selected", UpdatedAt: 2}}
 	w.records["directory-source"] = model.ThreadRecord{SessionRecord: model.SessionRecord{ID: "directory-source", Cwd: "/fixture/selected", UpdatedAt: 1}}
 	w.mu.Unlock()
 	mokuReplayCheck(contextContains(entries, "workspace", "/fixture/explicit"), "explicit directory hint was lost")
@@ -48,12 +50,15 @@ func runContextReadContractReplay() error {
 	tag := moku.ThreadDirectoryTag("/fixture/selected")
 	request = orchestratorInput("use the selected directory tag")
 	request.DirectoryTag = &tag
+	scope := directorytag.Scope("/fixture/selected")
+	request.DirectoryScopeID = &scope
 	mokuReplayMust(c.Submit(mokuReplayContext(), request))
 	mokuReplayCheck(reads.Load() == 1, "directory tag resolution did not read exactly one Thread snapshot")
 	w.mu.Lock()
 	entries = append([]plugin.ContextEntry{}, w.sends[len(w.sends)-1].context...)
 	w.mu.Unlock()
 	mokuReplayCheck(contextContains(entries, "workspace", "/fixture/selected"), "selected directory hint was lost")
+	mokuReplayCheck(!contextContains(entries, "workspace", "/other/selected"), "same-name directory escaped its selected scope")
 	unavailable.Store(true)
 	mokuReplayCheck(c.Submit(mokuReplayContext(), request) != nil, "required directory snapshot failure was swallowed")
 	fmt.Println("PASS Moku context reads Threads only for an unresolved directory tag, preserving hints and required-read errors")

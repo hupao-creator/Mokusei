@@ -25,6 +25,12 @@ one support module across targets while standalone native apps use the identical
 gate. Native replays reject skipped cases as incomplete verification.
 
 Keep all behavioral assertions active when their required environment exists.
+Native mouse-tracking cases also require the isolated AppKit application loop.
+An ordinary SwiftPM host can exit during NSTextView tracking before producing
+its final summary; the Moku composer launcher explicitly owns that capability.
+Set `MOKUSEI_NATIVE_TEST_GATE_TRACE=1` to log the active native fixture when
+diagnosing an SDK exit. `make check-swift` rejects incomplete captures even when
+the test process reports status zero.
 When a replay observes asynchronous cleanup, wait for every required boundary:
 discarding a staged attachment can finish before its temporary file is removed.
 A thread switch may also reset presentation state before the old cleanup task

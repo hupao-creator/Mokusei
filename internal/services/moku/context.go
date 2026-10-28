@@ -12,6 +12,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 )
 
 type targetRefreshUnavailable struct{ cause error }
@@ -271,7 +272,7 @@ func (c *Coordinator) refreshLoop(ctx context.Context) {
 		}
 	}
 }
-func (c *Coordinator) sendContext(ctx context.Context, input model.AgentInput, directoryTag *string) ([]plugin.ContextEntry, error) {
+func (c *Coordinator) sendContext(ctx context.Context, input model.AgentInput, directoryTag, directoryScopeID *string) ([]plugin.ContextEntry, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -294,7 +295,7 @@ func (c *Coordinator) sendContext(ctx context.Context, input model.AgentInput, d
 		if err != nil {
 			return nil, err
 		}
-		entries, err := c.withWorkspaceHint(mergeContext(applications, native), input, directoryTag)
+		entries, err := c.withWorkspaceHint(mergeContext(applications, native), input, directoryTag, directoryScopeID)
 		if err != nil {
 			return nil, err
 		}
@@ -318,7 +319,7 @@ func (c *Coordinator) sendContext(ctx context.Context, input model.AgentInput, d
 func withNoteContext(entries []plugin.ContextEntry, record model.ThreadRecord) []plugin.ContextEntry {
 	return append([]plugin.ContextEntry{{ID: "moku-note", Content: MokuNoteContext(model.SnapshotNote(record.Note))}}, entries...)
 }
-func (c *Coordinator) withWorkspaceHint(entries []plugin.ContextEntry, input model.AgentInput, directoryTag *string) ([]plugin.ContextEntry, error) {
+func (c *Coordinator) withWorkspaceHint(entries []plugin.ContextEntry, input model.AgentInput, directoryTag, directoryScopeID *string) ([]plugin.ContextEntry, error) {
 	directories := []string{}
 	seen := map[string]bool{}
 	mentioned := false
@@ -330,11 +331,11 @@ func (c *Coordinator) withWorkspaceHint(entries []plugin.ContextEntry, input mod
 			mentioned = true
 		}
 	}
-	if !mentioned && directoryTag != nil {
-		tag := strings.TrimSpace(*directoryTag)
-		if tag == "" || model.UTF16Length(*directoryTag) > 256 || strings.ContainsRune(tag, 0) {
-			return nil, errors.New("directoryTag 无效")
+	if !mentioned && (directoryTag != nil || directoryScopeID != nil) {
+		if directoryScopeID == nil || *directoryScopeID == "" || model.UTF16Length(*directoryScopeID) > 4096 || strings.ContainsRune(*directoryScopeID, 0) {
+			return nil, errors.New("A selected directory requires a valid directoryScopeId")
 		}
+		scope := *directoryScopeID
 		// Explicit directory mentions already carry the complete hint. Only a
 		// directory tag needs the Thread catalog to resolve matching workspaces.
 		records, err := c.config.Threads()
@@ -343,7 +344,7 @@ func (c *Coordinator) withWorkspaceHint(entries []plugin.ContextEntry, input mod
 		}
 		sort.SliceStable(records, func(i, j int) bool { return records[i].UpdatedAt > records[j].UpdatedAt })
 		for _, record := range records {
-			if record.Moku || ThreadTagKey(ThreadDirectoryTag(record.Cwd)) != ThreadTagKey(tag) {
+			if record.Moku || record.MokuHistory || directorytag.Scope(record.Cwd) != scope {
 				continue
 			}
 			cwd := record.Cwd

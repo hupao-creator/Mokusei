@@ -155,7 +155,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 		}
 		ordinary := []model.ThreadRecord{}
 		for _, record := range records {
-			if !record.Moku {
+			if !record.Moku && !record.MokuHistory {
 				ordinary = append(ordinary, record)
 			}
 		}
@@ -238,7 +238,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			record, interruptErr := c.config.Thread(id)
 			if interruptErr == nil {
 				switch {
-				case record.Moku:
+				case record.Moku || record.MokuHistory:
 					interruptErr = errors.New("Moku tools may only target ordinary Agent Threads")
 				case c.config.InterruptThread == nil:
 					interruptErr = errors.New("Thread interrupt unavailable")
@@ -263,7 +263,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 		if err != nil {
 			return nil, err
 		}
-		if record.Moku {
+		if record.Moku || record.MokuHistory {
 			return nil, errors.New("Moku tools may only target ordinary Agent Threads")
 		}
 		switch name {

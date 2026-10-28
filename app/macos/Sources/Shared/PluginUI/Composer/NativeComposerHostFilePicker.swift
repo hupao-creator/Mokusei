@@ -36,7 +36,7 @@ public struct NativeComposerHostFilePicker: View {
                 if let error {
                     ContentUnavailableView {
                         Label(localized("无法读取主机目录", "Cannot read host directory"), systemImage: "folder.badge.questionmark")
-                    } description: { Text(error) } actions: {
+                    } description: { Text(composerLocalized(error, locale: locale)) } actions: {
                         Button(localized("重试", "Retry")) { request = UUID() }
                         if let directory {
                             Button(localized("返回之前的目录", "Return to previous directory")) { navigate(directory.reference) }
@@ -50,8 +50,12 @@ public struct NativeComposerHostFilePicker: View {
                     Spacer()
                 }
                 if loading { ProgressView().frame(maxWidth: .infinity).padding(12) }
+                if directoryLimitReached {
+                    Text(localized("目录引用不能超过 50 个；请先移除一个目录。", "You can reference up to 50 directories. Remove one before choosing another."))
+                        .font(NativeTypography.inter(size: 12)).foregroundStyle(.secondary).padding(16)
+                }
                 if let previewError {
-                    Text(previewError).font(NativeTypography.inter(size: 12))
+                    Text(composerLocalized(previewError, locale: locale)).font(NativeTypography.inter(size: 12))
                         .foregroundStyle(NativePlatformPalette.thread.danger.swiftUI).textSelection(.enabled).padding(16)
                 }
                 if mode == .files, !selected.isEmpty {
@@ -65,7 +69,7 @@ public struct NativeComposerHostFilePicker: View {
                 ToolbarItem(placement: .cancellationAction) { Button(localized("取消", "Cancel")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(localized("选择", "Choose")) { choose() }
-                        .disabled(loading || draft.isDisposed || (mode == .files ? selected.isEmpty : directory == nil || error != nil))
+                        .disabled(loading || draft.isDisposed || directoryLimitReached || (mode == .files ? selected.isEmpty : directory == nil || error != nil))
                 }
             }
         }
@@ -141,13 +145,17 @@ public struct NativeComposerHostFilePicker: View {
     private func choose() {
         guard !draft.isDisposed else { dismiss(); return }
         if mode == .directory, let directory {
-            draft.insertDirectory(.init(name: JSONText(URL(fileURLWithPath: directory.reference.path).lastPathComponent),
-                                        path: JSONText(directory.reference.path), hostID: directory.reference.hostID))
+            guard draft.insertDirectory(.init(name: JSONText(URL(fileURLWithPath: directory.reference.path).lastPathComponent),
+                                        path: JSONText(directory.reference.path), hostID: directory.reference.hostID)) else { return }
         } else if mode == .files {
             let entries = selected.values.sorted { $0.id < $1.id }
             Task { await draft.chooseHostFiles(entries) }
         }
         dismiss()
+    }
+    private var directoryLimitReached: Bool {
+        guard mode == .directory, draft.directories.count >= NativeComposerDraft.maximumDirectories else { return false }
+        return !draft.directories.contains { $0.path.string == directory?.reference.path && $0.hostID == directory?.reference.hostID }
     }
     private func localized(_ chinese: String, _ english: String) -> String {
         locale.language.languageCode?.identifier == "zh" ? chinese : english

@@ -35,7 +35,7 @@ pbt:
 check-directorytag:
 	$(GO) test ./internal/services/directorytag ./internal/plugins/applications/report
 check-swift:
-	xcrun swift test --package-path app/macos
+	python3 scripts/ci/swift-tests.py --run --output-dir .build/check-swift
 check: lint typecheck pbt check-modules check-directorytag check-swift
 install-hooks:
 	$(GO) run ./cmd/mokusei-check install-hooks

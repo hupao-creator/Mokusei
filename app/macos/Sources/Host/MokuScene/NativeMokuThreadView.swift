@@ -9,6 +9,7 @@ import SwiftUI
 public struct NativeMokuThreadView: View {
     public let harnessHost: NativeHarnessHost
     public let thread: HarnessThread
+    public let archiveThreads: [HarnessThread]
     public let draft: NativeComposerDraft
     public let readingTarget: HarnessReadingTarget?
     public let running: Bool
@@ -30,8 +31,10 @@ public struct NativeMokuThreadView: View {
     @Environment(\.locale) private var locale
     @State private var navigation: ThreadDetailBackAction
     @State private var focusRequest = 0
+    @State private var archiveID: JSONText?
 
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, draft: NativeComposerDraft,
+                archiveThreads: [HarnessThread] = [],
                 readingTarget: HarnessReadingTarget? = nil,
                 running: Bool = false, disabled: Bool = false,
                 activeVoiceControls: AnyView = AnyView(EmptyView()),
@@ -47,6 +50,7 @@ public struct NativeMokuThreadView: View {
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
         self.harnessHost = harnessHost; self.thread = thread; self.draft = draft; self.readingTarget = readingTarget
+        self.archiveThreads = archiveThreads
         self.running = running; self.disabled = disabled
         self.activeVoiceControls = activeVoiceControls; self.error = error
         self.voiceModeActive = voiceModeActive
@@ -60,26 +64,41 @@ public struct NativeMokuThreadView: View {
         let label = backLabel ?? (locale.language.languageCode?.identifier == "zh" ? "返回俯瞰" : "Back to overview")
         ThreadDetailFrame(navigation: navigation, onNavigationChange: onNavigationChange) {
             VStack(spacing: 0) {
-                NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
-                    routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
-                        draft.text = initialDraft.string
-                        focusRequest &+= 1
-                    }, openExternal: openExternal.map { open in
-                        { (url: JSONText) async throws -> Void in
-                            guard let value = URL(string: url.string) else { throw PluginContractError("Invalid external URL") }
-                            open(value)
-                        }
-                    }))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                NativeMokuHistoryComposer(draft: draft, cwd: thread.cwd, disabled: disabled,
-                    running: running || thread.observation.isExecutionActive,
-                    focusEnabled: focusEnabled, focusRequestKey: focusRequest,
-                    suppressInitialFocus: readingTarget?.message != nil,
-                    activeVoiceControls: activeVoiceControls, voiceBackground: voiceBackground, voiceModeActive: voiceModeActive,
-                    loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel,
-                    canStartVoice: canStartVoice, startVoice: startVoice)
-                    .frame(maxWidth: 560)
-                    .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 28)
+                if !archiveThreads.isEmpty {
+                    HStack {
+                        Menu {
+                            Button(localize("当前对话", "Current conversation")) { archiveID = nil }
+                            Divider()
+                            ForEach(archiveThreads, id: \.id) { previous in
+                                Button("\(previous.title.string) · \(Date(timeIntervalSince1970: previous.updatedAt / 1000).formatted(date: .abbreviated, time: .shortened))") { archiveID = previous.id }
+                            }
+                        } label: {
+                            Text(archiveID == nil ? localize("当前对话", "Current conversation") : localize("先前对话（只读）", "Previous conversation (read-only)"))
+                        }.accessibilityIdentifier("moku-history-sessions")
+                        Spacer()
+                    }.padding(.horizontal, 24).padding(.top, 12)
+                }
+                if let archive = archiveThreads.first(where: { $0.id == archiveID }) {
+                    NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: archive),
+                        routes: NativeHarnessThreadRoutes(openExternal: externalRoute))
+                        .id(archive.id).frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
+                        routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
+                            draft.text = initialDraft.string
+                            focusRequest &+= 1
+                        }, openExternal: externalRoute))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    NativeMokuHistoryComposer(draft: draft, cwd: thread.cwd, disabled: disabled,
+                        running: running || thread.observation.isExecutionActive,
+                        focusEnabled: focusEnabled, focusRequestKey: focusRequest,
+                        suppressInitialFocus: readingTarget?.message != nil,
+                        activeVoiceControls: activeVoiceControls, voiceBackground: voiceBackground, voiceModeActive: voiceModeActive,
+                        loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel,
+                        canStartVoice: canStartVoice, startVoice: startVoice)
+                        .frame(maxWidth: 560)
+                        .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 28)
+                }
                 if let message = displayError, !message.isEmpty, draft.error == nil {
                     Text(message).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.danger.swiftUI)
                         .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
@@ -87,6 +106,15 @@ public struct NativeMokuThreadView: View {
             }.background(NativePalette.thread.canvas.swiftUI)
         }
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
+    }
+    private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
+    private var externalRoute: ((JSONText) async throws -> Void)? {
+        openExternal.map { open in
+            { (url: JSONText) async throws -> Void in
+                guard let value = URL(string: url.string) else { throw PluginContractError("Invalid external URL") }
+                open(value)
+            }
+        }
     }
     private var displayError: String? {
         if let error, !error.isEmpty { return error }

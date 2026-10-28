@@ -2,7 +2,11 @@
 
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
-Programmatic close preserves IME protection, invalid-field focus and save flushing.
+Programmatic close and the global Overview command preserve IME protection,
+invalid-field focus and save flushing. Quit waits for the pending valid save
+before Runtime teardown; invalid or failed saves offer Keep Editing and Quit
+Without Saving. The existing bounded cleanup deadline and repeated Quit remain
+available.
 The sidebar includes General, Moku and enabled application sections.
 Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
@@ -45,8 +49,10 @@ in production but the replay does not change the system accessibility preference
 Text edits debounce with IME protection; complete option changes can save immediately. Incomplete model-dependent choices remain visible locally instead of submitting guessed defaults. Changing model/provider updates dependent options together using the advertised schema. Opening initialized settings reuses saved execution profiles; explicit refresh reloads native catalog facts.
 
 Returning a local draft to its saved value adopts any newer streamed settings
-without issuing a redundant write. A save response normalizes only routing text
-changed by that write; later typing and an enabled empty routing editor remain
+without issuing a redundant write. Persisted routing guidance is normalized,
+while the nonempty editor retains its exact text and native Undo ranges after
+autosave. Equivalent saved text still adopts unrelated streamed settings without
+an unnecessary write. Later typing and an enabled empty routing editor remain
 intact when unrelated fields save. Saving a change from nonempty guidance to
 empty text still stores null and closes the editor.
 

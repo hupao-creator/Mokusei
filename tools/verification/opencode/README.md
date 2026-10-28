@@ -31,7 +31,7 @@ tests or account-based model probes. The user's existing native profile is not u
 | `renderer` | 25 fixed projections from the pre-migration renderer across overview/thread/turn/execution/history scopes, including deferred content, tool display, usage and Unicode boundaries |
 | `telemetry` | Native Go OAuth account resolution and Console meter windows, official Go/generic routes, stable workspace window IDs and secret-free Moku output; synthetic RPC/HTTP only |
 | `native` | Real native plugin loading and configuration acknowledgement, isolated native model configuration, strict response schema request overlay, SSE/durable export, default-agent execution snapshot/save without `default_agent`, credential-free model/thinking catalog, cross-provider model/variant switch preserving native session/history and per-execution attribution, native synthetic OAuth refresh and persistence across restart |
-| `thread` | Shared native database: per-input durable admission, follow-up, native fork read/cache affinity/provider prefix, concurrent source continuation and cancellation cleanup, restored read, fresh ordinary fork import, JSON completion, exclusive Go tool execution, manual native shell permission, typed conditional forms and invalid-answer rejection, steering, concurrent cancellation and forced SSE gap/durable reconciliation |
+| `thread` | Shared native database: per-input durable admission, follow-up, native fork read/cache affinity/provider prefix, concurrent source continuation and cancellation cleanup, restored read, fresh ordinary fork import, JSON completion, exclusive Go tool execution, manual native shell permission, typed conditional forms and invalid-answer rejection, idle SSE automatic admission, literal option-prefix text, radix-number conversion, hidden defaults and optional/conditional omission, steering, concurrent cancellation and forced SSE gap/durable reconciliation |
 | `foreground` | Native reasoning streams, 32,768-point windows, UTF-16 offsets, semantic sequence transitions, no duplicate ended fragments and durable foreground state |
 
 Use `-case thread` (with `-native-cli`) to run one case, `-race=false` to disable the
@@ -72,3 +72,23 @@ Before asserting byte-for-byte source immutability during a completed-session
 read, the replay waits for that execution's input and successful idle boundary
 in the native transcript. Public SSE completion can precede this asynchronous
 export; the replay must not mistake its later reconciliation for a read mutation.
+
+The mounted Swift Harness regression launcher is
+`python3 tools/verification/reading-presentation/run.py --harness-forms`.
+It mounts the production Pi settings menu with colliding slash-containing model
+identifiers and the production OpenCode Reader panel with public/native metadata.
+Its fixture exporter uses the production native form event reducer and both
+public and renderer projections, including public IDs containing escaped source
+characters:
+
+```sh
+./scripts/go.sh run -race ./tools/verification/opencode/cases/renderer -forms-output /absolute/new/fixture.json
+```
+
+`MOKUSEI_HARNESS_FORM_FIXTURE` names that JSON file for
+`NativeHarnessFormTests`. The suite covers native default adoption, optional
+absence, hidden and conditional fields, public fallback, literal Go-produced
+question/option IDs, submission and cancellation before a required answer.
+Plain SwiftPM runs explicitly skip this suite without the fixture; use the
+launcher for the mounted cross-language verification. The ordinary no-argument
+renderer replay retains its existing parity and error cases.

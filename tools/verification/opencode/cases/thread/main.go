@@ -47,6 +47,24 @@ func (s *store) Commit(ctx context.Context, raw json.RawMessage) error {
 	s.commits++
 	return nil
 }
+
+type automaticAdmission struct {
+	state *store
+	next  atomic.Int64
+}
+
+func (a *automaticAdmission) Accept(ctx context.Context, project func(string) (json.RawMessage, error)) (string, error) {
+	id := fmt.Sprintf("automatic-%d", a.next.Add(1))
+	raw, err := project(id)
+	if err != nil {
+		return "", err
+	}
+	if err = a.state.Commit(ctx, raw); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 func must(err error) {
 	if err != nil {
 		panic(err)
@@ -520,7 +538,9 @@ func main() {
 		}
 	}}}}}
 	formState := &store{}
-	formHandle, err := oc.OpenThread(ctx, mkOpen("forms", formState, gateTool), launch)
+	formOpen := mkOpen("forms", formState, gateTool)
+	formOpen.ExecutionAdmission = &automaticAdmission{state: formState}
+	formHandle, err := oc.OpenThread(ctx, formOpen, launch)
 	must(err)
 	defer formHandle.Close()
 	must(formHandle.Send(ctx, plugin.SendRequest{ExecutionID: "form1", Input: model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "Use fixture_echo and wait."}}}}))
@@ -559,7 +579,7 @@ func main() {
 		var value any
 		switch q.Form.Type {
 		case "integer":
-			value = "3"
+			value = "0x3"
 		case "multiselect":
 			value = []string{q.Options[0].Value}
 		case "string", "boolean", "external":
@@ -586,6 +606,48 @@ func main() {
 	close(release)
 	wait(ctx, formState, "form1")
 	check(steerAdmitted == 1, "steering admission incorrect")
+
+	// No active execution owns this event. The production SSE admission must
+	// initialize an empty automatic-execution map before publishing the form.
+	idleFields := []oc.Object{
+		{"key": "prefix", "type": "string", "required": true},
+		{"key": "number", "type": "integer", "required": true, "minimum": 16, "maximum": 16},
+		{"key": "optional", "type": "string", "required": false},
+		{"key": "hidden", "type": "string", "hidden": true, "default": "hidden-default"},
+		{"key": "inactive", "type": "string", "required": true, "when": []oc.Object{{"key": "prefix", "op": "eq", "value": "other"}}},
+	}
+	must(native.Request(ctx, "POST", "/api/session/"+frozen.NativeSessionID+"/form", oc.Object{"id": "frm_fixture_idle", "title": "Idle native form", "fields": idleFields}, &nativeForm))
+	var automaticID string
+	for {
+		observed, err := oc.DecodeState(formState.Read())
+		must(err)
+		if current := observed.Current(); current != nil && current.ExecutionID != "form1" && len(current.Interactions) > 0 {
+			publicForm = current.Interactions[0]
+			automaticID = current.ExecutionID
+			break
+		}
+		select {
+		case <-ctx.Done():
+			panic("idle native form was not admitted")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	idleAnswers := map[string]json.RawMessage{}
+	for _, question := range publicForm.Questions {
+		if question.Form.Type == "integer" {
+			idleAnswers[question.ID] = json.RawMessage(`"0x10"`)
+		}
+		if question.Form.Type == "string" && question.Form.Required && len(question.Form.When) == 0 {
+			idleAnswers[question.ID] = json.RawMessage(`"opencode-option-user-data"`)
+		}
+	}
+	must(formHandle.Respond(ctx, model.RespondRequest{ExecutionID: automaticID, InteractionID: publicForm.ID, ActionID: "submit", Answers: idleAnswers}))
+	must(native.Request(ctx, "GET", "/api/session/"+frozen.NativeSessionID+"/form/frm_fixture_idle", nil, &detail))
+	idleResult := detail["state"].(map[string]any)
+	check(idleResult["status"] == "answered", "idle native form reply failed")
+	nativeAnswers := idleResult["answer"].(map[string]any)
+	check(nativeAnswers["prefix"] == "opencode-option-user-data" && nativeAnswers["number"] == float64(16) && nativeAnswers["hidden"] == "hidden-default" && len(nativeAnswers) == 3, "typed form values/defaults/omissions did not reach native form")
+	fmt.Println("PASS idle SSE automatic admission, literal option-prefix text, typed radix numbers, hidden defaults and optional/conditional omission")
 	must(formHandle.Close())
 	release = make(chan struct{})
 	cancelState := &store{}

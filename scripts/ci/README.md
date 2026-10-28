@@ -34,6 +34,27 @@ display-dependent tests visibly skip. This does not verify native user flows
 or a physically display-less machine. Keep the local graphical `make check`
 and affected [native replays](../../tools/verification/README.md).
 
+Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
+`.build/check-swift` as its output directory. It streams the real `xcrun swift
+test` output while retaining `swift-tests.log`, the command and actual exit code
+in `swift-status.json`, and the framework counts/errors in `swift-summary.json`.
+Success requires exit status zero, both frameworks' completion summaries and
+matching case/skip counts. A process that exits zero partway through Swift
+Testing fails this check. A complete run still does not certify skipped native
+flows; run their named launchers separately.
+
+To inspect an existing capture without starting Swift, supply its actual process
+status explicitly:
+
+```sh
+python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
+  --exit-code 0 --output-dir /tmp/swift-log-review
+```
+
+The no-argument CI mode retains its two log inputs under `RUNNER_TEMP`, writes
+`swift-summary.json` there, and appends the table/errors to `GITHUB_STEP_SUMMARY`.
+The local runner and CI share the same parser.
+
 Raw test logs and JSON summaries are retained as Actions artifacts even when
 tests fail. Missing logs are reported as not run, never as zero failures.
 Hosted runner execution is established by actual workflow results, not by local

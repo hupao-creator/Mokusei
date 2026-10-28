@@ -247,6 +247,9 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 		if value, exists := incoming["toolCall"]; exists {
 			activity["toolCall"] = value
 		}
+		if paths, exists := incoming["filePaths"]; exists {
+			activity["filePaths"] = paths
+		}
 		if index >= 0 {
 			activity["status"] = stMap(activities[index])["status"]
 		}
@@ -270,6 +273,13 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 				continue
 			}
 			activity["status"] = event["status"]
+			if paths, exists := event["filePaths"]; exists {
+				if len(stArray(paths)) == 0 {
+					delete(activity, "filePaths")
+				} else {
+					activity["filePaths"] = paths
+				}
+			}
 			delete(activity, "detail")
 			if stString(activity["kind"]) == "command" && stString(event["detail"]) != "" {
 				activity["detail"] = stTail(stString(event["detail"]), stMaxDetail)
@@ -1023,7 +1033,7 @@ func stValidTurn(turn Map, stateUpdated int64) bool {
 	}
 	for _, value := range stArray(turn["activities"]) {
 		item := stMap(value)
-		if !stOnly(item, "id", "kind", "label", "status", "detail", "toolName", "toolCall") || !stCanonical(item["id"], 1024) || !stOneOf(stString(item["kind"]), "command", "file", "tool", "search", "agent", "subagent", "review", "hook") || !stBounded(item["label"], stMaxDetail) || !stOneOf(stString(item["status"]), "running", "completed", "failed", "cancelled") || !stOptionalText(item, "detail", stMaxDetail) {
+		if !stOnly(item, "id", "kind", "label", "status", "detail", "toolName", "toolCall", "filePaths") || !stCanonical(item["id"], 1024) || !stOneOf(stString(item["kind"]), "command", "file", "tool", "search", "agent", "subagent", "review", "hook") || !stBounded(item["label"], stMaxDetail) || !stOneOf(stString(item["status"]), "running", "completed", "failed", "cancelled") || !stOptionalText(item, "detail", stMaxDetail) {
 			return false
 		}
 		if name, exists := item["toolName"]; exists && !stNonEmpty(name, 1024) {
@@ -1031,6 +1041,16 @@ func stValidTurn(turn Map, stateUpdated int64) bool {
 		}
 		if call, exists := item["toolCall"]; exists && !stIsBool(call) {
 			return false
+		}
+		if paths, exists := item["filePaths"]; exists {
+			if !stIsArray(paths) {
+				return false
+			}
+			for _, path := range stArray(paths) {
+				if !stNonEmpty(path, stMaxPersisted) {
+					return false
+				}
+			}
 		}
 	}
 	for _, value := range stArray(turn["interactions"]) {

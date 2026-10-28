@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	_ "embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	oc "github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
@@ -19,6 +20,14 @@ import (
 var compressedFixture []byte
 
 func main() {
+	formsOutput := flag.String("forms-output", "", "write production public/native form fixtures for the mounted Swift Harness replay")
+	flag.Parse()
+	if *formsOutput != "" {
+		if err := writeFormFixtures(*formsOutput); err != nil {
+			panic(err)
+		}
+		return
+	}
 	if _, err := firstresponse.Verify("opencode"); err != nil {
 		panic(err)
 	}
@@ -99,4 +108,51 @@ func replayNativeErrors() {
 		}
 	}
 	fmt.Println("PASS native errors preserve upstream messages and response fallback")
+}
+
+// The Swift replay consumes these exact production projections; it never
+// synthesizes public option/question identities or copies their hash algorithm.
+func writeFormFixtures(path string) error {
+	fixtures := []map[string]any{}
+	for _, modeDefault := range []bool{false, true} {
+		var form oc.Object
+		if err := json.Unmarshal([]byte(`{"id":"frm_metadata<&-\u2028-tail","sessionID":"fixture-session","title":"Native form metadata","fields":[{"key":"default_note","type":"string","title":"Default note","required":true,"default":"DEFAULT_FROM_NATIVE"},{"key":"optional_note","type":"string","title":"Optional note","required":false},{"key":"hidden_note","type":"string","title":"HIDDEN_FIELD_MUST_NOT_APPEAR","hidden":true,"default":"NATIVE_HIDDEN_DEFAULT"},{"key":"mode","type":"string","title":"Select mode","required":true,"options":[{"value":"a","label":"Mode A"},{"value":"b","label":"Mode B"}]},{"key":"only_mode_b","type":"string","title":"ONLY_MODE_B_MUST_NOT_APPEAR_FOR_A","required":true,"when":[{"key":"mode","op":"eq","value":"b"}]}]}`), &form); err != nil {
+			return err
+		}
+		if modeDefault {
+			form["fields"].([]any)[3].(map[string]any)["default"] = "a"
+		}
+		state, err := oc.DecodeState(nil)
+		if err != nil {
+			return err
+		}
+		state.NativeSessionID = "fixture-session"
+		if err = state.Begin("fixture-execution", 1); err != nil {
+			return err
+		}
+		if err = state.Reduce(oc.Event{Type: "form.created", Data: oc.Object{"form": form}, Created: 2}, "fixture-execution"); err != nil {
+			return err
+		}
+		observation, err := (oc.StateAdapter{}).Project(state.Encode())
+		if err != nil {
+			return err
+		}
+		native, err := (oc.StateAdapter{}).ProjectRenderer(state.Encode(), model.RendererScope{Kind: "full"})
+		if err != nil {
+			return err
+		}
+		if observation.LatestExecution == nil || len(observation.LatestExecution.Interactions) != 1 {
+			return fmt.Errorf("missing projected form")
+		}
+		fixtures = append(fixtures, map[string]any{"modeDefault": modeDefault, "interaction": observation.LatestExecution.Interactions[0], "nativeState": json.RawMessage(native)})
+	}
+	encoded, err := json.Marshal(fixtures)
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(path, encoded, 0600); err != nil {
+		return err
+	}
+	fmt.Printf("PASS exported %d production OpenCode form projections for mounted Swift Harness replay\n", len(fixtures))
+	return nil
 }

@@ -24,7 +24,7 @@ public final class NativeSettingsDraft {
             guard !retired else { timer?.cancel(); timer = nil; return }
             if oldValue != runtimeAvailable { diagnostics.record(.availability, runtimeAvailable ? .available : .unavailable, revision: revision) }
             if !runtimeAvailable { timer?.cancel(); timer = nil }
-            else if !failed && value != saved { submit() }
+            else if !failed && Self.comparableValue(value) != saved { submit() }
         }
     }
     public var composing = false {
@@ -57,8 +57,8 @@ public final class NativeSettingsDraft {
         guard revision >= latest.1 else { return }
         if revision > latest.1 { diagnostics.record(.receive, .completed, revision: revision) }
         latest = (settings, revision)
-        if running == nil && !failed && value == saved && revision >= self.revision {
-            value = settings; saved = settings; ready = settings; self.revision = revision
+        if running == nil && !failed && Self.comparableValue(value) == saved && revision >= self.revision {
+            adopt(settings: settings, revision: revision)
         }
     }
 
@@ -84,6 +84,24 @@ public final class NativeSettingsDraft {
     }
 
     public func flushText() { if !retired, !composing { submit() } }
+
+    /// Quit must join the accepted settings write before Runtime teardown makes
+    /// the draft unavailable. The application's existing quit deadline bounds it.
+    public func flushForQuit() async throws {
+        guard !retired else { return }
+        guard !composing, firstInvalidField == nil else {
+            throw RuntimeError("SETTINGS_UNSAVED", "Finish the active settings edit before quitting, or quit without saving.")
+        }
+        if value == saved, running == nil, !failed { return }
+        submit()
+        if let pending = running, !(await pending.value) {
+            throw RuntimeError("SETTINGS_UNSAVED", error ?? "Settings could not be saved.")
+        }
+        let intended = settingsReplacing(value, path: ["moku", "routingGuidance"], value: Self.normalizedText(value["moku"]?["routingGuidance"]))
+        guard !failed, ready == saved, intended == saved else {
+            throw RuntimeError("SETTINGS_UNSAVED", error ?? "Settings have unsaved changes.")
+        }
+    }
 
     /// Full workspace reload discards this page's local draft. A request that
     /// already reached the runtime may finish, but cannot drain another write.
@@ -159,8 +177,8 @@ public final class NativeSettingsDraft {
         guard running == nil, conflict == nil else { return }
         if ready == saved {
             failed = false; error = nil; status = .saved
-            if value == saved, latest.1 > revision {
-                value = latest.0; ready = latest.0; saved = latest.0; revision = latest.1
+            if Self.comparableValue(value) == saved, latest.1 > revision {
+                adopt(settings: latest.0, revision: latest.1)
             }
             dismissReport(); return
         }
@@ -169,8 +187,8 @@ public final class NativeSettingsDraft {
             guard let self else { return false }
             defer {
                 self.running = nil
-                if !self.retired, !self.failed, self.value == self.saved, self.latest.1 > self.revision {
-                    self.value = self.latest.0; self.ready = self.latest.0; self.saved = self.latest.0; self.revision = self.latest.1
+                if !self.retired, !self.failed, Self.comparableValue(self.value) == self.saved, self.latest.1 > self.revision {
+                    self.adopt(settings: self.latest.0, revision: self.latest.1)
                 }
             }
             while self.ready != self.saved {
@@ -194,15 +212,16 @@ public final class NativeSettingsDraft {
                         self.status = .error; return false
                     case let .saved(settings, revision):
                         self.diagnostics.record(.save, .saved, revision: revision, durationMs: Date().timeIntervalSince(started) * 1000)
-                        // Normalize only a routing change submitted by this write.
-                        // An enabled empty editor and later edits remain local UI
-                        // state, including when another field saves.
+                        // Keep the exact editable text after a normalized save:
+                        // changing its UTF-16 ranges invalidates native Undo.
+                        // Explicitly clearing saved guidance still closes it.
                         var current = self.value
                         if self.firstInvalidField == nil,
                            snapshot["moku"]?["routingGuidance"] != self.saved["moku"]?["routingGuidance"],
                            current["moku"]?["routingGuidance"] == submittedRouting,
-                           Self.normalizedText(submittedRouting) == snapshot["moku"]?["routingGuidance"] {
-                            current = settingsReplacing(current, path: ["moku", "routingGuidance"], value: Self.normalizedText(current["moku"]?["routingGuidance"]))
+                           Self.normalizedText(submittedRouting) == .null,
+                           snapshot["moku"]?["routingGuidance"] == .null {
+                            current = settingsReplacing(current, path: ["moku", "routingGuidance"], value: .null)
                         }
                         self.value = Self.rebase(base: snapshot, draft: current, latest: settings)
                         self.ready = Self.rebase(base: snapshot, draft: self.ready, latest: settings)
@@ -225,6 +244,19 @@ public final class NativeSettingsDraft {
     }
 
     private func dismissReport() { dismissReportedError?(); dismissReportedError = nil }
+    private func adopt(settings: JSONValue, revision: Int) {
+        let routing = value["moku"]?["routingGuidance"]
+        let keepEditableText = Self.normalizedText(routing) == saved["moku"]?["routingGuidance"]
+            && settings["moku"]?["routingGuidance"] == saved["moku"]?["routingGuidance"]
+        value = settings
+        if keepEditableText { value = settingsReplacing(value, path: ["moku", "routingGuidance"], value: routing) }
+        saved = settings; ready = settings; self.revision = revision
+    }
+    private static func comparableValue(_ value: JSONValue) -> JSONValue {
+        let routing = normalizedText(value["moku"]?["routingGuidance"])
+        guard routing != .null else { return value }
+        return settingsReplacing(value, path: ["moku", "routingGuidance"], value: routing)
+    }
     private static func normalizedText(_ value: JSONValue?) -> JSONValue {
         let units = settingsTrimCodeUnits(value)
         return units.isEmpty ? .null : .string(JSONText(codeUnits: units))

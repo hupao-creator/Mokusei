@@ -59,6 +59,9 @@ media events are fixed local fixtures.
   settlement of unfinished tool and assistant audit entries.
 - Actual history reset, including draining native background work before deletion,
   replacement of the old audit and tool authority, and fresh admission afterward.
+  Configured host replacement can preserve the prior native session as read-only
+  history; the replay checks native byte retention, note separation, execution
+  and unarchive rejection, and history-reset cleanup.
 - Native voice and relay command protocols: context synchronization before
   durable admission, owner/execution/generation checks, typed-input fences,
   cancellation, retired polling, teardown ownership and visible cleanup failure.
@@ -72,8 +75,8 @@ media events are fixed local fixtures.
   shutdown drains Moku's queued tool/assistant settlement after cancelling an
   earlier coordination input.
 - Sending without a selected directory, or with an explicit directory mention,
-  avoids a full Thread read. Tag resolution still reads one snapshot and retains
-  its workspace hint and failure behavior.
+  avoids a full Thread read. Selected-scope resolution still reads one snapshot and retains
+  its workspace hint and failure behavior, excluding another directory with the same basename.
 - Shared fixed tool schemas preserve concurrent validation, caller errors and
   completed audit rows. A deferred target's current native schema is discovered
   again for each creation, even within one tool binding generation.

@@ -13,7 +13,7 @@ enum BrowserPageScripts {
     const root=host.attachShadow({mode:'closed'}),styles=new CSSStyleSheet();
     styles.replaceSync('.glass{position:fixed;inset:0;cursor:none;touch-action:none}.point{position:fixed;box-sizing:border-box;width:12px;height:12px;border:1.5px solid white;border-radius:50%;background:#555;box-shadow:0 0 0 .75px #5558;transform:translate(-50%,-50%);pointer-events:none;animation:point-breathe 2s ease-in-out infinite}.point[hidden]{animation:none}@keyframes point-breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.92}50%{transform:translate(-50%,-50%) scale(1.12);opacity:1}}.cursor{position:fixed;width:20px;height:20px;transform:translate(-50%,-50%);pointer-events:none;overflow:visible}.cursor path{fill:none;stroke-linecap:round}.cursor .halo{stroke:white;stroke-width:3}.cursor .ink{stroke:#444;stroke-width:1}.box{position:fixed;pointer-events:none}.box svg{display:block;width:100%;height:100%;overflow:visible}.box rect{fill:none;stroke:#808080;stroke-width:2;stroke-linecap:round;stroke-dasharray:1 6;animation:region-flow 1.6s linear infinite}.box[hidden] rect{animation-play-state:paused}@keyframes region-flow{to{stroke-dashoffset:-28}}.hint{position:fixed;top:12px;left:12px;background:#202124;color:white;border-radius:8px;padding:8px 12px;font:12px system-ui;pointer-events:none}');
     root.adoptedStyleSheets=[styles];
-    const glass=document.createElement('div'),box=document.createElement('div'),hint=document.createElement('div');glass.className='glass';box.className='box';box.hidden=true;hint.className='hint';hint.textContent=matchMedia('(pointer:coarse)').matches?'轻点元素或拖动框选 · 再点批注按钮取消':'点击元素或拖拽框选 · Esc 取消';
+    const glass=document.createElement('div'),box=document.createElement('div'),hint=document.createElement('div');glass.className='glass';box.className='box';box.hidden=true;hint.className='hint';hint.textContent=matchMedia('(pointer:coarse)').matches?(globalThis.__mokuseiAnnotationHints?.touch||'Tap an element or drag a region · Tap annotate again to cancel'):(globalThis.__mokuseiAnnotationHints?.mouse||'Click an element or drag a region · Esc to cancel');
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),line=document.createElementNS('http://www.w3.org/2000/svg','rect');
     svg.setAttribute('aria-hidden','true');line.setAttribute('x','1');line.setAttribute('y','1');line.setAttribute('rx','2');svg.append(line);box.append(svg);const point=document.createElement('div');point.className='point';point.hidden=true;
     const cursor=document.createElementNS('http://www.w3.org/2000/svg','svg');cursor.classList.add('cursor');cursor.style.display='none';cursor.setAttribute('viewBox','0 0 20 20');cursor.setAttribute('aria-hidden','true');
@@ -36,7 +36,7 @@ enum BrowserPageScripts {
     // decoration in layout CSS coordinates, then normalize only the payload.
     // Account for viewport scaling without changing the wire schema.
     const visibleSelection=value=>{const v=visualViewport,ox=v?.offsetLeft||0,oy=v?.offsetTop||0,width=v?.width||innerWidth,height=v?.height||innerHeight,r=value.rect,x=Math.max(0,Math.min(r.x-ox,width-1)),y=Math.max(0,Math.min(r.y-oy,height-1));return {...value,rect:{x,y,width:Math.max(1,Math.min(r.x+r.width-ox,width)-x),height:Math.max(1,Math.min(r.y+r.height-oy,height)-y)},viewport:{width,height,scrollX:scrollX+ox,scrollY:scrollY+oy}};};
-    const read=()=>{if(!selection)return null;if(!region&&target?.isConnected)selection.rect=rect(target.getBoundingClientRect());else {const r=selection.rect;selection.rect=rect({x:r.x,y:r.y,right:r.x+r.width,bottom:r.y+r.height});}if(region&&!capturing)guide(selection.rect);if(!region&&selected&&!capturing&&clickPoint){if(pointOffset&&target?.isConnected){clickPoint={x:selection.rect.x+Math.min(pointOffset.x,selection.rect.width-1),y:selection.rect.y+Math.min(pointOffset.y,selection.rect.height-1)};}point.hidden=false;point.style.left=clickPoint.x+'px';point.style.top=clickPoint.y+'px';}return visibleSelection(selection);};
+    const read=()=>{if(!selection)return null;if(!region){if(!target?.isConnected)return null;selection.rect=rect(target.getBoundingClientRect());if(selection.kind==='element'){selection.selector=locate(target);selection.text=(target.innerText||target.getAttribute('aria-label')||target.textContent||'').slice(0,4000);}}else {const r=selection.rect;selection.rect=rect({x:r.x,y:r.y,right:r.x+r.width,bottom:r.y+r.height});}if(region&&!capturing)guide(selection.rect);if(!region&&selected&&!capturing&&clickPoint){if(pointOffset&&target?.isConnected){clickPoint={x:selection.rect.x+Math.min(pointOffset.x,selection.rect.width-1),y:selection.rect.y+Math.min(pointOffset.y,selection.rect.height-1)};}point.hidden=false;point.style.left=clickPoint.x+'px';point.style.top=clickPoint.y+'px';}return visibleSelection(selection);};
     globalThis.__mokuseiAnnotationCancel=cancel;globalThis.__mokuseiAnnotationRead=read;
     // WebKit pauses animation frames for occluded content. The native capture
     // uses afterScreenUpdates to flush these mutations before taking its image.
@@ -53,6 +53,28 @@ enum BrowserPageScripts {
 }
 
 extension BrowserPageScripts {
+    static let navigationKeys = #"""
+(() => {
+  const ownsEditing = element => element instanceof Element && (element.matches('input,textarea,select,dialog,[role="dialog"],[inert]') || element.isContentEditable);
+  window.addEventListener('keydown', event => {
+    if (!event.isTrusted || event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    // Option+Left always belongs to WebKit. A closed shadow root can hide its
+    // editor even from composedPath(), so DOM heuristics cannot reclaim it safely.
+    if (event.key !== 'Escape' || event.altKey) return;
+    if (event.composedPath().some(ownsEditing) || document.querySelector('dialog:modal')) return;
+    let active = document.activeElement;
+    while (active) {
+      if (ownsEditing(active)) return;
+      const shadow = active.shadowRoot;
+      if (!shadow && active !== document.body && active !== document.documentElement && !active.matches('a[href],button,summary')) return;
+      active = shadow?.activeElement;
+    }
+    event.preventDefault(); event.stopImmediatePropagation();
+    window.webkit.messageHandlers.mokuseiBrowserNavigation.postMessage('back');
+  });
+})();
+"""#
+
     static let scrollbar = #"""
 (() => { const style=document.createElement('style'); style.textContent='*{scrollbar-width:auto!important;scrollbar-color:auto!important}::-webkit-scrollbar{width:2px!important;height:2px!important}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent!important}::-webkit-scrollbar-thumb{background:transparent!important;border-radius:999px!important}::-webkit-scrollbar-thumb:hover{background:rgb(128 128 128 / .35)!important}'; (document.head||document.documentElement).append(style); })();
 """#

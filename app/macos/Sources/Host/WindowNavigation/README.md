@@ -18,6 +18,16 @@ actions and coordinates. Window/toolbar relayout and activation reapply that sam
 offset rather than resetting to the expanded position. Suppressing, detaching or
 replacing the Report restores the controls; full-screen placement belongs to AppKit.
 The offset is in window points and does not scale with document or workspace zoom.
+Report HTML reserves that same physical top clearance after both workspace and
+document zoom. New main-frame documents start with expanded navigation, and
+HTTP(S) destinations report their own scroll state. WebKit retains Option-Left
+for native word movement, including editors hidden inside closed Shadow DOM.
+Escape stays with native form inputs, actual editable elements in the composed
+event path, and open HTML dialogs before the document's back action is considered.
+The Overview command remains available as the global return shortcut.
+New-window HTTP(S) GET links use the external browser. Non-GET new-window form
+requests are rejected with an in-document notice; the host never converts a
+request body into a URL-only GET.
 This restores the contract from `bfc2c9f4f`, whose synchronization calls were
 removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
 restored only fixed placement.
@@ -42,4 +52,6 @@ for the mounted production-page regression.
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
-suppression, resize, activation notifications and content zoom with production views.
+suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
+editable/dialog key ownership, non-GET new-window rejection and remote-page
+navigation resets with production views.
