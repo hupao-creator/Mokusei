@@ -47,6 +47,9 @@ type VoiceSpeech struct {
 	Generation   int64
 	Text         string
 	DelegationID string
+	// A native Moku peer acknowledges this delivery before audio is appended,
+	// allowing safe media reconfiguration across separate event transports.
+	RequireReceipt bool
 }
 type VoiceSession interface {
 	ID() string
@@ -68,6 +71,23 @@ type VoiceRequestSource interface {
 }
 type VoiceContextSync interface {
 	SyncContext(context.Context, []ContextEntry) error
+}
+
+// VoiceConfigurationRecoverySource reports an exact native handoff rejected
+// before Core execution/tool admission. The callback runs only after the old
+// native process has been drained; a cleanup error forbids resubmission.
+type VoiceConfigurationRecoverySource interface {
+	OnConfigurationRecovery(func(VoiceDelegation, error)) func()
+}
+
+// VoiceConfigurationCloser retires an idle native owner and drains pending
+// handoffs before the caller consumes configuration-recovery callbacks.
+type VoiceConfigurationCloser interface {
+	CloseForConfiguration(context.Context) error
+}
+
+type VoiceSpeechReceipt interface {
+	ConfirmSpeech(context.Context, string, int64) error
 }
 
 // VoiceCapability prepares an ephemeral fixed-model relay without inference.

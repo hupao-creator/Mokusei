@@ -25,6 +25,18 @@ native typed values, including defaults and conditional omission.
 
 语音通过 `VoiceSession` 表达 start、poll、heartbeat、input fencing、speech、delegation、event 和 stop 的生命周期。过期 poll cursor 可以返回错误。私有 discussion 只提供 Ask/Close，以及可选 native voice，不允许推进原始任务。
 
+Native Moku configuration recovery uses optional `VoiceConfigurationCloser` and
+`VoiceConfigurationRecoverySource` capabilities. Closing for configuration must
+drain the old native owner and its in-flight notification before reporting any
+captured handoff. A recovery callback permits replay only after a confirmed
+pre-admission rejection and successful cleanup; generic native/transport errors
+do not carry that guarantee. Core's `ErrMokuConfigurationPending` is reserved for
+that unconsumed-input boundary, including ordinary Moku successor preparation.
+Native Moku reply delivery can require `VoiceSpeechReceipt`: the media client
+acknowledges an exact delivery/generation before audio starts. Waiting is bounded
+and cancelled by media retirement or a newer input; a duplicate receipt never
+authorizes another append. Other voice paths do not opt into this handshake.
+
 模型服务、账号和凭据由各 Harness 的原生配置管理。Core 不注册模型服务插件，不发现或注入跨 Harness 凭据；Thread 只保存 Harness 自己的 settings。
 
 模型和 thinking/effort 能力以原生 CLI 的明确声明为准，不以是否属于原生订阅账户作为准入条件。账户归因检查仍用于订阅额度、模型身份来源和原生语音权限；普通会话不额外探测账户来覆盖原生模型目录。

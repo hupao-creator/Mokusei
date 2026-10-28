@@ -66,12 +66,14 @@ public struct NativeComposerTextInput: View {
     private let onEditorStateChange: ((NativeComposerEditorState) -> Void)?
     private let onKeyDown: ((NativeComposerKeyEvent) -> Bool)?
     private let submitOnReturn: Bool
+    private let emphasizedInsertionPoint: Bool
     @State private var focused = false
     @State private var pasting = false
     @State private var selection: NSRange?
     @State private var measuredHeight: CGFloat
     @Environment(\.locale) private var locale
     @Environment(\.isEnabled) private var environmentEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var unavailable: Bool { disabled || readOnly || !environmentEnabled }
 
     public init(value: Binding<String>, placeholder: String, disabled: Bool = false, readOnly: Bool = false,
@@ -87,7 +89,7 @@ public struct NativeComposerTextInput: View {
                 initialSelection: NSRange? = nil,
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
-                submitOnReturn: Bool = false) {
+                submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
         _value = value; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
         self.focusEnabled = focusEnabled
         self.automaticFocus = automaticFocus
@@ -100,6 +102,7 @@ public struct NativeComposerTextInput: View {
         self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.preparePaste = preparePaste; self.onFocusChange = onFocusChange
         self.onEditorStateChange = onEditorStateChange; self.onKeyDown = onKeyDown
         self.submitOnReturn = submitOnReturn
+        self.emphasizedInsertionPoint = emphasizedInsertionPoint
         _measuredHeight = State(initialValue: minHeight)
     }
 
@@ -108,7 +111,9 @@ public struct NativeComposerTextInput: View {
             selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
-            submitOnReturn: submitOnReturn, onPaste: nativePaste)
+            submitOnReturn: submitOnReturn, emphasizedInsertionPoint: emphasizedInsertionPoint,
+            reduceCaretMotion: reduceMotion,
+            onPaste: nativePaste)
             // Split the trailing line spacing around the glyphs to center a single line.
             .padding(EdgeInsets(top: insets.top + spacing / 2, leading: insets.left,
                                bottom: max(0, insets.bottom - spacing / 2), trailing: insets.right))

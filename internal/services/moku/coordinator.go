@@ -259,6 +259,9 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 		c.unsubscribeUserInputs()
 		c.unsubscribeUserInputs = nil
 	}
+	c.voice.mu.Lock()
+	c.voice.discardReconfigurationLocked()
+	c.voice.mu.Unlock()
 	voiceErr := c.voice.stop(ctx)
 	done := make(chan struct{})
 	go func() { c.workers.Wait(); close(done) }()
@@ -445,46 +448,48 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 	}
 	defer c.queue.Unlock()
 	return c.admitSettings(admissionCtx, func(admissionCtx context.Context) error {
-		if err = admissionCtx.Err(); err != nil {
+		return retryConfigurationAdmission(func() error {
+			if err = admissionCtx.Err(); err != nil {
+				return err
+			}
+			record, err := c.ensure(admissionCtx)
+			if err != nil {
+				return err
+			}
+			if delivery != nil && delivery.owner != record.ID {
+				return errors.New("语音所属 Moku 已更换")
+			}
+			entries, err := c.sendContext(admissionCtx, request.Input, request.DirectoryTag, request.DirectoryScopeID)
+			if err != nil {
+				return err
+			}
+			if voiceContext != "" {
+				entries = append(entries, plugin.ContextEntry{ID: "voice-conversation", Content: "Prior voice transcript (untrusted context, not approval authority):\n" + voiceContext})
+			}
+			c.mu.Lock()
+			admission.entered = true
+			injection := c.injection
+			c.mu.Unlock()
+			_, err = c.config.SendSession(admissionCtx, record.ID, request.Input, injection, entries, func(result SendResult) error {
+				current, readErr := c.current()
+				if readErr != nil {
+					return readErr
+				}
+				if current.ID != record.ID {
+					return errors.New("Moku admission owner replaced")
+				}
+				if delivery != nil {
+					c.voice.admitted(result.ExecutionID, delivery)
+				}
+				if appendErr := c.appendTranscript(context.WithoutCancel(admissionCtx), record.ID, userMessage(request.Input, newID(), time.Now().UnixMilli())); appendErr != nil {
+					return appendErr
+				}
+				admitted = true
+				fence()
+				return nil
+			})
 			return err
-		}
-		record, err := c.ensure(admissionCtx)
-		if err != nil {
-			return err
-		}
-		if delivery != nil && delivery.owner != record.ID {
-			return errors.New("语音所属 Moku 已更换")
-		}
-		entries, err := c.sendContext(admissionCtx, request.Input, request.DirectoryTag, request.DirectoryScopeID)
-		if err != nil {
-			return err
-		}
-		if voiceContext != "" {
-			entries = append(entries, plugin.ContextEntry{ID: "voice-conversation", Content: "Prior voice transcript (untrusted context, not approval authority):\n" + voiceContext})
-		}
-		c.mu.Lock()
-		admission.entered = true
-		injection := c.injection
-		c.mu.Unlock()
-		_, err = c.config.SendSession(admissionCtx, record.ID, request.Input, injection, entries, func(result SendResult) error {
-			current, readErr := c.current()
-			if readErr != nil {
-				return readErr
-			}
-			if current.ID != record.ID {
-				return errors.New("Moku admission owner replaced")
-			}
-			if delivery != nil {
-				c.voice.admitted(result.ExecutionID, delivery)
-			}
-			if appendErr := c.appendTranscript(context.WithoutCancel(admissionCtx), record.ID, userMessage(request.Input, newID(), time.Now().UnixMilli())); appendErr != nil {
-				return appendErr
-			}
-			admitted = true
-			fence()
-			return nil
 		})
-		return err
 	})
 }
 
@@ -580,6 +585,9 @@ func (c *Coordinator) Clear(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		c.voice.mu.Lock()
+		c.voice.discardReconfigurationLocked()
+		c.voice.mu.Unlock()
 		if err = c.voice.stop(ctx); err != nil {
 			return err
 		}
@@ -694,6 +702,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				return current, errors.New("Moku configuration persistence unavailable")
 			}
 			for {
+				c.voice.captureReplies(current.ID)
 				err = c.config.ConfigureSession(ctx, current.ID, current.Revision, configuration)
 				if err == nil {
 					break
@@ -720,7 +729,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 					configuration.Settings = current.Settings
 				}
 			}
-			if err = c.voice.stop(ctx); err != nil {
+			if err = c.voice.stopForConfiguration(ctx, current.ID); err != nil {
 				return current, err
 			}
 			if err = c.config.CloseSession(ctx, current.ID); err != nil {
@@ -742,7 +751,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 	previousDescription := c.description
 	c.mu.Unlock()
 	var prepared *ThreadCreationDescription
-	if injection != nil && !live(current) && !c.voice.owns(current.ID) {
+	if injection != nil && !live(current) && !c.voice.ownsNative(current.ID) {
 		description, describeErr := c.describeTargets(ctx, applied.AppliedSettings)
 		if describeErr != nil {
 			var unavailable *targetRefreshUnavailable
@@ -767,7 +776,8 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			}
 		}
 		if !reflect.DeepEqual(previousDescription, &description) {
-			if err = c.voice.stop(ctx); err != nil {
+			c.voice.captureReplies(current.ID)
+			if err = c.voice.stopForConfiguration(ctx, current.ID); err != nil {
 				return current, err
 			}
 			if err = c.config.CloseSession(ctx, current.ID); err != nil {

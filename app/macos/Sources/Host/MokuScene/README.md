@@ -13,7 +13,41 @@ The shared input row places the attachment plus between Moku's eyes and the edit
 
 [NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
+An initialized workspace with no globally eligible, unarchived conversation cards
+opens the same Dock at the visual center: 680×76 points, 16-point text and at least
+24-point horizontal viewport margins. Moku and its archived history do not count
+as ordinary cards. Membership is measured before tags, search and report coverage,
+including documents exposed only inside a directory. Loading is not an empty
+workspace. Archiving/deleting the last eligible conversation restores landing;
+filtering to no results does not. No one-time onboarding flag is persisted.
+
+Submitting input keeps the center open. A durable first-task shell can precede
+native admission, so it remains behind landing while `create_thread` is pending.
+A successful public result for an eligible Thread returns the Dock to its existing
+bottom seat. Failure without an admitted conversation keeps the center available;
+an independently admitted conversation also ends it. Existing workspaces hydrate
+at the bottom. The same surface and Reduce Motion policy own the transition.
+
+Talk and dispatch notices appear above the open landing composer without taking
+its editor, focus or draft. They reuse ordinary selectable Talk/dispatch content,
+outside-click dismissal and the deadline that starts only after actual presentation.
+Directory suggestions can temporarily cover the notice when vertical room is too
+short. Ordinary bottom-Dock notices retain their existing capsule presentation.
+The [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
+exercises real workspace/catalog/presentation integration; the
+[interactive visual fixture](../../../../../demos/moku-landing/README.md) retains the
+approved appearance and editor checks without a live Runtime.
+
 Directory completion opens above the editor within the same capsule. The editor stays seated at the bottom; scrolling suggestions are clipped to their own area. Selection keys and IME handling use the existing completion state. On macOS, native paste/drop imports files. The Dock and history capsule surfaces have no Moku context menu on right-click or Control-click. Native text editing menus and the voice control's own menu remain available. An accepted send consumes only its submitted draft revision; failure retains it.
+
+An empty or whitespace-only draft without attachments/directories mounts no Send
+button or circular background, including in accessibility. Its empty layout seat
+keeps the editor width stable. Attachment/directory-only input still exposes Send;
+importing, submission and unavailable states retain their ordinary admission rules.
+Moku editors use a solid 3-point caret in the native light/dark text color, with
+native blinking and 120ms interruptible same-line movement. There is no gradient
+or glow. IME composition uses the native caret; line changes stay immediate.
+Losing focus removes the layer, and Reduce Motion makes movement immediate.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it remains `Ask Moku…`; selected directories use `Ask Moku about <name>…` (Chinese: `向 Moku 询问关于 <name> 的问题…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 

@@ -321,9 +321,6 @@ import MokuseiPluginUI
     func setDockViewport(_ viewport: CGRect) {
         if dockVisibleViewport != viewport { dockVisibleViewport = viewport }
     }
-    func dockFrame(in size: CGSize) -> CGRect {
-        NativeMokuCapsuleLayout.frame(in: dockViewport(in: size))
-    }
 }
 
 /// Small, immutable display input. Execution and transcript interpretation stays

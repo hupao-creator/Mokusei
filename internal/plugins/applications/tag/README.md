@@ -4,6 +4,12 @@
 
 The agent observes accepted input and completed/failed/interrupted execution facts, plus its scoped inventory events. It uses the shared background runner with lazy initialization and idle disposal. Configuration follows Moku or an independent profile. [overview.go](overview.go) sends scoped selection requests through the host's Overview capability.
 
+Saved configuration applies at the next batch configuration boundary. Active
+batch steering retains its admitted profile. A save during native discovery
+causes re-resolution without spending a batch retry, including when the initial
+discovery result matches an existing idle session. The Runtime replay exercises
+the production Tag and Report participants in inherited and independent modes.
+
 ## Names and emoji
 
 `create_tags` requires `{name, emoji}` entries. `merge_tags` requires the target emoji; `rename_tag` preserves it unless supplied. Duplicate creation returns the existing definition. Unused tags may be deleted; an in-use tag must be merged instead. Renames/merges update affected assignments atomically.
