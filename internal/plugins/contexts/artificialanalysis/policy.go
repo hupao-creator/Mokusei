@@ -9,8 +9,8 @@ import (
 )
 
 const FactsScope = "Objective model evaluation facts and selection advice for native catalog models that uniquely match one source release with at least one source-observed evaluation configuration. Configurations retain their published metrics even when other metrics are missing. Native-supported models remain selectable regardless of missing or poor evaluation results."
-const FactsMeaning = "Each evaluation describes only the source-observed configuration named by reasoning and optional effort. Intelligence Index, median output tokens per second, and cost per Intelligence Index task are configuration facts; they do not describe a local subscription, re-hosted route, or service tier. Null means that metric is unavailable, not zero or evidence of poor performance. A local reasoning, variant, or service-tier selection without an exactly matching evaluation is unmeasured. deprecated is evaluator source metadata only: it does not remove a model from its provider-native catalog. Configuration choices and validation belong to the native settings contract; these facts do not add constraints."
-const ScoreMeaning = "Benchmark scores are optional evaluator-native proportions for the same evaluation configuration. Null means the source published no score; scores are not normalized, combined, or converted into ranks."
+const FactsMeaning = "Each evaluation describes only the source-observed configuration named by reasoning and optional effort. Intelligence Index and cost per Intelligence Index task use the declared index version; do not compare them across major versions. These and median output tokens per second are configuration facts; they do not describe a local subscription, re-hosted route, or service tier. Null means that metric is unavailable, not zero or evidence of poor performance. A local reasoning, variant, or service-tier selection without an exactly matching evaluation is unmeasured. deprecated is evaluator source metadata only: it does not remove a model from its provider-native catalog. Configuration choices and validation belong to the native settings contract; these facts do not add constraints."
+const ScoreMeaning = "Benchmark scores retain evaluator-native units for the same evaluation configuration: AA-Briefcase uses Elo; all other component metrics are proportions in 0..1. Lower hallucination rate is better; higher is better for the other metrics. Compare only the same benchmark version. Null means unavailable, not zero. Scores are not normalized, combined, or converted into ranks; the published Intelligence Index and task cost are used directly."
 const RoutingGuidance = "When routing models, prefer high-intelligence models for complex planning, critical decisions, and independent review, accepting higher cost when warranted. For execution with verifiable results, prefer models that are sufficiently capable, low-cost, and fast. For low-risk information retrieval and initial screening, always prefer the lowest-cost available candidate capable of completing the task, and upgrade only when there is a clear capability, tooling, or reliability gap. Raise the model tier when a task is high-risk, ambiguous, difficult to verify, or requires synthesis and judgment. Treat only the published quality, speed, cost, and benchmark fields as measured evidence."
 const truncatedMarker = "Additional evaluation knowledge omitted by the bounded formatter."
 
@@ -44,11 +44,38 @@ func observed(snapshot Snapshot) string {
 	}
 	return *snapshot.ObservedAt
 }
+func indexVersion(snapshot Snapshot) string {
+	if snapshot.IntelligenceIndexVersion == "" {
+		return "unavailable"
+	}
+	return "v" + snapshot.IntelligenceIndexVersion
+}
 func Preamble(snapshot Snapshot, scope string) string {
 	if scope == "" {
 		scope = FactsScope
 	}
-	lines := []string{"Evaluation source: " + boundedText(snapshot.Source, 256) + ".", "Evaluation availability: " + snapshot.Availability + ".", "Evaluation knowledge observed at: " + observed(snapshot) + ".", "Scope: " + scope, "Release association: Native catalog names may be associated with source releases through conservative fuzzy matching. Ambiguous matches are omitted. This association is advisory and does not establish that a native route or local configuration reproduces the measured evaluation.", "Routing guidance: " + RoutingGuidance, "Evaluation meaning: " + FactsMeaning, "Benchmark score meaning: " + ScoreMeaning, "Benchmark definitions:", "- hleText: Humanity's Last Exam (text-only); evaluator=Artificial Analysis; dataset=Text-only HLE questions scored inside the Artificial Analysis Intelligence Index; metric=pass@1; unit=proportion; range=0..1; harness=Artificial Analysis zero-shot text evaluation; repeats=1", "- terminalBenchV21: Terminal-Bench 2.1; evaluator=Artificial Analysis; dataset=Terminal-Bench 2.1 scored inside the Artificial Analysis Intelligence Index; metric=test-suite pass@1; unit=proportion; range=0..1; harness=Terminus 2", "- tau3Banking: τ³-Banking; evaluator=Artificial Analysis; dataset=τ³-Banking scored inside the Artificial Analysis Intelligence Index; metric=backend-state pass@1; unit=proportion; range=0..1; harness=Artificial Analysis agent-user simulation"}
+	lines := []string{
+		"Evaluation source: " + boundedText(snapshot.Source, 256) + ".",
+		"Evaluation availability: " + snapshot.Availability + ".",
+		"Evaluation knowledge observed at: " + observed(snapshot) + ".",
+		"Intelligence Index version: " + indexVersion(snapshot) + ".",
+		"Scope: " + scope,
+		"Release association: Native catalog names may be associated with source releases through conservative fuzzy matching. Ambiguous matches are omitted. This association is advisory and does not establish that a native route or local configuration reproduces the measured evaluation.",
+		"Routing guidance: " + RoutingGuidance,
+		"Evaluation meaning: " + FactsMeaning,
+		"Benchmark score meaning: " + ScoreMeaning,
+		"Benchmark definitions: Artificial Analysis Intelligence Index v5.0; Knowledge Work, Coding, Science and General each have 25% weight. Methodology: https://artificialanalysis.ai/methodology/intelligence-benchmarking",
+		"- aaBriefcaseV11: AA-Briefcase v1.1; metric=combined Elo from task success, analytical quality and presentation quality; unit=Elo; harness=Stirrup; weight=15%",
+		"- automationBenchAA: AutomationBench-AA; metric=objective completion with zero credit on any guardrail violation; harness=AutomationBench multi-turn environment; weight=5%",
+		"- gdpPDF: GDP.pdf; metric=all-pass rate across rubric criteria; repeats=5; weight=5%",
+		"- frontierCodeV20: FrontierCode 2.0; metric=mean rubric score with zero credit on blocking-check failure; harness=Stirrup; repeats=3; weight=15%",
+		"- terminalBenchV40: Terminal-Bench 4.0; metric=test-suite pass@1; harness=mini-swe-agent; repeats=3; weight=10%",
+		"- omniscienceV11Accuracy: AA-Omniscience v1.1; metric=correct-answer rate; weight=10%",
+		"- omniscienceV11HallucinationRate: AA-Omniscience v1.1; metric=hallucination rate; lower is better; the index uses 1 minus this rate at weight=5%",
+		"- hleDiamond: HLE-Diamond; metric=pass@1 over all 1,000 questions including 272 image questions; no tools; repeats=1; weight=10%",
+		"- critPtV2Hard: CritPt v2 (Hard Subset); metric=pass@1 on the fixed 40-problem subset; repeats=5; weight=10%",
+		"- terminalBenchScienceV01: Terminal-Bench-Science 0.1.0; metric=test-suite pass@1; repeats=3; weight=15%",
+	}
 	return bounded(strings.Join(lines, "\n"))
 }
 func FormatRelease(snapshot Snapshot, match Match) string {
@@ -62,14 +89,18 @@ func FormatRelease(snapshot Snapshot, match Match) string {
 		return "Evaluation release matching is ambiguous; uncertain facts are omitted and the native model remains selectable."
 	}
 	release := match.Release
-	lines := []string{fmt.Sprintf("Canonical evaluation release: %s (%s).", boundedText(release.Slug, 512), boundedText(release.Name, 512)), "Evaluation knowledge observed at: " + observed(snapshot) + "."}
+	lines := []string{fmt.Sprintf("Canonical evaluation release: %s (%s).", boundedText(release.Slug, 512), boundedText(release.Name, 512)), "Evaluation knowledge observed at: " + observed(snapshot) + ".", "Intelligence Index version: " + indexVersion(snapshot) + "."}
 	evaluations := release.Evaluations[:min(64, len(release.Evaluations))]
 	for _, e := range evaluations {
 		configuration := "reasoning:" + strconv.FormatBool(e.Configuration.Reasoning)
 		if e.Configuration.Reasoning && e.Configuration.Effort != "" {
 			configuration += ",effort:" + boundedText(e.Configuration.Effort, 128)
 		}
-		lines = append(lines, strings.Join([]string{"- configuration=" + configuration, "slug=" + boundedText(e.Slug, 512), "evaluatedModel=" + boundedText(e.EvaluatedModel, 512), "deprecated=" + strconv.FormatBool(e.Deprecated), "intelligenceIndex=" + number(e.IntelligenceIndex), "medianOutputTokensPerSecond=" + number(e.MedianOutputTokensPerSecond), "costPerIntelligenceIndexTaskUsd=" + number(e.CostPerIntelligenceIndexTaskUSD), "medianTimeToFirstAnswerTokenSeconds=" + number(e.MedianTimeToFirstAnswerTokenSeconds), "inputUsdPer1MTokens=" + number(e.InputUSDPer1MTokens), "outputUsdPer1MTokens=" + number(e.OutputUSDPer1MTokens), "benchmarkScores=hleText:" + number(e.BenchmarkScores.HLEText) + ",terminalBenchV21:" + number(e.BenchmarkScores.TerminalBenchV21) + ",tau3Banking:" + number(e.BenchmarkScores.Tau3Banking)}, "; "))
+		scores := []string{}
+		for i, value := range e.BenchmarkScores.values() {
+			scores = append(scores, BenchmarkIDs[i]+":"+number(value))
+		}
+		lines = append(lines, strings.Join([]string{"- configuration=" + configuration, "slug=" + boundedText(e.Slug, 512), "evaluatedModel=" + boundedText(e.EvaluatedModel, 512), "deprecated=" + strconv.FormatBool(e.Deprecated), "intelligenceIndex=" + number(e.IntelligenceIndex), "medianOutputTokensPerSecond=" + number(e.MedianOutputTokensPerSecond), "costPerIntelligenceIndexTaskUsd=" + number(e.CostPerIntelligenceIndexTaskUSD), "medianTimeToFirstAnswerTokenSeconds=" + number(e.MedianTimeToFirstAnswerTokenSeconds), "inputUsdPer1MTokens=" + number(e.InputUSDPer1MTokens), "outputUsdPer1MTokens=" + number(e.OutputUSDPer1MTokens), "benchmarkScores=" + strings.Join(scores, ",")}, "; "))
 	}
 	if len(release.Evaluations) > len(evaluations) {
 		lines = append(lines, fmt.Sprintf("- %d additional evaluation configurations omitted by the bounded formatter.", len(release.Evaluations)-len(evaluations)))
@@ -153,7 +184,7 @@ func FormatModels(snapshot Snapshot, models []NativeModel) string {
 	if len(full) <= MaxFormattedBytes {
 		return full
 	}
-	lines = []string{Preamble(snapshot, ""), "Objective evaluation facts for this native catalog (compact JSON rows):", "Each row uses columns: slug, reasoning, effort, evaluatedModel, deprecated, intelligenceIndex, medianOutputTokensPerSecond, costPerIntelligenceIndexTaskUsd, medianTimeToFirstAnswerTokenSeconds, inputUsdPer1MTokens, outputUsdPer1MTokens, hleText, terminalBenchV21, tau3Banking. Null retains its usual meaning."}
+	lines = []string{Preamble(snapshot, ""), "Objective evaluation facts for this native catalog (compact JSON rows):", "Each row uses columns: slug, reasoning, effort, evaluatedModel, deprecated, intelligenceIndex, medianOutputTokensPerSecond, costPerIntelligenceIndexTaskUsd, medianTimeToFirstAnswerTokenSeconds, inputUsdPer1MTokens, outputUsdPer1MTokens, " + strings.Join(BenchmarkIDs, ", ") + ". All rows use the declared Intelligence Index version. Null retains its usual meaning."}
 	for _, group := range groups {
 		release := group.match.Release
 		lines = append(lines, "Native catalog identities: "+strings.Join(group.labels, ", ")+".", fmt.Sprintf("Canonical evaluation release: %s (%s).", release.Slug, release.Name))
@@ -162,7 +193,10 @@ func FormatModels(snapshot Snapshot, models []NativeModel) string {
 			if e.Configuration.Effort != "" {
 				effort = e.Configuration.Effort
 			}
-			row := []any{e.Slug, e.Configuration.Reasoning, effort, e.EvaluatedModel, e.Deprecated, e.IntelligenceIndex, e.MedianOutputTokensPerSecond, e.CostPerIntelligenceIndexTaskUSD, e.MedianTimeToFirstAnswerTokenSeconds, e.InputUSDPer1MTokens, e.OutputUSDPer1MTokens, e.BenchmarkScores.HLEText, e.BenchmarkScores.TerminalBenchV21, e.BenchmarkScores.Tau3Banking}
+			row := []any{e.Slug, e.Configuration.Reasoning, effort, e.EvaluatedModel, e.Deprecated, e.IntelligenceIndex, e.MedianOutputTokensPerSecond, e.CostPerIntelligenceIndexTaskUSD, e.MedianTimeToFirstAnswerTokenSeconds, e.InputUSDPer1MTokens, e.OutputUSDPer1MTokens}
+			for _, value := range e.BenchmarkScores.values() {
+				row = append(row, value)
+			}
 			data, _ := json.Marshal(row)
 			lines = append(lines, string(data))
 		}

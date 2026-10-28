@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	aa "github.com/hupao-creator/Mokusei/internal/plugins/contexts/artificialanalysis"
@@ -16,9 +17,12 @@ import (
 )
 
 type fixture struct {
-	mu       sync.Mutex
-	requests []string
-	mode     string
+	mu             sync.Mutex
+	requests       []string
+	mode           string
+	indexMetadata  *string
+	detailMetadata *string
+	metrics        map[string]any
 }
 
 func embedded(v any) string {
@@ -26,12 +30,30 @@ func embedded(v any) string {
 	return strings.ReplaceAll(string(data), `"`, `\"`)
 }
 func model(slug, release, name string) map[string]any {
-	return map[string]any{"slug": slug, "release": map[string]any{"slug": release, "name": name}, "name": name + " high", "isReasoning": true, "effort": map[string]string{"slug": "high"}, "intelligenceIndex": 0, "terminalBench21": 0.6, "terminalBench": 0.99, "hle": nil, "tauBanking": 2, "timescaleData": map[string]any{"medianOutputSpeed": 100}, "price1mInputTokens": 0, "price1mOutputTokens": -1}
+	return map[string]any{
+		"slug": slug, "release": map[string]any{"slug": release, "name": name},
+		"name": name + " high", "isReasoning": true, "effort": map[string]string{"slug": "high"},
+		"intelligenceIndex": 0, "intelligenceIndexCostPerTask": map[string]any{"cost": map[string]any{"total": 0.75}},
+		"briefcaseBreakdown":          map[string]any{"overall": map[string]any{"elo": 1497.25}},
+		"automationBenchPartialScore": 0.52, "gdpPdfAllPass": 0.14, "frontierCode20": 0.42,
+		"terminalBench40": 0.6, "omniscienceAccuracy": 0.47, "omniscienceHallucinationRate": 0.31,
+		"hleDiamond": 0.45, "critptAgenticHard": 0.35, "terminalBenchScience": 0.25,
+		"hle": 0.99, "terminalBench21": 0.98, "tauBanking": 0.97, "frontierCode": 0.96, "critpt": 0.95,
+		"timescaleData": map[string]any{"medianOutputSpeed": 100}, "price1mInputTokens": 0, "price1mOutputTokens": -1,
+	}
+}
+func versionMetadata(version string) string {
+	return `\"intelligenceIndex\":` + embedded(map[string]any{"slug": "artificial-analysis-intelligence-index", "name": "Artificial Analysis Intelligence Index v" + version})
 }
 func (f *fixture) Do(req *http.Request) (*http.Response, error) {
 	f.mu.Lock()
 	f.requests = append(f.requests, req.URL.Path+"|"+req.Header.Get("If-None-Match"))
 	mode := f.mode
+	metadata := f.detailMetadata
+	if req.URL.Path == "/models/" {
+		metadata = f.indexMetadata
+	}
+	metrics := f.metrics
 	f.mu.Unlock()
 	if mode == "blocked" {
 		<-req.Context().Done()
@@ -56,7 +78,16 @@ func (f *fixture) Do(req *http.Request) (*http.Response, error) {
 		if release == "model-b" {
 			name = "Model B"
 		}
-		body = `\"currentModel\":` + embedded(model("comparison-high", "comparison", "Comparison")) + `\"initialModels\":` + embedded([]any{model(slug, release, name)})
+		value := model(slug, release, name)
+		for key, metric := range metrics {
+			value[key] = metric
+		}
+		body = `\"currentModel\":` + embedded(model("comparison-high", "comparison", "Comparison")) + `\"initialModels\":` + embedded([]any{value})
+	}
+	if metadata == nil {
+		body += versionMetadata("5.0")
+	} else {
+		body += *metadata
 	}
 	return &http.Response{StatusCode: status, Header: headers, Body: io.NopCloser(strings.NewReader(body))}, nil
 }
@@ -66,8 +97,13 @@ func require(ok bool, msg string) {
 	}
 }
 func main() {
+	liveRelease := flag.String("live-release", "", "also fetch this release from the public Artificial Analysis website")
+	flag.Parse()
 	diagnosticsReplay()
 	cacheRefreshReplay()
+	versionReplay()
+	metricReplay()
+	cacheVersionReplay()
 	root, err := os.MkdirTemp("", "oa-aa-go-replay-")
 	if err != nil {
 		panic(err)
@@ -84,10 +120,18 @@ func main() {
 		panic(err)
 	}
 	require(snapshot.Availability == "available" && len(snapshot.Releases) == 1, "cold discovery full roster")
+	require(snapshot.IntelligenceIndexVersion == "5.0", "verified index version")
 	e := snapshot.Releases[0].Evaluations[0]
 	require(e.IntelligenceIndex != nil && *e.IntelligenceIndex == 0, "measured zero preserved")
-	require(e.BenchmarkScores.TerminalBenchV21 != nil && *e.BenchmarkScores.TerminalBenchV21 == 0.6, "terminalBench21 source field")
-	require(e.BenchmarkScores.HLEText == nil && e.BenchmarkScores.Tau3Banking == nil && e.OutputUSDPer1MTokens == nil, "missing and invalid metrics stay null")
+	require(e.CostPerIntelligenceIndexTaskUSD != nil && *e.CostPerIntelligenceIndexTaskUSD == 0.75, "published v5 cost retained")
+	scores, _ := json.Marshal(e.BenchmarkScores)
+	require(string(scores) == `{"aaBriefcaseV11":1497.25,"automationBenchAA":0.52,"gdpPDF":0.14,"frontierCodeV20":0.42,"terminalBenchV40":0.6,"omniscienceV11Accuracy":0.47,"omniscienceV11HallucinationRate":0.31,"hleDiamond":0.45,"critPtV2Hard":0.35,"terminalBenchScienceV01":0.25}`, "all v5 components use the correct source fields and native units")
+	require(e.OutputUSDPer1MTokens == nil, "invalid price stays null")
+	formattedFacts := aa.FormatCached(snapshot)
+	require(strings.Contains(formattedFacts, "Intelligence Index version: v5.0.") && strings.Contains(formattedFacts, "aaBriefcaseV11:1497.25") && strings.Contains(formattedFacts, "hleDiamond:0.45"), "detailed output carries v5 version and metrics")
+	for _, obsolete := range []string{"hleText", "terminalBenchV21", "tau3Banking", "Terminus 2"} {
+		require(!strings.Contains(formattedFacts, obsolete), "obsolete benchmark removed: "+obsolete)
+	}
 	require(e.Configuration.Reasoning && e.Configuration.Effort == "high", "detail configuration")
 	require(!strings.Contains(aa.FormatCached(snapshot), "Canonical evaluation release: comparison"), "wrong detail comparison omitted")
 	requestCount := len(client.requests)
@@ -162,12 +206,18 @@ func main() {
 	formatted := aa.FormatModels(large, []aa.NativeModel{{Label: "A", Identity: aa.Identity{Selector: "model-a"}}})
 	require(len(formatted) <= aa.MaxCatalogBytes, "catalog bytes bounded")
 	require(strings.Contains(formatted, "compact JSON rows"), "large catalogs compact")
+	require(strings.Contains(formatted, "Intelligence Index version: v5.0.") && strings.Contains(formatted, "aaBriefcaseV11, automationBenchAA, gdpPDF, frontierCodeV20, terminalBenchV40, omniscienceV11Accuracy, omniscienceV11HallucinationRate, hleDiamond, critPtV2Hard, terminalBenchScienceV01."), "compact version and column definitions")
+	rows := 0
 	for _, line := range strings.Split(formatted, "\n") {
 		if strings.HasPrefix(line, "[") {
 			var row []any
-			require(json.Unmarshal([]byte(line), &row) == nil && len(row) == 14, "compact rows atomic")
+			require(json.Unmarshal([]byte(line), &row) == nil && len(row) == 21, "compact rows atomic")
+			data, _ := json.Marshal(row[11:])
+			require(string(data) == `[1497.25,0.52,0.14,0.42,0.6,0.47,0.31,0.45,0.35,0.25]`, "compact metric order and units")
+			rows++
 		}
 	}
+	require(rows > 0, "compact output retains measurements")
 	source.Close()
 	data, _ := os.ReadFile(filepath.Join(root, "moku-evaluation-facts.json"))
 	var cache map[string]any
@@ -179,4 +229,7 @@ func main() {
 	require(invalid.Snapshot().Availability == "unavailable", "invalid schema rejected")
 	invalid.Close()
 	fmt.Println("AA replay passed: cold full roster/detail matching, null/zero metrics, ETags/restart, warm nonblocking/dispose, retained catalogs, provenance, ambiguity/version rules, compact rows, cache validation")
+	if *liveRelease != "" {
+		liveReplay(*liveRelease)
+	}
 }

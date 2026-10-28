@@ -30,7 +30,7 @@ func (f *diagnosticHTTP) Do(req *http.Request) (*http.Response, error) {
 		for i := range models {
 			models[i] = model(fmt.Sprintf("model-a-%d", i), "model-a", "Model A")
 		}
-		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`\"initialModels\":` + embedded(models)))}, nil
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`\"initialModels\":` + embedded(models) + versionMetadata("5.0")))}, nil
 	}
 	if req.URL.Path != "/models/" {
 		switch f.mode.Load() {
