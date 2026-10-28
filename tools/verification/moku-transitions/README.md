@@ -12,15 +12,20 @@ captures WindowServer pixels, and never calls `draw` or advances a test clock.
 The face must remain the same single native view throughout role changes.
 
 Cases cover idle → running, interruption during the orbit, running → thinking,
-same-segment text append, interrupted input expansion, rapid running/thinking/tool
-changes, inactive pause/resume, and thinking retirement/landing. Narrow 300×190
+same-segment text append, full input expansion/collapse, reversals in both
+directions, rapid running/thinking/tool changes, inactive pause/resume, and
+thinking retirement/landing. Narrow 300×190
 and 180×140 logical viewports must contain the renderer's full glyph envelope
 after fitting; Overview reservation remains unchanged.
 
 `frames.json` records observed pose steps and clocks. The bound on eye movement
 detects discontinuous geometry replacement while allowing ordinary motion
-between two real display frames. It is not a complete perceptual smoothness or
-physical refresh-rate certification. PNGs retain the native frames for review.
+between two real display frames. It also records the mounted eye view's frame in
+window coordinates and requires input transitions to stay within their measured
+resting-position envelope, with one point of backing-alignment tolerance. This
+catches the vertical jump caused by accepting retiring-editor geometry even when
+the internal eye pose stays continuous. It is not a complete perceptual
+smoothness or physical refresh-rate certification. PNGs retain the native frames for review.
 
 Set `MOKU_TRANSITION_EVIDENCE` to select the output directory (default
 `/tmp/mokusei-moku-transition-evidence`). The fixture captures only its own
