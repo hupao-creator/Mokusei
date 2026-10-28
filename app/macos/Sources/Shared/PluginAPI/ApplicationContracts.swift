@@ -12,6 +12,24 @@ public struct ApplicationExecutionRef: Hashable, Sendable {
     public let executionID: JSONText
     public init(thread: ApplicationThreadRef, executionID: JSONText) { self.thread = thread; self.executionID = executionID }
 }
+/// App-internal references are data, never URLs to hand to the operating system.
+public enum ApplicationExecutionLink {
+    public static func parse(_ url: URL) -> ApplicationExecutionRef? {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme == "mokusei", parts.host == "execution",
+              parts.user == nil, parts.password == nil, parts.port == nil,
+              parts.path.isEmpty, parts.fragment == nil,
+              let query = parts.queryItems, query.count == 2,
+              Set(query.map(\.name)) == ["threadId", "executionId"],
+              let thread = query.first(where: { $0.name == "threadId" })?.value,
+              let execution = query.first(where: { $0.name == "executionId" })?.value,
+              [thread, execution].allSatisfy({ !$0.isEmpty && !$0.unicodeScalars.contains(where: {
+                  CharacterSet.whitespacesAndNewlines.union(.controlCharacters).contains($0)
+              }) }) else { return nil }
+        return ApplicationExecutionRef(thread: .init(threadID: JSONText(thread), typeID: "agent"),
+                                       executionID: JSONText(execution))
+    }
+}
 public struct ApplicationTagProjection: Hashable, Sendable {
     public let tags: [JSONText]
     public let semanticTags: [JSONText]

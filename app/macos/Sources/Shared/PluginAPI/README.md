@@ -30,3 +30,12 @@ invalidate pending results, while disconnect/reload or scope removal releases
 the resource. Thread settings sessions still belong to their mounted editor.
 
 [SidecardAttachmentImport.swift](SidecardAttachmentImport.swift) provides lifetime-bound device-local file/byte staging plus the runtime attachment policy. Returned typed metadata is shared with the Conversation composer's attachment presentation and submission; the existing URL-only staging capability remains used by Browser annotations.
+
+`ApplicationExecutionLink` admits only the internal `mokusei://execution` URL
+with exactly one nonblank `threadId` and `executionId` query parameter, without
+credentials, ports, path or fragment. It yields an `ApplicationExecutionRef`;
+the Host checks public ordinary-thread membership. `HarnessReadingTarget.position`
+adds `result` alongside the default `start`, preserving execution identity and
+the per-click request ID. Harnesses pass semantic positioning with their public
+active-execution fact to the shared reader, alongside their existing private
+message-anchor resolution.

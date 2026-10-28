@@ -45,7 +45,8 @@ public struct OpenCodeThreadView: View {
         let target = input.readingTarget.map { target in
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID, anchorId: ocMokuReplyAnchor(state, target: target.message)
-                    ?? (resolvedAnchor?.request == target.requestID ? resolvedAnchor?.anchor : nil))
+                    ?? (resolvedAnchor?.request == target.requestID ? resolvedAnchor?.anchor : nil), position: target.position,
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
         }
         return ThreadConversation(threadId: input.thread.id, title: ocDocumentTitle(input.thread, state: state), icon: ocEmoji(input.thread.metadataState),
             rows: rows, readingTarget: target, running: latest?.status == .running,
@@ -234,7 +235,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
             } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text, streaming: message.status == "streaming",
                 openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)) }
             result.append(.init(id: id, kind: reply ? .content : .work, node: body,
-                execution: reply ? nil : .member, executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil))
+                execution: reply ? nil : .member, executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))
         }
     }
     return result

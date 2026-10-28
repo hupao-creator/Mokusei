@@ -161,7 +161,7 @@ public final class NativeWorkspacePresentation {
             if thread == nil || thread?.isHiddenFromUser == true { applicationReturn = nil }
         }
         if let selected {
-            let visible = selected.typeID == "agent" ? workspace.catalog.thread(selected.threadID).map { !$0.isHiddenFromUser } ?? false
+            let visible = selected.typeID == "agent" ? workspace.catalog.thread(selected.threadID).map { !$0.isHiddenFromUser || readingTarget?.position == .result } ?? false
                 : selected.typeID == "git.worktree" ? applicationHost.git.repository(selected.threadID) != nil
                 : (try? applicationHost.entry(selected)) != nil
             if !visible {
@@ -176,7 +176,7 @@ public final class NativeWorkspacePresentation {
         if ref.typeID == "agent" {
             guard let thread = workspace.catalog.thread(ref.threadID) else { return }
             if thread.moku == true { scene.setMokuOpen(true, readingTarget: target); return }
-            guard !thread.isHiddenFromUser else { return }
+            guard !thread.isHiddenFromUser || target?.position == .result else { return }
         } else if !applicationHost.canOpen(ref.typeID) { return }
         if selected != ref || performanceVisit?.recordingID != NativePerformance.recordingID {
             beginPerformanceVisit(ref)
@@ -203,6 +203,19 @@ public final class NativeWorkspacePresentation {
             ? workspace.catalog.thread(reference.thread.threadID)?.observation.latestExecution?.executionID : nil
         open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
             requestID: JSONText(UUID().uuidString), mode: current == reference.executionID ? .current : .history))
+    }
+
+    public func openNoteExecution(_ reference: ApplicationExecutionRef) {
+        // The public catalog excludes private background agents. Failed and
+        // interrupted ordinary threads remain valid explicit reading targets.
+        guard reference.thread.typeID == "agent",
+              let thread = workspace.catalog.thread(reference.thread.threadID),
+              thread.moku != true, !thread.mokuHistory else {
+            workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.preferences.locale.rawValue))))
+            return
+        }
+        open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
+            requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
     }
 
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
@@ -518,6 +531,7 @@ public struct NativeWorkspaceView: View {
                     presentation: presentation.moku,
                     note: presentation.moku.note,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
+                    openExecution: presentation.openNoteExecution,
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) },
                     canStartVoice: { canStartMokuVoice }, startVoice: startMokuVoice)

@@ -39,6 +39,7 @@ def main():
              "NativeMokuHistoryComposerTests" if "--moku-composer" in sys.argv else
              "NativeMokuLandingTests" if "--moku-landing" in sys.argv else
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
+             "NativeMokuExecutionLinkTests" if "--moku-execution-links" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
@@ -82,6 +83,7 @@ def main():
         replay.export(evidence)
         replay.close()
     count = (4 if isolated_input else
+             4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else

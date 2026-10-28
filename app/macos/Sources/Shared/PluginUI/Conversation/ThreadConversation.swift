@@ -32,8 +32,10 @@ public struct ThreadConversationReadingTarget: Hashable, Sendable {
     public let mode: Mode
     public let executionId: JSONText
     public let anchorId: JSONText?
-    public init(requestId: JSONText, mode: Mode, executionId: JSONText, anchorId: JSONText? = nil) {
-        self.requestId = requestId; self.mode = mode; self.executionId = executionId; self.anchorId = anchorId
+    public let follow: Bool
+    public let position: HarnessReadingTarget.Position
+    public init(requestId: JSONText, mode: Mode, executionId: JSONText, anchorId: JSONText? = nil, position: HarnessReadingTarget.Position = .start, follow: Bool = false) {
+        self.requestId = requestId; self.mode = mode; self.executionId = executionId; self.anchorId = anchorId; self.position = position; self.follow = follow
     }
 }
 
@@ -117,12 +119,16 @@ public struct ThreadConversation: View {
         if case .document = destination { return false }; return true
     }
     private var selectedPage: ThreadConversationRow? {
-        if case let .history(id) = destination { return visibleRows.first { $0.id == id && historicalIDs.contains(id) } }
+        if case let .history(id) = destination { return visibleRows.first { $0.id == id && (readingTarget?.position == .result || historicalIDs.contains(id)) } }
         return nil
+    }
+    private var resultVisit: Bool {
+        readingTarget?.position == .result && destination == requestedDestination
     }
     private var scrollTarget: ThreadTimelineReadingTarget? {
         guard destination == requestedDestination, let consumedRequest, let acceptedAnchor else { return nil }
-        return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: acceptedAnchor)
+        return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: acceptedAnchor,
+            follow: readingTarget?.position == .result && readingTarget?.follow == true)
     }
     public var body: some View {
         Group {
@@ -147,6 +153,7 @@ public struct ThreadConversation: View {
         .onChange(of: effectiveRunningID) { _, _ in manualWork = nil }
         .onChange(of: readingTarget) { _, _ in consumeReadingTarget() }
         .onChange(of: visibleRows.map(\.id)) { _, _ in promoteCurrentPage(); consumeReadingTarget() }
+        .onChange(of: visibleRows.map { $0.execution?.readable }) { _, _ in consumeReadingTarget() }
         .onChange(of: readingPage) { _, open in
             if let token = navigationToken { navigation?.unregister(token); navigationToken = nil }
             if open {
@@ -273,7 +280,8 @@ public struct ThreadConversation: View {
     }
     private func historyPage() -> some View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
-                              readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
+                              active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
+                              result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               showBack: navigation == nil, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
@@ -310,21 +318,31 @@ public struct ThreadConversation: View {
             }
             return
         }
+        let index = visibleRows.firstIndex { $0.execution?.id == target.executionId && $0.execution?.readable != false }
         if consumedRequest == target.requestId {
-            if destination == requestedDestination, acceptedAnchor == nil { acceptedAnchor = target.anchorId }
-            return
+            guard destination == requestedDestination else { return }
+            // Lifecycle delivery can precede the reader's manifest. Reconcile
+            // availability without inventing a new visit or changing its target.
+            if destination == .unavailable, index != nil { locatedRequest = nil }
+            else if destination != .unavailable, index == nil { locatedRequest = nil }
+            else {
+                if acceptedAnchor == nil { acceptedAnchor = target.anchorId }
+                return
+            }
         }
         consumedRequest = target.requestId
-        acceptedAnchor = target.anchorId
-        let index = visibleRows.firstIndex { $0.execution?.id == target.executionId && $0.execution?.readable != false }
+        acceptedAnchor = target.position == .result ? threadExecutionResultAnchor(target.executionId) : target.anchorId
         if let index {
             let id = visibleRows[index].id
-            destination = target.mode == .current || index == lastExecutionIndex ? .document(inline: id) : .history(id)
+            // A result visit owns exactly one execution, including while it is
+            // current. A successor cannot move its content or following target.
+            destination = target.position == .result ? .history(id)
+                : target.mode == .current || index == lastExecutionIndex ? .document(inline: id) : .history(id)
         } else { destination = .unavailable }
         requestedDestination = destination
     }
     private func promoteCurrentPage() {
-        guard case let .history(id) = destination, visibleRows.contains(where: { $0.id == id }), !historicalIDs.contains(id) else { return }
+        guard !resultVisit, case let .history(id) = destination, visibleRows.contains(where: { $0.id == id }), !historicalIDs.contains(id) else { return }
         let promoted = ConversationDestination.document(inline: id)
         if requestedDestination == destination { requestedDestination = promoted }
         destination = promoted
@@ -386,6 +404,8 @@ private struct ThreadHistoryDocument: View {
     let threadId: JSONText
     let page: ThreadConversationRow?
     let rowContent: AnyView?
+    let active: Bool
+    let result: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let locatedRequestId: JSONText?
     let onLocated: (JSONText) -> Void
@@ -393,12 +413,14 @@ private struct ThreadHistoryDocument: View {
     let onBack: () -> Void
     @Environment(\.locale) private var locale
     @State private var users = false
-    @State private var work = false
+    @State private var manualWork: Bool?
+    private var work: Bool { manualWork ?? (result && active) }
     @FocusState private var headingFocused: Bool
     var body: some View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
-            toolbar: AnyView(header), emptyState: AnyView(Text(localize("无法找到报告关联的历史执行。"))),
+            toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
+            followOutput: result, followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: users, work: work))
             .overlay(alignment: .topLeading) {
@@ -439,7 +461,7 @@ private struct ThreadHistoryDocument: View {
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
     private func toggleUsers() { users.toggle() }
-    private func toggleWork() { work.toggle() }
+    private func toggleWork() { manualWork = !work }
     private func emoji(_ id: JSONText) -> String {
         let emojis = ["🌿", "🪐", "🧩", "🎨", "🦊", "🌊", "🍋", "🪁", "💡", "🌻", "🐳", "🏕️"]
         let hash = id.codeUnits.reduce(UInt32(2_166_136_261)) { ($0 ^ UInt32($1)) &* 16_777_619 }

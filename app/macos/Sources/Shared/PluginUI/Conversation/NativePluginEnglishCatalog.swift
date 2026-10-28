@@ -62,6 +62,7 @@ enum NativePluginEnglishCatalog {
         "历史对话": "Past conversation",
         "前 {count} 轮对话": "{count} previous turns",
         "前 1 轮对话": "1 previous turn",
+        "链接指向的执行不可用。": "The linked execution is unavailable.",
         "历史执行不可用": "Historical execution unavailable",
         "无法找到报告关联的历史执行。": "The historical execution linked by this report could not be found.",
         "完成时间：": "Completion time:",

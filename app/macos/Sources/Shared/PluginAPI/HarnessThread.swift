@@ -560,25 +560,29 @@ public struct HarnessRespondRequest: Hashable, Sendable {
 }
 
 public struct HarnessReadingTarget: Hashable, Sendable {
+    public enum Position: String, CaseIterable, Hashable, Sendable { case start, result }
     public enum Mode: String, CaseIterable, Hashable, Sendable { case current, history }
     public let executionID: JSONText
     public let requestID: JSONText
     public let mode: Mode
     public let message: JSONValue?
-    public init(executionID: JSONText, requestID: JSONText, mode: Mode, message: JSONValue? = nil) {
-        self.executionID = executionID; self.requestID = requestID; self.mode = mode; self.message = message
+    public let position: Position
+    public init(executionID: JSONText, requestID: JSONText, mode: Mode, message: JSONValue? = nil, position: Position = .start) {
+        self.executionID = executionID; self.requestID = requestID; self.mode = mode; self.message = message; self.position = position
     }
     public init(json: JSONValue) throws {
-        let r = try ThreadContractReader(json, path: "readingTarget", keys: ["executionId", "requestId", "mode", "message"])
+        let r = try ThreadContractReader(json, path: "readingTarget", keys: ["executionId", "requestId", "mode", "message", "position"])
         executionID = try r.rawText("executionId")
         requestID = try r.rawText("requestId")
         mode = try r.enumeration("mode", as: Mode.self)
         message = r.values["message"]
+        position = r.values["position"] == nil ? .start : try r.enumeration("position", as: Position.self)
         if let message { try PluginJSONValidation.validate(message) }
     }
     public var json: JSONValue {
         var object: [JSONText: JSONValue] = ["executionId": .string(executionID), "requestId": .string(requestID), "mode": .text(mode.rawValue)]
         object["message"] = message
+        if position != .start { object["position"] = .text(position.rawValue) }
         return .object(object)
     }
 }

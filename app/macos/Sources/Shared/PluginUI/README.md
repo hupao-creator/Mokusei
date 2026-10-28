@@ -166,3 +166,19 @@ Timeline offsets normalize `contentOffset.y` by `contentInsets.top` before
 feeding `ScrollPosition`, retained history positions or relative scroll commands.
 Snapshots keep the raw offset and inset alongside the normalized position so
 replays can detect coordinate drift instead of accepting a finite but wrong value.
+
+Execution-result visits use the existing nested reader for current as well as
+historical executions, so streaming, completion and a successor never replace
+the referenced execution. Each Harness's typed detail rows supply visible
+content/process semantics and mark final reply rows separately from reviews or
+status messages. Once a body is loaded, its final reply (from its first text part,
+or latest visible row/status when absent) mounts the result anchor; manifests do not claim
+a content location. Running result visits enable the existing output following.
+Upward user scrolling stops it immediately, and Jump to latest restores it.
+Internal execution URLs are admitted by the shared Markdown parser but dispatched
+only through an explicitly supplied typed execution callback, currently the Moku
+note. They never fall through to external navigation.
+
+Timeline anchors retain document coordinates through nested rows. If a requested
+position is initially clamped because Markdown has not finished layout, content
+growth retries that location until it is reachable or the user scrolls.

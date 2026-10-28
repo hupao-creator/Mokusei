@@ -55,3 +55,9 @@ checks real WebKit scrolling, intermediate animation alignment, reversal, restor
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
 editable/dialog key ownership, non-GET new-window rejection and remote-page
 navigation resets with production views.
+
+Moku note execution links enter through `openNoteExecution`, which admits public
+ordinary threads, including archived and failed/interrupted threads hidden from
+Overview. The result reading request is exact and does not start execution. A
+missing or ineligible thread shows an unavailable notice; a missing execution
+uses the reader's unavailable page. Each click receives a fresh reading request.

@@ -47,6 +47,7 @@ public struct NativeMokuDock: View {
     public var presentation: NativeMokuWorkspacePresentation?
     public var note: NativeMokuNote?
     public var openExternal: ((URL) -> Void)?
+    public var openExecution: ((ApplicationExecutionRef) -> Void)?
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
@@ -90,6 +91,7 @@ public struct NativeMokuDock: View {
                 presentation: NativeMokuWorkspacePresentation? = nil,
                 note: NativeMokuNote? = nil,
                 openExternal: ((URL) -> Void)? = nil,
+                openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
                 onCancel: @escaping () -> Void,
@@ -107,7 +109,7 @@ public struct NativeMokuDock: View {
         self.onSend = onSend; self.onCancel = onCancel
         self.canStartVoice = canStartVoice; self.startVoice = startVoice
         self.presentation = presentation
-        self.note = note; self.openExternal = openExternal
+        self.note = note; self.openExternal = openExternal; self.openExecution = openExecution
         self.loadMentionDirectories = loadMentionDirectories
     }
     private var retaining: Bool { state.inputLeaving || state.capsuleSealed }
@@ -508,7 +510,7 @@ public struct NativeMokuDock: View {
                 NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
                                       routeEligible: state.notePanelOpen && state.overviewVisible
                                           && !state.dockCovered && !navigationDisabled,
-                                      openExternal: openExternal,
+                                      openExternal: openExternal, openExecution: openExecution,
                                       onContentHeightChange: { noteContentHeight = $0 },
                                       claimOpenArm: { state.claimNoteOpenArm() },
                                       onExposure: { state.recordNoteExposure($0) },

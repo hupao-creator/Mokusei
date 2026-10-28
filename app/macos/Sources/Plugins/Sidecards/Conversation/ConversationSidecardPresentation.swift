@@ -65,7 +65,7 @@ public final class ConversationSidecardPresentation {
 
     public var activeExecutionID: JSONText? { executionState.activeExecutionID(thread: context.thread) }
     public var sidecardExecutionID: JSONText? {
-        executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex)
+        executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex, readingTarget: context.readingTarget)
     }
     public var disabled: Bool { lifetime.isCancelled || context.thread.archived == true }
     public var waiting: Bool { context.thread.observation.latestExecution?.status == .waitingForUser }
@@ -81,7 +81,7 @@ public final class ConversationSidecardPresentation {
         guard !lifetime.isCancelled else { return }
         let shouldFocus = context.expanded && (!self.context.expanded
             || (disabled && !context.executionDisabled && context.thread.archived != true) || (sidecardExecutionID != nil
-            && executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex) == nil))
+            && executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex, readingTarget: context.readingTarget) == nil))
         self.context = context
         reconcileExecution()
         applyFocusRequest()
