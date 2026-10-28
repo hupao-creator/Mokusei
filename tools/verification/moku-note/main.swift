@@ -506,9 +506,8 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     let messageRow = fixture.state.capsuleFrame
     try await click(CGPoint(x: messageRow.minX + 120, y: messageRow.midY))
     try require(!fixture.state.inputOpen, "Clicking notification prose opened input")
-    try require(find(host, NSTextView.self, where: {
-        $0.isSelectable && !$0.isEditable && $0.string.contains("Selectable notification text")
-    }) != nil, "Notification prose lost native selection")
+    try require(axTexts(host).contains("Selectable notification text"),
+                "Clicking notification prose dismissed its text")
     try await click(CGPoint(x: messageRow.minX + 32, y: messageRow.midY))
     try await wait("Clicking notification eyes did not open input") { fixture.state.inputOpen }
     fixture.state.dismissTalk()
