@@ -96,15 +96,47 @@ struct MarkdownSourceRangeTests {
         }
     }
 
-    @Test(arguments: ["> ", "- ", "> 1. "])
+    @Test(arguments: ["> ", "- ", "> 1. ", ">\t", "-\t ", "1.\t", "> -\t", "> > "])
     func lazyMultilineCodeKeepsAdjacentRealFootnote(prefix: String) {
-        for delimiter in ["`", "``", "```"] {
-            let source = prefix + "text " + delimiter + "literal\n[^n]" + delimiter + "[^n]\n\n[^n]: note"
-            let result = spans(MarkdownParser.parse(source).blocks)
-            #expect(result.contains { $0.code && $0.text == "literal [^n]" }, "source: \(source.debugDescription)")
-            #expect(result.filter(\.superscript).count == 1, "source: \(source.debugDescription)")
-            #expect(!result.contains { $0.text.contains("\u{E000}mokusei-") }, "source: \(source.debugDescription)")
+        for delimiter in ["`", "``", "```", "````"] {
+            for ending in ["\n", "\r\n", "\r"] {
+                let raw = prefix + "界 e\u{301} " + delimiter + "literal\n[^n]" + delimiter + "[^n]\n\n[^n]: note"
+                let source = raw.replacingOccurrences(of: "\n", with: ending)
+                let result = spans(MarkdownParser.parse(source).blocks)
+                #expect(result.contains { $0.code && $0.text == "literal [^n]" }, "source: \(source.debugDescription)")
+                #expect(result.filter(\.superscript).count == 1, "source: \(source.debugDescription)")
+                #expect(!result.contains { $0.text.contains("\u{E000}mokusei-") }, "source: \(source.debugDescription)")
+            }
         }
+    }
+
+    @Test(arguments: ["", "> ", "- ", "1. ", "> > ", "> 1. ", ">\t", "-\t", "> -\t"])
+    func lazyHTMLAndProseUsePhysicalSourceColumns(prefix: String) {
+        let url = "https://example.com/a*b*c"
+        for ending in ["\n", "\r\n", "\r"] {
+            for leading in ["", " ", "  ", "\t"] {
+                for gap in ["", " ", "ab", "abcd"] {
+                    let raw = prefix + "text <span\n" + leading + "title=\"[^n]\">" + gap + "[^n]\n\n[^n]: note"
+                    let source = raw.replacingOccurrences(of: "\n", with: ending)
+                    let result = spans(MarkdownParser.parse(source).blocks)
+                    #expect(result.contains { $0.text.contains("title=\"[^n]\"") }, "source: \(source.debugDescription)")
+                    #expect(result.filter(\.superscript).count == 1, "source: \(source.debugDescription)")
+                    #expect(!result.contains { $0.text.contains("\u{E000}mokusei-") }, "source: \(source.debugDescription)")
+                }
+                let source = (prefix + "head\n" + leading + url).replacingOccurrences(of: "\n", with: ending)
+                let result = spans(MarkdownParser.parse(source).blocks)
+                #expect(result.contains { $0.link == url }, "source: \(source.debugDescription)")
+            }
+        }
+    }
+
+    @Test(arguments: ["", "\u{FEFF}"])
+    func parserInputNormalizationRetainsPhysicalOffsets(bom: String) {
+        let source = bom + "> nul\0 text <span\ntitle=\"\0[^n]\">[^n]\nhttps://example.com/a*b*c\n\n[^n]: note"
+        let result = spans(MarkdownParser.parse(source).blocks)
+        #expect(result.filter(\.superscript).count == 1)
+        #expect(result.contains { $0.link == "https://example.com/a*b*c" })
+        #expect(!result.contains { $0.text.contains("\u{E000}mokusei-") })
     }
 
     @Test func fencedCodeAndExplicitLinksRemainLiteral() {

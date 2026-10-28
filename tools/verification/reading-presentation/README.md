@@ -51,9 +51,9 @@ loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport
-and Report test sources into one AppKit host. It executes exactly the four
-input/responder methods deferred by SwiftPM, requiring all four to pass without
-skips, while their remaining methods execute in the normal Swift shards.
+and Report test sources into one AppKit host. It executes exactly the five
+input/responder and native-panel methods deferred by SwiftPM, requiring all five
+to pass without skips, while their remaining methods execute in the normal Swift shards.
 
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
@@ -432,9 +432,13 @@ for NFC-to-NFD body and code replacement without changing a document token.
 `MarkdownSourceRangeTests` exercises Paragraph, ATX/Setext, table, code and HTML
 boundaries under quotes and lists, including multiple/multiline definitions,
 Unicode/Tab columns, LF/CRLF, trailing input, adjacent blocks and lazy code
-continuations with an adjacent real footnote. It asserts both
+continuations with an adjacent real footnote. The lazy HTML/prose matrix checks
+attributes versus adjacent real references and full URLs across quote/list
+prefixes, omitted prefixes, spaces, tabs and CR/LF/CRLF; BOM/NUL fixtures check
+physical byte provenance through parser input normalization. It asserts both
 complete URLs and the absence of leaked footnote tokens. The native eight-case
-replay also renders a definition-prefixed Setext heading with literal code.
+replay also renders a definition-prefixed Setext heading with literal code,
+a multiline HTML attribute beside a real footnote, and a complete lazy-line URL.
 These run in the default Swift suite; the mounted source test requires a display.
 
 
@@ -452,6 +456,15 @@ runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 streaming follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
+
+## Report controls and recovery
+
+`--report-controls` runs the two focused regression cases.
+`--report-navigation` runs four cases, including actual
+WebKit confirm/prompt acceptance, alert completion, file-panel cancellation and
+a loopback binary response that must preserve the loaded report. The production
+Report detail is also mounted with a recovering HTML capability to ensure it
+does not retain a duplicate failure overlay at the same content revision.
 
 ## Model and reasoning selector
 

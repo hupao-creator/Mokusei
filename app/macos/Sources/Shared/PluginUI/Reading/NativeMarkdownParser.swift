@@ -275,87 +275,12 @@ enum MarkdownParser {
         return result
     }
 
-    /// Protect source syntax before cmark splits emphasis or decodes entities.
-    /// AST ranges keep code, explicit links/images and raw HTML literal.
-    private static func sourceRanges(_ source: String, visibleText: Bool = false) -> [NSRange] {
-        let rows = source.components(separatedBy: "\n")
-        let bytes = Array(source.utf8)
-        let byteCount = bytes.count
-        var starts: [Int] = []; var offset = 0
-        for row in rows { starts.append(offset); offset += row.utf8.count + 1 }
-        let document = Document(parsing: source, options: [.disableSmartOpts])
-        var blockStarts = Set<Int>()
-        func collectBlockStarts(_ node: any Markup) {
-            if node is any BlockMarkup, let start = node.range?.lowerBound.line { blockStarts.insert(start) }
-            node.children.forEach(collectBlockStarts)
-        }
-        collectBlockStarts(document)
-        // The AST establishes that this opener is a code span. Its exact-width
-        // closing run gives the physical endpoint even when lazy continuation
-        // omits container prefixes that cmark's multiline columns assume.
-        func codeEnd(from start: Int) -> Int? {
-            guard bytes.indices.contains(start), bytes[start] == 96 else { return nil }
-            var cursor = start
-            while cursor < bytes.count, bytes[cursor] == 96 { cursor += 1 }
-            let width = cursor - start
-            while cursor < bytes.count {
-                guard bytes[cursor] == 96 else { cursor += 1; continue }
-                let run = cursor
-                while cursor < bytes.count, bytes[cursor] == 96 { cursor += 1 }
-                if cursor - run == width { return cursor }
-            }
-            return nil
-        }
-        var ranges: [NSRange] = []
-        func collect(_ node: any Markup, lineOffset: Int = 0, blockColumnOffset: Int = 0) {
-            var lineOffset = lineOffset
-            var blockColumnOffset = blockColumnOffset
-            // cmark strips leading definitions without advancing inline lines.
-            // Setext headings also include their underline, and can include the
-            // next input line in their block range. Locate that known heading's
-            // delimiter without treating a following block as heading content.
-            if node is Paragraph || node is Heading, let block = node.range,
-               let inlineEnd = Array(node.children).last?.range?.upperBound.line {
-                blockColumnOffset = block.lowerBound.column - 1
-                var contentEnd = block.upperBound.line
-                if let heading = node as? Heading, block.lowerBound.line < contentEnd,
-                   rows.indices.contains(contentEnd - 1) {
-                    let marker = heading.level == 1 ? "=" : "-"
-                    let endRow = rows[contentEnd - 1]
-                    let isUnderline = endRow.range(of: "^[ \t>]*" + marker + "+[ \t]*$", options: .regularExpression) != nil
-                    if blockStarts.contains(contentEnd) || !isUnderline { contentEnd -= 1 }
-                    contentEnd -= 1
-                }
-                lineOffset = max(0, contentEnd - inlineEnd)
-            }
-            let literal = node is CodeBlock || node is InlineCode || node is Markdown.Link || node is Markdown.Image || node is HTMLBlock || node is InlineHTML
-            if visibleText && literal { return }
-            if visibleText ? node is Markdown.Text : literal {
-                guard let range = node.range,
-                      starts.indices.contains(range.lowerBound.line + lineOffset - 1), starts.indices.contains(range.upperBound.line + lineOffset - 1) else { return }
-                let lower = starts[range.lowerBound.line + lineOffset - 1] + range.lowerBound.column - 1
-                // cmark's multiline HTML endpoint omits block_offset.
-                let endColumnOffset = node is InlineHTML && range.lowerBound.line < range.upperBound.line ? blockColumnOffset : 0
-                var upper = starts[range.upperBound.line + lineOffset - 1] + range.upperBound.column - 1 + endColumnOffset
-                if node is InlineCode, let end = codeEnd(from: lower) { upper = end }
-                guard lower >= 0, upper >= lower, upper <= byteCount else { return }
-                let first = source.utf8.index(source.utf8.startIndex, offsetBy: lower)
-                let last = source.utf8.index(source.utf8.startIndex, offsetBy: upper)
-                if let first = String.Index(first, within: source), let last = String.Index(last, within: source) {
-                    ranges.append(NSRange(first..<last, in: source))
-                }
-            } else { node.children.forEach { collect($0, lineOffset: lineOffset, blockColumnOffset: blockColumnOffset) } }
-        }
-        collect(document)
-        return ranges
-    }
-
     private static func protectBareURLs(_ source: String) -> String {
         guard source.contains("://") || source.range(of: "www.", options: .caseInsensitive) != nil else { return source }
         // Only rewrite URLs that begin in actual prose. Reference definitions
         // (including multiline labels/titles) are absent from the inline AST;
         // a definition-shaped paragraph continuation remains a Text node.
-        let visible = sourceRanges(source, visibleText: true)
+        let visible = MarkdownSourceMap.ranges(source, visibleText: true)
         let result = NSMutableString(string: source)
         let matches = autolinkExpression.matches(in: source, range: NSRange(source.startIndex..., in: source))
         for match in matches.reversed() {
@@ -392,7 +317,7 @@ enum MarkdownParser {
 
     private static func prepareReferences(_ source: String, notes: [Footnote]) -> (source: String, tokens: [String: String]) {
         guard !notes.isEmpty, source.contains("[^") else { return (source, [:]) }
-        let protected = sourceRanges(source)
+        let protected = MarkdownSourceMap.ranges(source, visibleText: false)
         let raw = source as NSString
         let result = NSMutableString(string: source)
         let prefix = "\u{E000}mokusei-" + UUID().uuidString + "-"

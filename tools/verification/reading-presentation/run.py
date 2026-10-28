@@ -36,7 +36,7 @@ def main():
              "NativeHarnessFormTests" if "--harness-forms" in sys.argv else
              "NativeOverviewSearchTests" if "--overview-search" in sys.argv else
              "NativeOverviewMountingIntegrationTests" if "--overview-mounting" in sys.argv else
-             "NativeReportNavigationTests" if "--report-navigation" in sys.argv else
+             "NativeReportNavigationTests" if "--report-navigation" in sys.argv or "--report-controls" in sys.argv else
              "NativeSettingsTransitionTests" if "--settings-transition" in sys.argv else
              "NativeMarkdownLocalImageTests" if "--local-images" in sys.argv else
              "NativeMarkdownRegressionTests" if "--markdown" in sys.argv else
@@ -78,8 +78,11 @@ def main():
         isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
-                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack"]
-        selected = ("|".join(isolated_methods) if isolated_input else
+                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
+                            "reportNativeDialogsAndDownloadsPreserveTheDocument"]
+        selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
+                    if "--report-controls" in sys.argv else
+                    "|".join(isolated_methods) if isolated_input else
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
                     if glass_captures else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
@@ -91,7 +94,8 @@ def main():
         replay.export(evidence)
         replay.close()
     count = (4 if "--model-selector" in sys.argv else
-             4 if isolated_input else
+             5 if isolated_input else
+             2 if "--report-controls" in sys.argv else
              4 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
@@ -100,7 +104,7 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              14 if "--overview-search" in sys.argv else
              6 if "--overview-mounting" in sys.argv or "--moku-landing" in sys.argv else
-             2 if "--report-navigation" in sys.argv else
+             4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
              8 if "--markdown" in sys.argv else

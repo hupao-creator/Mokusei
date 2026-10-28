@@ -75,6 +75,13 @@ struct NativeMarkdownRegressionTests {
         `literal [^rate%20value]` and https://example.com/set*ext*path
         ===
 
+        > lazy head
+        https://example.com/lazy*a*b
+
+        > text <span
+        title="[^lazy-html]">[^lazy-html]
+
+        [^lazy-html]: LAZY_HTML_NOTE
         [^two words]: https://example.com/reference
         [^x]: Unreferenced escaped note.
         [^straße]: FIRST_NOTE_LINE
@@ -94,13 +101,16 @@ struct NativeMarkdownRegressionTests {
         let destinations = links(root).map { $0.1.absoluteString }
         #expect(destinations.contains("https://example.com/reference"))
         #expect(destinations.contains("https://example.com/set*ext*path"))
+        #expect(destinations.contains("https://example.com/lazy*a*b"))
+        #expect(rendered.contains("title=\"[^lazy-html]\""))
+        #expect(rendered.contains("LAZY_HTML_NOTE"))
         #expect(rendered.contains("literal [^rate%20value]"))
         #expect(destinations.contains("http://127.0.0.1/a*b*c.html"))
         #expect(destinations.contains("http://127.0.0.1/a~b~c.html"))
         #expect(destinations.contains("http://www.example.com/a*b*c.html"))
         #expect(destinations.contains("https://example.com/a%5Bb%5D.html") || destinations.contains("https://example.com/a[b].html"))
         #expect(rendered.contains("See https://example.com/a[b].html end."))
-        #expect(links(root).filter { $0.1.fragment != nil && !$0.1.absoluteString.contains("reference") }.count == 2)
+        #expect(links(root).filter { $0.1.fragment != nil && !$0.1.absoluteString.contains("reference") }.count == 3)
         #expect(!rendered.contains("mokusei-"))
     }
 
