@@ -45,6 +45,7 @@ import MokuseiPluginAPI
         filteredEmpty = false; original = false; draft.text = ""; draft.clearError()
         for directory in draft.directories { draft.removeDirectory(directory.path) }
         scene.dismissTalk()
+        scene.setInputOpen(true)
         status = "没有会话 · 中心输入"
         Task { for attachment in draft.attachments { await draft.removeAttachment(attachment.id) } }
     }
@@ -441,7 +442,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         fixture.outcome = .failure
         pressReturn()
         try await wait("Return did not begin the production send path") { self.fixture.running }
-        try require(fixture.landing && fixture.scene.inputOpen, "Pending dispatch left the center")
+        try require(fixture.landing && !fixture.scene.inputOpen, "Pending dispatch did not release the centered resident")
         try await wait("Failed send did not preserve its draft") {
             self.fixture.draft.error != nil && !self.fixture.draft.submitting
         }
@@ -449,7 +450,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         try await Task.sleep(for: .milliseconds(500))
         try await capture("02-failed")
         fixture.outcome = .success
-        window.makeFirstResponder(input)
+        window.makeFirstResponder(editor(in: window.contentView!))
         pressReturn()
         try await wait("Successful dispatch did not publish the first thread") { self.fixture.hasThread }
         try await wait("Successful dispatch did not collapse the Dock") { !self.fixture.scene.inputOpen && self.fixture.scene.capsuleFrame.width == 168 }

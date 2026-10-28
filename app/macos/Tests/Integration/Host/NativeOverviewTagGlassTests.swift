@@ -208,11 +208,13 @@ struct NativeOverviewTagGlassTests {
             for width in [360.0, 540.0, 1000.0] {
                 let fixture = TagGlassFixture(children: true)
                 let window = SwiftUIReplay.window(TagGlassReplay(fixture: fixture, showActions: true)
-                    .background(Color.cyan.gradient).preferredColorScheme(scheme), width: width, height: 260)
+                    .background(Color.cyan.gradient).preferredColorScheme(scheme), width: width, height: 260,
+                    offscreen: directory == nil)
                 window.animationBehavior = .none
-                // Keep the mounted controls away from the stationary pointer,
-                // as in the menu replay below; do not manufacture hover input.
-                if let screen = window.screen {
+                // Geometry-only runs must not inherit native glass hover from
+                // the runner's pointer as each replacement chip is mounted.
+                // WindowServer captures still need an on-screen window.
+                if directory != nil, let screen = window.screen {
                     let visible = screen.visibleFrame
                     window.setFrameOrigin(CGPoint(x: visible.minX,
                         y: NSEvent.mouseLocation.y < visible.midY ? visible.maxY - window.frame.height : visible.minY))

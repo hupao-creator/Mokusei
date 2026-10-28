@@ -12,7 +12,7 @@ settling, without restoring the retired AppKit scene host.
 All Moku capsule surfaces use the approved theme-aware gradient over native clear
 glass: warm black in dark appearance and pearl white in light appearance, fading
 toward the bottom with a fine warm edge. Production density is 85%. The shared
-material covers the Dock (idle, composer, Talk and note), landing notices, history
+material covers the Dock (idle, composer, Talk and note), history
 composer and interaction panel; the latter retains its existing explicit dark appearance.
 Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
 caret, eyes and the external reasoning Arc retain their existing theme ownership.
@@ -50,18 +50,26 @@ including documents exposed only inside a directory. Loading is not an empty
 workspace. Archiving/deleting the last eligible conversation restores landing;
 filtering to no results does not. No one-time onboarding flag is persisted.
 
-Submitting input keeps the center open. A durable first-task shell can precede
-native admission, so it remains behind landing while `create_thread` is pending.
-A successful public result for an eligible Thread returns the Dock to its existing
-bottom seat. Failure without an admitted conversation keeps the center available;
-an independently admitted conversation also ends it. Existing workspaces hydrate
-at the bottom. The same surface and Reduce Motion policy own the transition.
+Landing opens input once on entry. Submitting uses the ordinary sealed-draft
+collapse; failure reopens the preserved draft. Escape, outside click, input
+reopening and Stop use the same paths as the bottom Dock. Returning from a
+covering route or remounting cannot reopen input over a resident or message.
+Hydrating a running Moku or waiting message presents that state immediately.
 
-Talk and dispatch notices appear above the open landing composer without taking
-its editor, focus or draft. They reuse ordinary selectable Talk/dispatch content,
-outside-click dismissal and the deadline that starts only after actual presentation.
-Directory suggestions can temporarily cover the notice when vertical room is too
-short. Ordinary bottom-Dock notices retain their existing capsule presentation.
+The same persistent capsule and character host own running, thinking, Talk and
+dispatch. There is no separate landing notice. A manually opened editor defers
+notifications until it closes, without losing its draft. The centered compact
+resident, eyes, running orbit and reasoning ink scale together by 76/58; thinking
+still fits its complete glyph envelope to the viewport. Expanded landing rows
+retain the 680-point composer width and 76-point minimum height.
+
+A durable first-task shell can precede native admission, so it remains behind
+landing while `create_thread` is pending. A successful public result for an
+eligible Thread returns the same Dock to its bottom seat. Failure without an
+admitted conversation stays centered; an independently admitted conversation
+also ends landing. Existing workspaces hydrate at the bottom. The same surface
+and Reduce Motion policy own the transition.
+
 The [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
 exercises real workspace/catalog/presentation integration; the
 [interactive visual fixture](../../../../../demos/moku-landing/README.md) retains the

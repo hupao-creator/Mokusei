@@ -22,7 +22,9 @@ menu layout animation moving the editor independently of the outer glass/face.
 The replay first confirms that the actual menu opened and that Escape closed it.
 Narrow 300×190
 and 180×140 logical viewports must contain the renderer's full glyph envelope
-after fitting; Overview reservation remains unchanged.
+after fitting in both bottom and enlarged landing presentation; Overview
+reservation remains unchanged. Landing also crosses thinking → input → thinking
+through the same native face without forcing input open on entry during a run.
 
 `frames.json` records observed pose steps and clocks. The bound on eye movement
 detects discontinuous geometry replacement while allowing ordinary motion

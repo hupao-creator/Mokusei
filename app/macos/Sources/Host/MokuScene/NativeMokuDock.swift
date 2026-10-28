@@ -76,7 +76,6 @@ public struct NativeMokuDock: View {
     @State private var reasoningReady = false
     @State private var reasoningTransition = 0
     @State private var retainedReasoningGlyphs: [MokuReasoningGlyph] = []
-    @State private var landingNoticePresented = false
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
                 landing: Bool = false,
@@ -131,11 +130,6 @@ public struct NativeMokuDock: View {
               state.windowVisible, !disabled, !submitting, !draft.submitting else { return nil }
         return state.talkPresentation.message
     }
-    private var landingTalk: NativeMokuTalkMessage? {
-        guard landing, inputPresent, !state.dockCovered, state.overviewVisible,
-              state.windowVisible, !disabled, !submitting, !draft.submitting else { return nil }
-        return state.talkPresentation.message
-    }
     private var visibleVoiceTranscript: NativeMokuTalkMessage? {
         guard voiceModeActive, interaction == nil, !state.dockCovered, state.overviewVisible,
               state.windowVisible, !disabled else { return nil }
@@ -157,7 +151,7 @@ public struct NativeMokuDock: View {
     // A notification covered by live ASR has never been presented to the user.
     private var foregroundTalkID: JSONText? {
         guard visibleVoiceTranscript == nil else { return nil }
-        return visibleTalk?.id ?? (landingNoticePresented ? landingTalk?.id : nil)
+        return visibleTalk?.id
     }
     private var rowExpanded: Bool { (!voiceModeActive && state.inputOpen) || displayedMessage != nil }
     private var expanded: Bool { state.notePanelOpen || rowExpanded }
@@ -177,8 +171,8 @@ public struct NativeMokuDock: View {
         guard let message = displayedMessage else {
             return max(landing ? 76 : 58, capsuleHeight) + (completionVisible ? completionHeight : 0)
         }
-        if message.dispatch != nil { return 58 }
-        return NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing)
+        if message.dispatch != nil { return landing ? 76 : 58 }
+        return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing))
     }
     private var residentPresenting: Bool {
         !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
@@ -239,12 +233,17 @@ public struct NativeMokuDock: View {
             let arcBody = CGRect(x: surface.midX - arcSize.width / 2,
                                  y: surface.maxY - rowHeight / 2 - arcSize.height / 2,
                                  width: arcSize.width, height: arcSize.height)
+            // Scale the resident as one group so the eyes, orbit and thinking
+            // ink retain the ordinary capsule's proportions and shared clock.
+            let residentScale = landing && !expanded && frame.width > 0 && frame.height > 0
+                ? min(NativeMokuCapsuleLayout.landingScale, frame.width / max(1, surface.width), frame.height / max(1, surface.height)) : 1
             let placement = reasoningSeatReserved
-                ? NativeMokuReasoningPlacement.fit(surface: surface, arcBody: arcBody, viewport: viewport, glyphs: reasoningGlyphs)
-                : NativeMokuReasoningPlacement(surface: surface)
+                ? NativeMokuReasoningPlacement.fit(surface: surface, arcBody: arcBody, viewport: viewport,
+                    glyphs: reasoningGlyphs, preferredScale: residentScale)
+                : NativeMokuReasoningPlacement(surface: surface.insetBy(dx: surface.width * (1 - residentScale) / 2,
+                    dy: surface.height * (1 - residentScale) / 2), scale: residentScale)
             let panel = NativeMokuCapsuleLayout.panel(in: viewport, above: placement.surface,
                                                      question: interactionIsQuestion)
-            let notice = landingNoticeFrame(in: viewport, above: surface)
             let noteButtonRect: CGRect? = nil
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
@@ -254,11 +253,6 @@ public struct NativeMokuDock: View {
                     .scaleEffect(placement.scale)
                     .position(x: placement.surface.midX, y: placement.surface.midY)
                     .animation(surfaceAnimation, value: placement)
-                if let message = landingTalk, let notice {
-                    landingNotice(message, frame: notice)
-                        .position(x: notice.midX, y: notice.midY)
-                        .animation(surfaceAnimation, value: notice)
-                }
                 if let interaction {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
@@ -269,8 +263,7 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
-            .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil, noteButton: noteButtonRect, notice: notice), initial: true) { _, layout in
-                landingNoticePresented = state.overviewVisible && layout.notice != nil
+            .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil, noteButton: noteButtonRect), initial: true) { _, layout in
                 guard state.overviewVisible else {
                     state.dockHitRects = []
                     state.dockMentionHitRect = nil
@@ -280,7 +273,6 @@ public struct NativeMokuDock: View {
                 state.dockHitRects = [layout.surface.insetBy(dx: -5, dy: -5)]
                 if layout.interaction { state.dockHitRects.append(layout.panel) }
                 if let button = layout.noteButton { state.dockHitRects.append(button) }
-                if let notice = layout.notice { state.dockHitRects.append(notice) }
             }
             .onChange(of: interaction != nil, initial: true) { _, visible in
                 state.setDockInteractionVisible(state.overviewVisible && visible, question: interactionIsQuestion)
@@ -303,7 +295,7 @@ public struct NativeMokuDock: View {
                     },
                     click: { _ in
                         if state.notePanelOpen { state.setNotePanelOpen(false) }
-                        else if state.inputOpen && !landing { state.dismissInputForOutsideClick() }
+                        else if state.inputOpen { state.dismissInputForOutsideClick() }
                         else { state.dismissTalk() }
                     })
                 if state.notePanelOpen {
@@ -321,17 +313,16 @@ public struct NativeMokuDock: View {
             }
             .allowsHitTesting(false)
         }
-        .onChange(of: landingInputAvailable, initial: true) { _, available in
-            if available { state.setInputOpen(true) }
-        }
-        .onChange(of: landing) { _, active in
-            if !active {
+        .onChange(of: landing, initial: true) { _, active in
+            guard state.updateLanding(active) else { return }
+            if active {
+                if landingInputAvailable && !running && incomingTalk == nil { state.setInputOpen(true) }
+            } else {
                 state.retainDraft(draft)
                 state.setInputOpen(false)
             }
         }
         .onChange(of: state.inputOpen, initial: true) { _, open in
-            if !open && landingInputAvailable { state.setInputOpen(true); return }
             focusReady = false
             if open {
                 if voiceModeActive {
@@ -437,7 +428,6 @@ public struct NativeMokuDock: View {
             character.onReasoningRetired = nil
             reasoningRequested = false; reasoningReady = false; reasoningSeatReserved = false
             reasoningTransition += 1; retainedReasoningGlyphs = []
-            landingNoticePresented = false
             state.setTalkPresented(false)
             state.setNotePanelOpen(false)
             state.dockHitRects = []
@@ -456,32 +446,6 @@ public struct NativeMokuDock: View {
         var surface, panel: CGRect
         var interaction: Bool
         var noteButton: CGRect?
-        var notice: CGRect?
-    }
-    private func landingNoticeFrame(in viewport: CGRect, above surface: CGRect) -> CGRect? {
-        guard let message = landingTalk else { return nil }
-        let width = min(560, surface.width)
-        let available = max(0, surface.minY - viewport.minY - NativeWindowNavigationGeometry.safeAreaTop - 12)
-        let minimum = message.dispatch != nil ? 28.0 : NativeMokuTalkTypography.lineHeight
-        guard available >= minimum + 24 else { return nil }
-        let content = message.dispatch != nil ? 28.0
-            : min(NativeMokuTalkTypography.maximumHeight, NativeMokuTalkTypography.height(message.text, width: width - 32))
-        let height = min(available, content + 24)
-        return CGRect(x: surface.midX - width / 2, y: surface.minY - height - 12, width: width, height: height)
-    }
-    private func landingNotice(_ message: NativeMokuTalkMessage, frame: CGRect) -> some View {
-        Group {
-            if let dispatch = message.dispatch {
-                NativeMokuDispatchContent(dispatch: dispatch, harness: dispatchHarness(dispatch)) { dispatchDetail = message }
-            } else { NativeMokuTalkContent(message: message) }
-        }
-        .frame(width: max(1, frame.width - 32), height: max(0, frame.height - 24))
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .background { NativeMokuCapsuleGlass().id(colorScheme) }
-        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
-        .nativeCanvasNavigationRegion()
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("moku-landing-notice")
     }
     private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat,
                          noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat) -> some View {
@@ -560,6 +524,7 @@ public struct NativeMokuDock: View {
             // the input, so menu and shell animation cannot affect it.
             HStack(alignment: .center, spacing: 15) {
                 NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .face)
+                    .scaleEffect(landing && expanded ? NativeMokuCapsuleLayout.landingScale : 1)
                     .frame(width: 58, height: 49)
                     .frame(width: 34, height: 25)
                     .allowsHitTesting(false).accessibilityHidden(true)
@@ -632,8 +597,7 @@ public struct NativeMokuDock: View {
         .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
         .nativeCanvasNavigationRegion()
         .accessibilityElement(children: .contain).accessibilityLabel("Moku")
-        .accessibilityHint(landing ? localize("输入任务交给 Moku", "Type a task for Moku")
-            : localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
+        .accessibilityHint(localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
         .accessibilityIdentifier("moku-capsule")
     }
@@ -664,15 +628,15 @@ public struct NativeMokuDock: View {
                 // last open seat until live editing resumes.
                 if state.inputOpen { editorBottomInset = $0 }
             },
-            onEscape: { if !landing { state.setInputOpen(false) } }, onSend: send)
+            onEscape: { state.setInputOpen(false) }, onSend: send)
     }
 
     private func send() {
         guard !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
-        state.retainDraft(draft, seal: !landing)
+        state.retainDraft(draft, seal: true)
         state.dismissTalk()
         submitting = true
-        if !landing { state.setInputOpen(false) }
+        state.setInputOpen(false)
         Task {
             await draft.submit(onSend)
             submitting = false

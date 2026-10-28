@@ -62,7 +62,6 @@ def prepare():
 
 
 def verify(evidence):
-    deadline.remaining()
     manifest = json.loads(MANIFEST.read_text())
     for key, value in identity().items():
         if manifest.get(key) != value:
@@ -102,11 +101,23 @@ def main():
         with (args.evidence / f"swift-{args.shard}.log").open("w") as log:
             receipt["exit_code"] = deadline.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
         receipt["status"] = "passed" if receipt["exit_code"] == 0 else "failed"
+    except (OSError, TimeoutError) as error:
+        receipt.update(status="failed", error=str(error))
     finally:
         receipt["finishedAt"] = time.time()
         path.write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps(receipt | {"tests": len(receipt["tests"])}))
     if receipt["status"] != "passed":
+        log = args.evidence / f"swift-{args.shard}.log"
+        text = log.read_text(errors="replace") if log.exists() else "No Swift log was captured."
+        failures = [line for line in text.splitlines()
+                    if re.search(r"recorded an issue|Expectation failed|error:|failed after|failed \(|Incomplete", line)]
+        excerpt = "\n".join(failures[:40])[-12000:] if failures else text[-12000:]
+        message = f"Swift shard {args.shard}: exit={receipt.get('exit_code')}; {receipt.get('error', 'test process failed')}"
+        print(message + "\n" + excerpt, flush=True)
+        if "GITHUB_STEP_SUMMARY" in os.environ:
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                summary.write(f"\n### Swift failure\n\n{message}\n\n````text\n{excerpt}\n````\n\nFull log: `{log}`\n")
         raise SystemExit(1)
 
 
