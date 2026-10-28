@@ -18,7 +18,7 @@ revision cannot certify the new revision.
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only clipboard/profile-lease tests on macOS |
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh and cache ownership | Linux `adapters` replay group; scripted external peers and loopback services |
-| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Three disjoint shards after one macOS build; display skips fail CI; DirectoryTag is included once |
+| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Five disjoint shards after one macOS build; display skips fail CI; DirectoryTag is included once |
 | Generated Swift fixtures | Go-produced initial-response, Moku status, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five fixture producers before the Swift shards |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage and native profile leases | Six existing interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
@@ -30,12 +30,12 @@ turn a regression into an allowlist entry.
 
 ## Runtime budget and runner allocation
 
-Every CI attempt has a less-than-ten-minute acceptance budget. Current sources
-are built once; an exact run/attempt manifest gates shared artifacts. Three
-Swift shards plus interop and native-host lanes use five macOS runners in
-parallel, with serial GUI work inside each runner. All discovered method IDs
+Every CI attempt has a less-than-fifteen-minute acceptance budget. Current sources
+are built once; an exact run/attempt manifest gates shared artifacts. Five
+macOS runners balance their Swift shards plus assigned interop/native-host work
+in parallel, with serial GUI work inside each runner. All discovered method IDs
 must appear exactly once; weights are scheduling hints, never a coverage list.
-Owned commands share a 570-second deadline and final status/time checks retain
+Owned commands share an 840-second deadline and final status/time checks retain
 cleanup headroom. Actual hosted wall time is the acceptance evidence.
 
 ## Extended hosted gate

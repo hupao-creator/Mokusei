@@ -14,7 +14,8 @@ import deadline
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("group", choices=["runtime", "adapters", "fixtures", "interop", "native"])
+    parser.add_argument("group", choices=["runtime", "adapters", "fixtures", "interop", "native",
+                                         "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--go", default=os.environ.get("MOKUSEI_GO", "go"))
     args = parser.parse_args()
@@ -69,6 +70,15 @@ def main():
               for name in ["browser-dialogs", "application-navigation", "tag-glass-captures"]],
         ],
     }
+    # Keep GUI work serial in each process/session, but spread independent
+    # boundary replays across all five runners instead of two long tails.
+    groups["interop-wire"] = groups["interop"][:6]
+    groups["interop-process"] = groups["interop"][6:]
+    groups["native-runtime"] = groups["native"][:3]
+    groups["native-capture"] = [groups["native"][3], groups["native"][5]]
+    groups["native-controls"] = [groups["native"][4],
+        ("isolated-input", [sys.executable, "tools/verification/reading-presentation/run.py", "--isolated-input"])]
+    groups["native"].extend(groups["native-controls"][1:])
     if args.group == "fixtures":
         environment.update(fixtures)
     records = [{"name": name, "command": command, "status": "not_run", "log": name + ".log"}

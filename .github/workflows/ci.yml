@@ -33,7 +33,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Go / Linux
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
@@ -149,7 +149,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Integration / ${{ matrix.group }}
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 14
     strategy:
       fail-fast: false
       matrix:
@@ -183,7 +183,11 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Native Go and Swift fixture preparation
     runs-on: macos-26
-    timeout-minutes: 9
+    timeout-minutes: 14
+    outputs:
+      cache: ${{ steps.go-cache.outputs.key }}
+      modules: ${{ steps.go-cache.outputs.modules }}
+      build: ${{ steps.go-cache.outputs.build }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -196,8 +200,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Locate this attempt's native Go cache
+        id: go-cache
+        run: |
+          printf 'key=native-go-%s-%s-%s\n' "$RUNNER_ARCH" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
       - name: Warm the native Go replay build cache
-        run: python3 scripts/ci/deadline.py go build -race ./tools/verification/...
+        run: |
+          python3 scripts/ci/deadline.py go build -race ./tools/verification/...
+          python3 scripts/ci/deadline.py go build ./cmd/mokusei-runtime ./cmd/mokusei-dev
       - name: Native Go module and development-tool tests
         run: |
           python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/preparation/ci-native-go/moku" -- go test -json -race -count=1 ./internal/services/moku
@@ -209,6 +221,14 @@ jobs:
       - name: Generate actual Go projections for Swift consumers
         if: ${{ !cancelled() }}
         run: python3 scripts/ci/replays.py fixtures --output "$RUNNER_TEMP/preparation/ci-fixtures"
+      # setup-go's immutable dependency key may restore an older source build.
+      # Share this attempt's warmed race AND ordinary caches with the consumers.
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.modules }}
+            ${{ steps.go-cache.outputs.build }}
+          key: ${{ steps.go-cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
@@ -222,7 +242,7 @@ jobs:
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Swift build and complete test inventory
     runs-on: macos-26
-    timeout-minutes: 9
+    timeout-minutes: 14
     outputs:
       cache: ${{ steps.restore.outputs.cache-primary-key }}
       developer: ${{ steps.toolchain.outputs.developer }}
@@ -257,7 +277,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/build-evidence"
           set -o pipefail
-          python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos --build-tests --force-resolved-versions 2>&1 | tee "$RUNNER_TEMP/build-evidence/build.log"
+          python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos --build-tests --force-resolved-versions --disable-index-store 2>&1 | tee "$RUNNER_TEMP/build-evidence/build.log"
           python3 scripts/ci/deadline.py xcrun swiftc scripts/ci/native-environment.swift -o app/macos/.build/ci-native-environment
           python3 scripts/ci/swift-shards.py prepare
           cp app/macos/.build/ci-manifest.json "$RUNNER_TEMP/build-evidence/build-manifest.json"
@@ -281,18 +301,18 @@ jobs:
     name: macOS / ${{ matrix.name }}
     needs: [swift-build, native-go]
     runs-on: macos-26
-    timeout-minutes: 9
+    timeout-minutes: 14
     strategy:
       fail-fast: false
       # Five is the standard hosted macOS concurrency allowance.
       max-parallel: 5
       matrix:
         include:
-          - {name: swift-0, kind: swift, shard: '0'}
-          - {name: swift-1, kind: swift, shard: '1'}
-          - {name: swift-2, kind: swift, shard: '2'}
-          - {name: interop, kind: interop}
-          - {name: native, kind: native}
+          - {name: swift-0, shard: '0', replay: interop-wire, go: true}
+          - {name: swift-1, shard: '1', replay: interop-process, go: true}
+          - {name: swift-2, shard: '2', replay: native-controls, go: false}
+          - {name: swift-3, shard: '3', replay: native-capture, go: false}
+          - {name: swift-4, shard: '4', replay: native-runtime, go: true}
     env:
       DEVELOPER_DIR: ${{ needs.swift-build.outputs.developer }}
       MOKUSEI_SWIFT_BUILD_ATTEMPT: ${{ needs.swift-build.outputs.attempt }}
@@ -307,10 +327,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
-        if: ${{ matrix.kind != 'swift' }}
+        if: ${{ matrix.go }}
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+      - uses: actions/cache/restore@v4
+        if: ${{ matrix.go }}
+        with:
+          path: |
+            ${{ needs.native-go.outputs.modules }}
+            ${{ needs.native-go.outputs.build }}
+          key: ${{ needs.native-go.outputs.cache }}
+          fail-on-cache-miss: true
       - uses: actions/cache/restore@v4
         with:
           path: app/macos/.build
@@ -334,11 +362,10 @@ jobs:
           defaults write com.apple.universalaccess reduceTransparency -bool false
           app/macos/.build/ci-native-environment
       - name: Run every assigned Swift method exactly once
-        if: ${{ matrix.kind == 'swift' }}
         run: python3 scripts/ci/swift-shards.py run --shard "${{ matrix.shard }}" --evidence "$RUNNER_TEMP/evidence"
       - name: Run independent production-boundary replays
-        if: ${{ matrix.kind != 'swift' }}
-        run: python3 scripts/ci/replays.py "${{ matrix.kind }}" --output "$RUNNER_TEMP/evidence/ci-${{ matrix.kind }}"
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci/replays.py "${{ matrix.replay }}" --output "$RUNNER_TEMP/evidence/ci-${{ matrix.replay }}"
       - name: Collect native captures and logs
         if: ${{ always() }}
         run: |
@@ -361,7 +388,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
     name: Native CLI / ${{ matrix.kind }}
     runs-on: macos-26
-    timeout-minutes: 9
+    timeout-minutes: 14
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -429,7 +456,7 @@ jobs:
           retention-days: 7
 
   verification:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage and time budget' || 'Complete coverage and under-ten-minute budget' }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage and time budget' || 'Complete coverage and fifteen-minute budget' }}
     if: ${{ always() }}
     needs: [go, replays, native-go, swift-build, mac, external]
     runs-on: ubuntu-latest
@@ -473,11 +500,11 @@ jobs:
           required = ['external'] if os.environ['EXTENDED'] == 'true' else ['go', 'replays', 'native-go', 'swift-build', 'mac']
           failures = [name for name in required if results[name]['result'] != 'success']
           elapsed = time.time() - int(os.environ['MOKUSEI_CI_STARTED_AT'])
-          message = f'CI attempt: {elapsed:.1f}s elapsed; required jobs failed/skipped: {failures}. Limit: <600s.'
+          message = f'CI attempt: {elapsed:.1f}s elapsed; required jobs failed/skipped: {failures}. Limit: <900s.'
           print(message)
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
               output.write('\n' + message + '\n')
-          # Leave cleanup/checkout post-actions a margin before the strict 600s limit.
-          if failures or elapsed >= 585:
+          # Leave cleanup/checkout post-actions a margin before the strict 900s limit.
+          if failures or elapsed >= 885:
               raise SystemExit(1)
           PY

@@ -381,11 +381,22 @@ struct NativeOverviewTransitionTests {
         defer { window.close(); fixture.state.camera.dispose() }
         let oldCamera = fixture.state.camera.liveTransform
         let before = try frame("a", fixture)
+        let clearedAt = ProcessInfo.processInfo.systemUptime
         fixture.items = []
-        try await SwiftUIReplay.wait { fixture.state.isLayingOut }
-        try await Task.sleep(for: .milliseconds(45))
-        #expect(fixture.state.camera.liveTransform == oldCamera)
-        let exiting = try frame("a", fixture)
+        var sample: (NativeOverviewTransform, CGRect)?
+        // Sleep only sets a minimum delay: a busy runner can resume after the
+        // exit has completed. Sample the camera and a still-mounted moving
+        // card in the same main-actor turn, before checking either assertion.
+        try await SwiftUIReplay.wait {
+            guard fixture.state.isLayingOut, fixture.state.mountedCardIDs.contains("a"),
+                  (fixture.sampleTimes["a"] ?? 0) > clearedAt,
+                  let current = fixture.frames["a"], current.midY < before.midY,
+                  current.midY > before.midY - 9 else { return false }
+            sample = (fixture.state.camera.liveTransform, current)
+            return true
+        }
+        let (camera, exiting) = try #require(sample)
+        #expect(camera == oldCamera)
         #expect(abs(exiting.midX - before.midX) < 1)
         #expect(exiting.midY < before.midY && exiting.midY > before.midY - 9)
         try await settled(fixture)

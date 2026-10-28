@@ -21,6 +21,7 @@ def main():
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks)]
     glass_captures = "--tag-glass-captures" in sys.argv
+    isolated_input = "--isolated-input" in sys.argv
     tag_glass = "--tag-glass" in sys.argv or glass_captures
     suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
@@ -40,13 +41,15 @@ def main():
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
-    tests = package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{suite}.swift"
+    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests"]
+              if isolated_input else [suite])
+    tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
-    evidence = repo / ".scratch/reading-presentation" / suite
+    evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     try:
         replay.acquire()
-        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, tests], extra_args=args)
+        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
         if "--overview-search" in sys.argv:
             environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] = "1"
@@ -62,7 +65,12 @@ def main():
             fixture = replay.workspace / "harness-forms.json"
             subprocess.run([str(repo / "scripts/go.sh"), "run", "-race", "./tools/verification/opencode/cases/renderer", "-forms-output", str(fixture)], cwd=repo, check=True)
             environment["MOKUSEI_HARNESS_FORM_FIXTURE"] = str(fixture)
-        selected = ("directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
+        isolated_methods = ["ordinaryClickFocusesAndPersistsExactUnicodeReplacement",
+                            "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
+                            "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
+                            "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack"]
+        selected = ("|".join(isolated_methods) if isolated_input else
+                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
                     if glass_captures else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
         output = (replay.root / "stdout.log").read_text()
@@ -72,7 +80,8 @@ def main():
     finally:
         replay.export(evidence)
         replay.close()
-    count = (3 if "--rolling-numbers" in sys.argv else
+    count = (4 if isolated_input else
+             3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
@@ -88,6 +97,10 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if isolated_input:
+        for name in isolated_methods:
+            if f"Test {name}() passed" not in result.stdout:
+                raise SystemExit("FAIL: incomplete isolated input replay: " + name)
     if "--application-navigation" in sys.argv:
         if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 2 test cases passed" not in result.stdout:
             raise SystemExit("FAIL: application and Git navigation cases did not both pass")

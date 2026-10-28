@@ -31,8 +31,9 @@ runs overlap, so their counts are not unique coverage totals.
 The normal workflow runs Linux checks/replays alongside two macOS preparation
 jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
 the other **always builds** current Swift sources and all test targets. It lists
-methods from that binary, then partitions every discovered suite into three
-balanced groups. Historical suite weights affect placement only: new suites are
+methods from that binary, then partitions every discovered suite into five
+balanced groups, accounting for the replays assigned to each runner. Historical
+suite weights affect placement only: new suites are
 automatically included, never silently omitted.
 
 The successful build is shared through a unique run/attempt cache key. Cache
@@ -43,17 +44,23 @@ Xcode/Swift/SDK/compiler fingerprint and producer run/attempt before using
 Go/Swift replay commands still build unless explicitly given the verified-build
 option. Re-running failed jobs can reuse the successful producer's recorded attempt.
 
-Five macOS runners then execute concurrently: three serial Swift shards, one
-Go/Swift interop group and one isolated AppKit group. Tests within one graphical
-session remain serial. Only the two capture-dependent tag-glass methods need the
+Five macOS runners then execute concurrently. Each runs its Swift shard and
+assigned Go/Swift or isolated AppKit replays serially; scheduling weights balance
+the combined workload. Tests within one graphical session remain serial.
+Only the two capture-dependent tag-glass methods need the
 standalone host; its other five methods already execute in the Swift shards.
+The four input/responder methods deferred by the browser, history composer and
+Report suites share one isolated host, without repeating their other methods.
+The Go producer also exports this attempt's warmed race and ordinary build caches;
+downstream jobs do not depend on an older immutable dependency-cache entry.
+Swift CI omits the editor index store while retaining Debug code and test targets.
 DirectoryTag is also executed once. Four native-CLI/system runners are separate
 `extended=true` workflow dispatches, which do not repeat the normal workflow.
 The removed long-running stability check is not replaced with another soak.
 
-Each attempt must finish in **less than ten minutes**. Owned test/build commands
-stop against a shared 570-second deadline measured from GitHub's current attempt
-start, reserving cleanup time. Jobs also have a nine-minute timeout. Final job
+Each attempt must finish in **less than fifteen minutes**. Owned test/build commands
+stop against a shared 840-second deadline measured from GitHub's current attempt
+start, reserving cleanup time. Jobs also have a fourteen-minute timeout. Final job
 coverage and elapsed time are checked after uploading summaries, with cleanup
 headroom. Runner queue and Action download/cache delays are visible in the
 observed whole-attempt time; a slow or incomplete attempt cannot be reported as
@@ -122,7 +129,7 @@ requires changes to `main` to go through a pull request. Before merging, the
 branch must be up to date with `main`, and these GitHub Actions checks must pass:
 
 - `Go / Linux`
-- `Complete coverage and under-ten-minute budget`
+- `Complete coverage and fifteen-minute budget`
 
 The complete-coverage check includes every default job and the wall-clock budget.
 Optional extended dispatches use a distinct aggregate check name and cannot

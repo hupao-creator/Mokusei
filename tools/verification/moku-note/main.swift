@@ -793,16 +793,29 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     let evidence = URL(fileURLWithPath: CommandLine.arguments[3], isDirectory: true)
     try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
     let fixture = try Fixture(directory: profile)
+    let started = ProcessInfo.processInfo.systemUptime
+    func trace(_ message: String) {
+        print("EXPOSURE \(ProcessInfo.processInfo.systemUptime - started): \(message)")
+    }
     fixture.state.submitNoteExposure = { [weak fixture] id, revision in
         guard let fixture else { throw CancellationError() }
-        return try await NativeMokuNoteExposureSender.submit(workspace: fixture.workspace, id: id,
-                                                              revision: revision)
+        trace("submit \(id) revision=\(revision)")
+        do {
+            let status = try await NativeMokuNoteExposureSender.submit(workspace: fixture.workspace, id: id,
+                                                                     revision: revision)
+            trace("submit returned \(status)")
+            return status
+        } catch {
+            trace("submit failed: \(error)")
+            throw error
+        }
     }
     fixture.workspace.onCatalogChange = { [weak fixture] event in
         guard let fixture else { return }
         fixture.overview.receive(event)
         fixture.presentation.receive(event)
         fixture.state.reconcileNoteExposure(fixture.presentation.note)
+        trace("catalog revision=\(String(describing: fixture.presentation.note?.revision)) exposure=\(String(describing: fixture.presentation.note?.lastExposureRevision))")
     }
     fixture.workspace.onConnectionChange = { [weak fixture] status in
         if status == .connected { fixture?.state.retryNoteExposure() }
@@ -831,8 +844,26 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         fixture.state.notePanelOpen && fixture.state.capsuleFrame.height > 100
     }
     try require(fixture.state.noteUnread(note), "Opening optimistically acknowledged the note")
-    try await wait("Production tracker/Runtime did not publish exact exposure") {
-        fixture.presentation.note?.lastExposureRevision == note.revision
+    do {
+        try await wait("Production tracker/Runtime did not publish exact exposure") {
+            fixture.presentation.note?.lastExposureRevision == note.revision
+        }
+    } catch {
+        trace("active=\(NSApp.isActive) key=\(window.isKeyWindow) visible=\(window.isVisible) occlusion=\(window.occlusionState.rawValue) panel=\(fixture.state.notePanelOpen) capsule=\(fixture.state.capsuleFrame)")
+        trace(viewTree(host))
+        // Inspect the actual mounted probe only after failure. No instrumentation
+        // changes its arming, geometry, dwell or authenticated submission path.
+        if let probe = find(host, NSView.self, where: { String(describing: type(of: $0)) == "ExposureView" }) {
+            for member in Mirror(reflecting: probe).children {
+                trace("probe \(member.label ?? "?")=\(String(describing: member.value))")
+                if let tracker = member.value as? NativeMokuNoteExposureTracker {
+                    for state in Mirror(reflecting: tracker).children {
+                        trace("tracker \(state.label ?? "?")=\(String(describing: state.value))")
+                    }
+                }
+            }
+        }
+        throw error
     }
     let current = try unwrap(fixture.workspace.catalog.moku?.note, "Runtime note missing after receipt")
     try require(current.lastExposure?.revision == note.revision && current.lastExposure?.text == JSONText(note.text),

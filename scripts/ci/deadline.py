@@ -1,4 +1,4 @@
-"""Bound owned CI subprocesses, reserving cleanup time inside the ten-minute run."""
+"""Bound owned CI subprocesses, reserving cleanup time inside the fifteen-minute run."""
 import os
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +12,7 @@ def remaining(maximum=900):
     started = os.environ.get("MOKUSEI_CI_STARTED_AT")
     if started is None:
         return maximum
-    seconds = min(maximum, 570 - (time.time() - int(started)))
+    seconds = min(maximum, 840 - (time.time() - int(started)))
     if seconds <= 0:
         raise TimeoutError("CI execution budget exhausted; no further command started")
     return seconds

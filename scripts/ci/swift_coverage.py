@@ -104,13 +104,17 @@ def main():
         "MokuseiSettingsIntegrationTests.NativeSettingsUserFlows/dailySettingsFlow()",
         "MokuseiSettingsIntegrationTests.NativeOverviewTagGlassTests/directorySelectionResizeKeepsRoundedGlass()",
         "MokuseiSettingsIntegrationTests.NativeOverviewTagGlassTests/shortChildMorphKeepsBothCapsuleEnds()",
+        "MokuseiSettingsIntegrationTests.NativeMokuHistoryComposerTests/ordinaryClickFocusesAndPersistsExactUnicodeReplacement()",
+        "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets()",
+        "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom()",
+        "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack()",
     }
     allowed_skips = swift_launchers | {name.rsplit(".", 1)[0] + "/" + name.rsplit(".", 1)[1] for name in xctest_launchers}
     deferred = set()
-    log_paths = {index: one(f"swift-{index}.log") for index in range(3)}
+    log_paths = {index: one(f"swift-{index}.log") for index in range(5)}
     results, parser_errors, rows = summarize([(f"Swift shard {index + 1}", path) for index, path in log_paths.items() if path is not None])
     errors.extend(parser_errors)
-    for shard_index in range(3):
+    for shard_index in range(5):
         label = f"Swift shard {shard_index + 1}"
         receipt = read_json(one(f"swift-{shard_index}.json"))
         if receipt is None or receipt.get("status") != "passed" or receipt.get("exit_code") != 0:
@@ -148,7 +152,7 @@ def main():
         errors.append("Observed framework outcomes do not cover the complete inventory exactly once.")
 
     replay_passes = set()
-    for group in ("fixtures", "interop", "native"):
+    for group in ("fixtures", "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"):
         replay_path = one("ci-" + group + "/report.json")
         replay = read_json(replay_path)
         if replay is None:
@@ -171,7 +175,7 @@ def main():
         errors.append(f"Deferred method has no observed passing replay: {name}")
 
     rows += ["", "Named live-fixture/isolated-host methods require observed passing replay outcomes.",
-             "All discovered methods are observed once across three shards; directory tags are not repeated.",
+             "All discovered methods are observed once across five shards; directory tags are not repeated.",
              "Display-capability skips fail CI."]
     report = "\n".join(rows) + "\n"
     destination = Path(os.environ["RUNNER_TEMP"]) / "swift-summary.json"

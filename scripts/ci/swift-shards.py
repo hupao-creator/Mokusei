@@ -39,7 +39,12 @@ def prepare():
     for test in tests:
         suites.setdefault(test.split("/", 1)[0], []).append(test)
     weights = json.loads((ROOT / "scripts/ci/swift-suite-weights.json").read_text())
-    shards = [{"suites": [], "tests": [], "estimatedSeconds": 0} for _ in range(3)]
+    # Account for the real boundary replays sharing each native session. This
+    # lets shorter replay lanes consume more Swift work without GUI overlap.
+    replays = [("interop-wire", 95), ("interop-process", 105),
+               ("native-controls", 60), ("native-capture", 60), ("native-runtime", 100)]
+    shards = [{"suites": [], "tests": [], "replay": name, "estimatedSeconds": seconds}
+              for name, seconds in replays]
     for suite in sorted(suites, key=lambda name: (-weights.get(name, 1), name)):
         shard = min(shards, key=lambda row: row["estimatedSeconds"])
         shard["suites"].append(suite)
@@ -70,7 +75,7 @@ def verify(evidence):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["fingerprint", "prepare", "verify", "run"])
-    parser.add_argument("--shard", type=int, choices=range(3))
+    parser.add_argument("--shard", type=int, choices=range(5))
     parser.add_argument("--evidence", type=Path)
     args = parser.parse_args()
     if args.mode == "fingerprint":
