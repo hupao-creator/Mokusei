@@ -7,7 +7,7 @@ name: CI
   workflow_dispatch:
     inputs:
       extended:
-        description: 'Also run pinned native CLIs and system matrices'
+        description: 'Run only pinned native CLIs and system matrices'
         type: boolean
         default: false
 
@@ -16,8 +16,10 @@ permissions:
   actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  # Extended runs must wait for this branch's default run, not consume its
+  # native runner slots. A new commit still cancels stale verification.
+  cancel-in-progress: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
 
 defaults:
   run:
@@ -413,12 +415,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/cache/restore@v4
+        id: cli
+        with:
+          path: ${{ runner.temp }}/cli
+          key: pinned-native-cli-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}
       - name: Install only this runner's pinned native CLI
+        if: ${{ steps.cli.outputs.cache-hit != 'true' }}
+        timeout-minutes: 3
         env:
           CLI_PACKAGE: ${{ matrix.package }}
         run: |
-          python3 scripts/ci/deadline.py npm install --prefix "$RUNNER_TEMP/cli" --no-audit --no-fund "$CLI_PACKAGE"
-          printf '%s\n' "$RUNNER_TEMP/cli/node_modules/.bin" >> "$GITHUB_PATH"
+          python3 scripts/ci/deadline.py npm install --prefix "$RUNNER_TEMP/cli" --no-audit --no-fund --fetch-timeout=60000 --fetch-retries=1 "$CLI_PACKAGE"
+      - uses: actions/cache/save@v4
+        if: ${{ steps.cli.outputs.cache-hit != 'true' }}
+        with:
+          path: ${{ runner.temp }}/cli
+          key: ${{ steps.cli.outputs.cache-primary-key }}
+      - name: Expose the pinned native CLI
+        run: printf '%s\n' "$RUNNER_TEMP/cli/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Locate the actual Codex executable
         if: ${{ matrix.kind == 'codex' || matrix.kind == 'system' }}
         run: |

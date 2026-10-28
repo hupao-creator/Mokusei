@@ -56,6 +56,12 @@ downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.
 DirectoryTag is also executed once. Four native-CLI/system runners are separate
 `extended=true` workflow dispatches, which do not repeat the normal workflow.
+Default and extended attempts on the same branch share a concurrency group:
+extended attempts wait instead of taking the default attempt's macOS slots,
+while a new commit cancels stale work. Dispatch the extended gate after the
+default run completes so its queue does not consume the time budget. CLI installs
+are cached by exact package/version and architecture; a download gets at most
+three minutes instead of exhausting the verification budget.
 The removed long-running stability check is not replaced with another soak.
 
 Each attempt must finish in **less than fifteen minutes**. Owned test/build commands
