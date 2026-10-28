@@ -671,48 +671,8 @@ private struct CodexResourceStatus: View {
 private struct CodexSettingsPageAction: View {
     let label: String
     let action: () -> Void
-    @FocusState private var focused: Bool
-    @State private var keyboardFocused = false
-    @State private var hovering = false
-    @Environment(\.colorScheme) private var scheme
     var body: some View {
-        Button {
-            keyboardFocused = !Self.pointerEvent
-            action()
-        } label: {
-            HStack(spacing: 4) {
-                NativeIcon(name: "RefreshCw", size: 11)
-                Text(label)
-            }.font(NativeTypography.settings(size: 12))
-                .padding(.vertical, 2).frame(minHeight: 28)
-        }.buttonStyle(CodexSettingsPageActionStyle(hovering: hovering))
-            .onHover { hovering = $0 }.focusEffectDisabled().focused($focused)
-            .onChange(of: focused) { _, focused in keyboardFocused = focused && !Self.pointerEvent }
-            .overlay {
-                if focused && keyboardFocused {
-                    RoundedRectangle(cornerRadius: 7)
-                        .stroke(NativeAppKitPalette.color(scheme == .dark ? 0x8ebbea : 0x426b9a,
-                                                    alpha: scheme == .dark ? 112.0 / 255 : 69.0 / 255).swiftUI,
-                                lineWidth: 3)
-                        .padding(-3.5).allowsHitTesting(false)
-                }
-            }
-    }
-    private static var pointerEvent: Bool {
-        NativePlatformInput.isPointerEvent
-    }
-}
-
-private struct CodexSettingsPageActionStyle: ButtonStyle {
-    let hovering: Bool
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle((hovering ? NativeAppKitPalette.overview.ink : NativeAppKitPalette.settings.accent).swiftUI)
-            .background(hovering ? NativeAppKitPalette.pair(0xffffff, 0x2c2d29).swiftUI : .clear,
-                        in: RoundedRectangle(cornerRadius: 7))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.12), value: hovering)
-            .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.12), value: configuration.isPressed)
+        Button(label, systemImage: "arrow.clockwise", action: action).buttonStyle(.bordered)
     }
 }
 

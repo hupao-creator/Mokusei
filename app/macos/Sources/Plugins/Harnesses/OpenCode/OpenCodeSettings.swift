@@ -297,9 +297,20 @@ public struct OpenCodeHarnessSettingsView: View {
 }
 private struct OpenCodeResourceStatus: View {
     let resource: HarnessSettingsResource<OpenCodeSettingsPresentationData>
+    @Environment(\.nativeSettingsFormPage) private var formPage
     @Environment(\.locale) private var locale
     @State private var reloading = false
     @State private var failure: String?
+    @ViewBuilder private var refresh: some View {
+        if formPage { refreshButton.buttonStyle(.bordered) }
+        else { refreshButton.buttonStyle(OpenCodeButtonStyle()) }
+    }
+    private var refreshButton: some View {
+        Button(ocLocalized(reloading ? "正在刷新 OpenCode…" : "重试", locale: locale)) {
+            reloading = true; failure = nil
+            Task { @MainActor in defer { reloading = false }; do { try await resource.reload(refresh: true) } catch { failure = error.localizedDescription } }
+        }.disabled(reloading)
+    }
     private var accountPending: Bool {
         if case .ready(let data) = resource.state { return data.raw["accountCheckPending"] == .bool(true) }
         return false
@@ -314,10 +325,7 @@ private struct OpenCodeResourceStatus: View {
             if !hidden {
                 let status = ocCLIStatus(resource, locale: locale)
                 NativeSettingsNotice(message: failure ?? status.text, kind: failure == nil ? status.kind : .error,
-                    action: AnyView(Button(ocLocalized(reloading ? "正在刷新 OpenCode…" : "重试", locale: locale)) {
-                        reloading = true; failure = nil
-                        Task { @MainActor in defer { reloading = false }; do { try await resource.reload(refresh: true) } catch { failure = error.localizedDescription } }
-                    }.buttonStyle(OpenCodeButtonStyle()).disabled(reloading)))
+                    action: AnyView(refresh))
             }
         }
         .task(id: accountPending) {

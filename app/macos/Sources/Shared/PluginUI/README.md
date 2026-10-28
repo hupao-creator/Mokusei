@@ -157,6 +157,11 @@ results are discarded without changing the new import's status or error.
 Settings Harness editors share the native select, row/group, defaults toggle and
 CLI status components. CLI status accepts an optional action in the shared notice
 row so a Harness can expose refresh without building a separate status layout.
+`nativeSettingsFormPage` scopes the system popup, rounded fields, switches,
+popover help and bezel-bordered NSTextView presentation to Settings. Other
+surfaces keep their existing control presentation. The adapters preserve field
+activation, native composition/Undo and semantic interaction registrations;
+Harnesses remain responsible for available options and dependent selections.
 
 ## Motion and materials
 

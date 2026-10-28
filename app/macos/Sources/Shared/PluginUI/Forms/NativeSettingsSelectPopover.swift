@@ -2,21 +2,29 @@ import AppKit
 import MokuseiCore
 import SwiftUI
 
-/// Source sf-select styling, including its opaque, anchor-width option list.
+/// Settings pages use the system popup; other embedded editors retain their layout.
 public struct NativeSettingsSelectPopover: View {
     @Binding private var selection: JSONText
     private let options: [NativeSettingsOption]
     private let accessibilityLabel: String
     private let accessibilityDescription: String?
     private let invalid: Bool
+    @Environment(\.nativeSettingsFormPage) private var formPage
     public init(selection: Binding<JSONText>, options: [NativeSettingsOption], accessibilityLabel: String,
                 accessibilityDescription: String? = nil, invalid: Bool = false) {
         _selection = selection; self.options = options; self.accessibilityLabel = accessibilityLabel
         self.accessibilityDescription = accessibilityDescription; self.invalid = invalid
     }
     public var body: some View {
-        SettingsSelectRepresentation(selection: $selection, options: options, label: accessibilityLabel,
-                                     description: accessibilityDescription, invalid: invalid)
+        Group {
+            if formPage {
+                NativeSettingsPopup(selection: $selection, options: options, label: accessibilityLabel,
+                                    description: accessibilityDescription)
+            } else {
+                SettingsSelectRepresentation(selection: $selection, options: options, label: accessibilityLabel,
+                                             description: accessibilityDescription, invalid: invalid)
+            }
+        }
             .frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34)
             .background(NativeSettingsControlRegistration(descriptor: .object([
                 "kind": .text("select"), "label": .text(accessibilityLabel), "value": .string(selection),
@@ -28,6 +36,65 @@ public struct NativeSettingsSelectPopover: View {
                 }
                 NativeSettingsChangeContext.withDiscreteChange { selection = id }
             })
+    }
+}
+
+private struct NativeSettingsPopup: NSViewRepresentable {
+    @Binding var selection: JSONText
+    let options: [NativeSettingsOption]
+    let label: String
+    let description: String?
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.nativeSettingsField) private var field
+
+    func makeNSView(context: Context) -> Popup {
+        let view = Popup(frame: .zero, pullsDown: false)
+        view.menu?.autoenablesItems = false
+        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        view.target = view; view.action = #selector(Popup.chooseItem(_:))
+        return view
+    }
+    func updateNSView(_ view: Popup, context: Context) {
+        view.removeAllItems()
+        for (index, option) in options.enumerated() {
+            // AppKit's title-based convenience API coalesces duplicate labels.
+            // Menu items keep opaque JSON identities separate from display text.
+            let item = NSMenuItem(title: option.label, action: nil, keyEquivalent: "")
+            item.tag = index; item.isEnabled = !option.disabled
+            view.menu?.addItem(item)
+        }
+        if let index = options.firstIndex(where: { $0.id == selection }) {
+            view.selectItem(at: index)
+        } else {
+            let item = NSMenuItem(title: selection.string, action: nil, keyEquivalent: "")
+            item.tag = -1; item.isEnabled = false
+            view.menu?.insertItem(item, at: 0); view.selectItem(at: 0)
+        }
+        view.isEnabled = enabled && options.contains { !$0.disabled }
+        view.setAccessibilityLabel(label); view.setAccessibilityHelp(description)
+        view.choose = { index in
+            guard options.indices.contains(index), !options[index].disabled else { return }
+            NativeSettingsChangeContext.withDiscreteChange { selection = options[index].id }
+        }
+        view.install(field.activation)
+    }
+    static func dismantleNSView(_ view: Popup, coordinator: ()) { view.install(nil); view.choose = nil }
+
+    @MainActor final class Popup: NSPopUpButton {
+        var choose: ((Int) -> Void)?
+        private weak var activation: NativeSettingsFieldActivation?
+        private let owner = UUID()
+        @objc func chooseItem(_ sender: NSPopUpButton) {
+            guard isEnabled, let item = selectedItem, item.isEnabled else { return }
+            choose?(item.tag)
+        }
+        func install(_ next: NativeSettingsFieldActivation?) {
+            activation?.remove(owner: owner); activation = next
+            next?.install(owner: owner) { [weak self] in
+                guard let self, isEnabled else { return }
+                window?.makeFirstResponder(self); performClick(nil)
+            }
+        }
     }
 }
 

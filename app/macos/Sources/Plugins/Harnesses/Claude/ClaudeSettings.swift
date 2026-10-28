@@ -322,6 +322,7 @@ struct ClaudeSettingsResourceStatus: View {
     var isCLI = false
     @State private var reloading = false
     @State private var error:String?
+    @Environment(\.nativeSettingsFormPage) private var formPage
     @Environment(\.locale) private var locale
     var body: some View {
         if isCLI {
@@ -331,7 +332,11 @@ struct ClaudeSettingsResourceStatus: View {
         }
     }
     private var loading: Bool { if case .loading = resource.state { return true }; return false }
-    private var refresh: some View {
+    @ViewBuilder private var refresh: some View {
+        if formPage { refreshButton.buttonStyle(.bordered) }
+        else { refreshButton.buttonStyle(.plain) }
+    }
+    private var refreshButton: some View {
         Button {
             reloading = true
             Task { @MainActor in
@@ -340,7 +345,7 @@ struct ClaudeSettingsResourceStatus: View {
                 catch { self.error = error.localizedDescription }
             }
         } label: { NativeIcon(name: "RefreshCw", size: 13) }
-            .buttonStyle(.plain).disabled(reloading || loading)
+            .disabled(reloading || loading)
             .accessibilityLabel(claudeLocalized("刷新 {name} 环境", locale: locale).replacingOccurrences(of: "{name}", with: "Claude Code"))
     }
     private var tone:NativeSettingsNotice.Kind {
