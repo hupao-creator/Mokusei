@@ -258,7 +258,7 @@ func ToolSchemas(description ThreadCreationDescription) []plugin.ToolBinding {
 	talkSchema := mokuCopyObject(textSchema)
 	talkSchema["maxLength"] = TalkTextMaxCharacters
 	talkSchema["description"] = TalkTextPolicy
-	add("talk", "Show a short progress update or confirmation inside Moku's bar in the Overview. "+TalkTextPolicy+" It only informs the user: it does not end your turn or the task, does not require or wait for a user response, and must not be used to poll delegated Threads for updates. Base each update on facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"text": talkSchema}, "text")))
+	add("talk", "Show a short answer, question, progress update, or confirmation inside Moku's bar in the Overview. "+TalkTextPolicy+" Showing a message does not end your turn or the task, or wait for a user response. Do not poll delegated Threads just to produce an update; base each update on facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"text": talkSchema}, "text")))
 	// The note text has no pattern on purpose: update_note replaces the whole
 	// note, and a constrained decoder that stops at a pattern match would
 	// silently drop most of it. minLength stays absent because "" clears.
