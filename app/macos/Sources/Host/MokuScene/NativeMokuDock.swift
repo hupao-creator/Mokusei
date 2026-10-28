@@ -144,7 +144,7 @@ public struct NativeMokuDock: View {
         landing && state.overviewVisible && !state.dockCovered && !state.notePanelOpen
             && !voiceModeActive && interaction == nil && !navigationDisabled
     }
-    private var swipeControlAvailable: Bool {
+    private var rowControlAvailable: Bool {
         state.overviewVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
             && interaction == nil && !state.inputOpen && !state.inputLeaving
     }
@@ -309,15 +309,13 @@ public struct NativeMokuDock: View {
                         .frame(width: 0, height: 0)
                 }
                 NativeMokuSwipeMonitor(
-                    isActive: { swipeControlAvailable },
+                    isActive: { rowControlAvailable },
                     isInside: { point in
                         let row = voiceActivationFrame
                         return NativeMokuSwipeTarget.contains(point, row: row, showingMessage: displayedMessage != nil,
                             excluding: voiceControlVisible ? [voiceControlsFrame] : [])
                     },
-                    openNote: { state.openNotePanelFromUser() },
-                    // Voice owns the composer seat; notes only change presentation.
-                    openInput: { if !voiceModeActive { state.setInputOpen(true) } })
+                    openNote: { state.openNotePanelFromUser() })
             }
             .allowsHitTesting(false)
         }
@@ -540,6 +538,21 @@ public struct NativeMokuDock: View {
             }
         }
         .overlay(alignment: .bottomLeading) {
+            if rowControlAvailable && !voiceModeActive && !inputPresent {
+                Button { state.setInputOpen(true) } label: {
+                    Color.clear
+                        .frame(width: displayedMessage == nil ? surface.width : 46, height: rowHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                // Leave selectable message prose and the later control overlays
+                // their own hit targets; only the eyes open input beside a message.
+                .padding(.leading, displayedMessage == nil ? 0 : 9)
+                .accessibilityLabel(localize("打开 Moku 输入框", "Open Moku input"))
+                .accessibilityIdentifier("moku-open-input")
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
             // Bottom alignment keeps Moku on the input row while only the
             // glass above it changes height. The inset is measured inside
             // the input, so menu and shell animation cannot affect it.
@@ -618,7 +631,7 @@ public struct NativeMokuDock: View {
         .nativeCanvasNavigationRegion()
         .accessibilityElement(children: .contain).accessibilityLabel("Moku")
         .accessibilityHint(landing ? localize("输入任务交给 Moku", "Type a task for Moku")
-            : localize("鼠标悬停时在触控板上向上滑动打开笔记，向左滑动打开输入框", "While hovering, swipe up on the trackpad for notes, or left to type"))
+            : localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
         .accessibilityIdentifier("moku-capsule")
     }
