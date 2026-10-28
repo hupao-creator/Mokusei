@@ -87,7 +87,14 @@ struct NativeMokuCharacterPose {
         let previousPose = previous == nil ? nil : sample(at: clock)
         let previousVelocity = previousPose.map { before in
             let after = sample(at: clock + 0.01)
-            return before.map { (after[$0] - before[$0]) / 0.01 }
+            return before.map { key in
+                // The authored palette is quantized to 8-bit channels. Inferring
+                // velocity from a single quantization step magnifies it over the
+                // handoff and can flash a saturated color. Blend color values;
+                // preserve derivatives for geometry and opacity only.
+                if key.hasPrefix("d") && ["r", "g", "b"].contains(String(key.suffix(1))) { return 0 }
+                return (after[key] - before[key]) / 0.01
+            }
         }
         let wasThinking = previous?.presentsReasoning == true
         let isThinking = next.presentsReasoning && next.reasoning != nil

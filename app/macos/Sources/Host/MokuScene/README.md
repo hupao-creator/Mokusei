@@ -19,7 +19,9 @@ The Dock and history input placeholder follows the displayed directory tags, inc
 
 On macOS, physical two-finger left swipe over Moku opens input; upward swipe opens the note. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. A single click does not substitute for these gestures. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Left swipe cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
-The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their existing seat while the dots follow the capsule's outer contour. The path uses the actual surface size and clamped glass corner radius, offset outward by the 2.5-point dot radius plus 3 points of clear space. Dots are 5 points in diameter (formerly 2.5), with separated resting positions below the glass. The running layer is mounted after the glass clip and its Canvas reserves 12 points on every side, so neither the rounded ends nor the top/bottom runs are clipped. It appears only while execution is running and the display queue selects the running fallback. Input/note expansion, tool/operation/message ownership, interactions and voice replace it. Idle, cancellation and waiting for the user remove the view and its schedule. Both running eyes and ordinary blinking use SwiftUI's system animation schedule without a minimum interval or fixed-rate sampling. Inactive scenes pause their schedules; Reduce Motion keeps open eyes and static colored dots. Blink shape is evaluated continuously at the system-provided timestamp rather than generated 30fps entries. Validation uses the production Dock pixel replay's `--orbit-only` mode.
+The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningEyes.swift) shares that authored path between the persistent character host and the standalone reference. Decorations paint outside the glass clip. Input, note, tool, message, interaction and voice ownership retire the running decoration through the same host rather than replacing the eye view.
+
+[NativeMokuCharacterMotion](NativeMokuCharacterMotion.swift) owns one AppKit display link and logical clock for the persistent eye and decoration seats. Ordinary expression changes take 420ms; running/thinking handoffs take 550ms. Interrupted transitions inherit the currently sampled geometry and derivative, without an intermediate idle pose or overlapping eye views. Same-segment text updates do not redirect a role. Inactive, hidden and occluded scenes pause the clock; Reduce Motion snaps to static open eyes and static running dots. Blink shape uses the continuous timestamp rather than fixed-rate samples. The production transition replay checks rapid redirection, persistent eye identity, text-clock continuity, viewport fitting and retirement; the existing blink replay retains natural-blink and running-orbit pixel coverage.
 
 Overview derives its persistent bottom reservation from the same idle capsule
 geometry. Expanding the composer, note or notification does not change that
@@ -51,11 +53,12 @@ eyes, running dots and the text's gather/reveal handoff from their currently
 painted state. Composer, notes, Talk/dispatch, voice and permission/question
 surfaces retain priority. The Dock reserves visible ink space by continuously
 lifting the capsule, eyes and arc together only as far as the viewport requires;
-Overview's fixed bottom reservation and card packing stay unchanged.
+If a short or narrow viewport cannot contain the complete glyph envelope, the capsule and arc scale together to fit. Overview's fixed bottom reservation and card packing stay unchanged.
 
 Validation uses the [native reasoning replay](../../../../../tools/verification/moku-reasoning/README.md),
 which drives Runtime fixture transactions through the real Harness, workspace
-projection and Dock. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
+projection and Dock, and the [transition replay](../../../../../tools/verification/moku-transitions/README.md)
+for interrupted visual handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
 reuses the production Arc; its historical circular and contour tabs remain
 comparison-only.
 

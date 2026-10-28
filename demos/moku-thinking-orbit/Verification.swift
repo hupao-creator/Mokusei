@@ -51,6 +51,8 @@ private struct StudyFailure: Error, CustomStringConvertible { let description: S
     }
     do {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        let report = output.appendingPathComponent("result.json")
+        if FileManager.default.fileExists(atPath: report.path) { try FileManager.default.removeItem(at: report) }
         window.level = .floating
         try await Task.sleep(for: .milliseconds(800))
         var target: SCWindow?

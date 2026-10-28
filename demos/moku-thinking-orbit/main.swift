@@ -204,7 +204,11 @@ private struct ThinkingDemoView: View {
             Task { await verifyThinkingDemo(window: window, fixture: fixture) }
         }
     }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // The verifier deliberately hides its only window. It owns termination
+        // after writing a result, even if AppKit treats that as the last window.
+        !CommandLine.arguments.contains("--verify")
+    }
 }
 
 @main struct ThinkingDemoApp {
