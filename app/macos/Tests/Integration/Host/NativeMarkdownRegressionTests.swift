@@ -53,6 +53,10 @@ struct NativeMarkdownRegressionTests {
 
     @Test func sourceSyntaxPreservesURLsFootnotesAndCode() async throws {
         let source = """
+        \u{FEFF}| [^table-map]`literal [^table-map]` | URL |
+        | --- | --- |
+        | nul\0 | https://example.com/table*a*b |
+
         http://127.0.0.1/a*b*c.html
 
         http://127.0.0.1/a~b~c.html
@@ -81,6 +85,7 @@ struct NativeMarkdownRegressionTests {
         > text <span
         title="[^lazy-html]">[^lazy-html]
 
+        [^table-map]: TABLE_MAP_NOTE
         [^lazy-html]: LAZY_HTML_NOTE
         [^two words]: https://example.com/reference
         [^x]: Unreferenced escaped note.
@@ -104,13 +109,16 @@ struct NativeMarkdownRegressionTests {
         #expect(destinations.contains("https://example.com/lazy*a*b"))
         #expect(rendered.contains("title=\"[^lazy-html]\""))
         #expect(rendered.contains("LAZY_HTML_NOTE"))
+        #expect(rendered.contains("TABLE_MAP_NOTE"))
+        #expect(rendered.contains("literal [^table-map]"))
+        #expect(destinations.contains("https://example.com/table*a*b"))
         #expect(rendered.contains("literal [^rate%20value]"))
         #expect(destinations.contains("http://127.0.0.1/a*b*c.html"))
         #expect(destinations.contains("http://127.0.0.1/a~b~c.html"))
         #expect(destinations.contains("http://www.example.com/a*b*c.html"))
         #expect(destinations.contains("https://example.com/a%5Bb%5D.html") || destinations.contains("https://example.com/a[b].html"))
         #expect(rendered.contains("See https://example.com/a[b].html end."))
-        #expect(links(root).filter { $0.1.fragment != nil && !$0.1.absoluteString.contains("reference") }.count == 3)
+        #expect(links(root).filter { $0.1.fragment != nil && !$0.1.absoluteString.contains("reference") }.count == 4)
         #expect(!rendered.contains("mokusei-"))
     }
 
