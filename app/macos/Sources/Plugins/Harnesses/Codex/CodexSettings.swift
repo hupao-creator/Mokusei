@@ -408,8 +408,8 @@ private struct CodexProfileFields: View {
     var body: some View {
         VStack(alignment: .leading, spacing: page ? 0 : 14) {
             CodexSettingsField(label: t("模型"), description: page ? nil : selected?.description, page: page) {
-                CodexSettingsSelect(page: page, label: label + " " + t("模型"),
-                                    selection: binding("model", setter: selectModel), options: modelOptions).nativeSettingsControl("model")
+                NativeModelSelector(value: binding("model", setter: selectModel), options: modelOptions,
+                                    accessibilityLabel: label + " " + t("模型")).nativeSettingsControl("model")
                     .disabled(disabled)
             }
             if explicitThinking { thinkingField } else { effortField }
@@ -486,20 +486,25 @@ private struct CodexProfileFields: View {
         ]
     }
 
+    private var modelLink: NativeModelSelector.ModelLink {
+        .init(value: binding("model", setter: selectModel), options: modelOptions, label: t("模型"))
+    }
+
     private var thinkingField: some View {
         CodexSettingsField(label: "Thinking", description: page ? nil : selected?.thinking["reason"]?.stringValue, page: page) {
-            CodexSettingsSelect(page: page, label: label + " Thinking", selection: Binding(
+            NativeModelSelector(value: Binding(
                 get: { value["thinking"].map(codexThinkingKey) ?? "" },
                 set: { key in
                     if let choice = choices.first(where: { codexThinkingKey($0) == key }) { update("thinking", choice) }
-                }), options: thinkingOptions).nativeSettingsControl("thinking")
+                }), options: thinkingOptions, presentation: .reasoning, model: modelLink,
+                accessibilityLabel: label + " Thinking").nativeSettingsControl("thinking")
                 .disabled(disabled || choices.isEmpty)
         }
     }
     private var effortField: some View {
         CodexSettingsField(label: t("推理强度"), description: page ? nil : effortUnavailableReason ?? efforts.first(where: { $0.value == value.text("effort") })?.description, page: page) {
-            CodexSettingsSelect(page: page, label: label + " " + t("推理强度"),
-                                selection: binding("effort"), options: effortOptions).nativeSettingsControl("effort")
+            NativeModelSelector(value: binding("effort"), options: effortOptions,
+                                presentation: .reasoning, model: modelLink, accessibilityLabel: label + " " + t("推理强度")).nativeSettingsControl("effort")
                 .disabled(disabled || capabilityUnavailable || (executionSnapshot && fixedEffort && value.text("effort") == nil))
         }
     }
@@ -671,48 +676,8 @@ private struct CodexResourceStatus: View {
 private struct CodexSettingsPageAction: View {
     let label: String
     let action: () -> Void
-    @FocusState private var focused: Bool
-    @State private var keyboardFocused = false
-    @State private var hovering = false
-    @Environment(\.colorScheme) private var scheme
     var body: some View {
-        Button {
-            keyboardFocused = !Self.pointerEvent
-            action()
-        } label: {
-            HStack(spacing: 4) {
-                NativeIcon(name: "RefreshCw", size: 11)
-                Text(label)
-            }.font(NativeTypography.settings(size: 12))
-                .padding(.vertical, 2).frame(minHeight: 28)
-        }.buttonStyle(CodexSettingsPageActionStyle(hovering: hovering))
-            .onHover { hovering = $0 }.focusEffectDisabled().focused($focused)
-            .onChange(of: focused) { _, focused in keyboardFocused = focused && !Self.pointerEvent }
-            .overlay {
-                if focused && keyboardFocused {
-                    RoundedRectangle(cornerRadius: 7)
-                        .stroke(NativeAppKitPalette.color(scheme == .dark ? 0x8ebbea : 0x426b9a,
-                                                    alpha: scheme == .dark ? 112.0 / 255 : 69.0 / 255).swiftUI,
-                                lineWidth: 3)
-                        .padding(-3.5).allowsHitTesting(false)
-                }
-            }
-    }
-    private static var pointerEvent: Bool {
-        NativePlatformInput.isPointerEvent
-    }
-}
-
-private struct CodexSettingsPageActionStyle: ButtonStyle {
-    let hovering: Bool
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle((hovering ? NativeAppKitPalette.overview.ink : NativeAppKitPalette.settings.accent).swiftUI)
-            .background(hovering ? NativeAppKitPalette.pair(0xffffff, 0x2c2d29).swiftUI : .clear,
-                        in: RoundedRectangle(cornerRadius: 7))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.12), value: hovering)
-            .animation(.timingCurve(0.16, 1, 0.3, 1, duration: 0.12), value: configuration.isPressed)
+        Button(label, systemImage: "arrow.clockwise", action: action).buttonStyle(.bordered)
     }
 }
 

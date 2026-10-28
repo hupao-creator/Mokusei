@@ -7,7 +7,7 @@ struct SettingsSelectOption<Value: Hashable> {
     let title: String
 }
 
-/// Adapt typed settings preferences to the shared source-styled select.
+/// Adapt typed settings preferences to the shared system popup.
 struct SettingsSelect<Value: Hashable>: View {
     var label: String
     @Binding var selection: Value

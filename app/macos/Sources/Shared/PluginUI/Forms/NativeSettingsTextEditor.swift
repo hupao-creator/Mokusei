@@ -2,8 +2,7 @@ import AppKit
 import QuartzCore
 import SwiftUI
 
-/// An HTML-style plain textarea: exact text inset/line height, native IME and
-/// selection, plus the source's vertical resize grip instead of a fixed editor.
+/// Plain AppKit editing retains IME, selection and Undo across draft saves.
 struct NativeSettingsTextEditor: NSViewRepresentable {
     var interaction = NativeSettingsEditorInteraction()
     @Binding var value: String
@@ -15,6 +14,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     let activation: NativeSettingsFieldActivation?
     @Environment(\.isEnabled) private var enabled
     @Environment(\.nativeSettingsTextEditing) private var editing
+    @Environment(\.nativeSettingsFormPage) private var formPage
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> SettingsTextEditorContainer {
@@ -24,14 +24,23 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
             guard let editor else { return }
             coordinator?.compositionChanged(composing, editor: editor)
         }
+        view.editor.undoChanged = { [weak coordinator = context.coordinator, weak editor = view.editor] in
+            guard let coordinator, let editor,
+                  !coordinator.parent.value.utf16.elementsEqual(editor.string.utf16) else { return }
+            coordinator.compositionChanged(editor.hasMarkedText(), editor: editor)
+            coordinator.parent.value = editor.string
+        }
         return view
     }
     func updateNSView(_ view: SettingsTextEditorContainer, context: Context) {
         context.coordinator.parent = self
         context.coordinator.installEditing(editing, editor: view.editor)
-        if !view.editor.hasMarkedText(), view.editor.string != value { view.editor.string = value }
+        if !view.editor.hasMarkedText(), !view.editor.string.utf16.elementsEqual(value.utf16) {
+            view.editor.undoManager?.removeAllActions(withTarget: view.editor)
+            view.editor.string = value
+        }
         view.configure(enabled: enabled, invalid: invalid, minimumHeight: minimumHeight,
-                       label: label, description: description) { height = $0 }
+                       label: label, description: description, native: formPage) { height = $0 }
         view.installActivation(activation)
         view.updateInteraction = { [weak view] in
             guard let view else { return }
@@ -45,6 +54,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     static func dismantleNSView(_ view: SettingsTextEditorContainer, coordinator: Coordinator) {
         coordinator.installEditing(nil, editor: view.editor)
         view.editor.compositionChanged = nil
+        view.editor.undoChanged = nil; view.editor.tracksUndo = false
         view.installActivation(nil); view.interactionLease.remove(); view.updateInteraction = nil
     }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
@@ -82,6 +92,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     private var invalid = false
     private var enabled = true
     private var focused = false
+    private var native = false
     private weak var activation: NativeSettingsFieldActivation?
     private let activationOwner = UUID()
     override var isFlipped: Bool { true }
@@ -128,8 +139,16 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     }
 
     func configure(enabled: Bool, invalid: Bool, minimumHeight: CGFloat, label: String,
-                   description: String?, resize: @escaping (CGFloat) -> Void) {
+                   description: String?, native: Bool, resize: @escaping (CGFloat) -> Void) {
         self.enabled = enabled; self.invalid = invalid
+        self.native = native
+        editor.tracksUndo = native
+        border.isHidden = native; grip.isHidden = native
+        scroll.borderType = native ? .bezelBorder : .noBorder
+        scroll.focusRingType = native ? .exterior : .none
+        scroll.drawsBackground = native; scroll.contentView.drawsBackground = native
+        scroll.backgroundColor = .textBackgroundColor
+        editor.drawsBackground = native; editor.backgroundColor = .textBackgroundColor
         alphaValue = enabled ? 1 : 0.5
         editor.isEditable = enabled; editor.isSelectable = enabled
         if !enabled, window?.firstResponder === editor { window?.makeFirstResponder(nil); focused = false }
@@ -152,6 +171,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
         if window == nil { interactionLease.remove() } else { updateInteraction?() }
     }
     private func updateBorder(animated: Bool) {
+        guard !native else { return }
         var next: CGColor!
         effectiveAppearance.performAsCurrentDrawingAppearance {
             next = (invalid ? NativePlatformPalette.settings.danger : focused && enabled ? NativePlatformPalette.settings.accent : NativePlatformPalette.settings.inputBorder).cgColor
@@ -169,6 +189,7 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
         }
     }
     override func draw(_ dirtyRect: NSRect) {
+        guard !native else { return }
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 7, yRadius: 7)
         NativePlatformPalette.settings.input.setFill(); path.fill()
         if focused, enabled {
@@ -181,6 +202,26 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
 @MainActor final class SettingsPlainTextView: NSTextView {
     var focusChanged: ((Bool) -> Void)?
     var compositionChanged: ((Bool) -> Void)?
+    var undoChanged: (() -> Void)?
+    var tracksUndo = false { didSet { updateUndoObservation() } }
+    private weak var observedUndoManager: UndoManager?
+    private var undoObservers: [NSObjectProtocol] = []
+
+    private func updateUndoObservation() {
+        let manager = tracksUndo && window != nil ? undoManager : nil
+        guard observedUndoManager !== manager else { return }
+        undoObservers.forEach(NotificationCenter.default.removeObserver)
+        undoObservers = []; observedUndoManager = manager
+        guard let manager else { return }
+        // AppKit can undo the text storage without sending the text delegate a
+        // change notification. Observe the window's manager only while mounted;
+        // the adapter compares exact text before writing its binding.
+        undoObservers = [Notification.Name.NSUndoManagerDidUndoChange, Notification.Name.NSUndoManagerDidRedoChange].map { name in
+            NotificationCenter.default.addObserver(forName: name, object: manager, queue: nil) { [weak self] _ in
+                MainActor.assumeIsolated { self?.undoChanged?() }
+            }
+        }
+    }
     override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
         // Protect the draft before AppKit emits text-change delegates while
         // installing the first marked range, then report its resulting state.
@@ -198,10 +239,12 @@ struct NativeSettingsTextEditor: NSViewRepresentable {
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        updateUndoObservation()
         compositionChanged?(window != nil && hasMarkedText())
     }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
+        updateUndoObservation()
         if accepted { focusChanged?(true) }
         return accepted
     }

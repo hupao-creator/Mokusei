@@ -140,15 +140,15 @@ struct PiThreadSettingsView: View {
                         options: options(providers.map { ($0, $0.string) }, current: provider)).nativeSettingsControl("provider").disabled(disabled)
                 }
                 NativeSettingsRow(label: piLocalized("模型", locale)) {
-                    NativeSettingsSelect(value: Binding(get: { model }, set: { draft = .object(["provider": .string(provider), "model": .string($0)]) }),
+                    NativeModelSelector(value: Binding(get: { model }, set: { draft = .object(["provider": .string(provider), "model": .string($0)]) }),
                         options: options(available.compactMap { m in piText(m["id"]).map { ($0, m["name"]?.stringValue ?? $0.string) } }, current: model))
                         .disabled(disabled || provider.codeUnits.isEmpty)
                 }
                 NativeSettingsRow(label: piLocalized("推理选择", locale)) {
-                    NativeSettingsSelect(value: Binding(get: { thinking }, set: { key in
+                    NativeModelSelector(value: Binding(get: { thinking }, set: { key in
                         var fields = draft.objectValue ?? [:]; fields["thinking"] = choices.first { piThinkingKey($0) == key }; draft = .object(fields)
                     }), options: options(choices.map { (piThinkingKey($0), $0["mode"] == .text("fixed") ? piLocalized("不可配置", locale) : piThinkingLabel($0) ?? "") },
-                        current: thinking, label: piThinkingLabel(draft["thinking"]))).disabled(disabled || choices.isEmpty)
+                        current: thinking, label: piThinkingLabel(draft["thinking"])), presentation: .reasoning).disabled(disabled || choices.isEmpty)
                 }
                 if selected?["thinking"]?["kind"] == .text("unknown") {
                     NativeSettingsNotice(message: selected?["thinking"]?["reason"]?.stringValue ?? "", kind: .warning)
@@ -243,11 +243,11 @@ private struct PiDefaultFields: View {
                 NativeSettingsSelect(value: Binding(get: { provider }, set: { changeProvider($0) }), options: options(providers.map { ($0, $0.string) }, current: provider)).nativeSettingsControl("provider")
             }
             NativeSettingsRow(label: piLocalized("模型", locale)) {
-                NativeSettingsSelect(value: Binding(get: { modelValue }, set: { changeModel($0) }), options: options(available.map { (modelKey($0), ($0["provider"]?.stringValue ?? "") + " · " + ($0["name"]?.stringValue ?? "")) },
+                NativeModelSelector(value: Binding(get: { modelValue }, set: { changeModel($0) }), options: options(available.map { (modelKey($0), ($0["provider"]?.stringValue ?? "") + " · " + ($0["name"]?.stringValue ?? "")) },
                     current: modelValue, label: (provider.codeUnits.isEmpty ? "" : provider.string + " · ") + model.string)).nativeSettingsControl("model")
             }
             NativeSettingsRow(label: piLocalized("推理强度", locale)) {
-                NativeSettingsSelect(value: Binding(get: { level }, set: { set("thinkingLevel", $0) }), options: options(levels.map { ($0, $0.string) }, current: level)).nativeSettingsControl("thinkingLevel")
+                NativeModelSelector(value: Binding(get: { level }, set: { set("thinkingLevel", $0) }), options: options(levels.map { ($0, $0.string) }, current: level), presentation: .reasoning).nativeSettingsControl("thinkingLevel")
             }
         } else {
             ForEach(["provider", "model", "thinkingLevel"], id: \.self) { key in
