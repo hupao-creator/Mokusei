@@ -297,9 +297,12 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         throw Failure(description: "WindowServer did not provide a complete demo window for \(name)")
     }
-    private func captureCaret(_ name: String, input: NSTextView, caret: CALayer) async throws {
+    private func captureCaret(_ name: String, input: NSTextView, caret: CALayer, dim: Bool = false) async throws {
         input.updateInsertionPointStateAndRestartTimer(true)
-        try await wait("Caret did not become visible for the contrast capture") { !caret.isHidden }
+        try await wait("Caret did not reach the requested phase for the contrast capture") {
+            let opacity = caret.sublayers?.first { $0.name == "composer-insertion-core" }?.presentation()?.opacity ?? 0
+            return dim ? opacity > 0 && opacity < 0.805 : opacity > 0.995
+        }
         let image = try await capture(name)
         let root = window.contentView!
         var rect = input.convert(caret.frame, to: root)
@@ -317,10 +320,10 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         let a = luminance(foreground), b = luminance(background)
         let contrast = (max(a, b) + 0.05) / (min(a, b) + 0.05)
-        caretContrast[fixture.dark ? "dark" : "light"] = ["ratio": contrast, "widthPoints": Double(caret.bounds.width)]
+        caretContrast[(fixture.dark ? "dark" : "light") + (dim ? "-dim" : "")] = ["ratio": contrast, "widthPoints": Double(caret.bounds.width)]
         try JSONSerialization.data(withJSONObject: caretContrast, options: .prettyPrinted)
             .write(to: output.appendingPathComponent("caret-contrast.json"))
-        try require(caret.bounds.width >= 3 && contrast >= 4.5, "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
+        try require(abs(caret.bounds.width - 2.6) < 0.01 && contrast >= (dim ? 3 : 4.5), "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
         rect = rect.insetBy(dx: -18, dy: -14)
         let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale,
                             width: rect.width * scale, height: rect.height * scale).integral
@@ -359,6 +362,20 @@ private struct Failure: Error, CustomStringConvertible { let description: String
             throw Failure(description: "\(error); key=\(window.isKeyWindow), active=\(NSApp.isActive), focused=\(window.firstResponder === input), drawing=\(input.shouldDrawInsertionPoint), marked=\(input.hasMarkedText())")
         }
         let caret = input.layer!.sublayers!.first { $0.name == "composer-insertion-point" }!
+        let core = caret.sublayers!.first { $0.name == "composer-insertion-core" }!
+        var opacitySamples: [Float] = []
+        for _ in 0..<26 {
+            try await Task.sleep(for: .milliseconds(100))
+            try require(caret.superlayer != nil && !caret.isHidden,
+                        "Native blinking interrupted the breathing caret")
+            opacitySamples.append(core.presentation()?.opacity ?? core.opacity)
+        }
+        try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,
+                    "Caret did not breathe continuously between dim and bright phases")
+        try require(caret.bounds.height > input.font!.pointSize && caret.bounds.height < input.font!.pointSize * 1.1 && abs(caret.bounds.width - 2.6) < 0.01,
+                    "Caret did not use the approved short, slightly thicker geometry")
+        try JSONSerialization.data(withJSONObject: opacitySamples.map(Double.init), options: .prettyPrinted)
+            .write(to: output.appendingPathComponent("caret-breathing.json"))
         let before = caret.position
         input.insertText("优化 landing page", replacementRange: NSRange(location: 0, length: 0))
         try await wait("Native editing did not update the production draft") { self.fixture.draft.text == "优化 landing page" }
@@ -371,7 +388,8 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         try await Task.sleep(for: .milliseconds(180))
         let settled = caret.presentation()?.position ?? caret.position
         try require(abs(settled.x - target.x) < 0.5, "Caret did not settle at the native insertion point")
-        try await captureCaret("01c-solid-caret", input: input, caret: caret)
+        try await captureCaret("01c-breathing-caret", input: input, caret: caret)
+        try await captureCaret("01d-dim-caret", input: input, caret: caret, dim: true)
         try require(accessible("moku-send", in: window.contentView!), "Nonempty composer does not expose Send")
         try JSONSerialization.data(withJSONObject: ["before": NSStringFromPoint(before), "during": NSStringFromPoint(during),
             "target": NSStringFromPoint(target), "settled": NSStringFromPoint(settled)], options: .prettyPrinted)
@@ -403,6 +421,8 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         reduced.show(at: origin.offsetBy(dx: 30, dy: 0), color: .textColor, in: input)
         try require(reduced.layer.animation(forKey: "typing") == nil && reduced.layer.frame.midX == 50.5,
                     "Reduce Motion did not position the production caret immediately")
+        try require(reduced.layer.sublayers!.allSatisfy { $0.animation(forKey: "breathing") == nil },
+                    "Reduce Motion retained breathing animations")
         reduced.remove()
         fixture.outcome = .failure
         pressReturn()
