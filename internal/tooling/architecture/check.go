@@ -69,7 +69,7 @@ func Check(root string) error {
 		if ext == ".js" || ext == ".mjs" || ext == ".cjs" || ext == ".ts" || ext == ".tsx" {
 			if shims[relative] {
 				foundShim[relative] = true
-			} else if !strings.HasPrefix(relative, "reference/git/") {
+			} else {
 				failures = append(failures, fmt.Errorf("unapproved active JS/TS source: %s", relative))
 			}
 		}
