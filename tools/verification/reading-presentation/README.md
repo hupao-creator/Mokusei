@@ -403,6 +403,11 @@ graphical session; it opens no external websites and makes no model requests.
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
+The note suite also activates the expanded production Dock's bottom-right
+history button through accessibility, with and without a note, checking real
+scene navigation and draft preservation. Its short-viewport Markdown case
+includes the history footer so the footer cannot consume the reading viewport.
+
 ## Moku execution links
 
 `python3 tools/verification/reading-presentation/run.py --moku-execution-links`

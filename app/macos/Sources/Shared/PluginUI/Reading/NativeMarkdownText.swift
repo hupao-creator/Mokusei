@@ -373,13 +373,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         replaceContent(next)
     }
 
-    /// Diagram labels already arrive as attributed text at their final scale.
-    func setAttributedContent(_ next: NSAttributedString) {
-        input = nil
-        buildText = nil
-        replaceContent(next)
-    }
-
     private func replaceContent(_ next: NSAttributedString) {
         if !next.isEqual(to: content) {
             let measurement = NativePerformance.begin(.textReplace, context: performanceOperation,

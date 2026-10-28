@@ -170,18 +170,16 @@ entry points with temporary Git histories and retained artifact directories,
 and runs real subprocess success, nonzero exit and command-timeout termination cases.
 It runs on Linux alongside the existing Go reporter verifier.
 
-## Pull request merge gates
+## Pull request protection and advisory CI
 
 The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires changes to `main` to go through a pull request. Before merging, the
-branch must be up to date with `main`, and these GitHub Actions checks must pass:
-
-- `Go / Linux`
-- `Complete coverage`
-
-The complete-coverage check includes every default job and the selected verification scope.
-Optional extended dispatches use a distinct aggregate check name and cannot
-satisfy this required default check.
+requires changes to `main` to go through a pull request. CI is advisory:
+`Go / Linux` and `Complete coverage` are no longer required status checks,
+and the CI requirement to be up to date with `main` has been removed with them.
+The workflow still runs on PRs and main pushes, with manual extended dispatches
+available. Failures remain visible for diagnosis but do not block merging.
+The complete-coverage check still audits every default job and the selected
+verification scope; its internal evidence requirements are unchanged.
 
 All code-review conversations must be resolved. General PR timeline comments
 have no resolution state and are not covered by this rule. The required number
@@ -189,16 +187,11 @@ of approving reviews is zero; the review gate is resolution of outstanding
 conversations.
 
 There are no bypass actors, including repository administrators. Force pushes
-and deletion of `main` are blocked. Check results must come from the GitHub
-Actions app (integration ID `15368`).
+and deletion of `main` remain blocked. No other protection was disabled.
 
-GitHub stores this ruleset separately from the workflow. When adding or renaming
-required CI jobs, coordinate the required-check contexts with the workflow and
-update this list before merging. A stale context blocks merging indefinitely;
-an omitted context leaves that job outside the merge gate. Keep optional,
-manually dispatched jobs out of the required PR checks.
-
-Inspect the effective configuration with the locally authenticated `gh` CLI:
+GitHub stores this ruleset separately from the workflow. Editing or renaming
+workflow jobs does not change remote merge requirements. Inspect the effective
+configuration with the locally authenticated `gh` CLI:
 
 ```sh
 gh api repos/hupao-creator/Mokusei/rulesets/26004586

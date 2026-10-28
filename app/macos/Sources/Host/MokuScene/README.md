@@ -142,6 +142,15 @@ comparison-only.
 
 ## Talk, dispatch and notes
 
+The expanded note's bottom-right **Moku history** button opens the existing
+Moku conversation reader, including its archived-session picker. It remains
+available when the note or conversation is empty; the reader owns the empty
+conversation state. The native button supports keyboard and accessibility
+activation with localized labels. Its footer reserves reading space in normal
+windows and scrolls with the header/body in short viewports, including 5× zoom.
+Opening history uses the scene's ordinary navigation path, closing the note
+without changing its exposure receipt or the workspace draft.
+
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
 Text shorter than the Talk viewport is vertically centered beside the eyes.
