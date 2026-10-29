@@ -14,6 +14,8 @@ import MokuseiUI
     var axis: Axis = .horizontal
     var identity: JSONText = "detail"
     var direction: CGFloat = 1
+    var scrollParent = false
+    var enabled = true
     var text = "Initial overview"
     var duration = NativeReadingPageTiming.duration
     let motion = NativeReadingPageMotion()
@@ -22,23 +24,35 @@ import MokuseiUI
     @ObservationIgnored var renderedText = ""
     @ObservationIgnored var historyContentTop: CGFloat?
     @ObservationIgnored weak var frontProbe: NSView?
+    @ObservationIgnored weak var parentProbe: NSView?
+    @ObservationIgnored var parentEnabled = true
 }
 private struct ReadingFrontProbe: NSViewRepresentable {
     let fixture: ReadingFixture
+    var parent = false
+    @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
-        fixture.frontProbe = view
+        if parent { fixture.parentProbe = view }
+        else { fixture.frontProbe = view }
         return view
     }
-    func updateNSView(_ view: NSView, context: Context) {}
+    func updateNSView(_ view: NSView, context: Context) { if parent { fixture.parentEnabled = enabled } }
 }
 private struct ReadingReplay: View {
     let fixture: ReadingFixture
     var body: some View {
         NativeReadingPageStack(open: fixture.open, identity: fixture.identity, motion: fixture.motion,
-            focusBlur: true, stationaryParent: true, emphasizedOpening: true, duration: fixture.duration, axis: fixture.axis, direction: fixture.direction,
+            enabled: fixture.enabled, focusBlur: true, stationaryParent: fixture.axis == .horizontal, emphasizedOpening: true, duration: fixture.duration, axis: fixture.axis, direction: fixture.direction,
             onClose: { fixture.open = false }) {
-            Text(fixture.text).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 1, green: 0, blue: 0)).onAppear { fixture.parentAppearances += 1 }
+            Group {
+                if fixture.scrollParent {
+                    NativeScrollView { Text(fixture.text).frame(height: 1400).frame(maxWidth: .infinity) }
+                } else { Text(fixture.text) }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(ReadingFrontProbe(fixture: fixture, parent: true))
+                .background(Color(.sRGB, red: 1, green: 0, blue: 0))
+                .onAppear { fixture.parentAppearances += 1 }
                 .onChange(of: fixture.text, initial: true) { _, text in fixture.renderedText = text }
         } front: { Text("Conversation detail").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 0, green: 0, blue: 1))
                 .background(ReadingFrontProbe(fixture: fixture)).onAppear { fixture.frontAppearances += 1 } }
@@ -144,8 +158,14 @@ struct NativeReadingPagePresentationTests {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try #require(image.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent("vertical-middle.png"))
         }
+        let parent = try #require(fixture.parentProbe)
+        let parentFrame = parent.convert(parent.bounds, to: root)
+        let frontFrame = probe.convert(probe.bounds, to: root)
+        #expect(abs(parentFrame.maxY - frontFrame.minY) < 1, "Pages must share one edge without overlap")
+        #expect(abs(parentFrame.minX) < 1 && abs(frontFrame.minX) < 1)
         fixture.motion.cancel()
         for (identity, direction) in [("earlier", CGFloat(-1)), ("later", CGFloat(1))] {
+            let outgoing = try #require(fixture.frontProbe)
             fixture.direction = direction
             fixture.identity = JSONText(identity)
             try await SwiftUIReplay.wait {
@@ -155,7 +175,11 @@ struct NativeReadingPagePresentationTests {
                     && frame.minY * direction < root.bounds.height * 0.75
             }
             let incoming = try #require(fixture.frontProbe)
-            #expect(abs(incoming.convert(incoming.bounds, to: root).minX) < 1)
+            let incomingFrame = incoming.convert(incoming.bounds, to: root)
+            let outgoingFrame = outgoing.convert(outgoing.bounds, to: root)
+            #expect(abs(incomingFrame.minX) < 1 && abs(outgoingFrame.minX) < 1)
+            let gap = direction > 0 ? incomingFrame.minY - outgoingFrame.maxY : outgoingFrame.minY - incomingFrame.maxY
+            #expect(abs(gap) < 1, "Replacement pages must travel together without overlap or a gap")
             let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
             root.cacheDisplay(in: root.bounds, to: image)
             let scan = (image.pixelsHigh / 20)..<(image.pixelsHigh * 19 / 20)
@@ -179,7 +203,14 @@ struct NativeReadingPagePresentationTests {
         fixture.direction = 1
         fixture.motion.cancel()
         fixture.motion.close()
-        try await Task.sleep(for: .milliseconds(80))
+        try await SwiftUIReplay.wait {
+            let frame = stationary.convert(stationary.bounds, to: root)
+            return frame.minY > root.bounds.height * 0.3 && frame.minY < root.bounds.height * 0.7
+        }
+        let returningParent = parent.convert(parent.bounds, to: root)
+        let returningFront = stationary.convert(stationary.bounds, to: root)
+        #expect(abs(returningParent.maxY - returningFront.minY) < 1, "Return must also keep the pages edge to edge")
+        #expect(abs(returningParent.minX) < 1 && abs(returningFront.minX) < 1)
         fixture.motion.cancel()
         try await Task.sleep(for: .milliseconds(1250))
         #expect(fixture.open && !fixture.motion.active)
@@ -223,5 +254,90 @@ struct NativeReadingPagePresentationTests {
             try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
         }
         #expect(fixture.parentAppearances == 1)
+    }
+}
+
+/// Unmounted production stack: no NSWindow, display link, focus stealing or
+/// preference writes. Intermediate rendered motion remains display-gated above.
+@MainActor @Suite(.serializedNative, .serialized)
+struct NativeReadingPageHeadlessTests {
+    @Test func verticalPreparationPreservesTheScrollerAndRetainedDocument() async throws {
+        for width: CGFloat in [360, 1180] {
+            let fixture = ReadingFixture()
+            fixture.axis = .vertical
+            fixture.duration = 0.2
+            fixture.scrollParent = true
+            let host = NSHostingView(rootView: ReadingReplay(fixture: fixture).environment(\.scenePhase, .active))
+            host.frame = CGRect(x: 0, y: 0, width: width, height: 700)
+            for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+            let parent = try #require(fixture.parentProbe)
+            func scroll(in view: NSView) -> NSScrollView? {
+                (view as? NSScrollView) ?? view.subviews.lazy.compactMap { scroll(in: $0) }.first
+            }
+            let retainedScroll = try #require(scroll(in: host))
+            #expect(retainedScroll.hasVerticalScroller)
+            let initial = parent.convert(parent.bounds, to: host)
+            fixture.open = true
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(10))
+            host.layoutSubtreeIfNeeded()
+            #expect(host.window == nil)
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                #expect(!fixture.motion.active)
+                fixture.motion.close()
+                #expect(!fixture.open)
+                continue
+            }
+            #expect(fixture.motion.active)
+            #expect(retainedScroll.hasVerticalScroller)
+            #expect(scroll(in: host) === retainedScroll)
+            #expect(fixture.parentEnabled, "Retiring the document must not change its scroll gutter or control metrics")
+            #expect(fixture.parentAppearances == 1 && fixture.frontAppearances == 1)
+            let retained = parent.convert(parent.bounds, to: host)
+            #expect(retained.minX == initial.minX && retained.width == initial.width)
+            fixture.motion.cancel()
+            for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+            #expect(!fixture.parentEnabled, "The offscreen document must retain its keyboard input gate")
+            fixture.motion.close()
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(10))
+            host.layoutSubtreeIfNeeded()
+            #expect(retainedScroll.hasVerticalScroller && fixture.parentEnabled)
+            // Without a display SwiftUI does not deliver animation removal.
+            // Exercise host cancellation/teardown instead of claiming completion.
+            fixture.open = false
+            for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+            #expect(!fixture.motion.active)
+            #expect(fixture.parentAppearances == 1)
+            #expect(fixture.parentEnabled && retainedScroll.hasVerticalScroller)
+            #expect(parent.convert(parent.bounds, to: host).width == initial.width)
+        }
+    }
+
+    @Test func cancellationFencesAnObsoleteReturnWithoutAWindow() async throws {
+        let fixture = ReadingFixture()
+        fixture.axis = .vertical
+        fixture.duration = 0.15
+        let host = NSHostingView(rootView: ReadingReplay(fixture: fixture).environment(\.scenePhase, .active))
+        host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
+        for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+        fixture.open = true
+        for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+        fixture.motion.cancel()
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            fixture.motion.close()
+            #expect(!fixture.open && !fixture.motion.active && host.window == nil)
+            return
+        }
+        fixture.motion.close()
+        #expect(fixture.open && fixture.motion.active)
+        fixture.motion.cancel()
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(fixture.open && !fixture.motion.active)
+        fixture.enabled = false
+        for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+        fixture.motion.close()
+        #expect(!fixture.open && !fixture.motion.active)
+        #expect(host.window == nil && fixture.parentAppearances == 1)
     }
 }

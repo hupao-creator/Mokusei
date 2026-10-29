@@ -95,7 +95,13 @@ are exposed separately.
 Selecting history uses the existing scoped document and Back restores the retained
 current scroll position. Thread history switches vertically according to TOC order:
 earlier targets enter from above, later targets from below, including history-to-history
-replacement and return to the current document. Departing history stays mounted only
+replacement and return to the current document. Both pages travel one viewport
+height with the same curve, meeting edge to edge on one plane; this vertical
+path has no dimming, blur, rounded page corners or shadow. The retained current
+document keeps its enabled layout during travel and return preparation, so its
+native scrollbar gutter cannot disappear and recenter the column. Only after it
+is offscreen does its keyboard input gate disable it; hit testing and accessibility
+remain gated throughout the history visit. Departing history stays mounted only
 for its transition; cancellation fences obsolete completion. Other page
 stacks retain their default horizontal direction. Reduce Motion settles transitions
 without travel, including a return already in progress. New turns do not replace
