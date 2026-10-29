@@ -42,7 +42,8 @@ runs overlap, so their counts are not unique coverage totals.
 ## Parallel execution and queueing
 
 The normal workflow runs Linux checks/replays alongside two macOS preparation
-jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
+jobs. One macOS job warms Go binaries and runs five real Go fixture producers,
+exporting six fixture files (Moku exports both status and Timer snapshots);
 the other **always builds** current Swift sources and all test targets. It lists
 methods from that binary, then partitions every discovered suite into five
 balanced groups, accounting for the replays assigned to each runner. Historical
@@ -113,6 +114,15 @@ terminal method identities, counts and receipts must match the discovered
 inventory exactly once across shards. Same-count omissions/substitutions fail.
 Named fixture/isolated-host skips additionally need observed passing outcomes in
 the required replay logs; a new skip is not admitted just because most tests ran.
+
+The fixture runner sets `MOKU_TIMER_NATIVE_FIXTURE` for the existing Moku replay
+and requires its nonempty `moku-timer.json` export. The preparation artifact
+already transports the entire `ci-fixtures` directory. Every Swift consumer
+downloads that exact producer artifact and exports the Timer path from its own
+`RUNNER_TEMP/preparation/ci-fixtures` before running its assigned shard. Thus
+`NativeMokuTimerTests.productionGoCatalogFeedsQueueWithoutRealAudio` executes in
+the ordinary discovered shard; it is not deferred or allowed to skip. Its Go
+producer and Swift consumer use fake Harnesses/audio and need no window.
 
 CI enables motion and transparency only in the disposable runner account: the
 [stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
