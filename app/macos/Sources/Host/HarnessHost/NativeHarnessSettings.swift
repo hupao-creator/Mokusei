@@ -311,6 +311,7 @@ public struct NativeHarnessSettingsView: View {
     private let section: HarnessSettingsSection
     private let executionSnapshot: Bool
     private let settingsFormPage: Bool
+    private let readOnly: Bool
     private let refreshSequence: Int
     @Binding private var value: JSONValue
     @State private var surface: NativeHarnessSettingsSurface?
@@ -325,9 +326,10 @@ public struct NativeHarnessSettingsView: View {
 
     public init(host: NativeHarnessHost, configuration: NativeHarnessSettingsConfiguration,
                 section: HarnessSettingsSection, executionSnapshot: Bool = false,
-                settingsFormPage: Bool = false, refreshSequence: Int = 0, value: Binding<JSONValue>) {
+                settingsFormPage: Bool = false, readOnly: Bool = false, refreshSequence: Int = 0, value: Binding<JSONValue>) {
         self.host = host; self.configuration = configuration; self.section = section
         self.executionSnapshot = executionSnapshot; self.settingsFormPage = settingsFormPage; _value = value
+        self.readOnly = readOnly
         self.refreshSequence = refreshSequence
     }
 
@@ -371,8 +373,9 @@ public struct NativeHarnessSettingsView: View {
 
     @ViewBuilder private func content(_ surface: NativeHarnessSettingsSurface) -> some View {
         switch Result(catching: { try surface.harnessSettings(section: section, executionSnapshot: executionSnapshot,
-            settingsFormPage: settingsFormPage, value: value, change: { value = $0 }) }) {
-        case .success(let content): content
+            settingsFormPage: settingsFormPage, value: value, change: { if !readOnly { value = $0 } }) }) {
+        // Keep resource retry outside the disabled configuration controls.
+        case .success(let content): content.disabled(readOnly)
         case .failure(let error): NativeHarnessStatusView(message: "此 Harness 的设置暂时不可用。", english: "This Harness settings view is unavailable.", detail: error.localizedDescription)
                 .nativeSettingsEditorReady(false)
         }

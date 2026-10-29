@@ -16,6 +16,16 @@ selection, Undo, label activation and the draft close/save gate.
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
 | Report and Tag | Onboarding inheritance/independent glass choices, Harness seats, native execution fields and live capability animations |
 
+Report and Tag show the saved Moku execution profile beside the inherited Agent
+in both Settings and onboarding. The read-only details reuse the Harness's native
+fields and catalog statuses, including model, reasoning and other execution
+parameters. They join Moku's saved resource even while a role-mode save is pending,
+so a retained independent profile cannot supply the inherited details or catalog.
+Resource loading, errors and retry remain visible; retry stays enabled while
+configuration fields are read-only. Missing/unavailable Agents and unready
+resources prevent onboarding from advancing. Returning to independent mode keeps
+its retained choices.
+
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry

@@ -58,7 +58,7 @@ public struct NativeApplicationBackgroundEditor: View {
                 if onboarding {
                     onboardingFields(effective).id(inherited)
                 } else {
-                    executionFields(effective).id(inherited).disabled(inherited)
+                    executionFields(effective).id(inherited)
                         .accessibilityElement(children: .contain)
                         .accessibilityLabel(locale.text("运行配置", "Execution settings"))
                 }
@@ -86,13 +86,21 @@ public struct NativeApplicationBackgroundEditor: View {
 
     @ViewBuilder private func onboardingFields(_ effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {
         if inherited {
-            if let host = harnesses.first(where: { $0.descriptor.id == effective.harnessPreference }) {
-                HStack(spacing: 12) {
-                    host.logo(size: 24)
-                    Text(host.descriptor.displayName.string).font(.system(size: 13, weight: .medium))
-                    Spacer()
+            if let host = workspace.plugins.harnesses.modules.first(where: { $0.descriptor.id == effective.harnessPreference }) {
+                HStack(alignment: .top, spacing: 20) {
+                    HStack(spacing: 12) {
+                        host.logo(size: 24)
+                        Text(host.descriptor.displayName.string).font(.system(size: 13, weight: .medium))
+                    }.padding(.top, 15)
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !harnesses.contains(where: { $0.descriptor.id == host.descriptor.id }) {
+                            NativeSettingsNotice(message: locale.text("Moku 当前选择的 Agent 不可用，请先检查 Moku 配置。",
+                                "Moku’s selected Agent is unavailable. Check Moku configuration first."), kind: .warning)
+                        }
+                        harnessFields(host, effective: effective)
+                    }.frame(maxWidth: .infinity)
                 }.padding(.vertical, 8)
-                    .nativeSettingsEditorReady(effective.harnesses[host.descriptor.id] != nil)
+                    .nativeSettingsEditorReady(harnesses.contains { $0.descriptor.id == host.descriptor.id })
             } else {
                 NativeSettingsNotice(message: locale.text("请先完成 Moku 配置。", "Complete Moku configuration first."))
                     .nativeSettingsEditorReady(false)
@@ -130,6 +138,7 @@ public struct NativeApplicationBackgroundEditor: View {
                 }, set: { selectHarness($0) }), options:
                     (effective.harnessPreference == "auto" ? [.init(id: "", label: locale.text("请选择", "Please choose"), disabled: true)] : [])
                     + harnesses.map { .init(id: $0.descriptor.id, label: $0.descriptor.displayName.string) }).nativeSettingsControl("harness")
+                    .disabled(inherited)
             }
             if let host = workspace.plugins.harnesses.modules.first(where: { $0.descriptor.id == effective.harnessPreference }) {
                 harnessFields(host, effective: effective)
@@ -142,21 +151,32 @@ public struct NativeApplicationBackgroundEditor: View {
 
     @ViewBuilder private func harnessFields(_ host: AnyHarnessPlugin,
                                             effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {
-        switch Result(catching: { try savedApplicationSettings() }) {
-        case .success(let saved):
+        switch Result(catching: { try settingsConfiguration(host.descriptor.id, effective: effective) }) {
+        case .success(let configuration):
             let id = host.descriptor.id
-            // The resource source is the saved application projection, even
-            // when the draft selects another Harness or switches inherit mode.
-            NativeHarnessSettingsView(host: workspace.harnessHost, configuration: .background(
-                harnessID: id, cwd: JSONText(settingsModel.defaultCwd), settingID: settingID,
-                inherited: saved.inherited, source: saved.settings.harnesses[id] ?? .null),
-                section: .thread, executionSnapshot: true, settingsFormPage: true,
+            NativeHarnessSettingsView(host: workspace.harnessHost, configuration: configuration,
+                section: .thread, executionSnapshot: true, settingsFormPage: true, readOnly: inherited,
                 value: Binding(get: { effective.harnesses[id] ?? .object([:]) },
                                set: { updateHarness(id, settings: $0) }))
                 .id(id).environment(\.nativeSettingsInteractionScope, settingID.string + "." + id.string)
         case .failure(let error):
             NativeSettingsNotice(message: error.localizedDescription, kind: .error)
+                .nativeSettingsEditorReady(false)
         }
+    }
+
+    private func settingsConfiguration(_ id: JSONText, effective: ApplicationBackgroundExecutionSettings.Overrides) throws
+        -> NativeHarnessSettingsConfiguration {
+        let cwd = JSONText(settingsModel.defaultCwd)
+        if inherited {
+            // Follow the saved Moku resource even while an application's mode
+            // change is still saving; its old independent catalog is unrelated.
+            return .init(harnessID: id, cwd: cwd, source: effective.harnesses[id] ?? .null,
+                         scope: .global(executionOwner: .moku))
+        }
+        let saved = try savedApplicationSettings()
+        return .background(harnessID: id, cwd: cwd, settingID: settingID,
+                           inherited: saved.inherited, source: saved.settings.harnesses[id] ?? .null)
     }
 
     private func effectiveSettings(_ settings: ApplicationBackgroundExecutionSettings) throws

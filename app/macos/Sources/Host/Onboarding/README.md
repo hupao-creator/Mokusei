@@ -23,6 +23,12 @@ validation remain in their native plugins. The shared readiness registry
 combines resource acquisition and incomplete local input; IME, failed saves,
 unavailable Harnesses and invalid fields prevent advancing.
 
+Inherited Tag and Report configuration displays the actual saved Moku profile
+through the same read-only native Harness fields as Settings, including catalog
+and resource status. It waits for resource readiness rather than treating the
+presence of a saved profile as sufficient. Switching back to independent mode
+restores its own retained configuration.
+
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
 shared with Settings through `NativeRoleConfigurationPanel` and with the visual
 demo. Each mounted Tag or Report page plays once with the discovered Harness
