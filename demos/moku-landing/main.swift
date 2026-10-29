@@ -193,7 +193,10 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         caretContrast[(fixture.dark ? "dark" : "light") + (dim ? "-dim" : "")] = ["ratio": contrast, "widthPoints": Double(caret.bounds.width)]
         try JSONSerialization.data(withJSONObject: caretContrast, options: .prettyPrinted)
             .write(to: output.appendingPathComponent("caret-contrast.json"))
-        try require(abs(caret.bounds.width - 2.6) < 0.01 && contrast >= (dim ? 3 : 4.5), "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
+        let expectedWidth = fixture.dark ? 2.6 : 1.5
+        let glow = caret.sublayers!.first { $0.name == "composer-insertion-glow" }!
+        try require(glow.isHidden == !fixture.dark, "Caret glow does not match the editor appearance")
+        try require(abs(caret.bounds.width - expectedWidth) < 0.01 && contrast >= (dim ? 3 : 4.5), "Rendered caret is too thin or faint: width=\(caret.bounds.width), contrast=\(contrast)")
         rect = rect.insetBy(dx: -18, dy: -14)
         let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale,
                             width: rect.width * scale, height: rect.height * scale).integral
@@ -242,10 +245,11 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         }
         try require(opacitySamples.min()! < 0.82 && opacitySamples.max()! > 0.98 && opacitySamples.min()! >= 0.79,
                     "Caret did not breathe continuously between dim and bright phases")
-        try require(caret.bounds.height > input.font!.pointSize && caret.bounds.height < input.font!.pointSize * 1.1 && abs(caret.bounds.width - 2.6) < 0.01,
-                    "Caret did not use the approved short, slightly thicker geometry")
+        try require(caret.bounds.height > input.font!.pointSize && caret.bounds.height < input.font!.pointSize * 1.1 && abs(caret.bounds.width - 1.5) < 0.01,
+                    "Light caret did not use the short, slim geometry")
         try JSONSerialization.data(withJSONObject: opacitySamples.map(Double.init), options: .prettyPrinted)
             .write(to: output.appendingPathComponent("caret-breathing.json"))
+        try await captureCaret("01a-empty-light", input: input, caret: caret)
         let before = caret.position
         input.insertText("优化 landing page", replacementRange: NSRange(location: 0, length: 0))
         try await wait("Native editing did not update the production draft") { self.fixture.draft.text == "优化 landing page" }
@@ -333,11 +337,20 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         try await capture("07-narrow")
         fixture.dark = true
         try await Task.sleep(for: .milliseconds(700))
+        try await wait("Theme change did not mount the dark editor; inputOpen=\(fixture.scene.inputOpen)") {
+            editor(in: self.window.contentView!)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        }
         let darkInput = editor(in: window.contentView!)!
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(darkInput)
         darkInput.insertText("Moku", replacementRange: .init(location: 0, length: darkInput.string.utf16.count))
+        try await wait("Dark input did not update the draft") { self.fixture.draft.text == "Moku" }
+        darkInput.setMarkedText("ni", selectedRange: .init(location: 2, length: 0),
+                                replacementRange: .init(location: NSNotFound, length: 0))
+        try require(darkInput.hasMarkedText(), "Dark IME did not start composition")
+        darkInput.insertText("你", replacementRange: .init(location: NSNotFound, length: 0))
+        try await wait("Dark IME commit lost input") { !darkInput.hasMarkedText() && self.fixture.draft.text == "Moku你" }
         darkInput.updateInsertionPointStateAndRestartTimer(true)
         try await wait("Dark composer did not mount its caret") {
             darkInput.layer?.sublayers?.contains { $0.name == "composer-insertion-point" } == true
@@ -349,7 +362,24 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         try await wait("Empty dark editor did not settle") { self.fixture.draft.text.isEmpty }
         try await Task.sleep(for: .milliseconds(180))
         try await captureCaret("08b-empty-dark", input: darkInput, caret: darkCaret)
-        fixture.reset(); fixture.dark = false
+        fixture.dark = false
+        try await wait("Theme change did not restore the light editor") {
+            editor(in: self.window.contentView!)?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .aqua
+        }
+        let lightInput = editor(in: window.contentView!)!
+        window.makeFirstResponder(lightInput)
+        lightInput.updateInsertionPointStateAndRestartTimer(true)
+        try await wait("Theme change retained the wrong caret") {
+            lightInput.layer?.sublayers?.first { $0.name == "composer-insertion-point" }?.bounds.width == 1.5
+        }
+        try await captureCaret("08c-restored-light", input: lightInput,
+                               caret: lightInput.layer!.sublayers!.first { $0.name == "composer-insertion-point" }!)
+        lightInput.insertText("主题切换后继续输入", replacementRange: .init(location: 0, length: 0))
+        try await wait("Typing after theme change lost input") { self.fixture.draft.text == "主题切换后继续输入" }
+        lightInput.moveLeft(nil)
+        lightInput.deleteBackward(nil)
+        try await wait("Native navigation/deletion after theme change lost input") { self.fixture.draft.text == "主题切换后继续入" }
+        fixture.reset()
         window.setContentSize(.init(width: 1100, height: 720))
         fixture.original = true
         try await Task.sleep(for: .milliseconds(700))

@@ -121,7 +121,9 @@ public struct NativeComposerTextInput: View {
             .background(alignment: .topLeading) {
                 if value.isEmpty {
                     Text(placeholder).font(.system(size: fontSize)).foregroundStyle(Color.primary.opacity(0.85))
-                        .padding(.leading, insets.left + 5).padding(.top, insets.top + spacing / 2)
+                        // Leave the emphasized insertion mark clear of the first placeholder glyph.
+                        .padding(.leading, insets.left + 5 + (emphasizedInsertionPoint ? 3 : 0))
+                        .padding(.top, insets.top + spacing / 2)
                         .allowsHitTesting(false).accessibilityHidden(true)
                 }
             }

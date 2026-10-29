@@ -32,8 +32,10 @@ import SwiftUI
     func show(at nativeRect: CGRect, color: NSColor, in editor: NSTextView) {
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
+        let dark = editor.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let width: CGFloat = dark ? 2.6 : 1.5
         let height = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
-        let rect = CGRect(x: nativeRect.midX - 1.3, y: nativeRect.midY - height / 2, width: 2.6, height: height)
+        let rect = CGRect(x: nativeRect.midX - width / 2, y: nativeRect.midY - height / 2, width: width, height: height)
         let previous = layer.presentation()?.position ?? layer.position
         let moved = hasFrame && rect.origin != layer.position
         let animate = moved && !reduceMotion && abs(rect.midY - layer.frame.midY) < min(rect.height, layer.bounds.height) / 2
@@ -45,16 +47,19 @@ import SwiftUI
             layer.frame = rect
         }
         core.frame = layer.bounds
-        // Keep native dark ink in light appearance; white reproduces the approved
-        // reference on the dark capsule without sacrificing light-mode contrast.
-        let dark = editor.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        core.backgroundColor = (dark ? NSColor.white : color).cgColor
+        core.cornerRadius = width / 2
+        // A luminous fringe works on dark glass. On pale glass it muddies the
+        // dark ink and makes the insertion mark look like part of a glyph.
+        glow.isHidden = !dark
+        editor.effectiveAppearance.performAsCurrentDrawingAppearance {
+            core.backgroundColor = (dark ? NSColor.white : color).cgColor
+        }
         if darkAppearance != dark {
             darkAppearance = dark
             core.removeAnimation(forKey: "breathing")
         }
         let scale = editor.window?.backingScaleFactor ?? 2
-        if glowHeight != height || glowScale != scale {
+        if dark && (glowHeight != height || glowScale != scale) {
             // Rasterize the reference's actual blurred shapes once per geometry,
             // not on native blink callbacks or each animation frame.
             let renderer = ImageRenderer(content: ComposerCaretGlow(height: height))
@@ -65,7 +70,7 @@ import SwiftUI
                 glowScale = scale
             }
         }
-        glow.frame = CGRect(x: 1.3 - 40, y: -40, width: 80, height: height + 80)
+        glow.frame = CGRect(x: width / 2 - 40, y: -40, width: 80, height: height + 80)
         for part in [layer, core, glow] { part.contentsScale = scale }
         hasFrame = true
         CATransaction.commit()
