@@ -56,15 +56,22 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
     public var body: some View {
         GeometryReader { bounds in
+            // Observe replacement state even while motion is idle.
+            let openingOrClosing = !replacing && motion.active
             ZStack {
                 parent
-                    .overlay { Color.black.opacity(0.14 * progress).allowsHitTesting(false) }
-                    .blur(radius: focusBlur && motion.active ? 16 * progress : 0)
+                    .overlay { Color.black.opacity(axis == .horizontal ? 0.14 * progress : 0).allowsHitTesting(false) }
+                    .blur(radius: axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
                     .offset(x: stationaryParent || axis == .vertical ? 0 : -0.25 * bounds.size.width * progress * direction,
-                            y: stationaryParent || axis == .horizontal ? 0 : -0.25 * bounds.size.height * progress * direction)
-                    .opacity(replacing || open && !motion.active ? 0 : 1)
+                            y: stationaryParent || axis == .horizontal ? 0 : -bounds.size.height * progress * direction)
+                    .opacity(open && !openingOrClosing ? 0 : 1)
                     .allowsHitTesting(!open && enabled)
-                    .disabled(open)
+                    // Disabling removes the native scroller gutter. Defer that
+                    // input gate until the vertical parent is offscreen; restore
+                    // its layout during return preparation, before either page moves.
+                    // History replacement never involves this hidden parent and
+                    // must keep its keyboard input gate closed throughout.
+                    .disabled(open && (axis == .horizontal || progress == 1 && !openingOrClosing))
                     .accessibilityHidden(open)
                 if open {
                     ZStack {
@@ -74,14 +81,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                                     active: ReadingPageReplacementOffset(travel: bounds.size.height, motion: motion),
                                     identity: ReadingPageReplacementOffset(travel: 0, motion: motion)),
                                 removal: .modifier(
-                                    active: ReadingPageReplacementOffset(travel: -0.25 * bounds.size.height, motion: motion),
+                                    active: ReadingPageReplacementOffset(travel: -bounds.size.height, motion: motion),
                                     identity: ReadingPageReplacementOffset(travel: 0, motion: motion))) : .identity)
                     }
                         // Limit replacement animation to the history identities;
                         // opening/return travel and timeline layout have their own owners.
                         .animation(axis == .vertical && direction != 0 && !reduceMotion ? curve : nil, value: identity)
                         .frame(width: bounds.size.width, height: bounds.size.height)
-                        .modifier(ReadingPageSurface(progress: progress, active: motion.active, axis: axis))
+                        .modifier(ReadingPageSurface(progress: progress, active: motion.active && axis == .horizontal, axis: axis))
                         .offset(x: axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
                                 y: axis == .vertical ? bounds.size.height * (1 - progress) * direction : 0)
                 }
