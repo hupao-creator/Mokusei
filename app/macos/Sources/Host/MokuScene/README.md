@@ -65,16 +65,15 @@ filtering to no results does not. Landing eligibility does not depend on the
 separate [first-run onboarding](../Onboarding/README.md) completion marker.
 
 Landing opens input once on entry. Submitting uses the ordinary sealed-draft
-collapse; failure reopens the preserved draft. Escape, outside click, input
-reopening and Stop use the same paths as the bottom Dock. Returning from a
+collapse; failure reopens the preserved draft. Escape, input reopening and Stop
+use the same paths as the bottom Dock. Outside clicks keep landing input open,
+including clicks in another window or app, without consuming the click or losing
+the draft. Bottom-Dock input still collapses on outside clicks. Returning from a
 covering route or remounting cannot reopen input over a resident or message.
 Hydrating a running Moku or waiting message presents that state immediately.
-Landing input also collapses on clicks in another window or app, preserving its
-draft and leaving the click available to its target. Focus loss alone does not
-collapse it: native menus, attachment sheets, modal panels and visible child
-windows retain their interaction before outside dismissal resumes. Cross-app
-observers retire when input closes or the Dock unmounts; covered routes cannot
-use a stale observer to close the draft.
+Focus loss, native menus, attachment sheets, modal panels and visible child
+windows also retain landing input. Cross-app observers belong only to presented
+Talk notifications and retire when the notification hides or the Dock unmounts.
 
 The same persistent capsule and character host own running, thinking, Talk and
 dispatch. There is no separate landing notice. A manually opened editor defers

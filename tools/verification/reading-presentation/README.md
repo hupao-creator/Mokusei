@@ -53,14 +53,14 @@ submission, running, Talk and dispatch, the accessible Stop action, notification
 deferral while editing, failed submission draft retention, Escape/reopening,
 narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
-a window-background click collapses it without losing the draft, and dismissal
-still works after covering routes and remounting. The three methods sending
+a window-background click keeps it open without losing the draft, including
+after covering routes and remounting. The three methods sending
 native mouse/key events run in CI's isolated AppKit input host; the other three
 state/layout methods remain in the ordinary Swift shard. Plain SwiftPM's native
 text tracking was observed to exit zero before its completion summary, which
 coverage treats as failure. A second native window also
-checks that focus loss retains input, while an actual click collapses it and
-preserves the draft. The outside-click Swift suite additionally drives native
+checks that both focus loss and an actual click retain input and preserve the
+draft. The outside-click Swift suite additionally drives native
 child/sheet windows and nested menu-tracking notifications to protect auxiliary
 composer interactions; this is not a physical cross-app mouse-delivery test.
 

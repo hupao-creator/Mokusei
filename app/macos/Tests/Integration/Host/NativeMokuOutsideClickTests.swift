@@ -54,7 +54,7 @@ struct NativeMokuOutsideClickTests {
     }
 
     @Test(.requiresDisplay, arguments: [false, true])
-    func outsideClickLeavesInputModeAndInsideClickKeepsIt(landing: Bool) async throws {
+    func outsideClickRespectsDockModeAndInsideClickKeepsInput(landing: Bool) async throws {
         let fixture = OutsideClickFixture()
         fixture.landing = landing
         let scene = fixture.scene
@@ -70,7 +70,8 @@ struct NativeMokuOutsideClickTests {
 
         let outside = CGPoint(x: 20, y: scene.capsuleFrame.minY - 30)
         try await click(window, at: outside)
-        try await SwiftUIReplay.wait { !scene.inputOpen }
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(scene.inputOpen == landing)
         #expect(scene.overviewState.camera.manual)
 
         scene.setInputOpen(true)
@@ -121,9 +122,11 @@ struct NativeMokuOutsideClickTests {
         try await SwiftUIReplay.wait { window.attachedSheet == nil }
         other.makeKeyAndOrderFront(nil)
         try await click(other, at: CGPoint(x: 50, y: 50))
-        try await SwiftUIReplay.wait { !scene.inputOpen }
+        #expect(scene.inputOpen)
         #expect(target.presses == 4)
         #expect(fixture.draft.text == "保留窗口外点击前的草稿")
+        scene.toggleInput()
+        #expect(!scene.inputOpen)
         scene.toggleInput()
         try await SwiftUIReplay.wait { scene.inputOpen }
         #expect(fixture.draft.text == "保留窗口外点击前的草稿")
@@ -134,7 +137,7 @@ struct NativeMokuOutsideClickTests {
         scene.closeSettings(); scene.settle()
         try await SwiftUIReplay.wait { !scene.dockCovered && scene.inputOpen && !scene.capsuleFrame.isEmpty }
         try await click(other, at: CGPoint(x: 50, y: 50))
-        try await SwiftUIReplay.wait { !scene.inputOpen }
+        #expect(scene.inputOpen)
         #expect(fixture.draft.text == "保留窗口外点击前的草稿")
     }
 

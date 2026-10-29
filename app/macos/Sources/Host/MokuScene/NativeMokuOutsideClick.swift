@@ -64,7 +64,7 @@ enum NativeMokuOutsideClick {
 /// Observes clicks without consuming them. A full-window SwiftUI overlay would
 /// make thread cards and chrome controls unclickable while the composer is
 /// open; the local monitor leaves the original event on its normal path.
-/// Talk and landing input also observe other windows/apps. The global observer
+/// Talk also observes other windows/apps. The global observer
 /// cannot consume events and exists only while that dismissal callback is installed.
 struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     var exclusions: NativeClickExclusions

@@ -158,12 +158,12 @@ import MokuseiPluginUI
         command?(.position)
     }
 
-    /// A click outside the composer leaves input-box mode. The click is marked
-    /// before mouse-up so the Overview background cannot also run its automatic
-    /// framing transition for the same press.
+    /// Outside clicks leave bottom-Dock input mode; landing keeps its composer open.
+    /// Mark a dismissing click before mouse-up so the Overview background cannot
+    /// also run its automatic framing transition for the same press.
     @discardableResult
     public func dismissInputForOutsideClick() -> Bool {
-        guard inputOpen, overviewVisible, !dockCovered, !disabled else { return false }
+        guard inputOpen, !landingActive, overviewVisible, !dockCovered, !disabled else { return false }
         setInputOpen(false)
         overviewState.suppressAutoFocusForThisClick()
         return true
