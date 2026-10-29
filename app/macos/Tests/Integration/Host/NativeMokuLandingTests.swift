@@ -34,10 +34,11 @@ struct NativeMokuLandingTests {
         var overview: NativeOverviewWorkspaceModel { presentation.overview }
         var moku: NativeMokuWorkspacePresentation { presentation.moku }
 
-        init() throws {
+        init(onboarding: Bool = false) throws {
             workspace = NativeWorkspaceModel(client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory, homeDirectory: directory)),
                 preferences: DesktopPreferences(directory: directory), plugins: try .init(
                     harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: NativeApplicationModules.make()))
+            if !onboarding { try workspace.preferences.setOnboardingCompleted(true) }
             presentation = NativeWorkspacePresentation(workspace: workspace)
             presentation.start()
             presentation.setScenePhase(.active)
@@ -159,6 +160,60 @@ struct NativeMokuLandingTests {
         // Native text selection may synchronously track until mouse-up.
         NSApp.postEvent(try event(.leftMouseUp), atStart: true)
         NSApp.sendEvent(try event(.leftMouseDown))
+    }
+
+    @Test func firstRunOwnsAdmissionWithoutMountingTheHiddenComposer() async throws {
+        let fixture = try Fixture(onboarding: true)
+        do {
+            fixture.mount(fullWorkspace: true)
+            try await fixture.install(includeMoku: false)
+            #expect(!fixture.presentation.onboarding.admitted)
+            try await fixture.install()
+            try await SwiftUIReplay.wait { fixture.presentation.onboarding.mounted && fixture.presentation.onboarding.admitted }
+            #expect(fixture.presentation.interactionPage == "onboarding")
+            #expect(!fixture.scene.inputOpen && !fixture.presentation.onboarding.mountDock)
+            #expect(SwiftUIReplay.editor(in: try #require(fixture.window?.contentView)) == nil)
+            #expect(!fixture.presentation.canOpenSettings)
+            #expect(!fixture.presentation.interactionActions.contains("moku.input"))
+            #expect(throws: NativeInteractionError.self) { try fixture.presentation.performInteraction(.openSettings) }
+            let preferences = fixture.workspace.preferences
+            #expect(preferences.onboardingPending && !preferences.onboardingCompleted)
+            try preferences.setAppearance(.dark)
+            try preferences.selectThread(nil)
+            let reopened = DesktopPreferences(directory: fixture.directory)
+            #expect(reopened.onboardingPending && !reopened.onboardingCompleted)
+        } catch { await fixture.close(); throw error }
+        await fixture.close()
+    }
+
+    @Test func archivedHistoryBypassesFirstRunButPendingSetupDoesNot() async throws {
+        for pending in [false, true] {
+            let fixture = try Fixture(onboarding: true)
+            do {
+                if pending { try fixture.workspace.preferences.setOnboardingCompleted(false) }
+                try await fixture.install([fixture.thread(status: .completed, archived: true)])
+                #expect(fixture.presentation.onboarding.blocksWorkspace == pending)
+                #expect(fixture.workspace.preferences.onboardingCompleted == !pending)
+            } catch { await fixture.close(); throw error }
+            await fixture.close()
+        }
+    }
+
+    @Test func failedPendingMarkerWriteKeepsFirstRunRetryable() async throws {
+        let fixture = try Fixture(onboarding: true)
+        do {
+            let marker = fixture.directory.appendingPathComponent("desktop-preferences.json")
+            try FileManager.default.createDirectory(at: marker, withIntermediateDirectories: true)
+            try await fixture.install()
+            #expect(!fixture.presentation.onboarding.admitted)
+            #expect(fixture.presentation.onboarding.blocksWorkspace)
+            #expect(fixture.presentation.onboarding.error != nil)
+            try FileManager.default.removeItem(at: marker)
+            fixture.presentation.onboarding.retry()
+            #expect(fixture.presentation.onboarding.admitted)
+            #expect(DesktopPreferences(directory: fixture.directory).onboardingPending)
+        } catch { await fixture.close(); throw error }
+        await fixture.close()
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",

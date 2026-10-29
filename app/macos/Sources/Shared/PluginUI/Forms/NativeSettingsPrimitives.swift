@@ -70,21 +70,22 @@ public struct NativeSettingsGroup<Content: View>: View {
     private let content: Content
     @Environment(\.nativeSettingsGroupBottomSpacing) private var bottomSpacing
     @Environment(\.nativeSettingsFormPage) private var settingsFormPage
+    @Environment(\.nativeSettingsOnboarding) private var onboarding
     public init(title: String? = nil, description: String? = nil, action: AnyView? = nil,
                 @ViewBuilder content: () -> Content) {
         self.title = title; self.description = description; self.action = action; self.content = content()
     }
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if title?.isEmpty == false || description?.isEmpty == false || action != nil {
+            if (!onboarding && (title?.isEmpty == false || description?.isEmpty == false)) || action != nil {
                 HStack(alignment: .top, spacing: 20) {
                     VStack(alignment: .leading, spacing: 5) {
-                        if let title, !title.isEmpty {
+                        if let title, !title.isEmpty, !onboarding {
                             Text(title).font(NativeTypography.settings(size: settingsFormPage ? 14 : 13, weight: 600))
                                 .foregroundStyle(NativePlatformPalette.settings.text.swiftUI).fixedSize(horizontal: false, vertical: true)
                                 .accessibilityAddTraits(.isHeader)
                         }
-                        if let description, !description.isEmpty {
+                        if let description, !description.isEmpty, !onboarding {
                             Text(description).modifier(NativeSettingsTextMetrics(size: 12, lineHeight: 18.6))
                                 .foregroundStyle(NativePlatformPalette.settings.muted.swiftUI).padding(.top, title?.isEmpty == false ? 0 : 5)
                         }

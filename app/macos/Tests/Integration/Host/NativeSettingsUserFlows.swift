@@ -128,6 +128,7 @@ struct NativeSettingsUserFlows {
             try await NativeSettingsPrefetchReplay.verify(workspace: workspace, endpoint: prefetchURL)
             let model = workspace.settingsModel
             let draft = model.draft
+            try workspace.preferences.setOnboardingCompleted(true)
             let presentation = NativeWorkspacePresentation(workspace: workspace)
             presentation.start()
             try presentation.performInteraction(.openSettings)
@@ -282,6 +283,7 @@ struct NativeSettingsUserFlows {
                 }
             }
             await presentation.release()
+            try await NativeOnboardingUserFlow.verify(profile: profile, port: try #require(prefetchURL.port), directory: directory.appendingPathComponent("onboarding-client"))
             await other.close()
             try await workspace.stop()
         } catch {
@@ -375,6 +377,7 @@ struct NativeSettingsUserFlows {
             "defaultCwd": .text(directory.path), "settings": .object([:]), "threads": .array([moku.json]),
             "executions": .array([]), "applicationThreads": .array([])])
         await workspace.installPrepared(snapshot, event: .snapshot(snapshot, authority: UUID()))
+        try workspace.preferences.setOnboardingCompleted(true)
         let presentation = NativeWorkspacePresentation(workspace: workspace)
         presentation.start()
         try presentation.performInteraction(.openSettings)

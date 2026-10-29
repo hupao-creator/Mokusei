@@ -53,6 +53,8 @@ pending 收起输入并保持居中、失败恢复输入及草稿、成功回到
 任务集合及派发结果由内存 fixture 提供；派发相位使用生产 `NativeMokuDispatch`
 解读。附件采用生产导入/展示流程，模拟暂存服务只返回元数据。
 本 demo 不连接 Runtime、模型、麦克风或用户 profile。
+`LandingFixture.swift` 提供共用的内存状态和生产 landing 装配；
+[Landing setup demo](../landing-setup/README.md) 在完成引导后挂载同一个组件。
 创建前失败通过提交回调返回错误来演示草稿保留，不证明真实 Runtime 接受输入之后的
 异步派发失败、历史通知、权限交互或语音生命周期。
 

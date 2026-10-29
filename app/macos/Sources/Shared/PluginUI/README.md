@@ -318,3 +318,13 @@ the popover opening/dismissal, focus or WindowServer replay above. Setting
 `MOKUSEI_MODEL_SELECTOR_HEADLESS_ARTIFACTS` captures the unmounted production
 content in both appearances without creating or ordering a window; popover
 chrome, screen placement and compositing remain outside those renders.
+
+## First-run settings presentation
+
+`nativeSettingsOnboarding` selects the compact presentation of existing groups
+and background-role configuration. `NativeSettingsReadiness` reports optional
+readiness leases from mounted editors: no reporter is unknown; all reporters
+must be ready. Each step owns its registry and unmounting removes the editor lease. Harness plugins report incomplete local model-dependent input, while the
+Host separately reports resource availability. The parent consumes the current
+step's readiness leases and rejects callbacks from departing pages. Settings and
+onboarding share native field bindings, catalogs and persistence.

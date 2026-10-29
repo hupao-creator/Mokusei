@@ -11,7 +11,8 @@ public struct CodexHarnessPlugin: HarnessPlugin {
     public var descriptor: HarnessPluginDescriptor {
         HarnessPluginDescriptor(id: "codex", displayName: "Codex",
             threadCapabilities: HarnessThreadCapabilities(instructions: true, threadContext: true,
-                sendContext: true, toolModes: [.extend, .exclusive]))
+                sendContext: true, toolModes: [.extend, .exclusive]),
+            installationGuide: URL(string: "https://developers.openai.com/codex/cli/")!)
     }
     public var logoSource: String { CodexLogo.source }
     public func logo(size: CGFloat) -> some View { CodexLogo(size: size) }

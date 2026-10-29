@@ -11,6 +11,11 @@ whose HTTP clients remain connected. Reads also follow their request cancellatio
 writes follow only the service lifetime. Drain waits for those calls and their
 durable receipts while the health endpoint and stop response remain available. Cleanup errors are returned in the stop response before exit; they do not create a permanently failed health endpoint.
 
+`Finish` joins HTTP shutdown after `Close` has retired the listener. If Serve
+has not yet removed its listener wrapper, Shutdown can report `net.ErrClosed`
+after all connections drain; this expected repeated close is success. Deadlines
+and other shutdown errors remain failures.
+
 [stream.go](stream.go), [content.go](content.go) and [delta.go](delta.go) carry snapshots and revisioned updates over HTTP/NDJSON. Clients reject stale epochs and recover gaps from authoritative snapshots. Catalogs carry bounded overview data; conversation/turn/execution scopes fetch the owned Harness projection on demand. JSON null, missing fields and integer values remain distinct. Swift encodes integer cursors and revisions as integer JSON tokens.
 
 Requests, in-flight bytes, responses, clients and content-worker queues have explicit limits in the transport implementation. Slow or cancelled content readers release their leases; close joins workers and prevents late writes. [files.go](files.go) authorizes host files and attachment transfers without treating an arbitrary client path as an attachment capability.

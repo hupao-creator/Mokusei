@@ -40,6 +40,7 @@ import MokuseiHarnessOpenCode
         workspace = NativeWorkspaceModel(client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory)),
             preferences: DesktopPreferences(directory: directory),
             plugins: try .init(harnesses: [plugin], sidecards: [], applications: []))
+        try workspace.preferences.setOnboardingCompleted(true)
         presentation = NativeWorkspacePresentation(workspace: workspace)
         try update()
     }

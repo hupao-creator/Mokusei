@@ -12,6 +12,7 @@
 | [Moku 渐变玻璃](moku-gradient-material/README.md) | 生产渐变材质的独立原生调参预览；复用胶囊几何、眼睛与当前材质，并排比较深色和浅色。 |
 | [Moku mention transition](moku-mention-transition/README.md) | 当前生产 Dock 与已确认原型的菜单/眼睛过渡对照，支持真实输入及自动回放。 |
 | [Moku landing](moku-landing/README.md) | 当前生产 Dock/composer 的原生视觉回放；fixture 驱动派发与归档，全局状态接入另有生产页面集成回放。 |
+| [Landing setup](landing-setup/README.md) | 新用户五步设置的原生交互提案；模拟 Agent 发现与配置，最后进入共用的生产 landing 回放，不接入生产首次启动。 |
 | [Tag glass morph](tag-glass-morph/README.md) | 接入前的独立参数实验；保留实验源码与参数，不同步成生产副本。 |
 | [Tag selection HTML](tag-selection-preview/README.md) | 历史静态视觉提案；浏览器实色选中样式不代表当前原生玻璃 tint。 |
 | [Thread card cloud](thread-card-cloud/README.md) | 历史光云预览；构建仍引用已删除的 `Sources/App/NativeContentHost.swift`，且手动装配卡片玻璃。 |

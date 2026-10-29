@@ -353,6 +353,7 @@ public struct CodexHarnessSettingsView: View {
             }
         }
         .onChange(of: cwd) { _, _ in pendingProfile = nil }
+        .nativeSettingsEditorReady(pendingProfile == nil)
     }
     private func changeProfile(_ profile: CodexThreadSettings) {
         if props.executionSnapshot {

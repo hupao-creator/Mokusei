@@ -21,8 +21,10 @@ public struct HarnessPluginDescriptor: Hashable, Sendable {
     public let id: JSONText
     public let displayName: JSONText
     public let threadCapabilities: HarnessThreadCapabilities
-    public init(id: JSONText, displayName: JSONText, threadCapabilities: HarnessThreadCapabilities) {
+    public let installationGuide: URL?
+    public init(id: JSONText, displayName: JSONText, threadCapabilities: HarnessThreadCapabilities, installationGuide: URL? = nil) {
         self.id = id; self.displayName = displayName; self.threadCapabilities = threadCapabilities
+        self.installationGuide = installationGuide
     }
 }
 

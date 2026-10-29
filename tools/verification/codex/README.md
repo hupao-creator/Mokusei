@@ -8,6 +8,10 @@ go run -race ./tools/verification/codex
 
 The executable reuses itself as a scripted external Codex CLI. It creates an isolated temporary HOME, native data directory and workspace, and removes them when the run finishes. No installed Codex, credentials, Node, Python, model service or external network is needed. A failed assertion exits nonzero. This is an integration command, not a unit-test suite.
 
+The scripted peer advertises version `999.0.0` so production newest-candidate
+discovery selects it ahead of a locally installed app bundle. Its protocol
+user-agent fixtures remain independent of that discovery version.
+
 The synthetic replay checks:
 
 - Isolated native homes preserve configured system-proxy feature booleans,
@@ -41,6 +45,10 @@ The synthetic replay checks:
   and uncertain sends are not replayed.
 - Interrupt settlement and session resume after process shutdown.
 - Native voice context injection, SDP response, polling and explicit stop acknowledgement.
+- Early-feedback replay waits for the next unfinished ASR partial after a handoff,
+  which crosses the serial notification boundary before calling `Speak`. The
+  input-generation event alone precedes request registration. Final ASR identity,
+  duplicate delivery and late feedback assertions remain on the complete stream.
 - Native voice configuration rejection before Core/tool admission, exact
   handoff recovery only after process and bridge cleanup, generic/uncertain
   rejection without automatic recovery, and concurrent configuration closure.

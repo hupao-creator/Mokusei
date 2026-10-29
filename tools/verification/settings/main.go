@@ -222,6 +222,10 @@ func run() (failure error) {
 	var mu sync.Mutex
 	var calls, unexpected []string
 	nativeModels := []any{map[string]any{"model": "settings-a", "displayName": "Settings A", "isDefault": true, "supportedReasoningEfforts": []any{map[string]any{"reasoningEffort": "low"}, map[string]any{"reasoningEffort": "high"}}, "defaultReasoningEffort": "low", "defaultServiceTier": nil, "serviceTiers": []any{map[string]any{"id": "priority"}}}, map[string]any{"model": "settings-b", "displayName": "Settings B", "supportedReasoningEfforts": []any{map[string]any{"reasoningEffort": "medium"}}, "defaultReasoningEffort": "medium", "defaultServiceTier": "priority", "serviceTiers": []any{map[string]any{"id": "priority"}}}}
+	// A catalog model without an advertised default leaves a real incomplete
+	// native edit until the user explicitly picks its reasoning effort.
+	nativeModels = append(nativeModels, map[string]any{"model": "settings-explicit", "displayName": "Explicit effort", "supportedReasoningEfforts": []any{map[string]any{"reasoningEffort": "high"}}, "serviceTiers": []any{map[string]any{"id": "priority"}}})
+
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return err

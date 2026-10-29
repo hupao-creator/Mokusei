@@ -58,12 +58,16 @@ struct NativeApplicationFailure: View {
 struct NativeBackgroundSettingsView: View {
     let props: ApplicationSettingsProps<ApplicationBackgroundExecutionSettings>
     let description: String
+    @Environment(\.nativeSettingsOnboarding) private var onboarding
     var body: some View {
-        NativeSettingsGroup(description: description) {
-            switch Result(catching: { try props.capabilities.require(ApplicationCapabilities.backgroundConfigurationUI) }) {
-            case .failure(let error): NativeApplicationFailure(message: error.localizedDescription)
-            case .success(let capability): capability.editor(value: props.value, change: props.change)
-            }
+        if onboarding { editor }
+        else { NativeSettingsGroup(description: description) { editor } }
+    }
+    @ViewBuilder private var editor: some View {
+        switch Result(catching: { try props.capabilities.require(ApplicationCapabilities.backgroundConfigurationUI) }) {
+        case .failure(let error): NativeApplicationFailure(message: error.localizedDescription)
+                .nativeSettingsEditorReady(false)
+        case .success(let capability): capability.editor(value: props.value, change: props.change)
         }
     }
 

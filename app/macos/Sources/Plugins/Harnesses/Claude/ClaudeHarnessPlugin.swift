@@ -5,7 +5,7 @@ import SwiftUI
 
 public struct ClaudeHarnessPlugin: HarnessPlugin {
     public init() {}
-    public var descriptor: HarnessPluginDescriptor { .init(id: "claude", displayName: "Claude", threadCapabilities: .init(instructions: true, threadContext: true, sendContext: true, toolModes: [.extend,.exclusive])) }
+    public var descriptor: HarnessPluginDescriptor { .init(id: "claude", displayName: "Claude", threadCapabilities: .init(instructions: true, threadContext: true, sendContext: true, toolModes: [.extend,.exclusive]), installationGuide: URL(string: "https://code.claude.com/docs/en/setup")!) }
     public func logo(size: CGFloat) -> some View { ClaudeLogo(size:size) }
     public var logoSource: String { ClaudeLogo.source }
     public var translations: HarnessTranslationCatalog { ["en-US": Dictionary(uniqueKeysWithValues: claudeEnglish.map { (JSONText($0.key),JSONText($0.value)) })] }

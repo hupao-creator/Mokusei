@@ -203,6 +203,7 @@ struct PiHarnessSettingsView: View {
                 }
             }
         }.environment(\.nativeSettingsFormPage, props.settingsFormPage)
+            .nativeSettingsEditorReady(pendingProfile == nil)
             .onChange(of: props.host?.cwd) { _, _ in pendingProfile = nil }
     }
     private var fields: some View {

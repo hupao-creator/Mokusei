@@ -25,6 +25,8 @@ public final class DesktopPreferences {
     public private(set) var locale: DesktopLocale
     public private(set) var glassWorld: Bool
     public private(set) var selectedThreadID: String?
+    public private(set) var onboardingCompleted: Bool
+    public private(set) var onboardingPending: Bool
     public private(set) var readError: String?
     @ObservationIgnored private let fileURL: URL
     @ObservationIgnored public var diagnostics = SettingsDiagnostics()
@@ -51,6 +53,7 @@ public final class DesktopPreferences {
     private struct SavedState: Codable {
         var preferences: Preferences
         var selectedThreadId: String?
+        var onboardingCompleted: Bool?
     }
 
     public init(directory: URL) {
@@ -60,12 +63,18 @@ public final class DesktopPreferences {
         locale = .chinese
         glassWorld = true
         selectedThreadID = nil
+        onboardingCompleted = false
+        onboardingPending = false
         do {
             let state = try JSONDecoder().decode(SavedState.self, from: Data(contentsOf: fileURL))
             appearance = state.preferences.appearance
             locale = state.preferences.locale
             glassWorld = state.preferences.glassWorld
             selectedThreadID = state.selectedThreadId
+            // A valid preexisting desktop file establishes prior use. Explicit
+            // pending state must survive preference writes and interrupted setup.
+            onboardingCompleted = state.onboardingCompleted ?? true
+            onboardingPending = state.onboardingCompleted == false
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             // First launch has no saved client preferences.
         } catch {
@@ -98,9 +107,18 @@ public final class DesktopPreferences {
         selectedThreadID = value
     }
 
-    private func persist(appearance: DesktopAppearance, locale: DesktopLocale, glassWorld: Bool, selectedThreadID: String?) throws {
+    public func setOnboardingCompleted(_ completed: Bool) throws {
+        try persist(appearance: appearance, locale: locale, glassWorld: glassWorld,
+                    selectedThreadID: selectedThreadID, onboardingCompleted: completed)
+        onboardingCompleted = completed
+        onboardingPending = !completed
+    }
+
+    private func persist(appearance: DesktopAppearance, locale: DesktopLocale, glassWorld: Bool,
+                         selectedThreadID: String?, onboardingCompleted: Bool? = nil) throws {
         let data = try JSONEncoder().encode(SavedState(
-            preferences: Preferences(locale: locale, appearance: appearance, glassWorld: glassWorld), selectedThreadId: selectedThreadID
+            preferences: Preferences(locale: locale, appearance: appearance, glassWorld: glassWorld), selectedThreadId: selectedThreadID,
+            onboardingCompleted: onboardingCompleted ?? self.onboardingCompleted
         ))
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,

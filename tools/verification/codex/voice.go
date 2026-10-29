@@ -288,23 +288,28 @@ func verifyFeedbackBeforeFinalEvents(ctx context.Context, voice plugin.VoiceSess
 	if err := syncer.SyncContext(ctx, []plugin.ContextEntry{{ID: "fixture-feedback-before-final", Content: "Replay feedback before the ASR final."}}); err != nil {
 		return nil, err
 	}
-	events, err := pollVoiceEvents(voice, after, 2)
+	// Input generation is published before handoff registration finishes. The
+	// following partial crosses the serial notification boundary without waiting
+	// for the final ASR whose late identity repair this scenario must exercise.
+	events, err := pollVoiceEvents(voice, after, 3)
 	if err != nil {
 		return nil, err
 	}
-	partial, input := events[0], events[1]
-	if partial.Type != "transcript" || partial.Role != "user" || input.Type != "input" || input.Generation == nil {
+	partial, input, laterPartial := events[0], events[1], events[2]
+	if partial.Type != "transcript" || partial.Role != "user" || input.Type != "input" || input.Generation == nil ||
+		laterPartial.Type != "transcript" || laterPartial.Role != "user" || laterPartial.ItemID != partial.ItemID ||
+		laterPartial.Complete == nil || *laterPartial.Complete || laterPartial.Text == nil || *laterPartial.Text != "early partial request" {
 		return nil, fmt.Errorf("early feedback fixture lost its ASR/handoff boundary")
 	}
 	speech := plugin.VoiceSpeech{DeliveryID: "fixture-feedback-before-final-reply", DelegationID: "fixture-feedback-before-final", Generation: *input.Generation, Text: "Moku feedback before final"}
 	if err = voice.Speak(ctx, speech); err != nil {
 		return nil, err
 	}
-	events, err = pollVoiceEvents(voice, after, 7)
+	events, err = pollVoiceEvents(voice, after, 8)
 	if err != nil {
 		return nil, err
 	}
-	initial, audio, final, resolved, newer := events[2], events[3], events[4], events[5], events[6]
+	initial, audio, final, resolved, newer := events[3], events[4], events[5], events[6], events[7]
 	if initial.Type != "answer" || initial.ReplyToItemID != "" || initial.DeliveryID != speech.DeliveryID || audio.Type != "speech" || final.Type != "transcript" || final.ItemID != partial.ItemID || final.Complete == nil || !*final.Complete || resolved.Type != "answer" || resolved.ReplyToItemID != partial.ItemID || resolved.DeliveryID != initial.DeliveryID || newer.Type != "transcript" || newer.ItemID == partial.ItemID {
 		return nil, fmt.Errorf("ASR final did not repair the original answer identity without replaying audio")
 	}
@@ -320,11 +325,11 @@ func verifyFeedbackBeforeFinalEvents(ctx context.Context, voice plugin.VoiceSess
 	if err = voice.Speak(ctx, speech); err != nil {
 		return nil, err
 	}
-	events, err = pollVoiceEvents(voice, after, 9)
+	events, err = pollVoiceEvents(voice, after, 10)
 	if err != nil {
 		return nil, err
 	}
-	if events[7].Type != "answer" || events[7].ReplyToItemID != partial.ItemID {
+	if events[8].Type != "answer" || events[8].ReplyToItemID != partial.ItemID {
 		return nil, fmt.Errorf("repaired request acquired a newer ASR identity")
 	}
 	fmt.Println("PASS synthetic voice feedback-before-final / answer identity repair / no repeated speech")
