@@ -56,7 +56,9 @@ func fixtureMain() error {
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--version":
-			fmt.Println("codex-cli 0.164.0")
+			// Production discovery chooses the newest candidate, including app
+			// bundles outside this fixture's PATH and isolated home.
+			fmt.Println("codex-cli 999.0.0")
 			return nil
 		case "debug":
 			if err := captureVoiceLaunch("catalog"); err != nil {
@@ -416,6 +418,11 @@ func (p *peer) receive(frame object) error {
 				return e
 			}
 			if e := p.event("thread/realtime/itemAdded", object{"threadId": p.session, "item": object{"type": "handoff_request", "handoff_id": "fixture-feedback-before-final", "input_transcript": "feedback before final request"}}); e != nil {
+				return e
+			}
+			// A later partial keeps ASR unfinished while giving the consumer an
+			// observable boundary after the handoff notification has returned.
+			if e := p.event("thread/realtime/transcript/delta", object{"threadId": p.session, "role": "user", "delta": " request"}); e != nil {
 				return e
 			}
 		}
