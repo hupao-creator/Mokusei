@@ -224,3 +224,8 @@ Every scroll asserts its observed final position against the requested/clamped
 target within half a point, including repeated relative movement and both edges.
 This reading scope excludes composer send/interrupt, attachments, sidecards, Git,
 external links and media; page navigation alone does not test those features.
+
+Settings uses a horizontal header. Report/Tag inheritance is exposed through
+`<section>.inherit` and `<section>.independent` activation actions; independent
+Harness seats use `<section>.harness.<id>`. Inherited mode omits independent
+choices. Moku's collapsed routing editor is opened with `moku.advanced`.

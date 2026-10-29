@@ -115,6 +115,7 @@ struct LandingSurface: View {
     let fixture: LandingFixture
     var showsDock = true
     var dockOpacity = 1.0
+    var glassWorld = true
     var body: some View {
         NativeMokuScene(state: fixture.scene) {
             GeometryReader { geometry in
@@ -123,7 +124,7 @@ struct LandingSurface: View {
                 ZStack {
                     NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.filteredEmpty ? "filtered" : "all", state: fixture.canvas,
                         toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
-                        cloudAnimationsEnabled: false, interactionPaused: fixture.scene.interactionPaused) { _ in
+                        cloudAnimationsEnabled: false, glassWorld: glassWorld, interactionPaused: fixture.scene.interactionPaused) { _ in
                         HarnessThreadCard(identity: .init(title: "优化 landing page",
                             harness: .init(brandKey: fixture.dispatchHarness.descriptor.id.string,
                                 label: fixture.dispatchHarness.descriptor.displayName.string, logoSource: fixture.dispatchHarness.logoSource),

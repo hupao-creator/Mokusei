@@ -166,13 +166,12 @@ struct NativeSettingsTransitionTests {
             #expect(panel.width <= size.width / scale - 48 + 1)
             #expect(panel.height <= size.height / scale - 48 + 1)
             #expect(abs(panel.midX - size.width / scale / 2) < 1)
-            if landing { #expect(abs(panel.midY - size.height / scale / 2) < 1) }
-            else { #expect(abs(panel.maxY - original.maxY) < 1) }
+            #expect(abs(panel.midY - size.height / scale / 2) < 1)
             #expect(fixture.appearances == 1 && fixture.outsideAppearances == 1)
             #expect(fixture.pageSize.height > 40, "Settings must retain a usable content viewport")
             if originalContrast > 0 {
                 #expect(try await contrast(pixels(window)) < originalContrast * 0.5, "The real Overview backdrop must be blurred")
-                #expect(abs(panel.width - 900) < 1 && abs(panel.height - 640) < 1)
+                #expect(abs(panel.width - 780) < 1 && abs(panel.height - 668) < 1)
             }
             let before = fixture.pageSize
             fixture.navigation.section = "moku"

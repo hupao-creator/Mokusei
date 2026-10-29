@@ -69,3 +69,7 @@ Tag / Report 动画直接来自生产模块，本 demo 为其提供确定性的 
 Moku map、品牌、圆形角色和最终 Dock 同样复用生产组件。
 独立 demo 的配置控件仍使用内存 fixture；真实首次启动、发现和保存由 Go-backed Settings
 回放挂载生产 `NativeWorkspaceView` 验证，不能用 demo 的通过替代生产验证。
+
+`SetupConfigurationPanel` 为本 demo 与 [Settings 顶部 tab 提案](../settings-tabs/README.md)
+共享同一套配置交互；步骤进度、前后导航、发现与 Dock 交接仍由 `SetupSurface` 独立负责。
+模型与推理选择复用生产 `NativeModelSelector`，仍由示例 catalog 和内存配置驱动。

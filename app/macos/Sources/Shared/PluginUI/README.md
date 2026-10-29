@@ -319,9 +319,10 @@ the popover opening/dismissal, focus or WindowServer replay above. Setting
 content in both appearances without creating or ordering a window; popover
 chrome, screen placement and compositing remain outside those renders.
 
-## First-run settings presentation
+## Compact configuration presentation
 
-`nativeSettingsOnboarding` selects the compact presentation of existing groups
+`nativeSettingsCompactPresentation` selects the presentation shared by onboarding
+and Settings role panels for existing groups
 and background-role configuration. `NativeSettingsReadiness` reports optional
 readiness leases from mounted editors: no reporter is unknown; all reporters
 must be ready. Each step owns its registry and unmounting removes the editor lease. Harness plugins report incomplete local model-dependent input, while the

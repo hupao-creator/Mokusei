@@ -58,7 +58,7 @@ struct NativeApplicationFailure: View {
 struct NativeBackgroundSettingsView: View {
     let props: ApplicationSettingsProps<ApplicationBackgroundExecutionSettings>
     let description: String
-    @Environment(\.nativeSettingsOnboarding) private var onboarding
+    @Environment(\.nativeSettingsCompactPresentation) private var onboarding
     var body: some View {
         if onboarding { editor }
         else { NativeSettingsGroup(description: description) { editor } }

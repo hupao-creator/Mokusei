@@ -230,9 +230,16 @@ private struct DemoControls: View {
         input.insertText("帮我整理新项目的第一步。", replacementRange: .init(location: 0, length: 0))
         try await wait("Native input did not update production draft") { self.fixture.landing.draft.text == "帮我整理新项目的第一步。" }
         try await capture("05b-native-input")
+        // Window capture and external focus changes can retire the key window.
+        // Return must reach the real composer before its dispatch is assessed.
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        try await wait("Landing window did not reacquire keyboard focus") { self.window.isKeyWindow && NSApp.isActive }
+        try require(window.makeFirstResponder(input) && window.firstResponder === input,
+                    "Landing composer did not own Return")
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
             windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
-        window.sendEvent(event)
+        NSApp.sendEvent(event)
         try await wait("Production Return did not dispatch") { self.fixture.landing.running }
         try await wait("Fixture dispatch did not finish") { self.fixture.landing.hasThread }
         try await capture("06-first-task")

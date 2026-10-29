@@ -237,8 +237,9 @@ for the production note-to-reader replay across all four Harnesses.
 ## Settings expansion
 
 Settings occupies the resident Dock's existing glass capsule, with a stable
-viewport-bounded 900×640-point target and an inert bottom Moku row. It shares
-Note's bottom/landing anchors without inheriting Note's click-through behavior.
+viewport-bounded centered 780×680-point target. Its full panel uses untinted
+regular glass and hides the persistent character row until returning; the other
+Dock surfaces retain their existing gradient material and anchors.
 The scene blurs and disables Overview, while the capsule and retained input/Note
 visit stay mounted. Closing uses the Settings draft gate and restores the
 previous valid surface; pending interventions resume only after Settings exits.

@@ -25,7 +25,7 @@ replay = NativeReplay(repo, "MokuseiSetupDemo", "com.mokusei.landing-setup-demo"
 try:
     replay.compile([source.parent / "moku-landing/LandingFixture.swift",
                     source / "SetupFixture.swift", source / "SetupCapabilityAnimation.swift",
-                    source / "SetupView.swift", source / "main.swift"])
+                    source / "SetupConfigurationPanel.swift", source / "SetupView.swift", source / "main.swift"])
     if options.verify:
         replay.acquire()
         try:

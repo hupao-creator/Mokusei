@@ -70,7 +70,7 @@ public struct NativeSettingsGroup<Content: View>: View {
     private let content: Content
     @Environment(\.nativeSettingsGroupBottomSpacing) private var bottomSpacing
     @Environment(\.nativeSettingsFormPage) private var settingsFormPage
-    @Environment(\.nativeSettingsOnboarding) private var onboarding
+    @Environment(\.nativeSettingsCompactPresentation) private var onboarding
     public init(title: String? = nil, description: String? = nil, action: AnyView? = nil,
                 @ViewBuilder content: () -> Content) {
         self.title = title; self.description = description; self.action = action; self.content = content()

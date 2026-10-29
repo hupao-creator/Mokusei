@@ -8,6 +8,7 @@
 | [Tag morph](tag-filter-morph/README.md) | 当前生产 `NativeOverviewChrome` 标签回放。 |
 | [Overview 搜索](overview-thread-search/README.md) | 当前生产搜索、筛选与几何回放。 |
 | [Settings 导航](settings-navigation/README.md) | 当前生产设置与导航组件的隔离回放。 |
+| [Settings 顶部 tab](settings-tabs/README.md) | 已批准提案的设计对照；正式界面与验收使用 Settings 导航回放。 |
 | [Moku thinking 历史对照](moku-thinking-orbit/README.md) | 当前生产胶囊 + Arc 的 fixture 演示；另保留 Electron 圆形阅读与后续胶囊环流作为历史对照。 |
 | [Moku 渐变玻璃](moku-gradient-material/README.md) | 生产渐变材质的独立原生调参预览；复用胶囊几何、眼睛与当前材质，并排比较深色和浅色。 |
 | [Moku mention transition](moku-mention-transition/README.md) | 当前生产 Dock 与已确认原型的菜单/眼睛过渡对照，支持真实输入及自动回放。 |
