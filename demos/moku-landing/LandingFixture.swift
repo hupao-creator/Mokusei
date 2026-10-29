@@ -162,4 +162,3 @@ struct LandingSurface: View {
         .preferredColorScheme(fixture.dark ? .dark : .light)
     }
 }
-
