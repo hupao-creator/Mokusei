@@ -198,7 +198,7 @@ struct NativeMokuTalkTests {
             ((root as? T).map { [$0] } ?? [])
                 + root.subviews.flatMap { descendants($0, of: type) }
         }
-        for width in [CGFloat(188), 320, 900] {
+        for width in [CGFloat(188), 320, 368, 408, 448, 478, 498, 548, 608, 900] {
             for landing in [false, true] {
                 for (locale, text) in [("zh", String(repeating: "界", count: 160)),
                                        ("en", String(repeating: "W", count: 160))] {
@@ -234,17 +234,17 @@ struct NativeMokuTalkTests {
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)
-                    if noteOpen && state.capsuleFrame.width < 320 {
-                        // SwiftUI button AX nodes require a window; their seat
-                        // and activation are checked by the display-gated suite.
-                        #expect(textFrame.maxY <= state.capsuleFrame.maxY - 40,
-                                "Retained prose must leave the bottom history band clear")
-                        #expect(eyeFrame.maxY <= state.capsuleFrame.maxY - 40)
-                    }
-
-                    if noteOpen && state.capsuleFrame.width >= 320 {
-                        #expect(textFrame.maxX <= state.capsuleFrame.maxX - 100,
-                                "Wide retained prose must leave space for the history action")
+                    if noteOpen {
+                        // A separate action row preserves the original message
+                        // width; a shared row must retain at least 200 points.
+                        let separate = textFrame.maxY <= state.capsuleFrame.maxY - 40
+                        if separate {
+                            #expect(eyeFrame.maxY <= state.capsuleFrame.maxY - 40)
+                        } else {
+                            #expect(textFrame.width >= 199,
+                                    "Shared row left unreadable prose at capsule width \(state.capsuleFrame.width)")
+                            #expect(textFrame.maxX <= state.capsuleFrame.maxX - 100)
+                        }
                     }
 
                     if running {
@@ -259,6 +259,69 @@ struct NativeMokuTalkTests {
                     state.settle()
                 }
             }
+        }
+    }
+
+    @Test func noteActionsFitMeasuredControlsAtBoundaries() {
+        let fullHistory = NSHostingView(rootView: NativeMokuNoteHistoryButton {}.fixedSize()
+            .environment(\.locale, Locale(identifier: "en"))).fittingSize.width
+        #expect(fullHistory > 60)
+        for control: CGFloat in [0, 30, 34, 65] {
+            for dispatch in [false, true] {
+                let actions = fullHistory + 4 + max(34, control) + 7
+                let minimum: CGFloat = dispatch ? 240 : 200
+                let threshold = NativeMokuTalkTypography.leading + minimum + max(48, actions + 8)
+                for width in [threshold - 1, threshold, threshold + 1] {
+                    let layout = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
+                        controlWidth: control, hasMessage: true, isDispatch: dispatch)
+                    #expect((layout.band == 0) == (width >= threshold))
+                    if layout.band == 0 {
+                        #expect(width - NativeMokuTalkTypography.leading - layout.messageTrailing >= minimum)
+                    }
+                }
+            }
+            if control > 0 {
+                let width = 28 + 4 + control + 7
+                let horizontal = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
+                    controlWidth: control, hasMessage: false, isDispatch: false)
+                let stacked = NativeMokuNoteActionLayout(width: width - 1, historyWidth: fullHistory,
+                    controlWidth: control, hasMessage: false, isDispatch: false)
+                #expect(horizontal.compact && !horizontal.stacked && horizontal.band == 40)
+                #expect(stacked.compact && stacked.stacked && stacked.band == 80)
+                #expect(max(28, control) + stacked.edgeInset <= stacked.width)
+            }
+        }
+    }
+
+    @Test func narrowActionStackKeepsMountedControlsInsideItsBounds() async throws {
+        final class Frames { var history = CGRect.zero; var voice = CGRect.zero }
+        let naturalWidth = NSHostingView(rootView: NativeMokuNoteHistoryButton {}.fixedSize()
+            .environment(\.locale, Locale(identifier: "en"))).fittingSize.width
+        for width: CGFloat in [50, 72, 73, 100, 160] {
+            let frames = Frames()
+            let decision = NativeMokuNoteActionLayout(width: width, historyWidth: naturalWidth,
+                controlWidth: 34, hasMessage: true, isDispatch: false)
+            let host = NSHostingView(rootView:
+                NativeMokuNoteActionStack(stacked: decision.stacked, trailing: decision.edgeInset, height: decision.band) {
+                    NativeMokuNoteHistoryButton(compact: decision.compact) {}.fixedSize()
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("actions-test")) } action: { frames.history = $0 }
+                    Button("Voice") {}.frame(width: 34, height: 34)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("actions-test")) } action: { frames.voice = $0 }
+                }
+                .frame(width: width, height: decision.band, alignment: .trailing)
+                .coordinateSpace(name: "actions-test")
+                .environment(\.locale, Locale(identifier: "en")))
+            host.frame = CGRect(x: 0, y: 0, width: width, height: decision.band)
+            for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+            #expect(host.window == nil)
+            #expect(frames.history.width >= 28 && frames.voice.width == 34)
+            #expect(frames.history.minX >= 0 && frames.history.maxX <= width)
+            #expect(frames.voice.minX >= 0 && frames.voice.maxX <= width)
+            #expect(!frames.history.intersects(frames.voice))
+            #expect(frames.history.minY >= 0 && frames.history.maxY <= decision.band)
+            #expect(frames.voice.minY >= 0 && frames.voice.maxY <= decision.band)
+            if decision.stacked { #expect(frames.history.midY < frames.voice.midY) }
+            else { #expect(frames.history.maxX <= frames.voice.minX) }
         }
     }
 

@@ -161,10 +161,13 @@ The expanded note's **Moku history** button opens the existing conversation
 reader, including its archived-session picker. It remains available when the
 note or conversation is empty and supports keyboard and accessibility activation
 with localized labels. History sits before Stop or voice controls in the trailing
-action row. With no message the row shares the eyes' seat when there is room;
-narrow capsules use a separate action row. Wide messages share the row with
-the actions; narrow messages retain their reading width above them. The note body stays clipped above these rows;
-its header scrolls with the body in short viewports, including 5× zoom.
+action row. The Dock measures the actions and shares the row only when it
+leaves at least 200 points for a message or 240 for a dispatch card. Narrower
+capsules put actions below the retained message or eyes. If the full label
+cannot fit beside the other control, History becomes an icon with the same
+accessible label and help; if even that pair cannot fit, the controls stack.
+The note body stays clipped above these rows; its header scrolls with the body
+in short viewports, including 5× zoom.
 Opening history uses the scene's ordinary navigation path, closing the note
 without changing its exposure receipt or the workspace draft.
 

@@ -499,9 +499,10 @@ reading remains scrollable independently of the Dock-owned history button.
 
 For headless-only verification, run
 `MOKUSEI_TEST_HEADLESS=1 xcrun swift test --package-path app/macos --filter 'NativeMokuNoteTests|NativeMokuTalkTests'`.
-The existing windowless production-Dock test checks retained text and eyes stay
-clear of the history band in narrow layouts, across landing/bottom, Chinese/English and
-running/idle layouts. Display-gated button geometry/activation and rendered
+Windowless production-Dock tests exercise retained text and eyes across widths
+and verify minimum readable width when actions share the row. A mounted action
+stack checks compact and stacked controls at narrow-width boundaries. Display-gated
+button geometry/activation and rendered
 Markdown cases explicitly skip; this run does not certify those cases.
 
 ## Moku execution links
