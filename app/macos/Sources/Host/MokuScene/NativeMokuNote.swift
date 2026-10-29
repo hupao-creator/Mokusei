@@ -71,13 +71,11 @@ struct NativeMokuNoteContent: View {
     var claimOpenArm: () -> Bool = { false }
     var onExposure: ((NativeMokuNote) -> Void)?
     var onClose: () -> Void = {}
-    var onOpenHistory: (() -> Void)? = nil
     @Environment(\.locale) private var locale
     @State private var contentHeight: CGFloat = 0
     @State private var exposure = NativeMokuNoteExposureTracker()
     private let headerHeight: CGFloat = 54
-    private var footerHeight: CGFloat { onOpenHistory == nil ? 0 : 52 }
-    private var shortViewport: Bool { availableHeight < headerHeight + footerHeight + 44 }
+    private var shortViewport: Bool { availableHeight < headerHeight + 44 }
 
     private func localize(_ zh: String, _ en: String) -> String {
         locale.language.languageCode?.identifier == "zh" ? zh : en
@@ -91,24 +89,22 @@ struct NativeMokuNoteContent: View {
                 // Use the Dock's capacity, not the initially empty document's
                 // fitted height: changing branches would retire its read session.
                 NativeScrollView {
-                    VStack(alignment: .leading, spacing: 12) { header; noteBody; historyEntry }
+                    VStack(alignment: .leading, spacing: 12) { header; noteBody }
                 }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     header.padding(.bottom, 12)
                     NativeScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
-                        .frame(height: max(0, height - headerHeight - footerHeight))
-                    historyEntry.padding(.top, onOpenHistory == nil ? 0 : 12)
+                        .frame(height: max(0, height - headerHeight))
                 }
             }
         }
-        // The footer belongs to the note, above the retained Talk/composer row.
-        // Extending into that row lets selectable prose paint over History.
+        // Reading content stays above the retained row and the history action.
         .frame(width: width, height: height, alignment: .top)
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
-            if height > 0 { onContentHeightChange?(height + headerHeight + footerHeight) }
+            if height > 0 { onContentHeightChange?(height + headerHeight) }
         }
         .onAppear {
             exposure.onComplete = onExposure
@@ -119,30 +115,6 @@ struct NativeMokuNoteContent: View {
         .onDisappear { exposure.endSession() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("moku-note-panel")
-    }
-    @ViewBuilder private var historyEntry: some View {
-        if let onOpenHistory {
-            HStack {
-                Spacer(minLength: 0)
-                Button(action: onOpenHistory) {
-                    HStack(spacing: 6) {
-                        NativeIcon(name: "History", size: 13)
-                        Text(localize("Moku 历史", "Moku history"))
-                            .font(.system(size: 12, weight: .medium))
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 6)
-                    .frame(minHeight: 28)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(localize("查看 Moku 历史详情", "View Moku conversation history"))
-                .accessibilityLabel(localize("查看 Moku 历史详情", "View Moku conversation history"))
-                .accessibilityIdentifier("moku-note-history")
-            }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 12)
-        }
     }
     private var header: some View {
         HStack(spacing: 12) {
@@ -390,5 +362,33 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
                layout.usedRect(for: container).maxX > text.bounds.width + 1 { return true }
             return view.subviews.contains(where: horizontalOverflow)
         }
+    }
+}
+
+/// The Dock owns this action so note scrolling cannot move its bottom seat.
+struct NativeMokuNoteHistoryButton: View {
+    var onOpen: () -> Void
+    @Environment(\.locale) private var locale
+
+    private func localize(_ zh: String, _ en: String) -> String {
+        locale.language.languageCode?.identifier == "zh" ? zh : en
+    }
+
+    var body: some View {
+        Button(action: onOpen) {
+            HStack(spacing: 6) {
+                NativeIcon(name: "History", size: 13)
+                Text(localize("Moku 历史", "Moku history"))
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(localize("查看 Moku 历史详情", "View Moku conversation history"))
+        .accessibilityLabel(localize("查看 Moku 历史详情", "View Moku conversation history"))
+        .accessibilityIdentifier("moku-note-history")
     }
 }

@@ -164,7 +164,7 @@ public struct NativeMokuDock: View {
         let height = state.notePanelOpen
             ? min(surface.height, rowExpanded ? surfaceHeight(width: surface.width) : NativeMokuCapsuleLayout.idleSize.height)
             : surface.height
-        return CGRect(x: surface.minX, y: surface.maxY - height, width: surface.width, height: height)
+        return CGRect(x: surface.minX, y: surface.maxY - noteHistoryBand(width: surface.width) - height, width: surface.width, height: height)
     }
     private var stopControlPresent: Bool {
         running && !inputPresent && !voiceModeActive && !state.settingsOpen
@@ -172,6 +172,11 @@ public struct NativeMokuDock: View {
     // Keep the control seat for the entire message, including after Stop retires.
     // Changing it mid-message shifts centered text and can change line breaks.
     private var talkTrailing: CGFloat { 48 }
+    // With prose or media controls, give History its own bottom band rather
+    // than narrowing selectable text or covering controls in small viewports.
+    private func noteHistoryBand(width: CGFloat) -> CGFloat {
+        state.notePanelOpen && (width < 200 || displayedMessage != nil || voiceControlVisible || stopControlPresent) ? 40 : 0
+    }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else {
@@ -232,7 +237,7 @@ public struct NativeMokuDock: View {
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(680, max(0, viewport.height - 112)))
             let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(560, baseFrame.width) : frame.width
             let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
-                : rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
+                : (rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height) + noteHistoryBand(width: width)
             let noteAvailableHeight = max(0, frame.height - rowHeight)
             let noteHeight = state.notePanelOpen
                 ? NativeMokuNoteLayout.fittedHeight(content: noteContentHeight, available: noteAvailableHeight) : 0
@@ -469,13 +474,14 @@ public struct NativeMokuDock: View {
     }
     private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat,
                          noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat, settingsSize: CGSize) -> some View {
+        let historyBand = noteHistoryBand(width: surface.width)
         let idleWidth = min(NativeMokuCapsuleLayout.idleSize.width, width)
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let followsEditor = inputPresent && displayedMessage == nil
         let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
             running: runningFeedback, reasoning: reasoningEligible ? incomingReasoning : nil,
             presentsReasoning: reasoningEligible && reasoningReady, executionKey: presentation?.executionKey,
-            capsuleSize: CGSize(width: surface.width, height: rowHeight), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
+            capsuleSize: CGSize(width: surface.width, height: rowHeight - historyBand), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
             motion: scenePhase == .active && state.windowVisible && !state.dockCovered,
             reduceMotion: reduceMotion, dark: true)
         return ZStack(alignment: .bottomLeading) {
@@ -533,8 +539,7 @@ public struct NativeMokuDock: View {
                                           onContentHeightChange: { noteContentHeight = $0 },
                                           claimOpenArm: { state.claimNoteOpenArm() },
                                           onExposure: { state.recordNoteExposure($0) },
-                                          onClose: { state.setNotePanelOpen(false) },
-                                          onOpenHistory: { state.setMokuOpen(true) })
+                                          onClose: { state.setNotePanelOpen(false) })
                         // Keep native Markdown layout discrete without cancelling
                         // the surrounding ink transition with this transaction.
                         .transaction { $0.animation = nil }
@@ -597,10 +602,10 @@ public struct NativeMokuDock: View {
                     }
                 }
             }
-            .frame(height: followsEditor ? nil : rowHeight)
+            .frame(height: followsEditor ? nil : rowHeight - historyBand)
             .padding(.leading, (idleWidth - 34) / 2 * (1 - capsuleFraction) + 15 * capsuleFraction)
             .padding(.bottom, followsEditor
-                ? idleHeight / 2 - 12.5 + (editorBottomInset - idleHeight / 2) * capsuleFraction : 0)
+                ? idleHeight / 2 - 12.5 + (editorBottomInset - idleHeight / 2) * capsuleFraction : historyBand)
             .frame(maxWidth: .infinity, alignment: .leading)
             .opacity(state.settingsOpen ? 0 : 1)
             .allowsHitTesting(!state.settingsOpen).accessibilityHidden(state.settingsOpen)
@@ -621,12 +626,24 @@ public struct NativeMokuDock: View {
                     .help(localize("停止 Moku", "Stop Moku"))
                     .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
                     .accessibilityIdentifier("moku-stop")
-                    .padding(.trailing, 7).frame(height: rowHeight)
+                    .padding(.trailing, 7).frame(height: rowHeight - historyBand)
+                    .padding(.bottom, historyBand)
             } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
                 voiceControls.fixedSize(horizontal: true, vertical: true)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { voiceControlsFrame = $0 }
-                    .padding(.trailing, 3).frame(height: rowHeight)
+                    .padding(.trailing, 3).frame(height: rowHeight - historyBand)
+                    .padding(.bottom, historyBand)
                     .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if state.notePanelOpen {
+                NativeMokuNoteHistoryButton { state.setMokuOpen(true) }
+                    .padding(.trailing, 18)
+                    .frame(height: 40)
+                    .opacity(state.settingsOpen ? 0 : 1)
+                    .allowsHitTesting(!state.settingsOpen)
+                    .accessibilityHidden(state.settingsOpen)
             }
         }
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
