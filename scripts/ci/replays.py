@@ -27,6 +27,7 @@ def main():
     fixtures = {
         "MOKUSEI_INITIAL_RESPONSE_FIXTURES": str(output / "initial-response.json"),
         "MOKU_STATUS_NATIVE_FIXTURE": str(output / "moku-status.json"),
+        "MOKU_TIMER_NATIVE_FIXTURE": str(output / "moku-timer.json"),
         "MOKUSEI_VOICE_EVENT_EXPORT": str(output / "voice-events.json"),
         "MOKUSEI_CONVERSATION_CONTRACT_EXPORT": str(output / "conversation.json"),
         "MOKUSEI_HARNESS_FORM_FIXTURE": str(output / "harness-forms.json"),

@@ -53,6 +53,7 @@ func runMokuReplays() error {
 	}{
 		{"creation contract", runCreationContractReplay},
 		{"talk schema", runTalkSchemaReplay},
+		{"immediate timer and catalog", runTimerRuntimeReplay},
 		{"note contract", runNoteSchemaReplay},
 		{"note orchestrator and audit", func() error { runNoteOrchestratorReplay(); return nil }},
 		{"note persistence and migration", func() error { runNoteRuntimeReplay(); return nil }},

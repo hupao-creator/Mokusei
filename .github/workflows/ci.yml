@@ -371,6 +371,7 @@ jobs:
           python3 scripts/ci/swift-shards.py verify --evidence "$RUNNER_TEMP/evidence"
           printf '%s\n' "MOKUSEI_INITIAL_RESPONSE_FIXTURES=$RUNNER_TEMP/preparation/ci-fixtures/initial-response.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKU_STATUS_NATIVE_FIXTURE=$RUNNER_TEMP/preparation/ci-fixtures/moku-status.json" >> "$GITHUB_ENV"
+          printf '%s\n' "MOKU_TIMER_NATIVE_FIXTURE=$RUNNER_TEMP/preparation/ci-fixtures/moku-timer.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKUSEI_VOICE_EVENT_EXPORT=$RUNNER_TEMP/preparation/ci-fixtures/voice-events.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKUSEI_CONVERSATION_CONTRACT_EXPORT=$RUNNER_TEMP/preparation/ci-fixtures/conversation.json" >> "$GITHUB_ENV"
           printf '%s\n' "MOKUSEI_HARNESS_FORM_FIXTURE=$RUNNER_TEMP/preparation/ci-fixtures/harness-forms.json" >> "$GITHUB_ENV"

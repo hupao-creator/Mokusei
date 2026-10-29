@@ -273,7 +273,7 @@ public final class NativeMokuWorkspacePresentation {
         let mode: MokuCharacterMode
         switch activity.body {
         case .reasoning: mode = .running
-        case .toolCall(_, let name): mode = dedicatedTool(name.string) || name == "talk" ? .running : .namedTool(name.string)
+        case .toolCall(_, let name): mode = dedicatedTool(name.string) || name == "talk" || name == "timer" ? .running : .namedTool(name.string)
         case .assistantText: mode = .running
         }
         return .init(sequence: activity.sequence, mode: mode)

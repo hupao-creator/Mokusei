@@ -302,20 +302,32 @@ func same(a, b any) bool {
 func auditPreview(items []json.RawMessage) []json.RawMessage {
 	result := []json.RawMessage{}
 	latest := ""
-	for _, raw := range items {
+	timerIndices := []int{}
+	for index, raw := range items {
 		var item map[string]any
 		if json.Unmarshal(raw, &item) == nil {
 			if id, ok := item["executionId"].(string); ok {
 				latest = id
 			}
+			result, _ := item["result"].(map[string]any)
+			if item["type"] == "tool-operation" && item["name"] == "timer" && item["completedAt"] != nil && item["isError"] != true && result["ok"] == true {
+				timerIndices = append(timerIndices, index)
+			}
 		}
 	}
-	for _, raw := range items {
+	// Timer is an immediate communication event. Keep a bounded catch-up tail
+	// across executions so a rapid successor cannot erase it before the
+	// coalesced catalog publishes. The client owns its queue/acknowledgments.
+	retainedTimers := map[int]bool{}
+	for _, index := range timerIndices[max(0, len(timerIndices)-256):] {
+		retainedTimers[index] = true
+	}
+	for index, raw := range items {
 		var item map[string]any
 		if json.Unmarshal(raw, &item) != nil {
 			continue
 		}
-		if id, _ := item["executionId"].(string); id != latest {
+		if id, _ := item["executionId"].(string); id != latest && !retainedTimers[index] {
 			continue
 		}
 		delete(item, "reasoning")

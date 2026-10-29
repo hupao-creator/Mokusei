@@ -26,7 +26,7 @@ Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
 validated at creation admission.
 
-[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `read_clipboard`, `talk` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
+[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `read_clipboard`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 
 ### Local clipboard text
 
@@ -110,6 +110,25 @@ milestone recaps; and the relevant Agent Thread for detailed task discussion and
 deliverables. Runtime voice delivery remains separate.
 
 `talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions and the built-in Moku prompt, including coordination reached through voice. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
+
+`timer(text)` is an immediate, one-time communication tool alongside `talk`.
+It uses the same closed text-only envelope, **160 Unicode code-point** budget,
+nonblank/NUL validation, exact-text preservation, and audited completion path.
+The tool returns `{ok:true}` after its completion audit commits, without waiting
+for a user receipt. Success means the operation was accepted, not proof that a
+client displayed it, audio was audible, or the user acknowledged it. Only the UI
+can acknowledge; there is no confirmation tool, scheduler, date/duration input,
+reminder CRUD or reminder table. The tool/prompt describe its audible nature;
+ordinary Talk remains silent and expires automatically as before.
+
+The native workspace queues successful Timer operations by owner, Harness,
+execution and audit operation identity. Talk cannot replace queued Timers.
+The catalog retains a catch-up tail of the latest 256 completed successful Timer
+operations across executions, in addition to the usual current-execution preview.
+This prevents a rapid successor/coalesced publication from hiding a completed
+Timer; it is a bounded projection of existing audit rows, not a durable delivery
+queue. See the [native Timer contract](../../../app/macos/Sources/Host/MokuScene/README.md#immediate-timer)
+for startup, disconnection and audio limitations.
 
 Talk and note text guidance encourages emoji when they naturally add expression
 and suit the context; emoji remain optional and count toward the existing

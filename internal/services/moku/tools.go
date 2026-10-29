@@ -309,19 +309,19 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 			return nil, err
 		}
 		return encode(updated)
-	case "talk":
+	case "talk", "timer":
 		original, ok := object["text"].(string)
 		if !ok {
-			return nil, errors.New("talk 的 text 必须是纯文本字符串")
+			return nil, fmt.Errorf("%s 的 text 必须是纯文本字符串", name)
 		}
 		if utf8.RuneCountInString(original) > TalkTextMaxCharacters {
-			return nil, fmt.Errorf("talk 的 text 最多 %d 个 Unicode 码点（含空白和换行）；请缩短后重试，内容不会截断", TalkTextMaxCharacters)
+			return nil, fmt.Errorf("%s 的 text 最多 %d 个 Unicode 码点（含空白和换行）；请缩短后重试，内容不会截断", name, TalkTextMaxCharacters)
 		}
 		if len(object) != 1 {
-			return nil, errors.New("talk 只接受 text 参数")
+			return nil, fmt.Errorf("%s 只接受 text 参数", name)
 		}
 		if strings.TrimFunc(original, func(r rune) bool { return r == '\u0085' || mokuWhitespace(r) }) == "" || strings.ContainsRune(original, 0) {
-			return nil, errors.New("talk 的 text 必须包含非空白内容，且不能包含 NUL")
+			return nil, fmt.Errorf("%s 的 text 必须包含非空白内容，且不能包含 NUL", name)
 		}
 		return encode(map[string]any{"ok": true})
 	}
