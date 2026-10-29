@@ -322,11 +322,12 @@ struct NativeOverviewTagGlassTests {
             }
             return bitmap
         }
-        @discardableResult func capture(_ name: String, image: CGImage? = nil) async throws -> Int {
+        @discardableResult
+        func capture(_ name: String, image: CGImage? = nil, requiresSeparateGlass: Bool = true) async throws -> Int? {
             let bitmap = try await snapshot(name, image: image)
-            // On black, the real glass forms four continuous spans. Compare
-            // the second span's upper edge and equator, independently of the
-            // layout anchors (which already describe the animation endpoint).
+            // On black, the settled real glass forms four continuous spans.
+            // Compare the second span's upper edge and equator, independently
+            // of the layout anchors (which already describe the animation endpoint).
             func spans(at y: Int) -> [ClosedRange<Int>] {
                 var result: [ClosedRange<Int>] = [], start: Int?
                 for x in 0..<bitmap.pixelsWide {
@@ -341,35 +342,54 @@ struct NativeOverviewTagGlassTests {
             }
             let top = spans(at: Int((parentBounds.minY + titlebar + 2) * 2))
             let middle = spans(at: Int((parentBounds.midY + titlebar) * 2))
-            try #require(top.count == 4 && middle.count == 4, "Incomplete glass capture: \(name)")
+            guard top.count == 4 && middle.count == 4 else {
+                // GlassEffectContainer blends adjacent glass while a morph moves
+                // it across the container spacing, so a moving chip can share a
+                // span with its neighbour and reduce the equator count. Only a
+                // blend (still four caps at the top edge, fewer at the equator)
+                // is expected; any other count is an unexpected capture.
+                try #require(!requiresSeparateGlass && top.count == 4 && middle.count < 4,
+                             "Incomplete glass capture: \(name): top=\(top.count) middle=\(middle.count)")
+                measurements.append(["frame": name, "merged": "true"])
+                try writeMeasurements()
+                return nil
+            }
             let leftInset = top[1].lowerBound - middle[1].lowerBound
             let rightInset = middle[1].upperBound - top[1].upperBound
             #expect(leftInset >= 12 && rightInset >= 12,
                 "Directory capsule cut during \(name): left=\(leftInset), right=\(rightInset)")
             measurements.append(["frame": name, "width": "\(middle[1].count)",
                 "leftInset": "\(leftInset)", "rightInset": "\(rightInset)"])
-            if let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_SWITCH_ARTIFACTS"] {
-                let url = URL(fileURLWithPath: directory, isDirectory: true)
-                try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
-                    .write(to: url.appendingPathComponent("pixels.json"))
-            }
+            try writeMeasurements()
             return middle[1].count
         }
-        let expandedWidth = try await capture("before")
+        func writeMeasurements() throws {
+            guard let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_SWITCH_ARTIFACTS"] else { return }
+            let url = URL(fileURLWithPath: directory, isDirectory: true)
+            try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
+                .write(to: url.appendingPathComponent("pixels.json"))
+        }
+        let expandedWidth = try #require(try await capture("before"))
         // Arm continuous capture before input: separate screenshot requests can
         // miss a short resize even when their pixel analysis is deferred.
         let shrinkingFrames = try await captureGlassMotion(filter: filter, configuration: configuration) {
             _ = try #require(Self.element(id: design.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
         }
         var shrinkingWidths: [Int] = []
+        var shrinkingSawMergedGlass = false
         for (index, image) in shrinkingFrames.enumerated() {
-            shrinkingWidths.append(try await capture("shrinking-\(index)", image: image))
+            let width = try await capture("shrinking-\(index)", image: image, requiresSeparateGlass: false)
+            if let width { shrinkingWidths.append(width) } else { shrinkingSawMergedGlass = true }
         }
         try await Task.sleep(for: .milliseconds(350))
-        let compactWidth = try await capture("after")
+        let compactWidth = try #require(try await capture("after"))
         #expect(expandedWidth > compactWidth + 40)
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            #expect(shrinkingWidths.contains { $0 > compactWidth + 8 && $0 < expandedWidth - 8 },
+            // Settled chips never touch. A merged moving span therefore proves
+            // the glass travelled across the container spacing; a separated
+            // moving frame proves the same through an intermediate width.
+            #expect(shrinkingSawMergedGlass
+                || shrinkingWidths.contains { $0 > compactWidth + 8 && $0 < expandedWidth - 8 },
                 "Capture must include moving glass, not only the two endpoints")
         }
         #expect(fixture.selected == design)
@@ -379,9 +399,11 @@ struct NativeOverviewTagGlassTests {
         let expandingFrames = try await captureGlassMotion(filter: filter, configuration: configuration) {
             _ = try #require(Self.element(id: child.id, in: root)).perform(NSSelectorFromString("accessibilityPerformPress"))
         }
-        for (index, image) in expandingFrames.enumerated() { try await capture("expanding-\(index)", image: image) }
+        for (index, image) in expandingFrames.enumerated() {
+            try await capture("expanding-\(index)", image: image, requiresSeparateGlass: false)
+        }
         try await Task.sleep(for: .milliseconds(350))
-        try await capture("restored")
+        _ = try #require(try await capture("restored"))
         #expect(fixture.selected == child)
 
         // Real horizontal scrolling must still cut the source at the viewport,

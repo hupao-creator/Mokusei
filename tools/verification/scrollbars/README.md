@@ -12,8 +12,11 @@ Normal and highlighted slots must paint no pixels into an offscreen bitmap in
 both legacy and overlay styles. Vertical and horizontal content are measured just
 below, exactly at, and just above the overflow threshold: the legacy gutter and
 clip size must not change, the resident scroller must paint nothing while content
-fits, and only content that can scroll may draw a knob. Overlay scrollers must
-never consume layout space. An unrelated scroll view must retain its original
+fits, and only content that can scroll may draw a knob. A location that prefers
+overlay indicators instead keeps the resting scroller blank at every content
+height, because AppKit fades that knob in only during scrolling; the runner's
+preferred style therefore selects which observable applies. Overlay scrollers
+must never consume layout space. An unrelated scroll view must retain its original
 configuration. Compilation and execution have separate
 timeouts and a failed assertion exits unsuccessfully.
 
@@ -24,9 +27,10 @@ scroll offsets through preference notifications, control replacement and List
 viewport width while rows cross its own overflow threshold. An adjacent unstyled
 editor must keep its original scroller. A plain NativeScrollView fixture then
 drives its document height across the threshold: the background adapter's clip
-width must stay fixed and its resident scroller must paint only while scrolling
-is possible. This checks the actual SwiftUI/AppKit adapter boundary, without a
-popover, window or input injection.
+width must stay fixed and, for the runner's preferred style, its scroller must
+paint only while scrolling is possible (legacy) or stay blank at rest (overlay).
+This checks the actual SwiftUI/AppKit adapter boundary, without a popover,
+window or input injection.
 
 The windowless WKWebView fixture checks the production user script in the main
 document and a child frame, page-authored tracks, dynamic overflow, restrictive
