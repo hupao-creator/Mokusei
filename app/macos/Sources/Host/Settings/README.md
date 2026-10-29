@@ -21,6 +21,11 @@ gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry
 keeps the same descriptors and discrete-change semantics.
 
+The shared role editor's inheritance and Harness choices define a capsule hit
+shape inside each plain button label, after its full-width frame and glass.
+The entire visible capsule, including the space beside its text, selects the
+choice in both Settings and onboarding.
+
 The coordination and dispatch map retains the icon presentation from before
 `016735c` (system Settings controls): transparent 48-point seats, hover surfaces
 and keyboard focus rings. Targets use icons, selection underlines and dashed

@@ -2,6 +2,9 @@
 
 [NativeMokuWorkspacePresentation](NativeMokuWorkspacePresentation.swift) derives the current Moku execution's display from public transcript operations. [NativeMokuSceneState](NativeMokuSceneState.swift) owns transient presentation and dismissal. The [Go coordinator](../../../../../internal/services/moku/README.md) owns task admission, tool results, notes and voice routing.
 
+Question choices use the full visible rounded rectangle as their button hit
+shape, including padding and the empty space beside the answer text.
+
 Settings uses the SwiftUI [reveal overlay](../Settings/NativeSettingsTransition.swift)
 inside the persistent scene. Scene state retains Settings through return and
 reports its transition lifetime; the overlay owns animation completion and

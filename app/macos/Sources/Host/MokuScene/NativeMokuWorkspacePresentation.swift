@@ -587,6 +587,7 @@ private struct NativeMokuDockQuestionField: View {
                 .foregroundStyle(selected ? .white : ink.opacity(0.65))
                 .background(ink.opacity(selected ? 0.1 : 0.045), in: RoundedRectangle(cornerRadius: 11))
                 .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(ink.opacity(selected ? 0.42 : 0.12)))
+                .contentShape(RoundedRectangle(cornerRadius: 11))
         }.buttonStyle(.plain).disabled(disabled).opacity(disabled ? 0.48 : 1)
             .accessibilityLabel(label).accessibilityValue(selected ? localize("已选", "Selected") : localize("未选", "Not selected"))
             .accessibilityAddTraits(selected ? .isSelected : [])

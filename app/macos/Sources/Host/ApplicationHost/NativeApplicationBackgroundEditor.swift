@@ -78,6 +78,7 @@ public struct NativeApplicationBackgroundEditor: View {
             .font(.system(size: 12, weight: inherited == next ? .medium : .regular))
             .frame(maxWidth: .infinity).frame(height: 42)
             .glassEffect(.regular.interactive(), in: .capsule)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .nativeSettingsAction(next ? "inherit" : "independent", label: title, selected: inherited == next) { setInherited(next) }
@@ -106,6 +107,7 @@ public struct NativeApplicationBackgroundEditor: View {
                             if effective.harnessPreference == harness.descriptor.id { Image(systemName: "checkmark").font(.system(size: 9)) }
                         }.frame(maxWidth: .infinity).frame(height: 40)
                             .glassEffect(.regular.interactive(), in: .capsule)
+                            .contentShape(Capsule())
                     }.buttonStyle(.plain)
                         .nativeSettingsAction("harness." + harness.descriptor.id.string, label: harness.descriptor.displayName.string,
                                               selected: effective.harnessPreference == harness.descriptor.id) { selectHarness(harness.descriptor.id) }
