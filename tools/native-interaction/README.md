@@ -47,7 +47,7 @@ Unknown/missing fields and invalid argument types are rejected.
 
 | Action name | Additional fields | Admission |
 | --- | --- | --- |
-| `settings.open` | none | Workspace mounted, Settings closed |
+| `settings.open` | none | Loaded Overview mounted, Settings closed |
 | `settings.select` | `section` | Current Settings section ID |
 | `settings.control` | `controlId`, `handle`, `operation`, `value` | Current mounted, enabled control and current handle |
 | `settings.close` | none | Settings open and its close gate permits |

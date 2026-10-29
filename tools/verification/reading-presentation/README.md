@@ -273,23 +273,27 @@ selecting a child, returning to its directory and clearing must leave the bar
 inside the window and separate from the actions. A wide 1000pt window is the
 control case. Child selection stays in the parent title without a separate caption.
 
-## Settings reveal and return
+## Settings capsule and return
 
 ```sh
 python3 tools/verification/reading-presentation/run.py --settings-transition
 ```
 
-Three integration cases render the production `NativeMokuScene` with solid-color
-fixture seats. Pixel samples require opaque Settings at the source while the far
-Overview corner is still unrevealed (a uniform fade/scale fails), and complete
-coverage at the end. At 1×/2× zoom the live page retains its full layout size.
-Lifecycle checks cover deferred unmount/background admission during return,
-opening/closing reversal, resize, inactive scene, missing source and explicit
-settling. Reduce Motion handling is reviewed but not toggled by this runner (the
-SwiftUI environment value is read-only; it changes no system preference).
-No Runtime or model service is used. These check SwiftUI rendering and
-semantic transition lifetime, not WindowServer frame pacing or physical clicks;
-the separate Go Settings launcher exercises real page controls and save gates.
+Three integration cases mount the production scene, Dock and Settings page.
+They check the stable panel size, bottom and landing anchors, narrow windows and
+1×/2×/5× zoom, retained page/Overview identity, rendered backdrop blur, consumed
+outside clicks, native Escape and close clicks, input/Note restoration, pending
+messages/interventions, reversal, resize, inactivity and explicit settling.
+Screenshots are exported with the suite's evidence. This compositor-dependent
+suite launches through LaunchServices so its first window has foreground
+activation; capture requires a key window and full-size WindowServer geometry,
+rejecting system transition thumbnails. Reduce Motion is observed
+from production's environment without changing system preferences.
+The required CI native-capture lane runs all three methods in this host;
+SwiftPM explicitly defers them and the coverage aggregator rejects any missing
+passing replay outcome. The separate Go Settings launcher retains real persistence, conflict, validation
+and IME coverage. The production-app navigation replay verifies rejection outside
+Overview and keeps reading routes and their back actions intact.
 
 ## Report navigation and native window controls
 

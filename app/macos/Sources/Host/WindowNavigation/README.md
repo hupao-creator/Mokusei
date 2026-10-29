@@ -32,8 +32,9 @@ This restores the contract from `bfc2c9f4f`, whose synchronization calls were
 removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
 restored only fixed placement.
 
-The optional back-frame callback reports logical `workspace` coordinates so the
-Settings return mask shares the opening button's coordinate space at any zoom.
+The optional back-frame callback reports logical `workspace` coordinates for
+navigation geometry observers. Settings now owns a separate panel close button
+inside the resident Dock and no longer uses a window-wide return mask.
 Only actual controls own pointer regions; dragging the window header does not
 pan Overview. Hover is reconciled with current availability and pointer geometry
 rather than a stale enter event.

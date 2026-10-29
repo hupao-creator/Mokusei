@@ -57,6 +57,8 @@ def main():
         replay.acquire()
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
+        if "--settings-transition" in sys.argv:
+            environment["MOKUSEI_SETTINGS_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--model-selector" in sys.argv:
             environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
@@ -85,8 +87,14 @@ def main():
                     "|".join(isolated_methods) if isolated_input else
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
                     if glass_captures else suite)
-        status = replay.run(["--no-parallel", "--filter", selected], timeout=90, launch_services=False, env=environment)
+        status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
+                            launch_services=suite == "NativeSettingsTransitionTests", env=environment,
+                            launch_environment={key: environment[key] for key in (
+                                "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO")
+                                if key in environment})
         output = (replay.root / "stdout.log").read_text()
+        if (replay.root / "stderr.log").is_file():
+            output += (replay.root / "stderr.log").read_text()
         print(output, end="")
         result = subprocess.CompletedProcess([], status, stdout=output)
         result.check_returncode()

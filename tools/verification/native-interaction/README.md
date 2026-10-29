@@ -23,8 +23,8 @@ mock transport, ad-hoc test application or altered production binary.
 
 Coverage includes protocol rejection, split/pipelined requests, frame bounds,
 Overview → Settings → all sections → back, rejection of the removed archive
-and plugin management sections, opening each thread and returning
-through Settings and the reading back action, search with empty results, filters,
+and plugin management sections, rejecting Settings from each thread while retaining
+its reading visit and back action, search with empty results, filters,
 stale target rejection, full smoke trace replay, and three seeds totaling 300
 chaos actions with rapid transitions. Failures exit nonzero and retain the app
 log, profile and incremental traces in the printed `/private/tmp/oa-ui-*` directory.
@@ -34,7 +34,8 @@ The driver terminates only its owned app and stops only its isolated runtime.
 The existing Go settings launcher additionally drives the shared close action
 against real drafts/daemon saves, including IME and validation rejection. Run
 `./scripts/go.sh run -race ./tools/verification/settings`, the existing
-[Overview input replay](../overview-input/README.md), and `make check` before merge.
+[Overview input replay](../overview-input/README.md) when its boundary is affected.
+Follow the repository verification policy; do not duplicate the full hosted suite locally.
 See the [client/protocol guide](../../native-interaction/README.md) for other scripts
 and agents.
 

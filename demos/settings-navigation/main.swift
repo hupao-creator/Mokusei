@@ -9,12 +9,20 @@ import MokuseiUI
 import MokuseiHarnessCodex
 import MokuseiHarnessClaude
 
-// Production Settings and window navigation, with in-memory configuration only.
+// Production Settings, scene and Dock, with in-memory configuration only.
 @MainActor @Observable private final class Fixture {
     let navigation = NativeSettingsNavigation(section: "archived")
     let model: NativeSettingsModel
     let preferences: DesktopPreferences
-    var settings = true
+    let scene = NativeMokuSceneState()
+    let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+    var settings: Bool {
+        get { scene.settingsOpen }
+        set {
+            if newValue { scene.openSettings() }
+            else { scene.closeSettings(); scene.settle() }
+        }
+    }
     var dark = false
     var scale: CGFloat = 1
     let harnesses = [AnyHarnessPlugin(CodexHarnessPlugin()), AnyHarnessPlugin(ClaudeHarnessPlugin())]
@@ -36,23 +44,24 @@ private struct Surface: View {
     let fixture: Fixture
     var body: some View {
         GeometryReader { geometry in
-            Group {
-                if fixture.settings {
-                    NativeSettingsPage(model: fixture.model, navigation: fixture.navigation,
-                        preferences: fixture.preferences, harnesses: fixture.harnesses,
-                        harnessSettings: { _ in AnyView(EmptyView()) },
-                        onSetAppearance: { try fixture.preferences.setAppearance($0) },
-                        onSetLocale: { try fixture.preferences.setLocale($0) },
-                        onClose: { _ in fixture.settings = false })
-                } else {
-                    Color(nsColor: .windowBackgroundColor)
-                        .overlay { Text("Thread Detail · 导航对照").font(.title2) }
-                        .overlay(alignment: .topLeading) {
-                            NativeWindowNavigationView(action: .init(label: "返回设置", onBack: { fixture.settings = true }))
-                        }
+            NativeMokuScene(state: fixture.scene) {
+                NativePalette.overview.canvas.swiftUI.overlay {
+                    Button("Settings") { fixture.settings = true }.buttonStyle(.bordered)
                 }
+            } thread: { EmptyView() } dock: {
+                NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp", onSend: { _ in }, onCancel: {})
+            } onCloseSettings: {
+                fixture.navigation.requestClose(model: fixture.model) { _ in fixture.scene.closeSettings() }
+            } settings: {
+                NativeSettingsPage(model: fixture.model, navigation: fixture.navigation,
+                    preferences: fixture.preferences, harnesses: fixture.harnesses,
+                    harnessSettings: { _ in AnyView(EmptyView()) },
+                    onSetAppearance: { try fixture.preferences.setAppearance($0) },
+                    onSetLocale: { try fixture.preferences.setLocale($0) },
+                    onClose: { _ in fixture.scene.closeSettings() })
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
+            .coordinateSpace(name: "workspace")
             .environment(\.nativeWindowContentScale, fixture.scale)
             .scaleEffect(fixture.scale, anchor: .topLeading)
         }
@@ -91,6 +100,7 @@ private struct Failure: Error { let message: String }
         window.contentView = NSHostingView(rootView: Surface(fixture: fixture))
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        fixture.settings = true
         await fixture.model.refreshInstallations()
         try await Task.sleep(for: .seconds(1))
         guard fixture.navigation.section == "general",
@@ -125,9 +135,8 @@ private struct Failure: Error { let message: String }
         guard fixture.navigation.section == "general" else { throw Failure(message: "Settings Home navigation did not reach General") }
         fixture.navigation.section = "moku"
         let rect = fixture.navigation.returnRect
-        guard abs(rect.width - 32) < 1, abs(rect.height - 30) < 1,
-              abs(rect.minX - 100) < 1, abs(rect.minY - 22) < 1 else {
-            throw Failure(message: "Unexpected shared back target: \(rect)")
+        guard abs(rect.width - 30) < 1, abs(rect.height - 30) < 1, rect.minX > 0, rect.minY > 0 else {
+            throw Failure(message: "Unexpected panel close target: \(rect)")
         }
 
         func clickBack() {
@@ -140,15 +149,15 @@ private struct Failure: Error { let message: String }
             }
         }
 
-        // Exercise the visible shared control through the production close gate.
+        // Exercise the visible panel control through the production close gate.
         fixture.model.draft.composing = true
         clickBack()
         try await Task.sleep(for: .milliseconds(150))
         guard fixture.settings else { throw Failure(message: "IME composition did not block close") }
         fixture.model.draft.composing = false
         clickBack()
-        try await Task.sleep(for: .milliseconds(150))
-        guard !fixture.settings else { throw Failure(message: "Shared back control did not close Settings") }
+        try await Task.sleep(for: .milliseconds(650))
+        guard !fixture.settings else { throw Failure(message: "Panel close control did not close Settings") }
 
         let images = directory.appendingPathComponent("screenshots")
         try FileManager.default.createDirectory(at: images, withIntermediateDirectories: true)
@@ -159,9 +168,11 @@ private struct Failure: Error { let message: String }
             try await Task.sleep(for: .seconds(2))
             if fixture.settings {
                 let target = fixture.navigation.returnRect
-                guard abs(target.minX - 100) < 1, abs(target.minY - 22) < 1,
-                      abs(target.width - 32) < 1, abs(target.height - 30) < 1 else {
-                    throw Failure(message: "Settings layout moved the shared back target: \(target)")
+                let size = window.contentView?.bounds.size ?? .zero
+                guard target.minX >= 0, target.minY >= 0,
+                      target.maxX * fixture.scale <= size.width + 1,
+                      target.maxY * fixture.scale <= size.height + 1 else {
+                    throw Failure(message: "Panel close target escaped its viewport: \(target)")
                 }
             }
             // Route and resize transitions can briefly publish a zero or stale
@@ -189,7 +200,7 @@ private struct Failure: Error { let message: String }
             guard let png = representation.representation(using: .png, properties: [:]) else { throw Failure(message: "PNG encoding failed") }
             try png.write(to: images.appendingPathComponent(name + ".png"))
         }
-        try await capture("thread-navigation-light")
+        try await capture("overview-light")
         fixture.settings = true
         try await capture("settings-light")
         fixture.navigation.section = "moku"
@@ -216,7 +227,7 @@ private struct Failure: Error { let message: String }
         try await capture("settings-compact-zoom-in")
         fixture.scale = 1
         window.setContentSize(.init(width: 1100, height: 780))
-        let result = "PASS: production Settings + shared Thread Detail navigation; 32×30 back target at (100,22); removed sections fall back to General; arrow/Home/End navigation; visible back blocks IME close and closes after composition; light/dark/compact/narrow-English/zoom screenshots; fixed back target verified at every scale.\n"
+        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
         try result.write(to: directory.appendingPathComponent("result.txt"), atomically: true, encoding: .utf8)
         print(result)
         if !CommandLine.arguments.contains("--interactive") { NSApp.terminate(nil) }

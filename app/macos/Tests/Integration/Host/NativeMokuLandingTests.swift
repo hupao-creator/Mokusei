@@ -291,11 +291,16 @@ struct NativeMokuLandingTests {
             window.setContentSize(CGSize(width: 480, height: 620))
             try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 432 }
             fixture.scene.openSettings()
-            try await SwiftUIReplay.wait { fixture.scene.dockCovered && fixture.scene.dockHitRects.isEmpty }
+            try await SwiftUIReplay.wait { fixture.scene.settingsOpen && !fixture.scene.settingsTransitioning && !fixture.scene.dockHitRects.isEmpty }
             fixture.scene.closeSettings(); fixture.scene.settle()
             try await SwiftUIReplay.wait { !fixture.scene.dockCovered && fixture.scene.inputOpen && !fixture.scene.capsuleFrame.isEmpty }
             fixture.scene.setMokuOpen(true)
             try await SwiftUIReplay.wait { fixture.scene.dockCovered }
+            #expect(!fixture.presentation.canOpenSettings)
+            #expect(!fixture.presentation.interactionActions.contains("settings.open"))
+            fixture.presentation.openSettings()
+            #expect(!fixture.scene.settingsOpen && fixture.scene.mokuOpen)
+            #expect(throws: NativeInteractionError.self) { try fixture.presentation.performInteraction(.openSettings) }
             fixture.scene.setMokuOpen(false)
             try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.dockCovered }
             window.contentView = NSHostingView(rootView: Text("Temporarily unmounted"))

@@ -49,6 +49,7 @@ public struct NativeMokuDock: View {
     public var openExternal: ((URL) -> Void)?
     public var openExecution: ((ApplicationExecutionRef) -> Void)?
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
+    @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.colorScheme) private var colorScheme
@@ -114,7 +115,7 @@ public struct NativeMokuDock: View {
     }
     private var retaining: Bool { state.inputLeaving || state.capsuleSealed }
     private var inputPresent: Bool {
-        !state.notePanelOpen && (state.inputOpen || state.inputLeaving) && !voiceModeActive && interaction == nil
+        !state.settingsOpen && !state.notePanelOpen && (state.inputOpen || state.inputLeaving) && !voiceModeActive && interaction == nil
             && (state.inputOpen || displayedMessage == nil)
     }
     private var composerMounted: Bool {
@@ -145,7 +146,7 @@ public struct NativeMokuDock: View {
             && interaction == nil && !state.inputOpen && !state.inputLeaving
     }
     private var voiceControlVisible: Bool {
-        voiceStatusVisible
+        !state.settingsOpen && voiceStatusVisible
     }
     private var displayedMessage: NativeMokuTalkMessage? { visibleVoiceTranscript ?? visibleTalk }
     // A notification covered by live ASR has never been presented to the user.
@@ -154,7 +155,7 @@ public struct NativeMokuDock: View {
         return visibleTalk?.id
     }
     private var rowExpanded: Bool { (!voiceModeActive && state.inputOpen) || displayedMessage != nil }
-    private var expanded: Bool { state.notePanelOpen || rowExpanded }
+    private var expanded: Bool { state.settingsExpanded || state.notePanelOpen || rowExpanded }
     private var surfaceAnimation: Animation? { reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0) }
     /// Force-touch voice remains on Moku's original control row, rather than
     /// treating selectable note prose as a voice activation target.
@@ -189,7 +190,7 @@ public struct NativeMokuDock: View {
         return reply
     }
     private var runningFeedback: Bool {
-        running && mode == .running && !expanded && !inputPresent && interaction == nil && !voiceModeActive
+        !state.settingsOpen && running && mode == .running && !expanded && !inputPresent && interaction == nil && !voiceModeActive
             && !(reasoningEligible && reasoningReady)
     }
     private var incomingReasoning: MokuReasoningContent? {
@@ -209,7 +210,7 @@ public struct NativeMokuDock: View {
         return incoming + character.paintedReasoningGlyphs
     }
     private var eyeExpression: MokuExpression {
-        if state.inputOpen { return .focus }
+        if state.settingsOpen || state.inputOpen { return .focus }
         if interaction != nil { return .curious }
         if submitting || draft.submitting || running { return .deliberating }
         if reminder != nil { return .happy }
@@ -220,15 +221,17 @@ public struct NativeMokuDock: View {
             let viewport = state.dockViewport(in: geometry.size)
             let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
-            let width = state.notePanelOpen ? min(480, frame.width) : frame.width
-            let rowHeight = rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
+            let settingsSize = CGSize(width: min(900, max(0, viewport.width - 48)), height: min(640, frame.height))
+            let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(480, frame.width) : frame.width
+            let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
+                : rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
             let noteAvailableHeight = max(0, frame.height - rowHeight)
             let noteHeight = state.notePanelOpen
                 ? NativeMokuNoteLayout.fittedHeight(content: noteContentHeight, available: noteAvailableHeight) : 0
             let availableSurface = CGRect(x: frame.midX - width / 2, y: frame.minY,
                                           width: width, height: frame.height)
             let surface = NativeMokuCapsuleLayout.surface(in: availableSurface, expanded: expanded,
-                height: rowHeight + noteHeight, centered: landing)
+                height: state.settingsExpanded ? settingsSize.height : rowHeight + noteHeight, centered: landing)
             let arcSize = NativeMokuCapsuleLayout.idleSurface(in: viewport).size
             let arcBody = CGRect(x: surface.midX - arcSize.width / 2,
                                  y: surface.maxY - rowHeight / 2 - arcSize.height / 2,
@@ -248,12 +251,12 @@ public struct NativeMokuDock: View {
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
                         surface: surface, rowHeight: rowHeight, noteHeight: noteHeight,
-                        noteAvailableHeight: noteAvailableHeight, decorationPadding: placement.decorationPadding)
+                        noteAvailableHeight: noteAvailableHeight, decorationPadding: placement.decorationPadding, settingsSize: settingsSize)
                     .nativeCanvasNavigationRegion()
                     .scaleEffect(placement.scale)
                     .position(x: placement.surface.midX, y: placement.surface.midY)
                     .animation(surfaceAnimation, value: placement)
-                if let interaction {
+                if let interaction, !state.settingsOpen {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
                         .nativeCanvasNavigationRegion()
@@ -263,7 +266,7 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
-            .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil, noteButton: noteButtonRect), initial: true) { _, layout in
+            .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil && !state.settingsOpen, noteButton: noteButtonRect), initial: true) { _, layout in
                 guard state.overviewVisible else {
                     state.dockHitRects = []
                     state.dockMentionHitRect = nil
@@ -276,7 +279,7 @@ public struct NativeMokuDock: View {
             }
             .onChange(of: interaction != nil, initial: true) { _, visible in
                 state.setDockInteractionVisible(state.overviewVisible && visible, question: interactionIsQuestion)
-                if visible && state.overviewVisible { state.setInputOpen(false) }
+                if visible && state.overviewVisible && !state.settingsOpen { state.setInputOpen(false) }
             }
             .onChange(of: interactionIsQuestion) { _, value in
                 state.setDockInteractionVisible(state.overviewVisible && interaction != nil, question: value)
@@ -298,7 +301,7 @@ public struct NativeMokuDock: View {
                         else if state.inputOpen { state.dismissInputForOutsideClick() }
                         else { state.dismissTalk() }
                     })
-                if state.notePanelOpen {
+                if state.notePanelOpen && !state.settingsOpen {
                     NativeSettingsEscapeHandler { state.setNotePanelOpen(false) }
                         .frame(width: 0, height: 0)
                 }
@@ -333,6 +336,16 @@ public struct NativeMokuDock: View {
                     state.setInputOpen(false)
                 } else {
                     state.retainDraft(draft)
+                }
+            }
+        }
+        .onChange(of: state.settingsOpen) { _, open in
+            if open { state.retainDraft(draft) }
+            else {
+                restoreVoiceComposer()
+                if interaction != nil {
+                    state.setDockInteractionVisible(true, question: interactionIsQuestion)
+                    state.setInputOpen(false)
                 }
             }
         }
@@ -378,16 +391,7 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: state.windowVisible) { _, visible in if visible { state.retryNoteExposure() } }
         .onChange(of: navigationDisabled) { _, value in if value { state.setNotePanelOpen(false) } }
-        .onChange(of: voiceModeActive, initial: true) { _, active in
-            guard let open = voiceComposerRestoration.update(active: active, inputOpen: state.inputOpen) else { return }
-            guard state.overviewVisible else { return }
-            if open {
-                state.setInputOpen(true)
-            } else {
-                state.retainDraft(draft)
-                state.setInputOpen(false)
-            }
-        }
+        .onChange(of: voiceModeActive, initial: true) { _, _ in restoreVoiceComposer() }
         .onChange(of: foregroundTalkID, initial: true) { _, id in state.setTalkPresented(id != nil) }
         .task(id: state.talkPresentation.deadline) {
             guard let deadline = state.talkPresentation.deadline, let id = state.talkPresentation.message?.id else { return }
@@ -448,7 +452,7 @@ public struct NativeMokuDock: View {
         var noteButton: CGRect?
     }
     private func capsule(width: CGFloat, room: CGFloat, surface: CGRect, rowHeight: CGFloat,
-                         noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat) -> some View {
+                         noteHeight: CGFloat, noteAvailableHeight: CGFloat, decorationPadding: CGFloat, settingsSize: CGSize) -> some View {
         let idleWidth = min(NativeMokuCapsuleLayout.idleSize.width, width)
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let followsEditor = inputPresent && displayedMessage == nil
@@ -467,6 +471,7 @@ public struct NativeMokuDock: View {
                     // quickly before they cross it again during collapse.
                     .animation(reduceMotion ? nil : (inputPresent ? .easeIn(duration: 0.42) : .easeOut(duration: 0.12)), value: inputPresent ? capsuleFraction : 0)
                     .allowsHitTesting(inputPresent)
+                    .disabled(state.settingsOpen)
                     .accessibilityHidden(!inputPresent)
             }
         }
@@ -491,7 +496,7 @@ public struct NativeMokuDock: View {
             if state.notePanelOpen {
                 ZStack {
                     NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
-                                          routeEligible: state.notePanelOpen && state.overviewVisible
+                                          routeEligible: state.notePanelOpen && !state.settingsOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
                                           openExternal: openExternal, openExecution: openExecution,
                                           onContentHeightChange: { noteContentHeight = $0 },
@@ -504,11 +509,27 @@ public struct NativeMokuDock: View {
                         .transaction { $0.animation = nil }
                 }
                 .compositingGroup()
+                .opacity(state.settingsOpen ? 0 : 1)
+                .allowsHitTesting(!state.settingsOpen)
+                .accessibilityHidden(state.settingsOpen)
                 // Retire ink before the shrinking shell carries the header
                 // through the eyes. The shell keeps its ordinary 420ms morph.
                 .transition(.asymmetric(
                     insertion: .opacity.animation(surfaceAnimation),
                     removal: .opacity.animation(reduceMotion ? nil : .easeOut(duration: 0.12))))
+            }
+        }
+        .overlay(alignment: .top) {
+            if state.settingsOpen {
+                settingsContent
+                    .frame(width: settingsSize.width, height: max(0, settingsSize.height - NativeMokuCapsuleLayout.idleSize.height))
+                    .transaction { $0.animation = nil }
+                    .compositingGroup()
+                    .opacity(state.settingsExpanded ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: state.settingsClosing ? 0.12 : 0.22), value: state.settingsExpanded)
+                    .disabled(state.settingsClosing)
+                    .allowsHitTesting(!state.settingsClosing)
+                    .accessibilityHidden(state.settingsClosing)
             }
         }
         .overlay(alignment: .bottomLeading) {
@@ -564,7 +585,7 @@ public struct NativeMokuDock: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay(alignment: .bottomTrailing) {
-            if running && !inputPresent && !voiceModeActive {
+            if running && !inputPresent && !voiceModeActive && !state.settingsOpen {
                 Button(action: onCancel) {
                     // Hide only the drawn square, not the Button: a fully
                     // transparent button is pruned from the accessibility tree.
@@ -591,7 +612,7 @@ public struct NativeMokuDock: View {
         .background {
             ZStack {
                 NativeMokuCapsuleGlass().id(colorScheme)
-                voiceBackground
+                voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
         .overlay(alignment: .bottom) {
@@ -609,6 +630,15 @@ public struct NativeMokuDock: View {
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
         .accessibilityIdentifier("moku-capsule")
     }
+    private func restoreVoiceComposer() {
+        // A voice lifecycle change can arrive while Settings owns the capsule.
+        // Defer the restoration receipt as well as the UI change until release.
+        guard !state.settingsOpen, state.overviewVisible,
+              let open = voiceComposerRestoration.update(active: voiceModeActive, inputOpen: state.inputOpen) else { return }
+        if !open { state.retainDraft(draft) }
+        state.setInputOpen(open && interaction == nil)
+    }
+
     private func dispatchHarness(_ dispatch: NativeMokuDispatch) -> AnyHarnessPlugin? {
         try? presentation?.workspace.plugins.harnesses.require(dispatch.harnessID)
     }
@@ -619,7 +649,7 @@ public struct NativeMokuDock: View {
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,
             retainedDirectories: retaining ? state.retainedDirectories : nil,
-            canStartVoice: { state.windowVisible && !navigationDisabled && canStartVoice() }, startVoice: startVoice,
+            canStartVoice: { state.windowVisible && !state.dockCovered && !navigationDisabled && canStartVoice() }, startVoice: startVoice,
             activeVoiceControls: voiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel,
             availableHeight: room,
             mentions: directoryMentions, includesCompletion: false, onMentionFrame: { state.dockMentionHitRect = $0 },
@@ -640,7 +670,7 @@ public struct NativeMokuDock: View {
     }
 
     private func send() {
-        guard !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
+        guard !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
         state.retainDraft(draft, seal: true)
         state.dismissTalk()
         submitting = true

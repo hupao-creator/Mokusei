@@ -46,37 +46,39 @@ Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
-The sidebar reuses `NativeWindowNavigationView`, the same top-left traffic-light
-and back capsule used by Thread Detail. The sidebar has no separate Settings
-title. Tabs start below the shared 74-point navigation safe area in both sidebar
-and compact layouts. This space compensates for content zoom so tabs never move
-under the fixed-size navigation capsule. Content uses the selected tab as its
-page label without repeating it as a standalone heading; form group headings
-remain visible. A title-free drag region reserves 28 points above the scroll area
-in sidebar layouts and 8 points in compact layouts.
-The page marks General, Moku and contributed application content as settings
-forms. Shared group headings and regular field labels, including labels with
-inline description hints, use 14-point type; descriptions, control values and
-sidebar navigation retain their own typography. Compact local-agent detail labels
-retain their smaller size.
-The shared back target reports its actual
-frame for the Settings return animation and calls the existing draft close gate. [The isolated native demo](../../../../../demos/settings-navigation/README.md)
-links the production page and navigation for light/dark/compact and narrow English
-and zoomed screenshots.
+Settings is an Overview-only modal expansion of the resident Moku Dock. The
+same glass capsule grows toward a stable 900×640-point target, bounded by the
+viewport, and retains its bottom character row. Ordinary Overview keeps its
+bottom anchor; empty-workspace landing keeps the expanded capsule centered.
+The existing sidebar/compact tabs and form contents remain unchanged. A single
+Close button replaces the full-page traffic-light/back capsule and its 74-point
+safe area; the main window retains its own native controls. When extreme zoom
+leaves less than 220 logical points of page height, the entire settings shell
+also scrolls so its fixed chrome cannot make form controls unreachable.
 
-[NativeSettingsTransition](NativeSettingsTransition.swift) restores the button-anchored
-circular reveal removed by the SwiftUI shell migration (`310149f1d`). The live
-page keeps its final layout: opening uses the historical 480 ms emphasized curve
-(`f670e94c6`), return uses 380 ms, and a missing source uses a 160 ms fade.
-Source and back frames use logical `workspace` coordinates, including at content
-zoom. Settings stays mounted and the underlying route stays inert until return
-completes. Reversal fences obsolete completions; resize, scene inactivity,
-Reduce Motion and explicit settling retire the current animation. Semantic
-interaction snapshots report both opening and closing as transitioning.
-Run `python3 tools/verification/reading-presentation/run.py --settings-transition`
-for production-scene pixel and lifecycle checks at 1×/2× zoom, reverse, resize,
-inactive, missing-source and explicit-settle cases. Reduce Motion is handled
-in production but the replay does not change the system accessibility preference.
+The scene blurs Overview and blocks pointer, keyboard and accessibility access
+until the capsule finishes returning. Close, Escape and backdrop click share
+`NativeSettingsNavigation`'s draft gate; backdrop clicks never reach Overview.
+Native menus, IME and Agent details retain their Escape priority. Input and Note
+visits remain retained beneath Settings, including draft and reading position.
+Incoming messages and interventions cannot replace Settings. On release, a
+pending intervention takes its ordinary priority over a retained Note/composer.
+
+`NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
+page lays out at its final size; closing fades its ink before glass contraction.
+Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
+explicit settling retire the current animation without leaving the modal gate
+stuck. Opening and return both report transitioning to semantic callers.
+`python3 tools/verification/reading-presentation/run.py --settings-transition`
+mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
+blur and click-through, restoration, interruption and lifecycle regression checks.
+The runner captures representative panel screenshots with its evidence.
+
+The application menu and Cmd+, are enabled only for a loaded Overview. Direct
+presentation and semantic requests enforce the same boundary; reading, Moku
+history and initial connection/recovery pages cannot open Settings or implicitly
+navigate to Overview. A previously loaded Overview can still edit local
+preferences while disconnected.
 
 [NativeSettingsModel](NativeSettingsModel.swift) loads public settings and Harness presentation. [NativeSettingsDraft](NativeSettingsDraft.swift) keeps editable, ready and committed state separately. Page, control and native text-editor adapters present that state; the [Runtime](../../../../../internal/core/runtime/README.md#settings) remains persistence and validation authority.
 
