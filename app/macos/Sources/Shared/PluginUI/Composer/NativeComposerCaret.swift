@@ -10,7 +10,6 @@ import SwiftUI
     private var glowHeight: CGFloat = 0
     private var glowScale: CGFloat = 0
     private var hasFrame = false
-    private var darkAppearance = true
     var reduceMotion = false {
         didSet {
             guard reduceMotion != oldValue else { return }
@@ -29,11 +28,10 @@ import SwiftUI
         layer.addSublayer(core)
     }
 
-    func show(at nativeRect: CGRect, color: NSColor, in editor: NSTextView) {
+    func show(at nativeRect: CGRect, in editor: NSTextView) {
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
-        let dark = editor.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let width: CGFloat = dark ? 2.6 : 1.5
+        let width: CGFloat = 2.6
         let height = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
         let rect = CGRect(x: nativeRect.midX - width / 2, y: nativeRect.midY - height / 2, width: width, height: height)
         let previous = layer.presentation()?.position ?? layer.position
@@ -48,18 +46,9 @@ import SwiftUI
         }
         core.frame = layer.bounds
         core.cornerRadius = width / 2
-        // A luminous fringe works on dark glass. On pale glass it muddies the
-        // dark ink and makes the insertion mark look like part of a glyph.
-        glow.isHidden = !dark
-        editor.effectiveAppearance.performAsCurrentDrawingAppearance {
-            core.backgroundColor = (dark ? NSColor.white : color).cgColor
-        }
-        if darkAppearance != dark {
-            darkAppearance = dark
-            core.removeAnimation(forKey: "breathing")
-        }
+        core.backgroundColor = NSColor.white.cgColor
         let scale = editor.window?.backingScaleFactor ?? 2
-        if dark && (glowHeight != height || glowScale != scale) {
+        if glowHeight != height || glowScale != scale {
             // Rasterize the reference's actual blurred shapes once per geometry,
             // not on native blink callbacks or each animation frame.
             let renderer = ImageRenderer(content: ComposerCaretGlow(height: height))
@@ -92,9 +81,7 @@ import SwiftUI
                 // Native blink callbacks and typing must not reset the cycle.
                 let breath = CABasicAnimation(keyPath: "opacity")
                 breath.fromValue = part.opacity
-                // Pale glass needs a stronger ink floor throughout the cycle;
-                // the halos still breathe fully in either appearance.
-                breath.toValue = part === core ? (darkAppearance ? 0.2 : 0.8) : 0
+                breath.toValue = part === core ? 0.2 : 0
                 breath.duration = 1.2
                 breath.autoreverses = true
                 breath.repeatCount = .infinity

@@ -52,7 +52,7 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorScheme) private var workspaceColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var hovered = false
@@ -460,6 +460,9 @@ public struct NativeMokuDock: View {
             NativeMokuDispatchSheet(selected: selected, presentation: presentation)
         }
         .task(id: mentionsEnabled) { await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories) }
+        // Keep the override local: a preferredColorScheme would also recolor
+        // the containing workspace window and its other application surfaces.
+        .environment(\.colorScheme, .dark)
     }
     private struct HitLayout: Equatable {
         var surface, panel: CGRect
@@ -476,7 +479,7 @@ public struct NativeMokuDock: View {
             presentsReasoning: reasoningEligible && reasoningReady, executionKey: presentation?.executionKey,
             capsuleSize: CGSize(width: surface.width, height: rowHeight), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
             motion: scenePhase == .active && state.windowVisible && !state.dockCovered,
-            reduceMotion: reduceMotion, dark: colorScheme == .dark)
+            reduceMotion: reduceMotion, dark: true)
         return ZStack(alignment: .bottomLeading) {
             if composerMounted {
                 composer(room: room).frame(width: width).fixedSize(horizontal: false, vertical: true)
@@ -552,6 +555,7 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
+                    .environment(\.colorScheme, workspaceColorScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
                     .transaction { $0.animation = nil }
                     .compositingGroup()
@@ -628,8 +632,11 @@ public struct NativeMokuDock: View {
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
         .background {
             ZStack {
-                NativeMokuCapsuleGlass().id(colorScheme).opacity(state.settingsExpanded ? 0 : 1)
-                if state.settingsOpen { NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0) }
+                NativeMokuCapsuleGlass().opacity(state.settingsExpanded ? 0 : 1)
+                if state.settingsOpen {
+                    NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
+                        .environment(\.colorScheme, workspaceColorScheme)
+                }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))

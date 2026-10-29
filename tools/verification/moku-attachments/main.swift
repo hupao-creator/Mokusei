@@ -215,8 +215,8 @@ private struct ReplayObserved<Content: View>: View {
             guard let text = editor(host) else { throw ReplayFailure(description: "Theme update removed editor") }
             try require(text === original, "Theme update replaced the production editor")
             try checkSingleLineLayout(text)
-            try require((text.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua) == dark,
-                        "Production editor lost the capsule's local theme")
+            try require(text.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
+                        "Production Moku editor must stay dark under either workspace theme")
             let name = "contrast-\(dark ? "dark" : "light")-glass-\(patterned ? "pattern" : "canvas")"
             try capture(name + "-placeholder")
             text.insertText("Readable 中文 · Moku", replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -242,7 +242,7 @@ private struct ReplayObserved<Content: View>: View {
         try await Task.sleep(for: .seconds(60))
     }
     await draft.dispose()
-    print("PASS production capsule centered single lines without scrollbars, light/dark local themes, opposite window appearance, overview/contrasting backgrounds, placeholder/text captures and retained draft")
+    print("PASS production capsule centered single lines without scrollbars, fixed dark Moku under light/dark workspace themes, opposite window appearance, overview/contrasting backgrounds, placeholder/text captures and retained draft")
 }
 
 @MainActor private func capsuleReplay() async throws {

@@ -106,6 +106,7 @@ public struct NativeMokuThreadView: View {
             }.background(NativePalette.thread.canvas.swiftUI)
         }
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
+        .environment(\.colorScheme, .dark)
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
     private var externalRoute: ((JSONText) async throws -> Void)? {
