@@ -18,6 +18,8 @@ IME 阻止关闭、分类键盘导航，以及无效分类回退 General。
 截图使用 ScreenCaptureKit，仅捕获 fixture 窗口。
 完整面板生命周期和背景点击验收见
 [Settings 回放](../../tools/verification/reading-presentation/README.md#settings-capsule-and-return)。
+另存四个 Harness 的 Moku 页浅色、深色及单目标截图，验证透明图标座位、
+派发短横线和虚线路径，以及生产协调/派发绑定和最后目标保护。
 
 数据和保存使用内存 fixture；偏好写入 demo 私有 profile。
 不启动 Runtime、模型服务或麦克风。Harness 子表单为空，不代表其功能已验证。

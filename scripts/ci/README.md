@@ -66,8 +66,14 @@ The three Settings capsule methods likewise run in the required native-capture
 lane, because their production Dock/form mouse actions and WindowServer blur
 assertions need an activated AppKit host. The coverage aggregator requires each
 observed passing method; SwiftPM deferral alone cannot satisfy coverage.
-The five input/responder and native-panel methods deferred by the browser, history composer and
-Report suites share one isolated host, without repeating their other methods.
+The nine input/responder, pointer-tracking and native-panel methods deferred by
+the browser, history composer, Report, Thread TOC and Landing suites share one
+isolated AppKit host, without repeating their other methods. The TOC pointer
+case needs a running event loop and a foreground visible window. Landing's
+three mouse/key methods also require that loop: native NSTextView tracking can
+otherwise exit a plain SwiftPM process with status zero before its completion
+summary. All nine must produce observed passing native-controls outcomes; the
+aggregate continues to reject incomplete processes even when their exit is zero.
 The Go producer also exports this attempt's warmed race and ordinary build caches;
 downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.

@@ -15,7 +15,7 @@ toward the bottom with a fine warm edge. Production density is 85%. The shared
 material covers the Dock (idle, composer, Talk and note), history
 composer and interaction panel; the latter retains its existing explicit dark appearance.
 Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
-caret, eyes and the external reasoning Arc retain their existing theme ownership.
+caret and eyes retain their existing theme ownership.
 The material does not change layout, clipping, voice ownership or motion clocks.
 The [material demo](../../../../../demos/moku-gradient-material/README.md) now
 compiles this same production material; its regular-glass option is a historical
@@ -55,12 +55,17 @@ collapse; failure reopens the preserved draft. Escape, outside click, input
 reopening and Stop use the same paths as the bottom Dock. Returning from a
 covering route or remounting cannot reopen input over a resident or message.
 Hydrating a running Moku or waiting message presents that state immediately.
+Landing input also collapses on clicks in another window or app, preserving its
+draft and leaving the click available to its target. Focus loss alone does not
+collapse it: native menus, attachment sheets, modal panels and visible child
+windows retain their interaction before outside dismissal resumes. Cross-app
+observers retire when input closes or the Dock unmounts; covered routes cannot
+use a stale observer to close the draft.
 
 The same persistent capsule and character host own running, thinking, Talk and
 dispatch. There is no separate landing notice. A manually opened editor defers
 notifications until it closes, without losing its draft. The centered compact
-resident, eyes, running orbit and reasoning ink scale together by 76/58; thinking
-still fits its complete glyph envelope to the viewport. Expanded landing rows
+resident, eyes and running orbit scale together by 76/58. Expanded landing rows
 retain the 680-point composer width and 76-point minimum height.
 
 A durable first-task shell can precede native admission, so it remains behind
@@ -106,39 +111,30 @@ geometry. Expanding the composer, note or notification does not change that
 reservation or trigger a card repack; those surfaces retain their existing
 interaction/overlay ownership.
 
-## Thinking arc
+## Thinking feedback
 
-The current public Harness reasoning foreground supplies a
-[MokuReasoningContent](../Moku/MokuReasoningContent.swift) identified by Thread,
-Harness, execution and foreground sequence, including its UTF-16 source offset.
-The live projection is separate from generic display-role leases: assistant/tool
-foreground changes, terminal states and disconnects immediately retire its
-content. A visible handoff may finish painting its captured glyphs, but it cannot
-restore an expired source or delay a user interaction until a backlog is read.
+Moku temporarily hides its live reasoning text Arc. Deep thinking uses the same
+three-dot running choreography described above, including Reduce Motion's static
+dots. Live reasoning takes priority over a queued generic tool expression; source
+appends do not restart the running clock. Composer, notes, Talk/dispatch, voice
+and permission/question surfaces retain priority. Completion, failure,
+interruption, waiting for input and runtime disconnect retire loading through
+the existing execution and surface ownership state.
 
-The native arc keeps the capsule body. Its open circular span is 288°, centered
-at −110°, with radius half the capsule's largest dimension plus 19 points.
-CoreText paints 12.5-point medium glyphs with 1.3-point tracking in their tangent
-direction, including the inverted lower edge. Short text centers by measured
-width; the two ends fade. The glyph FIFO follows absolute source positions,
-retains unread middle input and at most 112 measured graphemes, and settles on
-the latest complete-grapheme tail of at most 56 Unicode code points. Same-segment
-append preserves the reading clock; segment/execution changes, known source gaps
-or revisions reset its reader. Reduce Motion shows the latest tail directly.
-
-The arc model and painter own no timer. The persistent activity host coordinates
-eyes, running dots and the text's gather/reveal handoff from their currently
-painted state. Composer, notes, Talk/dispatch, voice and permission/question
-surfaces retain priority. The Dock reserves visible ink space by continuously
-lifting the capsule, eyes and arc together only as far as the viewport requires;
-If a short or narrow viewport cannot contain the complete glyph envelope, the capsule and arc scale together to fit. Overview's fixed bottom reservation and card packing stay unchanged.
+The public Harness foreground still supplies
+[MokuReasoningContent](../Moku/MokuReasoningContent.swift), identified by Thread,
+Harness, execution and foreground sequence with its UTF-16 source offset.
+Assistant/tool foreground changes, terminal states and disconnects retire that
+live projection as before. The Arc model, painter and layout remain available
+for a future presentation change, but the Dock does not admit or paint their
+text. Ordinary Agent Thread trace rendering and Moku's history reader are
+unchanged; this is a Dock presentation policy, not a data/schema change.
 
 Validation uses the [native reasoning replay](../../../../../tools/verification/moku-reasoning/README.md),
 which drives Runtime fixture transactions through the real Harness, workspace
 projection and Dock, and the [transition replay](../../../../../tools/verification/moku-transitions/README.md)
-for interrupted visual handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
-reuses the production Arc; its historical circular and contour tabs remain
-comparison-only.
+for interrupted loading/input handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
+retains the Arc for comparison only.
 
 ## Talk, dispatch and notes
 
@@ -147,7 +143,8 @@ Moku conversation reader, including its archived-session picker. It remains
 available when the note or conversation is empty; the reader owns the empty
 conversation state. The native button supports keyboard and accessibility
 activation with localized labels. Its footer reserves reading space in normal
-windows and scrolls with the header/body in short viewports, including 5× zoom.
+windows, aligns with the eyes in the bottom row, and scrolls with the header/body
+in short viewports, including 5× zoom.
 Opening history uses the scene's ordinary navigation path, closing the note
 without changing its exposure receipt or the workspace draft.
 

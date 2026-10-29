@@ -8,6 +8,8 @@ import MokuseiPluginUI
 import MokuseiUI
 import MokuseiHarnessCodex
 import MokuseiHarnessClaude
+import MokuseiHarnessPi
+import MokuseiHarnessOpenCode
 
 // Production Settings, scene and Dock, with in-memory configuration only.
 @MainActor @Observable private final class Fixture {
@@ -25,7 +27,8 @@ import MokuseiHarnessClaude
     }
     var dark = false
     var scale: CGFloat = 1
-    let harnesses = [AnyHarnessPlugin(CodexHarnessPlugin()), AnyHarnessPlugin(ClaudeHarnessPlugin())]
+    let harnesses = [AnyHarnessPlugin(PiHarnessPlugin()), AnyHarnessPlugin(CodexHarnessPlugin()),
+                     AnyHarnessPlugin(ClaudeHarnessPlugin()), AnyHarnessPlugin(OpenCodeHarnessPlugin())]
 
     init(directory: URL) throws {
         preferences = DesktopPreferences(directory: directory)
@@ -34,7 +37,8 @@ import MokuseiHarnessClaude
         model = NativeSettingsModel(settings: value, revision: 0,
             save: { value, revision in .saved(settings: value, revision: revision + 1) },
             clearHistory: {}, loadInstallations: {
-                .object(["codex": .object(["status": .text("installed")]), "claude": .object(["status": .text("installed")])])
+                .object(["pi": .object(["status": .text("installed")]), "codex": .object(["status": .text("installed")]),
+                         "claude": .object(["status": .text("installed")]), "opencode": .object(["status": .text("installed")])])
             }, installHarness: { _ in })
         model.receive(snapshot: nil, runtimeAvailable: true)
     }
@@ -205,8 +209,34 @@ private struct Failure: Error { let message: String }
         try await capture("settings-light")
         fixture.navigation.section = "moku"
         try await capture("settings-moku")
-        fixture.navigation.section = "general"
         fixture.dark = true
+        try await capture("settings-moku-dark")
+        func mapControls() -> [JSONValue] {
+            fixture.navigation.interactions.snapshot(context: fixture.navigation.interactionContext(section: "moku"))
+        }
+        func activateMapControl(_ id: String) async throws {
+            guard let control = mapControls().first(where: { $0["id"] == .text(id) }),
+                  let handle = control["handle"]?.stringValue else {
+                throw Failure(message: "Missing mounted map control: \(id)")
+            }
+            try fixture.navigation.interactions.perform(id: id, handle: handle, operation: "activate", value: .null,
+                context: fixture.navigation.interactionContext(section: "moku"))
+            try await Task.sleep(for: .milliseconds(150))
+        }
+        try await activateMapControl("moku.target.claude")
+        guard fixture.model.draft.value["moku"]?["targetHarnessIds"] == .array([.text("codex")]),
+              mapControls().contains(where: { $0["id"] == .text("moku.target.codex") && $0["enabled"] == .bool(false) }) else {
+            throw Failure(message: "Map did not preserve its last dispatch target")
+        }
+        try await capture("settings-moku-last-target-dark")
+        try await activateMapControl("moku.target.claude")
+        try await activateMapControl("moku.host.claude")
+        guard fixture.model.draft.value["moku"]?["hostHarnessPreference"] == .text("claude"),
+              fixture.model.draft.value["moku"]?["targetHarnessIds"] == .array([.text("codex"), .text("claude")]) else {
+            throw Failure(message: "Map host and target actions did not retain their draft bindings")
+        }
+        try await activateMapControl("moku.host.codex")
+        fixture.navigation.section = "general"
         try await capture("settings-dark")
         fixture.dark = false
         window.setContentSize(.init(width: 540, height: 780))
@@ -227,7 +257,7 @@ private struct Failure: Error { let message: String }
         try await capture("settings-compact-zoom-in")
         fixture.scale = 1
         window.setContentSize(.init(width: 1100, height: 780))
-        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
+        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; four-Harness map bindings and last-target protection; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
         try result.write(to: directory.appendingPathComponent("result.txt"), atomically: true, encoding: .utf8)
         print(result)
         if !CommandLine.arguments.contains("--interactive") { NSApp.terminate(nil) }

@@ -80,7 +80,10 @@ for production rendering, selection, copying and navigation fixtures.
 
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
 conversation's turn index as a left-hand TOC. The selected mark is longer and
-brighter; hover or keyboard focus reveals a bounded prompt/answer preview. The
+brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
+Restoring focus after Back does not reopen the preview. The mark and preview share
+a cancellable 100ms pointer handoff, including the gap between them; leaving both,
+unmounting or deactivating the scene retires pointer previews. The
 viewport-bounded, independently scrollable index includes inherited history and
 the current turn, without mounting historical bodies or parsing every answer.
 The shared `NativeScrollView` retains native viewport behavior with hidden TOC
@@ -90,7 +93,13 @@ responder survives entry recycling, and Escape retains the document Back action.
 Accessible names include the ordinal and prompt, and the selected/current states
 are exposed separately.
 Selecting history uses the existing scoped document and Back restores the retained
-current scroll position. New turns do not replace an open historical execution;
+current scroll position. Thread history switches vertically according to TOC order:
+earlier targets enter from above, later targets from below, including history-to-history
+replacement and return to the current document. Departing history stays mounted only
+for its transition; cancellation fences obsolete completion. Other page
+stacks retain their default horizontal direction. Reduce Motion settles transitions
+without travel, including a return already in progress. New turns do not replace
+an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
 Execution sidecards keep their single-execution presentation.
 

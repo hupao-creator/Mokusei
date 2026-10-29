@@ -1,4 +1,4 @@
-# Native Moku thinking Arc replay
+# Native Moku thinking loading replay
 
 ```sh
 python3 tools/verification/moku-reasoning/run.py
@@ -8,26 +8,25 @@ python3 tools/verification/moku-reasoning/run.py --skip-build --negative-control
   --evidence .build/moku-reasoning-negative-control
 ```
 
-This replaces the retired contour replay. It mounts the production Dock and
-drives authenticated-shape Runtime fixture transactions through the real
-RuntimeState validator, workspace catalog, Codex Harness Moku projection and
-live Moku presentation. The new Arc uses the accepted 288° open circle and
-source-position glide reader; there is no continuously rotating text phase.
+This mounts the production Dock and drives Runtime fixture transactions through
+the real RuntimeState validator, workspace catalog, Codex Harness projection and
+live Moku presentation. Moku's reasoning text Arc is temporarily hidden; the
+replay checks retained reasoning data and the existing three-dot loading instead.
 
 The native window runs its normal event loop. ScreenCaptureKit captures only
 the current process's full-sized window; transformed/transparent images fail
 as capture errors. The replay never forces draw calls or advances animation
 clocks. The negative control supplies an inactive scene and must fail the
-specific natural-motion pixel observation, not an unrelated build/window error.
+specific natural-motion pixel observation.
 
-Checks include current-source identity, same-segment and high-rate append
-continuity, UTF-16 source offsets, new segments and executions, empty content,
-assistant/tool/terminal retirement, short-text settling, composer and sealed
-submission restoration, note/voice/Talk ownership, disconnect, route coverage,
-remount, real hide/show and a natural eye blink. Source retirement and bounded
-retiring glyph paint are checked separately; handoff motion cannot keep an
-expired execution live. The transition replay separately covers rapid reversed
-handoffs and whole-capsule viewport fitting.
+Checks include three visible dots and naturally changing pixels, source/segment
+identity and UTF-16 offsets, append clock continuity, absence of admitted/painted
+reasoning glyphs, tool-to-reasoning priority, composer/note/voice ownership,
+disconnect/reconnect, completion, failure, interruption, waiting for user input,
+reply completion, terminal retirement while inactive/hidden and resumption through
+the same display clock and eye identity. The transition replay separately
+covers rapid reversals and bottom/landing viewport fitting. The standalone Arc
+study remains available but does not certify production thinking presentation.
 
 Evidence defaults to `.build/moku-reasoning-evidence`: measurements, result,
 own-window screenshots, isolated launch/resource receipts and cleanup logs.
@@ -35,5 +34,5 @@ The launcher stages source, object files, frameworks and all resources in
 temporary storage and cleans up only its owned process on timeout. Run SwiftPM
 builds and graphical replays serially. No real model request, account, microphone
 or WebRTC session is used. Voice mode uses presentation fixtures only.
-Programmatic miniaturization is not part of this replay; its actual hide/show
-check must not be reported as proof of physical minimize behavior.
+Window hide/show covers terminal retirement and clock resumption; physical
+minimize behavior remains outside this replay's scope.

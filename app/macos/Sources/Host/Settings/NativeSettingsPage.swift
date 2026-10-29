@@ -443,18 +443,41 @@ struct NativeHarnessSettingsIcon: View {
     let harness: AnyHarnessPlugin
     let state: NativeHarnessInstallation.Status
     var showStatus = false
+    var transparent = false
     var hostSlot = false
     var hideLogo = false
+    var preservesDisabledOpacity = false
     var logoTransform = NativeMokuSettingsMotion.Transform()
     var logoOpacity: Double = 1
-    var checked: Bool? = nil
     var action: () -> Void
+    @State private var hovered = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.isFocused) private var focused
 
     var body: some View {
         Group {
-            if let checked {
-                Toggle(isOn: Binding(get: { checked }, set: { _ in action() })) { icon }
-                    .toggleStyle(.checkbox)
+            // The dispatch diagram uses transparent seats so button chrome
+            // does not grow with Moku or shift a target away from its path.
+            if transparent {
+                Button(action: action) {
+                    icon
+                        .background(hovered ? NativeAppKitPalette.pair(0xedf0f4, 0x292e34).swiftUI : .clear,
+                                    in: RoundedRectangle(cornerRadius: 13))
+                        .overlay {
+                            if focused {
+                                RoundedRectangle(cornerRadius: 18).stroke(NativeAppKitPalette.settings.accent.swiftUI, lineWidth: 2)
+                                    .padding(-5).allowsHitTesting(false)
+                            }
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 13))
+                }.buttonStyle(MokuMapButtonStyle())
+                    .offset(y: hovered && !hostSlot ? -1 : 0)
+                    .opacity(enabled || preservesDisabledOpacity ? 1 : 0.45)
+                    .onHover { hovered = $0 }
+                    .animation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.14), value: hovered)
+                    .accessibilityRepresentation {
+                        Button(harness.descriptor.displayName.string, action: action).disabled(!enabled)
+                    }
             } else {
                 Button(action: action) { icon }.buttonStyle(.bordered)
             }
@@ -468,7 +491,7 @@ struct NativeHarnessSettingsIcon: View {
             .modifier(NativeMokuSettingsTransform(pose: logoTransform, scale: 1, anchor: .center))
             .opacity((hideLogo ? 0 : state == .missing ? 0.48 : 1) * logoOpacity)
             .animation(hostSlot ? .timingCurve(0.25, 0.1, 0.25, 1, duration: hideLogo ? 0.14 : 0.16).delay(hideLogo ? 0.56 : 0.18) : nil, value: hideLogo)
-            .frame(width: 36, height: 36)
+            .frame(width: transparent ? 48 : 36, height: transparent ? 48 : 36)
             .overlay(alignment: .bottomTrailing) {
                 if showStatus {
                     Group {
@@ -479,4 +502,10 @@ struct NativeHarnessSettingsIcon: View {
                 }
             }
     }
+}
+
+private struct MokuMapButtonStyle: ButtonStyle {
+    // PlainButtonStyle dims a disabled label itself; the map owns opacity so
+    // its last selected target stays visible while removal is disabled.
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
 }
