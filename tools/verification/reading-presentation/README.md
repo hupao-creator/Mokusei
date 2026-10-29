@@ -16,9 +16,12 @@ not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise lon
 author accessibility and save settled dark/light screenshots under
 `.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
 
-The ordinary Swift suite also discovers these cases; forced headless admission
-skips their graphical assertions explicitly. The isolated launcher requires all
-five cases without skips. A finite onscreen pointer replay synchronizes the system
+The ordinary Swift suite runs the four state/layout cases. The pointer case
+requires the isolated application's running AppKit loop and a foreground visible
+window; CI executes that exact method in `--isolated-input` and the coverage
+collector requires its observed passing outcome. Forced headless admission
+skips display assertions explicitly. The sidebar launcher requires all five
+cases without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
 rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
@@ -72,10 +75,13 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
-CI uses `--isolated-input` to compile the same history-composer, browser-viewport
-and Report test sources into one AppKit host. It executes exactly the five
-input/responder and native-panel methods deferred by SwiftPM, requiring all five
-to pass without skips, while their remaining methods execute in the normal Swift shards.
+CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
+Report and Thread TOC test sources into one AppKit host. It executes exactly
+the six input/responder, pointer and native-panel methods deferred by SwiftPM,
+requiring all six to pass without skips, while their remaining methods execute
+in the normal Swift shards. The Report modal case acknowledges WebKit's focused
+frame before native Escape and observes its close event and trusted cancel;
+a fixed delay or JavaScript dismissal cannot certify default input handling.
 
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode

@@ -62,8 +62,11 @@ assigned Go/Swift or isolated AppKit replays serially; scheduling weights balanc
 the combined workload. Tests within one graphical session remain serial.
 Only the two capture-dependent tag-glass methods need the
 standalone host; its other five methods already execute in the Swift shards.
-The five input/responder and native-panel methods deferred by the browser, history composer and
-Report suites share one isolated host, without repeating their other methods.
+The six input/responder, pointer-tracking and native-panel methods deferred by
+the browser, history composer, Report and Thread TOC suites share one isolated
+AppKit host, without repeating their other methods. The TOC pointer case needs
+the application's running event loop and a foreground visible window; it still
+must produce an observed passing method outcome in the native-controls replay.
 The Go producer also exports this attempt's warmed race and ordinary build caches;
 downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.

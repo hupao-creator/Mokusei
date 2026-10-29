@@ -222,11 +222,15 @@ struct NativeThreadHistorySidebarTests {
         }
     }
 
-    @Test func pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native pointer tracking: python3 tools/verification/reading-presentation/run.py --thread-sidebar"))
+    func pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation() async throws {
         let fixture = SidebarFixture()
         let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700)
         defer { window.close() }
+        window.level = .floating
         window.center()
+        try await SwiftUIReplay.wait { NSApp.isRunning && NSApp.isActive && window.isKeyWindow && window.occlusionState.contains(.visible) }
         let originalPointer = NSEvent.mouseLocation
         defer {
             CGWarpMouseCursorPosition(CGPoint(x: originalPointer.x,
@@ -253,7 +257,16 @@ struct NativeThreadHistorySidebarTests {
         try key(126, "\u{f700}", in: window)
         try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text("turn-3") }
         try move(26, 398)
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text("turn-0") }
+        do {
+            try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text("turn-0") }
+        } catch {
+            try capture(window, name: "hover-entry-failure")
+            print("TOC HOVER", "running", NSApp.isRunning, "active", NSApp.isActive,
+                "key", window.isKeyWindow, "visible", window.occlusionState.contains(.visible),
+                "pointer", NSEvent.mouseLocation, "window", window.frame,
+                "preview", fixture.state("history.sidebar")?["previewRow"]?.stringValue as Any)
+            throw error
+        }
         try move(50, 398)
         try move(120, 398)
         try await Task.sleep(for: .milliseconds(180))

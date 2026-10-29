@@ -47,7 +47,7 @@ def main():
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
-    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests"]
+    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests"]
               if isolated_input else [suite])
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
@@ -80,7 +80,8 @@ def main():
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
                             "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
-                            "reportNativeDialogsAndDownloadsPreserveTheDocument"]
+                            "reportNativeDialogsAndDownloadsPreserveTheDocument",
+                            "pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation"]
         selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
@@ -95,7 +96,7 @@ def main():
         replay.export(evidence)
         replay.close()
     count = (4 if "--model-selector" in sys.argv else
-             5 if isolated_input else
+             6 if isolated_input else
              2 if "--report-controls" in sys.argv else
              5 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
