@@ -302,9 +302,8 @@ public struct NativeMokuDock: View {
                     isActive: { (state.inputOpen || state.notePanelOpen || foregroundTalkID != nil) && state.overviewVisible && !state.dockCovered && !navigationDisabled },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
                     preservesOwnedInteractions: landing && state.inputOpen,
-                    outsideWindowClick: !state.notePanelOpen && (foregroundTalkID != nil || (landing && state.inputOpen)) ? {
-                        if state.inputOpen { state.dismissInputForOutsideClick() }
-                        else { state.dismissTalk() }
+                    outsideWindowClick: !state.notePanelOpen && foregroundTalkID != nil ? {
+                        state.dismissTalk()
                     } : nil,
                     isInside: { point in
                         NativeMokuOutsideClick.isInside(point: point, dockRects: state.dockHitRects)

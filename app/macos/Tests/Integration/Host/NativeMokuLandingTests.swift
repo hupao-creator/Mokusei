@@ -236,11 +236,8 @@ struct NativeMokuLandingTests {
             try click(CGPoint(x: capsule.midX, y: capsule.midY), window: window)
             #expect(fixture.scene.inputOpen)
             try click(CGPoint(x: 30, y: capsule.minY - 40), window: window)
-            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            #expect(fixture.scene.inputOpen)
             #expect(fixture.moku.landing && fixture.presentation.draft.text == "保留 landing 草稿")
-            fixture.scene.toggleInput()
-            try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
-            #expect(fixture.presentation.draft.text == "保留 landing 草稿")
             let other = NSWindow(contentRect: CGRect(x: 1000, y: 100, width: 160, height: 100),
                                  styleMask: [.titled], backing: .buffered, defer: false)
             other.isReleasedWhenClosed = false
@@ -249,7 +246,7 @@ struct NativeMokuLandingTests {
             defer { other.close() }
             #expect(fixture.scene.inputOpen)
             try click(CGPoint(x: 50, y: 50), window: other)
-            try await SwiftUIReplay.wait { !fixture.scene.inputOpen }
+            #expect(fixture.scene.inputOpen)
             #expect(fixture.presentation.draft.text == "保留 landing 草稿")
         }
         try await withFixture { fixture in
@@ -416,7 +413,7 @@ struct NativeMokuLandingTests {
             fixture.scene.toggleInput()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && !fixture.scene.capsuleFrame.isEmpty }
             try click(CGPoint(x: 30, y: 100), window: window)
-            try await SwiftUIReplay.wait { !fixture.scene.inputOpen }
+            #expect(fixture.scene.inputOpen)
         }
     }
 
