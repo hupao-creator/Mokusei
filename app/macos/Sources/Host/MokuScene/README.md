@@ -157,18 +157,14 @@ retains the Arc for comparison only.
 
 ## Talk, dispatch and notes
 
-The expanded note's bottom-right **Moku history** button opens the existing
-Moku conversation reader, including its archived-session picker. It remains
-available when the note or conversation is empty; the reader owns the empty
-conversation state. The native button supports keyboard and accessibility
-activation with localized labels. The Dock seats the button at the capsule’s
-bottom-right, independently of note scrolling. With no message or media controls
-it shares the eyes’ bottom row when wide enough; narrow capsules also reserve
-the separate history band.
-Retained messages, Stop and voice controls reserve a separate row above the
-history button, preserving their reading width even in narrow viewports. The
-note body stays clipped above these rows; its header scrolls with the body in
-short viewports, including 5× zoom.
+The expanded note's **Moku history** button opens the existing conversation
+reader, including its archived-session picker. It remains available when the
+note or conversation is empty and supports keyboard and accessibility activation
+with localized labels. History sits before Stop or voice controls in the trailing
+action row. With no message the row shares the eyes' seat when there is room;
+narrow capsules use a separate action row. Wide messages share the row with
+the actions; narrow messages retain their reading width above them. The note body stays clipped above these rows;
+its header scrolls with the body in short viewports, including 5× zoom.
 Opening history uses the scene's ordinary navigation path, closing the note
 without changing its exposure receipt or the workspace draft.
 

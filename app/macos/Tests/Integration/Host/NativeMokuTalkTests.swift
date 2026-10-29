@@ -234,12 +234,17 @@ struct NativeMokuTalkTests {
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)
-                    if noteOpen {
+                    if noteOpen && state.capsuleFrame.width < 320 {
                         // SwiftUI button AX nodes require a window; their seat
                         // and activation are checked by the display-gated suite.
                         #expect(textFrame.maxY <= state.capsuleFrame.maxY - 40,
                                 "Retained prose must leave the bottom history band clear")
                         #expect(eyeFrame.maxY <= state.capsuleFrame.maxY - 40)
+                    }
+
+                    if noteOpen && state.capsuleFrame.width >= 320 {
+                        #expect(textFrame.maxX <= state.capsuleFrame.maxX - 100,
+                                "Wide retained prose must leave space for the history action")
                     }
 
                     if running {

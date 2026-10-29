@@ -68,6 +68,7 @@ public struct NativeMokuDock: View {
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
     @State private var noteContentHeight: CGFloat = 0
+    @State private var historyActionWidth: CGFloat = 110
     @State private var voiceControlsFrame = CGRect.zero
     @State private var voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
     @State private var dispatchDetail: NativeMokuTalkMessage?
@@ -171,11 +172,14 @@ public struct NativeMokuDock: View {
     }
     // Keep the control seat for the entire message, including after Stop retires.
     // Changing it mid-message shifts centered text and can change line breaks.
-    private var talkTrailing: CGFloat { 48 }
-    // With prose or media controls, give History its own bottom band rather
-    // than narrowing selectable text or covering controls in small viewports.
+    private func talkTrailing(width: CGFloat) -> CGFloat {
+        48 + (state.notePanelOpen && noteHistoryBand(width: width) == 0 ? historyActionWidth + 4 : 0)
+    }
+    // Keep selectable prose full width; in compact empty rows, reserve enough
+    // room for the eyes and the naturally arranged trailing actions.
     private func noteHistoryBand(width: CGFloat) -> CGFloat {
-        state.notePanelOpen && (width < 200 || displayedMessage != nil || voiceControlVisible || stopControlPresent) ? 40 : 0
+        let hasControl = stopControlPresent || (voiceControlVisible && (!inputPresent || voiceModeActive))
+        return state.notePanelOpen && width < (displayedMessage != nil ? 320 : (hasControl ? 240 : 200)) ? 40 : 0
     }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
@@ -183,7 +187,7 @@ public struct NativeMokuDock: View {
             return max(landing ? 76 : 58, capsuleHeight) + (completionVisible ? completionHeight : 0)
         }
         if message.dispatch != nil { return landing ? 76 : 58 }
-        return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing))
+        return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing(width: width)))
     }
     private var residentPresenting: Bool {
         !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
@@ -585,11 +589,11 @@ public struct NativeMokuDock: View {
                         NativeMokuDispatchContent(dispatch: dispatch, harness: dispatchHarness(dispatch)) {
                             dispatchDetail = message
                         }
-                        .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing), height: 28)
+                        .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing(width: width)), height: 28)
                     } else {
                         NativeMokuTalkContent(message: message)
                             .accessibilityIdentifier(visibleVoiceTranscript == nil ? "moku-talk-content" : "moku-voice-transcript")
-                            .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing),
+                            .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing(width: width)),
                                    height: max(0, surfaceHeight(width: width) - NativeMokuTalkTypography.verticalPadding * 2))
                             .padding(.vertical, NativeMokuTalkTypography.verticalPadding)
                             // Text snapshots change discretely. Interpolating the
@@ -610,40 +614,37 @@ public struct NativeMokuDock: View {
             .allowsHitTesting(!state.settingsOpen).accessibilityHidden(state.settingsOpen)
         }
         .overlay(alignment: .bottomTrailing) {
-            if stopControlPresent {
-                Button(action: onCancel) {
-                    // Hide only the drawn square, not the Button: a fully
-                    // transparent button is pruned from the accessibility tree.
-                    RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
-                        .frame(width: 30, height: 30).contentShape(Circle())
-                        .opacity(stopVisible ? 1 : 0)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.12), value: stopVisible)
-                }.buttonStyle(.plain).disabled(disabled)
-                    .focused($stopFocused)
-                    .accessibilityFocused($stopAccessibilityFocused)
-                    .allowsHitTesting(stopVisible)
-                    .help(localize("停止 Moku", "Stop Moku"))
-                    .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
-                    .accessibilityIdentifier("moku-stop")
-                    .padding(.trailing, 7).frame(height: rowHeight - historyBand)
-                    .padding(.bottom, historyBand)
-            } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
-                voiceControls.fixedSize(horizontal: true, vertical: true)
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { voiceControlsFrame = $0 }
-                    .padding(.trailing, 3).frame(height: rowHeight - historyBand)
-                    .padding(.bottom, historyBand)
-                    .transition(.opacity)
+            HStack(spacing: 4) {
+                if state.notePanelOpen {
+                    NativeMokuNoteHistoryButton { state.setMokuOpen(true) }
+                        .fixedSize()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { historyActionWidth = $0 }
+                        .opacity(state.settingsOpen ? 0 : 1)
+                        .allowsHitTesting(!state.settingsOpen)
+                        .accessibilityHidden(state.settingsOpen)
+                }
+                if stopControlPresent {
+                    Button(action: onCancel) {
+                        // Keep the Button in accessibility while hiding its ink.
+                        RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
+                            .frame(width: 30, height: 30).contentShape(Circle())
+                            .opacity(stopVisible ? 1 : 0)
+                            .animation(reduceMotion ? nil : .easeInOut(duration: 0.12), value: stopVisible)
+                    }.buttonStyle(.plain).disabled(disabled)
+                        .focused($stopFocused)
+                        .accessibilityFocused($stopAccessibilityFocused)
+                        .allowsHitTesting(stopVisible)
+                        .help(localize("停止 Moku", "Stop Moku"))
+                        .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
+                        .accessibilityIdentifier("moku-stop")
+                } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
+                    voiceControls.fixedSize(horizontal: true, vertical: true)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { voiceControlsFrame = $0 }
+                        .transition(.opacity)
+                }
             }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if state.notePanelOpen {
-                NativeMokuNoteHistoryButton { state.setMokuOpen(true) }
-                    .padding(.trailing, 18)
-                    .frame(height: 40)
-                    .opacity(state.settingsOpen ? 0 : 1)
-                    .allowsHitTesting(!state.settingsOpen)
-                    .accessibilityHidden(state.settingsOpen)
-            }
+            .padding(.trailing, state.notePanelOpen && !stopControlPresent && !voiceControlVisible ? 18 : (stopControlPresent ? 7 : 3))
+            .frame(height: historyBand > 0 ? historyBand : rowHeight)
         }
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
         .background {
