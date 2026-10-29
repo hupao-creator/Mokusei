@@ -33,7 +33,7 @@ struct NativeGitDetailProps {
                           onNavigationChange: environment.onNavigationChange) {
             if let lifetime, !lifetime.isCancelled {
                 content(lifetime)
-            } else { NativeHarnessStatusView(message: "正在读取…", english: "Loading…") }
+            } else { NativeHarnessStatusView.loading }
         }
         .task(id: id) { lifetime?.cancel(); lifetime = PluginLifetime() }
         .onChange(of: [id, JSONText(label)]) { _, _ in

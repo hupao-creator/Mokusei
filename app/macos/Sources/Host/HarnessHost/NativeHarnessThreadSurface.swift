@@ -185,7 +185,7 @@ private struct NativeHarnessContentView: View {
         Group {
             if let resource {
                 switch resource.state {
-                case .loading: NativeHarnessStatusView(message: "正在读取…", english: "Loading…")
+                case .loading: NativeHarnessStatusView.loading
                 case .error(let message):
                     NativeHarnessStatusView(message: "读取对话内容失败。", english: "Unable to read this conversation.", detail: message) {
                         Task { try? await resource.retry() }
@@ -193,7 +193,7 @@ private struct NativeHarnessContentView: View {
                 case .ready(let value):
                     render(value)
                 }
-            } else { NativeHarnessStatusView(message: "正在读取…", english: "Loading…") }
+            } else { NativeHarnessStatusView.loading }
         }
         .task(id: surface.id) {
             surface.bindPerformance(parent: performanceOperation)

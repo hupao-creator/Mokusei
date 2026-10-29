@@ -74,7 +74,7 @@ private struct NativeApplicationThreadDetail: View {
             if let lease, lease.identity == thread, !lease.lifetime.isCancelled {
                 content(lifetime: lease.lifetime)
             } else {
-                NativeHarnessStatusView(message: "正在读取…", english: "Loading…")
+                NativeHarnessStatusView.loading
             }
         }
         .task(id: thread) {
