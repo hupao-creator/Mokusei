@@ -6,6 +6,9 @@ import MokuseiHarnessCodex
 import MokuseiHarnessOpenCode
 import MokuseiHarnessPi
 import MokuseiPluginAPI
+import MokuseiCore
+import MokuseiPluginUI
+@testable import MokuseiUI
 
 enum SetupAgent: String, CaseIterable, Identifiable {
     case codex, claude, opencode, pi
@@ -72,10 +75,20 @@ struct SetupRole {
 @MainActor @Observable final class SetupFixture {
     var step = SetupStep.discovery
     var installed: Set<SetupAgent> = [.codex, .claude, .opencode]
+    var discovered: [SetupAgent] = []
     var scanning = true
     var scanRevision = 0
-    var host = SetupAgent.codex
-    var targets: Set<SetupAgent> = [.codex, .claude]
+    var coordination = makeCoordination(installed: [.codex, .claude, .opencode])
+    let mapInteractions = NativeSettingsInteractions()
+    let mapContext = NativeSettingsInteractionContext(visit: UUID(), section: "moku")
+    var contrastBackdrop = false
+    var handoffComplete = false
+    @ObservationIgnored var panelFrame = CGRect.zero
+    @ObservationIgnored var panelSamples: [CGRect] = []
+    var host: SetupAgent { SetupAgent(rawValue: coordination.draft.value["moku"]!["hostHarnessPreference"]!.stringValue!)! }
+    var targets: Set<SetupAgent> {
+        Set(coordination.draft.value["moku"]!["targetHarnessIds"]!.arrayValue!.map { SetupAgent(rawValue: $0.stringValue!)! })
+    }
     var hostProfiles = Dictionary(uniqueKeysWithValues: SetupAgent.allCases.map { ($0, SetupProfile(model: $0.models[0])) })
     var tag = SetupRole()
     var report = SetupRole()
@@ -86,16 +99,27 @@ struct SetupRole {
     var canContinue: Bool { !scanning && !installed.isEmpty && !targets.isEmpty }
 
     func reset(empty: Bool = false, onlyCodex: Bool = false) {
+        handoffComplete = false; panelSamples = []
         installed = empty ? [] : (onlyCodex ? [.codex] : [.codex, .claude, .opencode])
-        host = .codex; targets = onlyCodex ? [.codex] : [.codex, .claude]
+        coordination.discardForReload()
+        coordination = Self.makeCoordination(installed: installed)
         hostProfiles = SetupRole().profiles; tag = SetupRole(); report = SetupRole()
         landing.reset(); step = .discovery; rescan()
     }
-    func rescan() { scanning = true; scanRevision += 1 }
+    func rescan() { discovered = []; scanning = true; scanRevision += 1 }
     func scan() async {
         let revision = scanRevision
-        do { try await Task.sleep(for: .milliseconds(850)) } catch { return }
+        do {
+            try await Task.sleep(for: .milliseconds(600))
+            for agent in available {
+                try await Task.sleep(for: .milliseconds(360))
+                guard revision == scanRevision else { return }
+                discovered.append(agent)
+            }
+        } catch { return }
         guard revision == scanRevision else { return }
+        await coordination.refreshInstallations()
+        guard revision == scanRevision, !Task.isCancelled else { return }
         scanning = false
     }
     func advance() {
@@ -111,9 +135,20 @@ struct SetupRole {
         guard let previous = SetupStep(rawValue: step.rawValue - 1) else { return }
         step = previous
     }
-    func toggleTarget(_ agent: SetupAgent) {
-        if targets.contains(agent) {
-            if targets.count > 1 { targets.remove(agent) }
-        } else { targets.insert(agent) }
+    private static func makeCoordination(installed: Set<SetupAgent>) -> NativeSettingsModel {
+        let targets: [SetupAgent] = installed.contains(.claude) ? [.codex, .claude] : [.codex]
+        let model = NativeSettingsModel(settings: .object(["moku": .object([
+            "hostHarnessPreference": .text("codex"),
+            "targetHarnessIds": .array(targets.map { .text($0.rawValue) }),
+            "routingGuidance": .null
+        ])]), revision: 0,
+            save: { value, revision in .saved(settings: value, revision: revision + 1) },
+            clearHistory: {}, loadInstallations: {
+                .object(Dictionary(uniqueKeysWithValues: SetupAgent.allCases.map { agent in
+                    (JSONText(agent.rawValue), JSONValue.object(["status": .text(installed.contains(agent) ? "installed" : "missing")]))
+                }))
+            }, installHarness: { _ in })
+        model.receive(snapshot: nil, runtimeAvailable: true)
+        return model
     }
 }

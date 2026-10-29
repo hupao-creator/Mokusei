@@ -13,6 +13,9 @@ import SwiftUI
     var controller: MokuCharacterController?
     var onCoordinatorFrame: (CGRect?, Bool) -> Void
     var onCloseRequest: () -> Void
+    enum Presentation { case settings, setup }
+    // Setup keeps the same map and character while omitting editor explanations.
+    var presentation = Presentation.settings
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
@@ -59,25 +62,12 @@ import SwiftUI
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsGroup {
-                SettingsRow(label: locale.text("协调与派发", "Coordination and dispatch"), description: locale.text("上方选择负责协调的 Agent，下方选择它可以派发任务的 Harness。", "Choose the coordinating Agent above and the Harnesses it may dispatch to below."), stacked: true) {
-                    if rosterPending {
-                        rosterStatus {
-                            NativeSettingsNotice(message: locale.text("正在读取 Agent 配置…", "Loading Agent configuration…"),
-                                leading: AnyView(ProgressView().controlSize(.small)))
-                        }
-                    } else if !rosterReady || pickable.isEmpty {
-                        rosterStatus {
-                            SettingsNotice(rosterError == nil
-                                ? locale.text("暂无可用的 Agent。请在「通用」中安装本地 Agent 后重试。", "No Agents are available. Install a local Agent in General, then retry.")
-                                : locale.text("无法读取 Agent 配置，请重试。", "Unable to load Agent configuration. Please retry."), error: rosterError != nil) { retryDiscovery }
-                            if let rosterError { SettingsNotice(rosterError, error: true) }
-                        }
-                    } else {
-                        dispatchMap
-                        if let rosterError {
-                            SettingsNotice(locale.text("部分 Agent 检测失败：", "Some Agents could not be detected: ") + rosterError, error: true) { retryDiscovery }
-                        }
+            if presentation == .setup {
+                coordinationContent.padding(.bottom, 20)
+            } else {
+                SettingsGroup {
+                    SettingsRow(label: locale.text("协调与派发", "Coordination and dispatch"), description: locale.text("上方选择负责协调的 Agent，下方选择它可以派发任务的 Harness。", "Choose the coordinating Agent above and the Harnesses it may dispatch to below."), stacked: true) {
+                        coordinationContent
                     }
                 }
             }
@@ -101,18 +91,20 @@ import SwiftUI
             // These are later direct .sf-group siblings of the dispatch group.
             // Harness-owned groups are nested in each plugin's own wrapper and
             // inherit only the 8-point bottom margin, never this top adjustment.
-            SettingsGroup {
-                SettingsRow(label: locale.text("自定义模型路由指导", "Custom model routing guidance"), inlineControl: true) {
-                    NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
-                        .nativeSettingsControl("routingEnabled")
-                        .accessibilityLabel(locale.text("自定义模型路由指导", "Custom model routing guidance"))
-                }
-                if routingEnabled {
-                    SettingsRow(label: locale.text("Moku 模型路由指导", "Moku model routing guidance"), error: model.draft.validationError("routingGuidance", locale: locale), stacked: true) {
-                        textArea(field: "routingGuidance", label: locale.text("输入 Moku 选择模型时应遵循的规则", "Enter the rules Moku should follow when selecting models"), height: 112)
-                    }.id("routingGuidance")
-                }
-            }.padding(.top, -10)
+            if presentation == .settings {
+                SettingsGroup {
+                    SettingsRow(label: locale.text("自定义模型路由指导", "Custom model routing guidance"), inlineControl: true) {
+                        NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
+                            .nativeSettingsControl("routingEnabled")
+                            .accessibilityLabel(locale.text("自定义模型路由指导", "Custom model routing guidance"))
+                    }
+                    if routingEnabled {
+                        SettingsRow(label: locale.text("Moku 模型路由指导", "Moku model routing guidance"), error: model.draft.validationError("routingGuidance", locale: locale), stacked: true) {
+                            textArea(field: "routingGuidance", label: locale.text("输入 Moku 选择模型时应遵循的规则", "Enter the rules Moku should follow when selecting models"), height: 112)
+                        }.id("routingGuidance")
+                    }
+                }.padding(.top, -10)
+            }
         }
         .environment(\.nativeSettingsGroupBottomSpacing, 8)
         .onAppear {
@@ -135,6 +127,27 @@ import SwiftUI
         .onChange(of: host?.descriptor.id) { _, new in
             motion.configure(hostID: new?.string, inFlight: model.mokuInFlight)
             if new == nil { onCoordinatorFrame(nil, true) }
+        }
+    }
+
+    @ViewBuilder private var coordinationContent: some View {
+        if rosterPending {
+            rosterStatus {
+                NativeSettingsNotice(message: locale.text("正在读取 Agent 配置…", "Loading Agent configuration…"),
+                    leading: AnyView(ProgressView().controlSize(.small)))
+            }
+        } else if !rosterReady || pickable.isEmpty {
+            rosterStatus {
+                SettingsNotice(rosterError == nil
+                    ? locale.text("暂无可用的 Agent。请在「通用」中安装本地 Agent 后重试。", "No Agents are available. Install a local Agent in General, then retry.")
+                    : locale.text("无法读取 Agent 配置，请重试。", "Unable to load Agent configuration. Please retry."), error: rosterError != nil) { retryDiscovery }
+                if let rosterError { SettingsNotice(rosterError, error: true) }
+            }
+        } else {
+            dispatchMap
+            if let rosterError {
+                SettingsNotice(locale.text("部分 Agent 检测失败：", "Some Agents could not be detected: ") + rosterError, error: true) { retryDiscovery }
+            }
         }
     }
 
@@ -217,7 +230,11 @@ import SwiftUI
             .onChange(of: visibleTargets) { _, _ in motion.configureDispatch(source: source, hasTargets: !visibleTargets.isEmpty) }
             .onAppear { dispatchFrame = geometry.frame(in: .global) }
             .onChange(of: geometry.frame(in: .global)) { _, frame in dispatchFrame = frame }
-        }.frame(height: 246).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(NativePalette.settings.inputBorder.swiftUI))
+        }.frame(height: 246).overlay {
+            if presentation == .settings {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(NativePalette.settings.inputBorder.swiftUI)
+            }
+        }
     }
 
     private func coordinator(_ host: AnyHarnessPlugin, sourceX: CGFloat, now: Double) -> some View {

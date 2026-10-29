@@ -105,6 +105,12 @@ Saves carry expected settings revision. Success adopts the normalized response a
 Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku routing guidance remains editable; there is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
 Settings no longer exposes plugin enablement or service-restart instructions.
 
+The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
+same Moku coordination map with an in-memory settings model. Its `.setup`
+presentation omits map labels and advanced routing guidance. Both presentations
+use the historical circular avatar (`8f3548f`) with the same selection, handoff
+and target feedback; the Settings page retains its default complete editor.
+
 Changing the coordinating Harness is rejected through the existing save-error
 path while Moku or any ordinary Agent Thread is busy, including pending input
 and waiting interactions. Other settings remain editable. The selected Harness

@@ -1,6 +1,7 @@
 import AppKit
 import ScreenCaptureKit
 import SwiftUI
+import MokuseiCore
 @testable import MokuseiUI
 
 private struct ReplayFailure: Error, CustomStringConvertible { let description: String }
@@ -19,6 +20,11 @@ private struct ReplayFailure: Error, CustomStringConvertible { let description: 
     if let text = root as? NSTextView, text.isEditable { return text }
     return root.subviews.lazy.compactMap { editor(in: $0) }.first
 }
+@MainActor private func visibleScrollers(in root: NSView) -> Int {
+    let visible = root is NSScroller && !root.isHiddenOrHasHiddenAncestor
+        && root.alphaValue > 0 && !root.visibleRect.isEmpty
+    return (visible ? 1 : 0) + root.subviews.reduce(0) { $0 + visibleScrollers(in: $1) }
+}
 private struct DemoControls: View {
     @Bindable var fixture: SetupFixture
     var resize: (CGSize) -> Void
@@ -32,6 +38,7 @@ private struct DemoControls: View {
             Button("模拟安装完成 · 只有 Codex") { fixture.reset(onlyCodex: true) }
             Divider()
             Toggle("深色外观", isOn: Binding(get: { fixture.landing.dark }, set: { fixture.landing.dark = $0 }))
+            Toggle("高对比背景检查", isOn: $fixture.contrastBackdrop)
             HStack {
                 Button("宽窗口") { resize(.init(width: 1000, height: 800)) }
                 Button("紧凑窗口") { resize(.init(width: 620, height: 760)) }
@@ -107,7 +114,10 @@ private struct DemoControls: View {
         // because native tracking may synchronously wait for the release event.
         NSApp.postEvent(event(.leftMouseUp), atStart: false)
         window.sendEvent(event(.leftMouseDown))
-        try await Task.sleep(for: .milliseconds(450))
+        for _ in 0..<30 {
+            try await Task.sleep(for: .milliseconds(15))
+            try require(visibleScrollers(in: window.contentView!) == 0, "Native scrollbar appeared during \(id)")
+        }
         clicks.append(["control": id, "frame": NSStringFromRect(frame), "stepAfter": fixture.step.label,
                        "keyWindow": String(window.isKeyWindow), "active": String(NSApp.isActive)])
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -115,10 +125,10 @@ private struct DemoControls: View {
             .write(to: output.appendingPathComponent("interactions.json"))
     }
 
-    private func capture(_ name: String) async throws {
+    private func capture(_ name: String, settle: Bool = true) async throws {
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded()
-        try await Task.sleep(for: .milliseconds(350))
+        if settle { try await Task.sleep(for: .milliseconds(350)) }
         let content = try await SCShareableContent.currentProcess
         guard let target = content.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
             throw ReplayFailure(description: "Own setup window unavailable")
@@ -134,19 +144,46 @@ private struct DemoControls: View {
         try data.write(to: output.appendingPathComponent(name + ".png"))
     }
 
+    private func activateMap(_ field: String) async throws {
+        let id = "moku." + field
+        try await wait("Settings map control did not mount: \(id)") {
+            self.fixture.mapInteractions.snapshot(context: self.fixture.mapContext).contains { $0["id"]?.stringValue == id }
+        }
+        let control = fixture.mapInteractions.snapshot(context: fixture.mapContext).first { $0["id"]?.stringValue == id }!
+        try fixture.mapInteractions.perform(id: id, handle: control["handle"]!.stringValue!, operation: "activate",
+            value: .null, context: fixture.mapContext)
+        try await Task.sleep(for: .milliseconds(1150))
+    }
+
     private func verify() async throws {
         try await wait("Discovery did not finish") { !self.fixture.scanning }
+        try require(fixture.panelFrame.minX >= 24 && fixture.panelFrame.minY >= 74
+            && fixture.panelFrame.maxX <= window.contentView!.bounds.width - 24
+            && fixture.panelFrame.maxY <= window.contentView!.bounds.height - 24,
+            "Setup did not preserve a visible landing background around its panel")
+        try require(editor(in: window.contentView!) == nil, "Hidden landing editor mounted during setup")
         try await capture("01-discovery")
+        fixture.contrastBackdrop = true
+        try await capture("01c-vivid-backdrop-light")
+        fixture.landing.dark = true
+        try await capture("01d-vivid-backdrop-dark")
+        fixture.landing.dark = false
+        fixture.contrastBackdrop = false
         try await press("setup-next")
         try require(fixture.step == .moku, "Discovery did not advance to Moku")
-        try await press("host-claude")
+        try await activateMap("host.claude")
         try require(fixture.host == .claude && fixture.targets.contains(.claude), "Host and target must be allowed to overlap")
-        try await press("target-codex")
+        try await activateMap("target.codex")
         try require(fixture.targets == [.claude], "Target deselection failed")
-        try await press("target-claude")
-        try require(fixture.targets == [.claude], "Last target must not be removable")
-        try await press("target-opencode")
+        let last = fixture.mapInteractions.snapshot(context: fixture.mapContext).first { $0["id"] == .text("moku.target.claude") }
+        try require(last?["enabled"] == .bool(false), "Last target must not be removable")
+        try await activateMap("target.opencode")
         try await capture("02-moku")
+        fixture.landing.dark = true
+        fixture.contrastBackdrop = true
+        try await capture("02c-map-dark-vivid-backdrop")
+        fixture.landing.dark = false
+        fixture.contrastBackdrop = false
         try await press("setup-next")
         try require(fixture.step == .tag && fixture.tag.followsHost, "Tag should initially follow Moku")
         try await capture("03-tag-inherit")
@@ -163,6 +200,8 @@ private struct DemoControls: View {
         try await press("setup-next")
         try require(fixture.step == .report && fixture.report.followsHost, "Report configuration leaked from Tag")
         try await capture("04-report")
+        try await Task.sleep(for: .milliseconds(4800))
+        try await capture("04a-report-diagram")
         try await press("report-custom")
         try await press("report-claude")
         fixture.landing.dark = true
@@ -171,6 +210,16 @@ private struct DemoControls: View {
         try await capture("04c-report-compact")
         try await press("setup-next")
         try require(fixture.step == .landing, "Setup did not enter landing")
+        try await capture("04d-panel-contracting", settle: false)
+        try await wait("Panel did not hand off to the native landing bar") { self.fixture.handoffComplete }
+        let destination = fixture.landing.scene.capsuleFrame
+        try require(abs(fixture.panelFrame.width - destination.width) < 1
+            && abs(fixture.panelFrame.height - destination.height) < 1
+            && abs(fixture.panelFrame.midY - destination.midY) < 1,
+            "Setup panel did not finish at the real Dock geometry")
+        try JSONSerialization.data(withJSONObject: ["frames": fixture.panelSamples.map(NSStringFromRect),
+            "destination": NSStringFromRect(destination)], options: [.prettyPrinted, .sortedKeys])
+            .write(to: output.appendingPathComponent("panel-to-moku.json"))
         try require(fixture.landing.dispatchHarness.descriptor.id == "claude", "Demo dispatch did not respect selected Targets")
         try await wait("Production landing composer not mounted") { editor(in: self.window.contentView!) != nil }
         fixture.landing.dark = false
@@ -231,6 +280,8 @@ private struct DemoControls: View {
                 Button("模拟安装 Codex") { delegate.fixture.reset(onlyCodex: true) }.keyboardShortcut("3")
                 Divider()
                 Toggle("深色外观", isOn: Binding(get: { delegate.fixture.landing.dark }, set: { delegate.fixture.landing.dark = $0 }))
+                Toggle("高对比背景检查", isOn: Binding(get: { delegate.fixture.contrastBackdrop }, set: { delegate.fixture.contrastBackdrop = $0 }))
+                    .keyboardShortcut("5")
             }
         }
     }

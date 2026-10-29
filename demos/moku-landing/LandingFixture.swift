@@ -112,6 +112,8 @@ import MokuseiPluginAPI
 
 struct LandingSurface: View {
     let fixture: LandingFixture
+    var showsDock = true
+    var dockOpacity = 1.0
     var body: some View {
         NativeMokuScene(state: fixture.scene) {
             GeometryReader { geometry in
@@ -142,10 +144,15 @@ struct LandingSurface: View {
                 }
             }
         } thread: { EmptyView() } dock: {
-            NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/demo",
-                landing: fixture.landing, mode: fixture.running ? .running : .idle, running: fixture.running,
-                loadMentionDirectories: { fixture.directories },
-                onSend: fixture.send, onCancel: fixture.stop)
+            if showsDock {
+                NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/demo",
+                    landing: fixture.landing, mode: fixture.running ? .running : .idle, running: fixture.running,
+                    loadMentionDirectories: { fixture.directories },
+                    onSend: fixture.send, onCancel: fixture.stop)
+                    .opacity(dockOpacity)
+                    .allowsHitTesting(dockOpacity == 1)
+                    .accessibilityHidden(dockOpacity < 1)
+            }
         } settings: { EmptyView() }
         .overlay(alignment: .topLeading) { NativeWindowNavigationView(action: nil) }
         .coordinateSpace(name: "workspace")
