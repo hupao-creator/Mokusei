@@ -266,6 +266,15 @@ struct NativeMokuNoteTests {
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         func frame(_ item: NSObject) throws -> CGRect {
             if let accessible = item as? any NSAccessibilityProtocol { return accessible.accessibilityFrame() }
+            // SwiftUI bridged buttons expose their screen frame through the
+            // modern getter, while macOS 26 answers no legacy AXPosition/AXSize
+            // for the same node. Read the modern value first so the geometry
+            // still comes from the mounted accessibility element.
+            let modern = NSSelectorFromString("accessibilityFrame")
+            if item.responds(to: modern),
+               let value = item.value(forKey: "accessibilityFrame") as? NSValue {
+                return value.rectValue
+            }
             let selector = NSSelectorFromString("accessibilityAttributeValue:")
             let position = try #require(item.perform(selector, with: "AXPosition")?.takeUnretainedValue() as? NSValue)
             let size = try #require(item.perform(selector, with: "AXSize")?.takeUnretainedValue() as? NSValue)

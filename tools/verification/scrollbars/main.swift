@@ -5,6 +5,9 @@ import AppKit
 @main
 struct ScrollbarReplay {
     @MainActor static func main() async throws {
+        // Record the branch the runner's preference selected; knob visibility
+        // and gutter reservations differ between them.
+        print("Preferred scroller style: \(NSScroller.preferredScrollerStyle == .legacy ? "legacy" : "overlay")")
         let untouched = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 180))
         untouched.hasVerticalScroller = true
         let originalSize = untouched.verticalScroller?.controlSize
@@ -136,9 +139,18 @@ struct ScrollbarReplay {
             precondition(vertical.contentView.frame.width == verticalClip, "vertical gutter changed at content height \(height)")
             // The resident scroller must paint only while content can scroll; a
             // stale knobProportion after shrinking is not a rendered knob.
+            // Overlay indicators instead fade until the user scrolls, and AppKit
+            // owns that paint, so only a resident legacy scroller has a knob to
+            // observe at rest. Both styles must leave a resting viewport blank
+            // at the same threshold.
             let overflowing = height > vertical.contentSize.height
-            precondition((scrollerInk(verticalScroller!) > 0) == overflowing,
-                         "vertical knob did not follow overflow at content height \(height)")
+            if legacy {
+                precondition((scrollerInk(verticalScroller!) > 0) == overflowing,
+                             "vertical knob did not follow overflow at content height \(height)")
+            } else {
+                precondition(scrollerInk(verticalScroller!) == 0,
+                             "overlay scroller painted at rest at content height \(height)")
+            }
         }
         NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
         vertical.tile()

@@ -121,13 +121,21 @@ private struct PlainViewportFixture: View {
         precondition(viewport.autohidesScrollers == NativeScrollbarStyle.autohidesScrollers(for: viewport.scrollerStyle))
         let viewportClip = viewport.contentView.frame.width
         let viewportDocument = viewport.documentView!
+        // As in the resident-scroller replay, only a legacy indicator paints a
+        // knob at rest; overlay indicators stay blank until AppKit fades one in.
+        let viewportLegacy = viewport.scrollerStyle == .legacy
         for (height, canScroll) in [(CGFloat(80), false), (900, true), (80, false)] {
             viewportDocument.frame = NSRect(x: 0, y: 0, width: viewportClip, height: height)
             viewport.tile()
             precondition(viewport.contentView.frame.width == viewportClip,
                          "plain viewport gutter changed at document height \(height)")
-            precondition((scrollerInk(viewportScroller) > 0) == canScroll,
-                         "plain viewport knob did not follow overflow at document height \(height)")
+            if viewportLegacy {
+                precondition((scrollerInk(viewportScroller) > 0) == canScroll,
+                             "plain viewport knob did not follow overflow at document height \(height)")
+            } else {
+                precondition(scrollerInk(viewportScroller) == 0,
+                             "plain viewport overlay scroller painted at rest at document height \(height)")
+            }
         }
         precondition(plainHost.window == nil)
         print("PASS: windowless SwiftUI overflowing TextEditor/List, nested viewport isolation, native targets/AX role, editor binding, selection/offset retention, preference notification, control replacement, List threshold width and plain viewport adapter gutter")
