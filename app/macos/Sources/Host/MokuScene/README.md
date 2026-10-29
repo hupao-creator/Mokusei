@@ -12,17 +12,24 @@ settling, without restoring the retired AppKit scene host.
 
 ## Dock and composer
 
-All Moku capsule surfaces use the approved theme-aware gradient over native clear
-glass: warm black in dark appearance and pearl white in light appearance, fading
-toward the bottom with a fine warm edge. Production density is 85%. The shared
-material covers the Dock (idle, composer, Talk and note), history
-composer and interaction panel; the latter retains its existing explicit dark appearance.
-Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
-caret and eyes retain their existing theme ownership.
+Moku always uses its existing dark appearance, independently of the system and
+workspace appearance preference. This covers the Dock (idle, landing, composer,
+Talk, dispatch and note), interaction panel, dispatch details, and the current and
+archived Moku conversation reader with its history composer. The override is a
+local SwiftUI environment, not a window/application appearance preference.
+The Settings page and its regular-glass shell retain the workspace appearance
+even while expanded inside the Dock. Overview, ordinary Agent Threads, onboarding,
+Browser/Report surfaces and Report Agent's generated-document requirements keep
+their existing appearance ownership.
+
+All Moku capsule surfaces use the approved warm-black gradient over native clear
+glass, fading toward the bottom with a fine warm edge. Production density is 85%.
+Reduce Transparency uses the existing opaque warm-black fill. Content ink, eyes,
+voice cloud and reasoning feedback use their existing dark palette.
 The material does not change layout, clipping, voice ownership or motion clocks.
-The [material demo](../../../../../demos/moku-gradient-material/README.md) now
-compiles this same production material; its regular-glass option is a historical
-baseline, and adjustable density/opaque simulation are local preview controls.
+The historical [material demo](../../../../../demos/moku-gradient-material/README.md)
+compiles this production material; its old light/dark comparison is no longer a
+product contract. No light-cursor demo is part of this implementation.
 Material validation includes [glass-world captures](../../../../../tools/verification/overview-input/README.md#glass-world-live-changes-and-fixed-production-captures)
 for both appearances, the mounted history composer/note suites, and the native
 Talk, character-transition and voice-cloud replays described below.
@@ -90,20 +97,21 @@ An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
 importing, submission and unavailable states retain their ordinary admission rules.
-Moku editors use a shortened, rounded caret. Dark mode retains the 2.6-point
+Moku editors always use the existing shortened, rounded 2.6-point
 white core with a warm-yellow upper halo, cool-blue lower halo and blurred
-gradient fringe. Light mode uses a 1.5-point native dark core without glow so
-the insertion point does not resemble a heavy glyph stroke on pale glass.
+gradient fringe, including on a light system.
 The empty placeholder starts three points after the insertion origin.
 Composer padding lives inside the native viewport so these halos are not cut at
 the text line edges. A 2.4-second breathing cycle replaces native on/off
-blinking; the white dark-mode core retains native dark ink in light appearance.
-Light-mode ink stays at 80–100% opacity so the dim phase remains visible;
-dark-mode ink uses 20–100%, while its halos fade fully.
+blinking; white ink uses 20–100% opacity, while its halos fade fully.
 Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations. Reduce Motion keeps the caret steady and makes
 movement immediate.
+
+Run the [windowless appearance replay](../../../../../tools/verification/moku-appearance/README.md)
+when changing these appearance boundaries. It checks production AppKit/SwiftUI
+components without opening a window; it does not certify on-screen glass pixels.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it reads `Ask Moku… or hold to speak` (Chinese: `向 Moku 提问，或长按说话…`); selected directories retain `Ask Moku about <name>…` with `or hold to speak` appended (Chinese: `向 Moku 询问关于 <name> 的问题，或长按说话…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 

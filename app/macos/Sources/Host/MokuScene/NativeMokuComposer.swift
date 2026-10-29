@@ -250,7 +250,6 @@ public struct NativeMokuHistoryComposer: View {
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let onSend: (NativeComposerSubmission) async throws -> Void
     public let onCancel: () -> Void
-    @Environment(\.colorScheme) private var colorScheme
     @State private var mentions = NativeMokuDirectoryMentions()
     @State private var availableHeight: CGFloat = 420
     @State private var hovered = false
@@ -279,7 +278,7 @@ public struct NativeMokuHistoryComposer: View {
             onKeyDown: { mentions.handle($0, draft: draft) },
             onSend: { guard !disabled else { return }; Task { await draft.submit(onSend) } })
             .fixedSize(horizontal: false, vertical: true)
-            .background { ZStack { NativeMokuCapsuleGlass().id(colorScheme); voiceBackground } }
+            .background { ZStack { NativeMokuCapsuleGlass(); voiceBackground } }
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
             .onHover { hovered = $0 }
@@ -291,5 +290,6 @@ public struct NativeMokuHistoryComposer: View {
             }
             .accessibilityElement(children: .contain).accessibilityLabel("Moku")
             .accessibilityIdentifier("moku-history-capsule")
+            .environment(\.colorScheme, .dark)
     }
 }

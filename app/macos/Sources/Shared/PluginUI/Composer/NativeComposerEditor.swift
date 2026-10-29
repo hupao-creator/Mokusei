@@ -269,7 +269,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
         // Off callbacks also erase the old insertion rectangle during movement.
         // Keep the breathing layer alive, but only position it on an on callback.
-        if flag { caret.show(at: rect, color: color, in: self) }
+        if flag { caret.show(at: rect, in: self) }
     }
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)

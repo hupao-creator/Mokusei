@@ -169,21 +169,20 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
 rounded caret, sized to 25/24 of the text size and centered in the native
-insertion rectangle. Dark appearance uses a 2.6-point white core with a
-warm-yellow upper halo and cool-blue lower halo. Light appearance uses a slimmer
-1.5-point native-ink core without a luminous fringe, keeping the insertion mark
-distinct from glyph strokes on pale glass. Empty emphasized inputs leave three
-points between the insertion origin and placeholder text. Appearance changes
-refresh the resolved layer color and geometry even without typing.
+insertion rectangle. The opt-in presentation always uses a 2.6-point white core
+with a warm-yellow upper halo and cool-blue lower halo. Moku is its production
+caller and supplies a fixed dark surface; ordinary composers retain their native
+caret and appearance. Empty emphasized inputs leave three points between the
+insertion origin and placeholder text.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
-only in dark appearance, once per caret height/backing scale and its opacity is animated by Core Animation;
+once per caret height/backing scale and its opacity is animated by Core Animation;
 no per-frame SwiftUI rendering or timer is needed. Emphasized editors place their
 existing padding inside the native text viewport, preserving glyph positions while
 leaving room for the glow before native scroll clipping.
-Light ink stays at 80–100% opacity throughout the cycle for contrast; dark-mode
-white ink breathes at 20–100%, while both halos fade fully.
+White ink breathes at 20–100% opacity, while both halos fade fully, independently
+of the native editor's inherited system appearance.
 Core Animation breathes over 2.4 seconds; native blink callbacks do not hide it
 or restart the cycle. Same-line movement interpolates over 120ms from the current
 presentation; repainting an unchanged rectangle does not restart movement.
