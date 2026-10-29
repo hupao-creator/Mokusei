@@ -69,8 +69,37 @@ var records = [[String: Any]]()
         preferredSize: preservePositions ? preferredSize : nil, preservePositions: preservePositions, maxSearchSteps: budget)
     validate(result, previous: previous, next: next)
     let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(result))
-    records.append(["scenario": name, "result": plain, "elapsedMs": (ProcessInfo.processInfo.systemUptime - start) * 1000])
+    var record: [String: Any] = ["scenario": name, "result": plain, "elapsedMs": (ProcessInfo.processInfo.systemUptime - start) * 1000]
+    if let fittingSize { record["fittingSize"] = ["width": fittingSize.width, "height": fittingSize.height] }
+    records.append(record)
     return result
+}
+
+// Second screenshot: seven unit reports plus one wide execution Thread/Git
+// envelope. Labels identify observed positions; execution status is unknown.
+let secondScreenshot = [placement("A", 1, 1, 0, 0), placement("B", 1, 1, 1, 0), placement("C", 1, 1, 2, 0),
+                        placement("D", 1, 1, 0, 1), placement("E", 2, 1, 1, 1),
+                        placement("F", 1, 1, 0, 2), placement("G", 1, 1, 0, 3), placement("H", 1, 1, 2, 3)]
+let secondMembers = secondScreenshot.map(\.member)
+let second = try run("second-screenshot-history", previous: secondScreenshot, next: secondMembers)
+try run("second-screenshot-fresh", previous: [], next: secondMembers)
+try run("second-screenshot-repeat", previous: second.placements, next: secondMembers)
+try run("second-screenshot-budget", previous: secondScreenshot, next: secondMembers, budget: 200)
+// A possible structural boundary: all three vacant cells previously belonged
+// to reports that leave together. This is a replay, not an observed event log.
+let secondBeforeDeletion = secondScreenshot + [placement("I", 1, 1, 1, 2), placement("J", 1, 1, 2, 2), placement("K", 1, 1, 1, 3)]
+try run("second-screenshot-deletion", previous: secondBeforeDeletion, next: secondMembers)
+try run("second-screenshot-exact-fit", previous: secondScreenshot, next: secondMembers,
+        fittingSize: .init(width: 1112, height: 848), preferredSize: .init(width: 1112, height: 848))
+try run("second-screenshot-roomy-fit", previous: secondScreenshot, next: secondMembers,
+        fittingSize: .init(width: 1150, height: 900), preferredSize: .init(width: 1150, height: 900))
+for (width, height) in [(1420.0, 1280.0), (1920, 1200), (1920, 1350)] {
+    let viewport = NativeOverviewViewport(width: width, height: height, toolbarBottom: 60)
+    let region = NativeOverviewCameraGeometry.framingRegion(viewport)
+    let scale = NativeOverviewCameraGeometry.minimumScale(in: viewport)
+    try run("second-screenshot-viewport-\(Int(width))-\(Int(height))", previous: secondScreenshot, next: secondMembers,
+        fittingSize: .init(width: region.width / scale, height: region.height / scale),
+        preferredSize: .init(width: region.width / max(1, scale), height: region.height / max(1, scale)))
 }
 
 // Begin with a solver-produced 3×4 scene, then attach sidecards as adjacent

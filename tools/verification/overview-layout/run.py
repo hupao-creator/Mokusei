@@ -82,6 +82,31 @@ before_regressions = {row['scenario']: row['result'] for row in json.loads((out 
 def cells(result):
     return {p['member']['id']: (p['column'], p['row'], p['member']['columns'], p['member']['rows'])
             for p in result['placements']}
+second_expected = {'A': (0, 0, 1, 1), 'B': (1, 0, 1, 1), 'C': (2, 0, 1, 1),
+                   'D': (0, 1, 1, 1), 'E': (1, 1, 2, 1), 'F': (1, 2, 1, 1),
+                   'G': (0, 2, 1, 1), 'H': (2, 2, 1, 1)}
+for name in ['second-screenshot-history', 'second-screenshot-deletion', 'second-screenshot-exact-fit',
+             'second-screenshot-roomy-fit', 'second-screenshot-viewport-1420-1280',
+             'second-screenshot-viewport-1920-1200', 'second-screenshot-viewport-1920-1350']:
+    result = regressions[name]
+    assert cells(result) == second_expected, name
+    assert (result['bounds']['columns'], result['bounds']['rows']) == (3, 3), name
+    # F moves right first to release G's vertical path. G cannot pass through
+    # stationary F, so moving only the bottom reports is not a certified repair.
+    assert result['shiftedIDs'] == ['F', 'G', 'H'], name
+    assert result['moveOrder'] == ['F', 'G', 'H'], name
+    assert result['totalShiftDistance'] == 808, name
+    assert result['searchComplete'] and not result['requiresRepack'], name
+second_fresh = regressions['second-screenshot-fresh']
+assert (second_fresh['bounds']['columns'], second_fresh['bounds']['rows']) == (3, 3)
+assert len(second_fresh['placements']) == 8
+assert sum(p['member']['columns'] * p['member']['rows'] for p in second_fresh['placements']) == 9
+second_repeat = regressions['second-screenshot-repeat']
+assert cells(second_repeat) == second_expected and second_repeat['work']['steps'] == 0
+second_budget = regressions['second-screenshot-budget']
+assert (second_budget['bounds']['columns'], second_budget['bounds']['rows']) == (3, 3)
+assert second_budget['work']['steps'] == 200 and not second_budget['searchComplete']
+assert second_budget['requiresRepack']
 for name, wide_id in [('delete-wide-and-edge', '10-g'), ('shrink-wide', 'g'), ('screenshot-same-footprints', 'g')]:
     result = regressions[name]
     assert (result['bounds']['columns'], result['bounds']['rows']) == (3, 3), name

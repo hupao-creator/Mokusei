@@ -20,6 +20,14 @@ This proves possible production histories, not the user's unrecorded event order
 The unchanged-footprint solver case documents that the old fast path itself
 retained the screenshot; Canvas semantic geometry reuse does not call that solver.
 
+The [second screenshot replay](SECOND-SCREENSHOT.md) records the distinct
+eight-card `ABC / DEE / F.. / G.H` fixture: seven unit reports and one 2×1
+Thread/Git envelope. Original PR #166 head already repairs it to 3×3 by moving
+F right before G and H move up (808 world points total). The regression covers
+fresh/structural planning, stable replay, bounded fallback, exact fitting bounds
+and multiple representative production viewport extents. It does not infer
+execution/camera state or certify which Canvas branch produced the screenshot.
+
 The regression driver independently checks final membership/nonoverlap and
 samples every certified sequential survivor move using production shrink/exit
 ordering. The transposed screenshot checks column removal and an offset screenshot
