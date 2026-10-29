@@ -9,6 +9,27 @@ public enum NativeReadingPageTiming {
         CAMediaTimingFunction(controlPoints: Float(x1), 0, Float(x2), 1)
     }
 
+    /// Sample a cubic Bezier easing at `time`, the curve's x coordinate (not
+    /// its parameter), returning the eased progress. Callers drive the value
+    /// frame by frame so it can be settled without a running implicit
+    /// animation, unlike Core Animation's additive presentation.
+    public static func sample(x1: Double, x2: Double, at time: Double) -> Double {
+        let time = min(1, max(0, time))
+        guard time > 0 else { return 0 }
+        guard time < 1 else { return 1 }
+        func x(_ value: Double) -> Double {
+            let s = 1 - value
+            return 3 * s * s * value * x1 + 3 * s * value * value * x2 + value * value * value
+        }
+        var lower = 0.0, upper = 1.0
+        for _ in 0..<28 {
+            let middle = (lower + upper) / 2
+            if x(middle) < time { lower = middle } else { upper = middle }
+        }
+        let t = (lower + upper) / 2
+        return 3 * (1 - t) * t * t + t * t * t
+    }
+
     /// Sample the same timing function in a display-link driven animation.
     /// Time is the Bezier's x coordinate, not its curve parameter.
     public static func openingSample(at elapsed: TimeInterval) -> (progress: Double, velocity: Double) {

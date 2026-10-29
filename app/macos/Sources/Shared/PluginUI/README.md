@@ -165,7 +165,10 @@ native scrollbar gutter cannot disappear and recenter the column. Only after it
 is offscreen does its keyboard input gate disable it; hit testing and accessibility
 remain gated throughout the history visit. History-to-history replacement never
 reenables the hidden current document: its input gate distinguishes opening/return
-from replacement even though both publish active motion. Departing history stays mounted only
+from replacement even though both publish active motion. Opening and return progress
+advances frame by frame instead of through an implicit animation, so cancellation
+settles the pages immediately and a replacement begun afterwards starts from the
+settled pose rather than a displaced one. Departing history stays mounted only
 for its transition; cancellation fences obsolete completion. Other page
 stacks retain their default horizontal direction. Reduce Motion settles transitions
 without travel, including a return already in progress. New turns do not replace

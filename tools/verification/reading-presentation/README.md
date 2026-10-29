@@ -499,18 +499,19 @@ These run in the default Swift suite; the mounted source test requires a display
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
-The note suite also activates the expanded production Dock's bottom-right
+The note suite also activates the expanded production Dock's
 history button through accessibility, with and without a note, checking real
 scene navigation and draft preservation. Wide and narrow mounted layouts assert
-the history button’s bottom-right seat and separation from a long voice
-transcript and media control. The short-viewport Markdown case checks that
+history's position before voice or Stop, its shared action row, and separation
+from a long voice transcript. The short-viewport Markdown case checks that
 reading remains scrollable independently of the Dock-owned history button.
 
 For headless-only verification, run
 `MOKUSEI_TEST_HEADLESS=1 xcrun swift test --package-path app/macos --filter 'NativeMokuNoteTests|NativeMokuTalkTests'`.
-The existing windowless production-Dock test checks retained text and eyes stay
-above the history band across narrow/wide, landing/bottom, Chinese/English and
-running/idle layouts. Display-gated button geometry/activation and rendered
+Windowless production-Dock tests exercise retained text and eyes across widths
+and verify minimum readable width when actions share the row. A mounted action
+stack checks compact and stacked controls at narrow-width boundaries. Display-gated
+button geometry/activation and rendered
 Markdown cases explicitly skip; this run does not certify those cases.
 
 ## Moku execution links

@@ -266,21 +266,23 @@ struct NativeMokuNoteTests {
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         func frame(_ item: NSObject) throws -> CGRect {
             if let accessible = item as? any NSAccessibilityProtocol { return accessible.accessibilityFrame() }
-            // SwiftUI bridged buttons expose their screen frame through the
-            // modern getter, while macOS 26 answers no legacy AXPosition/AXSize
-            // for the same node. Read the modern value first so the geometry
-            // still comes from the mounted accessibility element.
-            let modern = NSSelectorFromString("accessibilityFrame")
-            if item.responds(to: modern),
-               let value = item.value(forKey: "accessibilityFrame") as? NSValue {
-                return value.rectValue
+            // SwiftUI.AccessibilityNode implements accessibilityFrame without
+            // declaring NSAccessibilityProtocol, and -perform: boxes the CGRect
+            // return incorrectly. Invoke the IMP with its declared signature.
+            let frameSelector = NSSelectorFromString("accessibilityFrame")
+            if let method = class_getInstanceMethod(type(of: item), frameSelector) {
+                typealias FrameFunction = @convention(c) (AnyObject, Selector) -> CGRect
+                let frame = unsafeBitCast(method_getImplementation(method), to: FrameFunction.self)(item, frameSelector)
+                if frame.width > 0 && frame.height > 0 { return frame }
             }
             let selector = NSSelectorFromString("accessibilityAttributeValue:")
             let position = try #require(item.perform(selector, with: "AXPosition")?.takeUnretainedValue() as? NSValue)
             let size = try #require(item.perform(selector, with: "AXSize")?.takeUnretainedValue() as? NSValue)
             return CGRect(origin: position.pointValue, size: size.sizeValue)
         }
-        for withMessage in [false, true] {
+        for mode in ["idle", "voice", "voiceMessage", "running"] {
+            let withMessage = mode == "voiceMessage"
+            let withVoice = mode == "voice" || withMessage
             let state = NativeMokuSceneState()
             state.setWindowVisible(true)
             state.setNotePanelOpen(true)
@@ -288,8 +290,8 @@ struct NativeMokuNoteTests {
             draft.text = "Keep this draft"
             let note = hasNote ? NativeMokuNote(id: "history-entry", text: "Still unread", revision: 1, updatedAt: 1) : nil
             let window = SwiftUIReplay.window(NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
-                voiceControls: AnyView(Button("Voice") {}.accessibilityIdentifier("history-test-voice")),
-                voiceStatusVisible: withMessage, voiceModeActive: withMessage,
+                running: mode == "running",
+                voiceControls: AnyView(Button("Voice") {}.accessibilityIdentifier("history-test-voice")), voiceStatusVisible: withVoice, voiceModeActive: withVoice,
                 voiceTranscript: withMessage ? NativeMokuTalkMessage(id: "history-long",
                     text: String(repeating: "Long message ", count: 30)) : nil,
                 note: note, onSend: { _ in Issue.record("History must not send the draft") }, onCancel: {})
@@ -302,17 +304,19 @@ struct NativeMokuNoteTests {
             try await Task.sleep(for: .milliseconds(600))
             let bounds = try frame(button)
             let rootScreen = window.convertToScreen(root.convert(root.bounds, to: nil))
-            let bottom = rootScreen.maxY - state.capsuleFrame.maxY
             #expect(bounds.width > 60 && bounds.height >= 28)
-            #expect(abs(bounds.minY - bottom - 6) < 3)
-            #expect(abs(rootScreen.minX + state.capsuleFrame.maxX - bounds.maxX - 18) < 3)
             if withMessage {
-                // Real selectable prose and media controls must end above the
-                // action even in the narrow viewport used at high app zoom.
                 let message = try #require(element(id: "moku-voice-transcript", in: root))
-                let voice = try #require(element(id: "history-test-voice", in: root))
-                #expect(try frame(message).minY >= bounds.maxY)
-                #expect(try frame(voice).minY >= bounds.maxY)
+                let messageBounds = try frame(message)
+                #expect(messageBounds.minY >= bounds.maxY || messageBounds.maxX <= bounds.minX)
+            }
+            if withVoice || mode == "running" {
+                let control = try #require(element(id: withVoice ? "history-test-voice" : "moku-stop", in: root))
+                let controlBounds = try frame(control)
+                #expect(bounds.maxX <= controlBounds.minX)
+                #expect(abs(bounds.midY - controlBounds.midY) < 2, "Actions share one row")
+            } else {
+                #expect(abs(rootScreen.minX + state.capsuleFrame.maxX - bounds.maxX - 18) < 3)
             }
             _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
             try await SwiftUIReplay.wait { state.mokuOpen && !state.notePanelOpen }

@@ -243,6 +243,11 @@ struct NativeMokuExecutionLinkTests {
             if attempt == 0 { try await back(in: root) }
             else {
                 // Escape and the document's close action use the same callback.
+                // The document control is only exposed once the opening motion
+                // settles; operating it mid-travel is deliberately unavailable.
+                try await SwiftUIReplay.wait {
+                    fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("history.close") }
+                }
                 let close = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
                 try fixture.perform(close, "activate")
             }
