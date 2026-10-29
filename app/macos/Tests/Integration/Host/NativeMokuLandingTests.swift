@@ -161,7 +161,9 @@ struct NativeMokuLandingTests {
         NSApp.sendEvent(try event(.leftMouseDown))
     }
 
-    @Test func realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() async throws {
         try await withFixture { fixture in
             fixture.mount(fullWorkspace: true)
             #expect(!fixture.moku.landing && !fixture.scene.inputOpen)
@@ -266,7 +268,9 @@ struct NativeMokuLandingTests {
         return nil
     }
 
-    @Test func oneResidentOwnsSubmissionRunningTalkDispatchAndStop() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func oneResidentOwnsSubmissionRunningTalkDispatchAndStop() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
@@ -321,7 +325,9 @@ struct NativeMokuLandingTests {
         }
     }
 
-    @Test func centerSurvivesEscapeResizeCoveringRoutesAndRemount() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func centerSurvivesEscapeResizeCoveringRoutesAndRemount() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }

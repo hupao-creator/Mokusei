@@ -54,7 +54,11 @@ deferral while editing, failed submission draft retention, Escape/reopening,
 narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click collapses it without losing the draft, and dismissal
-still works after covering routes and remounting. A second native window also
+still works after covering routes and remounting. The three methods sending
+native mouse/key events run in CI's isolated AppKit input host; the other three
+state/layout methods remain in the ordinary Swift shard. Plain SwiftPM's native
+text tracking was observed to exit zero before its completion summary, which
+coverage treats as failure. A second native window also
 checks that focus loss retains input, while an actual click collapses it and
 preserves the draft. The outside-click Swift suite additionally drives native
 child/sheet windows and nested menu-tracking notifications to protect auxiliary
@@ -76,9 +80,9 @@ loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
-Report and Thread TOC test sources into one AppKit host. It executes exactly
-the six input/responder, pointer and native-panel methods deferred by SwiftPM,
-requiring all six to pass without skips, while their remaining methods execute
+Report, Thread TOC and Landing test sources into one AppKit host. It executes
+exactly the nine input/responder, pointer and native-panel methods deferred by
+SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
 in the normal Swift shards. The Report modal case acknowledges WebKit's focused
 frame before native Escape and observes its close event and trusted cancel;
 a fixed delay or JavaScript dismissal cannot certify default input handling.
