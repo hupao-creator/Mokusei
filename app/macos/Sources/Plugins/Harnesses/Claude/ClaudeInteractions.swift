@@ -124,7 +124,7 @@ struct ClaudeInteractionView: View {
                 if kind == "question" {
                     ForEach(questions) { question in InteractionQuestionField(question:question,answers:$answers,disabled:busy != nil) }
                 } else if kind == "permission" {
-                    Text(t("拒绝原因") + " · " + t("可选")); TextEditor(text: $message).modifier(ClaudeRequestEditor(height:64))
+                    Text(t("拒绝原因") + " · " + t("可选")); TextEditor(text: $message).nativeControlScrollbars().modifier(ClaudeRequestEditor(height:64))
                 } else if kind == "elicitation", interaction["elicitationMode"]?.stringValue == "url" {
                     Text(t("此请求需要在 Claude 提供的外部页面中完成。"))
                     if let url = interaction["url"]?.stringValue { Text(url).font(NativeTypography.mono(size: 11)).textSelection(.enabled) }
@@ -132,8 +132,8 @@ struct ClaudeInteractionView: View {
                     if let id = interaction["elicitationId"]?.stringValue { Text("ID: \(id)") }
                 } else if kind == "elicitation" {
                     if interaction["schema"] != nil, let display = claudeInteractionDisplay(interaction,field:"schema") { DisclosureGroup(t("字段约束")) { Text(display.string).font(NativeTypography.mono(size: 11)).textSelection(.enabled) } }
-                    Text(t("JSON 表单内容")); TextEditor(text: $jsonText).font(NativeTypography.mono(size: 12)).modifier(ClaudeRequestEditor(height:110))
-                } else { Text(t("回复 Claude")); TextEditor(text: $message).modifier(ClaudeRequestEditor(height:75)) }
+                    Text(t("JSON 表单内容")); TextEditor(text: $jsonText).nativeControlScrollbars().font(NativeTypography.mono(size: 12)).modifier(ClaudeRequestEditor(height:110))
+                } else { Text(t("回复 Claude")); TextEditor(text: $message).nativeControlScrollbars().modifier(ClaudeRequestEditor(height:75)) }
                 if missingDisplay { ClaudeFailure(message:"JSON 展示文本不可用") }
                 if let error { ClaudeFailure(message: error) }
                 HStack(spacing: 8) {

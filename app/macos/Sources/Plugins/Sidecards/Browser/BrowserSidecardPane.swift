@@ -178,7 +178,7 @@ public struct BrowserSidecardPane: View {
                     }
                     TextEditor(text: Binding(get: { presentation.pending.first(where: { $0.id == id })?.comment ?? "" }, set: { text in
                         if let i = presentation.pending.firstIndex(where: { $0.id == id }) { presentation.pending[i].comment = BrowserText.limit(text, utf16: 10_000) }
-                    })).font(NativeTypography.inter(size: 12)).scrollContentBackground(.hidden).frame(height: 64)
+                    })).nativeControlScrollbars().font(NativeTypography.inter(size: 12)).scrollContentBackground(.hidden).frame(height: 64)
                         .disabled(presentation.sending).accessibilityLabel(localized("批注 {index} 评论", value: index + 1, placeholder: "index"))
                     if presentation.preview {
                         BrowserAnnotationPreview(data: presentation.pending[index].png, label: presentation.context.translate("批注原始截图")).id(id)

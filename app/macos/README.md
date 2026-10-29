@@ -2,6 +2,11 @@
 
 [Package.swift](Package.swift) builds the macOS application and its Swift modules. SwiftUI presents shared UI/state, with AppKit handling native text, input and window behavior.
 
+App-owned viewports, Browser frames and Report HTML share the
+[trackless scrollbar policy](Sources/Shared/PluginUI/README.md#scrollbars).
+Native controls retain scrolling, drag tracking and accessibility; transient
+hiding follows system preferences, and persistent modes keep a visible knob.
+
 | Location | Responsibility |
 | --- | --- |
 | Sources/App | Mac application entry, windows and application lifecycle |

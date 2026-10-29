@@ -59,6 +59,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         configuration.websiteDataStore = store
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        configuration.userContentController.addUserScript(NativeWebScrollbarStyle.script)
         configuration.userContentController.addUserScript(WKUserScript(source: BrowserPageScripts.permissionDenial, injectionTime: .atDocumentStart, forMainFrameOnly: false, in: .page))
         webView = BrowserWKWebView(frame: .zero, configuration: configuration)
         super.init()

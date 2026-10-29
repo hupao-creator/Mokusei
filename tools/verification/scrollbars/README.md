@@ -1,19 +1,49 @@
 # Windowless scrollbar replay
 
 Run `python3 tools/verification/scrollbars/run.py` on macOS. It compiles the
-production shared viewport source with a small AppKit integration driver into a
-temporary executable, then runs it with `MOKUSEI_TEST_HEADLESS=1`. No window is
+production shared viewport and WebKit style sources with a small integration
+driver into a temporary executable, then runs it with `MOKUSEI_TEST_HEADLESS=1`. No window is
 created, no preference is written and no other application receives input.
 
-The driver checks native scroller targets and axes, document/clip identity,
-selection and offsets through repeated styling, programmatic scrolling,
-appearance variants and a preferred-style notification. An unrelated scroll view
-must retain its original configuration. Compilation and execution have separate
+The driver checks native scroller targets, accessibility role and axes,
+document/clip identity, selection and offsets through repeated styling,
+programmatic scrolling, appearance variants and a preferred-style notification.
+Normal and highlighted slots must paint no pixels into an offscreen bitmap in
+both legacy and overlay styles. An unrelated scroll view must retain its original
+configuration. Compilation and execution have separate
 timeouts and a failed assertion exits unsuccessfully.
 
-This checks native control state, not rendered pixels or physical input. It does
-not simulate a real preference/device change; the notification reuses the current
-system preference. Mounted SwiftUI nesting, hover, fade timing, light/dark and
-accessibility pixels, WebKit overflow and mouse/trackpad feel require the existing
+Mounted windowless SwiftUI TextEditor and List controls overflow inside the
+production NativeScrollView. The production control-scoped modifier must retain
+native target/action/AX role, editor binding updates, row/text selection and
+scroll offsets through preference notifications and control replacement. An
+adjacent unstyled editor must keep its original scroller. This checks the actual
+SwiftUI/AppKit adapter boundary, without a popover, window or input injection.
+
+The windowless WKWebView fixture checks the production user script in the main
+document and a child frame, page-authored tracks, dynamic overflow, restrictive
+inline-style CSP, unchanged viewport geometry, both scroll axes and textarea
+selection. A black-body/white-text page with no color-scheme must retain a white
+viewport and overflow thumb; a nested white region must get a black thumb. Body
+theme changes must refresh the viewport color while all tracks stay transparent.
+Changing the actual WKWebView frame crosses a CSS width media query in both
+directions. Inserting, editing and removing head styles, and inserting a body
+style must refresh the viewport foreground. A test-only URL scheme holds an
+actual CSS resource until the insertion refresh has completed, then releases it
+to independently verify the load notification (no synthetic load event or
+network server). Real computed-style calls are counted in the script's isolated
+world: ordinary content/meta mutations must cause zero reads; one synchronous
+resize/style burst must cause one read, including after the resulting root write.
+These are computed-style assertions, not final composited-pixel claims. The
+fixture uses nonpersistent data and local HTML, without network pages.
+WebKit still needs access to its system XPC services; a sandbox denial or timeout
+is incomplete execution, not a pass. Run with the environment's normal WebKit
+service access while retaining the no-window constraint.
+
+This checks native control state and track-part pixels, not composed
+overlay/WebKit pixels or physical input. It does not simulate a real
+preference/device change; the notification reuses the current
+system preference. Complete application mounting, hover, fade timing, light/dark and
+accessibility pixels and mouse/trackpad feel require the existing
 graphical suites or a visual session. See the [shared inventory and integration
 contract](../../../app/macos/Sources/Shared/PluginUI/README.md#scrollbars).

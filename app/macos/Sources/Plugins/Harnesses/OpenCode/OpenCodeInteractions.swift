@@ -72,7 +72,7 @@ struct OpenCodeInteractionPanel: View {
             if interaction.kind == .permission {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(ocLocalized("OpenCode 拒绝原因（可选）", locale: locale))
-                    TextEditor(text: $message).scrollContentBackground(.hidden).frame(height: 48).modifier(OpenCodeFieldDecoration()).disabled(busy != nil)
+                    TextEditor(text: $message).nativeControlScrollbars().scrollContentBackground(.hidden).frame(height: 48).modifier(OpenCodeFieldDecoration()).disabled(busy != nil)
                 }
             }
             if let failure { Text(failure).foregroundStyle(NativePalette.thread.danger.swiftUI).textSelection(.enabled) }
@@ -189,7 +189,7 @@ private struct OpenCodeNativeField: View {
                         let existing = selected.filter { value in options.contains { $0.ocText("value") == value } }
                         value = .array((existing + text.split(separator: "\n", omittingEmptySubsequences: true).map { JSONText(String($0)) }).map(JSONValue.string))
                     })
-                    TextEditor(text: custom).scrollContentBackground(.hidden).frame(height: 48).modifier(OpenCodeFieldDecoration()).accessibilityLabel(ocLocalized("其他回答，每行一项", locale: locale))
+                    TextEditor(text: custom).nativeControlScrollbars().scrollContentBackground(.hidden).frame(height: 48).modifier(OpenCodeFieldDecoration()).accessibilityLabel(ocLocalized("其他回答，每行一项", locale: locale))
                 }
             } else if type == "string", !options.isEmpty, field["custom"] != .bool(true) {
                 select(options: [.init(id: "", label: ocLocalized("请选择", locale: locale))] + options.map { .init(id: ocJSONStringID([$0["value"] ?? .null]), label: $0["label"]?.stringValue ?? "") },

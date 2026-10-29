@@ -105,7 +105,7 @@ struct CodexInteractionPanel: View {
             else { errorText(codexLocalized("Codex MCP schema presentation 无效", locale: locale)) }
         }
         if let formQuestion {
-            TextEditor(text: $formValue).font(.system(size: 12, design: .monospaced))
+            TextEditor(text: $formValue).nativeControlScrollbars().font(.system(size: 12, design: .monospaced))
                 .scrollContentBackground(.hidden).frame(minHeight: 80)
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(NativePalette.thread.line.swiftUI, lineWidth: 1))
