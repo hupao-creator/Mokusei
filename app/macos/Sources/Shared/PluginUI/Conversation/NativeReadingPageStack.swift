@@ -182,31 +182,49 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             if closing { onClose() }
             return
         }
+        animationTask?.cancel()
         generation += 1
         let token = generation
         replacing = false
         self.closing = closing
         motion.active = true
-        let curve = !closing && emphasizedOpening
-            ? Animation.timingCurve(0.76, 0, 0.24, 1, duration: duration)
-            : Animation.timingCurve(0.42, 0, 0.58, 1, duration: duration)
-        animationTask?.cancel()
+        // Progress is stepped here rather than through `withAnimation`: an
+        // implicit animation keeps its own additive presentation after a later
+        // state change, so `settle()` could not stop a cancelled opening and a
+        // history replacement begun during one would start from a page that is
+        // not adjoined to its neighbour.
+        let controlPoints: (x1: Double, x2: Double) = !closing && emphasizedOpening
+            ? (0.76, 0.24) : (0.42, 0.58)
+        let initialProgress = progress
+        let targetProgress = closing ? 0.0 : 1.0
         animationTask = Task { @MainActor in
             // Commit the offscreen front (or reveal the blurred retained
             // parent on return) before advancing the shared timeline. Without
             // preparation SwiftUI can coalesce insertion with its final pose.
             do { try await Task.sleep(for: .seconds(2.0 / 60)) } catch { return }
             guard generation == token else { return }
-            animationTask = nil
-            withAnimation(curve, completionCriteria: .removed) {
-                progress = closing ? 0 : 1
-            } completion: {
+            let start = ContinuousClock.now
+            while true {
+                // Check before writing: a settle may have run between the
+                // previous frame and this task resuming.
                 guard generation == token else { return }
-                motion.active = false
-                self.closing = false
-                // Keep destination, navigation and selection until return ends.
-                if closing { onClose() }
+                let elapsed = start.duration(to: .now)
+                let seconds = Double(elapsed.components.seconds)
+                    + Double(elapsed.components.attoseconds) / 1e18
+                let time = min(1, seconds / duration)
+                let eased = NativeReadingPageTiming.sample(x1: controlPoints.x1, x2: controlPoints.x2, at: time)
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { progress = initialProgress + (targetProgress - initialProgress) * eased }
+                guard time < 1 else { break }
+                do { try await Task.sleep(for: .milliseconds(8)) } catch { return }
             }
+            guard generation == token else { return }
+            animationTask = nil
+            motion.active = false
+            self.closing = false
+            // Keep destination, navigation and selection until return ends.
+            if closing { onClose() }
         }
     }
 }
