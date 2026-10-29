@@ -367,6 +367,7 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
 
 /// The Dock owns this action so note scrolling cannot move its bottom seat.
 struct NativeMokuNoteHistoryButton: View {
+    var compact = false
     var onOpen: () -> Void
     @Environment(\.locale) private var locale
 
@@ -378,12 +379,14 @@ struct NativeMokuNoteHistoryButton: View {
         Button(action: onOpen) {
             HStack(spacing: 6) {
                 NativeIcon(name: "History", size: 13)
-                Text(localize("Moku 历史", "Moku history"))
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
+                if !compact {
+                    Text(localize("Moku 历史", "Moku history"))
+                        .font(.system(size: 12, weight: .medium))
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, 6)
-            .frame(minHeight: 28)
+            .frame(minWidth: 28, minHeight: 28)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
