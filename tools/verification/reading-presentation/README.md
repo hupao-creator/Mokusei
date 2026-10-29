@@ -43,7 +43,7 @@ deferred bodies and exact-result following through all four real Harness rendere
 python3 tools/verification/reading-presentation/run.py --moku-landing
 ```
 
-Runs six `NativeMokuLandingTests` against the production workspace, catalog,
+Runs ten `NativeMokuLandingTests` against the production workspace, catalog,
 Overview and Moku presentation. The real shell waits for Moku hydration before
 centering. Installed public snapshots cover durable shells before native admission,
 failed dispatch, a successful result followed by Talk/another pending creation,
@@ -55,14 +55,23 @@ narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click keeps it open without losing the draft, including
 after covering routes and remounting. The three methods sending
-native mouse/key events run in CI's isolated AppKit input host; the other three
-state/layout methods remain in the ordinary Swift shard. Plain SwiftPM's native
+native mouse/key events run in CI's isolated AppKit input host; the remaining
+state/layout methods also run in the ordinary Swift shard. Plain SwiftPM's native
 text tracking was observed to exit zero before its completion summary, which
 coverage treats as failure. A second native window also
 checks that both focus loss and an actual click retain input and preserve the
 draft. The outside-click Swift suite additionally drives native
 child/sheet windows and nested menu-tracking notifications to protect auxiliary
 composer interactions; this is not a physical cross-app mouse-delivery test.
+
+The full Workspace search case runs the production morph in a full-size native
+window, measures the carrier, the rendered text bounds and the native insertion
+rectangle, and checks the emphasized caret layer in the AppKit host. It also
+sends a direct clip scroll after layout. At 1180 × 780 points on the investigation
+machine, the pre-fix build placed the caret and text centers 13 and 14.25 points
+from the carrier center; the fixed build measured 1.5 points for each. These
+geometry checks accompany visual inspection of the isolated full application;
+they are not a WindowServer pixel comparison.
 
 Catalog transactions pass through the actual preparation/installation boundary.
 The fixture also delivers a connected client event to the real workspace so a
@@ -72,7 +81,7 @@ provider, installed profile or microphone is used. The independent
 [Moku backend replay](../moku/README.md) verifies actual creation/admission and audit
 records. The [visual demo](../../../demos/moku-landing/README.md) additionally checks
 cursor movement, light/dark pixel contrast and attachment layout. These are native
-behavior checks, not optical frame pacing. The launcher requires all six cases
+behavior checks, not optical frame pacing. The launcher requires all ten cases
 without skips; plain headless Swift runs explicitly skip this display-dependent suite.
 
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
