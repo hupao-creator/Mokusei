@@ -492,8 +492,17 @@ The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the 
 
 The note suite also activates the expanded production Dock's bottom-right
 history button through accessibility, with and without a note, checking real
-scene navigation and draft preservation. Its short-viewport Markdown case
-includes the history footer so the footer cannot consume the reading viewport.
+scene navigation and draft preservation. Wide and narrow mounted layouts assert
+the history button’s bottom-right seat and separation from a long voice
+transcript and media control. The short-viewport Markdown case checks that
+reading remains scrollable independently of the Dock-owned history button.
+
+For headless-only verification, run
+`MOKUSEI_TEST_HEADLESS=1 xcrun swift test --package-path app/macos --filter 'NativeMokuNoteTests|NativeMokuTalkTests'`.
+The existing windowless production-Dock test checks retained text and eyes stay
+above the history band across narrow/wide, landing/bottom, Chinese/English and
+running/idle layouts. Display-gated button geometry/activation and rendered
+Markdown cases explicitly skip; this run does not certify those cases.
 
 ## Moku execution links
 

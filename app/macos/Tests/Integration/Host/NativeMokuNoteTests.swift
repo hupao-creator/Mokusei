@@ -259,38 +259,66 @@ struct NativeMokuNoteTests {
         #expect(!state.notePanelOpen)
     }
 
-    @Test(.requiresDisplay, arguments: [false, true])
-    func expandedDockOpensHistoryWithoutConsumingDraftOrNote(hasNote: Bool) async throws {
+    @Test(.requiresDisplay, arguments: [false, true], [236.0, 600.0])
+    func expandedDockOpensHistoryWithoutConsumingDraftOrNote(hasNote: Bool, width: Double) async throws {
         let app = NSApplication.shared
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
-        let state = NativeMokuSceneState()
-        state.setWindowVisible(true)
-        state.setNotePanelOpen(true)
-        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
-        draft.text = "Keep this draft"
-        let note = hasNote ? NativeMokuNote(id: "history-entry", text: "Still unread", revision: 1, updatedAt: 1) : nil
-        let window = SwiftUIReplay.window(NativeMokuDock(state: state, draft: draft, cwd: "/tmp", note: note,
-            onSend: { _ in Issue.record("History must not send the draft") }, onCancel: {})
-            .environment(\.locale, Locale(identifier: "en")), width: 600, height: 500)
-        defer { window.close(); state.settle() }
-        let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { element(id: "moku-note-history", in: root) != nil }
-        let button = try #require(element(id: "moku-note-history", in: root))
-        #expect(SwiftUIReplay.text(in: root).contains("View Moku conversation history"))
-        _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
-        try await SwiftUIReplay.wait { state.mokuOpen && !state.notePanelOpen }
-        #expect(draft.text == "Keep this draft")
-        #expect((note?.hasUnexposedUpdate ?? false) == hasNote)
-        state.setMokuOpen(false)
-        #expect(!state.mokuOpen && !state.notePanelOpen)
+        func frame(_ item: NSObject) throws -> CGRect {
+            if let accessible = item as? any NSAccessibilityProtocol { return accessible.accessibilityFrame() }
+            let selector = NSSelectorFromString("accessibilityAttributeValue:")
+            let position = try #require(item.perform(selector, with: "AXPosition")?.takeUnretainedValue() as? NSValue)
+            let size = try #require(item.perform(selector, with: "AXSize")?.takeUnretainedValue() as? NSValue)
+            return CGRect(origin: position.pointValue, size: size.sizeValue)
+        }
+        for withMessage in [false, true] {
+            let state = NativeMokuSceneState()
+            state.setWindowVisible(true)
+            state.setNotePanelOpen(true)
+            let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+            draft.text = "Keep this draft"
+            let note = hasNote ? NativeMokuNote(id: "history-entry", text: "Still unread", revision: 1, updatedAt: 1) : nil
+            let window = SwiftUIReplay.window(NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
+                voiceControls: AnyView(Button("Voice") {}.accessibilityIdentifier("history-test-voice")),
+                voiceStatusVisible: withMessage, voiceModeActive: withMessage,
+                voiceTranscript: withMessage ? NativeMokuTalkMessage(id: "history-long",
+                    text: String(repeating: "Long message ", count: 30)) : nil,
+                note: note, onSend: { _ in Issue.record("History must not send the draft") }, onCancel: {})
+                .environment(\.locale, Locale(identifier: "en")), width: width, height: 500)
+            defer { window.close(); state.settle() }
+            let root = try #require(window.contentView)
+            try await SwiftUIReplay.wait { element(id: "moku-note-history", in: root) != nil }
+            let button = try #require(element(id: "moku-note-history", in: root))
+            #expect(SwiftUIReplay.text(in: root).contains("View Moku conversation history"))
+            try await Task.sleep(for: .milliseconds(600))
+            let bounds = try frame(button)
+            let rootScreen = window.convertToScreen(root.convert(root.bounds, to: nil))
+            let bottom = rootScreen.maxY - state.capsuleFrame.maxY
+            #expect(bounds.width > 60 && bounds.height >= 28)
+            #expect(abs(bounds.minY - bottom - 6) < 3)
+            #expect(abs(rootScreen.minX + state.capsuleFrame.maxX - bounds.maxX - 18) < 3)
+            if withMessage {
+                // Real selectable prose and media controls must end above the
+                // action even in the narrow viewport used at high app zoom.
+                let message = try #require(element(id: "moku-voice-transcript", in: root))
+                let voice = try #require(element(id: "history-test-voice", in: root))
+                #expect(try frame(message).minY >= bounds.maxY)
+                #expect(try frame(voice).minY >= bounds.maxY)
+            }
+            _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
+            try await SwiftUIReplay.wait { state.mokuOpen && !state.notePanelOpen }
+            #expect(draft.text == "Keep this draft")
+            #expect((note?.hasUnexposedUpdate ?? false) == hasNote)
+            state.setMokuOpen(false)
+            #expect(!state.mokuOpen && !state.notePanelOpen)
+        }
     }
 
     @Test(.requiresDisplay, arguments: [64.0, 360.0]) func panelRendersSelectableProductionMarkdown(height: Double) async throws {
         let note = NativeMokuNote(id: "panel-incarnation", text: "# Milestones\n\n- Dispatched the migration\n- Waiting for review",
                                   revision: 3, updatedAt: 1_700_000_000_000)
         let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: height < 100 ? 188 : 480, height: height, availableHeight: height,
-                                                              openExternal: nil, onOpenHistory: {}), width: 600, height: 500)
+                                                              openExternal: nil), width: 600, height: 500)
         defer { window.close() }
         let content = try #require(window.contentView)
         try await SwiftUIReplay.wait { selectableText(content).contains { $0.string.contains("Milestones") } }

@@ -192,8 +192,8 @@ struct NativeMokuTalkTests {
         #expect(state.talkPresentation.message?.id == "pending")
     }
 
-    @Test(arguments: [false, true])
-    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool) async throws {
+    @Test(arguments: [false, true], [false, true])
+    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool, noteOpen: Bool) async throws {
         func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
             ((root as? T).map { [$0] } ?? [])
                 + root.subviews.flatMap { descendants($0, of: type) }
@@ -205,6 +205,7 @@ struct NativeMokuTalkTests {
                     let state = NativeMokuSceneState()
                     state.setWindowVisible(true)
                     state.receiveTalk(.init(id: "headless-eyes", text: text))
+                    state.setNotePanelOpen(noteOpen)
                     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
                     let host = NSHostingView(rootView: NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
                         landing: landing, running: running, talk: text, onSend: { _ in }, onCancel: {})
@@ -233,6 +234,14 @@ struct NativeMokuTalkTests {
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)
+                    if noteOpen {
+                        // SwiftUI button AX nodes require a window; their seat
+                        // and activation are checked by the display-gated suite.
+                        #expect(textFrame.maxY <= state.capsuleFrame.maxY - 40,
+                                "Retained prose must leave the bottom history band clear")
+                        #expect(eyeFrame.maxY <= state.capsuleFrame.maxY - 40)
+                    }
+
                     if running {
                         // The hover/focus-revealed Stop target is 30pt wide,
                         // inset 7pt from the trailing edge. Reserve an 8pt gap
