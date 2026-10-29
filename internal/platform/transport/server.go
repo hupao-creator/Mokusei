@@ -383,7 +383,15 @@ func (s *Server) Drain(ctx context.Context) error {
 
 // Finish joins HTTP response writers after lifecycle cleanup. Call outside the
 // /stop handler, after Close: Go process exit otherwise truncates its response.
-func (s *Server) Finish(ctx context.Context) error { return s.http.Shutdown(ctx) }
+func (s *Server) Finish(ctx context.Context) error {
+	err := s.http.Shutdown(ctx)
+	// Close already retired the listener. Shutdown can still find its wrapper
+	// before Serve removes it; after joining connections that is a successful drain.
+	if errors.Is(err, net.ErrClosed) {
+		return nil
+	}
+	return err
+}
 
 // Close stops admission and connections synchronously, except the /stop socket
 // currently waiting for host shutdown. That socket closes after its response.
