@@ -212,8 +212,8 @@ python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.s
   --replay /private/tmp/reading-41.jsonl --trace /private/tmp/reading-41-replayed.jsonl
 ```
 
-The runner first exercises history, nested disclosures, scrolling, Settings return
-and stale-handle rejection, then makes seeded choices from mounted controls. A
+The runner first exercises history, nested disclosures, scrolling, rejected Settings
+entry and stale-handle rejection, then makes seeded choices from mounted controls. A
 fixture with more than 120 completed turns and tool details is required to cover
 load-earlier and nested tools. The [production reading launcher](../verification/thread-interaction/README.md)
 provides that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from

@@ -3,10 +3,10 @@
 [Semantic workspace actions](../Interaction/README.md) expose navigation to scripts
 through the same presentation methods. Back dispatches the active reading action;
 Settings uses its shared draft close gate.
-Navigation callbacks carry the current route-visit identity, so delayed disappearance
-from a page retained beneath Settings cannot clear its replacement's back action.
-The reading stack also keys its front by that visit: reopening a retained thread
-mounts and registers its navigation even while the previous Settings exit runs.
+Navigation callbacks carry the current route-visit identity, so a delayed page
+disappearance cannot clear its replacement's back action. The reading stack also
+keys its front by that visit when reopening a retained thread. Settings belongs
+only to Overview and cannot cover a Thread or application reading route.
 
 [NativeWindowNavigationView](NativeWindowNavigationView.swift) owns shared
 window/back controls. [NativeWindowControlPlacement](NativeWindowControlPlacement.swift)
