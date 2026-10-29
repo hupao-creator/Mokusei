@@ -25,8 +25,14 @@ unavailable Harnesses and invalid fields prevent advancing.
 
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
 shared with Settings through `NativeRoleConfigurationPanel` and with the visual
-demo. Settings retains the animations without onboarding step admission. They use the discovered Harness logos, cancel on
-step exit, and show a static completed composition with Reduce Motion. Tag's
+demo. Each mounted Tag or Report page plays once with the discovered Harness
+logos and retains its completed composition. Settings uses the same behavior
+without onboarding step admission. Leaving the page cancels playback; entering
+it again creates a new playback visit. Hiding or deactivating the window during
+playback settles to the completed composition without replaying on activation.
+Reduce Motion shows the completed composition without deferred playback. Tag
+also rebuilds a static final frame on size, appearance, locale or Harness changes
+after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
 collision boundaries remain invisible. Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 

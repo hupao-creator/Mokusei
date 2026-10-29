@@ -24,7 +24,7 @@ python3 demos/settings-tabs/build.py --verify --open
 - Moku、Tag、Report 使用与 onboarding demo 相同的 `SetupConfigurationPanel`，
   继续共享内存配置和继承/独立选择；Moku map、品牌图标和能力图示来自生产模块。
   模型与推理选择直接挂载生产 `NativeModelSelector`，catalog 仍是示例。
-- Tag 与 Report 进入即播放原有能力动画，配置立即可用，无需等待动画完成。
+- Tag 与 Report 每次进入只播放一次能力动画，并保留完成画面；配置立即可用，无需等待动画完成。
   切换 tab、继承模式或关闭重开后保留选择；离开 tab 时停止动画，返回时重新播放。
 - 面板使用系统 `.regular` glass，不叠加 onboarding 的 96% 阅读底色，
   不使用原 Settings 侧栏与内容区底色。系统减少透明度时保留实色回退。
@@ -42,7 +42,8 @@ python3 demos/settings-tabs/build.py --verify --open
 检查 Report 直接访问、选择保留、至少一个 Target、键盘导航和关闭时的输入法保护。
 截图覆盖 Moku / Tag / Report 浅深色、General、窄窗口、对比背景与减少透明度。
 `02-tag-light` / `02a-tag-organized` 与 `03-report-light` / `03a-report-diagram`
-分别记录 Tag 下落到归类、Report 长文档到图示的动画阶段。
+分别记录 Tag 下落到归类、Report 长文档到图示的动画阶段；
+`02aa-tag-retained` 与 `03aa-report-retained` 在原循环周期之后检查完成画面仍然保留。
 共用配置抽取后另运行原 onboarding demo 回放，检查原五步流程保持可用。
 
 所有模型、推理和安装状态均为确定性 fixture；不扫描 CLI、不调用模型、不启动 Runtime，

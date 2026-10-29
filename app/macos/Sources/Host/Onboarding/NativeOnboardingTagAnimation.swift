@@ -19,6 +19,7 @@ struct NativeOnboardingTagAnimation: View {
     @State private var viewport = CGSize(width: 560, height: 250)
     @State private var scene = NativeOnboardingTagScene()
     @State private var staticFrameReady = false
+    @State private var playbackStarted = false
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
 
     var body: some View {
@@ -26,7 +27,7 @@ struct NativeOnboardingTagAnimation: View {
     }
 
     private var animation: some View {
-        SpriteView(scene: scene, isPaused: !active && staticFrameReady, options: [.allowsTransparency])
+        SpriteView(scene: scene, isPaused: staticFrameReady, options: [.allowsTransparency])
             .frame(height: 250)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
             .allowsHitTesting(false)
@@ -37,7 +38,8 @@ struct NativeOnboardingTagAnimation: View {
             .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active, locale: locale, harnesses: harnesses.map { $0.descriptor.id.string })) {
                 staticFrameReady = false
                 scene.prepare(size: viewport, dark: colorScheme == .dark, harnesses: harnesses, locale: locale)
-                guard active else {
+                guard active && !playbackStarted else {
+                    if reduceMotion { playbackStarted = true }
                     scene.organize(animated: false)
                     // Let SpriteKit draw updated textures before pausing its renderer,
                     // including appearance changes made from the separate demo window.
@@ -46,19 +48,18 @@ struct NativeOnboardingTagAnimation: View {
                     return
                 }
                 do {
-                    while !Task.isCancelled {
-                        scene.reset()
-                        try await Task.sleep(for: .milliseconds(250))
-                        for arrival in NativeOnboardingTagScene.arrivals {
-                            scene.drop(arrival.index)
-                            try await Task.sleep(for: .milliseconds(arrival.pause))
-                        }
-                        try await Task.sleep(for: .milliseconds(2400))
-                        scene.organize(animated: true)
-                        try await Task.sleep(for: .milliseconds(3600))
-                        scene.fadeOut()
-                        try await Task.sleep(for: .milliseconds(450))
+                    // Initial layout may resize the scene before any tokens arrive.
+                    // Once playback starts, task restarts only rebuild the final frame.
+                    try await Task.sleep(for: .milliseconds(250))
+                    playbackStarted = true
+                    for arrival in NativeOnboardingTagScene.arrivals {
+                        scene.drop(arrival.index)
+                        try await Task.sleep(for: .milliseconds(arrival.pause))
                     }
+                    try await Task.sleep(for: .milliseconds(2400))
+                    scene.organize(animated: true)
+                    try await Task.sleep(for: .milliseconds(1600))
+                    staticFrameReady = true
                 } catch { return }
             }
             .onDisappear { scene.stop() }
@@ -191,8 +192,6 @@ struct NativeOnboardingTagAnimation: View {
             }
         }
     }
-
-    func fadeOut() { content.run(.fadeOut(withDuration: 0.35)) }
 
     func stop() {
         removeAllActions()

@@ -203,9 +203,12 @@ The production [onboarding panel](../Onboarding/README.md) and Settings mount
 the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application
 background editor. `nativeSettingsCompactPresentation` suppresses group explanations
 and selects the inheritance/independent glass controls. Tag and Report keep their
-production animations while configuration stays immediately available. Leaving
-the tab unmounts and cancels its animation; inactive/hidden windows pause it and
-Reduce Motion shows the completed composition. Settings has no onboarding progress
+production animations while configuration stays immediately available. Each tab
+visit plays once and retains its completed composition. Leaving the tab unmounts
+and cancels its animation; inactive/hidden windows settle an interrupted playback
+to the final frame without replaying on activation. Reduce Motion shows the
+completed composition without deferred playback. Tag pauses SpriteKit after
+rendering its final frame. Settings has no onboarding progress
 or admission steps. Onboarding alone omits advanced routing. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.

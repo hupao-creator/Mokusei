@@ -10,7 +10,7 @@ struct NativeOnboardingReportAnimation: View {
     @State private var windowVisible = true
     @State private var phase = 0
     @State private var travel: CGFloat = 0
-    @State private var visible = true
+    @State private var playbackStarted = false
     private var agents: [AnyHarnessPlugin] { Array(harnesses.prefix(3)) }
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
     private var paper: Color { Color(white: colorScheme == .dark ? 0.17 : 1) }
@@ -29,7 +29,6 @@ struct NativeOnboardingReportAnimation: View {
                     .scaleEffect(x: phase >= 2 ? 1 : 0.28, y: phase >= 2 ? 1 : 0.6)
             }
             .frame(width: width, height: 250)
-            .opacity(visible ? 1 : 0)
         }
         .frame(height: 250)
         .accessibilityElement(children: .ignore)
@@ -37,23 +36,25 @@ struct NativeOnboardingReportAnimation: View {
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
-            guard active else { phase = 3; visible = true; return }
+            guard active && !playbackStarted else {
+                if reduceMotion { playbackStarted = true }
+                var final = Transaction(); final.disablesAnimations = true
+                withTransaction(final) { phase = 3 }
+                return
+            }
+            // Keep this visit consumed across activation changes and task cancellation.
+            playbackStarted = true
             do {
-                while !Task.isCancelled {
-                    var reset = Transaction(); reset.disablesAnimations = true
-                    withTransaction(reset) { phase = 0; travel = 0; visible = true }
-                    try await Task.sleep(for: .milliseconds(300))
-                    withAnimation(.linear(duration: 3.4)) { travel = -300 }
-                    try await Task.sleep(for: .milliseconds(3450))
-                    withAnimation(.spring(response: 0.72, dampingFraction: 0.88)) { phase = 1 }
-                    try await Task.sleep(for: .milliseconds(650))
-                    withAnimation(.smooth(duration: 0.65)) { phase = 2 }
-                    try await Task.sleep(for: .milliseconds(650))
-                    withAnimation(.smooth(duration: 0.7)) { phase = 3 }
-                    try await Task.sleep(for: .milliseconds(4000))
-                    withAnimation(.easeOut(duration: 0.35)) { visible = false }
-                    try await Task.sleep(for: .milliseconds(450))
-                }
+                var reset = Transaction(); reset.disablesAnimations = true
+                withTransaction(reset) { phase = 0; travel = 0 }
+                try await Task.sleep(for: .milliseconds(300))
+                withAnimation(.linear(duration: 3.4)) { travel = -300 }
+                try await Task.sleep(for: .milliseconds(3450))
+                withAnimation(.spring(response: 0.72, dampingFraction: 0.88)) { phase = 1 }
+                try await Task.sleep(for: .milliseconds(650))
+                withAnimation(.smooth(duration: 0.65)) { phase = 2 }
+                try await Task.sleep(for: .milliseconds(650))
+                withAnimation(.smooth(duration: 0.7)) { phase = 3 }
             } catch { return } // Leaving this step or hiding the window cancels the sequence.
         }
     }
