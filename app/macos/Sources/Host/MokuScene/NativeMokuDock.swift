@@ -169,11 +169,9 @@ public struct NativeMokuDock: View {
     private var stopControlPresent: Bool {
         running && !inputPresent && !voiceModeActive && !state.settingsOpen
     }
-    // Reserve the Stop hit target before hover/focus reveals its ink. Otherwise
-    // the overlay covers selectable prose, or revealing it changes line breaks.
-    private var talkTrailing: CGFloat {
-        voiceControlVisible || stopControlPresent ? 48 : NativeMokuTalkTypography.trailing
-    }
+    // Keep the control seat for the entire message, including after Stop retires.
+    // Changing it mid-message shifts centered text and can change line breaks.
+    private var talkTrailing: CGFloat { 48 }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else {
