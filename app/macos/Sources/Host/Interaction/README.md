@@ -54,3 +54,10 @@ is true, section selection and mounted-control mutations are unavailable, so a
 rapid caller cannot receive a success for a page that is already retiring. Close,
 Back and Overview remain available. The production navigation replay exercises
 this rejection immediately after initiating Back without waiting for animation.
+
+First-run setup reports `page: "onboarding"` and an `onboarding` object containing
+step (0–4), admission, editor readiness, continuation availability, save/error
+and persisted completion state. Only its mounted `settings.control` actions are
+admitted, using an independent visit/step registry. The handoff reports
+`transitioning` until the real Dock is revealed; workspace navigation remains
+blocked throughout setup and the morph.

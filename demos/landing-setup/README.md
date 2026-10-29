@@ -61,3 +61,11 @@ Command-5 切换高对比背景检查：在同一窗口内放置黑、蓝、红�
 
 `LandingFixture.swift` 与原 landing demo 共用，品牌图标、Moku 眼睛与玻璃、窗口材质、最终工作区均来自生产模块。
 独立 app 保留于临时目录，不替换已安装应用。
+
+## 生产接入
+
+[生产 onboarding](../../app/macos/Sources/Host/Onboarding/README.md) 已复用此处确认的视觉与流程。
+Tag / Report 动画直接来自生产模块，本 demo 为其提供确定性的 Harness fixture；
+Moku map、品牌、圆形角色和最终 Dock 同样复用生产组件。
+独立 demo 的配置控件仍使用内存 fixture；真实首次启动、发现和保存由 Go-backed Settings
+回放挂载生产 `NativeWorkspaceView` 验证，不能用 demo 的通过替代生产验证。

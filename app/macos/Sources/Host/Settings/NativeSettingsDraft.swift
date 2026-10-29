@@ -89,8 +89,15 @@ public final class NativeSettingsDraft {
     /// the draft unavailable. The application's existing quit deadline bounds it.
     public func flushForQuit() async throws {
         guard !retired else { return }
+        try await flush()
+    }
+
+    /// Join the current write and any edits it drains before committing a
+    /// dependent user action, such as completing first-run configuration.
+    public func flush() async throws {
+        guard !retired else { throw CancellationError() }
         guard !composing, firstInvalidField == nil else {
-            throw RuntimeError("SETTINGS_UNSAVED", "Finish the active settings edit before quitting, or quit without saving.")
+            throw RuntimeError("SETTINGS_UNSAVED", "Finish the active settings edit before continuing.")
         }
         if value == saved, running == nil, !failed { return }
         submit()

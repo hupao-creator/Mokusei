@@ -1,7 +1,9 @@
 import SwiftUI
-@testable import MokuseiUI
+import MokuseiPluginAPI
 
-struct SetupReportDiagramAnimation: View {
+struct NativeOnboardingReportAnimation: View {
+    let harnesses: [AnyHarnessPlugin]
+    let locale: DesktopLocale
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -9,11 +11,15 @@ struct SetupReportDiagramAnimation: View {
     @State private var phase = 0
     @State private var travel: CGFloat = 0
     @State private var visible = true
-    private let agents: [SetupAgent] = [.codex, .claude, .opencode]
+    private var agents: [AnyHarnessPlugin] { Array(harnesses.prefix(3)) }
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
     private var paper: Color { Color(white: colorScheme == .dark ? 0.17 : 1) }
 
     var body: some View {
+        if !agents.isEmpty { animation }
+    }
+
+    private var animation: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack {
@@ -27,7 +33,7 @@ struct SetupReportDiagramAnimation: View {
         }
         .frame(height: 250)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("多份带 Agent 标识的长文档聚拢，展开为一份以全貌、关系和要点三幅图串联的简洁报告")
+        .accessibilityLabel(locale.text("多份长文档聚拢，展开为全貌、关系和要点三幅图组成的简洁报告", "Long documents gather into a concise visual report: overview, connections, and takeaways"))
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
@@ -75,7 +81,7 @@ struct SetupReportDiagramAnimation: View {
     private func document(_ index: Int) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 9) {
-                agents[index % agents.count].logo(19).frame(width: 19, height: 19)
+                agents[index % agents.count].logo(size: 19).frame(width: 19, height: 19)
                 RoundedRectangle(cornerRadius: 1).fill(.primary.opacity(0.20)).frame(width: 48, height: 4)
                 Spacer()
             }
@@ -103,8 +109,8 @@ struct SetupReportDiagramAnimation: View {
     private func reportDocument(width: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 17) {
             HStack(spacing: 9) {
-                ForEach(agents) { agent in
-                    agent.logo(18).frame(width: 18, height: 18)
+                ForEach(agents, id: \.descriptor.id) { agent in
+                    agent.logo(size: 18).frame(width: 18, height: 18)
                 }
                 Spacer()
                 Capsule().fill(.primary.opacity(0.13)).frame(width: 36, height: 3)
@@ -114,7 +120,7 @@ struct SetupReportDiagramAnimation: View {
                     VStack(alignment: .leading, spacing: 9) {
                         abstractFigure(index)
                             .frame(height: 102)
-                        Text(["全貌", "关系", "要点"][index])
+                        Text(locale.text(["全貌", "关系", "要点"][index], ["Overview", "Connections", "Takeaways"][index]))
                             .font(.system(size: 11, weight: .medium))
                         VStack(alignment: .leading, spacing: 4) {
                             Capsule().fill(.primary.opacity(0.12)).frame(height: 2.5)

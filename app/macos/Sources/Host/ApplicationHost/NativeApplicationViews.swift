@@ -119,7 +119,8 @@ private struct NativeApplicationSettingsSurface: View {
         Group {
             if let lifetime, !lifetime.isCancelled {
                 content(lifetime: lifetime)
-            } else { NativeHarnessStatusView(message: "正在读取…", english: "Loading…") }
+            } else { NativeHarnessStatusView(message: "正在读取…", english: "Loading…")
+                    .nativeSettingsEditorReady(false) }
         }
         .task(id: definition.id) {
             lifetime?.cancel(); lifetime = PluginLifetime()
@@ -142,6 +143,7 @@ private struct NativeApplicationSettingsSurface: View {
         switch result {
         case .success(let view): view
         case .failure(let error): SettingsNotice(error.localizedDescription, error: true)
+                .nativeSettingsEditorReady(false)
         }
     }
 }

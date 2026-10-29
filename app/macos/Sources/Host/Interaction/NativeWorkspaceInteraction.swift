@@ -6,6 +6,7 @@ import MokuseiPluginUI
 @MainActor
 public extension NativeWorkspacePresentation {
     var interactionPage: String {
+        if onboarding.blocksWorkspace { return "onboarding" }
         if scene.settingsOpen { return "settings" }
         if scene.mokuOpen { return "moku" }
         return selected == nil ? "overview" : "thread"
@@ -33,6 +34,9 @@ public extension NativeWorkspacePresentation {
 
     var interactionActions: [String] {
         guard interactionReady else { return [] }
+        if onboarding.blocksWorkspace {
+            return onboarding.mounted && onboarding.admitted && !onboarding.busy && onboarding.step != .landing ? ["settings.control"] : []
+        }
         if scene.settingsOpen {
             // The closing page stays mounted for its capsule animation, but a
             // section/control command can no longer produce a readable result.
@@ -63,11 +67,12 @@ public extension NativeWorkspacePresentation {
         let sections = interactionSettingsSections
         let section = sections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
         let draft = workspace.settingsModel.draft
-        let pageMounted = scene.settingsOpen ? settingsNavigation.mounted
+        let pageMounted = onboarding.blocksWorkspace ? onboarding.mounted : scene.settingsOpen ? settingsNavigation.mounted
             : scene.mokuOpen ? navigation != nil
             : selected == nil || mountedReadingThread == selected
         let settings: JSONValue = .object([
-                "controls": .array(scene.settingsOpen && settingsNavigation.mounted
+                "controls": .array(onboarding.blocksWorkspace && onboarding.mounted ? onboarding.interactions.snapshot(context: onboarding.context)
+                    : scene.settingsOpen && settingsNavigation.mounted
                     ? settingsNavigation.interactions.snapshot(context: settingsNavigation.interactionContext(section: section)) : []),
                 "revision": .integer(draft.revision), "catalogRevision": .integer(workspace.catalog.settingsRevision), "status": .text(String(describing: draft.status)),
                 "error": draft.error.map(JSONValue.text) ?? .null,
@@ -78,7 +83,12 @@ public extension NativeWorkspacePresentation {
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
-            "transitioning": .bool(messageMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning),
+            "transitioning": .bool(messageMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
+                || (onboarding.blocksWorkspace && onboarding.step == .landing)),
+            "onboarding": .object(["step": .integer(onboarding.step.rawValue), "canContinue": .bool(onboarding.canAdvance),
+                "editorReady": .bool(onboarding.editorReady), "admitted": .bool(onboarding.admitted),
+                "error": onboarding.error.map(JSONValue.text) ?? .null,
+                "saving": .bool(onboarding.busy), "completed": .bool(workspace.preferences.onboardingCompleted)]),
             "runtimeAvailable": .bool(workspace.runtimeAvailable),
             "selectedThread": selected?.json ?? .null,
             "settingsSection": scene.settingsOpen ? .text(section) : .null,
@@ -120,6 +130,11 @@ public extension NativeWorkspacePresentation {
             }
             settingsNavigation.section = section
         case .settingsControl(let id, let handle, let operation, let value):
+            if onboarding.blocksWorkspace {
+                do { try onboarding.interactions.perform(id: id, handle: handle, operation: operation, value: value, context: onboarding.context) }
+                catch let error as NativeSettingsControlError { throw NativeInteractionError(error.code, error.message) }
+                return
+            }
             let section = interactionSettingsSections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
             do {
                 try settingsNavigation.interactions.perform(id: id, handle: handle, operation: operation, value: value,

@@ -24,8 +24,7 @@ if not options.skip_build:
 replay = NativeReplay(repo, "MokuseiSetupDemo", "com.mokusei.landing-setup-demo")
 try:
     replay.compile([source.parent / "moku-landing/LandingFixture.swift",
-                    source / "SetupFixture.swift", source / "SetupCapabilityAnimation.swift", source / "SetupTagPhysicsAnimation.swift",
-                    source / "SetupReportDiagramAnimation.swift",
+                    source / "SetupFixture.swift", source / "SetupCapabilityAnimation.swift",
                     source / "SetupView.swift", source / "main.swift"])
     if options.verify:
         replay.acquire()

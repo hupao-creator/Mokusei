@@ -1,4 +1,5 @@
 import SwiftUI
+@testable import MokuseiUI
 
 /// Capability illustrations use local fixtures and never act on real sessions.
 struct SetupCapabilityAnimation: View {
@@ -6,7 +7,8 @@ struct SetupCapabilityAnimation: View {
     let kind: Kind
 
     var body: some View {
-        if kind == .tag { SetupTagPhysicsAnimation() }
-        else { SetupReportDiagramAnimation() }
+        let harnesses = [SetupAgent.codex, .claude, .opencode].map { $0.plugin }
+        if kind == .tag { NativeOnboardingTagAnimation(harnesses: harnesses, locale: .chinese) }
+        else { NativeOnboardingReportAnimation(harnesses: harnesses, locale: .chinese) }
     }
 }

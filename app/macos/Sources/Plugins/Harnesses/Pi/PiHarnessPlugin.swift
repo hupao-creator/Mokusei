@@ -9,7 +9,8 @@ public struct PiHarnessPlugin: HarnessPlugin {
     public init() {}
     public var descriptor: HarnessPluginDescriptor {
         HarnessPluginDescriptor(id: "pi", displayName: "Pi Agent", threadCapabilities:
-            HarnessThreadCapabilities(instructions: true, threadContext: true, sendContext: true, toolModes: [.exclusive]))
+            HarnessThreadCapabilities(instructions: true, threadContext: true, sendContext: true, toolModes: [.exclusive]),
+            installationGuide: URL(string: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent")!)
     }
     public var logoSource: String { Self.logo }
     public func logo(size: CGFloat) -> some View { PiLogo(size: size) }

@@ -176,6 +176,8 @@ struct ClaudeHarnessSettingsView: View {
                 }
             }
         }.environment(\.nativeSettingsFormPage, props.settingsFormPage)
+            .nativeSettingsEditorReady(pendingProfile == nil
+                && (!props.executionSnapshot || claudeValidModel(modelText, required: true)))
             .onChange(of:props.value.json["threadSettings"]?["model"],initial:true) { _, value in
                 guard pendingProfile == nil else { return }
                 exactModel = value.map { if case .string(let text) = $0 { text } else { JSONText("") } } ?? ""; modelText = exactModel.string

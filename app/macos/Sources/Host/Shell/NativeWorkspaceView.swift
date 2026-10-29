@@ -30,6 +30,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private var applicationReturn: (thread: ApplicationThreadRef, target: HarnessReadingTarget?)?
     @ObservationIgnored private var voiceOwner: JSONText?
     @ObservationIgnored public lazy var scene = makeScene()
+    @ObservationIgnored lazy var onboarding = NativeOnboardingState(workspace: workspace)
     @ObservationIgnored public lazy var applicationHost = NativeApplicationHost(workspace: workspace,
         navigationCallbacks: NativeApplicationNavigationCallbacks(
             openThread: { [weak self] thread, target in self?.open(thread, target: target) },
@@ -89,6 +90,7 @@ public final class NativeWorkspacePresentation {
         guard !started else { return }
         started = true
         _ = overview; _ = moku; _ = scene
+        onboarding.admitIfNeeded()
         applicationHost.git.start { [weak self] in self?.overview.refreshCardExtensions() }
         workspace.voice.configureMoku(owner: workspace.catalog.moku?.id,
             available: workspace.connection == .connected && !workspace.stopping)
@@ -107,6 +109,7 @@ public final class NativeWorkspacePresentation {
                 self.scene.settle(); NativeReadingPageMotion.cancelAll()
             }
             self.reconcileSelection()
+            self.onboarding.admitIfNeeded()
             self.publishPresence()
         }
         workspace.onOverviewFilter = { [weak self] request in self?.overview.receiveFilter(request) }
@@ -172,7 +175,7 @@ public final class NativeWorkspacePresentation {
     }
 
     public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil) {
-        guard !scene.settingsOpen else { return }
+        guard !onboarding.blocksWorkspace, !scene.settingsOpen else { return }
         if ref.typeID == "agent" {
             guard let thread = workspace.catalog.thread(ref.threadID) else { return }
             if thread.moku == true { scene.setMokuOpen(true, readingTarget: target); return }
@@ -219,6 +222,7 @@ public final class NativeWorkspacePresentation {
     }
 
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
+        guard !onboarding.blocksWorkspace else { return }
         guard let thread = workspace.catalog.thread(id), !thread.isHiddenFromUser, thread.archived != true else { return }
         if selected?.threadID != id || selected?.typeID != "agent" {
             open(ApplicationThreadRef(threadID: id, typeID: "agent"))
@@ -228,6 +232,7 @@ public final class NativeWorkspacePresentation {
     }
 
     public func showOverview(focusFilter: Bool = false) {
+        guard !onboarding.blocksWorkspace else { return }
         if scene.settingsOpen {
             guard settingsNavigation.requestClose(model: workspace.settingsModel,
                 onClose: { _ in scene.closeSettings() }) else { return }
@@ -286,6 +291,7 @@ public final class NativeWorkspacePresentation {
 
     public var canOpenSettings: Bool {
         workspace.hasInitialContent && workspace.catalog.moku != nil && !workspace.stopping
+            && !onboarding.blocksWorkspace
             && selected == nil && scene.canOpenSettings && !messageMotion.active
     }
     public func openSettings() {
@@ -304,6 +310,7 @@ public final class NativeWorkspacePresentation {
         configureThreadVoice()
         scene.overviewVisible = selected == nil
         scene.disabled = workspace.stopping || workspace.catalog.moku == nil
+            || (onboarding.blocksWorkspace && onboarding.step != .landing)
         overview.setPresentation(NativeOverviewPresentationFacts(
             overviewVisible: selected == nil && !scene.mokuOpen && !scene.cameraActive,
             mokuOpen: scene.mokuOpen, settingsOpen: scene.settingsOpen,
@@ -330,6 +337,7 @@ public final class NativeWorkspacePresentation {
     }
 
     public func sendMoku(_ submission: NativeComposerSubmission) async throws {
+        guard !onboarding.blocksWorkspace else { throw PluginContractError("Complete onboarding before sending a task.") }
         var request: [JSONText: JSONValue] = ["input": submission.input]
         if selected == nil, !scene.mokuOpen, !scene.cameraActive, !scene.settingsOpen,
            let filter = overview.filters.first(where: {
@@ -356,6 +364,7 @@ public final class NativeWorkspacePresentation {
     /// reachable, so it never overlays a thread, settings or the Moku screen.
     public var canToggleMokuNote: Bool {
         started && scene.overviewVisible && !scene.disabled && !scene.dockCovered
+            && !onboarding.blocksWorkspace
             && workspace.catalog.moku != nil
     }
     public func toggleMokuNote() {
@@ -435,7 +444,7 @@ public struct NativeWorkspaceView: View {
     }
     private var disabled: Bool { !model.runtimeAvailable }
     private var canStartMokuVoice: Bool {
-        guard !disabled, model.voice.moku.state.available else { return false }
+        guard !presentation.onboarding.blocksWorkspace, !disabled, model.voice.moku.state.available else { return false }
         return model.voice.moku.state.phase == .closed || model.voice.moku.state.phase == .failed
     }
     private func startMokuVoice() {
@@ -486,13 +495,16 @@ public struct NativeWorkspaceView: View {
         }
         .onChange(of: presentation.scene.cameraActive) { _, _ in presentation.publishPresence() }
         .onChange(of: model.stopping) { _, _ in presentation.publishPresence() }
+        .onChange(of: presentation.onboarding.blocksWorkspace) { _, _ in presentation.publishPresence() }
+        .onChange(of: presentation.onboarding.step) { _, _ in presentation.publishPresence() }
     }
 
     private var workspaceScene: some View {
         let routeID = presentation.navigationRouteID
         return NativeMokuScene(state: presentation.scene) {
             NativeRuntimeSurface(model: model, showsConnectionNotice: false) {
-                if !presentation.scene.mokuOpen || presentation.scene.cameraActive { outside }
+                if presentation.onboarding.blocksWorkspace { Color.clear }
+                else if !presentation.scene.mokuOpen || presentation.scene.cameraActive { outside }
             }
         } thread: {
             if (presentation.scene.mokuOpen || presentation.scene.cameraActive), let thread = model.catalog.moku {
@@ -518,7 +530,7 @@ public struct NativeWorkspaceView: View {
                     .environment(\.nativeReadingNavigation, presentation.readingNavigation)
             }
         } dock: {
-            if let thread = model.catalog.moku {
+            if presentation.onboarding.mountDock, let thread = model.catalog.moku {
                 NativeMokuDock(state: presentation.scene, draft: presentation.draft, cwd: JSONText(model.catalog.defaultCwd),
                     landing: presentation.moku.landing,
                     mode: presentation.moku.dockMode, running: presentation.moku.running,
@@ -538,19 +550,28 @@ public struct NativeWorkspaceView: View {
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) },
                     canStartVoice: { canStartMokuVoice }, startVoice: startMokuVoice)
+                    .opacity(presentation.onboarding.dockVisible ? 1 : 0)
+                    .allowsHitTesting(!presentation.onboarding.blocksWorkspace)
+                    .accessibilityHidden(presentation.onboarding.blocksWorkspace)
             }
         } onCloseSettings: {
             presentation.settingsNavigation.requestClose(model: model.settingsModel) { _ in presentation.scene.closeSettings() }
         } settings: {
             if presentation.scene.settingsOpen { settings }
         }
+        .overlay {
+            if presentation.onboarding.blocksWorkspace, model.hasInitialContent {
+                NativeOnboardingSurface(state: presentation.onboarding, scene: presentation.scene,
+                    applicationSections: presentation.applicationHost.settingsSections(model: model.settingsModel))
+            }
+        }
         .overlay(alignment: .topLeading) {
             NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.nativeApplicationNavigation,
                 suspended: presentation.scene.cameraActive || presentation.scene.settingsOpen,
                 managesNativeButtons: !presentation.nativeApplicationNavigation || applicationSuppressed,
                 reading: presentation.readingNavigation)
-                .allowsHitTesting(!presentation.scene.settingsOpen)
-                .accessibilityHidden(presentation.scene.settingsOpen)
+                .allowsHitTesting(!presentation.scene.settingsOpen && !presentation.onboarding.blocksWorkspace)
+                .accessibilityHidden(presentation.scene.settingsOpen || presentation.onboarding.blocksWorkspace)
         }
     }
 
@@ -660,14 +681,15 @@ public struct NativeWorkspaceCommands: Commands {
     public var body: some Commands {
         CommandGroup(after: .textEditing) {
             Button(locale.text("搜索会话", "Find Conversations")) { presentation?.overview.beginSearch() }
-                .keyboardShortcut("f").disabled(presentation?.selected != nil || presentation?.scene.settingsOpen == true || presentation?.scene.mokuOpen == true)
+                .keyboardShortcut("f").disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.selected != nil || presentation?.scene.settingsOpen == true || presentation?.scene.mokuOpen == true)
         }
         CommandGroup(after: .sidebar) {
             Button(locale.text("会话俯瞰", "Overview")) { presentation?.showOverview(focusFilter: true) }.keyboardShortcut("k")
+                .disabled(presentation?.onboarding.blocksWorkspace == true)
             Button("Moku") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
-                .disabled(presentation?.scene.settingsOpen == true)
+                .disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.scene.settingsOpen == true)
             Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
-                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.selected != nil || presentation?.scene.settingsOpen == true)
+                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.onboarding.blocksWorkspace == true || presentation?.selected != nil || presentation?.scene.settingsOpen == true)
             Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)

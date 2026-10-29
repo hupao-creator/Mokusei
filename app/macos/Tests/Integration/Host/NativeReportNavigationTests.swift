@@ -513,6 +513,7 @@ struct NativeReportNavigationTests {
         let workspace = NativeWorkspaceModel(client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory)),
             preferences: DesktopPreferences(directory: directory),
             plugins: try .init(harnesses: [], sidecards: [], applications: [NativeReportApplication.make()]))
+        try workspace.preferences.setOnboardingCompleted(true)
         let presentation = NativeWorkspacePresentation(workspace: workspace)
         defer { presentation.applicationHost.release() }
         let agent = try HarnessThread(id: "source", harnessID: "codex", revision: 0, sessionState: .object([:]),

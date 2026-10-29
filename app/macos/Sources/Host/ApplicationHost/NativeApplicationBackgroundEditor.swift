@@ -12,6 +12,7 @@ public struct NativeApplicationBackgroundEditor: View {
     private let settingID: JSONText
     private let value: ApplicationBackgroundExecutionSettings
     private let change: (ApplicationBackgroundExecutionSettings) -> Void
+    @Environment(\.nativeSettingsOnboarding) private var onboarding
 
     public init(workspace: NativeWorkspaceModel, settingsModel: NativeSettingsModel, settingID: JSONText,
                 value: ApplicationBackgroundExecutionSettings,
@@ -25,25 +26,96 @@ public struct NativeApplicationBackgroundEditor: View {
         if case .inherit = value.mode { return true }; return false
     }
     private var harnesses: [AnyHarnessPlugin] {
-        workspace.plugins.harnesses.modules.filter { $0.descriptor.threadCapabilities.canHostMoku }
+        workspace.plugins.harnesses.modules.filter { harness in
+            guard harness.descriptor.threadCapabilities.canHostMoku else { return false }
+            guard onboarding else { return true }
+            let plugin = settingsModel.plugins.first { $0.key == "harness:\(harness.descriptor.id.string)" }
+            return settingsModel.installations[harness.descriptor.id.string]?.status == .installed
+                && plugin?.enabled != false && plugin?.unavailableReason == nil
+        }
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            NativeSettingsRow(label: locale.text("跟随 Moku 配置", "Use Moku settings"), description: inherited
+            if onboarding {
+                GlassEffectContainer {
+                    HStack(spacing: 12) {
+                        modeChoice(locale.text("跟随 Moku", "Use Moku"), inherited: true)
+                        modeChoice(locale.text("单独配置", "Configure separately"), inherited: false)
+                    }
+                }.padding(.bottom, 18)
+            } else {
+                NativeSettingsRow(label: locale.text("跟随 Moku 配置", "Use Moku settings"), description: inherited
                 ? locale.text("以下为 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置。",
                               "Moku’s saved settings are shown below. Changes to Moku apply to the next task.")
                 : locale.text("独立保存运行配置，修改从下个任务开始生效。",
                               "Execution settings are saved independently. Changes apply to the next task."), inlineControl: true) {
                 NativeSettingsToggle(value: Binding(get: { inherited }, set: { setInherited($0) })).nativeSettingsControl("inherit")
+                }
             }
             switch Result(catching: { try effectiveSettings(value) }) {
             case .success(let effective):
-                executionFields(effective).id(inherited).disabled(inherited)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(locale.text("运行配置", "Execution settings"))
+                if onboarding {
+                    onboardingFields(effective).id(inherited)
+                } else {
+                    executionFields(effective).id(inherited).disabled(inherited)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(locale.text("运行配置", "Execution settings"))
+                }
             case .failure(let error):
                 NativeSettingsNotice(message: error.localizedDescription, kind: .error)
+                    .nativeSettingsEditorReady(false)
+            }
+        }
+    }
+
+    private func modeChoice(_ title: String, inherited next: Bool) -> some View {
+        Button { setInherited(next) } label: {
+            HStack(spacing: 7) {
+                Text(title)
+                if inherited == next { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)) }
+            }
+            .font(.system(size: 12, weight: inherited == next ? .medium : .regular))
+            .frame(maxWidth: .infinity).frame(height: 42)
+            .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .nativeSettingsAction(next ? "inherit" : "independent", label: title, selected: inherited == next) { setInherited(next) }
+    }
+
+    @ViewBuilder private func onboardingFields(_ effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {
+        if inherited {
+            if let host = harnesses.first(where: { $0.descriptor.id == effective.harnessPreference }) {
+                HStack(spacing: 12) {
+                    host.logo(size: 24)
+                    Text(host.descriptor.displayName.string).font(.system(size: 13, weight: .medium))
+                    Spacer()
+                }.padding(.vertical, 8)
+                    .nativeSettingsEditorReady(effective.harnesses[host.descriptor.id] != nil)
+            } else {
+                NativeSettingsNotice(message: locale.text("请先完成 Moku 配置。", "Complete Moku configuration first."))
+                    .nativeSettingsEditorReady(false)
+            }
+        } else {
+            HStack(spacing: 10) {
+                ForEach(harnesses, id: \.descriptor.id) { harness in
+                    Button { selectHarness(harness.descriptor.id) } label: {
+                        HStack(spacing: 7) {
+                            harness.logo(size: 17)
+                            Text(harness.descriptor.displayName.string).font(.system(size: 11))
+                            if effective.harnessPreference == harness.descriptor.id { Image(systemName: "checkmark").font(.system(size: 9)) }
+                        }.frame(maxWidth: .infinity).frame(height: 40)
+                            .glassEffect(.regular.interactive(), in: .capsule)
+                    }.buttonStyle(.plain)
+                        .nativeSettingsAction("harness." + harness.descriptor.id.string, label: harness.descriptor.displayName.string,
+                                              selected: effective.harnessPreference == harness.descriptor.id) { selectHarness(harness.descriptor.id) }
+                }
+            }.padding(.bottom, 14)
+            if let host = harnesses.first(where: { $0.descriptor.id == effective.harnessPreference }) {
+                harnessFields(host, effective: effective)
+            } else {
+                NativeSettingsNotice(message: locale.text("请选择可用的 Agent。", "Choose an available Agent."))
+                    .nativeSettingsEditorReady(false)
             }
         }
     }

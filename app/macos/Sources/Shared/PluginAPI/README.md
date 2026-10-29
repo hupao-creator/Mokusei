@@ -39,3 +39,7 @@ adds `result` alongside the default `start`, preserving execution identity and
 the per-click request ID. Harnesses pass semantic positioning with their public
 active-execution fact to the shared reader, alongside their existing private
 message-anchor resolution.
+
+`HarnessPluginDescriptor.installationGuide` is an optional plugin-owned official
+installation URL. First-run discovery uses it for missing Agents, keeping the
+Host independent of Harness names and installation instructions.

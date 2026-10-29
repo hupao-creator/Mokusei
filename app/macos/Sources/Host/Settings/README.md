@@ -197,3 +197,11 @@ Escape cancels the focused model/reasoning selector's open native popover before
 page navigation, without changing its value. The next Escape returns from Settings.
 `NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
 through NSApplication to cover this precedence, focus restoration and reopening.
+
+The production [onboarding panel](../Onboarding/README.md) uses this same model,
+map, Harness fields and typed application background editor. Its compact
+presentation omits group explanations and advanced routing. `draft.flush()`
+awaits accepted writes and rejects incomplete/composing/failed edits before a
+step can finish. `flushForQuit()` retains its retired-draft semantics.
+Harness editors report acquisition and incomplete local model choices through
+`NativeSettingsReadiness`; the Host does not inspect provider fields.

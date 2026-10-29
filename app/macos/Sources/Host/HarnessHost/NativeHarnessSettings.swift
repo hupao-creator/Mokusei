@@ -332,6 +332,12 @@ public struct NativeHarnessSettingsView: View {
     }
 
     public var body: some View {
+        // Resource acquisition and incomplete plugin input independently report
+        // readiness; neither may overwrite the other's current value.
+        let resourceReady = host.settingsLifetime.available && !opening && failure == nil
+            && surface?.configuration.editorIdentity == configuration.editorIdentity
+            && surface?.isReleased == false && surface?.isReady == true
+            && (!executionSnapshot || (surface?.executionSnapshotError == nil && value != .null && value != .object([:])))
         VStack(alignment: .leading, spacing: 8) {
             if !host.settingsLifetime.available {
                 NativeSettingsNotice(message: text("连接后台服务后可读取 Agent 配置。", "Connect to the runtime service to load Agent configuration."))
@@ -358,6 +364,7 @@ public struct NativeHarnessSettingsView: View {
             if host.settingsLifetime.available { await open() }
         }
         .onChange(of: refreshSequence) { _, _ in refresh() }
+        .background { Color.clear.nativeSettingsEditorReady(resourceReady) }
         .onReceive(NotificationCenter.default.publisher(for: nativeSettingsDidBecomeActiveNotification)) { _ in refresh(force: false) }
         .onDisappear { openID = UUID(); opening = false; failure = nil; surface?.unmount(); surface = nil }
     }
@@ -367,6 +374,7 @@ public struct NativeHarnessSettingsView: View {
             settingsFormPage: settingsFormPage, value: value, change: { value = $0 }) }) {
         case .success(let content): content
         case .failure(let error): NativeHarnessStatusView(message: "此 Harness 的设置暂时不可用。", english: "This Harness settings view is unavailable.", detail: error.localizedDescription)
+                .nativeSettingsEditorReady(false)
         }
     }
     private var retry: some View {

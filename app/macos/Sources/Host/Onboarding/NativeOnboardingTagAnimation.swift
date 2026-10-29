@@ -1,34 +1,42 @@
 import SpriteKit
 import SwiftUI
-@testable import MokuseiUI
+import MokuseiPluginAPI
 
-struct SetupTagPhysicsAnimation: View {
+struct NativeOnboardingTagAnimation: View {
+    let harnesses: [AnyHarnessPlugin]
+    let locale: DesktopLocale
     private struct Playback: Equatable {
         let size: CGSize
         let dark: Bool
         let active: Bool
+        let locale: DesktopLocale
+        let harnesses: [String]
     }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var windowVisible = true
     @State private var viewport = CGSize(width: 560, height: 250)
-    @State private var scene = SetupTagPhysicsScene()
+    @State private var scene = NativeOnboardingTagScene()
     @State private var staticFrameReady = false
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
 
     var body: some View {
+        if !harnesses.isEmpty { animation }
+    }
+
+    private var animation: some View {
         SpriteView(scene: scene, isPaused: !active && staticFrameReady, options: [.allowsTransparency])
             .frame(height: 250)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
             .allowsHitTesting(false)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("会话自然落下、互相碰撞并堆叠，再按标签整理")
+            .accessibilityLabel(locale.text("分散的会话被标签归类，便于找到所需内容", "Scattered conversations organize into tags, making them easier to find"))
             .accessibilityIdentifier("tag-capability-animation")
             .background(NativeSettingsWindowVisibility { windowVisible = $0 })
-            .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active)) {
+            .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active, locale: locale, harnesses: harnesses.map { $0.descriptor.id.string })) {
                 staticFrameReady = false
-                scene.prepare(size: viewport, dark: colorScheme == .dark)
+                scene.prepare(size: viewport, dark: colorScheme == .dark, harnesses: harnesses, locale: locale)
                 guard active else {
                     scene.organize(animated: false)
                     // Let SpriteKit draw updated textures before pausing its renderer,
@@ -41,7 +49,7 @@ struct SetupTagPhysicsAnimation: View {
                     while !Task.isCancelled {
                         scene.reset()
                         try await Task.sleep(for: .milliseconds(250))
-                        for arrival in SetupTagPhysicsScene.arrivals {
+                        for arrival in NativeOnboardingTagScene.arrivals {
                             scene.drop(arrival.index)
                             try await Task.sleep(for: .milliseconds(arrival.pause))
                         }
@@ -58,22 +66,24 @@ struct SetupTagPhysicsAnimation: View {
 }
 
 /// Physics owns positions until grouping begins; the same nodes then animate into tags.
-@MainActor private final class SetupTagPhysicsScene: SKScene {
+@MainActor private final class NativeOnboardingTagScene: SKScene {
     private let categories: [(String, Color)] = [
         ("设计", .purple), ("开发", .blue), ("调研", .orange), ("文档", .teal), ("维护", .green)
     ]
-    private let tasks: [(String, Int, SetupAgent)] = [
-        ("设计登录页面", 0, .codex), ("优化搜索体验", 1, .claude), ("整理用户访谈", 2, .opencode),
-        ("补充使用指南", 3, .claude), ("执行回归检查", 4, .codex), ("调整窗口布局", 0, .opencode),
-        ("接入模型接口", 1, .codex), ("分析竞品体验", 2, .claude), ("更新开发文档", 3, .opencode),
-        ("修复会话恢复", 4, .claude), ("打磨标签样式", 0, .codex), ("支持语音输入", 1, .opencode),
-        ("调研快捷操作", 2, .codex), ("整理版本说明", 3, .claude), ("排查窗口焦点", 4, .opencode)
-    ]
+    private var tasks: [(String, Int, Int)] { [
+        (locale.text("设计登录页面", "Refine login UI"), 0, 0), (locale.text("优化搜索体验", "Improve search"), 1, 1), (locale.text("整理用户访谈", "Review interviews"), 2, 2),
+        (locale.text("补充使用指南", "Write user guide"), 3, 1), (locale.text("执行回归检查", "Run regression"), 4, 0), (locale.text("调整窗口布局", "Arrange windows"), 0, 2),
+        (locale.text("接入模型接口", "Connect models"), 1, 0), (locale.text("分析竞品体验", "Compare products"), 2, 1), (locale.text("更新开发文档", "Update dev docs"), 3, 2),
+        (locale.text("修复会话恢复", "Restore sessions"), 4, 1), (locale.text("打磨标签样式", "Polish tag style"), 0, 0), (locale.text("支持语音输入", "Add voice input"), 1, 2),
+        (locale.text("调研快捷操作", "Explore shortcuts"), 2, 0), (locale.text("整理版本说明", "Write release notes"), 3, 1), (locale.text("排查窗口焦点", "Fix window focus"), 4, 2)
+    ] }
     static let arrivals: [(index: Int, pause: Int)] = [
         (5, 90), (1, 230), (11, 75), (3, 110), (8, 320),
         (0, 65), (13, 170), (6, 90), (4, 260), (10, 80),
         (7, 140), (14, 65), (2, 210), (12, 110), (9, 180)
     ]
+    private var harnesses: [AnyHarnessPlugin] = []
+    private var locale = DesktopLocale.chinese
     private let content = SKNode()
     private var tokens: [Int: SKSpriteNode] = [:]
     private var labels: [SKSpriteNode] = []
@@ -87,10 +97,11 @@ struct SetupTagPhysicsAnimation: View {
         backgroundColor = .clear
         physicsWorld.gravity = .init(dx: 0, dy: -7.8)
     }
-    required init?(coder: NSCoder) { fatalError("Fixture scene is created in code") }
+    required init?(coder: NSCoder) { fatalError("Onboarding scene is created in code") }
 
-    func prepare(size: CGSize, dark: Bool) {
+    func prepare(size: CGSize, dark: Bool, harnesses: [AnyHarnessPlugin], locale: DesktopLocale) {
         stop()
+        self.harnesses = harnesses; self.locale = locale
         self.size = size
         tokenSize.width = min(106, size.width / 5 - 6)
         // The walls extend above the visible scene so entries can fall through its top.
@@ -105,9 +116,9 @@ struct SetupTagPhysicsAnimation: View {
         groupedTextures = tasks.map { task in
             texture(tokenLabel(task, grouped: true, dark: dark).environment(\.colorScheme, scheme))
         }
-        labels = categories.map { category in
+        labels = categories.enumerated().map { index, category in
             let label = VStack(spacing: 10) {
-                Text(category.0).font(.system(size: 12, weight: .medium))
+                Text(locale.text(category.0, ["Design", "Build", "Research", "Docs", "Upkeep"][index])).font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 16).padding(.vertical, 9)
                     .background(category.1.opacity(dark ? 0.18 : 0.09), in: Capsule())
                 Capsule().fill(category.1.opacity(0.25)).frame(width: 1, height: 12)
@@ -197,9 +208,9 @@ struct SetupTagPhysicsAnimation: View {
         return node
     }
 
-    private func tokenLabel(_ task: (String, Int, SetupAgent), grouped: Bool, dark: Bool) -> some View {
+    private func tokenLabel(_ task: (String, Int, Int), grouped: Bool, dark: Bool) -> some View {
         HStack(spacing: 6) {
-            task.2.logo(14).frame(width: 14, height: 14)
+            harnesses[task.2 % harnesses.count].logo(size: 14).frame(width: 14, height: 14)
             Text(task.0).font(.system(size: 11, weight: .medium)).lineLimit(1).minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 6).frame(width: tokenSize.width, height: tokenSize.height)
@@ -212,7 +223,7 @@ struct SetupTagPhysicsAnimation: View {
     private func texture<Content: View>(_ content: Content) -> SKTexture {
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
-        guard let image = renderer.cgImage else { preconditionFailure("Could not render the demo's native token") }
+        guard let image = renderer.cgImage else { preconditionFailure("Could not render the onboarding token") }
         let texture = SKTexture(cgImage: image)
         return texture
     }
