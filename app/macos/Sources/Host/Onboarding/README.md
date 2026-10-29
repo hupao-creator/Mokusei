@@ -19,14 +19,29 @@ installed Harness logos or plugin-owned installation guides. Moku reuses the
 Settings coordination map and native Harness execution fields. Tag and Report
 reuse application-owned background configuration, including inheritance and
 retained independent profiles. Provider catalogs, pending model choices and
-validation remain in their native plugins. The shared readiness registry
+validation remain in their native plugins. Model, reasoning and other select
+fields use AppKit system popups through the compact presentation environment,
+with the same option identities, disabled states and discrete-change bindings
+as Settings. The shared readiness registry
 combines resource acquisition and incomplete local input; IME, failed saves,
 unavailable Harnesses and invalid fields prevent advancing.
 
+Inherited Tag and Report configuration displays the actual saved Moku profile
+through the same read-only native Harness fields as Settings, including catalog
+and resource status. It waits for resource readiness rather than treating the
+presence of a saved profile as sufficient. Switching back to independent mode
+restores its own retained configuration.
+
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
 shared with Settings through `NativeRoleConfigurationPanel` and with the visual
-demo. Settings retains the animations without onboarding step admission. They use the discovered Harness logos, cancel on
-step exit, and show a static completed composition with Reduce Motion. Tag's
+demo. Each mounted Tag or Report page plays once with the discovered Harness
+logos and retains its completed composition. Settings uses the same behavior
+without onboarding step admission. Leaving the page cancels playback; entering
+it again creates a new playback visit. Hiding or deactivating the window during
+playback settles to the completed composition without replaying on activation.
+Reduce Motion shows the completed composition without deferred playback. Tag
+also rebuilds a static final frame on size, appearance, locale or Harness changes
+after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
 collision boundaries remain invisible. Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 

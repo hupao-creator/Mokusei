@@ -2,7 +2,7 @@ import AppKit
 import MokuseiCore
 import SwiftUI
 
-/// Settings pages use the system popup; other embedded editors retain their layout.
+/// Settings and onboarding use the system popup; embedded editors retain their layout.
 public struct NativeSettingsSelectPopover: View {
     @Binding private var selection: JSONText
     private let options: [NativeSettingsOption]
@@ -10,6 +10,7 @@ public struct NativeSettingsSelectPopover: View {
     private let accessibilityDescription: String?
     private let invalid: Bool
     @Environment(\.nativeSettingsFormPage) private var formPage
+    @Environment(\.nativeSettingsCompactPresentation) private var compactPresentation
     public init(selection: Binding<JSONText>, options: [NativeSettingsOption], accessibilityLabel: String,
                 accessibilityDescription: String? = nil, invalid: Bool = false) {
         _selection = selection; self.options = options; self.accessibilityLabel = accessibilityLabel
@@ -17,7 +18,7 @@ public struct NativeSettingsSelectPopover: View {
     }
     public var body: some View {
         Group {
-            if formPage {
+            if formPage || compactPresentation {
                 NativeSettingsPopup(selection: $selection, options: options, label: accessibilityLabel,
                                     description: accessibilityDescription)
             } else {

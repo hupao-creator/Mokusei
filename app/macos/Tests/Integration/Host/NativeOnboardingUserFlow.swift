@@ -49,6 +49,7 @@ import MokuseiApplications
             try await wait("Completed Moku profile did not become ready") { setup.canAdvance }
             try await activate("next", in: presentation)
             try await wait("Tag did not inherit the saved Moku profile") { setup.step == .tag && setup.canAdvance }
+            try await verifyInherited("tag.settings", in: presentation, window: window)
             #expect(setup.settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("high"))
             try await activate("independent", in: presentation)
             try await wait("Tag independent profile did not become ready") {
@@ -56,8 +57,10 @@ import MokuseiApplications
             }
             try await activate("inherit", in: presentation)
             try await wait("Tag inheritance did not settle") { setup.canAdvance }
+            try await verifyInherited("tag.settings", in: presentation, window: window)
             try await activate("next", in: presentation)
             try await wait("Report did not become ready") { setup.step == .report && setup.canAdvance }
+            try await verifyInherited("report.settings", in: presentation, window: window)
             try await activate("back", in: presentation)
             try await wait("Back did not preserve Tag configuration") { setup.step == .tag && setup.canAdvance }
             let tag = setup.settings.draft.value["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text("tag.settings") })?["value"]
@@ -93,6 +96,7 @@ import MokuseiApplications
                 settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]
             }
             try presentation.performInteraction(.selectSettingsSection("report.settings"))
+            try await verifyInherited("report.settings", in: presentation, window: window)
             try await activate("independent", in: presentation)
             try await control("report.settings.codex.model", operation: "select", value: .text("settings-b"), in: presentation)
             try await control("report.settings.codex.effort", operation: "select", value: .text("medium"), in: presentation)
@@ -105,6 +109,7 @@ import MokuseiApplications
             try await wait("Independent Tag profile did not persist") { application("tag.settings")?["mode"] == .text("override") }
             try await activate("inherit", in: presentation)
             try await wait("Tag inheritance did not persist") { application("tag.settings")?["mode"] == .text("inherit") }
+            try await verifyInherited("tag.settings", in: presentation, window: window)
             #expect(application("tag.settings")?["independent"] != nil)
             try presentation.performInteraction(.selectSettingsSection("report.settings"))
             try await activate("inherit", in: presentation)
@@ -112,6 +117,20 @@ import MokuseiApplications
                 application("report.settings")?["mode"] == .text("inherit") &&
                 application("report.settings")?["independent"]?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
             }
+            // The retained independent profile is settings-b/medium, whereas
+            // this read-only display must still be Moku's explicit/high profile.
+            try await verifyInherited("report.settings", in: presentation, window: window)
+
+            try presentation.performInteraction(.selectSettingsSection("moku"))
+            try await control("moku.codex.model", operation: "select", value: .text("settings-a"), in: presentation)
+            try await control("moku.codex.effort", operation: "select", value: .text("low"), in: presentation)
+            try await wait("Moku effort change did not persist") {
+                settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("low")
+            }
+            try presentation.performInteraction(.selectSettingsSection("tag.settings"))
+            try await verifyInherited("tag.settings", in: presentation, window: window)
+            try presentation.performInteraction(.selectSettingsSection("report.settings"))
+            try await verifyInherited("report.settings", in: presentation, window: window)
             try await activate("independent", in: presentation)
             try await wait("Independent Report choice was not restored") {
                 application("report.settings")?["mode"] == .text("override") &&
@@ -121,22 +140,60 @@ import MokuseiApplications
             try await wait("Settings did not release its modal gate") { !presentation.scene.settingsOpen }
         } catch {
             try? presentation.interactionSnapshot().encodedData().write(to: directory.appendingPathComponent("onboarding-failure.json"))
-            if let target = try? await SCShareableContent.currentProcess.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) {
-                let configuration = SCStreamConfiguration()
-                configuration.width = Int(target.frame.width * window.backingScaleFactor)
-                configuration.height = Int(target.frame.height * window.backingScaleFactor)
-                configuration.ignoreShadowsSingleWindow = true
-                configuration.showsCursor = false
-                configuration.colorSpaceName = CGColorSpace.sRGB
-                if let image = try? await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration),
-                   let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) {
-                    try? data.write(to: directory.appendingPathComponent("onboarding-failure.png"))
-                }
-            }
+            try? await capture(window, to: directory.appendingPathComponent("onboarding-failure.png"))
             window.close(); await presentation.release(); try? await workspace.stop()
             throw error
         }
         window.close(); await presentation.release(); try await workspace.stop()
+    }
+
+    private static func verifyInherited(_ settingID: String, in presentation: NativeWorkspacePresentation, window: NSWindow) async throws {
+        let settings = presentation.workspace.settingsModel
+        let profile = try #require(settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"])
+        let expected = ["model": try #require(profile["model"]), "effort": try #require(profile["effort"]),
+                        "serviceTier": try #require(profile["serviceTier"])]
+        func controls() -> [JSONValue] { presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? [] }
+        try await wait("Inherited \(settingID) fields did not show Moku's saved configuration as read-only") {
+            expected.allSatisfy { field, value in
+                controls().contains {
+                    $0["id"] == .text(settingID + ".codex." + field) && $0["value"] == value
+                        && $0["enabled"] == .bool(false) && $0["pending"] == .bool(false)
+                }
+            }
+        }
+        let before = settings.draft.value
+        let model = try #require(controls().first { $0["id"] == .text(settingID + ".codex.model") })
+        #expect(throws: NativeInteractionError.self) {
+            try presentation.performInteraction(.settingsControl(id: settingID + ".codex.model",
+                handle: try #require(model["handle"]?.stringValue), operation: "select", value: .text("settings-b")))
+        }
+        #expect(settings.draft.value == before)
+        if let path = ProcessInfo.processInfo.environment["MOKUSEI_INHERITED_SETTINGS_ARTIFACTS"] {
+            let directory = URL(fileURLWithPath: path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let page = presentation.onboarding.blocksWorkspace ? "onboarding" : "settings"
+            // Evidence only: let mode/page transitions settle after the live
+            // control assertions, then capture native glass and AppKit controls.
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            try await Task.sleep(for: .milliseconds(600))
+            try await capture(window, to: directory.appendingPathComponent("\(page)-\(settingID).png"))
+        }
+    }
+
+    private static func capture(_ window: NSWindow, to url: URL) async throws {
+        let target = try #require(try await SCShareableContent.currentProcess.windows.first {
+            $0.windowID == CGWindowID(window.windowNumber)
+        })
+        let configuration = SCStreamConfiguration()
+        configuration.width = Int(window.frame.width * window.backingScaleFactor)
+        configuration.height = Int(window.frame.height * window.backingScaleFactor)
+        configuration.ignoreShadowsSingleWindow = true
+        configuration.showsCursor = false
+        configuration.colorSpaceName = CGColorSpace.sRGB
+        let image = try await SCScreenshotManager.captureImage(
+            contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration)
+        try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])).write(to: url)
     }
 
     private static func activate(_ suffix: String, in presentation: NativeWorkspacePresentation) async throws {

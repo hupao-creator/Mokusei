@@ -293,6 +293,13 @@ struct NativeComposerEditor: NSViewRepresentable {
     @objc private func caretWindowChanged() {
         if window?.isKeyWindow != true || window?.occlusionState.contains(.visible) != true { caret.remove() }
     }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        // CALayer colors are resolved values; refresh even without an edit.
+        caret.remove()
+        needsDisplay = true
+        if emphasizedInsertionPoint { updateInsertionPointStateAndRestartTimer(true) }
+    }
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted { focusChanged?() }

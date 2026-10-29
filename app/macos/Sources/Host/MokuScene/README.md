@@ -2,6 +2,9 @@
 
 [NativeMokuWorkspacePresentation](NativeMokuWorkspacePresentation.swift) derives the current Moku execution's display from public transcript operations. [NativeMokuSceneState](NativeMokuSceneState.swift) owns transient presentation and dismissal. The [Go coordinator](../../../../../internal/services/moku/README.md) owns task admission, tool results, notes and voice routing.
 
+Question choices use the full visible rounded rectangle as their button hit
+shape, including padding and the empty space beside the answer text.
+
 Settings uses the SwiftUI [reveal overlay](../Settings/NativeSettingsTransition.swift)
 inside the persistent scene. Scene state retains Settings through return and
 reports its transition lifetime; the overlay owns animation completion and
@@ -87,13 +90,16 @@ An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
 importing, submission and unavailable states retain their ordinary admission rules.
-Moku editors use a shortened, rounded 2.6-point caret with a warm-yellow upper
-halo and cool-blue lower halo, plus the reference’s blurred gradient fringe.
+Moku editors use a shortened, rounded caret. Dark mode retains the 2.6-point
+white core with a warm-yellow upper halo, cool-blue lower halo and blurred
+gradient fringe. Light mode uses a 1.5-point native dark core without glow so
+the insertion point does not resemble a heavy glyph stroke on pale glass.
+The empty placeholder starts three points after the insertion origin.
 Composer padding lives inside the native viewport so these halos are not cut at
 the text line edges. A 2.4-second breathing cycle replaces native on/off
 blinking; the white dark-mode core retains native dark ink in light appearance.
 Light-mode ink stays at 80–100% opacity so the dim phase remains visible;
-dark-mode ink uses 20–100%, while the halos fade fully in both appearances.
+dark-mode ink uses 20–100%, while its halos fade fully.
 Same-line movement remains 120ms and interruptible. IME composition uses the
 native caret; line changes stay immediate. Selection and focus/visibility loss
 remove the layer and animations. Reduce Motion keeps the caret steady and makes

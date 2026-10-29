@@ -95,7 +95,7 @@ enum NativeSettingsPrefetchReplay {
         #expect(!failed.isReady)
         let navigation = NativeSettingsNavigation(section: "general")
         let failureWindow = SwiftUIReplay.window(NativeHarnessSettingsView(host: host, configuration: defaults(),
-            section: .cli, settingsFormPage: true, value: .constant(defaults().source))
+            section: .cli, settingsFormPage: true, readOnly: true, value: .constant(defaults().source))
             .environment(\.locale, Locale(identifier: "en"))
             .environment(\.nativeSettingsInteractions, navigation.interactions)
             .environment(\.nativeSettingsInteractionContext, navigation.interactionContext(section: "general"))
@@ -110,6 +110,7 @@ enum NativeSettingsPrefetchReplay {
         #expect(!failureControls().contains { $0["value"] == .text("Loading Agent configuration…") })
         try await configure(.object(["failures": .integer(0)]))
         let retry = try #require(failureControls().first { $0["id"] == .text("general.retryLoad") })
+        #expect(retry["enabled"] == .bool(true))
         try navigation.interactions.perform(id: "general.retryLoad", handle: try #require(retry["handle"]?.stringValue),
             operation: "activate", value: .null, context: navigation.interactionContext(section: "general"))
         try await eventually("mounted editor retries failed acquisition") { failed.isReady }

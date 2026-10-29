@@ -163,13 +163,17 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
-2.6-point rounded caret, sized to 25/24 of the text size and centered in the
-native insertion rectangle. The core is white in dark appearance and uses native
-ink in light appearance, with a warm-yellow upper halo and cool-blue lower halo.
+rounded caret, sized to 25/24 of the text size and centered in the native
+insertion rectangle. Dark appearance uses a 2.6-point white core with a
+warm-yellow upper halo and cool-blue lower halo. Light appearance uses a slimmer
+1.5-point native-ink core without a luminous fringe, keeping the insertion mark
+distinct from glyph strokes on pale glass. Empty emphasized inputs leave three
+points between the insertion origin and placeholder text. Appearance changes
+refresh the resolved layer color and geometry even without typing.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
-once per caret height/backing scale and its opacity is animated by Core Animation;
+only in dark appearance, once per caret height/backing scale and its opacity is animated by Core Animation;
 no per-frame SwiftUI rendering or timer is needed. Emphasized editors place their
 existing padding inside the native text viewport, preserving glyph positions while
 leaving room for the glow before native scroll clipping.
@@ -281,9 +285,18 @@ growth retries that location until it is reachable or the user scrolls.
 
 ## Model and reasoning selection
 
-[NativeModelSelector](Forms/NativeModelSelector.swift) is the shared native capsule
-and popover for Harness model choices. Its model list scrolls, marks the current
-choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
+[NativeModelSelector](Forms/NativeModelSelector.swift) uses the shared system
+`NSPopUpButton` for models and reasoning in Settings (`nativeSettingsFormPage`)
+and onboarding/role panels (`nativeSettingsCompactPresentation`). Default and
+reset values remain explicit menu options; no slider or nested model menu is
+mounted in those forms. AppKit owns menu rendering, focus, keyboard navigation,
+cancellation and accessibility. The shared adapter preserves opaque option IDs,
+disabled rows, row-label activation and discrete-change interaction registration.
+`NativeSettingsControlsReplayTests` mounts the production standard/model/reasoning
+selects in both environments and checks real AppKit actions and bindings.
+
+Embedded Thread editors retain the capsule and popover for Harness model choices.
+The model list scrolls, marks the current choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
 type-ahead, Enter, Escape and Tab. The reasoning presentation shows a discrete
 purple slider in the Harness's supplied option order. A single choice remains a
 button; an unselected/default value does not paint a falsely selected slider knob.

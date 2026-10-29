@@ -16,10 +16,25 @@ selection, Undo, label activation and the draft close/save gate.
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
 | Report and Tag | Onboarding inheritance/independent glass choices, Harness seats, native execution fields and live capability animations |
 
+Report and Tag show the saved Moku execution profile beside the inherited Agent
+in both Settings and onboarding. The read-only details reuse the Harness's native
+fields and catalog statuses, including model, reasoning and other execution
+parameters. They join Moku's saved resource even while a role-mode save is pending,
+so a retained independent profile cannot supply the inherited details or catalog.
+Resource loading, errors and retry remain visible; retry stays enabled while
+configuration fields are read-only. Missing/unavailable Agents and unready
+resources prevent onboarding from advancing. Returning to independent mode keeps
+its retained choices.
+
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry
 keeps the same descriptors and discrete-change semantics.
+
+The shared role editor's inheritance and Harness choices define a capsule hit
+shape inside each plain button label, after its full-width frame and glass.
+The entire visible capsule, including the space beside its text, selects the
+choice in both Settings and onboarding.
 
 The coordination and dispatch map retains the icon presentation from before
 `016735c` (system Settings controls): transparent 48-point seats, hover surfaces
@@ -28,12 +43,11 @@ paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-The reference-image model/effort selector is a separate component task. Its
-integration points are the shared `NativeSettingsSelect`/`NativeSettingsSelectPopover`
-entry and each Harness's model, thinking/effort or variant field in
-`CodexSettings`, `ClaudeSettings`, `PiSettings` and `OpenCodeSettings`. This change
-does not alter their catalog, default or dependent-choice mapping. Changes in
-those Harness files here are confined to refresh/retry button presentation.
+Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
+as other selects in Settings and onboarding, including compact role panels.
+`NativeModelSelector` delegates to the system select in these environments;
+Harness catalog, default and dependent-choice mapping remain at their callers.
+Embedded Thread editors retain their capsule/popover presentation.
 
 `NativeSettingsControlsReplayTests` mounts the shared production form and sends
 AppKit actions through real controls, checking option identity/disabled state,
@@ -194,18 +208,20 @@ installation paths stay unchanged. OpenCode can return a native catalog before
 optional account checks complete: it labels that uncertainty and rereads without
 forcing another probe. No settings navigation or Map layout is changed.
 
-Escape cancels the focused model/reasoning selector's open native popover before
-page navigation, without changing its value. The next Escape returns from Settings.
-`NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
-through NSApplication to cover this precedence, focus restoration and reopening.
+AppKit owns the system select's menu tracking, keyboard navigation and cancellation.
+Settings keeps its existing page Escape handler; embedded model popovers retain
+`NativeSettingsEscapeCancelling` for document-level navigation.
 
 The production [onboarding panel](../Onboarding/README.md) and Settings mount
 the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application
 background editor. `nativeSettingsCompactPresentation` suppresses group explanations
 and selects the inheritance/independent glass controls. Tag and Report keep their
-production animations while configuration stays immediately available. Leaving
-the tab unmounts and cancels its animation; inactive/hidden windows pause it and
-Reduce Motion shows the completed composition. Settings has no onboarding progress
+production animations while configuration stays immediately available. Each tab
+visit plays once and retains its completed composition. Leaving the tab unmounts
+and cancels its animation; inactive/hidden windows settle an interrupted playback
+to the final frame without replaying on activation. Reduce Motion shows the
+completed composition without deferred playback. Tag pauses SpriteKit after
+rendering its final frame. Settings has no onboarding progress
 or admission steps. Onboarding alone omits advanced routing. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.

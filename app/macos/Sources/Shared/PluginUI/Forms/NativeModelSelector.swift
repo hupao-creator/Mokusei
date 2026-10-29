@@ -28,6 +28,8 @@ public struct NativeModelSelector: View {
     private let model: ModelLink?
     private let label: String?
     @Environment(\.nativeSettingsField) private var field
+    @Environment(\.nativeSettingsFormPage) private var formPage
+    @Environment(\.nativeSettingsCompactPresentation) private var compactPresentation
 
     public init(value: Binding<JSONText>, options: [NativeSettingsOption],
                 presentation: Presentation = .models, model: ModelLink? = nil,
@@ -37,6 +39,14 @@ public struct NativeModelSelector: View {
     }
 
     public var body: some View {
+        if formPage || compactPresentation {
+            NativeSettingsSelect(value: $value, options: options, accessibilityLabel: label)
+        } else {
+            embeddedSelector
+        }
+    }
+
+    private var embeddedSelector: some View {
         ModelSelectorRepresentation(value: value, options: options, presentation: presentation,
                                     model: model, label: label ?? field.label, help: field.description,
                                     invalid: field.invalid) { id in
