@@ -248,7 +248,9 @@ text. The `singleLine` option lays the native editor out as one horizontally
 scrolling, non-wrapping line, keeps Return from inserting a break and omits the
 multiline submit tooltip; the field owner is responsible for replacing pasted
 line breaks. With no horizontal scroller, the native editor still scrolls the
-caret into view and responds to trackpad movement.
+caret into view and responds to trackpad movement. Its layout pins the vertical
+clip origin after a viewport resize, including when SwiftUI initially presents a
+short document; horizontal scrolling remains owned by the text editor.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered

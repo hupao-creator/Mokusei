@@ -36,6 +36,16 @@ struct SwiftUIOverviewInteractionTests {
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { SwiftUIReplay.editor(in: root) != nil }
         let editor = try #require(SwiftUIReplay.editor(in: root))
+        // AppKit can retain a negative clip origin after the document grows
+        // from its initial, shorter height during the search morph.
+        let scroll = try #require(editor.enclosingScrollView)
+        editor.setFrameSize(NSSize(width: editor.frame.width, height: 25))
+        let constrained = scroll.contentView.constrainBoundsRect(scroll.contentView.bounds)
+        #expect(constrained.origin.y == 0)
+        scroll.contentView.setBoundsOrigin(NSPoint(x: 0, y: -15))
+        scroll.needsLayout = true
+        scroll.layoutSubtreeIfNeeded()
+        #expect(scroll.contentView.bounds.origin.y == 0)
         editor.setMarkedText("ni", selectedRange: .init(location: 2, length: 0), replacementRange: .init(location: NSNotFound, length: 0))
         #expect(editor.hasMarkedText())
         editor.insertText("你好世界", replacementRange: .init(location: NSNotFound, length: 0))
@@ -46,6 +56,16 @@ struct SwiftUIOverviewInteractionTests {
         editor.insertText("SwiftUI", replacementRange: .init(location: NSNotFound, length: 0))
         try await SwiftUIReplay.wait { fixture.text == "SwiftUI" }
         #expect(fixture.exits == 0)
+        let longQuery = String(repeating: "long query ", count: 30)
+        editor.insertText(longQuery, replacementRange: NSRange(location: 0, length: editor.string.utf16.count))
+        try await SwiftUIReplay.wait { fixture.text == longQuery }
+        editor.scrollRangeToVisible(NSRange(location: longQuery.utf16.count, length: 0))
+        let horizontalOrigin = scroll.contentView.bounds.origin.x
+        #expect(horizontalOrigin > 0)
+        scroll.needsLayout = true
+        scroll.layoutSubtreeIfNeeded()
+        #expect(scroll.contentView.bounds.origin.x == horizontalOrigin)
+        #expect(scroll.contentView.bounds.origin.y == 0)
     }
 
     @Test(.requiresDisplay) func focusedCardPausesCameraUntilFocusLeaves() async throws {
