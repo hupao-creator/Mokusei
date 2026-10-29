@@ -28,6 +28,8 @@ drafts, Settings/ordinary-composer theme isolation, identical rendered opaque
 capsule fills, and the expanded Overview search in a light workspace: it must
 mount the production emphasized, single-line native editor under Moku's dark
 appearance and render the same opaque material as Moku.
+The replay also inserts a multiline replacement directly into the unattached
+search editor and checks normalization and selection when the query is unchanged.
 The production caret is exercised under four native appearances: the white
 2.6-point core, rasterized halo, 2.4-second breathing cycle, same-line motion,
 Reduce Motion and removal. This detects accidental reintroduction of a light

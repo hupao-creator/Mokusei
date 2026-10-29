@@ -6,7 +6,7 @@ import MokuseiCore
 @testable import MokuseiUI
 
 // Offscreen NSHostingViews exercise the actual production trees. No app windows,
-// app activation, synthetic input or system appearance/preference writes.
+// app activation, keyboard events or system appearance/preference writes.
 @MainActor private struct SchemeProbe: NSViewRepresentable {
     let name: String
     @Environment(\.colorScheme) private var scheme
@@ -169,6 +169,19 @@ import MokuseiCore
         precondition(short.string == "光标")
         precondition(short.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
                      "Search contents must inherit Moku's dark material appearance")
+
+        // The model may reject an edit whose normalized value is unchanged.
+        // The native editor must still remove pasted breaks and keep its caret.
+        var edits: [String] = []
+        let editHost = NSHostingView(rootView: OverviewThreadSearchField(text: "a b", placeholder: "Search",
+            focusRequest: 0, onChange: { edits.append($0) }, onExit: {}))
+        editHost.frame = CGRect(x: 0, y: 0, width: 300, height: 44)
+        try await settle(editHost)
+        let editing = descendants(editHost, ComposerTextView.self).first!
+        editing.insertText("a\nb", replacementRange: NSRange(location: 0, length: 3))
+        precondition(editing.string == "a b" && edits.isEmpty,
+                     "Unexpected editor text or model edits: \(editing.string.debugDescription), \(edits)")
+        precondition(editing.selectedRange() == NSRange(location: 3, length: 0))
 
         // A long query must stay on one line and extend the native document
         // horizontally instead of wrapping into the fixed-height carrier.

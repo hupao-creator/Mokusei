@@ -188,6 +188,17 @@ struct NativeComposerEditor: NSViewRepresentable {
             guard let editor, editor.operationDepth == 0 else { return }
             guard !updating else { schedulePublish(); return }
             applySelectionRequest()
+            if synchronizeText, parent.singleLine, !editor.hasMarkedText(), let storage = editor.textStorage {
+                // Normalize at the editor boundary even if the resulting model
+                // value is unchanged and SwiftUI therefore does not rerender.
+                // Each newline occupies one UTF-16 unit, preserving selection.
+                let text = storage.string as NSString
+                for index in (0..<text.length).reversed() {
+                    if let scalar = UnicodeScalar(text.character(at: index)), CharacterSet.newlines.contains(scalar) {
+                        storage.replaceCharacters(in: NSRange(location: index, length: 1), with: " ")
+                    }
+                }
+            }
             let state = NativeComposerEditorState(text: editor.string, selection: editor.selectedRange(),
                 focused: editor.window?.firstResponder === editor, composing: editor.hasMarkedText())
             // Passive rerenders/focus reports must not overwrite a model update
