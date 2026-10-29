@@ -64,6 +64,7 @@ struct NativeMokuNoteContent: View {
     let width: CGFloat
     let height: CGFloat
     let availableHeight: CGFloat
+    var rowHeight: CGFloat = 0
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
     var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
@@ -77,6 +78,7 @@ struct NativeMokuNoteContent: View {
     @State private var exposure = NativeMokuNoteExposureTracker()
     private let headerHeight: CGFloat = 54
     private var footerHeight: CGFloat { onOpenHistory == nil ? 0 : 52 }
+    private var shortViewport: Bool { availableHeight < headerHeight + footerHeight + 44 }
 
     private func localize(_ zh: String, _ en: String) -> String {
         locale.language.languageCode?.identifier == "zh" ? zh : en
@@ -84,7 +86,7 @@ struct NativeMokuNoteContent: View {
 
     var body: some View {
         Group {
-            if availableHeight < headerHeight + footerHeight + 44 {
+            if shortViewport {
                 // At large app zoom, fixed chrome can leave less than a line.
                 // Let the header scroll with the body in this short viewport.
                 // Use the Dock's capacity, not the initially empty document's
@@ -98,11 +100,12 @@ struct NativeMokuNoteContent: View {
                     NativeScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
                         .frame(height: max(0, height - headerHeight - footerHeight))
+                    Spacer(minLength: 0)
                     historyEntry
                 }
             }
         }
-        .frame(width: width, height: height, alignment: .top)
+        .frame(width: width, height: height + (shortViewport ? 0 : rowHeight), alignment: .top)
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
             if height > 0 { onContentHeightChange?(height + headerHeight + footerHeight) }
@@ -136,7 +139,8 @@ struct NativeMokuNoteContent: View {
                 .accessibilityLabel(localize("查看 Moku 历史详情", "View Moku conversation history"))
                 .accessibilityIdentifier("moku-note-history")
             }
-            .padding(.horizontal, 18).padding(.bottom, 12)
+            .padding(.horizontal, 18)
+            .padding(.bottom, shortViewport ? 12 : max(0, (rowHeight - 28) / 2))
         }
     }
     private var header: some View {

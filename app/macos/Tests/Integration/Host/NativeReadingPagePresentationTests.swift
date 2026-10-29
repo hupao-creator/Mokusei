@@ -11,6 +11,9 @@ import MokuseiUI
 
 @MainActor @Observable private final class ReadingFixture {
     var open = false
+    var axis: Axis = .horizontal
+    var identity: JSONText = "detail"
+    var direction: CGFloat = 1
     var text = "Initial overview"
     var duration = NativeReadingPageTiming.duration
     let motion = NativeReadingPageMotion()
@@ -32,8 +35,8 @@ private struct ReadingFrontProbe: NSViewRepresentable {
 private struct ReadingReplay: View {
     let fixture: ReadingFixture
     var body: some View {
-        NativeReadingPageStack(open: fixture.open, identity: "detail", motion: fixture.motion,
-            focusBlur: true, stationaryParent: true, emphasizedOpening: true, duration: fixture.duration,
+        NativeReadingPageStack(open: fixture.open, identity: fixture.identity, motion: fixture.motion,
+            focusBlur: true, stationaryParent: true, emphasizedOpening: true, duration: fixture.duration, axis: fixture.axis, direction: fixture.direction,
             onClose: { fixture.open = false }) {
             Text(fixture.text).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 1, green: 0, blue: 0)).onAppear { fixture.parentAppearances += 1 }
                 .onChange(of: fixture.text, initial: true) { _, text in fixture.renderedText = text }
@@ -116,6 +119,72 @@ struct NativeReadingPagePresentationTests {
             0.85 * (baseline.redComponent - baseline.greenComponent), "Overview pixel: \(left), baseline: \(baseline)")
         #expect(right.blueComponent > 0.9 && right.redComponent < 0.1, "Detail pixel: \(right)")
         fixture.motion.cancel()
+    }
+
+    @Test func verticalPagesKeepTheirHorizontalPositionAndCancelObsoleteReturns() async throws {
+        let fixture = ReadingFixture()
+        fixture.axis = .vertical
+        fixture.duration = 1.2
+        let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture), offscreen: true)
+        defer { window.close() }
+        try await SwiftUIReplay.wait { fixture.parentAppearances == 1 }
+        let root = try #require(window.contentView)
+        fixture.open = true
+        try await SwiftUIReplay.wait {
+            guard fixture.motion.active, let probe = fixture.frontProbe else { return false }
+            let frame = probe.convert(probe.bounds, to: root)
+            return abs(frame.minY) > root.bounds.height * 0.3 && abs(frame.minY) < root.bounds.height * 0.7
+        }
+        let probe = try #require(fixture.frontProbe)
+        #expect(abs(probe.convert(probe.bounds, to: root).minX) < 1)
+        if let path = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
+            let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
+            root.cacheDisplay(in: root.bounds, to: image)
+            let directory = URL(fileURLWithPath: path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try #require(image.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent("vertical-middle.png"))
+        }
+        fixture.motion.cancel()
+        for (identity, direction) in [("earlier", CGFloat(-1)), ("later", CGFloat(1))] {
+            fixture.direction = direction
+            fixture.identity = JSONText(identity)
+            try await SwiftUIReplay.wait {
+                guard fixture.motion.active, let probe = fixture.frontProbe else { return false }
+                let frame = probe.convert(probe.bounds, to: root)
+                return frame.minY * direction > root.bounds.height * 0.25
+                    && frame.minY * direction < root.bounds.height * 0.75
+            }
+            let incoming = try #require(fixture.frontProbe)
+            #expect(abs(incoming.convert(incoming.bounds, to: root).minX) < 1)
+            let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
+            root.cacheDisplay(in: root.bounds, to: image)
+            let scan = (image.pixelsHigh / 20)..<(image.pixelsHigh * 19 / 20)
+            let covered = scan.allSatisfy { y in
+                guard let pixel = image.colorAt(x: image.pixelsWide / 4, y: y)?.usingColorSpace(.sRGB) else { return false }
+                return pixel.alphaComponent > 0.99 && pixel.blueComponent > 0.8 && pixel.redComponent < 0.1
+            }
+            #expect(covered, "History replacement must cover the full column without exposing the current document or an empty seam")
+            if let path = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
+                try #require(image.representation(using: .png, properties: [:])).write(to:
+                    URL(fileURLWithPath: path).appendingPathComponent(identity + "-middle.png"))
+            }
+            try await SwiftUIReplay.wait { !fixture.motion.active }
+        }
+        fixture.direction = 0
+        fixture.identity = "same-target"
+        try await SwiftUIReplay.wait { fixture.frontAppearances == 4 }
+        #expect(!fixture.motion.active)
+        let stationary = try #require(fixture.frontProbe)
+        #expect(abs(stationary.convert(stationary.bounds, to: root).minY) < 1)
+        fixture.direction = 1
+        fixture.motion.cancel()
+        fixture.motion.close()
+        try await Task.sleep(for: .milliseconds(80))
+        fixture.motion.cancel()
+        try await Task.sleep(for: .milliseconds(1250))
+        #expect(fixture.open && !fixture.motion.active)
+        fixture.motion.close()
+        try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
     }
 
     @Test func closeRetainsDestinationUntilReturnFinishesAndCanBeCancelled() async throws {

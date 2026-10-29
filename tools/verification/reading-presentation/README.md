@@ -7,7 +7,7 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Four integration cases cover selection and Back scroll
+isolated AppKit host. Five integration cases cover selection and Back scroll
 retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
 inherited history, deletion, arriving successors and external result anchors.
 A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
@@ -18,7 +18,20 @@ author accessibility and save settled dark/light screenshots under
 
 The ordinary Swift suite also discovers these cases; forced headless admission
 skips their graphical assertions explicitly. The isolated launcher requires all
-four cases without skips. Existing `--moku-execution-links` separately covers
+five cases without skips. A finite onscreen pointer replay synchronizes the system
+cursor and native events (restoring the original cursor on exit) to exercise the
+production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
+rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
+the focused row before activation while retaining 30ms page reversals; they do
+not wait for the page transition to settle. `hover-panel.png` and `hover-dismissed.png`
+record the mounted result. These are native synthetic events with the real cursor
+and component renders, not physical input or WindowServer capture. The default
+reading-page replay also checks both vertical directions between history identities,
+intermediate geometry, full-column pixel coverage and cancellation. It retains
+`vertical-middle.png`, `earlier-middle.png` and `later-middle.png` under its suite
+evidence directory. The system Reduce Motion
+setting is observed by production code; this replay does not mutate that setting.
+Existing `--moku-execution-links` separately covers
 deferred bodies and exact-result following through all four real Harness renderers.
 
 ## Empty workspace and first dispatch
@@ -36,8 +49,17 @@ documents and snapshot rehydration. Mounted production surfaces also check one p
 submission, running, Talk and dispatch, the accessible Stop action, notification
 deferral while editing, failed submission draft retention, Escape/reopening,
 narrow resize and Settings/history cover/remount without forced reopening.
+Landing outside-click coverage checks that a click inside keeps input open,
+a window-background click collapses it without losing the draft, and dismissal
+still works after covering routes and remounting. A second native window also
+checks that focus loss retains input, while an actual click collapses it and
+preserves the draft. The outside-click Swift suite additionally drives native
+child/sheet windows and nested menu-tracking notifications to protect auxiliary
+composer interactions; this is not a physical cross-app mouse-delivery test.
 
 Catalog transactions pass through the actual preparation/installation boundary.
+The fixture also delivers a connected client event to the real workspace so a
+running snapshot is not mistaken for disconnected, retained execution state.
 Fixture send callbacks replace unavailable remote admission; no Runtime, model
 provider, installed profile or microphone is used. The independent
 [Moku backend replay](../moku/README.md) verifies actual creation/admission and audit

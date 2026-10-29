@@ -76,6 +76,7 @@ public struct ThreadConversation: View {
     @State private var locatedRequest: JSONText?
     @State private var navigationRevision = 0
     @State private var pageMotion = NativeReadingPageMotion()
+    @State private var pageDirection: CGFloat = -1
     @State private var navigationToken: UUID?
 
     public init(threadId: JSONText, title: String, icon: String? = nil, rows: [ThreadConversationRow],
@@ -199,6 +200,8 @@ public struct ThreadConversation: View {
     private var pageStack: some View {
         GeometryReader { _ in
             NativeReadingPageStack(open: readingPage, identity: readingIdentity, motion: pageMotion,
+                                   axis: .vertical,
+                                   direction: pageDirection,
                                    onClose: finishClosingHistory) {
                 HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
@@ -298,6 +301,7 @@ public struct ThreadConversation: View {
         return AnyView(ThreadDetailEmptyState())
     }
     private func closeHistory() {
+        setPageDirection(toward: currentRow?.id, returning: true)
         pageMotion.close()
     }
     private func finishClosingHistory() {
@@ -312,13 +316,28 @@ public struct ThreadConversation: View {
         // Invalidate an interrupted Back animation before selecting another
         // turn; its delayed completion must not replace the new destination.
         pageMotion.cancel()
+        setPageDirection(toward: id, returning: id == currentRow?.id && readingPage)
         requestedDestination = nil; acceptedAnchor = nil
         if id == currentRow?.id {
+            if readingPage { pageMotion.close(); return }
             destination = .document(inline: nil)
         } else {
             destination = .history(id)
         }
         navigationRevision += 1
+    }
+    private func setPageDirection(toward id: JSONText?, returning: Bool = false) {
+        let indexRows = tocRows
+        let previousID = selectedRowID
+        guard let previous = indexRows.firstIndex(where: { $0.id == previousID }),
+              let target = indexRows.firstIndex(where: { $0.id == id }), previous != target else {
+            pageDirection = 0
+            return
+        }
+        // Closing moves the front out, so its travel is the inverse of the
+        // incoming current document. History replacements use insertion travel.
+        let incoming: CGFloat = target > previous ? 1 : -1
+        pageDirection = returning ? -incoming : incoming
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
     private func consumeReadingTarget() {
@@ -347,6 +366,7 @@ public struct ThreadConversation: View {
         acceptedAnchor = target.position == .result ? threadExecutionResultAnchor(target.executionId) : target.anchorId
         if let index {
             let id = visibleRows[index].id
+            setPageDirection(toward: id)
             // A result visit owns exactly one execution, including while it is
             // current. A successor cannot move its content or following target.
             destination = target.position == .result ? .history(id)

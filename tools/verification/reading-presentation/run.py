@@ -56,7 +56,8 @@ def main():
     try:
         replay.acquire()
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
-        environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
+        environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES",
+                       "MOKUSEI_READING_MOTION_ARTIFACTS": str(replay.workspace / "evidence")}
         if "--model-selector" in sys.argv:
             environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
@@ -96,7 +97,7 @@ def main():
     count = (4 if "--model-selector" in sys.argv else
              5 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             4 if "--thread-sidebar" in sys.argv else
+             5 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
@@ -110,7 +111,7 @@ def main():
              8 if "--markdown" in sys.argv else
              2 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
-             11 if "--moku-note-tests" in sys.argv else 5)
+             11 if "--moku-note-tests" in sys.argv else 6)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
