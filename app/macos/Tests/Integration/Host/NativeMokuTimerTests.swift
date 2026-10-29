@@ -190,21 +190,25 @@ struct NativeMokuTimerTests {
         let player = Player()
         let controller = NativeMokuTimerController(player: player)
         controller.receive(nil); controller.receive(try thread([operation("one", text: "明确提醒\nfull text")]))
-        for width: CGFloat in [188, 320, 900] {
+        for (scheme, width) in [(ColorScheme.light, CGFloat(188)), (.dark, 320), (.light, 900)] {
             let host = NSHostingView(rootView: NativeMokuTimerBar(timer: controller, exclusions: .init())
-                .environment(\.locale, Locale(identifier: "zh-CN")).frame(width: width))
+                .environment(\.locale, Locale(identifier: "zh-CN"))
+                .environment(\.colorScheme, scheme).frame(width: width))
+            host.appearance = NSAppearance(named: scheme == .light ? .aqua : .darkAqua)
             host.frame.size = CGSize(width: width, height: 200)
             host.layoutSubtreeIfNeeded()
             #expect(host.window == nil)
             let text = SwiftUIReplay.text(in: host)
             #expect(text.contains("已收到") && text.contains("明确提醒\nfull text"), "width=\(width), text=\(text), frame=\(host.frame), fitting=\(host.fittingSize)")
             #expect(controller.pending.count == 1 && player.starts == 1)
+            func button(in root: NSView) -> NSButton? {
+                if let button = root as? NSButton, button.identifier?.rawValue == "moku-timer-acknowledge" { return button }
+                return root.subviews.lazy.compactMap { button(in: $0) }.first
+            }
+            let receipt = try #require(button(in: host))
+            #expect(receipt.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+            #expect(host.appearance?.name == (scheme == .light ? .aqua : .darkAqua))
             if width == 900 {
-                func button(in root: NSView) -> NSButton? {
-                    if let button = root as? NSButton, button.identifier?.rawValue == "moku-timer-acknowledge" { return button }
-                    return root.subviews.lazy.compactMap { button(in: $0) }.first
-                }
-                let receipt = try #require(button(in: host))
                 #expect(receipt.accessibilityLabel() == "已收到")
                 let doubleClick = try #require(NSEvent.mouseEvent(with: .leftMouseDown,
                     location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,

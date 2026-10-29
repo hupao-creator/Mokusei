@@ -49,6 +49,7 @@ struct NativeMokuTimerBar: View {
             // Static eyes and no insertion/removal choreography also respect
             // Reduce Motion. No timeout, Escape or outside-click dismissal.
             .transaction { $0.animation = nil }
+            .environment(\.colorScheme, .dark)
         }
     }
 

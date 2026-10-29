@@ -302,6 +302,8 @@ Its click region is excluded from composer outside-click dismissal. It has no
 Escape, outside-click, focus-loss or timeout acknowledgment. Static eyes and
 nonanimated presentation respect Reduce Motion. Native text/buttons expose the
 content and action to accessibility; acknowledgment does not require audio.
+Like the other Moku surfaces, the Timer bar uses a local dark environment even
+in a light workspace; it does not override the window or Settings appearance.
 
 The model owns the controller across scene and route remounts, including UI
 reload. Its first installed snapshot establishes a silent history baseline;
