@@ -5,7 +5,8 @@
 App-owned viewports, Browser frames and Report HTML share the
 [trackless scrollbar policy](Sources/Shared/PluginUI/README.md#scrollbars).
 Native controls retain scrolling, drag tracking and accessibility; transient
-hiding follows system preferences, and persistent modes keep a visible knob.
+hiding follows system preferences, and persistent modes reserve their native
+gutter at every content height and keep a knob whenever scrolling is possible.
 
 | Location | Responsibility |
 | --- | --- |

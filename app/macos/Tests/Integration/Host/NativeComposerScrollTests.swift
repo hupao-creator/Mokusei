@@ -26,7 +26,9 @@ struct NativeComposerScrollTests {
         let caret = text.firstRect(forCharacterRange: NSRange(location: 0, length: 0), actualRange: nil)
         let bounds = window.convertToScreen(host.convert(host.bounds, to: nil))
         #expect(text.bounds.height <= scroll.contentView.bounds.height + 1)
-        #expect(!scroll.hasVerticalScroller || scroll.verticalScroller?.isHidden == true)
+        // A legacy scroller stays resident to keep its gutter stable; it must
+        // still show no knob while the single line fits.
+        #expect((scroll.verticalScroller?.knobProportion ?? 0) == 0)
         #expect(abs(caret.midY - bounds.midY) <= 0.5)
     }
 

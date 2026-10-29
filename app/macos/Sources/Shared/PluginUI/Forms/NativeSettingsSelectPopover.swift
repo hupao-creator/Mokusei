@@ -478,7 +478,7 @@ private struct SettingsSelectShadow: View {
         preferredHeight = heights.reduce(10, +)
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: preferredHeight))
         setAccessibilityElement(true); setAccessibilityRole(.menu)
-        scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
+        scroll.drawsBackground = false; scroll.hasVerticalScroller = true
         NativeScrollbarStyle.apply(to: scroll); scroll.documentView = document
         scroll.frame = bounds.insetBy(dx: 5, dy: 5); scroll.autoresizingMask = [.width, .height]
         addSubview(scroll)

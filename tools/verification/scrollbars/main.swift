@@ -41,7 +41,8 @@ struct ScrollbarReplay {
             precondition(document.selectedRange() == selection)
             precondition(scroll.hasVerticalScroller && scroll.hasHorizontalScroller)
             precondition(scroll.verticalScroller?.controlSize == .mini && scroll.horizontalScroller?.controlSize == .mini)
-            precondition(scroll.scrollerStyle == NSScroller.preferredScrollerStyle && scroll.autohidesScrollers)
+            precondition(scroll.scrollerStyle == NSScroller.preferredScrollerStyle)
+            precondition(scroll.autohidesScrollers == NativeScrollbarStyle.autohidesScrollers(for: scroll.scrollerStyle))
             precondition(scroll.verticalScroller?.target as? NSScrollView === scroll)
             precondition(scroll.horizontalScroller?.target as? NSScrollView === scroll)
             for scroller in [vertical, horizontal].compactMap({ $0 }) {
@@ -103,8 +104,87 @@ struct ScrollbarReplay {
         NativeScrollbarStyle.apply(to: existing)
         precondition(!existing.hasVerticalScroller && !existing.hasHorizontalScroller)
         precondition(NativeTracklessScroller.isCompatibleWithOverlayScrollers)
-        print("PASS: four appearances; transparent normal/highlighted tracks in both styles; native axes, targets, accessibility role, selection, offsets, idempotence and scoped preference updates (headless)")
+        checkGutterStability()
+        print("PASS: four appearances; transparent normal/highlighted tracks in both styles; stable legacy gutters across the overflow threshold in both axes; native axes, targets, accessibility role, selection, offsets, idempotence and scoped preference updates (headless)")
         try await ScrollControlReplay.run()
         try await WebScrollbarReplay.run()
+    }
+
+    // Overlay indicators float, but whichever style the system prefers must not
+    // resize the viewport when content crosses the overflow threshold. Both axes
+    // are checked at just below, exactly at, and just above that threshold.
+    @MainActor private static func checkGutterStability() {
+        precondition(NativeScrollbarStyle.autohidesScrollers(for: .legacy) == false)
+        precondition(NativeScrollbarStyle.autohidesScrollers(for: .overlay) == true)
+
+        let vertical = NativeStyledScrollView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        vertical.hasVerticalScroller = true
+        let verticalDocument = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 180))
+        vertical.documentView = verticalDocument
+        vertical.tile()
+        let verticalClip = vertical.contentView.frame.width
+        let verticalScroller = vertical.verticalScroller
+        precondition(verticalScroller is NativeTracklessScroller)
+        let legacy = vertical.scrollerStyle == .legacy
+        if legacy {
+            precondition(verticalClip < vertical.frame.width)
+            precondition(!(verticalScroller?.isHidden ?? true))
+        }
+        for height in [CGFloat(180), 359, 360, 361, 900, 180, 360] {
+            verticalDocument.frame.size.height = height
+            vertical.tile()
+            precondition(vertical.contentView.frame.width == verticalClip, "vertical gutter changed at content height \(height)")
+            // The resident scroller must paint only while content can scroll; a
+            // stale knobProportion after shrinking is not a rendered knob.
+            let overflowing = height > vertical.contentSize.height
+            precondition((scrollerInk(verticalScroller!) > 0) == overflowing,
+                         "vertical knob did not follow overflow at content height \(height)")
+        }
+        NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
+        vertical.tile()
+        precondition(vertical.contentView.frame.width == verticalClip)
+        precondition(vertical.autohidesScrollers == NativeScrollbarStyle.autohidesScrollers(for: vertical.scrollerStyle))
+
+        let horizontal = NativeStyledScrollView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        horizontal.hasHorizontalScroller = true
+        let horizontalDocument = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 360))
+        horizontal.documentView = horizontalDocument
+        horizontal.tile()
+        let horizontalClip = horizontal.contentView.frame.height
+        for width in [CGFloat(320), 639, 640, 641, 1200, 320] {
+            horizontalDocument.frame.size.width = width
+            horizontal.tile()
+            precondition(horizontal.contentView.frame.height == horizontalClip,
+                         "horizontal gutter changed at content width \(width)")
+        }
+
+        // Overlay indicators never consume layout space, in either autohide state.
+        let overlay = NSScrollView(frame: NSRect(x: 0, y: 0, width: 640, height: 360))
+        overlay.hasVerticalScroller = true
+        overlay.scrollerStyle = .overlay
+        overlay.autohidesScrollers = NativeScrollbarStyle.autohidesScrollers(for: .overlay)
+        let overlayDocument = NSView(frame: NSRect(x: 0, y: 0, width: 640, height: 180))
+        overlay.documentView = overlayDocument
+        overlay.tile()
+        for height in [CGFloat(180), 360, 361, 900] {
+            overlayDocument.frame.size.height = height
+            overlay.tile()
+            precondition(overlay.contentView.frame.width == overlay.frame.width,
+                         "overlay scroller consumed layout at content height \(height)")
+        }
+    }
+
+    // Draw the production scroller offscreen and count painted pixels. An empty
+    // legacy knob and the suppressed slot must leave the bitmap untouched.
+    @MainActor private static func scrollerInk(_ scroller: NSScroller) -> Int {
+        guard let bitmap = scroller.bitmapImageRepForCachingDisplay(in: scroller.bounds) else { return 0 }
+        scroller.cacheDisplay(in: scroller.bounds, to: bitmap)
+        var count = 0
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                if let color = bitmap.colorAt(x: x, y: y), color.alphaComponent > 0.02 { count += 1 }
+            }
+        }
+        return count
     }
 }

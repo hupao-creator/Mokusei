@@ -9,16 +9,24 @@ The driver checks native scroller targets, accessibility role and axes,
 document/clip identity, selection and offsets through repeated styling,
 programmatic scrolling, appearance variants and a preferred-style notification.
 Normal and highlighted slots must paint no pixels into an offscreen bitmap in
-both legacy and overlay styles. An unrelated scroll view must retain its original
+both legacy and overlay styles. Vertical and horizontal content are measured just
+below, exactly at, and just above the overflow threshold: the legacy gutter and
+clip size must not change, the resident scroller must paint nothing while content
+fits, and only content that can scroll may draw a knob. Overlay scrollers must
+never consume layout space. An unrelated scroll view must retain its original
 configuration. Compilation and execution have separate
 timeouts and a failed assertion exits unsuccessfully.
 
 Mounted windowless SwiftUI TextEditor and List controls overflow inside the
 production NativeScrollView. The production control-scoped modifier must retain
 native target/action/AX role, editor binding updates, row/text selection and
-scroll offsets through preference notifications and control replacement. An
-adjacent unstyled editor must keep its original scroller. This checks the actual
-SwiftUI/AppKit adapter boundary, without a popover, window or input injection.
+scroll offsets through preference notifications, control replacement and List
+viewport width while rows cross its own overflow threshold. An adjacent unstyled
+editor must keep its original scroller. A plain NativeScrollView fixture then
+drives its document height across the threshold: the background adapter's clip
+width must stay fixed and its resident scroller must paint only while scrolling
+is possible. This checks the actual SwiftUI/AppKit adapter boundary, without a
+popover, window or input injection.
 
 The windowless WKWebView fixture checks the production user script in the main
 document and a child frame, page-authored tracks, dynamic overflow, restrictive

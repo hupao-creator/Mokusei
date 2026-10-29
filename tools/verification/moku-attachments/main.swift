@@ -197,8 +197,19 @@ private struct ReplayObserved<Content: View>: View {
     guard let original = editor(host) else { throw ReplayFailure(description: "Missing theme replay editor") }
     func checkSingleLineLayout(_ text: NSTextView) throws {
         guard let scroll = text.enclosingScrollView else { throw ReplayFailure(description: "Missing composer viewport") }
-        try require(!scroll.hasVerticalScroller || scroll.verticalScroller?.isHidden == true,
-                    "Single-line composer displays a scrollbar")
+        // A persistent legacy scroller remains resident for a stable gutter; only
+        // painted pixels would mean the composer is displaying a scrollbar.
+        if let scroller = scroll.verticalScroller,
+           let bitmap = scroller.bitmapImageRepForCachingDisplay(in: scroller.bounds) {
+            scroller.cacheDisplay(in: scroller.bounds, to: bitmap)
+            var ink = 0
+            for y in 0..<bitmap.pixelsHigh {
+                for x in 0..<bitmap.pixelsWide {
+                    if let color = bitmap.colorAt(x: x, y: y), color.alphaComponent > 0.02 { ink += 1 }
+                }
+            }
+            try require(ink == 0, "Single-line composer displays a scrollbar knob")
+        }
         let caret = text.firstRect(forCharacterRange: NSRange(location: 0, length: 0), actualRange: nil)
         let capsule = window.convertToScreen(host.convert(state.capsuleFrame, to: nil))
         try require(abs(caret.midY - capsule.midY) <= 0.5, "Single-line composer is not vertically centered")

@@ -28,7 +28,6 @@ struct NativeComposerEditor: NSViewRepresentable {
         let scroll = NativeStyledScrollView()
         scroll.drawsBackground = false
         scroll.contentView.drawsBackground = false
-        scroll.autohidesScrollers = true
         let editor = ComposerTextView()
         editor.isRichText = false
         editor.drawsBackground = false

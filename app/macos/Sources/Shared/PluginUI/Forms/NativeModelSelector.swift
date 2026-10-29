@@ -312,7 +312,7 @@ private struct ModelSelectorRepresentation: NSViewRepresentable {
         _ = text(showingModels ? model?.label ?? label : label, size: 13, color: .secondaryLabelColor,
                  rect: NSRect(x: 16, y: 12, width: 268, height: 20))
         let scroller = NativeStyledScrollView(frame: NSRect(x: 6, y: 40, width: 288, height: frame.height - 46))
-        scroller.hasVerticalScroller = true; scroller.drawsBackground = false; scroller.autohidesScrollers = true
+        scroller.hasVerticalScroller = true; scroller.drawsBackground = false
         let document = ModelSelectorList(frame: NSRect(x: 0, y: 0, width: 278, height: CGFloat(options.count) * 36))
         for (index, option) in options.enumerated() {
             let row = ModelSelectorRow(frame: NSRect(x: 0, y: CGFloat(index) * 36, width: 278, height: 36))
