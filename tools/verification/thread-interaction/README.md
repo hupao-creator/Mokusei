@@ -39,7 +39,7 @@ must not exist:
 The [reading control runner](../../native-interaction/thread_chaos.py) uses actual
 mounted history, visibility, execution/tool/thinking disclosure and timeline
 callbacks. It checks real row/execution load states, rendered turn counts, history
-identity, window counts, Settings-return retention and stale-handle rejection.
+identity, window counts, rejected Settings-entry retention and stale-handle rejection.
 Each absolute/relative scroll also asserts the final measured position, including
 zero, 240 points, repeated 120-point steps and clamping at both document edges.
 The [protocol guide](../../native-interaction/README.md#mounted-reading-controls)

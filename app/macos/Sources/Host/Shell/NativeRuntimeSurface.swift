@@ -6,16 +6,11 @@ import SwiftUI
 public struct NativeRuntimeSurface<Content: View>: View {
     @Bindable private var model: NativeWorkspaceModel
     private let showsConnectionNotice: Bool
-    private let onSettingsWithOrigin: ((CGRect) -> Void)?
-    private let onSettingsFrameChange: ((CGRect?) -> Void)?
     private let content: Content
 
     public init(model: NativeWorkspaceModel, showsConnectionNotice: Bool = true,
-                onSettingsWithOrigin: ((CGRect) -> Void)? = nil,
-                onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
                 @ViewBuilder content: () -> Content) {
         self.model = model; self.showsConnectionNotice = showsConnectionNotice
-        self.onSettingsWithOrigin = onSettingsWithOrigin; self.onSettingsFrameChange = onSettingsFrameChange
         self.content = content()
     }
 
@@ -28,10 +23,7 @@ public struct NativeRuntimeSurface<Content: View>: View {
                 RuntimeStartupScreen(state: model.connection, error: model.connectionError ?? "",
                     reconnecting: model.reconnecting, locale: model.preferences.locale,
                     onReconnect: { Task { await model.retry() } },
-                    onSettings: { rect in
-                        if let onSettingsWithOrigin { onSettingsWithOrigin(rect) }
-                        else { model.settingsOpen = true }
-                    }, onSettingsFrameChange: onSettingsFrameChange, announcementsEnabled: !model.settingsOpen)
+                    announcementsEnabled: !model.settingsOpen)
             }
         }
         .overlay(alignment: .top) {
@@ -61,10 +53,7 @@ private struct RuntimeStartupScreen: View {
     let reconnecting: Bool
     let locale: DesktopLocale
     let onReconnect: () -> Void
-    let onSettings: (CGRect) -> Void
-    let onSettingsFrameChange: ((CGRect?) -> Void)?
     var announcementsEnabled = true
-    @State private var settingsAnchor = RuntimeSettingsAnchor()
     private var connecting: Bool { reconnecting || state == .connecting }
     private var loading: Bool { reconnecting || (error.isEmpty && (connecting || state == .connected)) }
     private var message: String {
@@ -82,8 +71,7 @@ private struct RuntimeStartupScreen: View {
             } else {
                 VStack(spacing: 14) {
                     Text(message).font(NativeTypography.inter(size: 14, weight: 700))
-                    Text(locale.text("你可以先调整界面偏好，连接后即可继续工作。",
-                                     "You can adjust your preferences while waiting to reconnect."))
+                    Text(locale.text("连接后台服务后即可继续工作。", "Reconnect to the background service to continue."))
                     if !error.isEmpty {
                         // <p> retains its normal one-em block margins in the
                         // original flex column, in addition to its 14px gap.
@@ -92,9 +80,7 @@ private struct RuntimeStartupScreen: View {
                     }
                     HStack(spacing: 20) {
                         Button(locale.text("重新连接", "Reconnect"), action: onReconnect).disabled(connecting)
-                        Button(locale.text("设置", "Settings")) { onSettings(settingsAnchor.frame ?? .zero) }
-                            .background(RuntimeSettingsFrameReader(anchor: settingsAnchor, onChange: onSettingsFrameChange))
-                            .onDisappear { onSettingsFrameChange?(nil) }
+
                     }.buttonStyle(RuntimeTextButtonStyle())
                 }
                 .font(NativeTypography.inter(size: 14))
@@ -106,17 +92,6 @@ private struct RuntimeStartupScreen: View {
             RuntimeStatusAnnouncements(status: loading ? locale.text("正在加载…", "Loading…") : message,
                 error: loading ? "" : error, enabled: announcementsEnabled).frame(width: 0, height: 0)
         }
-    }
-}
-
-@MainActor private final class RuntimeSettingsAnchor { var frame: CGRect? }
-private struct RuntimeSettingsFrameReader: View {
-    let anchor: RuntimeSettingsAnchor
-    let onChange: ((CGRect?) -> Void)?
-    var body: some View {
-        Color.clear.onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { frame in
-            anchor.frame = frame; onChange?(frame)
-        }.onDisappear { anchor.frame = nil; onChange?(nil) }
     }
 }
 

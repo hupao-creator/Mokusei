@@ -147,18 +147,17 @@ class ReadingDriver:
     def route(self, action):
         return step(self.client, self.trace, action)
 
-    def settings_return(self):
+    def settings_rejected(self):
         before = self.wait()
         conversation = self.value(before, "conversation")
         history = [item["value"] for item in self.controls(before, "history")]
-        self.route({"name": "settings.open"})
-        self.route({"name": "settings.close"})
+        step(self.client, self.trace, {"name": "settings.open"}, expected_error="unavailable")
         after = self.wait()
         if self.value(after, "conversation") != conversation:
-            raise AssertionError("Settings return changed reading destination or visibility")
+            raise AssertionError("Rejected Settings entry changed reading destination or visibility")
         if [item["value"] for item in self.controls(after, "history")] != history:
-            raise AssertionError("Settings return changed historical visibility")
-        self.coverage["settings:return"] += 1
+            raise AssertionError("Rejected Settings entry changed historical visibility")
+        self.coverage["settings:rejected"] += 1
         return after
 
     def stale_probe(self):
@@ -183,7 +182,7 @@ class ReadingDriver:
         self.toggle("visibility.userMessages", True)
         self.toggle("visibility.work", True)
         self.expand()
-        self.settings_return()
+        self.settings_rejected()
         self.stale_probe()
         if self.controls(self.wait(), "history.open"):
             entry = self.control("history.open")
@@ -195,7 +194,7 @@ class ReadingDriver:
             self.toggle("visibility.userMessages", True)
             self.toggle("visibility.work", True)
             self.expand()
-            self.settings_return()
+            self.settings_rejected()
             self.scroll_regression()
             self.invoke(self.control("history.close"))
         timeline = self.control("timeline")
@@ -213,7 +212,7 @@ class ReadingDriver:
         for index in range(steps):
             state = self.wait()
             if index > 0 and index % 23 == 0:
-                self.settings_return()
+                self.settings_rejected()
                 continue
             choices = []
             for control in self.controls(state):
@@ -241,7 +240,8 @@ class ReadingDriver:
     def replay(self, source):
         for record in map(json.loads, Path(source).read_text().splitlines()):
             if record["kind"] == "action":
-                self.route(record["action"])
+                step(self.client, self.trace, record["action"], wait=record.get("wait", True),
+                     expected_error=record.get("expectedError"))
             elif record["kind"] == "reading.action":
                 action = record["action"]
                 state = self.wait(lambda state: any(item["id"] == action["controlId"] for item in self.controls(state)))

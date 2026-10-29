@@ -96,6 +96,9 @@ def main():
         "MokuseiGitIntegrationTests.PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage",
     }
     swift_launchers = {
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/capsuleExpandsWithoutRemountingAndFitsViewport()",
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/modalInputClosesWithoutClickThroughAndRestoresDock()",
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/reversalsResizeInactiveAndExplicitSettleFenceCompletions()",
         "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer()",
         "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/oneResidentOwnsSubmissionRunningTalkDispatchAndStop()",
         "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/centerSurvivesEscapeResizeCoveringRoutesAndRemount()",

@@ -47,7 +47,7 @@ Unknown/missing fields and invalid argument types are rejected.
 
 | Action name | Additional fields | Admission |
 | --- | --- | --- |
-| `settings.open` | none | Workspace mounted, Settings closed |
+| `settings.open` | none | Loaded Overview mounted, Settings closed |
 | `settings.select` | `section` | Current Settings section ID |
 | `settings.control` | `controlId`, `handle`, `operation`, `value` | Current mounted, enabled control and current handle |
 | `settings.close` | none | Settings open and its close gate permits |
@@ -212,8 +212,8 @@ python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.s
   --replay /private/tmp/reading-41.jsonl --trace /private/tmp/reading-41-replayed.jsonl
 ```
 
-The runner first exercises history, nested disclosures, scrolling, Settings return
-and stale-handle rejection, then makes seeded choices from mounted controls. A
+The runner first exercises history, nested disclosures, scrolling, rejected Settings
+entry and stale-handle rejection, then makes seeded choices from mounted controls. A
 fixture with more than 120 completed turns and tool details is required to cover
 load-earlier and nested tools. The [production reading launcher](../verification/thread-interaction/README.md)
 provides that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from

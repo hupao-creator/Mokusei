@@ -32,7 +32,6 @@ import SwiftUI
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.nativeWindowContentScale) private var contentScale
 
     public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
@@ -64,51 +63,15 @@ import SwiftUI
     public var body: some View {
         GeometryReader { geometry in
             let compact = geometry.size.width <= 620
-            let columns = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
-            columns {
-                sidebar(compact: compact).frame(width: compact ? nil : NativeGeometry.settingsSidebarWidth)
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: compact ? 8 : 28)
-                        .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
-                    ScrollViewReader { reader in
-                        NativeScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Color.clear.frame(height: 0).id("top")
-                                if !model.runtimeAvailable {
-                                    SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
-                                }
-                                if let error = model.draft.error ?? model.operationError {
-                                    SettingsNotice(localizedError(error), error: true) {
-                                        if model.draft.error != nil {
-                                            HStack(spacing: 16) {
-                                                Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
-                                                    .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
-                                                if model.draft.conflicted {
-                                                    Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
-                                                        .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
-                                                }
-                                            }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
-                                        }
-                                    }.id("notice")
-                                }
-                                sectionBody.disabled(busy)
-                                    .environment(\.nativeSettingsFormPage, true)
-                            }.background(GeometryReader { content in
-                                Color.clear.onAppear { settingsContentHeight = content.size.height }
-                                    .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
-                            }).coordinateSpace(name: "settings-form")
-                                .padding(.bottom, detailOverflow)
-                                .frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
-                                .padding(.horizontal, compact ? 20 : 32).padding(.top, 10).padding(.bottom, compact ? 20 : 32)
-                        }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
-                            .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: navigation.focusRequest) { _, _ in
-                                if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
-                            }
-                    }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(NativeAppKitPalette.settings.main.swiftUI)
-            }.environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            if geometry.size.height < 220 {
+                // At extreme app zoom, fixed chrome can consume the viewport.
+                // Scroll the whole shell as well, retaining every real control.
+                NativeScrollView { panel(compact: compact).frame(minHeight: 360) }
+                    .environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            } else {
+                panel(compact: compact)
+                    .environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            }
         }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             .environment(\.locale, Locale(identifier: locale.rawValue))
@@ -163,12 +126,68 @@ import SwiftUI
             }
     }
 
+    private func panel(compact: Bool) -> some View {
+        let columns = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        return VStack(spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                Button(action: requestClose) {
+                    NativeIcon(name: "X", size: 14, strokeWidth: 2)
+                        .frame(width: 30, height: 30).contentShape(Circle())
+                }.buttonStyle(.plain).disabled(busy)
+                    .focused($focusedBack)
+                    .accessibilityLabel(locale.text("关闭设置", "Close settings"))
+                    .accessibilityIdentifier("settings-close")
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { navigation.returnRect = $0 }
+            }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 4)
+            columns {
+                sidebar(compact: compact).frame(width: compact ? nil : NativeGeometry.settingsSidebarWidth)
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 8).accessibilityHidden(true)
+                    ScrollViewReader { reader in
+                        NativeScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Color.clear.frame(height: 0).id("top")
+                                if !model.runtimeAvailable {
+                                    SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
+                                }
+                                if let error = model.draft.error ?? model.operationError {
+                                    SettingsNotice(localizedError(error), error: true) {
+                                        if model.draft.error != nil {
+                                            HStack(spacing: 16) {
+                                                Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
+                                                    .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
+                                                if model.draft.conflicted {
+                                                    Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
+                                                        .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
+                                                }
+                                            }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
+                                        }
+                                    }.id("notice")
+                                }
+                                sectionBody.disabled(busy)
+                                    .environment(\.nativeSettingsFormPage, true)
+                            }.background(GeometryReader { content in
+                                Color.clear.onAppear { settingsContentHeight = content.size.height }
+                                    .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
+                            }).coordinateSpace(name: "settings-form")
+                                .padding(.bottom, detailOverflow)
+                                .frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
+                                .padding(.horizontal, compact ? 20 : 32).padding(.top, 10).padding(.bottom, compact ? 20 : 32)
+                        }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
+                            .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                            .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                            .onChange(of: navigation.focusRequest) { _, _ in
+                                if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
+                            }
+                    }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(NativeAppKitPalette.settings.main.swiftUI)
+            }
+        }
+    }
+
     private func sidebar(compact: Bool) -> some View {
         VStack(spacing: 0) {
-            // The navigation capsule stays at window scale, so its reserved
-            // space must stay fixed when the rest of Settings is zoomed.
-            Color.clear.frame(height: NativeWindowNavigationGeometry.safeAreaTop / contentScale)
-                .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
             NativeScrollView(compact ? .horizontal : .vertical) {
                 let tabs = compact ? AnyLayout(HStackLayout(spacing: 4)) : AnyLayout(VStackLayout(spacing: 3))
                 tabs {
@@ -212,11 +231,6 @@ import SwiftUI
         }.frame(maxWidth: .infinity, maxHeight: compact ? nil : .infinity, alignment: .top).background(NativeAppKitPalette.settings.sidebar.swiftUI)
             .overlay(alignment: compact ? .bottom : .trailing) {
                 Rectangle().fill(NativeAppKitPalette.settings.line.swiftUI).frame(width: compact ? nil : 1, height: compact ? 1 : nil)
-            }
-            .overlay(alignment: .topLeading) {
-                NativeWindowNavigationView(action: ThreadDetailBackAction(label: locale.text("返回", "Back"), onBack: requestClose),
-                    suspended: busy, backFocus: $focusedBack,
-                    onBackFrameChange: { navigation.returnRect = $0 })
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(locale.text("设置分类", "Settings sections"))

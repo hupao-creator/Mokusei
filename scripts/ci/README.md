@@ -62,6 +62,10 @@ assigned Go/Swift or isolated AppKit replays serially; scheduling weights balanc
 the combined workload. Tests within one graphical session remain serial.
 Only the two capture-dependent tag-glass methods need the
 standalone host; its other five methods already execute in the Swift shards.
+The three Settings capsule methods likewise run in the required native-capture
+lane, because their production Dock/form mouse actions and WindowServer blur
+assertions need an activated AppKit host. The coverage aggregator requires each
+observed passing method; SwiftPM deferral alone cannot satisfy coverage.
 The nine input/responder, pointer-tracking and native-panel methods deferred by
 the browser, history composer, Report, Thread TOC and Landing suites share one
 isolated AppKit host, without repeating their other methods. The TOC pointer

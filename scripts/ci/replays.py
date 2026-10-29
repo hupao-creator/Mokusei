@@ -75,7 +75,9 @@ def main():
     groups["interop-wire"] = groups["interop"][:6]
     groups["interop-process"] = groups["interop"][6:]
     groups["native-runtime"] = groups["native"][:3]
-    groups["native-capture"] = [groups["native"][3], groups["native"][5]]
+    settings_panel = ("settings-transition", [sys.executable, "tools/verification/reading-presentation/run.py", "--settings-transition"])
+    groups["native-capture"] = [groups["native"][3], groups["native"][5], settings_panel]
+    groups["native"].append(settings_panel)
     groups["native-controls"] = [groups["native"][4],
         ("isolated-input", [sys.executable, "tools/verification/reading-presentation/run.py", "--isolated-input"]),
         ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
