@@ -32,12 +32,32 @@ enum NativeSettingsRole: String {
     }
 }
 
+/// Owned by one Settings page visit, outside the tab's replaceable view identity.
+struct NativeSettingsAnimationVisits {
+    var tag = false
+    var report = false
+
+    mutating func reset() { tag = false; report = false }
+}
+
+/// A hidden window does not consume a visit; Reduce Motion consumes it without
+/// animation. Once admitted, cancellation must not admit another playback.
+enum NativeCapabilityPlayback {
+    static func shouldPlay(active: Bool, reduceMotion: Bool, started: Binding<Bool>) -> Bool {
+        if reduceMotion { started.wrappedValue = true }
+        return active && !started.wrappedValue
+    }
+
+    static func begin(_ started: Binding<Bool>) { started.wrappedValue = true }
+}
+
 /// Onboarding owns step admission; Settings owns tab navigation. Both mount
 /// this same live presentation around their plugin-owned configuration editors.
 struct NativeRoleConfigurationPanel<Content: View>: View {
     let role: NativeSettingsRole
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
+    var visitPlaybackStarted: Binding<Bool>? = nil
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -48,9 +68,9 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
                 .multilineTextAlignment(.center).frame(maxWidth: .infinity)
                 .fixedSize(horizontal: false, vertical: true).padding(.bottom, 24)
             if role == .tag {
-                NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale).padding(.bottom, 24)
+                NativeOnboardingTagAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
             } else if role == .report {
-                NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale).padding(.bottom, 24)
+                NativeOnboardingReportAnimation(harnesses: harnesses, locale: locale, visitPlaybackStarted: visitPlaybackStarted).padding(.bottom, 24)
             }
             content
         }.environment(\.nativeSettingsCompactPresentation, true)

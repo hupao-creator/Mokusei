@@ -31,6 +31,7 @@ import SwiftUI
     @State private var hoveredTab: String?
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
+    @State private var animationVisits = NativeSettingsAnimationVisits()
     @Namespace private var tabSelection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -96,6 +97,7 @@ import SwiftUI
                 model.draft.diagnostics.record(.page, .closed, revision: model.draft.revision)
                 navigation.mounted = false
                 agentRegion.stop(); mokuMotion.stop(); onCoordinatorFrame(nil, true)
+                animationVisits.reset()
             }
             .onChange(of: sections, initial: true) { _, _ in
                 navigation.section = activeSection
@@ -253,7 +255,8 @@ import SwiftUI
                 general
             }
         } else if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
-            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale) {
+            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale,
+                                         visitPlaybackStarted: role == .tag ? $animationVisits.tag : role == .report ? $animationVisits.report : nil) {
                 if role == .moku {
                     NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
                         harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
