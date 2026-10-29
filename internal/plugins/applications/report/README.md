@@ -6,6 +6,29 @@
 
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
+Report writing and presentation use the complete, unmodified upstream
+[ELI5 skill](eli5-skill.md), embedded as a separate system-instruction entry after
+[the agent's operational and host-integration instructions](instructions.txt).
+Source: [anthropics/claude-plugins-community, eli5/skills/eli5/SKILL.md](https://github.com/anthropics/claude-plugins-community/blob/06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1/eli5/skills/eli5/SKILL.md),
+retrieved 2026-10-29 from `main` at commit
+`06ec7b6a0a82bdc4bec44bd82d4368c42f20d7c1`.
+The 321-byte snapshot includes its front matter and literal `$ARGUMENTS`;
+SHA-256: `3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5`.
+It is bundled locally; report generation does not fetch the skill at runtime.
+
+The skill fits the existing HTML storage/reader capability. Operational adaptation
+outside the verbatim text applies it without a user slash command, binds its topic
+to permitted task evidence, and saves its HTML artifact through the existing report
+tools. Big pictures can be inline SVG or HTML/CSS; the skill requires no image,
+file, command, video or artifact-generation service, and grants no extra capability.
+Scope, evidence integrity, permissions, batch steering, references and write
+receipts remain agent/runtime responsibilities. Complete raw HTML and isolated
+page execution remain tool/reader contracts. Safe-area geometry and live light/dark
+theme adaptation remain host integration requirements. Other writing rules,
+including application-output-language injection and tool-field language rules,
+are removed. The background environment capability is still required by the shared
+runner for session lifecycle; Report no longer reads its output locale.
+
 A settings save that races configuration discovery causes re-resolution within
 the same batch attempt, without failure backoff. Existing idle-session reuse
 passes the same saved-version check. The Runtime replay covers these boundaries
@@ -15,6 +38,9 @@ adoption and independent profiles that remain unaffected by Moku edits.
 The Swift [Report application](../../../../app/macos/Sources/Plugins/Applications/Report/) supplies cards and a native HTML reading route using the shared navigation stack. Report documents have no ordinary task execution lifecycle. Their tags decorate the document and do not independently create Overview filter membership.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/applicationhost`, `./scripts/go.sh run -race ./tools/verification/runtime` and `./scripts/go.sh test -race ./internal/plugins/applications/report` from the repository root.
+The headless Runtime replay checks the actual Report session's injected skill
+against the upstream SHA-256 and rejects the removed style/language guidance in
+system instructions, tool descriptions and initial/steering batch messages.
 
 
 Preview and search share a non-executing HTML tree parser. It decodes standard
