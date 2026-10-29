@@ -337,27 +337,33 @@ struct NativeReadingPageHeadlessTests {
         host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
         for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
         #expect(!fixture.parentEnabled && !fixture.motion.active)
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         fixture.identity = "replacement"
+        // The replacement timer starts in the identity change itself. Observe it
+        // instead of assuming eight layout passes finish inside its duration;
+        // a slow runner would otherwise read the already-settled state.
+        if reduceMotion { #expect(!fixture.motion.active) }
+        else { try await SwiftUIReplay.wait { fixture.motion.active } }
         for _ in 0..<8 {
             host.layoutSubtreeIfNeeded()
             try await Task.sleep(for: .milliseconds(10))
             #expect(!fixture.parentEnabled, "History-only motion must not admit keyboard input into the hidden current document")
         }
-        #expect(fixture.motion.active == !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         #expect(fixture.frontAppearances == 2)
         // Replacement has a cancellable timer, so its completion is observable
         // without a window, unlike opening/return animation removal.
-        try await Task.sleep(for: .milliseconds(250))
+        try await SwiftUIReplay.wait { !fixture.motion.active }
         host.layoutSubtreeIfNeeded()
         #expect(!fixture.motion.active && !fixture.parentEnabled)
         fixture.identity = "interrupted-replacement"
+        if !reduceMotion { try await SwiftUIReplay.wait { fixture.motion.active } }
         for _ in 0..<4 {
             host.layoutSubtreeIfNeeded()
             try await Task.sleep(for: .milliseconds(10))
             #expect(!fixture.parentEnabled)
         }
         fixture.motion.cancel()
-        try await Task.sleep(for: .milliseconds(250))
+        try await SwiftUIReplay.wait { !fixture.motion.active }
         host.layoutSubtreeIfNeeded()
         #expect(!fixture.motion.active && !fixture.parentEnabled)
         #expect(fixture.open && fixture.parentAppearances == 1 && host.window == nil)

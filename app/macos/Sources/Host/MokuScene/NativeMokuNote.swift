@@ -347,8 +347,14 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
 
         func refresh() {
             guard let window, let clip else { return }
+            // The document host spans the whole scroll view, so a persistent
+            // legacy scroller leaves it wider than the clip view by exactly its
+            // reserved gutter. That gutter is layout, not horizontal overflow;
+            // compare against the viewport instead of the narrowed clip so a
+            // readable note still qualifies with persistent scrollbars.
+            let viewportWidth = clip.enclosingScrollView?.bounds.width ?? clip.bounds.width
             let contentFits = clip.documentView.map { document in
-                document.bounds.width <= clip.bounds.width + 1 && !horizontalOverflow(in: document)
+                document.bounds.width <= viewportWidth + 1 && !horizontalOverflow(in: document)
             } ?? false
             let qualified = routeEligible && contentFits && NSApp.isActive && window.isKeyWindow
                 && window.isVisible && !window.isMiniaturized && window.occlusionState.contains(.visible)
