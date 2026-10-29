@@ -21,6 +21,9 @@ struct ThreadHistorySidebar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovered: JSONText?
+    @State private var keyboardPreview = false
+    @State private var dismissTask: Task<Void, Never>?
+    @Environment(\.scenePhase) private var scenePhase
     @State private var previewHeight: CGFloat = 130
     @State private var top: CGFloat = 0
     @State private var viewport: CGFloat = 0
@@ -29,6 +32,7 @@ struct ThreadHistorySidebar: View {
     @FocusState private var keyboardFocused: Bool
 
     private var focused: JSONText? { keyboardFocused ? keyboardRow : nil }
+    private var preview: JSONText? { hovered ?? (keyboardPreview ? focused : nil) }
 
     private var window: Range<Int> {
         let start = min(rows.count, max(0, Int(top / 24) - 8))
@@ -55,6 +59,7 @@ struct ThreadHistorySidebar: View {
         .focusable().focusEffectDisabled().focused($keyboardFocused)
         .onChange(of: keyboardFocused) { _, active in
             if active { keyboardRow = selected; reveal(selected) }
+            else { keyboardPreview = false }
         }
         .frame(width: 44)
         .frame(maxHeight: CGFloat(rows.count) * 24 + 16)
@@ -69,14 +74,14 @@ struct ThreadHistorySidebar: View {
             keyboardRow = id
             reveal(id)
         }
-        .onChange(of: focusRevision) { _, _ in focus(selected) }
+        .onChange(of: focusRevision) { _, _ in focus(selected, preview: false) }
         .onChange(of: rows.map(\.id)) { _, ids in
-            if let hovered, !ids.contains(hovered) { self.hovered = nil }
-            if let focused, !ids.contains(focused) { focus(selected) }
+            if let hovered, !ids.contains(hovered) { clearHover() }
+            if let focused, !ids.contains(focused) { focus(selected, preview: keyboardPreview) }
         }
     }
 
-    var body: some View {
+    private var interactiveIndex: some View {
         indexView
         .onKeyPress(.upArrow) { moveFocus(-1); return .handled }
         .onKeyPress(.downArrow) { moveFocus(1); return .handled }
@@ -85,31 +90,57 @@ struct ThreadHistorySidebar: View {
         .onKeyPress(.return) { activateFocused() }
         .onKeyPress(.space) { activateFocused() }
         .overlayPreferenceValue(HistorySidebarAnchor.self) { anchors in
-            GeometryReader { geometry in
-                if let id = hovered ?? focused, let anchor = anchors[id],
-                   let row = rows.first(where: { $0.id == id }) {
-                    let rect = geometry[anchor]
-                    if rect.maxY > 0 && rect.minY < geometry.size.height {
-                        ThreadHistoryPreview(row: row, current: id == current)
-                            .id(id)
-                            .frame(width: min(340, max(0, availableWidth - 60)), alignment: .leading)
-                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
-                            .offset(x: 48, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
-                            .allowsHitTesting(false).accessibilityHidden(true)
-                    }
-                }
-            }
+            previewOverlay(anchors)
         }
+    }
+
+    var body: some View {
+        interactiveIndex
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { dismissPreview() }
+        }
+        .onDisappear { dismissPreview() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话目录"))
         .accessibilityValue(focused.flatMap { id in rows.first { $0.id == id }?.execution?.prompt } ?? "")
         .accessibilityHint(localize("使用上下方向键选择轮次，按回车阅读"))
-        .nativeReadingObservation("state", role: "history.sidebar", value: .object([
-            "selectedRow": selected.map(JSONValue.string) ?? .null,
-            "currentRow": current.map(JSONValue.string) ?? .null,
-            "focusedRow": focused.map(JSONValue.string) ?? .null,
+        .nativeReadingObservation("state", role: "history.sidebar", value: observation)
+    }
+
+    private var observation: JSONValue {
+        .object([
+            "selectedRow": selected.map { JSONValue.string($0) } ?? .null,
+            "currentRow": current.map { JSONValue.string($0) } ?? .null,
+            "focusedRow": focused.map { JSONValue.string($0) } ?? .null,
+            "previewRow": preview.map { JSONValue.string($0) } ?? .null,
             "rowCount": .integer(rows.count)
-        ]))
+        ])
+    }
+
+    private func previewOverlay(_ anchors: [JSONText: Anchor<CGRect>]) -> some View {
+        GeometryReader { geometry in
+            if let id = preview, let anchor = anchors[id],
+               let row = rows.first(where: { $0.id == id }) {
+                let rect = geometry[anchor]
+                if rect.maxY > 0 && rect.minY < geometry.size.height {
+                    ThreadHistoryPreview(row: row, current: id == current)
+                        .id(id)
+                        .frame(width: min(340, max(0, availableWidth - 60)), alignment: .leading)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
+                        // Include the gap in the hover region so crossing from
+                        // a mark to its summary does not retire the preview.
+                        .padding(.leading, 4)
+                        .contentShape(Rectangle())
+                        .onHover { inside in
+                            if inside { showHover(id) }
+                            else { dismissHover(id) }
+                        }
+                        .offset(x: 44, y: max(0, min(rect.midY - previewHeight / 2, geometry.size.height - previewHeight)))
+                        .accessibilityHidden(true)
+                        .onDisappear { dismissHover(id) }
+                }
+            }
+        }
     }
 
     private func entry(_ row: ThreadConversationRow, index: Int) -> some View {
@@ -127,9 +158,10 @@ struct ThreadHistorySidebar: View {
         .buttonStyle(.plain).focusable(false)
         .id(row.id)
         .onHover { inside in
-            if inside { hovered = row.id }
-            else if hovered == row.id { hovered = nil }
+            if inside { showHover(row.id) }
+            else { dismissHover(row.id) }
         }
+        .onDisappear { dismissHover(row.id) }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: emphasized)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: active)
         .accessibilityLabel(label)
@@ -147,10 +179,37 @@ struct ThreadHistorySidebar: View {
         let index = rows.firstIndex { $0.id == (focused ?? selected) } ?? 0
         focus(rows[min(rows.count - 1, max(0, index + delta))].id)
     }
-    private func focus(_ id: JSONText?) {
+    private func focus(_ id: JSONText?, preview: Bool = true) {
+        clearHover()
+        keyboardPreview = preview
         keyboardRow = id
         keyboardFocused = true
         reveal(id)
+    }
+    private func showHover(_ id: JSONText) {
+        dismissTask?.cancel(); dismissTask = nil
+        keyboardPreview = false
+        hovered = id
+    }
+    private func dismissHover(_ id: JSONText) {
+        guard hovered == id else { return }
+        dismissTask?.cancel()
+        dismissTask = Task { @MainActor in
+            // Exit can precede the neighboring region's enter in AppKit's
+            // tracking delivery. Re-entry cancels this specific dismissal.
+            do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+            guard hovered == id else { return }
+            hovered = nil
+            dismissTask = nil
+        }
+    }
+    private func dismissPreview() {
+        clearHover()
+        keyboardPreview = false
+    }
+    private func clearHover() {
+        dismissTask?.cancel(); dismissTask = nil
+        hovered = nil
     }
     private func activateFocused() -> KeyPress.Result {
         guard let focused else { return .ignored }

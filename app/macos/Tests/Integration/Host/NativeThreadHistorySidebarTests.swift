@@ -165,6 +165,7 @@ struct NativeThreadHistorySidebarTests {
         do {
             try await SwiftUIReplay.wait { fixture.state("timeline")?["locatedRequestId"] == .text("old") }
         } catch {
+            try capture(window, name: "failed-location")
             print("SIDEBAR LOCATION", fixture.state("conversation")?["destination"]?.stringValue ?? "missing",
                   fixture.state("conversation")?["transitioning"] as Any,
                   fixture.state("timeline")?["locatedRequestId"]?.stringValue ?? "missing",
@@ -219,6 +220,102 @@ struct NativeThreadHistorySidebarTests {
             }
             window.close()
         }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native pointer tracking: python3 tools/verification/reading-presentation/run.py --thread-sidebar"))
+    func pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation() async throws {
+        let fixture = SidebarFixture()
+        let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700)
+        defer { window.close() }
+        window.level = .floating
+        window.center()
+        try await SwiftUIReplay.wait { NSApp.isRunning && NSApp.isActive && window.isKeyWindow && window.occlusionState.contains(.visible) }
+        let originalPointer = NSEvent.mouseLocation
+        defer {
+            CGWarpMouseCursorPosition(CGPoint(x: originalPointer.x,
+                y: (NSScreen.screens.first?.frame.maxY ?? 0) - originalPointer.y))
+        }
+        window.acceptsMouseMovedEvents = true
+        try await fixture.ready()
+        // SwiftUI consults the system pointer as well as tracking events.
+        // Keep both in sync; no callback writes production hover state.
+        func move(_ x: CGFloat, _ y: CGFloat) throws {
+            let event = try #require(NSEvent.mouseEvent(with: .mouseMoved,
+                location: CGPoint(x: x, y: y), modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 0, pressure: 0))
+            let screen = window.convertPoint(toScreen: CGPoint(x: x, y: y))
+            CGWarpMouseCursorPosition(CGPoint(x: screen.x,
+                y: (NSScreen.screens.first?.frame.maxY ?? 0) - screen.y))
+            window.sendEvent(event)
+            window.contentView?.mouseMoved(with: event)
+        }
+        try await fixture.perform("history.open", value: .text("turn-2"))
+        try await fixture.perform("history.close")
+        #expect(fixture.state("history.sidebar")?["previewRow"] == .null)
+        try key(126, "\u{f700}", in: window)
+        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text("turn-3") }
+        try move(26, 398)
+        do {
+            try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .text("turn-0") }
+        } catch {
+            try capture(window, name: "hover-entry-failure")
+            print("TOC HOVER", "running", NSApp.isRunning, "active", NSApp.isActive,
+                "key", window.isKeyWindow, "visible", window.occlusionState.contains(.visible),
+                "pointer", NSEvent.mouseLocation, "window", window.frame,
+                "preview", fixture.state("history.sidebar")?["previewRow"]?.stringValue as Any)
+            throw error
+        }
+        try move(50, 398)
+        try move(120, 398)
+        try await Task.sleep(for: .milliseconds(180))
+        #expect(fixture.state("history.sidebar")?["previewRow"] == .text("turn-0"))
+        try capture(window, name: "hover-panel")
+        try move(700, 398)
+        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .null }
+        try capture(window, name: "hover-dismissed")
+        for _ in 0..<4 {
+            try move(26, 398)
+            try await Task.sleep(for: .milliseconds(20))
+            try move(26, 374)
+            try await Task.sleep(for: .milliseconds(20))
+            try move(120, 374)
+        }
+        try await Task.sleep(for: .milliseconds(180))
+        #expect(fixture.state("history.sidebar")?["previewRow"] == .text("turn-1"))
+        try move(700, 374)
+        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["previewRow"] == .null }
+        #expect(fixture.requested == ["turn-2", "turn-4"])
+        // Synthetic arrow and Return events otherwise run in one AppKit
+        // dispatch, before SwiftUI publishes the new focused row. Acknowledge
+        // focus without waiting for the page animation to finish.
+        for _ in 0..<4 {
+            try key(126, "\u{f700}", in: window)
+            try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-2") }
+            try key(36, "\r", in: window)
+            try await Task.sleep(for: .milliseconds(30))
+            try key(125, "\u{f701}", in: window)
+            try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-3") }
+            try key(36, "\r", in: window)
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        try await fixture.ready()
+        #expect(fixture.state("conversation")?["historyRow"] == .text("turn-3"))
+        try key(119, "\u{f72b}", in: window)
+        try key(36, "\r", in: window)
+        try await fixture.ready()
+        #expect(fixture.state("conversation")?["destination"] == .text("current"))
+    }
+
+    private func capture(_ window: NSWindow, name: String) throws {
+        guard let path = ProcessInfo.processInfo.environment["MOKUSEI_SIDEBAR_ARTIFACTS"] else { return }
+        let root = try #require(window.contentView)
+        let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
+        root.cacheDisplay(in: root.bounds, to: image)
+        let directory = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try #require(image.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent(name + ".png"))
     }
 
     private func key(_ code: UInt16, _ characters: String, in window: NSWindow) throws {

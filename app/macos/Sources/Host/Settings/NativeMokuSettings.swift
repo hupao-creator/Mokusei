@@ -179,7 +179,7 @@ import SwiftUI
                         let x = 19 + available * (CGFloat(index) + 0.5) / CGFloat(count)
                         let selected = host?.descriptor.id == harness.descriptor.id
                         let supported = harness.descriptor.threadCapabilities.canHostMoku
-                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id),
+                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id), transparent: true,
                                                   hostSlot: true, hideLogo: selected) { selectHost(harness) }
                             .nativeSettingsAction("host." + id, label: harness.descriptor.displayName.string, selected: selected) { selectHost(harness) }
                             .scaleEffect(selected ? 1.7 : 0.88).position(x: x, y: 71)
@@ -194,9 +194,9 @@ import SwiftUI
                                 navigateHost(current: id, key: event.key); return .handled
                             }
                         let feedback = feedbackSample(target: id, now: now)
-                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id),
-                                                  logoTransform: feedback?.target ?? .init(),
-                                                  logoOpacity: feedback?.targetOpacity ?? 1, checked: targets.contains(id)) { toggleTarget(id) }
+                        NativeHarnessSettingsIcon(harness: harness, state: model.installationState(id), transparent: true,
+                                                  preservesDisabledOpacity: true, logoTransform: feedback?.target ?? .init(),
+                                                  logoOpacity: feedback?.targetOpacity ?? 1) { toggleTarget(id) }
                             .nativeSettingsAction("target." + id, label: harness.descriptor.displayName.string, selected: targets.contains(id)) { toggleTarget(id) }
                             .overlay(alignment: .bottom) {
                                 Capsule().fill(NativePalette.settings.accent.swiftUI).frame(width: 13, height: 2)

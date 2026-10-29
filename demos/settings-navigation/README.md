@@ -15,7 +15,10 @@ python3 demos/settings-navigation/build.py
 
 运行后 `.build/settings-navigation/result.txt` 保存验证结论，`screenshots/`
 保存浅色、深色、540 pt 紧凑设置页、621 pt 窄窗口英文设置页与 Thread 导航对照图。
-另存 Moku 页截图，复核重复页面标题已移除而“协调与派发”分组标题保留。
+另存四个 Harness 的 Moku 页浅色、深色截图，复核重复页面标题已移除而
+“协调与派发”分组标题保留，以及透明图标座位、派发短横线和虚线路径。
+通过生产交互注册切换协调 Harness、增减派发目标，并断言最后一个目标禁用
+移除；另存深色单目标截图，复核该图标不会变淡。
 缩放场景复用生产窗口的 frame/environment/scaleEffect 装配，覆盖 76% 中英文、
 25% 最小缩放及 150% 紧凑布局。截图复核 tab 与固定导航胶囊之间的间距，
 各场景同时断言返回目标的实际坐标和尺寸不变。

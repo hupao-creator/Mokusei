@@ -47,7 +47,7 @@ def main():
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
-    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests"]
+    suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite])
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
@@ -56,7 +56,8 @@ def main():
     try:
         replay.acquire()
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
-        environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES"}
+        environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES",
+                       "MOKUSEI_READING_MOTION_ARTIFACTS": str(replay.workspace / "evidence")}
         if "--model-selector" in sys.argv:
             environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
@@ -79,7 +80,11 @@ def main():
                             "annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets",
                             "focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom",
                             "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
-                            "reportNativeDialogsAndDownloadsPreserveTheDocument"]
+                            "reportNativeDialogsAndDownloadsPreserveTheDocument",
+                            "pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation",
+                            "realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer",
+                            "oneResidentOwnsSubmissionRunningTalkDispatchAndStop",
+                            "centerSurvivesEscapeResizeCoveringRoutesAndRemount"]
         selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
@@ -94,9 +99,9 @@ def main():
         replay.export(evidence)
         replay.close()
     count = (4 if "--model-selector" in sys.argv else
-             5 if isolated_input else
+             9 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             4 if "--thread-sidebar" in sys.argv else
+             5 if "--thread-sidebar" in sys.argv else
              4 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
@@ -110,7 +115,7 @@ def main():
              8 if "--markdown" in sys.argv else
              2 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
-             11 if "--moku-note-tests" in sys.argv else 5)
+             11 if "--moku-note-tests" in sys.argv else 6)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

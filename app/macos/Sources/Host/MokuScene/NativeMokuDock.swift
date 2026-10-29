@@ -189,8 +189,9 @@ public struct NativeMokuDock: View {
         return reply
     }
     private var runningFeedback: Bool {
-        running && mode == .running && !expanded && !inputPresent && interaction == nil && !voiceModeActive
-            && !(reasoningEligible && reasoningReady)
+        running && (mode == .running || incomingReasoning != nil)
+            && !expanded && !inputPresent && interaction == nil && !voiceModeActive
+            && !disabled && (presentation?.workspace.runtimeAvailable ?? true)
     }
     private var incomingReasoning: MokuReasoningContent? {
         guard running else { return nil }
@@ -198,8 +199,10 @@ public struct NativeMokuDock: View {
         return reasoning
     }
     private var reasoningEligible: Bool {
-        incomingReasoning != nil && !expanded && !inputPresent && interaction == nil && !voiceModeActive
-            && !disabled && !state.dockCovered && state.overviewVisible && state.windowVisible
+        // Temporarily use the existing three-dot running expression for Moku's
+        // live reasoning. Keep the source projection and Arc implementation so
+        // this presentation choice does not change runtime or thread history.
+        false
     }
     private var reasoningGlyphs: [MokuReasoningGlyph] {
         let incoming = incomingReasoning.map { $0.text.map { MokuReasoningGlyph(value: String($0), position: 0.5, opacity: 1) } }
@@ -289,7 +292,11 @@ public struct NativeMokuDock: View {
                     beginClick: { state.overviewState.clearAutoFocusSuppression() },
                     isActive: { (state.inputOpen || state.notePanelOpen || foregroundTalkID != nil) && state.overviewVisible && !state.dockCovered && !navigationDisabled },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
-                    outsideWindowClick: foregroundTalkID != nil && !state.notePanelOpen ? { state.dismissTalk() } : nil,
+                    preservesOwnedInteractions: landing && state.inputOpen,
+                    outsideWindowClick: !state.notePanelOpen && (foregroundTalkID != nil || (landing && state.inputOpen)) ? {
+                        if state.inputOpen { state.dismissInputForOutsideClick() }
+                        else { state.dismissTalk() }
+                    } : nil,
                     isInside: { point in
                         NativeMokuOutsideClick.isInside(point: point, dockRects: state.dockHitRects)
                     },
@@ -453,7 +460,7 @@ public struct NativeMokuDock: View {
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let followsEditor = inputPresent && displayedMessage == nil
         let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
-            running: runningFeedback, reasoning: incomingReasoning,
+            running: runningFeedback, reasoning: reasoningEligible ? incomingReasoning : nil,
             presentsReasoning: reasoningEligible && reasoningReady, executionKey: presentation?.executionKey,
             capsuleSize: CGSize(width: surface.width, height: rowHeight), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
             motion: scenePhase == .active && state.windowVisible && !state.dockCovered,
@@ -487,10 +494,25 @@ public struct NativeMokuDock: View {
                     .transition(.opacity)
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            if rowControlAvailable && !voiceModeActive && !inputPresent {
+                Button { state.setInputOpen(true) } label: {
+                    Color.clear
+                        .frame(width: displayedMessage == nil ? surface.width : 46, height: rowHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                // Leave selectable message prose and the later control overlays
+                // their own hit targets; only the eyes open input beside a message.
+                .padding(.leading, displayedMessage == nil ? 0 : 9)
+                .accessibilityLabel(localize("打开 Moku 输入框", "Open Moku input"))
+                .accessibilityIdentifier("moku-open-input")
+            }
+        }
         .overlay(alignment: .top) {
             if state.notePanelOpen {
                 ZStack {
-                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
+                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight, rowHeight: rowHeight,
                                           routeEligible: state.notePanelOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
                                           openExternal: openExternal, openExecution: openExecution,
@@ -509,21 +531,6 @@ public struct NativeMokuDock: View {
                 .transition(.asymmetric(
                     insertion: .opacity.animation(surfaceAnimation),
                     removal: .opacity.animation(reduceMotion ? nil : .easeOut(duration: 0.12))))
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if rowControlAvailable && !voiceModeActive && !inputPresent {
-                Button { state.setInputOpen(true) } label: {
-                    Color.clear
-                        .frame(width: displayedMessage == nil ? surface.width : 46, height: rowHeight)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                // Leave selectable message prose and the later control overlays
-                // their own hit targets; only the eyes open input beside a message.
-                .padding(.leading, displayedMessage == nil ? 0 : 9)
-                .accessibilityLabel(localize("打开 Moku 输入框", "Open Moku input"))
-                .accessibilityIdentifier("moku-open-input")
             }
         }
         .overlay(alignment: .bottomLeading) {

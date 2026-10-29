@@ -39,6 +39,10 @@ import MokuseiApplications
           '<input id="shadowInput" value="alpha beta gamma">';
         const closedRoot = document.getElementById('closedShadowHost').attachShadow({mode:'closed'});
         closedRoot.innerHTML = '<input value="alpha beta gamma">';
+        window.modalCancelledByTrustedEvent = false;
+        document.getElementById('modal').addEventListener('cancel', event => {
+          window.modalCancelledByTrustedEvent = event.isTrusted;
+        });
         const closedInput = closedRoot.querySelector('input');
         window.focusClosedInput = () => { closedInput.focus(); closedInput.setSelectionRange(16, 16); };
         window.readClosedInput = () => closedInput.value;
@@ -214,10 +218,34 @@ struct NativeReportNavigationTests {
         try #require(fixture.backs == 0 && fixture.open)
         #expect(try await document.evaluateJavaScript("window.readClosedInput()") as? String == "alpha beta Xgamma",
             "Option-Left must retain native word movement even when the editor is hidden by a closed shadow root")
-        _ = try await document.evaluateJavaScript("document.getElementById('modal').showModal()")
+        // WebKit focus and its native default action cross process boundaries.
+        // Wait for the modal's focused frame before sending Escape, then observe
+        // its real close event rather than assuming completion after 80 ms.
+        let modalFocused = try await document.callAsyncJavaScript("""
+            const modal = document.getElementById('modal');
+            modal.showModal();
+            await new Promise(resolve => requestAnimationFrame(() => resolve()));
+            return modal.matches(':modal') && modal.contains(document.activeElement);
+            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
+        try #require(modalFocused == true)
         try key(53, "\u{1b}")
-        try await Task.sleep(for: .milliseconds(80))
-        #expect(try await document.evaluateJavaScript("document.getElementById('modal').open") as? Bool == false)
+        let modalState = try await document.callAsyncJavaScript("""
+            const modal = document.getElementById('modal');
+            if (modal.open) await new Promise(resolve => {
+              let timeout;
+              const finish = () => {
+                clearTimeout(timeout);
+                modal.removeEventListener('close', finish);
+                resolve();
+              };
+              modal.addEventListener('close', finish, {once: true});
+              timeout = setTimeout(finish, 3000);
+            });
+            return {open: modal.open, trustedCancel: window.modalCancelledByTrustedEvent};
+            """, arguments: [:], in: nil, contentWorld: .page) as? [String: Any]
+        #expect(modalState?["open"] as? Bool == false)
+        #expect(modalState?["trustedCancel"] as? Bool == true,
+            "A native Escape must cancel the modal; JavaScript dismissal cannot certify input routing")
         try #require(fixture.backs == 0 && fixture.open)
         let http = try ReportHTTPFixture()
         defer { http.close() }

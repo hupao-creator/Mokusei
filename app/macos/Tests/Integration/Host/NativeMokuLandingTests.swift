@@ -5,12 +5,18 @@ import Testing
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
 #endif
-import MokuseiCore
+@testable import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
 import MokuseiHarnessCodex
 import MokuseiApplications
 @testable import MokuseiUI
+
+// Catalog fixtures still need the real connection event: loading must retire
+// on disconnect, even when a retained snapshot says its execution is running.
+extension RuntimeClient {
+    fileprivate func connectLandingFixture() { setStatus(.connected) }
+}
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuLandingTests {
@@ -35,6 +41,7 @@ struct NativeMokuLandingTests {
             presentation = NativeWorkspacePresentation(workspace: workspace)
             presentation.start()
             presentation.setScenePhase(.active)
+            workspace.start()
         }
         func thread(_ id: JSONText = "child", status: PublicExecution.Status? = .running,
                     archived: Bool = false, history: Bool = false) throws -> HarnessThread {
@@ -48,6 +55,8 @@ struct NativeMokuLandingTests {
         }
         func install(_ threads: [HarnessThread] = [], operations: [JSONValue] = [], applications: [JSONValue] = [],
                      includeMoku: Bool = true, execution: JSONText = "moku-run", running: Bool = false) async throws {
+            await workspace.client.connectLandingFixture()
+            try await SwiftUIReplay.wait { self.workspace.connection == .connected && !self.workspace.synchronizing }
             revision += 1
             let coordinator = try HarnessThread(id: "moku", harnessID: "codex", revision: revision, sessionState: .null,
                 observation: .init(latestExecution: operations.isEmpty && !running ? nil : try .init(executionID: execution, status: .running, startedAt: 1)),
@@ -62,7 +71,7 @@ struct NativeMokuLandingTests {
             await workspace.installPrepared(snapshot, event: event)
             try #require(workspace.state == snapshot && workspace.catalog.revision == revision,
                          "Catalog installation failed: \(workspace.connectionError ?? "unknown")")
-            #expect(overview.error == nil)
+            #expect(overview.error == nil && workspace.runtimeAvailable)
         }
         func mount(fullWorkspace: Bool = false, width: CGFloat = 900, height: CGFloat = 620) {
             let window = NSWindow(contentRect: CGRect(x: 100, y: 100, width: width, height: height),
@@ -87,7 +96,7 @@ struct NativeMokuLandingTests {
         func close() async {
             window?.close()
             await presentation.release()
-            await workspace.client.close()
+            try? await workspace.stop()
             scene.overviewState.camera.dispose()
             try? FileManager.default.removeItem(at: directory)
         }
@@ -139,7 +148,22 @@ struct NativeMokuLandingTests {
             context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: key)))
     }
 
-    @Test func realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() async throws {
+    private func click(_ point: CGPoint, window: NSWindow) throws {
+        let height = try #require(window.contentView).bounds.height
+        func event(_ type: NSEvent.EventType) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: type,
+                location: CGPoint(x: point.x, y: height - point.y), modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
+        }
+        // Native text selection may synchronously track until mouse-up.
+        NSApp.postEvent(try event(.leftMouseUp), atStart: true)
+        NSApp.sendEvent(try event(.leftMouseDown))
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() async throws {
         try await withFixture { fixture in
             fixture.mount(fullWorkspace: true)
             #expect(!fixture.moku.landing && !fixture.scene.inputOpen)
@@ -150,7 +174,28 @@ struct NativeMokuLandingTests {
             let height = try #require(fixture.window?.contentView).bounds.height
             #expect(fixture.moku.landing && fixture.overview.globalConversationCount == 0)
             #expect(fixture.scene.capsuleFrame.height == 76 && abs(fixture.scene.capsuleFrame.midY - height / 2) < 1)
-            #expect(SwiftUIReplay.editor(in: try #require(fixture.window?.contentView)) != nil)
+            let window = try #require(fixture.window), root = try #require(window.contentView)
+            let editor = try #require(SwiftUIReplay.editor(in: root))
+            editor.insertText("保留 landing 草稿", replacementRange: .init(location: 0, length: 0))
+            let capsule = fixture.scene.capsuleFrame
+            try click(CGPoint(x: capsule.midX, y: capsule.midY), window: window)
+            #expect(fixture.scene.inputOpen)
+            try click(CGPoint(x: 30, y: capsule.minY - 40), window: window)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            #expect(fixture.moku.landing && fixture.presentation.draft.text == "保留 landing 草稿")
+            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
+            #expect(fixture.presentation.draft.text == "保留 landing 草稿")
+            let other = NSWindow(contentRect: CGRect(x: 1000, y: 100, width: 160, height: 100),
+                                 styleMask: [.titled], backing: .buffered, defer: false)
+            other.isReleasedWhenClosed = false
+            other.contentView = NSView(frame: CGRect(x: 0, y: 0, width: 160, height: 100))
+            other.makeKeyAndOrderFront(nil)
+            defer { other.close() }
+            #expect(fixture.scene.inputOpen)
+            try click(CGPoint(x: 50, y: 50), window: other)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen }
+            #expect(fixture.presentation.draft.text == "保留 landing 草稿")
         }
         try await withFixture { fixture in
             try await fixture.install(running: true); fixture.mount(fullWorkspace: true)
@@ -223,7 +268,9 @@ struct NativeMokuLandingTests {
         return nil
     }
 
-    @Test func oneResidentOwnsSubmissionRunningTalkDispatchAndStop() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func oneResidentOwnsSubmissionRunningTalkDispatchAndStop() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
@@ -278,7 +325,9 @@ struct NativeMokuLandingTests {
         }
     }
 
-    @Test func centerSurvivesEscapeResizeCoveringRoutesAndRemount() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
+        "Requires the isolated AppKit event loop for native landing input: python3 tools/verification/reading-presentation/run.py --moku-landing"))
+    func centerSurvivesEscapeResizeCoveringRoutesAndRemount() async throws {
         try await withFixture { fixture in
             try await fixture.install(); fixture.mount()
             try await SwiftUIReplay.wait { fixture.scene.inputOpen }
@@ -304,6 +353,10 @@ struct NativeMokuLandingTests {
             window.setContentSize(CGSize(width: 480, height: 620))
             try await SwiftUIReplay.wait { fixture.scene.windowVisible && !fixture.scene.inputOpen && fixture.scene.capsuleFrame.width < 432 }
             #expect(fixture.presentation.draft.text == "保留草稿" && fixture.moku.landing)
+            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen && !fixture.scene.capsuleFrame.isEmpty }
+            try click(CGPoint(x: 30, y: 100), window: window)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen }
         }
     }
 

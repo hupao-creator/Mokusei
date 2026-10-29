@@ -1,4 +1,4 @@
-"""Replay live public Moku reasoning through the production native Arc.
+"""Replay live public Moku reasoning through the production three-dot loading expression.
 
 Builds current modules unless --skip-build follows a just-completed build/check.
 Run SwiftPM builds and native GUI replays serially.
@@ -38,7 +38,7 @@ try:
         raise RuntimeError("Native reasoning replay exited without a result")
     result = json.loads(report.read_text())
     if options.negative_control:
-        passed = not result["ok"] and "no naturally changing reasoning pixels" in result["message"]
+        passed = not result["ok"] and "no naturally changing loading pixels" in result["message"]
     else:
         passed = result["ok"] and status == 0
     print(("PASS: " if passed else "FAIL: ") + result["message"])

@@ -13,13 +13,20 @@ selection, Undo, label activation and the draft close/save gate.
 | --- | --- |
 | General | Appearance/language popups, glass world switch, Agent/install buttons, cancel and destructive clear buttons |
 | Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
-| Moku | Coordinating Agent buttons, dispatch-target checkboxes, execution fields, routing switch and text editor |
+| Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
 | Report and Tag | Inheritance switches, Harness popups and the same contributed execution fields |
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry
 keeps the same descriptors and discrete-change semantics.
+
+The coordination and dispatch map retains the icon presentation from before
+`016735c` (system Settings controls): transparent 48-point seats, hover surfaces
+and keyboard focus rings. Targets use icons, selection underlines and dashed
+paths rather than checkboxes. The last selected target remains fully opaque
+while removal is disabled. General's Agent installation buttons and the other
+Settings form controls retain their system presentation.
 
 The reference-image model/effort selector is a separate component task. Its
 integration points are the shared `NativeSettingsSelect`/`NativeSettingsSelectPopover`
