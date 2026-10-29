@@ -38,7 +38,8 @@ public struct ClaudeThreadView: View {
         if !state.tasks.isEmpty { rows.append(ThreadConversationRow(id: "native-background-tasks", createdAt: input.thread.updatedAt, node: AnyView(ClaudeBackgroundTasks(tasks: state.tasks)))) }
         let anchor = claudeReplyAnchor(state, message: input.readingTarget?.message) ?? (resolvedAnchor?.request == input.readingTarget?.requestID ? resolvedAnchor?.anchor : nil)
         return ThreadConversation(threadId: input.thread.id, title: claudeDocumentTitle(input.thread, state: state), icon: claudeEmoji(input.thread), rows: rows,
-            readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor) },
+            readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor, position: $0.position,
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == $0.executionID) },
             running: input.thread.observation.latestExecution?.status == .running,
             runningTurnId: runningID(state), context: context,
             renderRow: context.content == .manifest ? { key in
@@ -164,7 +165,7 @@ struct ClaudeTurnView: View {
             else if kind == "context-compaction" { guard turn.raw["compacted"] == .bool(true) else { continue } }
             else { guard kind == "reasoning" ? (!claudeTrim(turn.raw[field]).isEmpty || executionPresence.contains(turn.id, "reasoning")) : turn.raw[field]?.stringValue?.isEmpty == false else { continue }; fields[kind == "error" ? "message" : "content"] = turn.raw[field]; if kind == "assistant" { fields["status"] = .text(active ? "streaming" : "complete") } }
             let row = detail(synthetic(kind, kind: kind, fields: fields), final: kind == "assistant" && !waiting)
-            rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: kind == "reasoning" ? .member : nil, executionSummary: row.executionSummary))
+            rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: kind == "reasoning" ? .member : nil, executionSummary: row.executionSummary, finalReply: row.finalReply))
         }
         }
         appendFallback(["reasoning","assistant","plan"])
@@ -187,7 +188,7 @@ struct ClaudeTurnView: View {
     private func detail(_ item: JSONValue, final: Bool) -> ThreadDetailRow {
         ThreadDetailRow(id: item.claudeID("id"), kind: claudeRowKind(item, final: final),
             node: AnyView(ClaudeTimelineEntry(item: item, turn: turn, active: active, publicInteractions: publicInteractions, actions: actions, context: context)),
-            executionSummary: item.claudeKind == "reasoning" && (!claudeTrim(item["content"]).isEmpty || executionPresence.contains(item.claudeID("id"), "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil)
+            executionSummary: item.claudeKind == "reasoning" && (!claudeTrim(item["content"]).isEmpty || executionPresence.contains(item.claudeID("id"), "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil, finalReply: final && item.claudeKind == "assistant")
     }
 }
 func claudeRowKind(_ item: JSONValue, final: Bool) -> ThreadDetailRow.Kind {

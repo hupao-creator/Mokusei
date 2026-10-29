@@ -34,13 +34,16 @@ public extension NativeWorkspacePresentation {
     var interactionActions: [String] {
         guard interactionReady else { return [] }
         if scene.settingsOpen {
+            // The closing page stays mounted for its capsule animation, but a
+            // section/control command can no longer produce a readable result.
+            if scene.settingsClosing { return ["navigation.back", "overview.show", "settings.close"] }
             var actions = ["settings.select", "settings.control"]
             if settingsNavigation.closeBlockReason(model: workspace.settingsModel) == nil {
                 actions += ["settings.close", "navigation.back", "overview.show"]
             }
             return actions.sorted()
         }
-        var actions = ["settings.open"]
+        var actions: [String] = canOpenSettings ? ["settings.open"] : []
         if interactionPage == "overview" {
             actions += ["filter.select"]
             actions += overview.isSearching ? ["search.update", "search.end"] : ["search.begin"]
@@ -153,7 +156,7 @@ public extension NativeWorkspacePresentation {
     }
 
     private func closeSettingsForInteraction() throws {
-        guard settingsNavigation.requestClose(model: workspace.settingsModel, onClose: { scene.closeSettings(origin: $0) }) else {
+        guard settingsNavigation.requestClose(model: workspace.settingsModel, onClose: { _ in scene.closeSettings() }) else {
             throw NativeInteractionError("blocked", "Settings cannot close yet")
         }
     }

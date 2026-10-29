@@ -1,5 +1,6 @@
 import Foundation
 import MokuseiCore
+import MokuseiPluginAPI
 
 struct MarkdownSpan: Hashable, Sendable {
     var text: String
@@ -13,6 +14,24 @@ struct MarkdownSpan: Hashable, Sendable {
     var title: String?
     var superscript = false
     var anchor: String?
+
+    // Visible glyph equivalence must not suppress URL or copy-byte updates.
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.strong == rhs.strong && lhs.emphasis == rhs.emphasis &&
+        lhs.strikethrough == rhs.strikethrough && lhs.code == rhs.code &&
+        lhs.linkContext == rhs.linkContext && lhs.superscript == rhs.superscript &&
+        lhs.text.utf8.elementsEqual(rhs.text.utf8) &&
+        sameBytes(lhs.link, rhs.link) && sameBytes(lhs.image, rhs.image) &&
+        sameBytes(lhs.title, rhs.title) && sameBytes(lhs.anchor, rhs.anchor)
+    }
+
+    private static func sameBytes(_ lhs: String?, _ rhs: String?) -> Bool {
+        switch (lhs, rhs) {
+        case (.none, .none): return true
+        case let (.some(a), .some(b)): return a.utf8.elementsEqual(b.utf8)
+        default: return false
+        }
+    }
 }
 
 indirect enum MarkdownBlock: Hashable, Sendable {
@@ -24,6 +43,22 @@ indirect enum MarkdownBlock: Hashable, Sendable {
     case table(rows: [[[MarkdownSpan]]], alignments: [MarkdownAlignment])
     case rule
     case footnote(id: String, index: Int, blocks: [MarkdownBlock])
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        switch (lhs, rhs) {
+        case let (.paragraph(a), .paragraph(b)): return a == b
+        case let (.heading(al, a), .heading(bl, b)): return al == bl && a == b
+        case let (.quote(a), .quote(b)): return a == b
+        case let (.list(a), .list(b)): return a == b
+        case let (.code(al, a), .code(bl, b)):
+            return al.utf8.elementsEqual(bl.utf8) && a.utf8.elementsEqual(b.utf8)
+        case let (.table(a, aa), .table(b, ba)): return a == b && aa == ba
+        case (.rule, .rule): return true
+        case let (.footnote(a, ai, ab), .footnote(b, bi, bb)):
+            return a.utf8.elementsEqual(b.utf8) && ai == bi && ab == bb
+        default: return false
+        }
+    }
 }
 
 struct MarkdownListItem: Hashable, Sendable {
@@ -79,6 +114,9 @@ enum MarkdownURLPolicy {
                 if String(value[..<colon]).lowercased() == "file" {
                     return localFileURL(value) == nil ? nil : value
                 }
+                if String(value[..<colon]).lowercased() == "mokusei" {
+                    return URL(string: value).flatMap(ApplicationExecutionLink.parse) == nil ? nil : value
+                }
                 let allowed = ["http", "https", "irc", "ircs", "mailto", "xmpp"]
                 guard allowed.contains(String(value[..<colon]).lowercased()) else { return nil }
             }
@@ -109,16 +147,18 @@ enum MarkdownURLPolicy {
 /// parse results across a long conversation, without retaining parser AST objects.
 actor NativeMarkdownParser {
     static let shared = NativeMarkdownParser()
-    private var cache: [String: MarkdownDocument] = [:]
-    private var order: [String] = []
+    private var cache: [Data: MarkdownDocument] = [:]
+    private var order: [Data] = []
     private var bytes = 0
     private let budget = 4 * 1024 * 1024
 
     func parse(_ source: String) throws -> MarkdownDocument {
         try Task.checkCancellation()
-        if let cached = cache[source] {
+        // Swift String keys merge canonically equivalent but byte-distinct URLs.
+        let key = Data(source.utf8)
+        if let cached = cache[key] {
             NativePerformance.event(.markdownCache, values: ["hit": 1])
-            order.removeAll { $0 == source }; order.append(source)
+            order.removeAll { $0 == key }; order.append(key)
             return cached
         }
         NativePerformance.event(.markdownCache, values: ["hit": 0])
@@ -127,7 +167,7 @@ actor NativeMarkdownParser {
         measurement?.end(values: ["bytes": Double(result.sourceBytes), "blocks": Double(result.blocks.count)])
         try Task.checkCancellation()
         if result.sourceBytes <= budget {
-            cache[source] = result; order.append(source); bytes += result.sourceBytes
+            cache[key] = result; order.append(key); bytes += result.sourceBytes
             while bytes > budget || order.count > 48 {
                 let key = order.removeFirst()
                 bytes -= cache.removeValue(forKey: key)?.sourceBytes ?? 0

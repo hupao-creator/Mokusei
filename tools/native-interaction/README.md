@@ -47,7 +47,7 @@ Unknown/missing fields and invalid argument types are rejected.
 
 | Action name | Additional fields | Admission |
 | --- | --- | --- |
-| `settings.open` | none | Workspace mounted, Settings closed |
+| `settings.open` | none | Loaded Overview mounted, Settings closed |
 | `settings.select` | `section` | Current Settings section ID |
 | `settings.control` | `controlId`, `handle`, `operation`, `value` | Current mounted, enabled control and current handle |
 | `settings.close` | none | Settings open and its close gate permits |
@@ -196,7 +196,9 @@ controls reject operations.
 | Role | Observation / operation |
 | --- | --- |
 | `conversation` | Current/history destination, selected historical row, parent visibility, transition state |
-| `history.toggle`, `history.open`, `history.close` | Real history list and document callbacks |
+| `history.sidebar` | TOC selected/current/focused row identities and total entry count |
+| `history.open`, `history.current`, `history.close` | Mounted TOC entry, current-turn and document Back callbacks |
+| `turn.author` | Resolved author shown below the active document title |
 | `visibility.userMessages`, `visibility.work` | Current document's independent visibility values and toggles |
 | `loadEarlier`, `jumpLatest` | Mounted earlier-window and latest buttons |
 | `timeline` | Top, content height, viewport, following, visible row IDs/count, first index and total count |
@@ -210,8 +212,8 @@ python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.s
   --replay /private/tmp/reading-41.jsonl --trace /private/tmp/reading-41-replayed.jsonl
 ```
 
-The runner first exercises history, nested disclosures, scrolling, Settings return
-and stale-handle rejection, then makes seeded choices from mounted controls. A
+The runner first exercises history, nested disclosures, scrolling, rejected Settings
+entry and stale-handle rejection, then makes seeded choices from mounted controls. A
 fixture with more than 120 completed turns and tool details is required to cover
 load-earlier and nested tools. The [production reading launcher](../verification/thread-interaction/README.md)
 provides that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from

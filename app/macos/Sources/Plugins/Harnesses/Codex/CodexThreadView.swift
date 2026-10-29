@@ -64,7 +64,8 @@ public struct CodexThreadView: View {
         let anchor = codexMokuReplyAnchor(state: state.raw, message: target.message)
             ?? (resolvedAnchor?.thread == input.thread.id && resolvedAnchor?.request == target.requestID ? resolvedAnchor?.anchor : nil)
         return ThreadConversationReadingTarget(requestId: target.requestID,
-            mode: target.mode == .current ? .current : .history, executionId: target.executionID, anchorId: anchor)
+            mode: target.mode == .current ? .current : .history, executionId: target.executionID, anchorId: anchor, position: target.position,
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
     }
 
     private func runningTurnID(_ state: CodexState) -> JSONText? {

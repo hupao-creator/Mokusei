@@ -18,12 +18,14 @@ import MokuseiPluginUI
     let canvasInputRegions = NativeCanvasInputRegions()
     public private(set) var mokuOpen = false
     public private(set) var cameraActive = false
+    private var landingActive = false
     public private(set) var inputOpen = false
     public private(set) var inputLeaving = false
     public private(set) var talkPresentation = NativeMokuTalkState()
     public private(set) var settingsOpen = false
     public private(set) var settingsClosing = false
     public private(set) var settingsTransitioning = false
+    var settingsExpanded = false
     private(set) var settingsTransitionRequest = 0
     @ObservationIgnored var settingsSettle: (() -> Void)?
     public private(set) var flightActive = false
@@ -59,7 +61,6 @@ import MokuseiPluginUI
     @ObservationIgnored var retainedSelection: NSRange?
     @ObservationIgnored var capsuleSealed = false
     @ObservationIgnored var coordinatorFrame: CGRect?
-    @ObservationIgnored var settingsOrigin = CGRect.zero
     /// The normal-flow operation notice can scroll the shell without resizing
     /// its viewport. Fixed descendants compensate imperatively, without a new
     /// SwiftUI update while the enclosing clip view is publishing its bounds.
@@ -99,8 +100,10 @@ import MokuseiPluginUI
         windowVisible && !dockCovered && (overviewVisible || inputOpen || dockInteractionVisible)
     }
     public var interactionPaused: Bool { cameraActive || settingsOpen || flightActive || inputOpen }
+    public var canOpenSettings: Bool { overviewVisible && !mokuOpen && !cameraActive && !flightActive }
 
     public func setMokuOpen(_ open: Bool, readingTarget: HarnessReadingTarget? = nil) {
+        guard !settingsOpen else { return }
         guard !disabled || !open else { return }
         if open { talkPresentation.setPresented(false); closeNotePanel() }
         self.readingTarget = readingTarget
@@ -119,6 +122,13 @@ import MokuseiPluginUI
         if active { talkPresentation.setPresented(false); closeNotePanel() }
         command?(.visibility)
     }
+    /// Entrance belongs to the scene, so remounting or uncovering the Dock
+    /// cannot reopen input over the resident character or a waiting notification.
+    func updateLanding(_ active: Bool) -> Bool {
+        guard active != landingActive else { return false }
+        landingActive = active
+        return true
+    }
     public func toggleInput() {
         // Compose belongs to the Overview capsule. Off that route the shortcut
         // must not reopen a hidden field or leave it first responder.
@@ -127,6 +137,7 @@ import MokuseiPluginUI
         else { setInputOpen(!inputOpen) }
     }
     public func setInputOpen(_ open: Bool) {
+        guard !settingsOpen else { return }
         guard !disabled || !open else { return }
         guard open != inputOpen else { return }
         capsuleTask?.cancel(); capsuleTask = nil
@@ -180,6 +191,7 @@ import MokuseiPluginUI
         return true
     }
     public func setNotePanelOpen(_ open: Bool) {
+        guard !settingsOpen else { return }
         guard open != notePanelOpen else { return }
         guard !open || (overviewVisible && !disabled && !dockCovered && !dockInteractionVisible) else { return }
         if open { setInputOpen(false) }
@@ -246,20 +258,21 @@ import MokuseiPluginUI
         guard selection.location != NSNotFound else { return }
         retainedSelection = selection
     }
-    public func openSettings(origin: CGRect = .zero) {
+    public func openSettings() {
+        guard canOpenSettings else { return }
         guard !settingsOpen || settingsClosing else { return }
         talkPresentation.setPresented(false)
-        closeNotePanel()
+        // Keep the underlying input/Note visit alive. Settings temporarily owns
+        // the capsule; a pending intervention is admitted after it retires.
         if !settingsOpen { settle() }
-        settingsOrigin = origin; settingsClosing = false; settingsOpen = true
+        settingsClosing = false; settingsOpen = true
         settingsTransitioning = settingsSettle != nil
         settingsTransitionRequest += 1
         onSettingsOpenChange?(true)
         command?(.settings(true))
     }
-    public func closeSettings(origin: CGRect = .zero) {
+    public func closeSettings() {
         guard settingsOpen, !settingsClosing else { return }
-        if !origin.isEmpty { settingsOrigin = origin }
         settingsClosing = true
         settingsTransitioning = settingsSettle != nil
         settingsTransitionRequest += 1
@@ -276,7 +289,7 @@ import MokuseiPluginUI
     }
     public func settle() { settingsSettle?(); command?(.settle) }
     func setDockInteractionVisible(_ value: Bool, question: Bool) {
-        if value { talkPresentation.setPresented(false); closeNotePanel() }
+        if value && !settingsOpen { talkPresentation.setPresented(false); closeNotePanel() }
         dockInteractionVisible = value; dockInteractionIsQuestion = question; command?(.position)
     }
     public func markReplyRead(_ key: String) {
@@ -295,19 +308,11 @@ import MokuseiPluginUI
             try JSONValue.array(replyReadOrder.map(JSONValue.string)).encodedData().write(to: replyReadFileURL, options: .atomic)
         } catch {}
     }
-    func setCameraActive(_ active: Bool) {
-        if active { talkPresentation.setPresented(false); closeNotePanel() }
-        cameraActive = active
-        if !active, mokuOpen, windowVisible, let key = liveReplyKey { markReplyRead(key) }
-    }
-    func setFlightActive(_ active: Bool) {
-        if active { talkPresentation.setPresented(false); closeNotePanel() }
-        flightActive = active; onFlightActiveChange?(active)
-    }
     func finishSettingsTransition() {
         settingsTransitioning = false
         guard settingsClosing else { return }
         settingsClosing = false; settingsOpen = false
+        if dockInteractionVisible { closeNotePanel(); setInputOpen(false) }
         onSettingsOpenChange?(false)
     }
     func setWindowVisible(_ value: Bool) {
@@ -317,9 +322,6 @@ import MokuseiPluginUI
     }
     func dockViewport(in size: CGSize) -> CGRect {
         dockVisibleViewport ?? CGRect(origin: .zero, size: size)
-    }
-    func setDockViewport(_ viewport: CGRect) {
-        if dockVisibleViewport != viewport { dockVisibleViewport = viewport }
     }
 }
 

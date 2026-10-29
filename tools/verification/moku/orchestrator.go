@@ -529,7 +529,19 @@ func replayOrchestratorBasics() {
 	mokuReplayMust(json.Unmarshal(w.binding("talk").InputSchema, &talkSchema))
 	mokuReplayCheck(talkSchema.Properties["text"].MaxLength == moku.TalkTextMaxCharacters &&
 		talkSchema.Properties["text"].Description == moku.TalkTextPolicy &&
-		strings.Contains(moku.DefaultSystemPrompt(), moku.TalkTextPolicy), "talk schema and prompt policy drifted")
+		strings.Contains(w.binding("talk").Description, moku.TalkTextPolicy) &&
+		strings.Contains(moku.DefaultSystemPrompt(), moku.TalkTextPolicy) &&
+		strings.Contains(moku.TalkTextPolicy, "Use emoji naturally when they add expression and suit the context."), "talk schema and prompt policy drifted")
+	var noteSchema struct {
+		Properties map[string]struct {
+			Description string `json:"description"`
+		} `json:"properties"`
+	}
+	mokuReplayMust(json.Unmarshal(w.binding("update_note").InputSchema, &noteSchema))
+	mokuReplayCheck(noteSchema.Properties["text"].Description == moku.NoteTextPolicy &&
+		strings.Contains(w.binding("update_note").Description, moku.NoteTextPolicy) &&
+		strings.Contains(moku.DefaultSystemPrompt(), moku.NoteTextPolicy) &&
+		strings.Contains(moku.NoteTextPolicy, "Use emoji naturally when they add expression and suit the context."), "note schema and prompt policy drifted")
 	// A bubble is projected from successful, completed audit entries. Preserve
 	// the exact text and leave the execution running; invalid calls cannot
 	// replace the latest successful bubble.

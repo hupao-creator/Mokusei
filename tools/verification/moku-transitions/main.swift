@@ -235,13 +235,13 @@ private struct Scene: View {
     let source = "先读已有实现，确认文字方向，再沿圆弧顺滑推进。👩🏽‍💻 新的输入不会重启动作，角色也不会突然卡断。"
     fixture.reasoning = MokuReasoningContent(sourceText: source, segmentKey: "execution-a:reasoning-1")
     try await observe("running-to-thinking", milliseconds: 1200)
-    try await wait("thinking handoff settled") { controller.currentReasoning != nil && !controller.isTransitioning }
+    try await wait("thinking handoff settled") { controller.input?.running == true && controller.currentReasoning == nil && !controller.isTransitioning }
     try sample("thinking-settled")
-    let readingClock = controller.reasoningAnimation.clock
+    let readingClock = controller.runningMilliseconds
     fixture.reasoning = MokuReasoningContent(sourceText: source + " 同段继续追加。", segmentKey: "execution-a:reasoning-1")
     try await observe("thinking-append", milliseconds: 180)
-    guard controller.reasoningAnimation.clock > readingClock, !controller.isTransitioning else {
-        throw Failure(description: "Text append restarted its role or reader")
+    guard controller.runningMilliseconds > readingClock, !controller.isTransitioning, controller.paintedReasoningGlyphs.isEmpty else {
+        throw Failure(description: "Text append restarted loading or exposed reasoning")
     }
     fixture.state.setInputOpen(true)
     try await observe("thinking-to-input", milliseconds: 100)
@@ -264,20 +264,44 @@ private struct Scene: View {
     fixture.phase = .active
     try await observe("resume-current-pose", milliseconds: 250)
 
-    for size in [CGSize(width: 300, height: 190), CGSize(width: 180, height: 140)] {
-        window.setContentSize(size)
-        try await observe("fit-\(Int(size.width))-\(Int(size.height))", milliseconds: 900)
-        let surface = fixture.state.capsuleFrame
-        let bodySize = controller.input!.capsuleSize
-        let scale = surface.width / bodySize.width
-        let bounds = NativeMokuReasoningArcTrack(body: CGRect(origin: .zero, size: bodySize))
-            .inkBounds(for: controller.paintedReasoningGlyphs)
-        let actual = CGRect(x: surface.midX + (bounds.minX - bodySize.width / 2) * scale,
-            y: surface.midY + (bounds.minY - bodySize.height / 2) * scale,
-            width: bounds.width * scale, height: bounds.height * scale)
-        let viewport = CGRect(origin: .zero, size: host.bounds.size).insetBy(dx: -0.5, dy: -0.5)
-        guard viewport.contains(actual) else { throw Failure(description: "Arc glyphs clipped in \(size): \(actual) outside \(viewport)") }
+    for landing in [false, true] {
+        fixture.landing = landing
+        window.setContentSize(CGSize(width: 820, height: 480))
+        try await observe(landing ? "landing-thinking" : "bottom-thinking", milliseconds: 900)
+        if landing {
+            guard !fixture.state.inputOpen, fixture.state.capsuleFrame.width > 168,
+                  abs(fixture.state.capsuleFrame.midY - host.bounds.midY) < 1 else {
+                throw Failure(description: "Landing did not retain its enlarged centered thinking resident")
+            }
+            fixture.state.setInputOpen(true)
+            try await observe("landing-thinking-to-input", milliseconds: 900)
+            fixture.state.setInputOpen(false)
+            try await observe("landing-input-to-thinking", milliseconds: 1400)
+        }
+        for size in [CGSize(width: 300, height: 190), CGSize(width: 180, height: 140)] {
+            window.setContentSize(size)
+            try await observe("fit-\(Int(size.width))-\(Int(size.height))", milliseconds: 900)
+            let surface = fixture.state.capsuleFrame
+            let bodySize = controller.input!.capsuleSize
+            let viewport = CGRect(origin: .zero, size: host.bounds.size).insetBy(dx: -0.5, dy: -0.5)
+            guard viewport.contains(surface), controller.input?.running == true,
+                  controller.currentReasoning == nil, controller.paintedReasoningGlyphs.isEmpty,
+                  bodySize.width > 0 else {
+                throw Failure(description: "Loading resident clipped or exposed reasoning in \(size)")
+            }
+            let scale = surface.width / bodySize.width
+            for index in 0..<3 {
+                let key = "d\(index)", radius = controller.pose[key + "radius"] * scale
+                let dot = CGRect(x: surface.midX + controller.pose[key + "x"] * scale - radius,
+                    y: surface.midY + controller.pose[key + "y"] * scale - radius,
+                    width: radius * 2, height: radius * 2)
+                guard viewport.contains(dot) else {
+                    throw Failure(description: "Loading dot clipped in \(size): \(dot)")
+                }
+            }
+        }
     }
+    fixture.landing = false
     window.setContentSize(CGSize(width: 820, height: 480))
     fixture.reasoning = nil; fixture.running = false; fixture.mode = .idle
     try await observe("thinking-to-idle-and-landing", milliseconds: 1300)
@@ -288,7 +312,7 @@ private struct Scene: View {
     return ["samples": observations.count, "screenshots": screenshots, "maximumEyeStep": greatestEyeStep,
             "nativeFrames": controller.frameCount, "maximumMentionDrift": maximumMentionDrift,
             "checks": ["single persistent eye seat", "input screen-space trajectory", "mention editor alignment in Dock and landing", "bounded inter-frame eye motion", "running clock continuation",
-                       "append does not redirect", "rapid reversal", "inactive pause", "narrow/short arc fit", "retired glyph cleanup"]]
+                       "append does not redirect", "rapid reversal", "inactive pause", "bottom/landing narrow/short loading fit", "centered enlarged thinking and input handoff", "retired glyph cleanup"]]
 }
 
 @MainActor private final class Delegate: NSObject, NSApplicationDelegate {

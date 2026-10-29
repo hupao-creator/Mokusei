@@ -7,6 +7,19 @@ with setup-go so Linux does not invoke a Darwin-only wrapper. CGO and system
 SQLite remain enabled. The Darwin profile-rotation tests run on macOS, and
 the native Moku clipboard bridge test uses synthetic NSData, not user data.
 
+`scope.py` compares the complete PR or push diff before scheduling builds. Only
+ordinary non-executable root AGENTS.md/CONTEXT.md/README.md, README entry points
+in `internal`, `app/macos`, `tools/verification` and `demos`, and Markdown directly
+under `.agents`/`scripts/ci` qualify for documentation-only validation. Other
+README paths are not inferred to be documentation: they may be bundled resources.
+Both sides of a rename and both Git file modes are checked. Mixed/unknown paths,
+empty diffs and manual dispatches retain full verification. Documentation-only
+runs still execute the scope, `Go / Linux` and aggregate checks: they validate the
+diff and explicitly report that native/build tests are outside this scope. Local
+link review remains required. No workflow-level path filter leaves required
+checks pending. This avoids native runner work for documentation-only PRs and
+their main pushes without omitting coverage for code changes.
+
 Every Go test invocation captures `go test -json`, stderr and the actual exit
 code. An always-run report includes failed commands and absent/interrupted
 captures. Its four primary statistics have these definitions:
@@ -26,7 +39,7 @@ empty execution and all-skipped runs fail the reporting step. Use `-count=1`;
 the report rejects repeated terminal events. Unit, race, property and platform
 runs overlap, so their counts are not unique coverage totals.
 
-## Parallel execution and the time budget
+## Parallel execution and queueing
 
 The normal workflow runs Linux checks/replays alongside two macOS preparation
 jobs. One macOS job warms Go binaries and generates the five real Go fixtures;
@@ -49,28 +62,47 @@ assigned Go/Swift or isolated AppKit replays serially; scheduling weights balanc
 the combined workload. Tests within one graphical session remain serial.
 Only the two capture-dependent tag-glass methods need the
 standalone host; its other five methods already execute in the Swift shards.
-The four input/responder methods deferred by the browser, history composer and
-Report suites share one isolated host, without repeating their other methods.
+The three Settings capsule methods likewise run in the required native-capture
+lane, because their production Dock/form mouse actions and WindowServer blur
+assertions need an activated AppKit host. The coverage aggregator requires each
+observed passing method; SwiftPM deferral alone cannot satisfy coverage.
+The nine input/responder, pointer-tracking and native-panel methods deferred by
+the browser, history composer, Report, Thread TOC and Landing suites share one
+isolated AppKit host, without repeating their other methods. The TOC pointer
+case needs a running event loop and a foreground visible window. Landing's
+three mouse/key methods also require that loop: native NSTextView tracking can
+otherwise exit a plain SwiftPM process with status zero before its completion
+summary. All nine must produce observed passing native-controls outcomes; the
+aggregate continues to reject incomplete processes even when their exit is zero.
 The Go producer also exports this attempt's warmed race and ordinary build caches;
 downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.
 DirectoryTag is also executed once. Four native-CLI/system runners are separate
 `extended=true` workflow dispatches, which do not repeat the normal workflow.
-Default and extended attempts on the same branch share a concurrency group:
-extended attempts wait instead of taking the default attempt's macOS slots,
-while a new commit cancels stale work. Dispatch the extended gate after the
-default run completes so its queue does not consume the time budget. CLI installs
-are cached by exact package/version and architecture; a download gets at most
-three minutes instead of exhausting the verification budget.
-The removed long-running stability check is not replaced with another soak.
+Default PR/main and extended runs share a repository-wide concurrency queue
+(`queue: max`, no cancellation of another queued run). One workflow cohort is
+admitted at a time; its Linux checks, preparation jobs and native shards still
+run in parallel. The scope job rejects obsolete PR heads/bases and superseded
+main pushes before scheduling native work. Explicit dispatches remain pinned to
+the requested revision. This is a workflow queue, not GitHub Merge Queue.
+CLI installs are cached by exact package/version and architecture, and downloads
+retain their three-minute execution timeout. The removed long-running stability
+check is not replaced with another soak.
 
-Each attempt must finish in **less than fifteen minutes**. Owned test/build commands
-stop against a shared 840-second deadline measured from GitHub's current attempt
-start, reserving cleanup time. Jobs also have a fourteen-minute timeout. Final job
-coverage and elapsed time are checked after uploading summaries, with cleanup
-headroom. Runner queue and Action download/cache delays are visible in the
-observed whole-attempt time; a slow or incomplete attempt cannot be reported as
-successful. Use actual hosted start/completion timestamps to validate the target.
+There is **no whole-run fifteen-minute merge gate** and no shared 840-second
+command deadline. Queueing cannot consume a later command's execution allowance.
+Each owned command has an independent thirty-minute default timeout and each
+build/test job has a thirty-minute timeout to stop hung work; narrower existing
+CLI/test limits remain in force. Timeout is incomplete execution and still fails
+coverage. These execution guards are not a wall-clock acceptance requirement.
+
+The aggregate reports each job's queue time, attempt time and elapsed time since
+the first trigger. Carried-forward successful jobs on partial retries retain
+old execution timestamps even when GitHub assigns new job IDs; they are labeled
+reused, not counted as new work. Time is diagnostic and does not decide merge
+eligibility. All required jobs and complete observed coverage must still pass.
+The queue only coordinates workflows using this key in this repository; other
+repositories or older workflow revisions may still consume account capacity.
 
 ## Native coverage evidence
 
@@ -95,6 +127,9 @@ exit status, logs and interrupted work. Reproduce a group locally with
 Native groups require the current Swift build. The
 [verification policy](verification-policy.md) records each gate's independent
 value, triggers and the limited hardware/signed-package acceptance that remains.
+The `native-controls` group also runs the [windowless scrollbar replay](../../tools/verification/scrollbars/README.md),
+which compiles the production viewport policy and checks native control state
+without creating a window. It does not count as rendered scrollbar coverage.
 
 Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
 `.build/check-swift` as its output directory. It streams the real `xcrun swift
@@ -117,9 +152,24 @@ The no-argument CI mode audits collected shard/replay artifacts and writes
 `swift-summary.json` under `RUNNER_TEMP`. Local capture and distributed CI share
 `swift_reporting.py`; CI adds manifest and observed-identity checks.
 
-Artifacts are refreshed when the same job is retried; per-attempt raw job logs
-remain available in GitHub Actions. Raw test logs and JSON summaries are retained as Actions artifacts even when
-tests fail. Missing logs are reported as not run, never as zero failures.
+Artifacts have an `-attempt-N` suffix and are never overwritten by a retry.
+Each consumer downloads the fixture producer's exact artifact name. The
+aggregate selects the newest numeric execution attempt for each of the seven
+native slots from API metadata before downloading only those archives into a
+separate audit directory. Earlier captures stay available without repeated
+downloads on each retry. It never selects by passing status;
+a newer failed/incomplete receipt cannot be replaced by an older success. Failed
+or missing required jobs prevent certification even if older artifacts exist.
+Successful prior producers/shards can be reused by `gh run rerun RUN --failed`;
+the unchanged build and method-identity audit still applies. Selection mappings,
+raw logs and screenshots remain available for diagnosis. Swift failures print
+bounded assertion excerpts directly in the job log and summary; replay errors
+report command status and timeout reason even when their log is empty.
+Missing logs are reported as not run, never as zero failures.
+GitHub [supports `queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency); actionlint 1.7.12 predates that syntax. Local lint
+ignores only its exact unknown-queue-key diagnostic, and actual hosted workflow
+acceptance remains required.
+
 Hosted runner execution is established by actual workflow results, not by local
 YAML validation or local tests.
 
@@ -128,18 +178,21 @@ actual reporter with temporary Go packages: pass, parent/subtest failure, skips,
 panic, package failure before tests, build failure and no tests. It also rejects
 truncated, malformed and absent captures. CI runs the same verifier on Linux.
 
-## Pull request merge gates
+`python3 scripts/ci/verify-ci-control.py` exercises the real scope and evidence
+entry points with temporary Git histories and retained artifact directories,
+and runs real subprocess success, nonzero exit and command-timeout termination cases.
+It runs on Linux alongside the existing Go reporter verifier.
+
+## Pull request protection and advisory CI
 
 The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires changes to `main` to go through a pull request. Before merging, the
-branch must be up to date with `main`, and these GitHub Actions checks must pass:
-
-- `Go / Linux`
-- `Complete coverage and fifteen-minute budget`
-
-The complete-coverage check includes every default job and the wall-clock budget.
-Optional extended dispatches use a distinct aggregate check name and cannot
-satisfy this required default check.
+requires changes to `main` to go through a pull request. CI is advisory:
+`Go / Linux` and `Complete coverage` are no longer required status checks,
+and the CI requirement to be up to date with `main` has been removed with them.
+The workflow still runs on PRs and main pushes, with manual extended dispatches
+available. Failures remain visible for diagnosis but do not block merging.
+The complete-coverage check still audits every default job and the selected
+verification scope; its internal evidence requirements are unchanged.
 
 All code-review conversations must be resolved. General PR timeline comments
 have no resolution state and are not covered by this rule. The required number
@@ -147,16 +200,11 @@ of approving reviews is zero; the review gate is resolution of outstanding
 conversations.
 
 There are no bypass actors, including repository administrators. Force pushes
-and deletion of `main` are blocked. Check results must come from the GitHub
-Actions app (integration ID `15368`).
+and deletion of `main` remain blocked. No other protection was disabled.
 
-GitHub stores this ruleset separately from the workflow. When adding or renaming
-required CI jobs, coordinate the required-check contexts with the workflow and
-update this list before merging. A stale context blocks merging indefinitely;
-an omitted context leaves that job outside the merge gate. Keep optional,
-manually dispatched jobs out of the required PR checks.
-
-Inspect the effective configuration with the locally authenticated `gh` CLI:
+GitHub stores this ruleset separately from the workflow. Editing or renaming
+workflow jobs does not change remote merge requirements. Inspect the effective
+configuration with the locally authenticated `gh` CLI:
 
 ```sh
 gh api repos/hupao-creator/Mokusei/rulesets/26004586

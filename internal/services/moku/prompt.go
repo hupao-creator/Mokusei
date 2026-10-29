@@ -12,6 +12,7 @@ const NoteTextMaxCharacters = 1200
 // TalkTextPolicy is shared by tool descriptions and the injected coordinator prompt.
 // JSON Schema maxLength counts Unicode code points, not UTF-16 units or graphemes.
 const TalkTextPolicy = "Use concise plain text, at most 160 Unicode code points including whitespace and newlines. " +
+	"Use emoji naturally when they add expression and suit the context. " +
 	"Whitespace-only text is invalid; accepted text is preserved exactly. Over-budget text is rejected: shorten and retry, never rely on truncation. " +
 	"The bar shows at most four rendered lines with scrolling for overflow; character count does not guarantee four lines. The newest successful update replaces the previous message. " +
 	"Each talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. Use update_note for the persistent milestone recap."
@@ -22,9 +23,12 @@ const TalkTextPolicy = "Use concise plain text, at most 160 Unicode code points 
 // the create_thread prompt schema: constrained decoders can truncate at the
 // first pattern match.
 const NoteTextPolicy = "Use Markdown at most 1200 Unicode code points including whitespace and newlines; aim for a recap " +
-	"the user can read in under two minutes. An exactly empty string clears the note. Non-empty text must contain a " +
+	"the user can read in under two minutes. Use emoji naturally when they add expression and suit the context. An exactly empty string clears the note. Non-empty text must contain a " +
 	"non-whitespace code point and must not contain NUL. Over-budget, whitespace-only and NUL text is rejected: shorten " +
-	"and retry; content is never silently truncated."
+	"and retry; content is never silently truncated. " +
+	"Notes can link to a specific ordinary Agent Thread execution with [label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID). " +
+	"Use the threadId and executionId supplied by thread lifecycle reports; do not query a thread just to obtain a link target. " +
+	"The link opens that exact execution at its final reply or latest content, even after subsequent executions. URLs count toward the note character budget. Whether to include a link is your choice."
 
 // NoteContentGuidance tells Moku when the note earns an update and what belongs
 // there instead of in talk or an Agent Thread.

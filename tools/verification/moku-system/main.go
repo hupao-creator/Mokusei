@@ -46,9 +46,6 @@ func run() error {
 	flag.Parse()
 	return runScenarioOptions(*native, *evidence, *faults, *scopes, strings.Split(*actions, ","), *scenarioTimeout)
 }
-func runCase(nativePath, evidencePath, faultSpec string) error {
-	return runScenario(nativePath, evidencePath, faultSpec, 1)
-}
 func runScenario(nativePath, evidencePath, faultSpec string, scopes int) error {
 	return runScenarioActions(nativePath, evidencePath, faultSpec, scopes, []string{"read", "archive", "unarchive", "settings"})
 }

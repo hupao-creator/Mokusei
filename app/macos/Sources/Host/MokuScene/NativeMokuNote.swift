@@ -64,16 +64,21 @@ struct NativeMokuNoteContent: View {
     let width: CGFloat
     let height: CGFloat
     let availableHeight: CGFloat
+    var rowHeight: CGFloat = 0
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
+    var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
     var onContentHeightChange: ((CGFloat) -> Void)?
     var claimOpenArm: () -> Bool = { false }
     var onExposure: ((NativeMokuNote) -> Void)?
     var onClose: () -> Void = {}
+    var onOpenHistory: (() -> Void)? = nil
     @Environment(\.locale) private var locale
     @State private var contentHeight: CGFloat = 0
     @State private var exposure = NativeMokuNoteExposureTracker()
     private let headerHeight: CGFloat = 54
+    private var footerHeight: CGFloat { onOpenHistory == nil ? 0 : 52 }
+    private var shortViewport: Bool { availableHeight < headerHeight + footerHeight + 44 }
 
     private func localize(_ zh: String, _ en: String) -> String {
         locale.language.languageCode?.identifier == "zh" ? zh : en
@@ -81,27 +86,29 @@ struct NativeMokuNoteContent: View {
 
     var body: some View {
         Group {
-            if availableHeight < headerHeight + 44 {
+            if shortViewport {
                 // At large app zoom, fixed chrome can leave less than a line.
                 // Let the header scroll with the body in this short viewport.
                 // Use the Dock's capacity, not the initially empty document's
                 // fitted height: changing branches would retire its read session.
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) { header; noteBody }
+                NativeScrollView {
+                    VStack(alignment: .leading, spacing: 12) { header; noteBody; historyEntry }
                 }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     header
-                    ScrollView { noteBody }
+                    NativeScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
-                        .frame(height: height - headerHeight)
+                        .frame(height: max(0, height - headerHeight - footerHeight))
+                    Spacer(minLength: 0)
+                    historyEntry
                 }
             }
         }
-        .frame(width: width, height: height, alignment: .top)
+        .frame(width: width, height: height + (shortViewport ? 0 : rowHeight), alignment: .top)
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
-            if height > 0 { onContentHeightChange?(height + headerHeight) }
+            if height > 0 { onContentHeightChange?(height + headerHeight + footerHeight) }
         }
         .onAppear {
             exposure.onComplete = onExposure
@@ -112,6 +119,29 @@ struct NativeMokuNoteContent: View {
         .onDisappear { exposure.endSession() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("moku-note-panel")
+    }
+    @ViewBuilder private var historyEntry: some View {
+        if let onOpenHistory {
+            HStack {
+                Spacer(minLength: 0)
+                Button(action: onOpenHistory) {
+                    HStack(spacing: 6) {
+                        NativeIcon(name: "History", size: 13)
+                        Text(localize("Moku 历史", "Moku history"))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .padding(.horizontal, 6)
+                    .frame(minHeight: 28)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(localize("查看 Moku 历史详情", "View Moku conversation history"))
+                .accessibilityLabel(localize("查看 Moku 历史详情", "View Moku conversation history"))
+                .accessibilityIdentifier("moku-note-history")
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, shortViewport ? 12 : max(0, (rowHeight - 28) / 2))
+        }
     }
     private var header: some View {
         HStack(spacing: 12) {
@@ -141,7 +171,7 @@ struct NativeMokuNoteContent: View {
         Group {
             if let note {
                 NativeMarkdownView(text: note.text, fontSize: 13, openExternal: openExternal,
-                    documentToken: note.documentToken,
+                    openExecution: openExecution, documentToken: note.documentToken,
                     onDocumentApplied: { exposure.applied($0) })
                     .id(note.documentToken)
                     .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,

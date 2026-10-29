@@ -20,7 +20,6 @@ import SwiftUI
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
     @State private var textAreaHeights: [String: CGFloat] = [:]
-    @State private var resizeStarts: [String: CGFloat] = [:]
     @FocusState private var focusedHost: String?
 
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
@@ -160,7 +159,7 @@ import SwiftUI
 
     private var retryDiscovery: some View {
         Button(locale.text("重试", "Retry")) { Task { await model.refreshInstallations() } }
-            .buttonStyle(SettingsTextButton()).disabled(model.probing || !model.runtimeAvailable)
+            .buttonStyle(.bordered).disabled(model.probing || !model.runtimeAvailable)
             .nativeSettingsAction("retryDiscovery", label: "Retry Agent discovery") { Task { await model.refreshInstallations() } }
     }
 
@@ -282,14 +281,10 @@ import SwiftUI
                onEscape: onCloseRequest)
                 .nativeSettingsControl(field)
                 .frame(height: textAreaHeights[field] ?? height)
-                .overlay(alignment: .bottomTrailing) {
-                    SettingsTextAreaResizeGrip()
-                        .gesture(DragGesture(minimumDistance: 1).onChanged { drag in
-                            guard !model.clearing else { return }
-                            if resizeStarts[field] == nil { resizeStarts[field] = textAreaHeights[field] ?? height }
-                            textAreaHeights[field] = max(112, (resizeStarts[field] ?? height) + drag.translation.height)
-                        }.onEnded { _ in resizeStarts[field] = nil })
-                }
+            Stepper(locale.text("编辑器高度", "Editor height"), value: Binding(
+                get: { textAreaHeights[field] ?? height }, set: { textAreaHeights[field] = $0 }),
+                in: 112...CGFloat.greatestFiniteMagnitude, step: 28)
+                .controlSize(.small).frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 

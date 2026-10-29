@@ -465,6 +465,5 @@ enum NativeOverviewSelection {
         }
     }
     static func compare(_ a: String, _ b: String) -> ComparisonResult { a.compare(b, locale: .current) }
-    static func utf16Less(_ a: String, _ b: String) -> Bool { a.utf16.lexicographicallyPrecedes(b.utf16) }
     static func jsonString(_ value: JSONValue) -> String { (try? String(decoding: value.encodedData(), as: UTF8.self)) ?? "" }
 }

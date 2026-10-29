@@ -1,5 +1,42 @@
 # Reading-page background presentation replay
 
+## Thread history sidebar
+
+```sh
+python3 tools/verification/reading-presentation/run.py --thread-sidebar
+```
+
+Mounts the production conversation, lazy TOC, timeline and turn components in an
+isolated AppKit host. Five integration cases cover selection and Back scroll
+retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
+inherited history, deletion, arriving successors and external result anchors.
+A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
+locates an old turn outside the current window. This is a resource-demand check,
+not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
+author accessibility and save settled dark/light screenshots under
+`.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
+
+The ordinary Swift suite runs the four state/layout cases. The pointer case
+requires the isolated application's running AppKit loop and a foreground visible
+window; CI executes that exact method in `--isolated-input` and the coverage
+collector requires its observed passing outcome. Forced headless admission
+skips display assertions explicitly. The sidebar launcher requires all five
+cases without skips. A finite onscreen pointer replay synchronizes the system
+cursor and native events (restoring the original cursor on exit) to exercise the
+production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
+rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
+the focused row before activation while retaining 30ms page reversals; they do
+not wait for the page transition to settle. `hover-panel.png` and `hover-dismissed.png`
+record the mounted result. These are native synthetic events with the real cursor
+and component renders, not physical input or WindowServer capture. The default
+reading-page replay also checks both vertical directions between history identities,
+intermediate geometry, full-column pixel coverage and cancellation. It retains
+`vertical-middle.png`, `earlier-middle.png` and `later-middle.png` under its suite
+evidence directory. The system Reduce Motion
+setting is observed by production code; this replay does not mutate that setting.
+Existing `--moku-execution-links` separately covers
+deferred bodies and exact-result following through all four real Harness renderers.
+
 ## Empty workspace and first dispatch
 
 ```sh
@@ -11,11 +48,25 @@ Overview and Moku presentation. The real shell waits for Moku hydration before
 centering. Installed public snapshots cover durable shells before native admission,
 failed dispatch, a successful result followed by Talk/another pending creation,
 global membership versus scoped search, archive/delete reentry, directory-only
-documents and snapshot rehydration. Mounted production surfaces also check Talk
-beside the live editor, failed submission draft retention, Escape, narrow resize,
-Settings/history cover and remount.
+documents and snapshot rehydration. Mounted production surfaces also check one persistent character through native
+submission, running, Talk and dispatch, the accessible Stop action, notification
+deferral while editing, failed submission draft retention, Escape/reopening,
+narrow resize and Settings/history cover/remount without forced reopening.
+Landing outside-click coverage checks that a click inside keeps input open,
+a window-background click collapses it without losing the draft, and dismissal
+still works after covering routes and remounting. The three methods sending
+native mouse/key events run in CI's isolated AppKit input host; the other three
+state/layout methods remain in the ordinary Swift shard. Plain SwiftPM's native
+text tracking was observed to exit zero before its completion summary, which
+coverage treats as failure. A second native window also
+checks that focus loss retains input, while an actual click collapses it and
+preserves the draft. The outside-click Swift suite additionally drives native
+child/sheet windows and nested menu-tracking notifications to protect auxiliary
+composer interactions; this is not a physical cross-app mouse-delivery test.
 
 Catalog transactions pass through the actual preparation/installation boundary.
+The fixture also delivers a connected client event to the real workspace so a
+running snapshot is not mistaken for disconnected, retained execution state.
 Fixture send callbacks replace unavailable remote admission; no Runtime, model
 provider, installed profile or microphone is used. The independent
 [Moku backend replay](../moku/README.md) verifies actual creation/admission and audit
@@ -28,10 +79,13 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
-CI uses `--isolated-input` to compile the same history-composer, browser-viewport
-and Report test sources into one AppKit host. It executes exactly the four
-input/responder methods deferred by SwiftPM, requiring all four to pass without
-skips, while their remaining methods execute in the normal Swift shards.
+CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
+Report, Thread TOC and Landing test sources into one AppKit host. It executes
+exactly the nine input/responder, pointer and native-panel methods deferred by
+SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
+in the normal Swift shards. The Report modal case acknowledges WebKit's focused
+frame before native Escape and observes its close event and trusted cancel;
+a fixed delay or JavaScript dismissal cannot certify default input handling.
 
 `--harness-forms` generates its interaction fixture through the production Go
 OpenCode reducer/projections, then mounts the native Pi settings and OpenCode
@@ -39,7 +93,8 @@ Reader. It checks colliding provider/model choices, default/optional/hidden/
 conditional fields, exact Go public IDs and cancellation without required answers.
 
 `--browser-viewport` mounts the real loopback Browser fixtures, including cancelled
-navigation, popup downloads, native editing keys, and annotation capture after
+navigation, SPA history traversal, blocked protocols and popup POST notices,
+popup downloads, native editing keys, and annotation capture after
 page changes. `--composer-contrast` additionally checks the mounted host directory
 picker's 50-reference limit through its real accessibility controls, then selects
 the same directory after removing a reference. Both use the AppKit event loop.
@@ -250,23 +305,27 @@ selecting a child, returning to its directory and clearing must leave the bar
 inside the window and separate from the actions. A wide 1000pt window is the
 control case. Child selection stays in the parent title without a separate caption.
 
-## Settings reveal and return
+## Settings capsule and return
 
 ```sh
 python3 tools/verification/reading-presentation/run.py --settings-transition
 ```
 
-Three integration cases render the production `NativeMokuScene` with solid-color
-fixture seats. Pixel samples require opaque Settings at the source while the far
-Overview corner is still unrevealed (a uniform fade/scale fails), and complete
-coverage at the end. At 1×/2× zoom the live page retains its full layout size.
-Lifecycle checks cover deferred unmount/background admission during return,
-opening/closing reversal, resize, inactive scene, missing source and explicit
-settling. Reduce Motion handling is reviewed but not toggled by this runner (the
-SwiftUI environment value is read-only; it changes no system preference).
-No Runtime or model service is used. These check SwiftUI rendering and
-semantic transition lifetime, not WindowServer frame pacing or physical clicks;
-the separate Go Settings launcher exercises real page controls and save gates.
+Three integration cases mount the production scene, Dock and Settings page.
+They check the stable panel size, bottom and landing anchors, narrow windows and
+1×/2×/5× zoom, retained page/Overview identity, rendered backdrop blur, consumed
+outside clicks, native Escape and close clicks, input/Note restoration, pending
+messages/interventions, reversal, resize, inactivity and explicit settling.
+Screenshots are exported with the suite's evidence. This compositor-dependent
+suite launches through LaunchServices so its first window has foreground
+activation; capture requires a key window and full-size WindowServer geometry,
+rejecting system transition thumbnails. Reduce Motion is observed
+from production's environment without changing system preferences.
+The required CI native-capture lane runs all three methods in this host;
+SwiftPM explicitly defers them and the coverage aggregator rejects any missing
+passing replay outcome. The separate Go Settings launcher retains real persistence, conflict, validation
+and IME coverage. The production-app navigation replay verifies rejection outside
+Overview and keeps reading routes and their back actions intact.
 
 ## Report navigation and native window controls
 
@@ -391,13 +450,82 @@ visual inspection; ordinary SwiftPM skips are not native replay evidence.
 python3 tools/verification/reading-presentation/run.py --markdown
 ```
 
-Runs seven native integration cases against production `ThreadMessage` and
+Runs eight native integration cases against production `ThreadMessage` and
 `NativeMarkdownView`. They check complete bare URLs, source-aware escaped/entity
-footnotes, Unicode code preservation, folded labels and lazy continuations,
+footnotes, whitespace-containing ordinary reference labels, Unicode code preservation,
+NFC-to-NFD link replacement in a mounted reader, folded labels and lazy continuations,
 plain alternative text, partial/native copy, empty table columns, Command-arrow
 selection collapse, long ordered markers, inline-code table geometry, tight lists
 with empty quoted lines, and a percent-label footnote round trip through a
 horizontally scrolling table in the outer reading viewport. The replay needs a
 graphical session; it opens no external websites and makes no model requests.
 
+The SwiftPM `MarkdownSourceIdentityTests` also cover definition-shaped prose,
+multiline reference labels/titles, shifted inline source ranges after reference
+definitions, extracted footnote URLs and byte-distinct parser cache entries.
+`MarkdownRawSourceRenderingTests` retains the mounted `ThreadMessage` regression
+for NFC-to-NFD body and code replacement without changing a document token.
+`MarkdownSourceRangeTests` exercises Paragraph, ATX/Setext, table, code and HTML
+boundaries under quotes and lists, including multiple/multiline definitions,
+Unicode/Tab columns, LF/CRLF, trailing input, adjacent blocks and lazy code
+continuations with an adjacent real footnote. The lazy HTML/prose matrix checks
+attributes versus adjacent real references and full URLs across quote/list
+prefixes, omitted prefixes, spaces, tabs and CR/LF/CRLF; BOM/NUL fixtures check
+physical byte provenance through parser input normalization. It asserts both
+complete URLs and the absence of leaked footnote tokens. The native eight-case
+replay also renders a definition-prefixed Setext heading with literal code,
+a multiline HTML attribute beside a real footnote, and a complete lazy-line URL.
+`MarkdownFallbackSourceTests` covers normalization outside paragraph traces:
+BOM/NUL tables, header/body cells, inline code/HTML/links/images, escaped pipes,
+block literals and row-to-row changes in space/Tab container prefixes. `MarkdownTableRewriteTests` checks paragraph-to-header promotion with and without
+blank lines, literal code/HTML and URLs in the synthesized paragraph, and raw
+URL escapes against working explicit-link controls. It requires stable table
+column counts, complete targets/display labels and later-cell references, even
+without separator spaces. Indented code remains a literal control.
+The production native fixture combines a BOM-prefixed paragraph immediately
+before a table, header code, NUL, and an escaped-pipe URL before a later footnote
+cell.
+These run in the default Swift suite; the mounted source test requires a display.
+
+
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
+
+The note suite also activates the expanded production Dock's bottom-right
+history button through accessibility, with and without a note, checking real
+scene navigation and draft preservation. Its short-viewport Markdown case
+includes the history footer so the footer cannot consume the reading viewport.
+
+## Moku execution links
+
+`python3 tools/verification/reading-presentation/run.py --moku-execution-links`
+runs the production note Markdown callback, Host admission and all four Harness
+readers with delayed content resources. It checks exact result positioning,
+streaming follow/stop/resume, successor isolation, archived/failed and missing
+execution targets. These cases also run in the complete hosted Swift suite.
+
+## Report controls and recovery
+
+`--report-controls` runs the two focused regression cases.
+`--report-navigation` runs four cases, including actual
+WebKit confirm/prompt acceptance, alert completion, file-panel cancellation and
+a loopback binary response that must preserve the loaded report. The production
+Report detail is also mounted with a recovering HTML capability to ensure it
+does not retain a duplicate failure overlay at the same content revision.
+
+## Model and reasoning selector
+
+`python3 tools/verification/reading-presentation/run.py --model-selector` runs
+four mounted production-selector cases in the isolated AppKit application loop.
+They cover exact IDs, disabled choices, keyboard commit/cancellation/type-ahead,
+slider actions and reset, the model-list subpage, capability refresh, and a single
+fixed choice. The Settings Escape monitor case dispatches through NSApplication
+to verify model/reasoning cancellation before page return, unchanged values,
+restored anchor focus, reopening and the second Escape. Light/dark model lists
+and the reasoning panel are rendered under
+`.scratch/reading-presentation/NativeModelSelectorReplayTests`. These component
+renders do not certify WindowServer compositing or physical input delivery.
+
+SwiftPM defers these four methods to this launcher because transient popovers
+need a running AppKit application. The default CI `native-controls` replay group
+runs them and the coverage collector requires their observed passing outcomes;
+a skipped or incomplete replay is a failure.

@@ -46,7 +46,13 @@ public final class ConversationSidecardPresentation {
                 NativeComposerStoredAttachment(id: $0.id, path: $0.path, name: $0.name, mimeType: $0.mimeType,
                     size: $0.size, kind: NativeComposerStoredAttachment.Kind(rawValue: $0.kind.rawValue)!)
             }
-        }, attachmentPolicy: context.attachmentImport?.policy, discardAttachments: context.discardAttachments))
+        }, attachmentPolicy: context.attachmentImport?.policy, discardAttachments: context.discardAttachments),
+            persistence: context.draftStorageDirectory.map {
+                // Attachment receipts have their own revision: editing text must
+                // not resurrect files accepted while this presentation was away.
+                NativeComposerDraftPersistence(storageDirectory: $0,
+                    scope: JSONText(codeUnits: Array("conversation-attachments:".utf16) + context.thread.id.codeUnits))
+            })
         lifetime.onCancel { [attachments] in Task { await attachments.dispose() } }
         persistence = context.draftStorageDirectory.map {
             NativeComposerDraftPersistence(storageDirectory: $0, scope: JSONText(codeUnits: Array("conversation:".utf16) + context.thread.id.codeUnits))
@@ -65,7 +71,7 @@ public final class ConversationSidecardPresentation {
 
     public var activeExecutionID: JSONText? { executionState.activeExecutionID(thread: context.thread) }
     public var sidecardExecutionID: JSONText? {
-        executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex)
+        executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex, readingTarget: context.readingTarget)
     }
     public var disabled: Bool { lifetime.isCancelled || context.thread.archived == true }
     public var waiting: Bool { context.thread.observation.latestExecution?.status == .waitingForUser }
@@ -81,7 +87,7 @@ public final class ConversationSidecardPresentation {
         guard !lifetime.isCancelled else { return }
         let shouldFocus = context.expanded && (!self.context.expanded
             || (disabled && !context.executionDisabled && context.thread.archived != true) || (sidecardExecutionID != nil
-            && executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex) == nil))
+            && executionState.sidecardExecutionID(thread: context.thread, index: context.conversationIndex, readingTarget: context.readingTarget) == nil))
         self.context = context
         reconcileExecution()
         applyFocusRequest()

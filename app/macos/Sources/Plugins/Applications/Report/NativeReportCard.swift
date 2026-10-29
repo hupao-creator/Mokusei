@@ -49,7 +49,7 @@ import SwiftUI
                     if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI).lineLimit(2) }
                 }.padding(18).allowsHitTesting(true)
                 if expanded {
-                    ScrollView { relations }.frame(height: max(0, geometry.size.height - 114))
+                    NativeScrollView { relations }.frame(height: max(0, geometry.size.height - 114))
                         .nativeCanvasNavigationRegion().padding(.horizontal, 18).offset(y: 64)
                 }
             }

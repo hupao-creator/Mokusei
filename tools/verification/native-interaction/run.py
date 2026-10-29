@@ -104,12 +104,13 @@ def main():
             api.step(client, trace, {"name": "settings.select", "section": removed}, expected_error="not_found")
         for section in initial["settingsSections"]:
             api.step(client, trace, {"name": "settings.select", "section": section})
-        api.step(client, trace, {"name": "navigation.back"})
+        api.step(client, trace, {"name": "navigation.back"}, wait=False)
+        api.step(client, trace, {"name": "settings.select", "section": "general"}, expected_error="unavailable")
+        client.settle(lambda state: state["page"] != "settings")
         for ref in initial["threads"]:
             api.step(client, trace, {"name": "thread.open", **ref})
-            api.step(client, trace, {"name": "settings.open"})
-            restored = api.step(client, trace, {"name": "settings.close"})
-            assert restored["selectedThread"] == ref
+            api.step(client, trace, {"name": "settings.open"}, expected_error="unavailable")
+            assert client.snapshot()["selectedThread"] == ref
             api.step(client, trace, {"name": "navigation.back"})
             client.settle(lambda state: state["page"] == "overview")
         api.step(client, trace, {"name": "thread.open", "threadId": "missing", "typeId": "agent"}, expected_error="not_found")
@@ -121,12 +122,14 @@ def main():
             api.step(client, trace, {"name": "filter.select", "filterId": item["id"]})
         api.step(client, trace, {"name": "filter.select", "filterId": None})
         api.step(client, trace, {"name": "filter.select", "filterId": "missing"}, expected_error="not_found")
-        # Regression: a page retained beneath Settings must not clear the next
-        # reading visit's back action when its delayed disappearance is delivered.
+        # Settings admission must not replace a reading visit or its back action.
+        # Repeated returns also exercise the next Overview -> Settings visit.
         for ref in initial["threads"] * 2:
             api.step(client, trace, {"name": "thread.open", **ref})
-            api.step(client, trace, {"name": "settings.open"}, wait=False)
+            api.step(client, trace, {"name": "settings.open"}, expected_error="unavailable")
             api.step(client, trace, {"name": "overview.show"})
+            api.step(client, trace, {"name": "settings.open"})
+            api.step(client, trace, {"name": "settings.close"})
             api.step(client, trace, {"name": "thread.open", **ref})
             api.step(client, trace, {"name": "overview.show"})
         trace.close()

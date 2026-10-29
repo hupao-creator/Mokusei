@@ -36,3 +36,5 @@ The native mode also drives real Pi `DiscussionPreparer` through the production
 threadvoice relay with synthetic media: private history continuity, Core reads,
 forbidden write, concurrent questions, provider errors, cancellation/media failure
 cleanup, lazy forks and an actively running source remaining unchanged.
+
+The deterministic replay also sends an editor request from the RPC child process, checks its multiline Unicode prefill in the committed public form, and submits the unchanged default through production preflight and native response.

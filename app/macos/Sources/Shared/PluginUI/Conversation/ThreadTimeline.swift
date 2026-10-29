@@ -13,8 +13,10 @@ public struct ThreadTimelineRow: Identifiable {
 }
 
 struct ThreadAnchorPreference: PreferenceKey {
-    static let defaultValue: Set<JSONText> = []
-    static func reduce(value: inout Set<JSONText>, nextValue: () -> Set<JSONText>) { value.formUnion(nextValue()) }
+    static let defaultValue: [JSONText: CGFloat] = [:]
+    static func reduce(value: inout [JSONText: CGFloat], nextValue: () -> [JSONText: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
+    }
 }
 struct ThreadFocusPreference: PreferenceKey {
     static let defaultValue: [UUID] = []
@@ -29,7 +31,15 @@ private struct ThreadTimelineFocus: ViewModifier {
 public extension View {
     /// Opaque plugin identities are registered only while their corresponding content is mounted.
     func threadReadingAnchor(_ id: JSONText) -> some View {
-        self.id(id).preference(key: ThreadAnchorPreference.self, value: [id])
+        // A background contributes alongside descendant anchors instead of
+        // replacing them. Measure in document coordinates so late row loading
+        // does not depend on ScrollViewReader registering nested opaque views.
+        self.id(id).background {
+            GeometryReader { geometry in
+                Color.clear.preference(key: ThreadAnchorPreference.self,
+                    value: [id: geometry.frame(in: .named("thread-timeline-content")).minY])
+            }
+        }
     }
     func threadTimelineFocus() -> some View { modifier(ThreadTimelineFocus()) }
 }
@@ -37,7 +47,10 @@ public extension View {
 public struct ThreadTimelineReadingTarget: Hashable, Sendable {
     public let requestId: JSONText
     public let anchorId: JSONText
-    public init(requestId: JSONText, anchorId: JSONText) { self.requestId = requestId; self.anchorId = anchorId }
+    public let follow: Bool
+    public init(requestId: JSONText, anchorId: JSONText, follow: Bool = false) {
+        self.requestId = requestId; self.anchorId = anchorId; self.follow = follow
+    }
 }
 
 private struct TimelineGeometry: Equatable {
@@ -63,24 +76,22 @@ private enum TimelineConstructionProfile {
     }
 }
 
-/// SwiftUI follows the user's global scroller preference, which can turn the
-/// reading timeline into a wide, persistent legacy scrollbar. Keep this one
-/// reading surface narrow and transient without replacing native scrolling.
-private struct TimelineScrollerConfiguration: NSViewRepresentable {
+/// Diagnostics attach only to the timeline; shared styling belongs to NativeScrollView.
+private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
     var active: Bool
     var operation: UInt64?
-    func makeNSView(context: Context) -> TimelineScrollerConfigurationView {
-        TimelineScrollerConfigurationView()
+    func makeNSView(context: Context) -> TimelineDiagnosticsAttachmentView {
+        TimelineDiagnosticsAttachmentView()
     }
-    func updateNSView(_ view: TimelineScrollerConfigurationView, context: Context) {
+    func updateNSView(_ view: TimelineDiagnosticsAttachmentView, context: Context) {
         view.active = active
         view.operation = operation
         view.configure()
     }
-    static func dismantleNSView(_ view: TimelineScrollerConfigurationView, coordinator: ()) { view.diagnostics.detach() }
+    static func dismantleNSView(_ view: TimelineDiagnosticsAttachmentView, coordinator: ()) { view.diagnostics.detach() }
 }
 
-@MainActor private final class TimelineScrollerConfigurationView: NSView {
+@MainActor private final class TimelineDiagnosticsAttachmentView: NSView {
     let diagnostics = TimelineScrollDiagnostics()
     var active = true
     var operation: UInt64?
@@ -91,11 +102,6 @@ private struct TimelineScrollerConfiguration: NSViewRepresentable {
     func configure() {
         let scroll = window == nil ? nil : enclosingScrollView
         diagnostics.attach(to: scroll, enabled: active, context: operation)
-        guard let scroll else { return }
-        scroll.scrollerStyle = .overlay
-        scroll.autohidesScrollers = true
-        scroll.verticalScroller?.controlSize = .mini
-        scroll.horizontalScroller?.controlSize = .mini
     }
 }
 
@@ -127,9 +133,10 @@ public struct HarnessMessageTimeline: View {
     @State private var showLatest = false
     @State private var userScrolling = false
     @State private var geometry = TimelineGeometry(contentOffset: 0, insetTop: 0, height: 0, viewport: 0)
-    @State private var anchors: Set<JSONText> = []
+    @State private var anchors: [JSONText: CGFloat] = [:]
     @State private var focusAnchors: [UUID] = []
     @State private var locatedRequest: JSONText?
+    @State private var clampedRequest: JSONText?
     @State private var position = ScrollPosition(y: 0)
     @State private var prependSnapshot: TimelineGeometry?
     @State private var suspendedSnapshot: (top: CGFloat, following: Bool)?
@@ -166,7 +173,7 @@ public struct HarnessMessageTimeline: View {
             let _ = TimelineConstructionProfile.record(2, context: performanceOperation)
             GeometryReader { bounds in
                 let _ = TimelineConstructionProfile.record(3, context: performanceOperation)
-                ScrollView(.vertical) {
+                NativeScrollView(.vertical) {
                     let _ = TimelineConstructionProfile.record(4, context: performanceOperation)
                     VStack(alignment: .leading, spacing: 0) {
                         Color.clear.frame(height: 0).id(TimelineEdge.top)
@@ -196,7 +203,8 @@ public struct HarnessMessageTimeline: View {
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
                     .padding(.top, readingNavigation != nil ? 94 : bounds.size.width >= 1024 ? 24 : bounds.size.width <= 540 ? 28 : 44)
                     .padding(.bottom, 36).frame(maxWidth: .infinity)
-                    .background(TimelineScrollerConfiguration(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
+                    .coordinateSpace(name: "thread-timeline-content")
+                    .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
                 }
                 .scrollIndicators(.automatic)
                 .scrollPosition($position)
@@ -204,7 +212,8 @@ public struct HarnessMessageTimeline: View {
                 .accessibilityLabel(localize("消息时间线"))
                 .onScrollPhaseChange { _, phase in
                     userScrolling = phase == .interacting || phase == .decelerating
-                    if userScrolling && !suspended { following = !followPaused && geometry.distance < 64 }
+                    if userScrolling { clampedRequest = nil }
+                    if userScrolling && !suspended && geometry.distance > 1 { following = false }
                 }
                 .onScrollGeometryChange(for: TimelineGeometry.self) {
                     TimelineGeometry(contentOffset: $0.contentOffset.y, insetTop: $0.contentInsets.top,
@@ -219,22 +228,29 @@ public struct HarnessMessageTimeline: View {
                         position.scrollTo(y: previous.top + new.height - previous.height)
                         return
                     }
-                    if userScrolling { following = !followPaused && new.distance < 64 }
+                    if userScrolling {
+                        if new.top < old.top { following = false }
+                        else if new.distance <= 1 { following = !followPaused }
+                    }
                     showLatest = new.distance >= 64
                     if new.height != old.height && following && !followPaused && followOutput && prependSnapshot == nil {
-                        proxy.scrollTo(TimelineEdge.bottom, anchor: .bottom)
+                        position.scrollTo(edge: .bottom)
                     }
+                    locate()
                 }
                 .onPreferenceChange(ThreadAnchorPreference.self) { value in
                     anchors = value
-                    locate(proxy)
+                    locate()
                 }
                 .onPreferenceChange(ThreadFocusPreference.self) { focusAnchors = $0 }
-                .onChange(of: readingTarget) { _, _ in locate(proxy) }
+                .onChange(of: readingTarget) { _, _ in locate() }
                 .onChange(of: timelineKey, initial: true) { _, _ in
-                    visibleCount = 120; tailLength = rows.count; following = false; locatedRequest = nil
-                    proxy.scrollTo(TimelineEdge.top, anchor: .top)
-                    locate(proxy)
+                    visibleCount = 120; tailLength = rows.count
+                    if readingTarget?.requestId != locatedRequestId || locatedRequestId == nil {
+                        following = false; locatedRequest = nil; clampedRequest = nil
+                        position.scrollTo(y: 0)
+                        locate()
+                    }
                 }
                 .onChange(of: followKey) { old, new in
                     if new != nil && new != old && !followPaused && !suspended { follow(proxy) }
@@ -255,7 +271,7 @@ public struct HarnessMessageTimeline: View {
                             showLatest = geometry.height - previous.top - geometry.viewport >= 64
                             suspendedSnapshot = nil
                         }
-                        locate(proxy)
+                        locate()
                     }
                 }
                 .onChange(of: readingNavigation.map(ObjectIdentifier.init), initial: true) { _, _ in
@@ -267,14 +283,14 @@ public struct HarnessMessageTimeline: View {
                 .background(interactionRegistration)
                 .overlay(alignment: .bottom) {
                     if followOutput && showLatest && !suspended {
-                        Button { jumpToLatest(proxy) } label: {
+                        Button { jumpToLatest() } label: {
                             HStack(spacing: 5) { NativeIcon(name: "ChevronDown", size: 13); Text(localize("回到最新")) }
                                 .font(NativeTypography.inter(size: 11)).padding(.vertical, 6).padding(.horizontal, 10)
                                 .background(NativeAppKitPalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 6))
                                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(NativeAppKitPalette.thread.line.swiftUI))
                                 .shadow(color: .black.opacity(0.07), radius: 3, y: 2)
                         }.buttonStyle(.plain).padding(.bottom, 16)
-                            .nativeReadingAction("jumpLatest", role: "jumpLatest", label: localize("回到最新")) { jumpToLatest(proxy) }
+                            .nativeReadingAction("jumpLatest", role: "jumpLatest", label: localize("回到最新")) { jumpToLatest() }
                     }
                 }
             }
@@ -287,7 +303,8 @@ public struct HarnessMessageTimeline: View {
             "value": .object([
                 "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
                 "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
-                "viewport": .number(Double(geometry.viewport)), "following": .bool(following), "showLatest": .bool(showLatest),
+                "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
+                "locatedRequestId": locatedRequest.map(JSONValue.string) ?? .null, "showLatest": .bool(showLatest),
                 "rowCount": .integer(rows.count), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRows.count),
                 "visibleRowIds": .array(visibleRows.map { .string($0.id) }), "showOlderRows": .bool(showOlderRows)
             ])
@@ -296,7 +313,7 @@ public struct HarnessMessageTimeline: View {
                 throw NativeReadingControlError("invalid_request", "Scroll offset must be a finite number within 10000000 points")
             }
             let offset = operation == "scrollBy" ? Double(geometry.top) + amount : amount
-            following = false
+            following = false; clampedRequest = nil
             position.scrollTo(y: min(max(0, geometry.height - geometry.viewport), max(0, CGFloat(offset))))
         }
     }
@@ -305,21 +322,31 @@ public struct HarnessMessageTimeline: View {
         visibleCount += 100 + max(0, rows.count - tailLength)
         tailLength = rows.count
     }
-    private func jumpToLatest(_ proxy: ScrollViewProxy) {
-        onJumpToLatest?(); following = true; showLatest = false
-        proxy.scrollTo(TimelineEdge.bottom, anchor: .bottom)
+    private func jumpToLatest() {
+        onJumpToLatest?(); following = true; showLatest = false; clampedRequest = nil
+        position.scrollTo(edge: .bottom)
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
     private func reportReading() {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)
     }
-    private func locate(_ proxy: ScrollViewProxy) {
-        guard !suspended, let target = readingTarget, locatedRequest != target.requestId, locatedRequestId != target.requestId,
-              anchors.contains(target.anchorId) else { return }
-        following = false
-        proxy.scrollTo(target.anchorId, anchor: .top)
-        locatedRequest = target.requestId
-        onLocated?(target.requestId)
+    private func locate() {
+        guard !suspended, let target = readingTarget,
+              (locatedRequest != target.requestId && locatedRequestId != target.requestId) || clampedRequest == target.requestId,
+              geometry.height > 0, geometry.viewport > 0, let top = anchors[target.anchorId] else { return }
+        following = target.follow && followOutput && !followPaused
+        if following { clampedRequest = nil; position.scrollTo(edge: .bottom) }
+        else {
+            // Rich Markdown can still be empty when its row first mounts. Keep
+            // a clamped location pending as the document grows, until it can
+            // reach the anchor or the user takes over scrolling.
+            clampedRequest = top > max(0, geometry.height - geometry.viewport) + 1 ? target.requestId : nil
+            position.scrollTo(y: top)
+        }
+        if locatedRequest != target.requestId {
+            locatedRequest = target.requestId
+            onLocated?(target.requestId)
+        }
         focused = true
     }
     private func follow(_ proxy: ScrollViewProxy) {
@@ -327,7 +354,7 @@ public struct HarnessMessageTimeline: View {
         if let attention = focusAnchors.first {
             following = false; proxy.scrollTo(attention, anchor: .top)
         } else {
-            following = true; proxy.scrollTo(TimelineEdge.bottom, anchor: .bottom)
+            following = true; position.scrollTo(edge: .bottom)
         }
     }
 }

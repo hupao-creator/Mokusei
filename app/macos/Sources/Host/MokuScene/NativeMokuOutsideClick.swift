@@ -64,13 +64,14 @@ enum NativeMokuOutsideClick {
 /// Observes clicks without consuming them. A full-window SwiftUI overlay would
 /// make thread cards and chrome controls unclickable while the composer is
 /// open; the local monitor leaves the original event on its normal path.
-/// Talk also observes other windows/apps. The global observer cannot consume
-/// events and exists only while that dismissal callback is installed.
+/// Talk and landing input also observe other windows/apps. The global observer
+/// cannot consume events and exists only while that dismissal callback is installed.
 struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     var exclusions: NativeClickExclusions
     var beginClick: () -> Void
     var isActive: () -> Bool
     var usesExclusions = true
+    var preservesOwnedInteractions = false
     var outsideWindowClick: (() -> Void)? = nil
     var isInside: (CGPoint) -> Bool
     var click: (CGPoint) -> Void
@@ -78,14 +79,16 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
-                    usesExclusions: usesExclusions, outsideWindowClick: outsideWindowClick,
+                    usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
+                    outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
         return view
     }
 
     func updateNSView(_ view: MonitorView, context: Context) {
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
-                    usesExclusions: usesExclusions, outsideWindowClick: outsideWindowClick,
+                    usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
+                    outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
     }
 
@@ -95,6 +98,9 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         private var monitor: Any?
         private var globalMonitor: Any?
         private var usesExclusions = true
+        private var preservesOwnedInteractions = false
+        private var menuObservers: [NSObjectProtocol] = []
+        private var trackingMenus = Set<ObjectIdentifier>()
         private var outsideWindowClick: (() -> Void)?
         private var exclusions = NativeClickExclusions()
         private var beginClick: () -> Void = {}
@@ -107,12 +113,13 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
         func update(exclusions: NativeClickExclusions, beginClick: @escaping () -> Void,
-                    isActive: @escaping () -> Bool, usesExclusions: Bool,
+                    isActive: @escaping () -> Bool, usesExclusions: Bool, preservesOwnedInteractions: Bool,
                     outsideWindowClick: (() -> Void)?, isInside: @escaping (CGPoint) -> Bool,
                     click: @escaping (CGPoint) -> Void) {
             self.exclusions = exclusions; self.beginClick = beginClick; self.isActive = isActive
             self.isInside = isInside; self.click = click
             self.usesExclusions = usesExclusions; self.outsideWindowClick = outsideWindowClick
+            self.preservesOwnedInteractions = preservesOwnedInteractions
             syncGlobalMonitor()
         }
 
@@ -120,10 +127,21 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
             super.viewDidMoveToWindow()
             stop()
             guard window != nil else { return }
+            for name in [NSMenu.didBeginTrackingNotification, NSMenu.didEndTrackingNotification] {
+                menuObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                    guard let menu = note.object as? NSMenu else { return }
+                    let identity = ObjectIdentifier(menu), began = name == NSMenu.didBeginTrackingNotification
+                    MainActor.assumeIsolated {
+                        if began { self?.trackingMenus.insert(identity) }
+                        else { self?.trackingMenus.remove(identity) }
+                    }
+                })
+            }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
                 MainActor.assumeIsolated {
                     guard let self, let window = self.window,
                           !self.isHiddenOrHasHiddenAncestor else { return }
+                    guard !self.ownsAuxiliaryInteraction(in: window) else { return }
                     guard event.window === window else {
                         self.clickOutsideWindow()
                         return
@@ -147,8 +165,17 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
             super.viewWillMove(toWindow: newWindow)
         }
 
+        private func ownsAuxiliaryInteraction(in window: NSWindow) -> Bool {
+            // Focus can move to a native menu, file chooser or popover while it
+            // still belongs to the composer. Let that surface handle its click
+            // (including its own outside dismissal) before retiring the input.
+            preservesOwnedInteractions && (!trackingMenus.isEmpty || window.attachedSheet != nil
+                || NSApp.modalWindow != nil || (window.childWindows ?? []).contains { $0.isVisible })
+        }
+
         private func clickOutsideWindow() {
-            guard let window, window.isVisible, !isHiddenOrHasHiddenAncestor, isActive() else { return }
+            guard let window, window.isVisible, !isHiddenOrHasHiddenAncestor, isActive(),
+                  !ownsAuxiliaryInteraction(in: window) else { return }
             outsideWindowClick?()
         }
 
@@ -164,6 +191,8 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         }
 
         func stop() {
+            for observer in menuObservers { NotificationCenter.default.removeObserver(observer) }
+            menuObservers.removeAll(); trackingMenus.removeAll()
             if let globalMonitor { NSEvent.removeMonitor(globalMonitor); self.globalMonitor = nil }
             if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
         }

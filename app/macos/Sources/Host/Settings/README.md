@@ -1,5 +1,46 @@
 # Native settings
 
+Settings form controls use system SwiftUI/AppKit controls on the existing macOS
+26 minimum. The page's `nativeSettingsFormPage` environment selects system
+popups, rounded text/secure fields, switches, bordered action buttons and AppKit
+plain text editors; embedded Thread editors retain their existing presentation.
+Rows still own labels, descriptions and announced validation errors. Help buttons
+open native popovers, and text editor height is adjusted with a keyboard-accessible
+Stepper instead of a custom drag grip. Native text editing retains composition,
+selection, Undo, label activation and the draft close/save gate.
+
+| Settings surface | Native interactions |
+| --- | --- |
+| General | Appearance/language popups, glass world switch, Agent/install buttons, cancel and destructive clear buttons |
+| Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
+| Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
+| Report and Tag | Inheritance switches, Harness popups and the same contributed execution fields |
+
+All controls keep their existing bindings, availability and pending/save/error
+gates. System menu items carry option indexes separately from titles, preserving
+duplicate display names and opaque UTF-16 option IDs. The interaction registry
+keeps the same descriptors and discrete-change semantics.
+
+The coordination and dispatch map retains the icon presentation from before
+`016735c` (system Settings controls): transparent 48-point seats, hover surfaces
+and keyboard focus rings. Targets use icons, selection underlines and dashed
+paths rather than checkboxes. The last selected target remains fully opaque
+while removal is disabled. General's Agent installation buttons and the other
+Settings form controls retain their system presentation.
+
+The reference-image model/effort selector is a separate component task. Its
+integration points are the shared `NativeSettingsSelect`/`NativeSettingsSelectPopover`
+entry and each Harness's model, thinking/effort or variant field in
+`CodexSettings`, `ClaudeSettings`, `PiSettings` and `OpenCodeSettings`. This change
+does not alter their catalog, default or dependent-choice mapping. Changes in
+those Harness files here are confined to refresh/retry button presentation.
+
+`NativeSettingsControlsReplayTests` mounts the shared production form and sends
+AppKit actions through real controls, checking option identity/disabled state,
+text binding and Undo. The existing Settings launcher below exercises persistence,
+IME, conflict and close behavior; the navigation demo covers light/dark, compact
+and zoomed production page layouts.
+
 [NativeSettingsNavigation](NativeSettingsNavigation.swift) shares section selection
 and the close gate between page controls and [semantic workspace actions](../Interaction/README.md).
 Programmatic close and the global Overview command preserve IME protection,
@@ -12,37 +53,39 @@ Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
-The sidebar reuses `NativeWindowNavigationView`, the same top-left traffic-light
-and back capsule used by Thread Detail. The sidebar has no separate Settings
-title. Tabs start below the shared 74-point navigation safe area in both sidebar
-and compact layouts. This space compensates for content zoom so tabs never move
-under the fixed-size navigation capsule. Content uses the selected tab as its
-page label without repeating it as a standalone heading; form group headings
-remain visible. A title-free drag region reserves 28 points above the scroll area
-in sidebar layouts and 8 points in compact layouts.
-The page marks General, Moku and contributed application content as settings
-forms. Shared group headings and regular field labels, including labels with
-inline description hints, use 14-point type; descriptions, control values and
-sidebar navigation retain their own typography. Compact local-agent detail labels
-retain their smaller size.
-The shared back target reports its actual
-frame for the Settings return animation and calls the existing draft close gate. [The isolated native demo](../../../../../demos/settings-navigation/README.md)
-links the production page and navigation for light/dark/compact and narrow English
-and zoomed screenshots.
+Settings is an Overview-only modal expansion of the resident Moku Dock. The
+same glass capsule grows toward a stable 900×640-point target, bounded by the
+viewport, and retains its bottom character row. Ordinary Overview keeps its
+bottom anchor; empty-workspace landing keeps the expanded capsule centered.
+The existing sidebar/compact tabs and form contents remain unchanged. A single
+Close button replaces the full-page traffic-light/back capsule and its 74-point
+safe area; the main window retains its own native controls. When extreme zoom
+leaves less than 220 logical points of page height, the entire settings shell
+also scrolls so its fixed chrome cannot make form controls unreachable.
 
-[NativeSettingsTransition](NativeSettingsTransition.swift) restores the button-anchored
-circular reveal removed by the SwiftUI shell migration (`310149f1d`). The live
-page keeps its final layout: opening uses the historical 480 ms emphasized curve
-(`f670e94c6`), return uses 380 ms, and a missing source uses a 160 ms fade.
-Source and back frames use logical `workspace` coordinates, including at content
-zoom. Settings stays mounted and the underlying route stays inert until return
-completes. Reversal fences obsolete completions; resize, scene inactivity,
-Reduce Motion and explicit settling retire the current animation. Semantic
-interaction snapshots report both opening and closing as transitioning.
-Run `python3 tools/verification/reading-presentation/run.py --settings-transition`
-for production-scene pixel and lifecycle checks at 1×/2× zoom, reverse, resize,
-inactive, missing-source and explicit-settle cases. Reduce Motion is handled
-in production but the replay does not change the system accessibility preference.
+The scene blurs Overview and blocks pointer, keyboard and accessibility access
+until the capsule finishes returning. Close, Escape and backdrop click share
+`NativeSettingsNavigation`'s draft gate; backdrop clicks never reach Overview.
+Native menus, IME and Agent details retain their Escape priority. Input and Note
+visits remain retained beneath Settings, including draft and reading position.
+Incoming messages and interventions cannot replace Settings. On release, a
+pending intervention takes its ordinary priority over a retained Note/composer.
+
+`NativeSettingsTransition` owns the 420 ms capsule transition lifetime. The live
+page lays out at its final size; closing fades its ink before glass contraction.
+Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
+explicit settling retire the current animation without leaving the modal gate
+stuck. Opening and return both report transitioning to semantic callers.
+`python3 tools/verification/reading-presentation/run.py --settings-transition`
+mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
+blur and click-through, restoration, interruption and lifecycle regression checks.
+The runner captures representative panel screenshots with its evidence.
+
+The application menu and Cmd+, are enabled only for a loaded Overview. Direct
+presentation and semantic requests enforce the same boundary; reading, Moku
+history and initial connection/recovery pages cannot open Settings or implicitly
+navigate to Overview. A previously loaded Overview can still edit local
+preferences while disconnected.
 
 [NativeSettingsModel](NativeSettingsModel.swift) loads public settings and Harness presentation. [NativeSettingsDraft](NativeSettingsDraft.swift) keeps editable, ready and committed state separately. Page, control and native text-editor adapters present that state; the [Runtime](../../../../../internal/core/runtime/README.md#settings) remains persistence and validation authority.
 
@@ -149,3 +192,8 @@ without forcing native cache invalidation; this refreshes capabilities even when
 installation paths stay unchanged. OpenCode can return a native catalog before
 optional account checks complete: it labels that uncertainty and rereads without
 forcing another probe. No settings navigation or Map layout is changed.
+
+Escape cancels the focused model/reasoning selector's open native popover before
+page navigation, without changing its value. The next Escape returns from Settings.
+`NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
+through NSApplication to cover this precedence, focus restoration and reopening.

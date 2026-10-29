@@ -441,16 +441,16 @@ struct NativeMokuDockInteractionPanel: View {
             }.font(.system(size: intervention.isQuestion ? 10 : 8, weight: .bold, design: .monospaced))
                 .foregroundStyle(ink.opacity(0.56)).padding(.bottom, intervention.isQuestion ? 9 : 4)
             if let current {
-                ScrollView {
+                NativeScrollView {
                     if intervention.request.questions.contains(where: { $0.form != nil }) {
                         InteractionQuestionField(question: current, answers: $answers, disabled: busy, style: .form)
                             .id(current.id)
                     } else { NativeMokuDockQuestionField(question: current, answers: $answers, disabled: busy).id(current.id) }
                 }
-                    .scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .scrollIndicators(.automatic).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 GeometryReader { geometry in
-                    ScrollView {
+                    NativeScrollView {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(intervention.request.title.string).font(.system(size: 20, weight: .bold)).tracking(-0.9)
                                 .foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
@@ -459,7 +459,7 @@ struct NativeMokuDockInteractionPanel: View {
                                     .foregroundStyle(ink.opacity(0.68)).textSelection(.enabled)
                             }
                         }.frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .leading)
-                    }.scrollIndicators(.hidden)
+                    }.scrollIndicators(.automatic)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             Group {

@@ -551,12 +551,21 @@ public final class NativeOverviewCamera {
         setBounds(content: content, viewport: viewport)
         if layoutChanged {
             framingRetained = false
-            readingFit = preserveReadingPosition && live?.manual == false ? live.map {
-                NativeOverviewCameraGeometry.preservingReadingPosition($0.transform, content: content, viewport: viewport)
+            // A following footprint revision must not turn an unfinished insert,
+            // restore or automatic return into a retained intermediate position.
+            // Consecutive reading-preserving revisions keep their intended target,
+            // even when the preceding translation has not finished playing.
+            let readingPosition = readingFit ?? (framedRevision == framingRevision ? live?.transform : nil)
+            readingFit = preserveReadingPosition && live?.manual == false && !returning
+                && !pendingAutoFit && !carouselActive ? readingPosition.map {
+                NativeOverviewCameraGeometry.preservingReadingPosition($0, content: content, viewport: viewport)
             } : nil
         }
         if preserveFraming { framingRetained = true }
         if layoutChanged { framingRevision += 1 }
+        // A retained filter view is an intentional settled target, so a later
+        // local footprint edit may preserve its reading position too.
+        if preserveFraming { framedRevision = framingRevision }
         environmentDeferred = false
         constrainManualState()
         updateAuto()

@@ -53,7 +53,8 @@ struct PiThreadView: View {
         input.readingTarget.map { target in
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID,
-                anchorId: piMokuAnchor(state, target.message) ?? (anchor?.request == target.requestID ? anchor?.id : nil))
+                anchorId: piMokuAnchor(state, target.message) ?? (anchor?.request == target.requestID ? anchor?.id : nil), position: target.position,
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
         }
     }
 }
@@ -176,7 +177,7 @@ private struct PiTurn: View {
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
             rows.append(ThreadDetailRow(id: message.id, kind: message.role == "user" ? .user : message.role == "tool" || !final ? .work : .content,
                 node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final) ? .member : nil,
-                executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil))
+                executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {
             rows.append(ThreadDetailRow(id: "execution-error", kind: .content, node: AnyView(PiFailure(message: error.string))))

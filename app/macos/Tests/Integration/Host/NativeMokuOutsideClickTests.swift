@@ -13,6 +13,7 @@ import MokuseiTestSupport
     let scene = NativeMokuSceneState()
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
     var pauseCanvas = true
+    var landing = false
     var note: NativeMokuNote?
 }
 
@@ -28,7 +29,7 @@ private struct OutsideClickReplay: View {
         } thread: {
             EmptyView()
         } dock: {
-            NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp", note: fixture.note,
+            NativeMokuDock(state: fixture.scene, draft: fixture.draft, cwd: "/tmp", landing: fixture.landing, note: fixture.note,
                 onSend: { _ in }, onCancel: {})
         } settings: {
             EmptyView()
@@ -52,8 +53,10 @@ struct NativeMokuOutsideClickTests {
         NSApp.sendEvent(try event(.leftMouseUp))
     }
 
-    @Test(.requiresDisplay) func outsideClickLeavesInputModeAndInsideClickKeepsIt() async throws {
+    @Test(.requiresDisplay, arguments: [false, true])
+    func outsideClickLeavesInputModeAndInsideClickKeepsIt(landing: Bool) async throws {
         let fixture = OutsideClickFixture()
+        fixture.landing = landing
         let scene = fixture.scene
         let window = SwiftUIReplay.window(OutsideClickReplay(fixture: fixture), width: 900, height: 600)
         defer { window.close(); scene.overviewState.camera.dispose() }
@@ -76,6 +79,63 @@ struct NativeMokuOutsideClickTests {
         try await click(window, at: inside)
         try await Task.sleep(for: .milliseconds(150))
         #expect(scene.inputOpen)
+    }
+
+    @Test(.requiresDisplay) func landingOutsideWindowClickRetainsDraftAndPassesThrough() async throws {
+        let fixture = OutsideClickFixture()
+        fixture.landing = true
+        fixture.draft.text = "保留窗口外点击前的草稿"
+        let scene = fixture.scene
+        let window = SwiftUIReplay.window(OutsideClickReplay(fixture: fixture), width: 900, height: 600)
+        let other = NSWindow(contentRect: CGRect(x: 950, y: 100, width: 180, height: 120),
+                             styleMask: [.titled], backing: .buffered, defer: false)
+        other.isReleasedWhenClosed = false
+        let target = OutsideClickTarget(frame: CGRect(x: 0, y: 0, width: 180, height: 120))
+        other.contentView = target
+        defer { other.close(); window.close(); scene.overviewState.camera.dispose() }
+        try await SwiftUIReplay.wait { scene.windowVisible && scene.inputOpen && !scene.capsuleFrame.isEmpty }
+        // Merely moving focus (as menus and panels do) must not retire the draft.
+        other.makeKeyAndOrderFront(nil)
+        #expect(scene.inputOpen)
+        window.addChildWindow(other, ordered: .above)
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        #expect(scene.inputOpen && target.presses == 1)
+        window.removeChildWindow(other)
+
+        // Drive the same native notifications as text/attachment menus. Nested
+        // tracking must retain ownership until the last menu has closed.
+        let menu = NSMenu(), submenu = NSMenu()
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: menu)
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: submenu)
+        NotificationCenter.default.post(name: NSMenu.didEndTrackingNotification, object: submenu)
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        #expect(scene.inputOpen && target.presses == 2)
+        NotificationCenter.default.post(name: NSMenu.didEndTrackingNotification, object: menu)
+
+        other.orderOut(nil)
+        window.beginSheet(other, completionHandler: { _ in })
+        try await SwiftUIReplay.wait { window.attachedSheet === other }
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        #expect(scene.inputOpen && target.presses == 3)
+        window.endSheet(other)
+        try await SwiftUIReplay.wait { window.attachedSheet == nil }
+        other.makeKeyAndOrderFront(nil)
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        try await SwiftUIReplay.wait { !scene.inputOpen }
+        #expect(target.presses == 4)
+        #expect(fixture.draft.text == "保留窗口外点击前的草稿")
+        scene.toggleInput()
+        try await SwiftUIReplay.wait { scene.inputOpen }
+        #expect(fixture.draft.text == "保留窗口外点击前的草稿")
+        scene.openSettings()
+        try await SwiftUIReplay.wait { scene.dockCovered }
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        #expect(scene.inputOpen)
+        scene.closeSettings(); scene.settle()
+        try await SwiftUIReplay.wait { !scene.dockCovered && scene.inputOpen && !scene.capsuleFrame.isEmpty }
+        try await click(other, at: CGPoint(x: 50, y: 50))
+        try await SwiftUIReplay.wait { !scene.inputOpen }
+        #expect(fixture.draft.text == "保留窗口外点击前的草稿")
     }
 
     /// The note grows the bottom-anchored Moku surface. Blank space above
@@ -191,4 +251,10 @@ struct NativeMokuOutsideClickTests {
         #expect(exclusions.contains(CGPoint(x: button.midX, y: button.midY), in: window))
         #expect(!exclusions.contains(CGPoint(x: 400, y: 100), in: window))
     }
+}
+
+@MainActor private final class OutsideClickTarget: NSView {
+    var presses = 0
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { presses += 1 }
 }

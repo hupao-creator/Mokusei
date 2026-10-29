@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import MokuseiCore
+import MokuseiPluginAPI
 import SwiftUI
 
 public struct NativeMarkdownAppliedDocument: Equatable, Sendable {
@@ -12,10 +13,14 @@ public struct NativeMarkdownAppliedDocument: Equatable, Sendable {
 /// and attachment resolver; plain Markdown never creates a browser view.
 public struct NativeMarkdownView: View {
     public let text: String
+    // SwiftUI compares stored inputs before evaluating body. String equality
+    // alone can suppress a raw Unicode replacement before the task ID is read.
+    private let sourceBytes: Data
     public var streaming: Bool
     public var fontSize: CGFloat
     public var muted: Bool
     public var openExternal: ((URL) -> Void)?
+    public var openExecution: ((ApplicationExecutionRef) -> Void)?
     public var resolveMedia: NativeMarkdownMediaResolver?
     public var documentToken: String?
     public var onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)?
@@ -26,17 +31,22 @@ public struct NativeMarkdownView: View {
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
                 muted: Bool = false, openExternal: ((URL) -> Void)? = nil,
                 resolveMedia: NativeMarkdownMediaResolver? = nil,
+                openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
                 documentToken: String? = nil,
                 onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)? = nil) {
-        self.text = text; self.streaming = streaming
+        self.text = text; self.sourceBytes = Data(text.utf8); self.streaming = streaming
         self.fontSize = fontSize; self.muted = muted; self.openExternal = openExternal
-        self.resolveMedia = resolveMedia
+        self.resolveMedia = resolveMedia; self.openExecution = openExecution
         self.documentToken = documentToken; self.onDocumentApplied = onDocumentApplied
     }
 
     public var body: some View {
         let actions = model.actions
-        actions.openLink = openExternal ?? { MarkdownPlatformActions.open($0) }
+        actions.openLink = { url in
+            if url.scheme?.lowercased() == "mokusei" {
+                if let reference = ApplicationExecutionLink.parse(url) { openExecution?(reference) }
+            } else { (openExternal ?? { MarkdownPlatformActions.open($0) })(url) }
+        }
         actions.resolveMedia = resolveMedia ?? environmentMediaResolver
         let media: NativeMarkdownMediaResolver?
         if actions.resolveMedia == nil { media = nil }
@@ -67,7 +77,15 @@ public struct NativeMarkdownView: View {
     }
 }
 
-private struct MarkdownRevision: Equatable { let text: String; let streaming: Bool; let token: String? }
+struct MarkdownRevision: Equatable {
+    let text: String
+    let streaming: Bool
+    let token: String?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.text.utf8.elementsEqual(rhs.text.utf8) && lhs.streaming == rhs.streaming && lhs.token == rhs.token
+    }
+}
 
 @MainActor
 private final class MarkdownViewModel: ObservableObject {
@@ -357,9 +375,15 @@ struct MarkdownInlineView: View {
 
 struct MarkdownCodeBlock: View {
     let source: String
+    private let sourceBytes: Data
     var selectionScope: String? = nil
+
+    init(source: String, selectionScope: String? = nil) {
+        self.source = source; self.sourceBytes = Data(source.utf8)
+        self.selectionScope = selectionScope
+    }
     var body: some View {
-        ScrollView(.horizontal) {
+        NativeScrollView(.horizontal) {
             MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
                                    fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, selectionScope: selectionScope, openLink: { _ in })
                 .frame(width: max(1, codeWidth), alignment: .leading)
@@ -385,7 +409,7 @@ private struct MarkdownTableView: View {
 
     var body: some View {
         let columnWidths = widths
-        return ScrollView(.horizontal) {
+        return NativeScrollView(.horizontal) {
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     GridRow {

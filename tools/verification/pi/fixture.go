@@ -140,7 +140,11 @@ func serveFixture() {
 			}
 			response(map[string]any{"cancelled": false})
 		case "extension_ui_response":
-			check(frame["value"] == "raw\x00choice", "raw native selection retained")
+			if frame["id"] == "editor" {
+				check(frame["value"] == "PREFILL_KEEP_43E9\nsecond line 中文 🚀", "native editor value retained")
+			} else {
+				check(frame["value"] == "raw\x00choice", "raw native selection retained")
+			}
 			finish()
 		case "prompt":
 			text, _ := frame["message"].(string)
@@ -184,6 +188,15 @@ func serveFixture() {
 				value, _ := result["result"].(map[string]any)
 				check(value["value"] == float64(14), "bridge returned custom result")
 				finish()
+				continue
+			}
+			if text == "edit" || text == "edit-no-prefill" {
+				emitFixture(map[string]any{"type": "agent_start"})
+				request := map[string]any{"type": "extension_ui_request", "method": "editor", "id": "editor", "title": "Edit"}
+				if text == "edit" {
+					request["prefill"] = "PREFILL_KEEP_43E9\nsecond line 中文 🚀"
+				}
+				emitFixture(request)
 				continue
 			}
 			if text == "ask" {

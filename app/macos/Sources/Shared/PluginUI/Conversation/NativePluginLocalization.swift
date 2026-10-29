@@ -18,6 +18,9 @@ public enum NativePluginLocalization {
         "尚未收到回复": "No response received", "执行已结束": "Execution ended",
         "没有可显示的回复": "No response to display", "尚无可显示的回复": "No response to display yet",
 
+        "使用上下方向键选择轮次，按回车阅读": "Use Up and Down to choose a turn, then Return to read it",
+        "对话目录": "Conversation contents", "当前轮次": "Current turn",
+        "第 {count} 轮对话": "Turn {count}", "按回车阅读这轮对话": "Press Return to read this turn",
         "历史对话": "Conversation history", "前 1 轮对话": "1 previous turn",
         "窗口控制": "Window controls", "窗口与返回导航": "Window and back navigation",
         "前 {count} 轮对话": "{count} previous turns", "返回当前会话": "Back to current conversation",
@@ -49,6 +52,7 @@ public enum NativePluginLocalization {
         "填写批注…": "Add a comment…", "删除批注 {index}": "Delete annotation {index}",
         "批注原始截图": "Original annotation screenshot", "描述要修改的内容…": "Describe the changes…",
         "批注内容": "Annotation comment", "添加批注": "Add annotation",
+        "未提交：不支持在新窗口中打开此请求": "Not submitted: this request cannot open in a new window",
         "网页下载已取消": "Web download cancelled", "已阻止打开该地址": "Opening this address was blocked",
         "网页进程已退出，请重试": "The web process exited. Please try again.",
         "网页响应失败（HTTP {status}）": "The page returned HTTP {status}",

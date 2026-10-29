@@ -3,10 +3,10 @@
 [Semantic workspace actions](../Interaction/README.md) expose navigation to scripts
 through the same presentation methods. Back dispatches the active reading action;
 Settings uses its shared draft close gate.
-Navigation callbacks carry the current route-visit identity, so delayed disappearance
-from a page retained beneath Settings cannot clear its replacement's back action.
-The reading stack also keys its front by that visit: reopening a retained thread
-mounts and registers its navigation even while the previous Settings exit runs.
+Navigation callbacks carry the current route-visit identity, so a delayed page
+disappearance cannot clear its replacement's back action. The reading stack also
+keys its front by that visit when reopening a retained thread. Settings belongs
+only to Overview and cannot cover a Thread or application reading route.
 
 [NativeWindowNavigationView](NativeWindowNavigationView.swift) owns shared
 window/back controls. [NativeWindowControlPlacement](NativeWindowControlPlacement.swift)
@@ -32,8 +32,9 @@ This restores the contract from `bfc2c9f4f`, whose synchronization calls were
 removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
 restored only fixed placement.
 
-The optional back-frame callback reports logical `workspace` coordinates so the
-Settings return mask shares the opening button's coordinate space at any zoom.
+The optional back-frame callback reports logical `workspace` coordinates for
+navigation geometry observers. Settings now owns a separate panel close button
+inside the resident Dock and no longer uses a window-wide return mask.
 Only actual controls own pointer regions; dragging the window header does not
 pan Overview. Hover is reconciled with current availability and pointer geometry
 rather than a stale enter event.
@@ -55,3 +56,9 @@ checks real WebKit scrolling, intermediate animation alignment, reversal, restor
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
 editable/dialog key ownership, non-GET new-window rejection and remote-page
 navigation resets with production views.
+
+Moku note execution links enter through `openNoteExecution`, which admits public
+ordinary threads, including archived and failed/interrupted threads hidden from
+Overview. The result reading request is exact and does not start execution. A
+missing or ineligible thread shows an unavailable notice; a missing execution
+uses the reader's unavailable page. Each click receives a fresh reading request.

@@ -111,11 +111,16 @@ class NativeReplay:
             raise SystemExit("Native replay launcher terminated; cleaning up its owned app")
         signal.signal(signal.SIGTERM, terminate)
 
-    def run(self, arguments, timeout=180, launch_services=True, env=None):
+    def run(self, arguments, timeout=180, launch_services=True, env=None, launch_environment=None):
         self.manifest["arguments"] = list(map(str, arguments))
         (self.root / "launch.json").write_text(json.dumps(self.manifest, indent=2))
+        # LaunchServices grants foreground activation, but does not inherit the
+        # launcher's environment. Forward only the explicitly named replay
+        # flags, never copy the inherited host environment into arguments.
+        overrides = [part for key, value in (launch_environment or {}).items()
+                     for part in ("--env", f"{key}={value}")]
         command = (["/usr/bin/open", "-W", "-n", "--stdout", str(self.root / "stdout.log"),
-                    "--stderr", str(self.root / "stderr.log"), str(self.application), "--args"]
+                    "--stderr", str(self.root / "stderr.log"), *overrides, str(self.application), "--args"]
                    if launch_services else [str(self.executable)])
         output = (self.root / "stdout.log").open("w") if not launch_services else None
         try:

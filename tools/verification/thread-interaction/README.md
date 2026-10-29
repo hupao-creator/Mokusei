@@ -26,8 +26,8 @@ The fixture has `interaction-a`, `interaction-b` and `interaction-c` with 1, 8 a
 150 completed turns respectively. Each turn includes reasoning, three completed
 tool activities, command output, Unicode, Markdown, a code block and a table.
 The command/tool records are fixture data; no command is actually executed. The
-150-turn case exercises the production timeline's 120-row window and load-earlier
-button. A fixed epoch keeps timeline content and ordering repeatable.
+150-turn case exercises the lazy sidebar index while only the current and selected
+historical turn bodies are mounted. A fixed epoch keeps ordering repeatable.
 
 To seed a profile independently, its parent must exist and the profile itself
 must not exist:
@@ -39,7 +39,7 @@ must not exist:
 The [reading control runner](../../native-interaction/thread_chaos.py) uses actual
 mounted history, visibility, execution/tool/thinking disclosure and timeline
 callbacks. It checks real row/execution load states, rendered turn counts, history
-identity, window counts, Settings-return retention and stale-handle rejection.
+identity, window counts, rejected Settings-entry retention and stale-handle rejection.
 Each absolute/relative scroll also asserts the final measured position, including
 zero, 240 points, repeated 120-point steps and clamping at both document edges.
 The [protocol guide](../../native-interaction/README.md#mounted-reading-controls)

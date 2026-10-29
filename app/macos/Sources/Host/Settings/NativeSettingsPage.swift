@@ -32,7 +32,6 @@ import SwiftUI
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.nativeWindowContentScale) private var contentScale
 
     public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
@@ -64,51 +63,15 @@ import SwiftUI
     public var body: some View {
         GeometryReader { geometry in
             let compact = geometry.size.width <= 620
-            let columns = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
-            columns {
-                sidebar(compact: compact).frame(width: compact ? nil : NativeGeometry.settingsSidebarWidth)
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: compact ? 8 : 28)
-                        .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
-                    ScrollViewReader { reader in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Color.clear.frame(height: 0).id("top")
-                                if !model.runtimeAvailable {
-                                    SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
-                                }
-                                if let error = model.draft.error ?? model.operationError {
-                                    SettingsNotice(localizedError(error), error: true) {
-                                        if model.draft.error != nil {
-                                            HStack(spacing: 16) {
-                                                Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
-                                                    .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
-                                                if model.draft.conflicted {
-                                                    Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
-                                                        .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
-                                                }
-                                            }.buttonStyle(SettingsTextButton()).disabled(busy || !model.runtimeAvailable)
-                                        }
-                                    }.id("notice")
-                                }
-                                sectionBody.disabled(busy)
-                                    .environment(\.nativeSettingsFormPage, true)
-                            }.background(GeometryReader { content in
-                                Color.clear.onAppear { settingsContentHeight = content.size.height }
-                                    .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
-                            }).coordinateSpace(name: "settings-form")
-                                .padding(.bottom, detailOverflow)
-                                .frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
-                                .padding(.horizontal, compact ? 20 : 32).padding(.top, 10).padding(.bottom, compact ? 20 : 32)
-                        }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
-                            .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: navigation.focusRequest) { _, _ in
-                                if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
-                            }
-                    }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(NativeAppKitPalette.settings.main.swiftUI)
-            }.environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            if geometry.size.height < 220 {
+                // At extreme app zoom, fixed chrome can consume the viewport.
+                // Scroll the whole shell as well, retaining every real control.
+                NativeScrollView { panel(compact: compact).frame(minHeight: 360) }
+                    .environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            } else {
+                panel(compact: compact)
+                    .environment(\.nativeSettingsViewportWidth, geometry.size.width)
+            }
         }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             .environment(\.locale, Locale(identifier: locale.rawValue))
@@ -163,13 +126,69 @@ import SwiftUI
             }
     }
 
+    private func panel(compact: Bool) -> some View {
+        let columns = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        return VStack(spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                Button(action: requestClose) {
+                    NativeIcon(name: "X", size: 14, strokeWidth: 2)
+                        .frame(width: 30, height: 30).contentShape(Circle())
+                }.buttonStyle(.plain).disabled(busy)
+                    .focused($focusedBack)
+                    .accessibilityLabel(locale.text("关闭设置", "Close settings"))
+                    .accessibilityIdentifier("settings-close")
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { navigation.returnRect = $0 }
+            }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 4)
+            columns {
+                sidebar(compact: compact).frame(width: compact ? nil : NativeGeometry.settingsSidebarWidth)
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 8).accessibilityHidden(true)
+                    ScrollViewReader { reader in
+                        NativeScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Color.clear.frame(height: 0).id("top")
+                                if !model.runtimeAvailable {
+                                    SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
+                                }
+                                if let error = model.draft.error ?? model.operationError {
+                                    SettingsNotice(localizedError(error), error: true) {
+                                        if model.draft.error != nil {
+                                            HStack(spacing: 16) {
+                                                Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
+                                                    .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
+                                                if model.draft.conflicted {
+                                                    Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
+                                                        .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
+                                                }
+                                            }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
+                                        }
+                                    }.id("notice")
+                                }
+                                sectionBody.disabled(busy)
+                                    .environment(\.nativeSettingsFormPage, true)
+                            }.background(GeometryReader { content in
+                                Color.clear.onAppear { settingsContentHeight = content.size.height }
+                                    .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
+                            }).coordinateSpace(name: "settings-form")
+                                .padding(.bottom, detailOverflow)
+                                .frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
+                                .padding(.horizontal, compact ? 20 : 32).padding(.top, 10).padding(.bottom, compact ? 20 : 32)
+                        }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
+                            .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                            .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                            .onChange(of: navigation.focusRequest) { _, _ in
+                                if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
+                            }
+                    }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(NativeAppKitPalette.settings.main.swiftUI)
+            }
+        }
+    }
+
     private func sidebar(compact: Bool) -> some View {
         VStack(spacing: 0) {
-            // The navigation capsule stays at window scale, so its reserved
-            // space must stay fixed when the rest of Settings is zoomed.
-            Color.clear.frame(height: NativeWindowNavigationGeometry.safeAreaTop / contentScale)
-                .background(SettingsHeaderDragRegion()).accessibilityHidden(true)
-            ScrollView(compact ? .horizontal : .vertical) {
+            NativeScrollView(compact ? .horizontal : .vertical) {
                 let tabs = compact ? AnyLayout(HStackLayout(spacing: 4)) : AnyLayout(VStackLayout(spacing: 3))
                 tabs {
                     ForEach(sections, id: \.self) { id in
@@ -212,11 +231,6 @@ import SwiftUI
         }.frame(maxWidth: .infinity, maxHeight: compact ? nil : .infinity, alignment: .top).background(NativeAppKitPalette.settings.sidebar.swiftUI)
             .overlay(alignment: compact ? .bottom : .trailing) {
                 Rectangle().fill(NativeAppKitPalette.settings.line.swiftUI).frame(width: compact ? nil : 1, height: compact ? 1 : nil)
-            }
-            .overlay(alignment: .topLeading) {
-                NativeWindowNavigationView(action: ThreadDetailBackAction(label: locale.text("返回", "Back"), onBack: requestClose),
-                    suspended: busy, backFocus: $focusedBack,
-                    onBackFrameChange: { navigation.returnRect = $0 })
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel(locale.text("设置分类", "Settings sections"))
@@ -270,14 +284,14 @@ import SwiftUI
             SettingsGroup(title: locale.text("清空历史数据", "Clear history"), description: locale.text("停止正在运行的任务，并删除本机保存的 thread、报告和 Moku session。", "Stop running tasks and delete threads, reports, and Moku sessions saved on this machine.")) {
                 HStack(spacing: 8) {
                     if model.confirmClear && !model.clearing {
-                        Button(locale.text("取消清空", "Cancel")) { model.confirmClear = false }.buttonStyle(SettingsTextButton())
+                        Button(locale.text("取消清空", "Cancel")) { model.confirmClear = false }.buttonStyle(.bordered)
                     }
-                    Button { Task { await model.requestClear() } } label: {
+                    Button(role: .destructive) { Task { await model.requestClear() } } label: {
                         HStack(spacing: 6) {
-                            if model.clearing { SettingsSpinner(icon: "RotateCcw", size: 14) } else { NativeIcon(name: "Trash2", size: 14, strokeWidth: 2) }
+                            if model.clearing { SettingsSpinner(size: 14) } else { NativeIcon(name: "Trash2", size: 14, strokeWidth: 2) }
                             Text(model.clearing ? locale.text("清空中…", "Clearing…") : model.confirmClear ? locale.text("确认永久删除", "Confirm permanent deletion") : locale.text("清空全部历史数据", "Clear all history"))
                         }
-                    }.buttonStyle(SettingsActionButton(danger: true, confirming: model.confirmClear))
+                    }.buttonStyle(.bordered)
                 }.padding(.bottom, 12).disabled(!model.runtimeAvailable || model.clearing || model.draft.status == .saving || model.draft.status == .pending)
             }
         }
@@ -288,7 +302,7 @@ import SwiftUI
             ForEach(harnesses, id: \.descriptor.id) { harness in
                 let id = harness.descriptor.id.string
                 let state = model.installationState(id)
-                NativeHarnessSettingsIcon(harness: harness, state: state, active: activeAgent == id, showStatus: true) {
+                NativeHarnessSettingsIcon(harness: harness, state: state, showStatus: true) {
                     activateAgent(id, keyboard: false)
                 }.help("\(harness.descriptor.displayName.string) · \(statusText(id))")
                     .accessibilityLabel("\(harness.descriptor.displayName.string) · \(statusText(id))")
@@ -347,7 +361,7 @@ import SwiftUI
     private func agentDetail(_ harness: AnyHarnessPlugin) -> some View {
         let id = harness.descriptor.id.string
         let state = model.installationState(id)
-        return ScrollView {
+        return NativeScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 14) {
                     Text(harness.descriptor.displayName.string).font(.system(size: 13, weight: .semibold))
@@ -363,7 +377,7 @@ import SwiftUI
                         .modifier(SettingsAgentParagraph()).padding(.top, 10)
                 }
                 if let error = model.installationErrors[id] ?? (state == .error ? model.installations[id]?.message : nil) {
-                    ScrollView {
+                    NativeScrollView {
                         Text(verbatim: error).modifier(SettingsAgentParagraph(error: true))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(GeometryReader { message in
@@ -428,8 +442,6 @@ import SwiftUI
 struct NativeHarnessSettingsIcon: View {
     let harness: AnyHarnessPlugin
     let state: NativeHarnessInstallation.Status
-    var selected = false
-    var active = false
     var showStatus = false
     var transparent = false
     var hostSlot = false
@@ -440,60 +452,60 @@ struct NativeHarnessSettingsIcon: View {
     var action: () -> Void
     @State private var hovered = false
     @Environment(\.isEnabled) private var enabled
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isFocused) private var focused
-    private var raised: Bool { active || hovered }
-    private var fill: Color {
-        if transparent { return hovered ? NativeAppKitPalette.pair(0xedf0f4, 0x292e34).swiftUI : .clear }
-        if selected { return NativeAppKitPalette.pair(0xeef3fa, 0x2f3b49).swiftUI }
-        return raised ? NativeAppKitPalette.pair(0xf0f3f7, 0x333e4c).swiftUI : NativeAppKitPalette.settings.hintSurface.swiftUI
-    }
-    private var badgeFill: Color {
-        switch state {
-        case .installed: NativeAppKitPalette.pair(0xe7f2ec, 0x253d30).swiftUI
-        case .error: NativeAppKitPalette.pair(0xfbede9, 0x432e27).swiftUI
-        default: NativeAppKitPalette.pair(0xeef1f5, 0x323b47).swiftUI
-        }
-    }
-    private var badgeInk: Color {
-        switch state {
-        case .installed: NativeAppKitPalette.pair(0x458163, 0x8fc7a6).swiftUI
-        case .error: NativeAppKitPalette.pair(0xb66543, 0xefa47e).swiftUI
-        default: NativeAppKitPalette.settings.accent.swiftUI
-        }
-    }
+
     var body: some View {
-        Button(action: action) {
-            harness.logo(size: 26)
-                .modifier(NativeMokuSettingsTransform(pose: logoTransform, scale: 1, anchor: .center))
-                .opacity((hideLogo ? 0 : state == .missing ? 0.48 : 1) * logoOpacity)
-                .animation(hostSlot ? .timingCurve(0.25, 0.1, 0.25, 1, duration: hideLogo ? 0.14 : 0.16).delay(hideLogo ? 0.56 : 0.18) : nil, value: hideLogo)
-                .frame(width: 48, height: 48)
-                .background(fill, in: RoundedRectangle(cornerRadius: 13))
-                .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(transparent ? .clear : selected ? NativeAppKitPalette.settings.accent.swiftUI : raised ? NativeAppKitPalette.settings.accent.swiftUI.opacity(colorScheme == .dark ? 112 / 255 : 64 / 255) : NativeAppKitPalette.settings.line.swiftUI))
-                .overlay {
-                    if focused {
-                        RoundedRectangle(cornerRadius: 18).stroke(NativeAppKitPalette.settings.accent.swiftUI, lineWidth: 2)
-                            .padding(-5).allowsHitTesting(false)
+        Group {
+            // The dispatch diagram uses transparent seats so button chrome
+            // does not grow with Moku or shift a target away from its path.
+            if transparent {
+                Button(action: action) {
+                    icon
+                        .background(hovered ? NativeAppKitPalette.pair(0xedf0f4, 0x292e34).swiftUI : .clear,
+                                    in: RoundedRectangle(cornerRadius: 13))
+                        .overlay {
+                            if focused {
+                                RoundedRectangle(cornerRadius: 18).stroke(NativeAppKitPalette.settings.accent.swiftUI, lineWidth: 2)
+                                    .padding(-5).allowsHitTesting(false)
+                            }
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 13))
+                }.buttonStyle(MokuMapButtonStyle())
+                    .offset(y: hovered && !hostSlot ? -1 : 0)
+                    .opacity(enabled || preservesDisabledOpacity ? 1 : 0.45)
+                    .onHover { hovered = $0 }
+                    .animation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.14), value: hovered)
+                    .accessibilityRepresentation {
+                        Button(harness.descriptor.displayName.string, action: action).disabled(!enabled)
                     }
+            } else {
+                Button(action: action) { icon }.buttonStyle(.bordered)
+            }
+        }
+        .disabled(showStatus && (state == .checking || state == .installing))
+        .accessibilityLabel(harness.descriptor.displayName.string)
+    }
+
+    private var icon: some View {
+        harness.logo(size: 26)
+            .modifier(NativeMokuSettingsTransform(pose: logoTransform, scale: 1, anchor: .center))
+            .opacity((hideLogo ? 0 : state == .missing ? 0.48 : 1) * logoOpacity)
+            .animation(hostSlot ? .timingCurve(0.25, 0.1, 0.25, 1, duration: hideLogo ? 0.14 : 0.16).delay(hideLogo ? 0.56 : 0.18) : nil, value: hideLogo)
+            .frame(width: transparent ? 48 : 36, height: transparent ? 48 : 36)
+            .overlay(alignment: .bottomTrailing) {
+                if showStatus {
+                    Group {
+                        if state == .checking || state == .installing { ProgressView().controlSize(.mini) }
+                        else { Image(systemName: state == .installed ? "checkmark.circle.fill" : state == .error ? "exclamationmark.circle.fill" : "arrow.down.circle") }
+                    }.font(.system(size: 12)).background(.background, in: Circle()).offset(x: 5, y: 5)
+                        .accessibilityHidden(true)
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    if showStatus {
-                        Group {
-                            if state == .checking || state == .installing { SettingsSpinner(size: 11) }
-                            else { NativeIcon(name: state == .installed ? "Check" : state == .error ? "CircleAlert" : "Download", size: state == .installed ? 10 : 11, strokeWidth: state == .installed ? 3 : 2) }
-                        }.foregroundStyle(badgeInk).frame(width: 18, height: 18).background(badgeFill, in: Circle())
-                            .overlay(Circle().strokeBorder(NativeAppKitPalette.settings.main.swiftUI, lineWidth: 2)).offset(x: 4, y: 4)
-                    }
-                }.contentShape(RoundedRectangle(cornerRadius: 13))
-        }.buttonStyle(.plain).accessibilityLabel(harness.descriptor.displayName.string)
-            .offset(y: raised && !hostSlot ? -1 : 0)
-            .opacity(enabled || preservesDisabledOpacity ? 1 : 0.45)
-            .onHover { hovered = $0 }
-            .animation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.14), value: raised)
-            .accessibilityRepresentation {
-                Button(harness.descriptor.displayName.string, action: action)
-                    .disabled(!enabled || (showStatus && (state == .checking || state == .installing)))
             }
     }
+}
+
+private struct MokuMapButtonStyle: ButtonStyle {
+    // PlainButtonStyle dims a disabled label itself; the map owns opacity so
+    // its last selected target stays visible while removal is disabled.
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
 }

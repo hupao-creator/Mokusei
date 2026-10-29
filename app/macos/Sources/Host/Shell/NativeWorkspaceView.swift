@@ -28,7 +28,6 @@ public final class NativeWorkspacePresentation {
     public private(set) var followUpVisible = false
     public private(set) var threadVoice: SidecardVoiceCapability?
     @ObservationIgnored private var applicationReturn: (thread: ApplicationThreadRef, target: HarnessReadingTarget?)?
-    @ObservationIgnored private var settingsOrigin: CGRect?
     @ObservationIgnored private var voiceOwner: JSONText?
     @ObservationIgnored public lazy var scene = makeScene()
     @ObservationIgnored public lazy var applicationHost = NativeApplicationHost(workspace: workspace,
@@ -161,7 +160,7 @@ public final class NativeWorkspacePresentation {
             if thread == nil || thread?.isHiddenFromUser == true { applicationReturn = nil }
         }
         if let selected {
-            let visible = selected.typeID == "agent" ? workspace.catalog.thread(selected.threadID).map { !$0.isHiddenFromUser } ?? false
+            let visible = selected.typeID == "agent" ? workspace.catalog.thread(selected.threadID).map { !$0.isHiddenFromUser || readingTarget?.position == .result } ?? false
                 : selected.typeID == "git.worktree" ? applicationHost.git.repository(selected.threadID) != nil
                 : (try? applicationHost.entry(selected)) != nil
             if !visible {
@@ -173,10 +172,11 @@ public final class NativeWorkspacePresentation {
     }
 
     public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil) {
+        guard !scene.settingsOpen else { return }
         if ref.typeID == "agent" {
             guard let thread = workspace.catalog.thread(ref.threadID) else { return }
             if thread.moku == true { scene.setMokuOpen(true, readingTarget: target); return }
-            guard !thread.isHiddenFromUser else { return }
+            guard !thread.isHiddenFromUser || target?.position == .result else { return }
         } else if !applicationHost.canOpen(ref.typeID) { return }
         if selected != ref || performanceVisit?.recordingID != NativePerformance.recordingID {
             beginPerformanceVisit(ref)
@@ -205,6 +205,19 @@ public final class NativeWorkspacePresentation {
             requestID: JSONText(UUID().uuidString), mode: current == reference.executionID ? .current : .history))
     }
 
+    public func openNoteExecution(_ reference: ApplicationExecutionRef) {
+        // The public catalog excludes private background agents. Failed and
+        // interrupted ordinary threads remain valid explicit reading targets.
+        guard reference.thread.typeID == "agent",
+              let thread = workspace.catalog.thread(reference.thread.threadID),
+              thread.moku != true, !thread.mokuHistory else {
+            workspace.report(PluginContractError(NativePluginLocalization.localize("链接指向的执行不可用。", locale: Locale(identifier: workspace.preferences.locale.rawValue))))
+            return
+        }
+        open(reference.thread, target: HarnessReadingTarget(executionID: reference.executionID,
+            requestID: JSONText(UUID().uuidString), mode: .history, position: .result))
+    }
+
     public func openFollowUp(_ id: JSONText, draft: JSONText) {
         guard let thread = workspace.catalog.thread(id), !thread.isHiddenFromUser, thread.archived != true else { return }
         if selected?.threadID != id || selected?.typeID != "agent" {
@@ -217,7 +230,8 @@ public final class NativeWorkspacePresentation {
     public func showOverview(focusFilter: Bool = false) {
         if scene.settingsOpen {
             guard settingsNavigation.requestClose(model: workspace.settingsModel,
-                onClose: { scene.closeSettings(origin: $0) }) else { return }
+                onClose: { _ in scene.closeSettings() }) else { return }
+            return
         }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
@@ -270,13 +284,17 @@ public final class NativeWorkspacePresentation {
         navigationRouteID = UUID()
     }
 
-    public func setSettingsOrigin(_ value: CGRect?) { settingsOrigin = value }
-    public func openSettings(origin: CGRect? = nil) {
+    public var canOpenSettings: Bool {
+        workspace.hasInitialContent && workspace.catalog.moku != nil && !workspace.stopping
+            && selected == nil && scene.canOpenSettings && !messageMotion.active
+    }
+    public func openSettings() {
+        guard canOpenSettings else { workspace.settingsOpen = scene.settingsOpen; return }
         if !scene.settingsOpen {
             settingsNavigation.visit = UUID()
             settingsNavigation.section = workspace.settingsModel.runtimeAvailable ? "moku" : "general"
         }
-        NativeReadingPageMotion.cancelAll(); scene.openSettings(origin: origin ?? settingsOrigin ?? .zero)
+        NativeReadingPageMotion.cancelAll(); scene.openSettings()
     }
 
     public func setFollowUpVisible(_ value: Bool) { followUpVisible = value; publishPresence() }
@@ -443,6 +461,7 @@ public struct NativeWorkspaceView: View {
         }
         .overlay(alignment: .top) {
             NativeRuntimeConnectionNotice(model: model).padding(.top, 12)
+                .blur(radius: presentation.scene.settingsExpanded ? 12 : 0)
                 .allowsHitTesting(!presentation.scene.settingsOpen)
                 .accessibilityHidden(presentation.scene.settingsOpen)
         }
@@ -472,10 +491,7 @@ public struct NativeWorkspaceView: View {
     private var workspaceScene: some View {
         let routeID = presentation.navigationRouteID
         return NativeMokuScene(state: presentation.scene) {
-            NativeRuntimeSurface(model: model,
-                showsConnectionNotice: false,
-                onSettingsWithOrigin: { presentation.openSettings(origin: $0) },
-                onSettingsFrameChange: { presentation.setSettingsOrigin($0) }) {
+            NativeRuntimeSurface(model: model, showsConnectionNotice: false) {
                 if !presentation.scene.mokuOpen || presentation.scene.cameraActive { outside }
             }
         } thread: {
@@ -518,18 +534,23 @@ public struct NativeWorkspaceView: View {
                     presentation: presentation.moku,
                     note: presentation.moku.note,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
+                    openExecution: presentation.openNoteExecution,
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) },
                     canStartVoice: { canStartMokuVoice }, startVoice: startMokuVoice)
             }
+        } onCloseSettings: {
+            presentation.settingsNavigation.requestClose(model: model.settingsModel) { _ in presentation.scene.closeSettings() }
         } settings: {
             if presentation.scene.settingsOpen { settings }
         }
         .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.scene.settingsOpen || presentation.nativeApplicationNavigation,
-                suspended: presentation.scene.cameraActive,
+            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.nativeApplicationNavigation,
+                suspended: presentation.scene.cameraActive || presentation.scene.settingsOpen,
                 managesNativeButtons: !presentation.nativeApplicationNavigation || applicationSuppressed,
                 reading: presentation.readingNavigation)
+                .allowsHitTesting(!presentation.scene.settingsOpen)
+                .accessibilityHidden(presentation.scene.settingsOpen)
         }
     }
 
@@ -547,9 +568,7 @@ public struct NativeWorkspaceView: View {
                         openThread: { id, target in presentation.open(ApplicationThreadRef(threadID: id, typeID: "agent"), target: target) },
                         openApplication: { presentation.open($0, target: $1) },
                         onSettings: { presentation.openSettings() },
-                        onFollowUp: { presentation.openFollowUp($0, draft: $1) },
-                        onSettingsWithOrigin: { presentation.openSettings(origin: $0) },
-                        onSettingsFrameChange: { presentation.setSettingsOrigin($0) }),
+                        onFollowUp: { presentation.openFollowUp($0, draft: $1) }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing)
             } front: {
@@ -613,7 +632,7 @@ public struct NativeWorkspaceView: View {
                     section: request.section, executionSnapshot: request.executionSnapshot, settingsFormPage: true,
                     refreshSequence: request.refreshSequence, value: request.value))
             }, onSetAppearance: { try presentation.setAppearance($0) },
-            onSetLocale: { try model.updateLocale($0) }, onClose: { presentation.scene.closeSettings(origin: $0) },
+            onSetLocale: { try model.updateLocale($0) }, onClose: { _ in presentation.scene.closeSettings() },
             mokuController: presentation.scene.settingsCharacter,
             onCoordinatorFrame: { presentation.scene.setCoordinatorFrame($0, pending: $1) })
     }
@@ -646,14 +665,16 @@ public struct NativeWorkspaceCommands: Commands {
         CommandGroup(after: .sidebar) {
             Button(locale.text("会话俯瞰", "Overview")) { presentation?.showOverview(focusFilter: true) }.keyboardShortcut("k")
             Button("Moku") { presentation?.scene.toggleMoku() }.keyboardShortcut("b")
+                .disabled(presentation?.scene.settingsOpen == true)
             Button(locale.text("输入", "Compose")) { presentation?.scene.toggleInput() }
-                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.selected != nil)
+                .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(presentation?.selected != nil || presentation?.scene.settingsOpen == true)
             Button(locale.text("Moku 笔记", "Moku Note")) { presentation?.toggleMokuNote() }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(presentation?.canToggleMokuNote != true)
         }
         CommandGroup(replacing: .appSettings) {
             Button(locale.text("设置…", "Settings…")) { presentation?.openSettings() }.keyboardShortcut(",")
+                .disabled(presentation?.canOpenSettings != true)
         }
     }
 }

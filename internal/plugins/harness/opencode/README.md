@@ -131,3 +131,5 @@ existing bounded budgets, and is cancelled/joined on Close. Billing cannot mutat
 an already published native projection. Refresh replaces only the matching
 cwd/configuration-cwd/executable/environment/file-generation flight; obsolete
 results cannot publish. No disk snapshot or credentials enter UI/cache persistence.
+
+Form string defaults use the same model validator as public answers. External URLs use no-base WHATWG parsing, including nonfatal percent-encoding errors. An empty native form title displays “OpenCode request”; form/session identities remain required. `interactions_contract_test.go` exercises reducer admission, default preflight and typed answers with native contract regression values.

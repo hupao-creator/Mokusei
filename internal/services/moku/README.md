@@ -111,6 +111,10 @@ deliverables. Runtime voice delivery remains separate.
 
 `talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions and the built-in Moku prompt, including coordination reached through voice. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
 
+Talk and note text guidance encourages emoji when they naturally add expression
+and suit the context; emoji remain optional and count toward the existing
+Unicode code-point budgets.
+
 `update_note` requires `text` and an `expected` basis containing `noteId`,
 `revision`, and `readingRevision`; `expected:null` applies only before the first
 note. Text allows **1200 Unicode code points**. Exactly `""` clears it; other
@@ -203,3 +207,9 @@ context path. Empty notes stay empty. Switching does not request compact or
 generate a summary. Runtime requires idle ordinary tasks and Moku both when
 saving a different Harness preference and when replacing the native owner;
 unrelated configuration edits keep their existing admission behavior.
+
+Notes can contain `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`
+to reference one ordinary Agent Thread execution. Moku obtains the two identities
+from thread lifecycle reports; this capability adds no query tool or reason to
+query proactively. Capability guidance leaves link selection to the model. The
+full Markdown URL counts toward the existing 1200-code-point limit.

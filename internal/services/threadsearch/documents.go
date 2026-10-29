@@ -15,7 +15,7 @@ import (
 )
 
 const Dimensions = 768
-const indexVersion = plugin.LocalEmbeddingSpace + "/text-v4-completed/runes1200-overlap150/v1"
+const indexVersion = plugin.LocalEmbeddingSpace + "/text-v4-completed/runes1200-overlap150/v2"
 const documentPrefix = "search-document:"
 const configKey = "search-config"
 const maxChunks = 128
@@ -53,6 +53,7 @@ type Document struct {
 	SourceHash  string          `json:"sourceHash"`
 	Fingerprint string          `json:"fingerprint"`
 	Version     string          `json:"version"`
+	LiteralText string          `json:"literalText"`
 	Chunks      []Chunk         `json:"chunks"`
 	Truncated   bool            `json:"truncated"`
 }
@@ -79,6 +80,8 @@ func prepare(source Source, previous Document) Document {
 			}
 		}
 	}
+	// Keep exactly the contiguous content covered by the bounded vector index.
+	literalText := string(metadata) + "\n" + string(text[:min(len(text), (maxChunks-1)*1050+1200)])
 	cached := map[string][]float32{}
 	if previous.Version == indexVersion {
 		for _, chunk := range previous.Chunks {
@@ -87,7 +90,7 @@ func prepare(source Source, previous Document) Document {
 			}
 		}
 	}
-	document := Document{Ref: source.Ref, Owner: source.Owner, Fingerprint: source.fingerprint(), SourceHash: source.OwnerHash, Version: indexVersion, Truncated: truncated}
+	document := Document{Ref: source.Ref, Owner: source.Owner, Fingerprint: source.fingerprint(), SourceHash: source.OwnerHash, Version: indexVersion, Truncated: truncated, LiteralText: literalText}
 	for _, text := range chunks {
 		// Metadata is already in the content, so use a bounded, stable title.
 		title := []rune(source.Title)

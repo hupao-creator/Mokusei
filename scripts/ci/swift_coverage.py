@@ -96,6 +96,17 @@ def main():
         "MokuseiGitIntegrationTests.PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage",
     }
     swift_launchers = {
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/capsuleExpandsWithoutRemountingAndFitsViewport()",
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/modalInputClosesWithoutClickThroughAndRestoresDock()",
+        "MokuseiSettingsIntegrationTests.NativeSettingsTransitionTests/reversalsResizeInactiveAndExplicitSettleFenceCompletions()",
+        "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer()",
+        "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/oneResidentOwnsSubmissionRunningTalkDispatchAndStop()",
+        "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/centerSurvivesEscapeResizeCoveringRoutesAndRemount()",
+        "MokuseiSettingsIntegrationTests.NativeThreadHistorySidebarTests/pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation()",
+        "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/applicationEscapeCancelsPickerBeforeSettingsNavigation()",
+        "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/modelListPreservesIdentityAndKeyboardCancellation()",
+        "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/reasoningMapsNativeStepsResetAndModelNavigation()",
+        "MokuseiGitIntegrationTests.NativeModelSelectorReplayTests/refreshRetiresPopupAndSingleChoiceRemainsSelectable()",
         "MokuseiSettingsIntegrationTests.NativeBrowserDialogTests/retiringPageCancelsItsSheetAndCompletesExactlyOnce(dialog:retirement:)",
         "MokuseiSettingsIntegrationTests.NativeBrowserDialogTests/hiddenPageCannotPresentNewSheet(dialog:)",
         "MokuseiSettingsIntegrationTests.NativeBrowserDialogTests/acceptedPromptAllowsReentrantNextDialog()",
@@ -108,6 +119,7 @@ def main():
         "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets()",
         "MokuseiSettingsIntegrationTests.NativeBrowserViewportTests/focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom()",
         "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack()",
+        "MokuseiSettingsIntegrationTests.NativeReportNavigationTests/reportNativeDialogsAndDownloadsPreserveTheDocument()",
     }
     allowed_skips = swift_launchers | {name.rsplit(".", 1)[0] + "/" + name.rsplit(".", 1)[1] for name in xctest_launchers}
     deferred = set()

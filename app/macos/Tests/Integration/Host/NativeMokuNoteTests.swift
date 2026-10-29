@@ -7,6 +7,7 @@ import MokuseiTestSupport
 #endif
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 @testable import MokuseiUI
 
 @MainActor @Suite(.serializedNative)
@@ -31,6 +32,32 @@ struct NativeMokuNoteTests {
         if let view = root as? NSTextView, view.isSelectable, !view.isEditable { result.append(view) }
         for child in root.subviews { result += selectableText(child) }
         return result
+    }
+
+    private func element(id: String, in root: NSView) -> NSObject? {
+        var seen = Set<ObjectIdentifier>()
+        func visit(_ object: AnyObject) -> NSObject? {
+            guard seen.insert(ObjectIdentifier(object)).inserted, seen.count < 10000,
+                  let item = object as? NSObject else { return nil }
+            let identity = NSSelectorFromString("accessibilityIdentifier")
+            if item.responds(to: identity), item.perform(identity)?.takeUnretainedValue() as? String == id { return item }
+            let children = NSSelectorFromString("accessibilityChildren")
+            if item.responds(to: children), let values = item.perform(children)?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = visit(value) { return found } }
+            }
+            // SwiftUI exposes some bridge nodes only through the legacy AX
+            // attribute API, even when their ancestors use modern children.
+            let legacy = NSSelectorFromString("accessibilityAttributeValue:")
+            if item.responds(to: legacy), let values = item.perform(legacy, with: "AXChildren")?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = visit(value) { return found } }
+            }
+            if let view = item as? NSView {
+                for child in view.subviews { if let found = visit(child) { return found } }
+            }
+            return nil
+        }
+        _ = root.window?.accessibilityChildren()
+        return visit(root.window ?? root)
     }
 
     @Test func trackpadSwipeRequiresUpwardIntentAndOpensOnlyOnce() {
@@ -60,13 +87,13 @@ struct NativeMokuNoteTests {
         #expect(sample(-40).action == nil)
         #expect(sample(24, phase: .began, inverted: false).action == .note)
         #expect(sample(0, x: -12, phase: .began).action == nil)
-        #expect(sample(0, x: -12).action == .input)
+        #expect(sample(0, x: -12).action == nil)
         #expect(sample(0, x: -50).action == nil)
         #expect(sample(0, x: 30, phase: .began).action == nil)
-        #expect(sample(0, x: 30, phase: .began, inverted: false).action == .input)
+        #expect(sample(0, x: 30, phase: .began, inverted: false).action == nil)
     }
 
-    @Test func touchSwipeUsesTheSameThresholdAndExistingNoteInputState() {
+    @Test func touchSwipeUsesTheSameThresholdAndIgnoresLeftwardInput() {
         let state = NativeMokuSceneState()
         state.setWindowVisible(true)
         var touch = NativeMokuTouchSwipeSequence()
@@ -80,9 +107,8 @@ struct NativeMokuNoteTests {
         #expect(touch.move(to: CGPoint(x: 80, y: 240), eligible: true) == nil)
         touch.cancel()
         #expect(touch.begin(at: start, eligible: true, inside: true) == true)
-        #expect(touch.move(to: CGPoint(x: 136, y: 322), eligible: true) == .input)
-        state.setInputOpen(true)
-        #expect(state.inputOpen && !state.notePanelOpen)
+        #expect(touch.move(to: CGPoint(x: 136, y: 322), eligible: true) == nil)
+        #expect(!state.inputOpen && state.notePanelOpen)
         #expect(touch.move(to: CGPoint(x: 100, y: 280), eligible: true) == nil)
         state.settle()
     }
@@ -233,11 +259,38 @@ struct NativeMokuNoteTests {
         #expect(!state.notePanelOpen)
     }
 
+    @Test(.requiresDisplay, arguments: [false, true])
+    func expandedDockOpensHistoryWithoutConsumingDraftOrNote(hasNote: Bool) async throws {
+        let app = NSApplication.shared
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
+        let state = NativeMokuSceneState()
+        state.setWindowVisible(true)
+        state.setNotePanelOpen(true)
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        draft.text = "Keep this draft"
+        let note = hasNote ? NativeMokuNote(id: "history-entry", text: "Still unread", revision: 1, updatedAt: 1) : nil
+        let window = SwiftUIReplay.window(NativeMokuDock(state: state, draft: draft, cwd: "/tmp", note: note,
+            onSend: { _ in Issue.record("History must not send the draft") }, onCancel: {})
+            .environment(\.locale, Locale(identifier: "en")), width: 600, height: 500)
+        defer { window.close(); state.settle() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { element(id: "moku-note-history", in: root) != nil }
+        let button = try #require(element(id: "moku-note-history", in: root))
+        #expect(SwiftUIReplay.text(in: root).contains("View Moku conversation history"))
+        _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
+        try await SwiftUIReplay.wait { state.mokuOpen && !state.notePanelOpen }
+        #expect(draft.text == "Keep this draft")
+        #expect((note?.hasUnexposedUpdate ?? false) == hasNote)
+        state.setMokuOpen(false)
+        #expect(!state.mokuOpen && !state.notePanelOpen)
+    }
+
     @Test(.requiresDisplay, arguments: [64.0, 360.0]) func panelRendersSelectableProductionMarkdown(height: Double) async throws {
         let note = NativeMokuNote(id: "panel-incarnation", text: "# Milestones\n\n- Dispatched the migration\n- Waiting for review",
                                   revision: 3, updatedAt: 1_700_000_000_000)
         let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: height < 100 ? 188 : 480, height: height, availableHeight: height,
-                                                              openExternal: nil), width: 600, height: 500)
+                                                              openExternal: nil, onOpenHistory: {}), width: 600, height: 500)
         defer { window.close() }
         let content = try #require(window.contentView)
         try await SwiftUIReplay.wait { selectableText(content).contains { $0.string.contains("Milestones") } }

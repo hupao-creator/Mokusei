@@ -47,6 +47,7 @@ import MokuseiPluginAPI
         filteredEmpty = false; original = false; draft.text = ""; draft.clearError()
         for directory in draft.directories { draft.removeDirectory(directory.path) }
         scene.dismissTalk()
+        scene.setInputOpen(true)
         status = "没有会话 · 中心输入"
         Task { for attachment in draft.attachments { await draft.removeAttachment(attachment.id) } }
     }

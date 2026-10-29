@@ -12,10 +12,10 @@ settling, without restoring the retired AppKit scene host.
 All Moku capsule surfaces use the approved theme-aware gradient over native clear
 glass: warm black in dark appearance and pearl white in light appearance, fading
 toward the bottom with a fine warm edge. Production density is 85%. The shared
-material covers the Dock (idle, composer, Talk and note), landing notices, history
+material covers the Dock (idle, composer, Talk and note), history
 composer and interaction panel; the latter retains its existing explicit dark appearance.
 Reduce Transparency uses opaque warm-black or pearl-white fills. Content ink,
-caret, eyes and the external reasoning Arc retain their existing theme ownership.
+caret and eyes retain their existing theme ownership.
 The material does not change layout, clipping, voice ownership or motion clocks.
 The [material demo](../../../../../demos/moku-gradient-material/README.md) now
 compiles this same production material; its regular-glass option is a historical
@@ -50,18 +50,31 @@ including documents exposed only inside a directory. Loading is not an empty
 workspace. Archiving/deleting the last eligible conversation restores landing;
 filtering to no results does not. No one-time onboarding flag is persisted.
 
-Submitting input keeps the center open. A durable first-task shell can precede
-native admission, so it remains behind landing while `create_thread` is pending.
-A successful public result for an eligible Thread returns the Dock to its existing
-bottom seat. Failure without an admitted conversation keeps the center available;
-an independently admitted conversation also ends it. Existing workspaces hydrate
-at the bottom. The same surface and Reduce Motion policy own the transition.
+Landing opens input once on entry. Submitting uses the ordinary sealed-draft
+collapse; failure reopens the preserved draft. Escape, outside click, input
+reopening and Stop use the same paths as the bottom Dock. Returning from a
+covering route or remounting cannot reopen input over a resident or message.
+Hydrating a running Moku or waiting message presents that state immediately.
+Landing input also collapses on clicks in another window or app, preserving its
+draft and leaving the click available to its target. Focus loss alone does not
+collapse it: native menus, attachment sheets, modal panels and visible child
+windows retain their interaction before outside dismissal resumes. Cross-app
+observers retire when input closes or the Dock unmounts; covered routes cannot
+use a stale observer to close the draft.
 
-Talk and dispatch notices appear above the open landing composer without taking
-its editor, focus or draft. They reuse ordinary selectable Talk/dispatch content,
-outside-click dismissal and the deadline that starts only after actual presentation.
-Directory suggestions can temporarily cover the notice when vertical room is too
-short. Ordinary bottom-Dock notices retain their existing capsule presentation.
+The same persistent capsule and character host own running, thinking, Talk and
+dispatch. There is no separate landing notice. A manually opened editor defers
+notifications until it closes, without losing its draft. The centered compact
+resident, eyes and running orbit scale together by 76/58. Expanded landing rows
+retain the 680-point composer width and 76-point minimum height.
+
+A durable first-task shell can precede native admission, so it remains behind
+landing while `create_thread` is pending. A successful public result for an
+eligible Thread returns the same Dock to its bottom seat. Failure without an
+admitted conversation stays centered; an independently admitted conversation
+also ends landing. Existing workspaces hydrate at the bottom. The same surface
+and Reduce Motion policy own the transition.
+
 The [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
 exercises real workspace/catalog/presentation integration; the
 [interactive visual fixture](../../../../../demos/moku-landing/README.md) retains the
@@ -87,7 +100,7 @@ movement immediate.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it reads `Ask Moku… or hold to speak` (Chinese: `向 Moku 提问，或长按说话…`); selected directories retain `Ask Moku about <name>…` with `or hold to speak` appended (Chinese: `向 Moku 询问关于 <name> 的问题，或长按说话…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 
-On macOS, physical two-finger left swipe over Moku opens input; upward swipe opens the note. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. A single click does not substitute for these gestures. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Left swipe cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
+On macOS, clicking the collapsed Moku row opens input; when a message is visible, only the eyes are the input target so prose remains selectable and controls retain their actions. Clicking the retained row beneath an open note switches to input. Physical two-finger upward swipe opens the note; horizontal swipes do not open input. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. The click entry uses the existing composer focus and draft-restoration path. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Clicking Moku cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
 The compact running fallback reuses [MokuRunningStory](../Moku/MokuRunningStory.swift): three rainbow beats, lift, a three-second orbit, landing and recovery, with the eyes following the same clock. The choreography comes from Bart commits `2c3125ac7` and `45578f321`; the eyes retain their seat while the 5-point dots follow the capsule's outer contour, with 3 points of clear space. [NativeMokuRunningGeometry](NativeMokuRunningEyes.swift) shares that authored path between the persistent character host and the standalone reference. Decorations paint outside the glass clip. Input, note, tool, message, interaction and voice ownership retire the running decoration through the same host rather than replacing the eye view.
 
@@ -98,41 +111,42 @@ geometry. Expanding the composer, note or notification does not change that
 reservation or trigger a card repack; those surfaces retain their existing
 interaction/overlay ownership.
 
-## Thinking arc
+## Thinking feedback
 
-The current public Harness reasoning foreground supplies a
-[MokuReasoningContent](../Moku/MokuReasoningContent.swift) identified by Thread,
-Harness, execution and foreground sequence, including its UTF-16 source offset.
-The live projection is separate from generic display-role leases: assistant/tool
-foreground changes, terminal states and disconnects immediately retire its
-content. A visible handoff may finish painting its captured glyphs, but it cannot
-restore an expired source or delay a user interaction until a backlog is read.
+Moku temporarily hides its live reasoning text Arc. Deep thinking uses the same
+three-dot running choreography described above, including Reduce Motion's static
+dots. Live reasoning takes priority over a queued generic tool expression; source
+appends do not restart the running clock. Composer, notes, Talk/dispatch, voice
+and permission/question surfaces retain priority. Completion, failure,
+interruption, waiting for input and runtime disconnect retire loading through
+the existing execution and surface ownership state.
 
-The native arc keeps the capsule body. Its open circular span is 288°, centered
-at −110°, with radius half the capsule's largest dimension plus 19 points.
-CoreText paints 12.5-point medium glyphs with 1.3-point tracking in their tangent
-direction, including the inverted lower edge. Short text centers by measured
-width; the two ends fade. The glyph FIFO follows absolute source positions,
-retains unread middle input and at most 112 measured graphemes, and settles on
-the latest complete-grapheme tail of at most 56 Unicode code points. Same-segment
-append preserves the reading clock; segment/execution changes, known source gaps
-or revisions reset its reader. Reduce Motion shows the latest tail directly.
-
-The arc model and painter own no timer. The persistent activity host coordinates
-eyes, running dots and the text's gather/reveal handoff from their currently
-painted state. Composer, notes, Talk/dispatch, voice and permission/question
-surfaces retain priority. The Dock reserves visible ink space by continuously
-lifting the capsule, eyes and arc together only as far as the viewport requires;
-If a short or narrow viewport cannot contain the complete glyph envelope, the capsule and arc scale together to fit. Overview's fixed bottom reservation and card packing stay unchanged.
+The public Harness foreground still supplies
+[MokuReasoningContent](../Moku/MokuReasoningContent.swift), identified by Thread,
+Harness, execution and foreground sequence with its UTF-16 source offset.
+Assistant/tool foreground changes, terminal states and disconnects retire that
+live projection as before. The Arc model, painter and layout remain available
+for a future presentation change, but the Dock does not admit or paint their
+text. Ordinary Agent Thread trace rendering and Moku's history reader are
+unchanged; this is a Dock presentation policy, not a data/schema change.
 
 Validation uses the [native reasoning replay](../../../../../tools/verification/moku-reasoning/README.md),
 which drives Runtime fixture transactions through the real Harness, workspace
 projection and Dock, and the [transition replay](../../../../../tools/verification/moku-transitions/README.md)
-for interrupted visual handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
-reuses the production Arc; its historical circular and contour tabs remain
-comparison-only.
+for interrupted loading/input handoffs. The [native study](../../../../../demos/moku-thinking-orbit/README.md)
+retains the Arc for comparison only.
 
 ## Talk, dispatch and notes
+
+The expanded note's bottom-right **Moku history** button opens the existing
+Moku conversation reader, including its archived-session picker. It remains
+available when the note or conversation is empty; the reader owns the empty
+conversation state. The native button supports keyboard and accessibility
+activation with localized labels. Its footer reserves reading space in normal
+windows, aligns with the eyes in the bottom row, and scrolls with the header/body
+in short viewports, including 5× zoom.
+Opening history uses the scene's ordinary navigation path, closing the note
+without changing its exposure receipt or the workspace draft.
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
@@ -163,6 +177,13 @@ empty Markdown layout must not replace the scroll container when parsing
 finishes: replacing it retires the mounted renderer and its armed read session.
 
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
+
+Note ink has its own composited transition outside the native document's
+non-animated layout transaction. Header and Markdown fade together over 120ms
+on dismissal, before the 420ms glass contraction carries the header through the
+eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
+removes both animations. Closing only dismisses this read-only presentation;
+it does not clear the catalog note or change the composer draft.
 
 ## Voice display
 
@@ -196,3 +217,30 @@ Validation: existing Moku Dock, history composer, Talk, dispatch, note, gesture 
 Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The history selector opens those sessions through their original Harness reader; the current composer belongs only to the current session. Runtime prevents archive reactivation, fork and execution, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
 Run `python3 tools/verification/reading-presentation/run.py --moku-composer`, `--composer-paste`, and `--moku-note-tests` serially for the mounted history editor, immediate-paste admission, Stop/Cancel controls and short note viewport regressions. These modes use the production components in an isolated AppKit event loop and reject skipped/incomplete suites.
+
+Note Markdown accepts app-internal execution links in the form
+`[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note
+forwards a validated typed reference to the Host; other Markdown surfaces do not
+open these links and they are never handed to the OS. Only ordinary public
+Agent Threads qualify, including archived, failed and interrupted ones. Moku,
+its history and missing/private targets produce an unavailable notice. The note
+retains its existing character budget and viewport-exposure semantics.
+
+The reader opens one fixed execution at its final visible reply, or its latest
+visible content/status when no final reply exists. Running executions initially
+scroll to the bottom and follow output until the user scrolls up; Jump to latest
+restores following. The visit stays on the cited execution after a successor
+starts. Run `python3 tools/verification/reading-presentation/run.py --moku-execution-links`
+for the production note-to-reader replay across all four Harnesses.
+
+## Settings expansion
+
+Settings occupies the resident Dock's existing glass capsule, with a stable
+viewport-bounded 900×640-point target and an inert bottom Moku row. It shares
+Note's bottom/landing anchors without inheriting Note's click-through behavior.
+The scene blurs and disables Overview, while the capsule and retained input/Note
+visit stay mounted. Closing uses the Settings draft gate and restores the
+previous valid surface; pending interventions resume only after Settings exits.
+Voice media ownership and background execution are unchanged. A deferred voice
+composer restoration is applied when Settings releases presentation ownership.
+Only loaded Overview admits Settings, including menu and semantic entry points.

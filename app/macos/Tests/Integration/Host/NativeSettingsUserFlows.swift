@@ -9,7 +9,7 @@ import MokuseiTestSupport
 import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
-import MokuseiUI
+@testable import MokuseiUI
 import MokuseiHarnessCodex
 import MokuseiApplications
 
@@ -303,7 +303,7 @@ struct NativeSettingsUserFlows {
             harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], harnessSettings: { _ in AnyView(EmptyView()) },
             onSetAppearance: { try preferences.setAppearance($0) },
             onSetLocale: { try preferences.setLocale($0) },
-            onClose: { presentation.scene.closeSettings(origin: $0) }))
+            onClose: { _ in presentation.scene.closeSettings() }))
         defer { window.orderOut(nil); window.contentView = nil; window.close() }
         let root = try #require(window.contentView)
         func routingEditor(in view: NSView) -> NSTextView? {
@@ -365,7 +365,16 @@ struct NativeSettingsUserFlows {
         try preferences.setLocale(.english)
         let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences,
-            plugins: try NativePluginComposition(harnesses: [], sidecards: [], applications: []))
+            plugins: try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
+        // Local preferences remain available in a previously loaded Overview
+        // after disconnect. The initial connection screen has no Settings entry.
+        let moku = try HarnessThread(id: "moku", harnessID: "codex", revision: 1, sessionState: .null,
+            observation: .init(), cwd: JSONText(directory.path), settings: .object([:]),
+            createdAt: 0, updatedAt: 1, title: "Moku", tags: [], moku: true, transcript: .array([]))
+        let snapshot: JSONValue = .object(["revision": .integer(1), "settingsRevision": .integer(0),
+            "defaultCwd": .text(directory.path), "settings": .object([:]), "threads": .array([moku.json]),
+            "executions": .array([]), "applicationThreads": .array([])])
+        await workspace.installPrepared(snapshot, event: .snapshot(snapshot, authority: UUID()))
         let presentation = NativeWorkspacePresentation(workspace: workspace)
         presentation.start()
         try presentation.performInteraction(.openSettings)

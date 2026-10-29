@@ -16,10 +16,11 @@ permissions:
   actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
-  # Extended runs must wait for this branch's default run, not consume its
-  # native runner slots. A new commit still cancels stale verification.
-  cancel-in-progress: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+  # Reserve one workflow cohort for this repository; each cohort still runs
+  # its native shards in parallel. Queued obsolete revisions exit at scope.
+  group: ci-native-capacity-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
 
 defaults:
   run:
@@ -31,29 +32,45 @@ env:
   GOFLAGS: -mod=readonly
 
 jobs:
-  go:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
-    name: Go / Linux
+  scope:
+    name: Determine verification scope
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 2
+    outputs:
+      documentation_only: ${{ steps.scope.outputs.documentation_only }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
+          fetch-depth: 0
+      - name: Classify the complete changed-path set
+        id: scope
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
+        run: python3 scripts/ci/scope.py --current
+
+  go:
+    needs: scope
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    name: Go / Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # scripts/go.sh downloads Go 1.27.3 but rejects non-Darwin/arm64 hosts.
       # setup-go honors go.mod's toolchain directive without changing go.mod.
       - uses: actions/setup-go@v6
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         id: go
         with:
           go-version-file: go.mod
           cache: false
 
       - name: Locate Go caches
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         id: go-cache
         run: |
           go version
@@ -61,6 +78,7 @@ jobs:
           printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         with:
           path: |
             ${{ steps.go-cache.outputs.modules }}
@@ -72,12 +90,14 @@ jobs:
       # Ubuntu's standard image provides cc and libsqlite3-dev. Keep this
       # explicit: the runtime uses cgo, and disabling it is not a valid build.
       - name: Check SQLite C toolchain
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: |
           printf '#include <sqlite3.h>\nint main(void) { return sqlite3_libversion_number() == 0; }\n' |
             cc -x c - -lsqlite3 -o "$RUNNER_TEMP/sqlite-check"
           "$RUNNER_TEMP/sqlite-check"
 
       - name: Go formatting
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: |
           unformatted="$(gofmt -l cmd internal tools)"
           if [[ -n "$unformatted" ]]; then
@@ -86,15 +106,23 @@ jobs:
           fi
 
       - name: Architecture, registration and source boundaries
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: go run ./cmd/mokusei-check architecture
 
       - name: Go vet
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: go vet ./...
 
       - name: Go build
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: go build ./...
 
+      - name: Verify CI scope, evidence selection and deadline controls
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        run: python3 scripts/ci/verify-ci-control.py
+
       - name: Verify Go reporting against real failure and skip fixtures
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         run: python3 scripts/ci/verify-go-reporting.py
 
       # Includes the Go half of check-directorytag; -count=1 prevents cached
@@ -103,7 +131,7 @@ jobs:
       # run in the macOS job. All packages are still built and vetted above.
       # Bound package concurrency for process/deadline fixtures on standard runners.
       - name: Go unit tests (including directory tags)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: |
           packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost)"
           portable_packages=()
@@ -116,7 +144,7 @@ jobs:
             go test -json -p 2 -count=1 "${portable_packages[@]}"
 
       - name: Go module race tests (check-modules)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: >-
           python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/modules" --
           go test -json -race -p 2 -count=1
@@ -124,7 +152,7 @@ jobs:
           ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
 
       - name: Runtime and Codex integration properties (pbt)
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: >-
           python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/properties" --
           go test -json -race -count=1
@@ -132,26 +160,29 @@ jobs:
           -run Properties
 
       - name: Summarize Go tests and enforce execution
-        if: ${{ always() }}
+        if: ${{ always() && needs.scope.outputs.documentation_only != 'true' }}
         run: >-
           python3 scripts/ci/go-tests.py report --output "$RUNNER_TEMP/ci-go/summary.json"
           "$RUNNER_TEMP/ci-go/unit" "$RUNNER_TEMP/ci-go/modules" "$RUNNER_TEMP/ci-go/properties"
 
       - name: Retain Go test evidence
-        if: ${{ always() }}
+        if: ${{ always() && needs.scope.outputs.documentation_only != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: go-linux-test-evidence
+          name: go-linux-test-evidence-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/ci-go
           if-no-files-found: warn
-          overwrite: true
           retention-days: 14
+      - name: Confirm documentation-only validation
+        if: ${{ needs.scope.outputs.documentation_only == 'true' }}
+        run: echo 'Documentation-only diff validated by the scope job; no Go execution required.' >> "$GITHUB_STEP_SUMMARY"
 
   replays:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    needs: scope
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Integration / ${{ matrix.group }}
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -160,10 +191,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -175,29 +202,26 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: integration-${{ matrix.group }}-evidence
+          name: integration-${{ matrix.group }}-evidence-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/replays
           if-no-files-found: error
-          overwrite: true
           retention-days: 7
 
   native-go:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    needs: scope
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Native Go and Swift fixture preparation
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     outputs:
       cache: ${{ steps.go-cache.outputs.key }}
       modules: ${{ steps.go-cache.outputs.modules }}
       build: ${{ steps.go-cache.outputs.build }}
+      evidence: ${{ steps.go-cache.outputs.evidence }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -205,6 +229,7 @@ jobs:
       - name: Locate this attempt's native Go cache
         id: go-cache
         run: |
+          printf 'evidence=macos-preparation-evidence-attempt-%s\n' "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           printf 'key=native-go-%s-%s-%s\n' "$RUNNER_ARCH" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
           printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
           printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
@@ -234,17 +259,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: macos-preparation-evidence
+          name: macos-preparation-evidence-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/preparation
           if-no-files-found: error
-          overwrite: true
           retention-days: 7
 
   swift-build:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    needs: scope
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Swift build and complete test inventory
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     outputs:
       cache: ${{ steps.restore.outputs.cache-primary-key }}
       developer: ${{ steps.toolchain.outputs.developer }}
@@ -253,10 +278,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - name: Prepare the native toolchain
         id: toolchain
         run: |
@@ -292,18 +313,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: macos-build-evidence
+          name: macos-build-evidence-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/build-evidence
           if-no-files-found: error
-          overwrite: true
           retention-days: 7
 
   mac:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: macOS / ${{ matrix.name }}
-    needs: [swift-build, native-go]
+    needs: [scope, swift-build, native-go]
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       # Five is the standard hosted macOS concurrency allowance.
@@ -324,10 +344,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         if: ${{ matrix.go }}
         with:
@@ -348,7 +364,7 @@ jobs:
           fail-on-cache-miss: true
       - uses: actions/download-artifact@v4
         with:
-          name: macos-preparation-evidence
+          name: ${{ needs.native-go.outputs.evidence }}
           path: ${{ runner.temp }}/preparation
       - name: Verify the shared build and graphical session
         run: |
@@ -378,19 +394,18 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: macos-${{ matrix.name }}-evidence
+          name: macos-${{ matrix.name }}-evidence-attempt-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/evidence
             !${{ runner.temp }}/evidence/**/mokusei-runtime
           if-no-files-found: error
-          overwrite: true
           retention-days: 7
 
   external:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
     name: Native CLI / ${{ matrix.kind }}
     runs-on: macos-26
-    timeout-minutes: 14
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -404,10 +419,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -464,62 +475,83 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: native-cli-${{ matrix.kind }}-evidence
+          name: native-cli-${{ matrix.kind }}-evidence-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/external
           if-no-files-found: error
-          overwrite: true
           retention-days: 7
 
   verification:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage and time budget' || 'Complete coverage and fifteen-minute budget' }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage' || 'Complete coverage' }}
     if: ${{ always() }}
-    needs: [go, replays, native-go, swift-build, mac, external]
+    needs: [scope, go, replays, native-go, swift-build, mac, external]
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set whole-run budget
+      - name: Select artifact IDs before downloading retry evidence
+        id: evidence
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/ci/deadline.py stamp
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          python3 scripts/ci/collect-evidence.py --plan "$RUNNER_TEMP/artifacts.json"
       - uses: actions/download-artifact@v4
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
         with:
-          pattern: macos-*-evidence
-          path: ${{ runner.temp }}/collected
+          artifact-ids: ${{ steps.evidence.outputs.artifact_ids }}
+          path: ${{ runner.temp }}/history
+      - name: Select each native job's newest execution evidence
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/collect-evidence.py "$RUNNER_TEMP/history" "$RUNNER_TEMP/collected"
       - name: Enforce complete Swift and replay execution
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
         env:
           MOKUSEI_CI_EVIDENCE: ${{ runner.temp }}/collected
         run: python3 scripts/ci/swift-tests.py
       - uses: actions/upload-artifact@v4
-        if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+        if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
         with:
-          name: swift-coverage-summary
+          name: swift-coverage-summary-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/swift-summary.json
           if-no-files-found: warn
-          overwrite: true
           retention-days: 7
 
-      - name: Enforce every required job and whole-attempt duration
+      - name: Report queueing and retries
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/run-summary.py
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: run-summary-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/run-summary.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce every required job
         if: ${{ always() }}
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
+          DOCUMENTATION_ONLY: ${{ needs.scope.outputs.documentation_only }}
           EXTENDED: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
         run: |
           python3 - <<'PY'
-          import json, os, time
+          import json, os
           results = json.loads(os.environ['JOB_RESULTS'])
-          required = ['external'] if os.environ['EXTENDED'] == 'true' else ['go', 'replays', 'native-go', 'swift-build', 'mac']
+          required = ['scope', 'external'] if os.environ['EXTENDED'] == 'true' else ['scope', 'go']
+          if os.environ['EXTENDED'] != 'true' and os.environ['DOCUMENTATION_ONLY'] != 'true':
+              required += ['replays', 'native-go', 'swift-build', 'mac']
           failures = [name for name in required if results[name]['result'] != 'success']
-          elapsed = time.time() - int(os.environ['MOKUSEI_CI_STARTED_AT'])
-          message = f'CI attempt: {elapsed:.1f}s elapsed; required jobs failed/skipped: {failures}. Limit: <900s.'
+          message = f'Required jobs failed/skipped: {failures}. Elapsed time is diagnostic, not a merge gate.'
           print(message)
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
               output.write('\n' + message + '\n')
-          # Leave cleanup/checkout post-actions a margin before the strict 900s limit.
-          if failures or elapsed >= 885:
+          if failures:
               raise SystemExit(1)
           PY

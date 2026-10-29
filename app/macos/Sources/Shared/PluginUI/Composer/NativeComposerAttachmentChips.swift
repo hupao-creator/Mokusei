@@ -71,7 +71,7 @@ public struct NativeComposerAttachmentChips: View {
 
     public var body: some View {
         if !attachments.isEmpty || !directories.isEmpty {
-            ScrollView(.horizontal) {
+            NativeScrollView(.horizontal) {
                 HStack(spacing: NativeComposerChipMetrics.spacing) {
                     ForEach(directories) { directory in
                         chip(name: directory.name.string, icon: "Folder", size: nil, pending: false, failed: false,
