@@ -58,7 +58,15 @@ This preserves text-level contrast on dark pages that omit `color-scheme`, where
 `CanvasText` can still be black. The viewport uses the body's foreground because
 pages commonly put their canvas colors on body rather than html. Root/body
 class/style changes, body replacement and system color-scheme changes refresh
-that viewport foreground. This tracks text contrast, not arbitrary image or
+that viewport foreground. Viewport resize refreshes width/height media-query
+changes; a scoped head observer handles stylesheet insertion/removal, text edits
+and relevant link/style attributes. Captured stylesheet load events refresh
+after resources (including delayed links and styles outside head) actually apply.
+These signals share one pending 50ms refresh, without idle polling or an observer
+over the entire body subtree. Unrelated head/body content changes do not read
+computed style; unchanged colors do not write CSS, and the policy's own root
+custom-property write does not schedule another read.
+This tracks text contrast, not arbitrary image or
 translucent-background contrast, and does not preserve a page's exact authored
 thumb hue. A
 constructed stylesheet works with restrictive inline-style CSPs and applies to
@@ -70,8 +78,8 @@ is not guaranteed for that custom rendering path. Page-specific higher-priority
 rules and shadow-root styles remain WebKit/page-owned boundaries.
 The policy covers ordinary document/overflow CSS in each injected frame; it
 does not force overrides into arbitrary shadow trees, canvas-drawn scrollbars or
-higher-priority page rules. Viewport foreground changes driven solely by CSSOM
-rule edits or animated colors are not continuously sampled.
+higher-priority page rules. CSSOM-only rule edits, edits/removals of styles outside
+head that emit no load event, and animated colors are not continuously sampled.
 
 Settings, the general model selector, Thread Detail TOC and Note are parallel
 work areas. Changes here are limited to viewport construction and removal of
@@ -90,7 +98,10 @@ controls, nested/sibling isolation, editor bindings, native row/text selection,
 offset retention, preference notifications and control replacement. Windowless
 WebKit checks actual script injection, subframes, dynamic overflow, restrictive
 CSP, geometry, both axes, textarea selection and dark/light foregrounds without
-color-scheme, including body theme changes. It never
+color-scheme, including body theme changes, real view resizes, stylesheet
+insertion/edit/removal and deferred local CSS loading. Instrumented calls to the
+real isolated-world `getComputedStyle` verify coalescing and that unrelated
+content mutations do not trigger reads. It never
 opens a window or changes system preferences. Headless Swift tests use
 `MOKUSEI_TEST_HEADLESS=1`; display cases report skips, not passes. These checks
 cannot certify rendered WebKit/overlay thumb pixels, hover/fade timing, actual

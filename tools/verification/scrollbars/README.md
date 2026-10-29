@@ -26,6 +26,14 @@ inline-style CSP, unchanged viewport geometry, both scroll axes and textarea
 selection. A black-body/white-text page with no color-scheme must retain a white
 viewport and overflow thumb; a nested white region must get a black thumb. Body
 theme changes must refresh the viewport color while all tracks stay transparent.
+Changing the actual WKWebView frame crosses a CSS width media query in both
+directions. Inserting, editing and removing head styles, and inserting a body
+style must refresh the viewport foreground. A test-only URL scheme holds an
+actual CSS resource until the insertion refresh has completed, then releases it
+to independently verify the load notification (no synthetic load event or
+network server). Real computed-style calls are counted in the script's isolated
+world: ordinary content/meta mutations must cause zero reads; one synchronous
+resize/style burst must cause one read, including after the resulting root write.
 These are computed-style assertions, not final composited-pixel claims. The
 fixture uses nonpersistent data and local HTML, without network pages.
 WebKit still needs access to its system XPC services; a sandbox denial or timeout

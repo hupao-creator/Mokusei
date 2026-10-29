@@ -43,24 +43,62 @@ import WebKit
       // canvas background on body. Keep only this root color in sync; nested
       // overflow colors follow currentColor directly in CSS.
       const root = document.documentElement;
+      let writtenRootStyle;
       const updateViewport = () => {
         const color = getComputedStyle(document.body || root).color;
-        if (root.style.getPropertyValue('--mokusei-viewport-scrollbar-thumb') !== color)
+        if (root.style.getPropertyValue('--mokusei-viewport-scrollbar-thumb') !== color) {
           root.style.setProperty('--mokusei-viewport-scrollbar-thumb', color);
+          writtenRootStyle = root.getAttribute('style');
+        }
       };
-      let body;
-      const bodyObserver = new MutationObserver(updateViewport);
-      const observeBody = () => {
+      // Throttle resize bursts and merge DOM/load notifications into one read.
+      // A timer also runs in windowless/occluded WebKit, where rAF may be paused.
+      let refreshPending = false;
+      const scheduleViewport = () => {
+        if (refreshPending) return;
+        refreshPending = true;
+        setTimeout(() => { refreshPending = false; updateViewport(); }, 50);
+      };
+      const isStylesheet = node => node instanceof Element && node.matches('style,link[rel~="stylesheet" i]');
+      const containsStylesheet = node => node instanceof Element &&
+        (isStylesheet(node) || node.querySelector('style,link[rel~="stylesheet" i]'));
+      const headObserver = new MutationObserver(records => {
+        const changed = records.some(record => {
+          if (record.type === 'attributes')
+            return isStylesheet(record.target) || (record.target.localName === 'link' && record.attributeName === 'rel');
+          if (record.type === 'characterData') return isStylesheet(record.target.parentElement);
+          return isStylesheet(record.target) || [...record.addedNodes, ...record.removedNodes].some(containsStylesheet);
+        });
+        if (changed) scheduleViewport();
+      });
+      let body, head;
+      const bodyObserver = new MutationObserver(scheduleViewport);
+      const observeContainers = () => {
         if (body !== document.body) {
           bodyObserver.disconnect(); body = document.body;
           if (body) bodyObserver.observe(body, {attributes: true, attributeFilter: ['class', 'style']});
         }
-        updateViewport();
+        if (head !== document.head) {
+          headObserver.disconnect(); head = document.head;
+          if (head) headObserver.observe(head, {childList: true, subtree: true, characterData: true,
+            attributes: true, attributeFilter: ['href', 'rel', 'media', 'disabled', 'title']});
+        }
       };
-      const rootObserver = new MutationObserver(observeBody);
+      const rootObserver = new MutationObserver(records => {
+        observeContainers();
+        // Ignore the style mutation from our own custom-property write. Other
+        // root/body changes still schedule a refresh, including a changed body.
+        if (records.some(record => record.type !== 'attributes' || record.attributeName !== 'style' ||
+            root.getAttribute('style') !== writtenRootStyle)) scheduleViewport();
+      });
       rootObserver.observe(root, {attributes: true, attributeFilter: ['class', 'style'], childList: true});
-      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateViewport);
-      observeBody();
+      // Capture non-bubbling resource loads, including CSS outside head and
+      // @imports. An insertion refresh can precede the stylesheet's actual load.
+      document.addEventListener('load', event => { if (isStylesheet(event.target)) scheduleViewport(); }, true);
+      window.addEventListener('resize', scheduleViewport);
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', scheduleViewport);
+      observeContainers();
+      updateViewport();
       globalThis.__mokuseiScrollbarSheet = sheet;
     })();
     """#
