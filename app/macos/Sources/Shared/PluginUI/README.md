@@ -14,9 +14,12 @@ AppKit's independent knob fading. AppKit's preferred style preserves Always,
 When Scrolling and Automatically based on input device, including live
 preference/device changes.
 Overlay knobs appear during scrolling and hide afterward, remaining available
-during native hover/drag tracking. A persistent system style keeps the knob and
-may reserve a native gutter, with its track unpainted; accessibility and device
-preferences take priority over automatic hiding. No global appearance, swizzling,
+during native hover/drag tracking. A persistent (legacy) system style keeps its
+scroller resident so its native gutter stays reserved at every content height:
+crossing the overflow threshold neither narrows the viewport nor shifts centered
+content or rewraps text. The trackless slot and AppKit's empty knob paint nothing
+until scrolling is possible. Accessibility and device preferences take priority
+over automatic hiding. No global appearance, swizzling,
 window-wide traversal, wheel monitor, preference write or replacement scroll-position model
 is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
 stay on the native rendering path; this component adds no animation.
@@ -92,10 +95,12 @@ Run `python3 tools/verification/scrollbars/run.py` from the repository root for
 the windowless production AppKit boundary replay. It checks repeated configuration,
 document/clip identity, scroller identity after installation, selection and scroll
 offsets, native targets/accessibility role, enabled axes, four appearances,
-transparent normal/highlighted tracks in both styles and preference-notification
-isolation. Mounted, windowless SwiftUI TextEditor/List fixtures check overflowing
+transparent normal/highlighted tracks in both styles, stable gutters while content
+crosses the overflow threshold on both axes, empty-knob invisibility and
+preference-notification isolation. Mounted, windowless SwiftUI TextEditor/List fixtures check overflowing
 controls, nested/sibling isolation, editor bindings, native row/text selection,
-offset retention, preference notifications and control replacement. Windowless
+offset retention, preference notifications, control replacement and List viewport
+width across its own overflow threshold. Windowless
 WebKit checks actual script injection, subframes, dynamic overflow, restrictive
 CSP, geometry, both axes, textarea selection and dark/light foregrounds without
 color-scheme, including body theme changes, real view resizes, stylesheet

@@ -87,7 +87,7 @@ struct SettingsTextArea: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = Surface()
-        scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
+        scroll.hasVerticalScroller = true
         NativeScrollbarStyle.apply(to: scroll); scroll.borderType = .bezelBorder
         scroll.drawsBackground = true; scroll.backgroundColor = .textBackgroundColor
         scroll.contentInsets = NSEdgeInsets(top: 1, left: 1, bottom: 1, right: 1)

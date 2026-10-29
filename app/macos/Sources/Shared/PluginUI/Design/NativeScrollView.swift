@@ -4,6 +4,17 @@ import SwiftUI
 /// App-owned viewports share the native narrow, rounded scroller. AppKit keeps
 /// ownership of hit targets, tracking, fading, contrast and appearance changes.
 @MainActor public enum NativeScrollbarStyle {
+    /// Overlay indicators float above content and never consume layout space, so
+    /// AppKit may fade them as the user scrolls. Legacy indicators reserve a
+    /// gutter only while visible; autohiding one at the overflow threshold would
+    /// narrow the viewport exactly then, shifting centered content and rewrapping
+    /// text. Keep the legacy scroller resident instead, which matches AppKit's
+    /// persistent default: its gutter stays reserved at every content height and
+    /// the trackless slot/empty knob paint nothing until scrolling is possible.
+    static func autohidesScrollers(for style: NSScroller.Style) -> Bool {
+        style == .overlay
+    }
+
     public static func apply(to scroll: NSScrollView) {
         // Install once, before selecting the style. AppKit wires the new controls
         // to its native scrolling actions; subsequent configuration keeps them.
@@ -17,7 +28,8 @@ import SwiftUI
         // Forcing overlay here would ignore the user's persistent-scrollbar choice.
         let style = NSScroller.preferredScrollerStyle
         if scroll.scrollerStyle != style { scroll.scrollerStyle = style }
-        if !scroll.autohidesScrollers { scroll.autohidesScrollers = true }
+        let autohides = autohidesScrollers(for: style)
+        if scroll.autohidesScrollers != autohides { scroll.autohidesScrollers = autohides }
         for scroller in [scroll.verticalScroller, scroll.horizontalScroller].compactMap({ $0 }) {
             if scroller.controlSize != .mini { scroller.controlSize = .mini }
         }
