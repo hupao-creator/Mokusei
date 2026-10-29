@@ -281,9 +281,18 @@ growth retries that location until it is reachable or the user scrolls.
 
 ## Model and reasoning selection
 
-[NativeModelSelector](Forms/NativeModelSelector.swift) is the shared native capsule
-and popover for Harness model choices. Its model list scrolls, marks the current
-choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
+[NativeModelSelector](Forms/NativeModelSelector.swift) uses the shared system
+`NSPopUpButton` for models and reasoning in Settings (`nativeSettingsFormPage`)
+and onboarding/role panels (`nativeSettingsCompactPresentation`). Default and
+reset values remain explicit menu options; no slider or nested model menu is
+mounted in those forms. AppKit owns menu rendering, focus, keyboard navigation,
+cancellation and accessibility. The shared adapter preserves opaque option IDs,
+disabled rows, row-label activation and discrete-change interaction registration.
+`NativeSettingsControlsReplayTests` mounts the production standard/model/reasoning
+selects in both environments and checks real AppKit actions and bindings.
+
+Embedded Thread editors retain the capsule and popover for Harness model choices.
+The model list scrolls, marks the current choice, preserves disabled rows and supports arrows, Home/End, Page Up/Down,
 type-ahead, Enter, Escape and Tab. The reasoning presentation shows a discrete
 purple slider in the Harness's supplied option order. A single choice remains a
 button; an unselected/default value does not paint a falsely selected slider knob.

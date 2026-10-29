@@ -43,12 +43,11 @@ paths rather than checkboxes. The last selected target remains fully opaque
 while removal is disabled. General's Agent installation buttons and the other
 Settings form controls retain their system presentation.
 
-The reference-image model/effort selector is a separate component task. Its
-integration points are the shared `NativeSettingsSelect`/`NativeSettingsSelectPopover`
-entry and each Harness's model, thinking/effort or variant field in
-`CodexSettings`, `ClaudeSettings`, `PiSettings` and `OpenCodeSettings`. This change
-does not alter their catalog, default or dependent-choice mapping. Changes in
-those Harness files here are confined to refresh/retry button presentation.
+Model, thinking/effort and variant choices use the same AppKit `NSPopUpButton`
+as other selects in Settings and onboarding, including compact role panels.
+`NativeModelSelector` delegates to the system select in these environments;
+Harness catalog, default and dependent-choice mapping remain at their callers.
+Embedded Thread editors retain their capsule/popover presentation.
 
 `NativeSettingsControlsReplayTests` mounts the shared production form and sends
 AppKit actions through real controls, checking option identity/disabled state,
@@ -209,10 +208,9 @@ installation paths stay unchanged. OpenCode can return a native catalog before
 optional account checks complete: it labels that uncertainty and rereads without
 forcing another probe. No settings navigation or Map layout is changed.
 
-Escape cancels the focused model/reasoning selector's open native popover before
-page navigation, without changing its value. The next Escape returns from Settings.
-`NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
-through NSApplication to cover this precedence, focus restoration and reopening.
+AppKit owns the system select's menu tracking, keyboard navigation and cancellation.
+Settings keeps its existing page Escape handler; embedded model popovers retain
+`NativeSettingsEscapeCancelling` for document-level navigation.
 
 The production [onboarding panel](../Onboarding/README.md) and Settings mount
 the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application

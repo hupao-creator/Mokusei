@@ -19,7 +19,10 @@ installed Harness logos or plugin-owned installation guides. Moku reuses the
 Settings coordination map and native Harness execution fields. Tag and Report
 reuse application-owned background configuration, including inheritance and
 retained independent profiles. Provider catalogs, pending model choices and
-validation remain in their native plugins. The shared readiness registry
+validation remain in their native plugins. Model, reasoning and other select
+fields use AppKit system popups through the compact presentation environment,
+with the same option identities, disabled states and discrete-change bindings
+as Settings. The shared readiness registry
 combines resource acquisition and incomplete local input; IME, failed saves,
 unavailable Harnesses and invalid fields prevent advancing.
 
