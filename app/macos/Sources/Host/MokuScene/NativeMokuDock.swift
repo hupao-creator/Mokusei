@@ -166,7 +166,14 @@ public struct NativeMokuDock: View {
             : surface.height
         return CGRect(x: surface.minX, y: surface.maxY - height, width: surface.width, height: height)
     }
-    private var talkTrailing: CGFloat { voiceControlVisible ? 48 : NativeMokuTalkTypography.trailing }
+    private var stopControlPresent: Bool {
+        running && !inputPresent && !voiceModeActive && !state.settingsOpen
+    }
+    // Reserve the Stop hit target before hover/focus reveals its ink. Otherwise
+    // the overlay covers selectable prose, or revealing it changes line breaks.
+    private var talkTrailing: CGFloat {
+        voiceControlVisible || stopControlPresent ? 48 : NativeMokuTalkTypography.trailing
+    }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else {
@@ -225,7 +232,7 @@ public struct NativeMokuDock: View {
             let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(680, max(0, viewport.height - 112)))
-            let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(480, frame.width) : frame.width
+            let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(560, baseFrame.width) : frame.width
             let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
                 : rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
             let noteAvailableHeight = max(0, frame.height - rowHeight)
@@ -518,7 +525,7 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.notePanelOpen {
                 ZStack {
-                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight, rowHeight: rowHeight,
+                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
                                           routeEligible: state.notePanelOpen && !state.settingsOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
                                           openExternal: openExternal, openExecution: openExecution,
@@ -595,7 +602,7 @@ public struct NativeMokuDock: View {
             .allowsHitTesting(!state.settingsOpen).accessibilityHidden(state.settingsOpen)
         }
         .overlay(alignment: .bottomTrailing) {
-            if running && !inputPresent && !voiceModeActive && !state.settingsOpen {
+            if stopControlPresent {
                 Button(action: onCancel) {
                     // Hide only the drawn square, not the Button: a fully
                     // transparent button is pruned from the accessibility tree.

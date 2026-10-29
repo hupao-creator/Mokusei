@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -95,6 +96,32 @@ func expectReportDenied(err error, label string) {
 	}
 }
 
+func verifyReportGuidance(h *handle) {
+	// Hash the actual injected entry, including front matter and trailing newline,
+	// against the pinned upstream bytes rather than duplicating the skill here.
+	found := false
+	guidance := strings.Join(h.open.Injection.Instructions, "\n")
+	for _, instruction := range h.open.Injection.Instructions {
+		if fmt.Sprintf("%x", sha256.Sum256([]byte(instruction))) == "3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5" {
+			found = true
+		}
+	}
+	if !found {
+		panic("Report session lacks the verbatim upstream ELI5 skill")
+	}
+	for _, tool := range h.open.Injection.Tools.Bindings {
+		guidance += "\n" + tool.Description + "\n" + string(tool.InputSchema)
+	}
+	var s state
+	must(json.Unmarshal(h.open.SessionState.Read(), &s))
+	guidance += "\n" + strings.Join(s.Messages, "\n")
+	for _, removed := range []string{"ASD-STE100", "3Blue1Brown", "current application output language", "Current application output language", "Do not assume every reader is a beginner"} {
+		if strings.Contains(guidance, removed) {
+			panic("Report retained removed writing guidance: " + removed)
+		}
+	}
+}
+
 func verifyReportScopes(ctx context.Context) {
 	data, err := os.MkdirTemp("", "mokusei-report-replay-")
 	must(err)
@@ -179,12 +206,20 @@ func verifyReportScopes(ctx context.Context) {
 	}
 	aWork, bWork := active(aScope, 1), active(bScope, 1)
 	aHandle, bHandle := f.latest(owners[aScope].AgentID), f.latest(owners[bScope].AgentID)
+	verifyReportGuidance(aHandle)
+	verifyReportGuidance(bHandle)
 	if aHandle.open.ThreadID == bHandle.open.ThreadID || aWork.ID == bWork.ID {
 		panic("Report scopes share session or batch identity")
 	}
 	a2 := createTask(aDir)
 	finishReportFixture(ctx, f.latest(a2.ID), "completed")
 	steered := active(aScope, 2)
+	waitFor(func() bool {
+		var s state
+		must(json.Unmarshal(aHandle.open.SessionState.Read(), &s))
+		return strings.Contains(strings.Join(s.Messages, "\n"), a2.ID)
+	})
+	verifyReportGuidance(aHandle)
 	if steered.ID != aWork.ID || steered.ExecutionID != aWork.ExecutionID {
 		panic("same-scope event did not steer the active Report execution")
 	}
@@ -320,6 +355,7 @@ func verifyReportScopes(ctx context.Context) {
 	must(app.Start(ctx, plugin.RuntimeStartContext{Reason: "startup"}))
 	recoveredWork := active(aScope, 1)
 	recovered := f.latest(owners[aScope].AgentID)
+	verifyReportGuidance(recovered)
 	if recovered == aHandle || recovered.open.ThreadID != aHandle.open.ThreadID {
 		panic("Report lost durable private session identity")
 	}

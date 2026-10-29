@@ -62,3 +62,15 @@ ordinary threads, including archived and failed/interrupted threads hidden from
 Overview. The result reading request is exact and does not start execution. A
 missing or ineligible thread shows an unavailable notice; a missing execution
 uses the reader's unavailable page. Each click receives a fresh reading request.
+The result is the route's entry document: Back (including Escape) returns through
+the host's Overview action, even for a missing execution. It does not synthesize
+a previous visit to the thread's current document. Selecting the thread's TOC
+explicitly resumes ordinary internal navigation, whose Back restores the current
+document before leaving the route.
+
+Retained current/result/history documents may mount the same row simultaneously.
+The Harness host gives each content-resource acquisition its own subscription
+handle, including for equal scopes. A departing document releases only its own
+handle; the surviving document remains loaded. Execution disclosure groups still
+share demand within their owning row, and retiring a surface releases all its
+remaining handles.

@@ -28,6 +28,7 @@ import MokuseiHarnessOpenCode
     var noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=target)"
     @ObservationIgnored var resources: [HarnessContentResource] = []
     @ObservationIgnored var revision = 0
+    @ObservationIgnored lazy var back = ThreadDetailBackAction(label: "Back to overview", onBack: { [weak self] in self?.presentation.finishBack() })
 
     init(_ harness: String) throws {
         self.harness = harness
@@ -80,6 +81,9 @@ import MokuseiHarnessOpenCode
     }
     var scroll: JSONValue? {
         controls.snapshot(visit: visit).first { $0["role"] == .text("timeline") && $0["id"]?.stringValue?.contains(".history.") == true }
+    }
+    var conversation: JSONValue? {
+        controls.snapshot(visit: visit).first { $0["role"] == .text("conversation") }?["value"]
     }
     func perform(_ control: JSONValue, _ operation: String, _ value: JSONValue = .null) throws {
         try controls.perform(id: #require(control["id"]?.stringValue), handle: #require(control["handle"]?.stringValue),
@@ -151,15 +155,20 @@ private struct ExecutionLinkSurface: View {
                 width: 620, height: 110, availableHeight: 110,
                 openExternal: { fixture.external.append($0) }, openExecution: fixture.presentation.openNoteExecution)
                 .frame(height: 110)
-            if let target = fixture.presentation.readingTarget {
+            if fixture.presentation.selected != nil {
                 let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
                     forkThread: { _ in "unused" }, openExternal: { _ in }, openFollowUp: { _ in })
                 let context = HarnessRenderContext(content: .manifest, presentation: .main(excludedExecutionIDs: []),
                     contentResource: fixture.resource, onIndexChange: { _ in })
-                if let view = try? fixture.plugin.threadView(input: .init(thread: fixture.thread, readingTarget: target), actions: actions, context: context) {
-                    view
+                if let view = try? fixture.plugin.threadView(input: .init(thread: fixture.thread, readingTarget: fixture.presentation.readingTarget), actions: actions, context: context) {
+                    ThreadDetailFrame(navigation: fixture.back, onNavigationChange: { fixture.presentation.navigation = $0 }) {
+                        view
+                    }.id(fixture.presentation.navigationRouteID)
                 }
             }
+        }
+        .overlay(alignment: .topLeading) {
+            NativeWindowNavigationView(action: fixture.presentation.navigation, managesNativeButtons: false)
         }
         .environment(\.nativeReadingInteractions, fixture.controls)
         .environment(\.nativeReadingInteractionVisit, fixture.visit)
@@ -169,6 +178,34 @@ private struct ExecutionLinkSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuExecutionLinkTests {
+    private func element(id: String, in root: NSView) -> NSObject? {
+        var seen = Set<ObjectIdentifier>()
+        func find(_ object: AnyObject) -> NSObject? {
+            guard seen.insert(ObjectIdentifier(object)).inserted, seen.count < 10000, let object = object as? NSObject else { return nil }
+            let identifier = NSSelectorFromString("accessibilityIdentifier")
+            if object.responds(to: identifier), object.perform(identifier)?.takeUnretainedValue() as? String == id { return object }
+            let children = NSSelectorFromString("accessibilityChildren")
+            if object.responds(to: children), let values = object.perform(children)?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = find(value) { return found } }
+            }
+            // Some SwiftUI bridge nodes publish children only through legacy AX.
+            let legacy = NSSelectorFromString("accessibilityAttributeValue:")
+            if object.responds(to: legacy), let values = object.perform(legacy, with: "AXChildren")?.takeUnretainedValue() as? [AnyObject] {
+                for value in values { if let found = find(value) { return found } }
+            }
+            if let view = object as? NSView {
+                for child in view.subviews { if let found = find(child) { return found } }
+            }
+            return nil
+        }
+        _ = root.window?.accessibilityChildren()
+        return find(root.window ?? root)
+    }
+    private func back(in root: NSView) async throws {
+        try await SwiftUIReplay.wait { element(id: "window-navigation.back", in: root) != nil }
+        let button = try #require(element(id: "window-navigation.back", in: root))
+        _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
+    }
     private func textViews(_ root: NSView) -> [NSTextView] {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
     }
@@ -186,6 +223,62 @@ struct NativeMokuExecutionLinkTests {
             print("READING DEBUG", fixture.harness, fixture.scroll?["value"]?["locatedRequestId"]?.stringValue ?? "not located", fixture.scroll?["value"]?["top"]?.numberValue ?? -1)
             throw error
         }
+    }
+
+    @Test(arguments: ["codex", "claude", "pi", "opencode"], ["prior", "target", "missing"])
+    func noteResultBackClosesTheRouteAndReopeningStillLoads(harness: String, execution: String) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        fixture.noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=\(execution))"
+        fixture.load()
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
+        for attempt in 0..<2 {
+            try click("View result", in: root)
+            try await SwiftUIReplay.wait { fixture.conversation?["destination"] == .text(execution == "missing" ? "unavailable" : "history") }
+            if execution != "missing" { try await ready(fixture) }
+            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil }
+            #expect(fixture.presentation.navigation?.label == "Back to overview")
+            if attempt == 0 { try await back(in: root) }
+            else {
+                // Escape and the document's close action use the same callback.
+                let close = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
+                try fixture.perform(close, "activate")
+            }
+            try await SwiftUIReplay.wait { fixture.presentation.selected == nil && fixture.presentation.navigation == nil }
+            #expect(fixture.presentation.readingTarget == nil)
+            #expect(fixture.workspace.preferences.selectedThreadID == nil)
+        }
+        window.close(); await fixture.close()
+    }
+
+    @Test(arguments: ["codex", "claude", "pi", "opencode"])
+    func ordinaryHistoryBackRestoresCurrentBeforeClosingTheRoute(harness: String) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        fixture.load()
+        fixture.presentation.open(.init(threadID: "ordinary", typeID: "agent"))
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { fixture.conversation?["destination"] == .text("current") }
+        let current = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.sidebar") }?["value"]?["currentRow"])
+        let prior = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.open") })
+        try fixture.perform(prior, "activate")
+        try await SwiftUIReplay.wait {
+            fixture.conversation?["destination"] == .text("history") && fixture.conversation?["transitioning"] == .bool(false)
+                && fixture.presentation.navigation?.label != "Back to overview"
+        }
+        try await back(in: root)
+        try await SwiftUIReplay.wait {
+            fixture.conversation?["destination"] == .text("current") && fixture.presentation.navigation?.label == "Back to overview"
+        }
+        #expect(fixture.presentation.selected?.threadID == "ordinary")
+        #expect(fixture.conversation?["selectedRow"] == current)
+        try await SwiftUIReplay.wait { fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("turn") && $0["value"]?["executionId"] == .text("target") && $0["value"]?["state"] == .text("ready") } }
+        try await back(in: root)
+        try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
+        window.close(); await fixture.close()
     }
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
@@ -321,4 +414,56 @@ struct NativeMokuExecutionLinkTests {
         generic.close(); window.close(); await fixture.close()
     }
 
+}
+
+// These production Host/lifetime checks need no NSApplication or WindowServer.
+@MainActor @Suite(.serializedNative)
+struct NativeMokuExecutionLinkRoutingTests {
+    @Test(arguments: ["codex", "claude", "pi", "opencode"], ["prior", "target", "missing"])
+    func noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness: String, execution: String) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        let thread = ApplicationThreadRef(threadID: "ordinary", typeID: "agent")
+        let reference = ApplicationExecutionRef(thread: thread, executionID: JSONText(execution))
+        fixture.presentation.openNoteExecution(reference)
+        let target = try #require(fixture.presentation.readingTarget)
+        #expect(fixture.presentation.selected == thread)
+        #expect(target.executionID == reference.executionID && target.position == .result && target.mode == .history)
+        try fixture.update(successor: true)
+        #expect(fixture.presentation.readingTarget == target)
+        fixture.presentation.finishBack()
+        #expect(fixture.presentation.selected == nil && fixture.presentation.readingTarget == nil)
+        #expect(fixture.workspace.preferences.selectedThreadID == nil)
+        fixture.presentation.openNoteExecution(reference)
+        #expect(fixture.presentation.readingTarget?.requestID != target.requestID)
+        fixture.presentation.finishBack()
+        fixture.presentation.open(thread)
+        #expect(fixture.presentation.selected == thread && fixture.presentation.readingTarget == nil)
+        fixture.presentation.openExecution(.init(thread: thread, executionID: "prior"))
+        #expect(fixture.presentation.readingTarget?.mode == .history && fixture.presentation.readingTarget?.position == .start)
+        fixture.presentation.openExecution(.init(thread: thread, executionID: "successor"))
+        #expect(fixture.presentation.readingTarget?.mode == .current && fixture.presentation.readingTarget?.position == .start)
+        fixture.presentation.finishBack()
+        await fixture.close()
+    }
+
+    @Test(arguments: [HarnessContentScope.thread, .row("target"), .execution("target")])
+    func concurrentConsumersKeepIndependentProductionResources(scope: HarnessContentScope) async throws {
+        let fixture = try ExecutionLinkFixture("codex")
+        let surface = try fixture.workspace.harnessHost.makeThreadSurface(input: .init(thread: fixture.thread))
+        let current = surface.contentResource(scope)
+        let result = surface.contentResource(scope)
+        current.publish(.ready(fixture.thread.sessionState))
+        result.publish(.ready(fixture.thread.sessionState))
+        result.beginRelease()
+        #expect(!current.isReleased)
+        guard case .ready = current.state else {
+            Issue.record("Closing the result page revoked the retained current document")
+            await surface.release(); await fixture.close(); return
+        }
+        let replacement = surface.contentResource(scope)
+        #expect(replacement !== current && replacement !== result)
+        await surface.release()
+        #expect(current.isReleased && replacement.isReleased)
+        await fixture.close()
+    }
 }

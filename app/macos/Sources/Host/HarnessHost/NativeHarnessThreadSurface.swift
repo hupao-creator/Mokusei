@@ -33,7 +33,7 @@ public final class NativeHarnessThreadSurface {
         performanceOperation = NativePerformance.makeSurfaceContext(parent: parent, execution: execution)
     }
     @ObservationIgnored private let materialization = NativeThreadMaterializationCache()
-    @ObservationIgnored private var resources: [HarnessContentScope: (id: String, resource: HarnessContentResource)] = [:]
+    @ObservationIgnored private var resources: [String: HarnessContentResource] = [:]
 
     init(host: NativeHarnessHost, plugin: AnyHarnessPlugin, input: HarnessThreadInput,
          presentation: HarnessConversationPresentation, source: NativeHarnessConversationSource?, routes: NativeHarnessThreadRoutes?,
@@ -65,7 +65,9 @@ public final class NativeHarnessThreadSurface {
     public func view() -> AnyView { AnyView(NativeHarnessContentView(surface: self).id(id)) }
 
     public func contentResource(_ scope: HarnessContentScope) -> HarnessContentResource {
-        if let entry = resources[scope], !entry.resource.isReleased { return entry.resource }
+        // Retained current/history pages can mount the same row concurrently.
+        // Each consumer owns its handle; retiring either page must not revoke
+        // the surviving page's subscription or leave it permanently loading.
         guard !isReleased else {
             return HarnessContentResource(state: .error("This conversation surface has been released"),
                 retry: { throw CancellationError() }, release: {})
@@ -82,30 +84,30 @@ public final class NativeHarnessThreadSurface {
         let resource = HarnessContentResource(retry: { [weak self] in
             guard let self else { throw CancellationError() }
             try checkLifetime()
-            guard let current = resources[scope], current.id == subscriptionID, !current.resource.isReleased else { throw CancellationError() }
+            guard let current = resources[subscriptionID], !current.isReleased else { throw CancellationError() }
             _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
             do { try await client.retryThreadContent(subscriptionID) }
             catch let error as RuntimeError where error.code == "CONTENT_UNAVAILABLE" {
                 try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID,
                     performanceContext: performanceOperation)
             }
-            if self.resources[scope]?.id != subscriptionID { await client.releaseThreadContent(subscriptionID) }
+            if self.resources[subscriptionID] == nil { await client.releaseThreadContent(subscriptionID) }
         }, release: { [weak self, weak host] in
             host?.unregisterResource(subscriptionID)
-            if self?.resources[scope]?.id == subscriptionID { self?.resources[scope] = nil }
+            self?.resources[subscriptionID] = nil
             await client.releaseThreadContent(subscriptionID)
         })
-        resources[scope] = (subscriptionID, resource)
+        resources[subscriptionID] = resource
         host.register(resource, id: subscriptionID)
         Task { @MainActor [weak self, weak resource] in
             guard let self, let resource else { return }
             do {
                 try checkLifetime()
-                guard !resource.isReleased, resources[scope]?.id == subscriptionID else { throw CancellationError() }
+                guard !resource.isReleased, resources[subscriptionID] === resource else { throw CancellationError() }
                 _ = try host.authoritativeThread(threadID: threadID, harnessID: harnessID, source: source)
                 try await client.subscribeThreadContent(threadId: threadID, scope: runtimeScope, subscriptionId: subscriptionID,
                     performanceContext: performanceOperation)
-                if isReleased || resources[scope]?.id != subscriptionID { await client.releaseThreadContent(subscriptionID) }
+                if isReleased || resources[subscriptionID] == nil { await client.releaseThreadContent(subscriptionID) }
             } catch {
                 if !resource.isReleased { resource.publish(.error(error.localizedDescription)) }
             }
@@ -165,7 +167,7 @@ public final class NativeHarnessThreadSurface {
     private func retire() -> [HarnessContentResource] {
         guard !isReleased else { return [] }
         isReleased = true
-        let owned = resources.values.map(\.resource)
+        let owned = Array(resources.values)
         for resource in owned { resource.beginRelease() }
         resources.removeAll(); materialization.clear(); lastIndex = nil
         host.unregisterSurface(id)

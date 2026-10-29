@@ -15,6 +15,9 @@ import (
 //go:embed instructions.txt
 var instructions string
 
+//go:embed eli5-skill.md
+var eli5Instructions string
+
 type Plugin struct{}
 
 func New() *Plugin { return &Plugin{} }
@@ -35,23 +38,12 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		return nil, err
 	}
 
-	environment, err := plugin.Require[plugin.BackgroundEnvironmentCapability](ctx.Capabilities, plugin.BackgroundEnvironmentCapabilityKey)
-	if err != nil {
-		return nil, err
-	}
 	tasks, err := plugin.Require[plugin.OrdinaryTaskReadCapability](ctx.Capabilities, plugin.OrdinaryTaskReadCapabilityKey)
 	if err != nil {
 		return nil, err
 	}
 	var runner *background.Runner
-	runner, err = background.NewRunner(ctx, background.Behavior{ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions}, Message: func(callCtx context.Context, request background.BatchRequest) (model.AgentInput, error) {
-		locale, err := environment.OutputLocale(callCtx)
-		if err != nil {
-			return model.AgentInput{}, err
-		}
-		language := background.LanguageInstructions(locale, func(name string) string {
-			return fmt.Sprintf("Write report titles and all reader-facing HTML text in %s, including headings, prose, diagram and chart labels, captions, controls, tooltips, and accessibility text. Set the HTML document's lang attribute to %s. Apply this to reports you create or update, without starting a bulk translation of existing reports.", name, locale)
-		})
+	runner, err = background.NewRunner(ctx, background.Behavior{ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions, eli5Instructions}, Message: func(_ context.Context, request background.BatchRequest) (model.AgentInput, error) {
 		instruction := "Review this lifecycle batch and decide what reports need work."
 		if request.Steering {
 			instruction = "Incorporate these additional lifecycle events into your current batch now. Revisit earlier reporting decisions using the new evidence, and continue all unfinished report work."
@@ -60,7 +52,7 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		if err != nil {
 			return model.AgentInput{}, err
 		}
-		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s %s Read full event data and relevant context as needed. Batch: %s\n%s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, language, request.BatchID, events)), nil
+		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s Read full event data and relevant context as needed. Batch: %s\n%s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, request.BatchID, events)), nil
 	}, Tools: func(lifetime context.Context) []plugin.ToolBinding {
 		return append(background.EvidenceTools(lifetime, tasks, runner), reportTools(lifetime, ctx.Domain, runner)...)
 	}})
@@ -68,7 +60,7 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 }
 func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *background.Runner) []plugin.ToolBinding {
 	id := model.Object{"type": "string", "minLength": 1, "maxLength": MaxIdentifierLength}
-	title := model.Object{"type": "string", "minLength": 1, "maxLength": MaxTitleLength, "pattern": "\\S", "description": "Write the report title in the current application output language supplied with the lifecycle batch."}
+	title := model.Object{"type": "string", "minLength": 1, "maxLength": MaxTitleLength, "pattern": "\\S", "description": "Report title."}
 	html := model.Object{"type": "string", "minLength": 1, "maxLength": MaxHTMLCharacters, "pattern": "\\S", "description": "Report HTML document. Follow the current system instructions for content and presentation."}
 	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
 	write := func(operation string) background.ToolHandler {

@@ -502,6 +502,18 @@ runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 streaming follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
+The eight tests include mounted `ThreadDetailFrame` and window Back controls:
+note links to current, older and missing executions return to Overview in one
+action and can be reopened; ordinary TOC history still returns to the loaded
+current document before leaving the thread. A production Harness-surface
+resource case checks that closing one of two equal-scope consumers cannot
+revoke the survivor, and that surface retirement releases both remaining
+consumers. The fixture supplies content, without opening a user Runtime/profile.
+For window-free Host routing and content-handle lifetime verification, run
+`MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos --filter NativeMokuExecutionLinkRoutingTests`.
+These two tests cover 12 route cases and three content scopes. They do not
+certify the mounted window Back control, Escape delivery or return animation;
+the other six tests require a graphical session and explicitly skip headless.
 
 ## Report controls and recovery
 

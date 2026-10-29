@@ -64,7 +64,6 @@ struct NativeMokuNoteContent: View {
     let width: CGFloat
     let height: CGFloat
     let availableHeight: CGFloat
-    var rowHeight: CGFloat = 0
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
     var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
@@ -95,17 +94,18 @@ struct NativeMokuNoteContent: View {
                     VStack(alignment: .leading, spacing: 12) { header; noteBody; historyEntry }
                 }.scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    header
+                VStack(alignment: .leading, spacing: 0) {
+                    header.padding(.bottom, 12)
                     NativeScrollView { noteBody }
                         .scrollIndicators(.automatic).scrollBounceBehavior(.basedOnSize)
                         .frame(height: max(0, height - headerHeight - footerHeight))
-                    Spacer(minLength: 0)
-                    historyEntry
+                    historyEntry.padding(.top, onOpenHistory == nil ? 0 : 12)
                 }
             }
         }
-        .frame(width: width, height: height + (shortViewport ? 0 : rowHeight), alignment: .top)
+        // The footer belongs to the note, above the retained Talk/composer row.
+        // Extending into that row lets selectable prose paint over History.
+        .frame(width: width, height: height, alignment: .top)
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
             if height > 0 { onContentHeightChange?(height + headerHeight + footerHeight) }
@@ -129,6 +129,7 @@ struct NativeMokuNoteContent: View {
                         NativeIcon(name: "History", size: 13)
                         Text(localize("Moku 历史", "Moku history"))
                             .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
                     }
                     .padding(.horizontal, 6)
                     .frame(minHeight: 28)
@@ -140,7 +141,7 @@ struct NativeMokuNoteContent: View {
                 .accessibilityIdentifier("moku-note-history")
             }
             .padding(.horizontal, 18)
-            .padding(.bottom, shortViewport ? 12 : max(0, (rowHeight - 28) / 2))
+            .padding(.bottom, 12)
         }
     }
     private var header: some View {

@@ -224,6 +224,8 @@ private struct NativeSidecardWorkspaceLayout: View {
             }
         }
         .padding(5)
+        // Clip the contents before adding glass so its capsule shadow stays outside.
+        .clipShape(Capsule())
         .glassEffect(.regular.interactive(), in: .capsule)
         .opacity(snapshot.selected == nil && !snapshot.available.isEmpty ? 1 : 0)
         .allowsHitTesting(snapshot.selected == nil && !snapshot.available.isEmpty && !snapshot.suppressed)
@@ -292,7 +294,7 @@ private struct NativeSidecardLauncherLabel: View {
     var body: some View {
         configuration.label.foregroundStyle(NativePalette.thread.ink.swiftUI)
             .background(NativePalette.thread.ink.swiftUI.opacity(configuration.isPressed ? 0.12 : hovered ? 0.07 : 0),
-                        in: RoundedRectangle(cornerRadius: 7))
+                        in: Capsule())
             .onHover { hovered = $0 }
     }
 }

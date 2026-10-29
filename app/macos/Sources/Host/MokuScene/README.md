@@ -150,12 +150,25 @@ Moku conversation reader, including its archived-session picker. It remains
 available when the note or conversation is empty; the reader owns the empty
 conversation state. The native button supports keyboard and accessibility
 activation with localized labels. Its footer reserves reading space in normal
-windows, aligns with the eyes in the bottom row, and scrolls with the header/body
+windows, stays above the retained eyes/message row, and scrolls with the header/body
 in short viewports, including 5× zoom.
 Opening history uses the scene's ordinary navigation path, closing the note
 without changing its exposure receipt or the workspace draft.
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
+
+The two vertical strokes to the left of Talk are Moku's eyes, drawn by
+`NativeMokuCharacterSurface` in its `.face` seat, rather than a pause button.
+The row reserves a 34-point eye seat and a 15-point gap; with its 15-point
+leading inset, the message viewport starts 64 points from the capsule's left
+edge. The eye drawing uses its own centered 58×49-point canvas (scaled in
+landing), so its painted bounds, rather than that canvas's frame, determine
+clearance. `NativeMokuTalkTests.longMessagesKeepClearOfEyesWithoutOpeningAWindow`
+mounts the production Dock in windowless hosting views at 188, 320 and 900
+points, with Chinese/English long messages, ordinary/landing sizes and idle/running states. It checks
+settled eye-path and native message-clip separation. This headless check does
+not certify animation frames, rendered pixels or native scrolling behavior;
+those remain in the display-gated transcript and transition replays.
 
 Text shorter than the Talk viewport is vertically centered beside the eyes.
 Overflow keeps its bottom anchor and follows new text only while the reader is
@@ -163,6 +176,15 @@ at the tail; the same layout applies to the voice transcript. The Dock's Stop
 square is revealed by pointer hover, keyboard focus or VoiceOver focus and fades
 out otherwise. The Button itself stays in the accessibility tree, while pointer
 hit testing follows the visual state so an invisible square cannot be clicked.
+Running messages reserve a 48-point trailing inset even before hover/focus,
+keeping text and dispatch content clear of the 30-point Stop target and its
+7-point edge inset. Revealing the square therefore does not rewrap the message.
+This is cancellation (`moku:cancel`), with no pause/resume action. Composer Stop
+is a separate item in the input HStack. Voice controls use a 34-point target and
+the same 48-point message reservation; their “Voice paused during thread call”
+status reports audio ownership suspension, while actions are mute/unmute,
+start/end and takeover. Blink/cloud clock pauses are animation lifecycle state,
+not message-bar controls.
 
 Each notification expires 60 seconds after its first actual presentation, using a
 monotonic deadline retained by the scene. Refreshes and in-place operation updates
@@ -174,7 +196,7 @@ history or changes the persistent note, ordinary replies or voice transcript.
 
 [NativeMokuDispatch](NativeMokuDispatch.swift) projects the same operation while pending and settled. Success requires `completedAt`, no error, `ok:true` and a nonempty `threadId`; it confirms dispatch, not task completion. The 400×58-point layout contracts for narrow viewports. Configuration comes from that call's arguments. Details resolve the selected operation identity in the full transcript, preserving its original prompt and outcome when newer notifications arrive.
 
-[NativeMokuNote](NativeMokuNote.swift) reads the persisted note and expands the same capsule, up to 480 points wide and bounded by the viewport. Markdown is read-only/selectable, with a fixed header and scrollable body. When the available note height is too short to show a complete body line below that header, the header scrolls with the body instead; the supported 5× app zoom therefore retains a usable reading viewport. The catalog's `lastExposure` is the only authority for the accessibility update indicator. Opening the panel does not acknowledge it. A user-opened panel or later body interaction can start a reading session; the production renderer must apply the exact note token, the key foreground window must remain visible, and each actual body viewport interval must stay stable for two seconds. Only complete coverage submits an authenticated receipt. Code, tables, images and local-file previews stay unknown in this first version. Each mounted window owns its partial coverage; failed receipts remain pending for a later same-version UI activity, with no optimistic indicator change.
+[NativeMokuNote](NativeMokuNote.swift) reads the persisted note and expands the same capsule, up to 560 points wide and bounded by the viewport with 24-point side margins. Markdown is read-only/selectable, with a fixed header and scrollable body. When the available note height is too short to show a complete body line below that header, the header scrolls with the body instead; the supported 5× app zoom therefore retains a usable reading viewport. The catalog's `lastExposure` is the only authority for the accessibility update indicator. Opening the panel does not acknowledge it. A user-opened panel or later body interaction can start a reading session; the production renderer must apply the exact note token, the key foreground window must remain visible, and each actual body viewport interval must stay stable for two seconds. Only complete coverage submits an authenticated receipt. Code, tables, images and local-file previews stay unknown in this first version. Each mounted window owns its partial coverage; failed receipts remain pending for a later same-version UI activity, with no optimistic indicator change.
 
 Coverage retains the union of settled ranges, so revisiting text does not accumulate duplicate intervals. Disconnect cancels the in-flight submission while retaining at most one completed receipt. Snapshot rehydration reconciles that receipt against the exact catalog incarnation/version before retrying; a new version, cleared note or released workspace discards it. The native note replay checks failed submission, same-version retry, stale pending eviction, short-note dwell and long-note viewport gaps/complete traversal. The backend's `-swift-note-exposure` replay connects the actual Swift tracker and sender to an isolated authenticated Runtime and checks the next Moku context.
 

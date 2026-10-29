@@ -11,6 +11,8 @@ from native_replay import NativeReplay
 def main():
     if "--model-selector" in sys.argv and os.environ.get("MOKUSEI_TEST_HEADLESS") == "1":
         raise SystemExit("Model-selector popover replay requires a display; run NativeModelSelectorHeadlessTests for window-free coverage")
+    if "--moku-execution-links" in sys.argv and os.environ.get("MOKUSEI_TEST_HEADLESS") == "1":
+        raise SystemExit("Mounted execution-link replay requires a display; run MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos --filter NativeMokuExecutionLinkRoutingTests for window-free coverage")
     source = Path(__file__).resolve().parent
     repo = source.parents[2]
     package = repo / "app/macos"
@@ -91,7 +93,8 @@ def main():
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
-                    if glass_captures else suite)
+                    if glass_captures else
+                    "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests", env=environment,
                             launch_environment={key: environment[key] for key in (
@@ -110,7 +113,7 @@ def main():
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
              5 if "--thread-sidebar" in sys.argv else
-             4 if "--moku-execution-links" in sys.argv else
+             8 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else

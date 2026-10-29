@@ -25,10 +25,17 @@ final class ThreadDetailNavigationScope: ObservableObject {
 private struct ThreadDetailNavigationKey: EnvironmentKey {
     static let defaultValue: ThreadDetailNavigationScope? = nil
 }
+private struct ThreadDetailRootNavigationKey: EnvironmentKey {
+    static let defaultValue: ThreadDetailBackAction? = nil
+}
 extension EnvironmentValues {
     var threadDetailNavigation: ThreadDetailNavigationScope? {
         get { self[ThreadDetailNavigationKey.self] }
         set { self[ThreadDetailNavigationKey.self] = newValue }
+    }
+    var threadDetailRootNavigation: ThreadDetailBackAction? {
+        get { self[ThreadDetailRootNavigationKey.self] }
+        set { self[ThreadDetailRootNavigationKey.self] = newValue }
     }
 }
 
@@ -40,6 +47,7 @@ public struct ThreadDetailFrame<Content: View>: View {
     private let content: Content
     @StateObject private var scope = ThreadDetailNavigationScope()
     @Environment(\.threadDetailNavigation) private var inherited
+    @Environment(\.threadDetailRootNavigation) private var inheritedRoot
 
     public init(navigation: ThreadDetailBackAction? = nil,
                 onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil,
@@ -53,6 +61,7 @@ public struct ThreadDetailFrame<Content: View>: View {
     public var body: some View {
         content
             .environment(\.threadDetailNavigation, ownsNavigation ? scope : inherited)
+            .environment(\.threadDetailRootNavigation, ownsNavigation ? navigation : inheritedRoot)
             .overlay(alignment: .topLeading) {
                 if ownsNavigation, onNavigationChange == nil, let action {
                     Button(action: action.onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 30) }

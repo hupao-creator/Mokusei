@@ -23,6 +23,12 @@ boundary before supplying these facts to Harnesses.
 
 Presentation implementations use [PluginUI](../PluginUI/README.md). New plugins implement these boundaries and are composed explicitly rather than adding hidden global discovery.
 
+`HarnessRenderContext.contentResource` acquires an independently owned content
+handle on each call, even for equal scopes. A mounted consumer retains that
+handle and releases it when leaving; it cannot revoke another consumer's handle.
+Shared execution-disclosure demand belongs within the mounted row. The host
+revokes every remaining handle when the conversation surface retires.
+
 Global Harness settings sessions belong to the connected workspace and may be
 prefetched before any editor mounts. Editors join the resource's pending read;
 unmounting a global editor keeps its typed presentation cached. Source changes
