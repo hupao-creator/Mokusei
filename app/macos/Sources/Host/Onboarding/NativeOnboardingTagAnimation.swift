@@ -5,6 +5,7 @@ import MokuseiPluginAPI
 struct NativeOnboardingTagAnimation: View {
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
+    var visitPlaybackStarted: Binding<Bool>? = nil
     private struct Playback: Equatable {
         let size: CGSize
         let dark: Bool
@@ -20,6 +21,13 @@ struct NativeOnboardingTagAnimation: View {
     @State private var scene = NativeOnboardingTagScene()
     @State private var staticFrameReady = false
     @State private var playbackStarted = false
+    private var started: Bool {
+        get { visitPlaybackStarted?.wrappedValue ?? playbackStarted }
+        nonmutating set {
+            if let visitPlaybackStarted { visitPlaybackStarted.wrappedValue = newValue }
+            else { playbackStarted = newValue }
+        }
+    }
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
 
     var body: some View {
@@ -38,8 +46,8 @@ struct NativeOnboardingTagAnimation: View {
             .task(id: Playback(size: viewport, dark: colorScheme == .dark, active: active, locale: locale, harnesses: harnesses.map { $0.descriptor.id.string })) {
                 staticFrameReady = false
                 scene.prepare(size: viewport, dark: colorScheme == .dark, harnesses: harnesses, locale: locale)
-                guard active && !playbackStarted else {
-                    if reduceMotion { playbackStarted = true }
+                guard NativeCapabilityPlayback.shouldPlay(active: active, reduceMotion: reduceMotion,
+                                                           started: Binding(get: { started }, set: { started = $0 })) else {
                     scene.organize(animated: false)
                     // Let SpriteKit draw updated textures before pausing its renderer,
                     // including appearance changes made from the separate demo window.
@@ -51,7 +59,7 @@ struct NativeOnboardingTagAnimation: View {
                     // Initial layout may resize the scene before any tokens arrive.
                     // Once playback starts, task restarts only rebuild the final frame.
                     try await Task.sleep(for: .milliseconds(250))
-                    playbackStarted = true
+                    NativeCapabilityPlayback.begin(Binding(get: { started }, set: { started = $0 }))
                     for arrival in NativeOnboardingTagScene.arrivals {
                         scene.drop(arrival.index)
                         try await Task.sleep(for: .milliseconds(arrival.pause))

@@ -9,6 +9,9 @@ Settings uses the SwiftUI [reveal overlay](../Settings/NativeSettingsTransition.
 inside the persistent scene. Scene state retains Settings through return and
 reports its transition lifetime; the overlay owns animation completion and
 settling, without restoring the retired AppKit scene host.
+The Settings content suppresses inherited animation only for changes to the
+expanded state, so its final layout remains stable during the shell morph while
+subsequent child-owned animations retain their own transactions.
 
 ## Dock and composer
 

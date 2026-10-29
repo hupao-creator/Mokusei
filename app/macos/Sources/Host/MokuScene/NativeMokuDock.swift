@@ -555,7 +555,9 @@ public struct NativeMokuDock: View {
                 settingsContent
                     .environment(\.colorScheme, workspaceColorScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
-                    .transaction { $0.animation = nil }
+                    // Settle the page layout during the capsule morph without
+                    // suppressing animations initiated later by its children.
+                    .transaction(value: state.settingsExpanded) { $0.animation = nil }
                     .compositingGroup()
                     .opacity(state.settingsExpanded ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: state.settingsClosing ? 0.12 : 0.22), value: state.settingsExpanded)

@@ -26,6 +26,12 @@ configuration fields are read-only. Missing/unavailable Agents and unready
 resources prevent onboarding from advancing. Returning to independent mode keeps
 its retained choices.
 
+Each Settings opening gives Tag and Report independent animation visits. Once
+playback starts, switching tabs and returning shows the completed composition;
+closing and reopening Settings permits both animations to play again. An
+interrupted playback settles to its final frame, and Reduce Motion consumes the
+visit without playing. Onboarding retains its own step lifetime.
+
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry

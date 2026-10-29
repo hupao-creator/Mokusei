@@ -4,6 +4,7 @@ import MokuseiPluginAPI
 struct NativeOnboardingReportAnimation: View {
     let harnesses: [AnyHarnessPlugin]
     let locale: DesktopLocale
+    var visitPlaybackStarted: Binding<Bool>? = nil
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -11,6 +12,13 @@ struct NativeOnboardingReportAnimation: View {
     @State private var phase = 0
     @State private var travel: CGFloat = 0
     @State private var playbackStarted = false
+    private var started: Bool {
+        get { visitPlaybackStarted?.wrappedValue ?? playbackStarted }
+        nonmutating set {
+            if let visitPlaybackStarted { visitPlaybackStarted.wrappedValue = newValue }
+            else { playbackStarted = newValue }
+        }
+    }
     private var agents: [AnyHarnessPlugin] { Array(harnesses.prefix(3)) }
     private var active: Bool { !reduceMotion && windowVisible && scenePhase == .active }
     private var paper: Color { Color(white: colorScheme == .dark ? 0.17 : 1) }
@@ -36,14 +44,14 @@ struct NativeOnboardingReportAnimation: View {
         .accessibilityIdentifier("report-capability-animation")
         .background(NativeSettingsWindowVisibility { windowVisible = $0 })
         .task(id: active) {
-            guard active && !playbackStarted else {
-                if reduceMotion { playbackStarted = true }
+            guard NativeCapabilityPlayback.shouldPlay(active: active, reduceMotion: reduceMotion,
+                                                       started: Binding(get: { started }, set: { started = $0 })) else {
                 var final = Transaction(); final.disablesAnimations = true
                 withTransaction(final) { phase = 3 }
                 return
             }
             // Keep this visit consumed across activation changes and task cancellation.
-            playbackStarted = true
+            NativeCapabilityPlayback.begin(Binding(get: { started }, set: { started = $0 }))
             do {
                 var reset = Transaction(); reset.disablesAnimations = true
                 withTransaction(reset) { phase = 0; travel = 0 }
