@@ -17,18 +17,18 @@ import WebKit
       const sheet = new CSSStyleSheet();
       sheet.replaceSync(`
         /* Standard colors retain native overlay fading and scrollbar metrics. */
-        * { scrollbar-color: color-mix(in srgb, CanvasText 55%, transparent) transparent !important; }
-        @media (prefers-contrast: more), (forced-colors: active) {
-          * { scrollbar-color: CanvasText transparent !important; }
-        }
+        /* CanvasText can stay black on a black page without color-scheme. Use
+           the actual foreground, without reducing its contrast through alpha. */
+        * { scrollbar-color: currentColor transparent !important; }
+        :root { scrollbar-color: var(--mokusei-viewport-scrollbar-thumb, currentColor) transparent !important; }
         @supports not (scrollbar-color: black transparent) {
           ::-webkit-scrollbar { background: transparent !important; }
           ::-webkit-scrollbar-thumb {
-            background: color-mix(in srgb, CanvasText 55%, transparent) !important;
+            background: currentColor !important;
             border-radius: 999px;
           }
-          @media (prefers-contrast: more), (forced-colors: active) {
-            ::-webkit-scrollbar-thumb { background: CanvasText !important; }
+          :root::-webkit-scrollbar-thumb {
+            background: var(--mokusei-viewport-scrollbar-thumb, currentColor) !important;
           }
         }
         /* WebKit before scrollbar-color support, and page-authored pseudo parts. */
@@ -39,6 +39,28 @@ import WebKit
         }
       `);
       document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+      // The viewport belongs to html, but most pages put their foreground and
+      // canvas background on body. Keep only this root color in sync; nested
+      // overflow colors follow currentColor directly in CSS.
+      const root = document.documentElement;
+      const updateViewport = () => {
+        const color = getComputedStyle(document.body || root).color;
+        if (root.style.getPropertyValue('--mokusei-viewport-scrollbar-thumb') !== color)
+          root.style.setProperty('--mokusei-viewport-scrollbar-thumb', color);
+      };
+      let body;
+      const bodyObserver = new MutationObserver(updateViewport);
+      const observeBody = () => {
+        if (body !== document.body) {
+          bodyObserver.disconnect(); body = document.body;
+          if (body) bodyObserver.observe(body, {attributes: true, attributeFilter: ['class', 'style']});
+        }
+        updateViewport();
+      };
+      const rootObserver = new MutationObserver(observeBody);
+      rootObserver.observe(root, {attributes: true, attributeFilter: ['class', 'style'], childList: true});
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateViewport);
+      observeBody();
       globalThis.__mokuseiScrollbarSheet = sheet;
     })();
     """#

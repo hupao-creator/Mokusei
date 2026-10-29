@@ -20,6 +20,7 @@ with tempfile.TemporaryDirectory(prefix="mokusei-scrollbars-") as output:
         str(repo / "app/macos/Sources/Shared/PluginUI/Design/NativeScrollView.swift"),
         str(repo / "app/macos/Sources/Shared/PluginUI/Design/NativeWebScrollbarStyle.swift"),
         str(Path(__file__).with_name("web.swift")),
+        str(Path(__file__).with_name("controls.swift")),
         str(Path(__file__).with_name("main.swift")), "-o", str(binary),
     ], timeout=300)
     if status:

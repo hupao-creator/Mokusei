@@ -43,7 +43,7 @@ public struct NativeComposerHostFilePicker: View {
                         }
                     }
                 } else if let directory {
-                    List(directory.entries) { entry in row(entry) }
+                    List(directory.entries) { entry in row(entry) }.nativeControlScrollbars()
                         .listStyle(.plain).disabled(loading)
                     if directory.entries.isEmpty { Text(localized("此目录为空", "This directory is empty")).foregroundStyle(.secondary).padding() }
                 } else {

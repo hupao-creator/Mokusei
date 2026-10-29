@@ -54,6 +54,34 @@ import WebKit
         let sheetCount = try await web.evaluateJavaScript("document.adoptedStyleSheets.length")
         precondition(sheetCount as? Int == 1)
         web.loadHTMLString(#"""
+        <!doctype html><html><head><title>Dark foreground fixture</title><style>
+        html { scrollbar-color: white transparent; overflow: scroll; }
+        body { color: white; background: black; }
+        .pane { width: 180px; height: 90px; overflow: scroll; }
+        #light { color: black; background: white; }
+        </style></head><body>
+        <div id="dark" class="pane"><div style="height:900px">Dark pane</div></div>
+        <div id="light" class="pane"><div style="height:900px">Light pane</div></div>
+        <div style="height:1800px">Page text</div>
+        </body></html>
+        """#, baseURL: nil)
+        try await wait(in: web, for: "document.title === 'Dark foreground fixture' && document.adoptedStyleSheets.length === 1 && getComputedStyle(document.documentElement).scrollbarColor.startsWith('rgb(255, 255, 255)')")
+        let dark = try await web.evaluateJavaScript(#"""
+        (() => {
+          const root = getComputedStyle(document.documentElement);
+          if (root.colorScheme !== 'normal' || !root.scrollbarColor.startsWith('rgb(255, 255, 255)')) throw new Error('dark viewport thumb lost contrast');
+          if (!getComputedStyle(dark).scrollbarColor.startsWith('rgb(255, 255, 255)')) throw new Error('dark overflow thumb lost contrast');
+          if (!getComputedStyle(light).scrollbarColor.startsWith('rgb(0, 0, 0)')) throw new Error('light overflow thumb lost contrast');
+          if (![document.documentElement, dark, light].every(el => getComputedStyle(el).scrollbarColor.endsWith('rgba(0, 0, 0, 0)'))) throw new Error('contrast fix restored a track');
+          document.body.style.color = 'black'; document.body.style.backgroundColor = 'white';
+          return true;
+        })()
+        """#)
+        precondition(dark as? Bool == true)
+        try await wait(in: web, for: "getComputedStyle(document.documentElement).scrollbarColor.startsWith('rgb(0, 0, 0)')")
+        _ = try await web.evaluateJavaScript("document.body.className = 'dark'; document.body.style.color = 'white'; document.body.style.backgroundColor = 'black'")
+        try await wait(in: web, for: "getComputedStyle(document.documentElement).scrollbarColor.startsWith('rgb(255, 255, 255)')")
+        web.loadHTMLString(#"""
         <!doctype html><html><head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'none'">
         <title>CSP scrollbar fixture</title></head><body>
@@ -65,7 +93,7 @@ import WebKit
         precondition(csp as? Bool == true)
         precondition(web.window == nil)
         web.stopLoading()
-        print("PASS: windowless WebKit native track colors, page overrides, subframe injection, dynamic overflow, CSP, idempotence, unchanged geometry, both axes and textarea selection")
+        print("PASS: windowless WebKit transparent tracks, dark/light foreground contrast without color-scheme, body theme changes, page overrides, subframes, dynamic overflow, CSP, idempotence, geometry, both axes and textarea selection")
     }
 
     private static func wait(in web: WKWebView, for condition: String) async throws {

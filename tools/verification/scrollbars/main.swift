@@ -104,6 +104,7 @@ struct ScrollbarReplay {
         precondition(!existing.hasVerticalScroller && !existing.hasHorizontalScroller)
         precondition(NativeTracklessScroller.isCompatibleWithOverlayScrollers)
         print("PASS: four appearances; transparent normal/highlighted tracks in both styles; native axes, targets, accessibility role, selection, offsets, idempotence and scoped preference updates (headless)")
+        try await ScrollControlReplay.run()
         try await WebScrollbarReplay.run()
     }
 }
