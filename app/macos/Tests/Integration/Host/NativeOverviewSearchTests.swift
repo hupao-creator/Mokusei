@@ -463,7 +463,7 @@ struct NativeOverviewSearchTests {
                 }
                 try await Task.sleep(for: .milliseconds(1400))
                 #expect(model.isSearching && model.selectedTag == "Selected" && model.items.map(\.id) == ["a"])
-                #expect(SwiftUIReplay.textField(in: try #require(window.contentView)) != nil)
+                #expect(SwiftUIReplay.editor(in: try #require(window.contentView)) != nil)
                 try await capture(window, name: name + "-search")
                 // Reverse an incomplete close, then finish closing. The real
                 // Chrome must cancel its stale closing task and retain scope.
@@ -472,14 +472,14 @@ struct NativeOverviewSearchTests {
                 model.beginSearch()
                 try await Task.sleep(for: .milliseconds(1700))
                 #expect(model.isSearching && model.selectedTag == "Selected")
-                #expect(SwiftUIReplay.textField(in: try #require(window.contentView)) != nil)
+                #expect(SwiftUIReplay.editor(in: try #require(window.contentView)) != nil)
                 try await capture(window, name: name + "-reversed")
                 model.endSearch()
                 try await Task.sleep(for: .milliseconds(250))
                 try await capture(window, name: name + "-closing")
                 try await Task.sleep(for: .milliseconds(1400))
                 #expect(!model.isSearching && model.selectedTag == "Selected" && model.items.map(\.id) == ["a"])
-                #expect(SwiftUIReplay.textField(in: try #require(window.contentView)) == nil)
+                #expect(SwiftUIReplay.editor(in: try #require(window.contentView)) == nil)
                 try await capture(window, name: name + "-restored")
             }
         }

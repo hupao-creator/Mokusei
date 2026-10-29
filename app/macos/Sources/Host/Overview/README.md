@@ -90,7 +90,9 @@ Tag widths have no fixed point cap. Each top-level chip may use the scroll viewp
 
 The shared prefix keeps its native ideal size: an emoji's advance and line bounds can exceed its point size, so an icon-sized square can cut its glyph even inside a roomy chip. The Lucide folder keeps its original size; emoji do not use per-glyph offsets. The [tag-glass replay](../../../../../tools/verification/reading-presentation/README.md) compares production prefixes with unconstrained native glyphs and captures compact/light/dark Chrome.
 
-[NativeOverviewSearchMorph](NativeOverviewSearchMorph.swift) expands the visible selected tag into the search field. If the selected tag is clipped, it falls back to visible All, then the first visible tag. Neighbor tags move outward and fade while keeping their measured size; the carrier label crossfades. Reversal preserves the actual mounted controls, focus and clipping.
+[NativeOverviewSearchMorph](NativeOverviewSearchMorph.swift) expands the visible selected tag into the search field. If the selected tag is clipped, it falls back to visible All, then the first visible tag. Neighbor tags move outward and fade while keeping their measured size; the carrier label crossfades. The carrier fades into the shared Moku warm-black capsule gradient as the label retires, and the mounted search contents take Moku's local dark appearance. Reversal preserves the actual mounted controls, focus, clipping and the material's fade-out.
+
+[OverviewThreadSearchField](NativeOverviewSearch.swift) uses the shared native [composer editor](../../Shared/PluginUI/README.md#cards-composer-and-forms) in single-line mode and opts into the [emphasized insertion mark](../../Shared/PluginUI/README.md#cards-composer-and-forms). Long queries scroll horizontally on one line instead of wrapping; Return never inserts a break or submits; pasted or dropped line breaks become spaces. Escape exits. Focus and repeated select-all requests travel through native selection, so reopening search still replaces the previous query, and clearing refocuses the editor at its start.
 
 ## Search results
 

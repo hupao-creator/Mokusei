@@ -239,7 +239,7 @@ public struct NativeOverviewChrome: View {
                 Divider().frame(height: 16)
             }
             OverviewThreadSearchField(text: searchQuery,
-                placeholder: selectedTag.isEmpty ? strings.search : "",
+                placeholder: selectedTag.isEmpty ? strings.search : "", label: strings.search,
                 focusRequest: focusReady ? searchFocusRequest : 0, onChange: onSearchChange, onExit: onSearchExit)
                 .frame(minWidth: 40, maxWidth: .infinity).frame(height: OverviewTagMetrics.buttonHeight)
             Button(action: onSearchExit) {
