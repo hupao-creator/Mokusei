@@ -34,9 +34,8 @@ struct SwiftUIOverviewInteractionTests {
         let window = SwiftUIReplay.window(SearchInputReplay(fixture: fixture), width: 500, height: 100)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { field(in: root)?.currentEditor() != nil }
-        let inputField = try #require(field(in: root))
-        let editor = try #require(inputField.currentEditor() as? NSTextView)
+        try await SwiftUIReplay.wait { SwiftUIReplay.editor(in: root) != nil }
+        let editor = try #require(SwiftUIReplay.editor(in: root))
         editor.setMarkedText("ni", selectedRange: .init(location: 2, length: 0), replacementRange: .init(location: NSNotFound, length: 0))
         #expect(editor.hasMarkedText())
         editor.insertText("你好世界", replacementRange: .init(location: NSNotFound, length: 0))

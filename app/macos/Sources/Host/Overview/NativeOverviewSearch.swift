@@ -1,6 +1,7 @@
 import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 import SwiftUI
 
 /// Searches public catalog metadata only, after Overview's visibility and merge
@@ -33,29 +34,45 @@ struct OverviewThreadSearchField: View {
     static let identifier = "overview-thread-search"
     let text: String
     let placeholder: String
+    /// A scoped search can have no placeholder, so the editor keeps a stable
+    /// spoken identity independent of the visible hint.
+    var label: String? = nil
     let focusRequest: Int
     let onChange: (String) -> Void
     let onExit: () -> Void
     @Environment(\.locale) private var locale
-    @FocusState private var focused: Bool
-    @State private var selection: TextSelection?
+    /// The search field reuses the native composer editor and its emphasized
+    /// caret. Focus and select-all travel through native selection requests so
+    /// repeated openings still replace the previous query.
+    @State private var selectionRequest: NativeComposerSelectionRequest?
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField(placeholder, text: Binding(get: { text }, set: { onChange($0) }), selection: $selection)
-                .textFieldStyle(.plain).focused($focused)
+            NativeComposerTextInput(value: Binding(get: { text }, set: { onChange(Self.singleLine($0)) }),
+                placeholder: placeholder, automaticFocus: false,
+                minHeight: OverviewTagMetrics.buttonHeight, maxHeight: OverviewTagMetrics.buttonHeight,
+                fontSize: 13, lineHeight: 17,
+                insets: .init(top: 10, left: 6, bottom: 10, right: 6),
+                onSubmit: {}, onEscape: onExit, selectionRequest: selectionRequest,
+                singleLine: true, emphasizedInsertionPoint: true)
+                .accessibilityLabel(label ?? placeholder)
                 .accessibilityIdentifier(Self.identifier)
-                .nativeOnExitCommand(perform: onExit)
             if !text.isEmpty {
-                Button { onChange(""); focused = true } label: { Image(systemName: "xmark.circle.fill") }
+                Button {
+                    onChange("")
+                    selectionRequest = .init(range: NSRange(location: 0, length: 0))
+                } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).accessibilityLabel(locale.language.languageCode?.identifier == "zh" ? "清空搜索" : "Clear search")
             }
         }
         .font(.system(size: 13))
         .task(id: focusRequest) {
             guard focusRequest > 0 else { return }
-            focused = true
-            selection = TextSelection(range: text.startIndex..<text.endIndex)
+            selectionRequest = .init(range: NSRange(location: 0, length: text.utf16.count))
         }
+    }
+    /// A pasted or dropped line break must not survive in a single-line query.
+    private static func singleLine(_ value: String) -> String {
+        value.replacingOccurrences(of: "\n", with: " ")
     }
 }

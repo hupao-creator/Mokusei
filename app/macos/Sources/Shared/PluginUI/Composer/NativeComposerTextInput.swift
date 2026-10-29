@@ -66,6 +66,9 @@ public struct NativeComposerTextInput: View {
     private let onEditorStateChange: ((NativeComposerEditorState) -> Void)?
     private let onKeyDown: ((NativeComposerKeyEvent) -> Bool)?
     private let submitOnReturn: Bool
+    /// Search-style fields keep one line: Return never inserts a break and no
+    /// submit hint replaces the editor tooltip.
+    private let singleLine: Bool
     private let emphasizedInsertionPoint: Bool
     @State private var focused = false
     @State private var pasting = false
@@ -89,7 +92,8 @@ public struct NativeComposerTextInput: View {
                 initialSelection: NSRange? = nil,
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
-                submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
+                submitOnReturn: Bool = false, singleLine: Bool = false,
+                emphasizedInsertionPoint: Bool = false) {
         _value = value; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
         self.focusEnabled = focusEnabled
         self.automaticFocus = automaticFocus
@@ -102,6 +106,7 @@ public struct NativeComposerTextInput: View {
         self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.preparePaste = preparePaste; self.onFocusChange = onFocusChange
         self.onEditorStateChange = onEditorStateChange; self.onKeyDown = onKeyDown
         self.submitOnReturn = submitOnReturn
+        self.singleLine = singleLine
         self.emphasizedInsertionPoint = emphasizedInsertionPoint
         _measuredHeight = State(initialValue: minHeight)
     }
@@ -111,7 +116,7 @@ public struct NativeComposerTextInput: View {
             selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
-            submitOnReturn: submitOnReturn, emphasizedInsertionPoint: emphasizedInsertionPoint,
+            submitOnReturn: submitOnReturn, singleLine: singleLine, emphasizedInsertionPoint: emphasizedInsertionPoint,
             reduceCaretMotion: reduceMotion,
             onPaste: nativePaste, textInsets: emphasizedInsertionPoint ? editorInsets : EdgeInsets())
             // Split the trailing line spacing around the glyphs to center a single line.
@@ -139,9 +144,7 @@ public struct NativeComposerTextInput: View {
                     .hidden().allowsHitTesting(false).accessibilityHidden(true)
             }
             .frame(height: min(maxHeight, max(minHeight, measuredHeight)))
-            .help(submitOnReturn
-                ? (locale.language.languageCode?.identifier == "zh" ? "Enter 发送，⌘Enter 或 Shift+Enter 换行" : "Enter to send, ⌘Enter or Shift+Enter for a new line")
-                : (locale.language.languageCode?.identifier == "zh" ? "Enter 换行，⌘Enter 发送" : "Enter for a new line, ⌘Enter to send"))
+            .modifier(ComposerHelp(text: helpText))
             .disabled(unavailable)
             .background {
                 NativeComposerPasteShortcut(enabled: !unavailable && onFiles != nil) { providers, range in
@@ -164,6 +167,13 @@ public struct NativeComposerTextInput: View {
                 Task { await onFiles(files) }; return true
             }
             .accessibilityLabel(placeholder)
+    }
+    private var helpText: String? {
+        guard !singleLine else { return nil }
+        let chinese = locale.language.languageCode?.identifier == "zh"
+        return submitOnReturn
+            ? (chinese ? "Enter 发送，⌘Enter 或 Shift+Enter 换行" : "Enter to send, ⌘Enter or Shift+Enter for a new line")
+            : (chinese ? "Enter 换行，⌘Enter 发送" : "Enter for a new line, ⌘Enter to send")
     }
     private var editorInsets: EdgeInsets {
         EdgeInsets(top: insets.top + spacing / 2, leading: insets.left,
@@ -200,6 +210,14 @@ public struct NativeComposerTextInput: View {
     private var spacing: CGFloat {
         let font = CTFontCreateUIFontForLanguage(.system, fontSize, nil)!
         return max(0, lineHeight - ceil(CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)))
+    }
+}
+
+/// An absent help string must not leave an empty tooltip on search fields.
+private struct ComposerHelp: ViewModifier {
+    let text: String?
+    func body(content: Content) -> some View {
+        if let text { content.help(text) } else { content }
     }
 }
 
