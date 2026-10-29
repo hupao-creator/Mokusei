@@ -102,6 +102,11 @@ without travel, including a return already in progress. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
 Execution sidecards keep their single-execution presentation.
+An external result request is the host route's entry document, so its Back and
+Escape use that route's return action. It gains an internal history return only
+after explicit TOC navigation. Each mounted row owns an independent content
+handle, even when the retained current document and result render the same row;
+closing one cannot revoke the other's content.
 
 [ThreadReadingHeader.swift](Conversation/ThreadReadingHeader.swift) places the
 mounted turn's resolved author under the title, beside execution/user-message

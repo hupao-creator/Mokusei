@@ -65,6 +65,7 @@ public struct ThreadConversation: View {
     public let renderRow: ((JSONText) -> AnyView)?
     @Environment(\.locale) private var locale
     @Environment(\.threadDetailNavigation) private var navigation
+    @Environment(\.threadDetailRootNavigation) private var rootNavigation
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
@@ -133,6 +134,9 @@ public struct ThreadConversation: View {
     private var resultVisit: Bool {
         readingTarget?.position == .result && destination == requestedDestination
     }
+    // An external result opens the host route itself. There was no current
+    // document visit to return to until the user navigates within this thread.
+    private var resultRoute: Bool { resultVisit && rootNavigation != nil }
     private var scrollTarget: ThreadTimelineReadingTarget? {
         guard destination == requestedDestination, let consumedRequest, let acceptedAnchor else { return nil }
         return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: acceptedAnchor,
@@ -162,7 +166,7 @@ public struct ThreadConversation: View {
         .onChange(of: readingTarget) { _, _ in consumeReadingTarget() }
         .onChange(of: visibleRows.map(\.id)) { _, _ in promoteCurrentPage(); consumeReadingTarget() }
         .onChange(of: visibleRows.map { $0.execution?.readable }) { _, _ in consumeReadingTarget() }
-        .onChange(of: readingPage) { _, open in
+        .onChange(of: readingPage && !resultRoute, initial: true) { _, open in
             if let token = navigationToken { navigation?.unregister(token); navigationToken = nil }
             if open {
                 navigationToken = navigation?.register(ThreadDetailBackAction(label: localize("返回当前会话"), onBack: closeHistory))
@@ -290,6 +294,7 @@ public struct ThreadConversation: View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
+                              backLabel: (resultRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
                               showBack: navigation == nil, focusHeading: destination == requestedDestination, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
@@ -301,6 +306,7 @@ public struct ThreadConversation: View {
         return AnyView(ThreadDetailEmptyState())
     }
     private func closeHistory() {
+        if resultRoute { rootNavigation?.onBack(); return }
         setPageDirection(toward: currentRow?.id, returning: true)
         pageMotion.close()
     }
@@ -416,6 +422,7 @@ private struct ThreadHistoryDocument: View {
     let readingTarget: ThreadTimelineReadingTarget?
     let locatedRequestId: JSONText?
     let onLocated: (JSONText) -> Void
+    let backLabel: String
     let showBack: Bool
     let focusHeading: Bool
     let onBack: () -> Void
@@ -438,10 +445,10 @@ private struct ThreadHistoryDocument: View {
                 if showBack { Button(action: onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 30) }
                     .buttonStyle(.plain).background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 7))
                     .overlay(RoundedRectangle(cornerRadius: 7).stroke(NativePalette.thread.line.swiftUI))
-                    .padding(16).help(localize("返回当前会话")).accessibilityLabel(localize("返回当前会话"))
+                    .padding(16).help(backLabel).accessibilityLabel(backLabel)
                 }
             }.nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
-            .nativeReadingAction("close", role: "history.close", label: localize("返回当前会话"), action: onBack)
+            .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
                 "rowId": page.map { .string($0.id) } ?? .null,
                 "userMessages": .bool(users), "work": .bool(work)
