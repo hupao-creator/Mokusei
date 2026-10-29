@@ -15,6 +15,11 @@ clipping the glass itself would cut off that shadow.
 
 [Browser](Browser/) owns WKWebView navigation, URL policy, annotation and capture.
 
+Browser frames opt into the [shared trackless scrollbar policy](../../Shared/PluginUI/README.md#scrollbars).
+It decorates scrollbar parts without replacing native scrolling, selection or
+input handlers; system persistent-scrollbar preferences retain priority over
+transient hiding. Browser chrome and Moku theme colors remain caller-owned.
+
 Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
 
 Rejected subframe and new-window downloads do not replace the main page's ready/error state. Canceling an uncommitted navigation restores the last successful document's address and annotation readiness; a stale navigation cannot settle a newer one.

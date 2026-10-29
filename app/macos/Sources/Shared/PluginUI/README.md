@@ -5,14 +5,19 @@ This target supplies design resources, Harness cards, Markdown reading, conversa
 ## Scrollbars
 
 [NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;
-`NativeStyledScrollView` is its AppKit counterpart. Both use native mini scrollers
-for the narrow, rounded, subdued appearance of the reference. The system owns
-colors, hover/tracking, fade timing and accessibility rather than a custom thumb
-or gesture. AppKit's preferred style preserves Always, When Scrolling and
-Automatically based on input device, including live preference/device changes.
-Always may reserve a native gutter; it intentionally takes priority over the
-transient reference appearance. No global appearance, swizzling, window-wide
-traversal, wheel monitor, preference write or replacement scroll-position model
+`NativeStyledScrollView` is its AppKit counterpart. Both install native mini
+`NSScroller` subclasses that suppress only `drawKnobSlot`, including its hover
+highlight. The system owns knob colors, hover/tracking, fade timing and
+accessibility rather than a custom thumb or gesture. The subclass explicitly
+supports overlay scrollers; overriding the entire drawing method would break
+AppKit's independent knob fading. AppKit's preferred style preserves Always,
+When Scrolling and Automatically based on input device, including live
+preference/device changes.
+Overlay knobs appear during scrolling and hide afterward, remaining available
+during native hover/drag tracking. A persistent system style keeps the knob and
+may reserve a native gutter, with its track unpainted; accessibility and device
+preferences take priority over automatic hiding. No global appearance, swizzling,
+window-wide traversal, wheel monitor, preference write or replacement scroll-position model
 is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
 stay on the native rendering path; this component adds no animation.
 
@@ -33,7 +38,20 @@ Inventory and integration boundaries:
 | Overview | Tag/filter navigation strips | Wrapper; existing hidden indicators and canvas input routing retained |
 | Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
 | Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper |
-| WebKit Browser | Main document, subframes and page-owned overflow | Native WebKit; removed the injected transparent 2px CSS override. Page-authored styling remains page-owned |
+| WebKit Browser and Report HTML | Main document, subframes, textarea and page-owned overflow | Shared `NativeWebScrollbarStyle` user script in every frame; transparent tracks, native scrolling and unchanged scrollbar dimensions |
+
+[NativeWebScrollbarStyle](Design/NativeWebScrollbarStyle.swift) uses standard
+`scrollbar-color` on supporting WebKit versions
+([Safari 26.2 onward](https://webkit.org/blog/17640/webkit-features-for-safari-26-2/)),
+retaining native fade, hit testing and live system scrollbar preferences. Thumb color
+follows the document's `CanvasText`, strengthened for increased contrast. A
+constructed stylesheet works with restrictive inline-style CSPs and applies to
+new overflow elements without a DOM observer. No overflow, wheel/key handler,
+scroll offset, scrollbar width or page color scheme is changed. Page-authored
+track backgrounds, borders and shadows are cleared. Older WebKit receives
+transparent pseudo tracks and a visible fallback thumb; native overlay fading
+is not guaranteed for that custom rendering path. Page-specific higher-priority
+rules and shadow-root styles remain WebKit/page-owned boundaries.
 
 Settings, the general model selector, Thread Detail TOC and Note are parallel
 work areas. Changes here are limited to viewport construction and removal of
@@ -44,12 +62,15 @@ Note history (#106) and Overview framing (#107).
 
 Run `python3 tools/verification/scrollbars/run.py` from the repository root for
 the windowless production AppKit boundary replay. It checks repeated configuration,
-document/clip/scroller identity, selection and scroll offsets, native targets,
-enabled axes, four appearances and preference-notification isolation. It never
+document/clip identity, scroller identity after installation, selection and scroll
+offsets, native targets/accessibility role, enabled axes, four appearances,
+transparent normal/highlighted tracks in both styles and preference-notification
+isolation. Windowless WebKit checks actual script injection, subframes, dynamic
+overflow, restrictive CSP, geometry, both axes and textarea selection. It never
 opens a window or changes system preferences. Headless Swift tests use
 `MOKUSEI_TEST_HEADLESS=1`; display cases report skips, not passes. These checks
-cannot certify rendered thumb pixels, hover/fade timing, actual accessibility
-preference changes, mounted SwiftUI geometry or physical mouse/trackpad feel.
+cannot certify rendered WebKit/overlay thumb pixels, hover/fade timing, actual
+accessibility preference changes, mounted SwiftUI geometry or physical mouse/trackpad feel.
 Existing mounted composer, reading, Markdown, Settings, Git, Note and Browser
 suites supply hosted graphical coverage; manual visual comparison with the
 reference remains unperformed when only headless execution is allowed.

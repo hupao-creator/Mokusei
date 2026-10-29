@@ -5,6 +5,14 @@ import SwiftUI
 /// ownership of hit targets, tracking, fading, contrast and appearance changes.
 @MainActor public enum NativeScrollbarStyle {
     public static func apply(to scroll: NSScrollView) {
+        // Install once, before selecting the style. AppKit wires the new controls
+        // to its native scrolling actions; subsequent configuration keeps them.
+        if let scroller = scroll.verticalScroller, !(scroller is NativeTracklessScroller) {
+            scroll.verticalScroller = NativeTracklessScroller(frame: scroller.frame)
+        }
+        if let scroller = scroll.horizontalScroller, !(scroller is NativeTracklessScroller) {
+            scroll.horizontalScroller = NativeTracklessScroller(frame: scroller.frame)
+        }
         // Respect Always/When Scrolling/Automatically and changes of input device.
         // Forcing overlay here would ignore the user's persistent-scrollbar choice.
         let style = NSScroller.preferredScrollerStyle
@@ -14,6 +22,14 @@ import SwiftUI
             if scroller.controlSize != .mini { scroller.controlSize = .mini }
         }
     }
+}
+
+/// Parts-based customization preserves AppKit's independent knob fade, hover
+/// expansion, mouse tracking and accessibility. Overriding draw(_:) would break
+/// overlay fading (see NSScroller's overlay-compatibility contract).
+@MainActor final class NativeTracklessScroller: NSScroller {
+    override class var isCompatibleWithOverlayScrollers: Bool { true }
+    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
 }
 
 /// Use at each owned SwiftUI viewport rather than traversing the window or

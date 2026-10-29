@@ -285,6 +285,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             view.stopLoading()
             prepared.scheme.bind(url: documentURL, html: input.document.html)
             let controller = view.configuration.userContentController
+            controller.addUserScript(NativeWebScrollbarStyle.script)
             // This content world is inaccessible to document scripts. Its only
             // messages are validated presentation observations and real keys.
             controller.add(self, contentWorld: Self.world, name: Self.handler)

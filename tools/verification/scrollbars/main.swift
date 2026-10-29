@@ -4,7 +4,7 @@ import AppKit
 // the production NativeScrollView source, so this exercises real AppKit controls.
 @main
 struct ScrollbarReplay {
-    @MainActor static func main() {
+    @MainActor static func main() async throws {
         let untouched = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 180))
         untouched.hasVerticalScroller = true
         let originalSize = untouched.verticalScroller?.controlSize
@@ -44,6 +44,32 @@ struct ScrollbarReplay {
             precondition(scroll.scrollerStyle == NSScroller.preferredScrollerStyle && scroll.autohidesScrollers)
             precondition(scroll.verticalScroller?.target as? NSScrollView === scroll)
             precondition(scroll.horizontalScroller?.target as? NSScrollView === scroll)
+            for scroller in [vertical, horizontal].compactMap({ $0 }) {
+                precondition(scroller is NativeTracklessScroller)
+                precondition(scroller.action != nil && scroller.accessibilityRole() == .scrollBar)
+                for style in [NSScroller.Style.legacy, .overlay] {
+                    scroller.scrollerStyle = style
+                    // Draw the real production slot into an offscreen bitmap.
+                    // Both normal and highlighted tracks must leave it untouched.
+                    let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 24, pixelsHigh: 80,
+                        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+                    let context = NSGraphicsContext(bitmapImageRep: bitmap)!
+                    NSGraphicsContext.saveGraphicsState()
+                    NSGraphicsContext.current = context
+                    NSColor.clear.setFill()
+                    NSRect(x: 0, y: 0, width: 24, height: 80).fill(using: .copy)
+                    for highlight in [false, true] {
+                        scroller.drawKnobSlot(in: NSRect(x: 0, y: 0, width: 24, height: 80), highlight: highlight)
+                    }
+                    NSGraphicsContext.restoreGraphicsState()
+                    for y in 0..<80 {
+                        for x in 0..<24 { precondition(bitmap.colorAt(x: x, y: y)!.alphaComponent == 0) }
+                    }
+                }
+                scroller.scrollerStyle = scroll.scrollerStyle
+            }
+            NativeScrollbarStyle.apply(to: scroll)
 
             // Native scrolling still reaches both ends and preserves text selection.
             scroll.contentView.scroll(to: NSPoint(x: 500, y: 800))
@@ -59,6 +85,25 @@ struct ScrollbarReplay {
             precondition(scroll.scrollerStyle == NSScroller.preferredScrollerStyle)
         }
         precondition(untouched.verticalScroller?.controlSize == originalSize && untouched.scrollerStyle == originalStyle)
-        print("PASS: four appearances; native axes, targets, selection, offsets, idempotence and scoped preference updates (headless)")
+        // Styling an already-scrolled plain viewport must retain its content and
+        // selection too, including when it has no enabled indicators.
+        let existing = NSScrollView(frame: NSRect(x: 0, y: 0, width: 300, height: 180))
+        existing.hasVerticalScroller = true
+        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 280, height: 1200))
+        text.string = String(repeating: "Keep selection\n", count: 100)
+        existing.documentView = text
+        existing.tile()
+        existing.contentView.scroll(to: NSPoint(x: 0, y: 100))
+        text.setSelectedRange(NSRange(location: 5, length: 4))
+        let offset = existing.contentView.bounds.origin
+        NativeScrollbarStyle.apply(to: existing)
+        existing.tile()
+        precondition(existing.contentView.bounds.origin == offset && text.selectedRange() == NSRange(location: 5, length: 4))
+        existing.hasVerticalScroller = false
+        NativeScrollbarStyle.apply(to: existing)
+        precondition(!existing.hasVerticalScroller && !existing.hasHorizontalScroller)
+        precondition(NativeTracklessScroller.isCompatibleWithOverlayScrollers)
+        print("PASS: four appearances; transparent normal/highlighted tracks in both styles; native axes, targets, accessibility role, selection, offsets, idempotence and scoped preference updates (headless)")
+        try await WebScrollbarReplay.run()
     }
 }
