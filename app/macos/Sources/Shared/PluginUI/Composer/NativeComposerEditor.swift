@@ -26,7 +26,8 @@ struct NativeComposerEditor: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NativeStyledScrollView()
+        let scroll = singleLine ? SingleLineComposerScrollView() : NativeStyledScrollView()
+        if singleLine { scroll.contentView = SingleLineComposerClipView() }
         scroll.drawsBackground = false
         scroll.contentView.drawsBackground = false
         let editor = ComposerTextView()
@@ -368,5 +369,38 @@ struct NativeComposerEditor: NSViewRepresentable {
         let accepted = super.resignFirstResponder()
         if accepted { caret.remove(); focusChanged?() }
         return accepted
+    }
+}
+
+/// SwiftUI can resize the one-line viewport after AppKit has centered a
+/// shorter initial document. Keep vertical scrolling pinned as it grows, while
+/// preserving the horizontal position used for long queries.
+@MainActor private final class SingleLineComposerScrollView: NativeStyledScrollView {
+    override func layout() {
+        super.layout()
+        guard let documentView else { return }
+        let viewport = contentView.bounds
+        if documentView.frame.height != viewport.height {
+            documentView.setFrameSize(NSSize(width: documentView.frame.width, height: viewport.height))
+        }
+        if contentView.bounds.origin.y != 0 {
+            contentView.scroll(to: NSPoint(x: contentView.bounds.origin.x, y: 0))
+            reflectScrolledClipView(contentView)
+        }
+    }
+}
+
+/// AppKit also constrains the clip while caret scrolling or text sizing occurs,
+/// outside the scroll view's layout pass. Single-line fields have no vertical
+/// scroll range, even while their document is temporarily shorter than the clip.
+@MainActor private final class SingleLineComposerClipView: NSClipView {
+    override func scroll(to newOrigin: NSPoint) {
+        super.scroll(to: NSPoint(x: newOrigin.x, y: 0))
+    }
+
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var constrained = super.constrainBoundsRect(proposedBounds)
+        constrained.origin.y = 0
+        return constrained
     }
 }

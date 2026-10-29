@@ -18,6 +18,11 @@ extension RuntimeClient {
     fileprivate func connectLandingFixture() { setStatus(.connected) }
 }
 
+@MainActor private final class SearchPositionProbe {
+    var bounds: [String: CGRect] = [:]
+    var origin: CGPoint = .zero
+}
+
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuLandingTests {
     @MainActor private final class Fixture {
@@ -160,6 +165,71 @@ struct NativeMokuLandingTests {
         // Native text selection may synchronously track until mouse-up.
         NSApp.postEvent(try event(.leftMouseUp), atStart: true)
         NSApp.sendEvent(try event(.leftMouseDown))
+    }
+
+    @Test func fullWorkspaceSearchMorphKeepsTextAndCaretCentered() async throws {
+        let fixture = try Fixture()
+        do {
+            try await fixture.install([fixture.thread("search-fixture", status: nil)])
+            let probe = SearchPositionProbe()
+            let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1180, height: 780),
+                styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
+            let content = NativeWorkspaceView(model: fixture.workspace, presentation: fixture.presentation)
+                .frame(width: 1180, height: 780)
+                .environment(\.nativeWindowContentScale, 1)
+                .scaleEffect(1, anchor: .topLeading)
+                .modifier(NativeWorkspaceWindowSurface())
+                .overlayPreferenceValue(OverviewSearchTagBounds.self) { anchors in
+                    GeometryReader { reader in
+                        Color.clear.onChange(of: anchors.mapValues { reader[$0] }, initial: true) { _, bounds in
+                            probe.bounds = bounds
+                            probe.origin = reader.frame(in: .global).origin
+                        }
+                    }.allowsHitTesting(false)
+                }
+            window.contentView = NSHostingView(rootView: content)
+            fixture.window = window
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            try await SwiftUIReplay.wait { !fixture.overview.canvasState.isLayingOut && !fixture.overview.visibleFilters.isEmpty }
+            fixture.overview.beginSearch()
+            let root = try #require(window.contentView)
+            try await SwiftUIReplay.wait { probe.bounds["__search_carrier__"] != nil && SwiftUIReplay.editor(in: root) != nil }
+            try await Task.sleep(for: .milliseconds(600))
+            let editor = try #require(SwiftUIReplay.editor(in: root))
+            let scroll = try #require(editor.enclosingScrollView)
+            let carrier = try #require(probe.bounds["__search_carrier__"]).offsetBy(dx: probe.origin.x, dy: probe.origin.y)
+            func caretRect() -> NSRect {
+                root.convert(window.convertFromScreen(editor.firstRect(forCharacterRange: editor.selectedRange(), actualRange: nil)), from: nil)
+            }
+            #expect(abs(caretRect().midY - carrier.midY) <= 2)
+            if ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1" {
+                editor.updateInsertionPointStateAndRestartTimer(true)
+                try await SwiftUIReplay.wait {
+                    editor.layer?.sublayers?.contains { $0.name == "composer-insertion-point" } == true
+                }
+                let layer = try #require(editor.layer?.sublayers?.first { $0.name == "composer-insertion-point" })
+                let layerRect = editor.convert(editor.convertFromLayer(layer.frame), to: root)
+                #expect(abs(layerRect.midY - carrier.midY) <= 2)
+            }
+            editor.insertText("Search text", replacementRange: NSRange(location: 0, length: 0))
+            try await SwiftUIReplay.wait { fixture.overview.searchQuery == "Search text" }
+            #expect(abs(caretRect().midY - carrier.midY) <= 2)
+            let manager = try #require(editor.layoutManager)
+            let container = try #require(editor.textContainer)
+            manager.ensureLayout(for: container)
+            let glyphs = manager.glyphRange(for: container)
+            let textRect = manager.boundingRect(forGlyphRange: glyphs, in: container).offsetBy(dx: editor.textContainerOrigin.x, dy: editor.textContainerOrigin.y)
+            let textMidY = editor.convert(textRect, to: root).midY
+            print("SEARCH POSITION carrier=\(carrier) caret=\(caretRect()) textMidY=\(textMidY) clip=\(scroll.contentView.bounds)")
+            #expect(abs(textMidY - carrier.midY) <= 3)
+            scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: -15))
+            #expect(scroll.contentView.bounds.origin.y == 0)
+            #expect(abs(caretRect().midY - carrier.midY) <= 2)
+        } catch { await fixture.close(); throw error }
+        await fixture.close()
     }
 
     @Test func firstRunOwnsAdmissionWithoutMountingTheHiddenComposer() async throws {
