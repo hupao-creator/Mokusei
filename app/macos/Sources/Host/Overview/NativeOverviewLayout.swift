@@ -716,9 +716,9 @@ private final class OverviewPackingSolver {
             return a == b ? idPrecedes($0.id, $1.id) : a > b
         }
         // A readable, reasonably occupied history is more valuable than a
-        // cosmetic contour repair. Keep every survivor fixed; only entrants
-        // search empty cells. Conflicting growth still uses the existing
-        // planner and its collision-certified move order.
+        // cosmetic contour repair. Keep every survivor fixed unless packing
+        // proves an entire row or column is avoidable. Conflicting growth still
+        // uses the existing planner and its collision-certified move order.
         if preservePositions, let fittingSize, !previous.isEmpty {
             var placed = members.compactMap { member in
                 old[member.id].map { Placement(member: member, column: $0.column, row: $0.row) }
@@ -759,7 +759,32 @@ private final class OverviewPackingSolver {
                    result.bounds.width <= fittingSize.width + 1e-6,
                    result.bounds.height <= fittingSize.height + 1e-6,
                    area >= Double(result.bounds.columns) * Double(result.bounds.rows) * 0.75 {
-                    return finish(result)
+                    // Occupancy alone can keep a wide card stranded below a
+                    // vacancy after deletion or shrink. Only reject history
+                    // when a smaller envelope is actually packable; necessary
+                    // vacancies (such as a deleted center cell) stay stable.
+                    var dominated = false
+                    do {
+                        for size in [Cell(column: result.bounds.columns - 1, row: result.bounds.rows),
+                                     Cell(column: result.bounds.columns, row: result.bounds.rows - 1)] {
+                            guard size.column > 0, size.row > 0,
+                                  area <= Double(size.column) * Double(size.row) else { continue }
+                            if let compact = try packBox(fixed: [], free: free,
+                                box: SearchBox(column: result.bounds.column, row: result.bounds.row,
+                                               columns: size.column, rows: size.row), tick: tick) {
+                                // Preserve this readable witness if subsequent
+                                // shape/move optimization exhausts the budget.
+                                geometricFallback = try summarize(compact, old: old)
+                                dominated = true
+                                break
+                            }
+                        }
+                    } catch NativeOverviewLayoutError.searchLimit {
+                        // No smaller witness was established. The original
+                        // zero-travel candidate is still a legal readable fit.
+                        return finish(result, searchComplete: false)
+                    }
+                    if !dominated { return finish(result) }
                 }
             }
         }
@@ -772,7 +797,7 @@ private final class OverviewPackingSolver {
             guard Double(columns) * Double(rows) >= Double(area) else { return nil }
             return try packBox(fixed: [], free: free, box: SearchBox(column: 0, row: 0, columns: columns, rows: rows), tick: tick)
         }
-        if let fittingSize {
+        if let fittingSize, geometricFallback == nil {
             let columns = Int(min(Double(maxColumns), floor((fittingSize.width + NativeOverviewLayout.gap + 1e-6) / pitchX)))
             let rows = Int(min(Double(maxRows), floor((fittingSize.height + NativeOverviewLayout.gap + 1e-6) / pitchY)))
             // Establish viewport feasibility before spending work on aspect or
