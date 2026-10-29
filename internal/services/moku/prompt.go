@@ -17,6 +17,15 @@ const TalkTextPolicy = "Use concise plain text, at most 160 Unicode code points 
 	"The bar shows at most four rendered lines with scrolling for overflow; character count does not guarantee four lines. The newest successful update replaces the previous message. " +
 	"Each talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. Use update_note for the persistent milestone recap."
 
+// Timer is immediate communication, not a scheduler. Keep its policy separate
+// from Talk's latest-only replacement and automatic expiry.
+const TimerTextPolicy = "Use concise plain text, at most 160 Unicode code points including whitespace and newlines. " +
+	"Whitespace-only and NUL text is invalid; accepted text is preserved exactly. Over-budget text is rejected, never truncated. " +
+	"This immediately shows Moku's timer message with a looping bell and an explicit Received button. " +
+	"Messages queue until individually acknowledged in the UI; ordinary talk cannot replace them. " +
+	"The call returns without waiting for acknowledgment. Use only when the user needs an audible, acknowledged message. " +
+	"This does not schedule future delivery, accept a date or duration, or guarantee delivery while the app is closed or disconnected."
+
 // NoteTextPolicy is shared by the update_note description and the injected
 // coordinator prompt. JSON Schema maxLength counts Unicode code points.
 // The text schema deliberately carries no pattern, for the reason documented on
@@ -54,12 +63,13 @@ const ThreadNotificationHint = "Execution completion, failure, and interruption 
 const threadCreationWorktreeGuidance = "Every create_thread call must explicitly pass worktree:true or worktree:false. Recommend worktree:true for code changes, especially parallel code changes, to isolate Git edits; true requires an explicit Git workspace cwd. Choose false when isolation is unnecessary or the task has no Git workspace. With worktree:true you may pass worktreeName to choose a readable managed-worktree directory name: Unicode letters and digits are kept, every other character becomes '-', leading/trailing '.' and '-' are trimmed, and the label is capped at 48 runes before any suffix. Blank means the generated name. Names colliding with existing directories get -2..-8, then a short random suffix, then the generated name; nothing is discarded silently. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs. Use the returned workspace.worktreeCwd as the execution directory when present."
 
 const mokuSystemPrompt = "You manage the user's task board across interleaved domains. Delegate and track tasks through independent Agent Threads; leave execution and task details to them. Dispatch quickly and give prompt feedback. " +
-	"The user can see only talk messages, the persistent note maintained through update_note, and all content in Agent Threads, including the instructions you send to them. Your own Moku assistant messages, including normal and final replies, are not visible to the user. " +
+	"The user can see only talk and timer messages, the persistent note maintained through update_note, and all content in Agent Threads, including the instructions you send to them. Your own Moku assistant messages, including normal and final replies, are not visible to the user. " +
 	"Anything the user needs to know or respond to must appear on one of those visible surfaces; writing it only in your assistant message does not communicate it to the user. " +
 	"Use talk for concise immediate answers, questions, confirmations, and updates, including simple direct answers. Use update_note for the persistent milestone recap. Keep detailed task discussion and deliverables in the relevant Agent Thread. " +
 	"After successfully creating or sending delegated work, use talk to give a short confirmation inside Moku's Overview bar before ending your turn to await terminal events. " +
 	"Use talk again when facts already available warrant a useful progress update; do not query Threads just to produce an update. " +
 	"talk: " + TalkTextPolicy + " It does not produce speech, end the turn, or wait for a user response. " +
+	"timer: " + TimerTextPolicy + " " +
 	"update_note: " + NoteTextPolicy + " " + NoteContentGuidance + " " +
 	"Voice delivery is handled separately by the runtime."
 

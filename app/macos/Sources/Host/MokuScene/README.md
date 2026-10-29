@@ -282,3 +282,63 @@ previous valid surface; pending interventions resume only after Settings exits.
 Voice media ownership and background execution are unchanged. A deferred voice
 composer restoration is applied when Settings releases presentation ownership.
 Only loaded Overview admits Settings, including menu and semantic entry points.
+
+
+## Immediate Timer
+
+`timer(text)` uses the same completed tool-operation audit path as Talk, with
+its own workspace-owned [controller and audio port](NativeMokuTimer.swift).
+Only completed `timer` rows with `result.ok:true`, no error and valid text enter
+the FIFO. Identity includes owner, Harness, execution and operation ID, so
+repeated snapshots and a delayed double click cannot replay or acknowledge a
+successor. Equal text in separate successful calls remains separate messages.
+Ordinary Talk keeps its existing silent, latest-only, 60-second presentation.
+
+[NativeMokuTimerBar](NativeMokuTimerBar.swift) reserves a small seat above the
+current workspace route with Moku's surprised eyes, the complete scrollable text,
+a queue count and an always-present **已收到 / Received** button. It does not
+navigate, replace the Dock editor, grab focus, or close voice/permission surfaces.
+Its click region is excluded from composer outside-click dismissal. It has no
+Escape, outside-click, focus-loss or timeout acknowledgment. Static eyes and
+nonanimated presentation respect Reduce Motion. Native text/buttons expose the
+content and action to accessibility; acknowledgment does not require audio.
+
+The model owns the controller across scene and route remounts, including UI
+reload. Its first installed snapshot establishes a silent history baseline;
+completed rows in that snapshot are not new messages. Pending operations can
+still complete afterward. Subsequent snapshots enqueue unseen completed rows,
+including the bounded cross-execution catch-up tail. A disconnect retains the
+already received queue and loop; local acknowledgment remains usable offline.
+A successful tool call while no client is running is not guaranteed delivery.
+Long gaps beyond the 256-row tail, history clearing and owner replacement can
+lose unseen events. There is no exactly-once guarantee across clients or app
+restarts: each workspace owns its queue, seen identities and acknowledgments in
+memory. Restart discards them and baselines the initial restored history; a stale
+reading cache followed by fresher hydration can expose other unseen operations.
+This is intentionally not a reliable persistent alarm/reminder service.
+
+The production player lazily loads macOS `Glass.aiff` through `NSSound`, loops
+one shared bell while the queue is nonempty, and never alters system volume or
+voice ownership. Acknowledging the last item stops it; workspace shutdown stops
+it before asynchronous runtime/media cleanup, and process exit ends playback.
+Playback failure keeps the message and receipt button visible, reports the error
+in the bar and offers an explicit retry. Muted devices, output routing, sleep,
+OS audio interruption, and actual audibility are outside headless coverage;
+no change to microphone/WebRTC state is made to force an audible bell.
+
+Run the production binding/SQLite/catalog replay and Swift tests without windows
+or real sound (all Timer tests inject fake players):
+
+```sh
+MOKU_TIMER_NATIVE_FIXTURE=/tmp/moku-timer-records.json ./scripts/go.sh run -race ./tools/verification/moku
+MOKUSEI_TEST_HEADLESS=1 MOKU_TIMER_NATIVE_FIXTURE=/tmp/moku-timer-records.json xcrun swift test --package-path app/macos --filter 'NativeMokuTimerTests|NativeMokuTalkTests'
+./scripts/go.sh test -race ./internal/services/moku ./internal/core/runtime
+```
+
+The new suites cover validation/audit failure, queue order, snapshot deduplication,
+same-text calls, identity fencing, audio failure/retry, silent startup, reconnect,
+workspace remounts, retained drafts/selection, and windowless production bar
+accessibility. They do not certify rendered animation frames, actual keyboard
+focus, active voice playback continuity, sound output, or real VoiceOver operation.
+Those require explicit interactive acceptance; do not open windows or play the
+production bell during headless verification.

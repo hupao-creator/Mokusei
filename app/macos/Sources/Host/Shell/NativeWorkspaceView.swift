@@ -474,6 +474,9 @@ public struct NativeWorkspaceView: View {
                 .allowsHitTesting(!presentation.scene.settingsOpen)
                 .accessibilityHidden(presentation.scene.settingsOpen)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            NativeMokuTimerBar(timer: model.timer, exclusions: presentation.scene.outsideClickExclusions)
+        }
         .environment(\.locale, Locale(identifier: model.preferences.locale.rawValue))
         .environment(\.nativeOfflineDraftEditing, model.hasInitialContent && !model.runtimeAvailable && !model.stopping)
         .environment(\.nativeCanvasInputRegions, canvasInputRegions)
