@@ -240,7 +240,8 @@ class ReadingDriver:
     def replay(self, source):
         for record in map(json.loads, Path(source).read_text().splitlines()):
             if record["kind"] == "action":
-                self.route(record["action"])
+                step(self.client, self.trace, record["action"], wait=record.get("wait", True),
+                     expected_error=record.get("expectedError"))
             elif record["kind"] == "reading.action":
                 action = record["action"]
                 state = self.wait(lambda state: any(item["id"] == action["controlId"] for item in self.controls(state)))
