@@ -157,6 +157,19 @@ without changing its exposure receipt or the workspace draft.
 
 [NativeMokuTalk](NativeMokuTalk.swift) shows the latest valid `talk` or `create_thread` operation. Talk is selectable text in a four-line viewport with scrolling for overflow. It does not edit the draft or grab focus. Clicking outside the capsule dismisses the presented notification without consuming the click, including clicks in another window or app; clicks and scrolling inside retain it. The cross-app mouse observer is removed when the notification is hidden or the Dock unmounts. Dismissed/presented operation identity survives refresh and remount within its scene; a notification covered before presentation waits until it can actually be shown.
 
+The two vertical strokes to the left of Talk are Moku's eyes, drawn by
+`NativeMokuCharacterSurface` in its `.face` seat, rather than a pause button.
+The row reserves a 34-point eye seat and a 15-point gap; with its 15-point
+leading inset, the message viewport starts 64 points from the capsule's left
+edge. The eye drawing uses its own centered 58×49-point canvas (scaled in
+landing), so its painted bounds, rather than that canvas's frame, determine
+clearance. `NativeMokuTalkTests.longMessagesKeepClearOfEyesWithoutOpeningAWindow`
+mounts the production Dock in windowless hosting views at 188, 320 and 900
+points, with Chinese/English long messages and ordinary/landing sizes. It checks
+settled eye-path and native message-clip separation. This headless check does
+not certify animation frames, rendered pixels or native scrolling behavior;
+those remain in the display-gated transcript and transition replays.
+
 Text shorter than the Talk viewport is vertically centered beside the eyes.
 Overflow keeps its bottom anchor and follows new text only while the reader is
 at the tail; the same layout applies to the voice transcript. The Dock's Stop

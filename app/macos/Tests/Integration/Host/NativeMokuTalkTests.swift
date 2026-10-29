@@ -6,6 +6,7 @@ import MokuseiTestSupport
 #endif
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 @testable import MokuseiUI
 
 @MainActor @Suite(.serializedNative)
@@ -189,6 +190,55 @@ struct NativeMokuTalkTests {
         #expect(state.talkPresentation.message?.id == "pending")
         state.setSearchActive(false); state.setWindowVisible(true)
         #expect(state.talkPresentation.message?.id == "pending")
+    }
+
+    @Test func longMessagesKeepClearOfEyesWithoutOpeningAWindow() async throws {
+        func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
+            ((root as? T).map { [$0] } ?? [])
+                + root.subviews.flatMap { descendants($0, of: type) }
+        }
+        for width in [CGFloat(188), 320, 900] {
+            for landing in [false, true] {
+                for (locale, text) in [("zh", String(repeating: "界", count: 160)),
+                                       ("en", String(repeating: "W", count: 160))] {
+                    let state = NativeMokuSceneState()
+                    state.setWindowVisible(true)
+                    state.receiveTalk(.init(id: "headless-eyes", text: text))
+                    let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+                    let host = NSHostingView(rootView: NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
+                        landing: landing, talk: text, onSend: { _ in }, onCancel: {})
+                        .environment(\.locale, Locale(identifier: locale))
+                        // Check settled layout; AppKit presentation animation
+                        // needs a visible window and is covered by native replays.
+                        .transaction { $0.animation = nil; $0.disablesAnimations = true })
+                    host.frame = CGRect(x: 0, y: 0, width: width, height: 500)
+                    // Mount the actual Dock offscreen. No NSWindow or display link
+                    // is needed to check its native drawing and scroll boundaries.
+                    for _ in 0..<8 {
+                        host.layoutSubtreeIfNeeded()
+                        try await Task.sleep(for: .milliseconds(10))
+                    }
+                    #expect(host.window == nil)
+                    let face = try #require(descendants(host, of: NativeMokuCharacterCanvas.self).first { $0.seat == .face })
+                    let scroll = try #require(descendants(host, of: NSScrollView.self).first { SwiftUIReplay.text(in: $0).contains(text) })
+                    let pose = face.controller.pose
+                    let eyes = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"))
+                        .path(in: face.bounds).boundingRect
+                    let eyeFrame = host.convert(eyes, from: face)
+                    let textFrame = host.convert(scroll.contentView.bounds, from: scroll.contentView)
+                    #expect(eyeFrame.width > 0 && textFrame.width > 0)
+                    #expect(eyeFrame.maxX + 8 <= textFrame.minX,
+                            "Eyes overlap text at width \(width), landing \(landing), locale \(locale)")
+                    #expect(SwiftUIReplay.text(in: host).contains(text))
+                    #expect(textFrame.minX >= state.capsuleFrame.minX)
+                    #expect(textFrame.maxX <= state.capsuleFrame.maxX)
+                    // Offscreen SwiftUI supplies the native clip geometry but
+                    // leaves its document bounds empty. Scroll behavior still
+                    // belongs to the display-gated transcript layout replay.
+                    state.settle()
+                }
+            }
+        }
     }
 
     @Test func fourLineViewportUsesActualTextKitMetrics() {
