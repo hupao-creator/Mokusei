@@ -266,6 +266,15 @@ struct NativeMokuNoteTests {
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         func frame(_ item: NSObject) throws -> CGRect {
             if let accessible = item as? any NSAccessibilityProtocol { return accessible.accessibilityFrame() }
+            // SwiftUI.AccessibilityNode implements accessibilityFrame without
+            // declaring NSAccessibilityProtocol, and -perform: boxes the CGRect
+            // return incorrectly. Invoke the IMP with its declared signature.
+            let frameSelector = NSSelectorFromString("accessibilityFrame")
+            if let method = class_getInstanceMethod(type(of: item), frameSelector) {
+                typealias FrameFunction = @convention(c) (AnyObject, Selector) -> CGRect
+                let frame = unsafeBitCast(method_getImplementation(method), to: FrameFunction.self)(item, frameSelector)
+                if frame.width > 0 && frame.height > 0 { return frame }
+            }
             let selector = NSSelectorFromString("accessibilityAttributeValue:")
             let position = try #require(item.perform(selector, with: "AXPosition")?.takeUnretainedValue() as? NSValue)
             let size = try #require(item.perform(selector, with: "AXSize")?.takeUnretainedValue() as? NSValue)
