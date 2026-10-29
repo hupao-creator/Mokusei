@@ -2,6 +2,14 @@
 
 `./scripts/go.sh run -race ./tools/verification/pi` runs the real Go adapter against a self-executing protocol fixture. `-mode native` uses the installed external Pi CLI with a loopback scripted model service; `-mode all` runs both. `-artifacts <directory>` retains JSON evidence. `-timeouts` includes real startup/request timeout cases.
 
+The settings fixture rejects discovery processes that enable startup network
+refresh and verifies usable availability/catalog results for shared cold/warm
+reads. Native mode forces twelve consecutive discovery refreshes through the
+production adapter, checking model/thinking choices and the absence of leftover
+`auth.json.lock` after each process drains. `native-settings-discovery.json`
+retains the durations. The native configuration is disposable; user account
+files are not read or changed.
+
 `./scripts/go.sh run -race ./tools/verification/pi -swift-usage -timeout 10m`
 additionally feeds 60 Go-produced durable/overview/thread/execution/turn fixtures
 through the real Swift Pi plugin and checks the Overview card and execution-usage

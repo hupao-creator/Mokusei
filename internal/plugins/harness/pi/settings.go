@@ -360,7 +360,9 @@ func reusableObservation(settings ThreadSettings, value observation) bool {
 	return false
 }
 func (s *settingsAPI) readObservation(ctx context.Context, settings ThreadSettings, cwd, executable string, env map[string]string, wantCatalog func() bool) (value observation, err error) {
-	rpc, err := StartSession(ctx, ProcessOptions{ExecutablePath: executable, Cwd: cwd, Env: env, Args: append([]string{"--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates"}, modelArguments(settings)...)})
+	// This short-lived reader must not start Pi's background catalog refresh:
+	// exiting during its async auth-file work can strand a lock for the next reader.
+	rpc, err := StartSession(ctx, ProcessOptions{ExecutablePath: executable, Cwd: cwd, Env: env, Args: append([]string{"--offline", "--no-session", "--no-extensions", "--no-skills", "--no-prompt-templates"}, modelArguments(settings)...)})
 	if err != nil {
 		return observation{}, selectionFailure(settings, err)
 	}

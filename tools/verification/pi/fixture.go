@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -36,6 +37,9 @@ func serveFixture() {
 		return
 	}
 	mode := os.Getenv("MOKUSEI_PI_VERIFICATION_SCENARIO")
+	if mode == "settings-sharing" {
+		check(slices.Contains(os.Args, "--offline"), "settings discovery must disable native startup refresh")
+	}
 	if mode == "stubborn-close" {
 		signal.Ignore(syscall.SIGTERM)
 		check(os.WriteFile(os.Getenv("MOKUSEI_PI_VERIFICATION_PID"), []byte(strconv.Itoa(os.Getpid())), 0600) == nil, "write stubborn child PID")
