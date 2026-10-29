@@ -88,14 +88,25 @@ struct NativeReadingPagePresentationTests {
 
     @Test func retainedOverviewReturnsWithLatestContent() async throws {
         let fixture = ReadingFixture()
+        fixture.duration = 1.2
         let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
         defer { window.close() }
         try await SwiftUIReplay.wait { fixture.parentAppearances == 1 && fixture.renderedText == "Initial overview" }
         let count = fixture.parentAppearances
         fixture.open = true
-        try await SwiftUIReplay.wait { fixture.frontAppearances == 1 }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait {
+            guard let probe = fixture.frontProbe else { return false }
+            let x = probe.convert(probe.bounds, to: root).minX
+            return x > root.bounds.width * 0.4 && x < root.bounds.width * 0.6
+        }
+        let probe = try #require(fixture.frontProbe)
+        let beforeReturn = probe.convert(probe.bounds, to: root).minX
         fixture.text = "Latest overview"
         fixture.motion.close()
+        try await Task.sleep(for: .milliseconds(100))
+        let duringReturn = probe.convert(probe.bounds, to: root).minX
+        #expect(duringReturn >= beforeReturn - 1, "Returning during opening must not jump toward the open position")
         try await SwiftUIReplay.wait { !fixture.open && fixture.renderedText == "Latest overview" }
         #expect(fixture.parentAppearances == count)
     }

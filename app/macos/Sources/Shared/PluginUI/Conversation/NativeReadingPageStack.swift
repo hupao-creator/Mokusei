@@ -195,6 +195,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // not adjoined to its neighbour.
         let controlPoints: (x1: Double, x2: Double) = !closing && emphasizedOpening
             ? (0.76, 0.24) : (0.42, 0.58)
+        let initialProgress = progress
+        let targetProgress = closing ? 0.0 : 1.0
         animationTask = Task { @MainActor in
             // Commit the offscreen front (or reveal the blurred retained
             // parent on return) before advancing the shared timeline. Without
@@ -213,7 +215,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 let eased = NativeReadingPageTiming.sample(x1: controlPoints.x1, x2: controlPoints.x2, at: time)
                 var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
-                withTransaction(transaction) { progress = closing ? 1 - eased : eased }
+                withTransaction(transaction) { progress = initialProgress + (targetProgress - initialProgress) * eased }
                 guard time < 1 else { break }
                 do { try await Task.sleep(for: .milliseconds(8)) } catch { return }
             }
