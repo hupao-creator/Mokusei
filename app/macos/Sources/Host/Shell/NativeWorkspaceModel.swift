@@ -9,6 +9,7 @@ public final class NativeWorkspaceModel {
     public let client: RuntimeClient
     public let preferences: DesktopPreferences
     public let plugins: NativePluginComposition
+    public let timer: NativeMokuTimerController
     public let catalog = NativeWorkspaceCatalog()
     @ObservationIgnored public let startupPerformance: NativeStartupPerformance?
     public var hasInitialContent: Bool { state != nil && catalog.moku != nil }
@@ -80,10 +81,12 @@ public final class NativeWorkspaceModel {
     )
 
     public init(client: RuntimeClient, preferences: DesktopPreferences, plugins: NativePluginComposition,
-                startupPerformance: NativeStartupPerformance? = nil) {
+                startupPerformance: NativeStartupPerformance? = nil,
+                timer: NativeMokuTimerController? = nil) {
         self.client = client
         self.preferences = preferences
         self.plugins = plugins
+        self.timer = timer ?? NativeMokuTimerController()
         self.startupPerformance = startupPerformance
         preferences.diagnostics = SettingsDiagnostics(client: client)
     }
@@ -200,6 +203,7 @@ public final class NativeWorkspaceModel {
                 recoveryRevision += 1
             }
             state = snapshot
+            timer.receive(catalog.moku)
             if hasInitialContent { startupPerformance?.dataReady() }
             catalogError = nil
             if connection == .connected { connectionError = nil }
@@ -347,6 +351,7 @@ public final class NativeWorkspaceModel {
     public func stop() async throws {
         guard !stopping else { return }
         stopping = true
+        timer.stop()
         // Pause pending settings timers before awaiting voice/service teardown.
         refreshAvailability()
         // Revoke local media immediately, but do not let an unacknowledged
