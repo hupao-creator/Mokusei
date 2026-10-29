@@ -99,12 +99,19 @@ The adapter replay also checks this boundary with shared production-renderer
 fixtures in `tools/verification/firstresponse`. The native cross-language replay
 is `python3 tools/verification/reading-presentation/run.py --initial-response`.
 
-Settings state and full-catalog readers share a native observation flight. A full
-reader upgrades an in-flight state request before catalog acquisition; a reader
-arriving after that decision retries after the state-only process drains. Model
-and thinking-level RPCs run concurrently. State-only results cannot overwrite a
-successful full catalog. Refresh is scoped to the native source key, and an
-abandoned or superseded probe cannot publish. Keys include settings/cwd, native
+Settings state and full-catalog readers share a native observation flight. The
+observation process uses `--offline`: discovery reads Pi's local configuration and
+cached model catalog without starting a background network catalog refresh. Such
+a refresh can race this short-lived reader's exit and strand an auth-file lock,
+blocking the next reader beyond its startup deadline. Explicit discovery refresh
+rereads local native state; remote catalog updates remain owned by Pi. Execution
+processes keep their normal startup behavior.
+
+A full reader upgrades an in-flight state request before catalog acquisition; a
+reader arriving after that decision retries after the state-only process drains.
+Model and thinking-level RPCs run concurrently. State-only results cannot
+overwrite a successful full catalog. Refresh is scoped to the native source key;
+an abandoned or superseded probe cannot publish. Keys include settings/cwd, native
 environment, executable and config/auth/model file metadata. Successful full
 observations retain five-minute freshness; incomplete observations keep the
 existing short retry interval. Native execution confirmation remains unchanged.

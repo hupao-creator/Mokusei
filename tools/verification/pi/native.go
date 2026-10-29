@@ -119,6 +119,9 @@ func runNative(ctx context.Context) error {
 	if verificationConfig.nativeShutdownOnly {
 		return nil
 	}
+	if err = verifyNativeSettingsDiscovery(ctx, root, wrapper, env); err != nil {
+		return err
+	}
 	host := plugin.HostContext{HarnessDataRoot: filepath.Join(root, "data"), TemporaryWorkspaceRoot: filepath.Join(root, "temporary"), Environment: func(context.Context) (map[string]string, error) {
 		copy := map[string]string{}
 		for k, v := range env {
