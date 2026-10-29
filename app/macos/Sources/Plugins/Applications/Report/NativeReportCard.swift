@@ -6,6 +6,12 @@ import SwiftUI
 
 @MainActor private enum ReportExpansionStore { static var expanded = Set<JSONText>() }
 
+private enum ReportArchiveHitTarget {
+    /// The glyph keeps its 20pt layout; the interactive shape gains 4pt per side.
+    /// The resulting 28pt target stays clear of the title and metadata row.
+    static let inset: CGFloat = 4
+}
+
 @MainActor struct NativeReportCard: View {
     let props: ApplicationThreadProps<NativeReportView>
     let projection: NativeReportCardProjection
@@ -28,8 +34,12 @@ import SwiftUI
                         Text(props.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620)).lineLimit(1).help(props.entry.title.string)
                         Spacer(minLength: 0)
                         Button { Task { await archive() } } label: {
-                            NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 12).frame(width: 20, height: 20)
-                        }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.faint.swiftUI).disabled(archivePending)
+                            NativeIcon(name: props.entry.archived ? "ArchiveRestore" : "Archive", size: 12)
+                                .frame(width: 20, height: 20)
+                                .padding(ReportArchiveHitTarget.inset)
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).padding(-ReportArchiveHitTarget.inset)
+                            .foregroundStyle(NativePalette.overview.faint.swiftUI).disabled(archivePending)
                             .accessibilityLabel(applicationText(locale, props.entry.archived ? "恢复报告：\(props.entry.title.string)" : "归档报告：\(props.entry.title.string)", props.entry.archived ? "Restore report: \(props.entry.title.string)" : "Archive report: \(props.entry.title.string)"))
                     }
                     TimelineView(.periodic(from: .now, by: 30)) { clock in
