@@ -394,6 +394,10 @@ struct NativeComposerEditor: NSViewRepresentable {
 /// outside the scroll view's layout pass. Single-line fields have no vertical
 /// scroll range, even while their document is temporarily shorter than the clip.
 @MainActor private final class SingleLineComposerClipView: NSClipView {
+    override func scroll(to newOrigin: NSPoint) {
+        super.scroll(to: NSPoint(x: newOrigin.x, y: 0))
+    }
+
     override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var constrained = super.constrainBoundsRect(proposedBounds)
         constrained.origin.y = 0

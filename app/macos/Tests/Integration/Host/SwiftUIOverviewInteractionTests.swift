@@ -48,6 +48,8 @@ struct SwiftUIOverviewInteractionTests {
         #expect(scroll.contentView.bounds.origin.y == 0)
         editor.setMarkedText("ni", selectedRange: .init(location: 2, length: 0), replacementRange: .init(location: NSNotFound, length: 0))
         #expect(editor.hasMarkedText())
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: -15))
+        #expect(scroll.contentView.bounds.origin.y == 0 && editor.hasMarkedText())
         editor.insertText("你好世界", replacementRange: .init(location: NSNotFound, length: 0))
         try await SwiftUIReplay.wait { fixture.text == "你好世界" }
         #expect(!editor.hasMarkedText())
@@ -62,6 +64,9 @@ struct SwiftUIOverviewInteractionTests {
         editor.scrollRangeToVisible(NSRange(location: longQuery.utf16.count, length: 0))
         let horizontalOrigin = scroll.contentView.bounds.origin.x
         #expect(horizontalOrigin > 0)
+        scroll.contentView.scroll(to: NSPoint(x: horizontalOrigin, y: -15))
+        #expect(scroll.contentView.bounds.origin.y == 0)
+        #expect(scroll.contentView.bounds.origin.x == horizontalOrigin)
         scroll.needsLayout = true
         scroll.layoutSubtreeIfNeeded()
         #expect(scroll.contentView.bounds.origin.x == horizontalOrigin)
