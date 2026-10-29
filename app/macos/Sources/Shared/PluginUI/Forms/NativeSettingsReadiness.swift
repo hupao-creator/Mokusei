@@ -35,6 +35,6 @@ public extension View {
 }
 
 public extension EnvironmentValues {
-    @Entry var nativeSettingsOnboarding = false
+    @Entry var nativeSettingsCompactPresentation = false
     @Entry var nativeSettingsReadiness: NativeSettingsReadiness?
 }

@@ -14,7 +14,7 @@ selection, Undo, label activation and the draft close/save gate.
 | General | Appearance/language popups, glass world switch, Agent/install buttons, cancel and destructive clear buttons |
 | Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
-| Report and Tag | Inheritance switches, Harness popups and the same contributed execution fields |
+| Report and Tag | Onboarding inheritance/independent glass choices, Harness seats, native execution fields and live capability animations |
 
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
@@ -48,16 +48,17 @@ invalid-field focus and save flushing. Quit waits for the pending valid save
 before Runtime teardown; invalid or failed saves offer Keep Editing and Quit
 Without Saving. The existing bounded cleanup deadline and repeated Quit remain
 available.
-The sidebar includes General, Moku and enabled application sections.
+The horizontal header includes General, Moku, Tag and Report in that order, followed by any other enabled application sections. Native tab semantics, a selected underline and roving keyboard focus are shared at every width; the header scrolls when its tabs no longer fit.
 Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
-same glass capsule grows toward a stable 900×640-point target, bounded by the
-viewport, and retains its bottom character row. Ordinary Overview keeps its
-bottom anchor; empty-workspace landing keeps the expanded capsule centered.
-The existing sidebar/compact tabs and form contents remain unchanged. A single
+same capsule grows toward a centered 780×680-point target, bounded by 24-point
+horizontal and 56-point vertical viewport margins. Its expanded surface uses
+untinted system regular glass without separate sidebar/content fills; Reduce
+Transparency supplies a solid fallback. The resident character remains mounted
+but hidden while Settings owns the full panel. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
@@ -145,14 +146,14 @@ text-field notifications cannot clear another editor's close/save gate.
 
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language and `glass world` persistence has its own path and works without a connected Runtime. The General → Interface preferences toggle keeps the exact `glass world` label in both languages and directly saves `DesktopPreferences.glassWorld`; it does not enter a Runtime draft. `desktop-preferences.json` stores `preferences.glassWorld`, defaults to true when missing, and preserves it during appearance, language and selected-thread writes. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved Boolean as `settings.glassWorld`.
 
-Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku routing guidance remains editable; there is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
+Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku routing guidance remains editable under Advanced settings; an existing enabled editor is expanded on entry, and invalid-field focus also expands it. There is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
 Settings no longer exposes plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
-same Moku coordination map with an in-memory settings model. Its `.setup`
-presentation omits map labels and advanced routing guidance. Both presentations
+same Moku coordination map with an in-memory settings model. Its `.compact`
+presentation omits map labels. Settings also uses this map presentation and retains advanced routing guidance in a disclosure. Both presentations
 use the historical circular avatar (`8f3548f`) with the same selection, handoff
-and target feedback; the Settings page retains its default complete editor.
+and target feedback; the Settings page retains its native execution editors and saved values.
 
 Changing the coordinating Harness is rejected through the existing save-error
 path while Moku or any ordinary Agent Thread is busy, including pending input
@@ -198,9 +199,14 @@ page navigation, without changing its value. The next Escape returns from Settin
 `NativeModelSelectorReplayTests` mounts the page Escape monitor and sends events
 through NSApplication to cover this precedence, focus restoration and reopening.
 
-The production [onboarding panel](../Onboarding/README.md) uses this same model,
-map, Harness fields and typed application background editor. Its compact
-presentation omits group explanations and advanced routing. `draft.flush()`
+The production [onboarding panel](../Onboarding/README.md) and Settings mount
+the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application
+background editor. `nativeSettingsCompactPresentation` suppresses group explanations
+and selects the inheritance/independent glass controls. Tag and Report keep their
+production animations while configuration stays immediately available. Leaving
+the tab unmounts and cancels its animation; inactive/hidden windows pause it and
+Reduce Motion shows the completed composition. Settings has no onboarding progress
+or admission steps. Onboarding alone omits advanced routing. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.
 Harness editors report acquisition and incomplete local model choices through

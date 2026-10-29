@@ -12,7 +12,7 @@ public struct NativeApplicationBackgroundEditor: View {
     private let settingID: JSONText
     private let value: ApplicationBackgroundExecutionSettings
     private let change: (ApplicationBackgroundExecutionSettings) -> Void
-    @Environment(\.nativeSettingsOnboarding) private var onboarding
+    @Environment(\.nativeSettingsCompactPresentation) private var onboarding
 
     public init(workspace: NativeWorkspaceModel, settingsModel: NativeSettingsModel, settingID: JSONText,
                 value: ApplicationBackgroundExecutionSettings,

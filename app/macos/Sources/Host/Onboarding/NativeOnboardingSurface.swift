@@ -56,7 +56,7 @@ struct NativeOnboardingSurface: View {
         }
         .coordinateSpace(name: "onboarding")
         .ignoresSafeArea()
-        .environment(\.nativeSettingsOnboarding, true)
+        .environment(\.nativeSettingsCompactPresentation, true)
         .environment(\.nativeSettingsInteractions, state.interactions)
         .environment(\.nativeSettingsInteractionContext, state.context)
         .environment(\.nativeSettingsInteractionRefresh, state.interactions.refresh)
@@ -103,18 +103,10 @@ struct NativeOnboardingSurface: View {
                         if !state.admitted { ProgressView().padding(.top, 80) }
                         else if panelStep == .discovery { discovery.padding(.top, 22) }
                         else {
-                            Text(title).font(.system(size: 25, weight: .medium)).tracking(-0.5)
-                                .accessibilityAddTraits(.isHeader).accessibilityIdentifier("onboarding-title")
-                                .padding(.bottom, 8)
-                            Text(subtitle).font(.system(size: 13)).foregroundStyle(secondary)
-                                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                                .fixedSize(horizontal: false, vertical: true).padding(.bottom, 16)
-                            if panelStep == .tag {
-                                NativeOnboardingTagAnimation(harnesses: state.installed, locale: locale).padding(.bottom, 16)
-                            } else if panelStep == .report {
-                                NativeOnboardingReportAnimation(harnesses: state.installed, locale: locale).padding(.bottom, 16)
+                            NativeRoleConfigurationPanel(role: panelStep == .moku ? .moku : panelStep == .tag ? .tag : .report,
+                                harnesses: state.installed, locale: locale) {
+                                configurationForStep(panelStep).disabled(state.busy)
                             }
-                            configurationForStep(panelStep).disabled(state.busy)
                         }
                     }
                     .id(panelStep).transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 10)))
@@ -147,20 +139,6 @@ struct NativeOnboardingSurface: View {
         }.foregroundStyle(ink)
     }
 
-    private var title: String {
-        switch panelStep {
-        case .moku: "Moku"
-        case .tag: locale.text("找到想找的会话", "Find your conversations")
-        default: locale.text("从文字到图示", "From text to pictures")
-        }
-    }
-    private var subtitle: String {
-        switch panelStep {
-        case .moku: "One mind to orchestrate them all."
-        case .tag: "A few tags to find them all."
-        default: "Less to read. More to understand."
-        }
-    }
     private var discoveryError: String? {
         guard panelStep == .discovery else { return nil }
         if case .failed(let message) = state.settings.installationLoadState { return message }
@@ -219,7 +197,7 @@ struct NativeOnboardingSurface: View {
                             source: request.savedValue, scope: .global(executionOwner: .moku)),
                         section: request.section, executionSnapshot: true, settingsFormPage: true,
                         refreshSequence: request.refreshSequence, value: request.value))
-                }, onCoordinatorFrame: { _, _ in }, onCloseRequest: {}, presentation: .setup)
+                }, onCoordinatorFrame: { _, _ in }, onCloseRequest: {}, presentation: .compact)
         } else if let id = panelStep.settingID, let section = applicationSections.first(where: { $0.id == id }) {
             let saved = state.settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"] ?? .null
             section.content(saved, state.settings.applicationValueBinding(id))

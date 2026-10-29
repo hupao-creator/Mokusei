@@ -117,7 +117,7 @@ private struct Failure: Error { let message: String }
         fixture.settings = true
         try await Task.sleep(for: .milliseconds(150))
         guard fixture.navigation.section == "general" else { throw Failure(message: "Removed plugin selection did not fall back to General") }
-        window.selectNextKeyView(nil)
+        window.selectPreviousKeyView(nil) // Close -> the selected header tab.
         try await Task.sleep(for: .milliseconds(150))
         func press(_ code: UInt16, _ characters: String) {
             if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
@@ -125,10 +125,10 @@ private struct Failure: Error { let message: String }
                 context: nil, characters: characters, charactersIgnoringModifiers: characters,
                 isARepeat: false, keyCode: code) { window.sendEvent(event) }
         }
-        press(125, "\u{F701}") // Down: General -> Moku.
+        press(124, "\u{F703}") // Right: General -> Moku.
         try await Task.sleep(for: .milliseconds(150))
         guard fixture.navigation.section == "moku" else { throw Failure(message: "Settings arrow navigation did not reach Moku") }
-        press(125, "\u{F701}") // Wrap without visiting either removed section.
+        press(124, "\u{F703}") // Wrap without visiting either removed section.
         try await Task.sleep(for: .milliseconds(150))
         guard fixture.navigation.section == "general" else { throw Failure(message: "Settings arrow navigation did not wrap to General") }
         press(119, "\u{F72B}") // End.

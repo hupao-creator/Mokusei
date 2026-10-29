@@ -31,7 +31,8 @@ import SwiftUI
     @State private var hoveredTab: String?
     @State private var keyboardNavigation = false
     @State private var mokuMotion = NativeMokuSettingsAnimationState()
-    @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var tabSelection
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(model: NativeSettingsModel, navigation: NativeSettingsNavigation? = nil, preferences: DesktopPreferences, harnesses: [AnyHarnessPlugin],
                 applicationSections: [NativeApplicationSettingsSection] = [],
@@ -62,14 +63,13 @@ import SwiftUI
 
     public var body: some View {
         GeometryReader { geometry in
-            let compact = geometry.size.width <= 620
             if geometry.size.height < 220 {
                 // At extreme app zoom, fixed chrome can consume the viewport.
                 // Scroll the whole shell as well, retaining every real control.
-                NativeScrollView { panel(compact: compact).frame(minHeight: 360) }
+                NativeScrollView { panel.frame(minHeight: 360) }
                     .environment(\.nativeSettingsViewportWidth, geometry.size.width)
             } else {
-                panel(compact: compact)
+                panel
                     .environment(\.nativeSettingsViewportWidth, geometry.size.width)
             }
         }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
@@ -84,7 +84,6 @@ import SwiftUI
                 if activeAgent != nil { dismissAgent(returnFocus: true) }
                 else { requestClose() }
             })
-            .background(NativeSettingsWindowVisibility { mokuMotion.setVisible($0) })
             .background(SettingsNavigationInputObserver { keyboardNavigation = $0 })
             .onAppear {
                 model.draft.diagnostics.record(.page, .opened, revision: model.draft.revision)
@@ -126,126 +125,152 @@ import SwiftUI
             }
     }
 
-    private func panel(compact: Bool) -> some View {
-        let columns = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
-        return VStack(spacing: 0) {
-            HStack {
-                Spacer(minLength: 0)
-                Button(action: requestClose) {
-                    NativeIcon(name: "X", size: 14, strokeWidth: 2)
-                        .frame(width: 30, height: 30).contentShape(Circle())
-                }.buttonStyle(.plain).disabled(busy)
-                    .focused($focusedBack)
-                    .accessibilityLabel(locale.text("关闭设置", "Close settings"))
-                    .accessibilityIdentifier("settings-close")
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { navigation.returnRect = $0 }
-            }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 4)
-            columns {
-                sidebar(compact: compact).frame(width: compact ? nil : NativeGeometry.settingsSidebarWidth)
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: 8).accessibilityHidden(true)
-                    ScrollViewReader { reader in
-                        NativeScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Color.clear.frame(height: 0).id("top")
-                                if !model.runtimeAvailable {
-                                    SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
-                                }
-                                if let error = model.draft.error ?? model.operationError {
-                                    SettingsNotice(localizedError(error), error: true) {
-                                        if model.draft.error != nil {
-                                            HStack(spacing: 16) {
-                                                Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
-                                                    .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
-                                                if model.draft.conflicted {
-                                                    Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
-                                                        .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
-                                                }
-                                            }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
+    private var panel: some View {
+        VStack(spacing: 0) {
+            header
+            ScrollViewReader { reader in
+                NativeScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Color.clear.frame(height: 0).id("top")
+                        if !model.runtimeAvailable {
+                            SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
+                        }
+                        if let error = model.draft.error ?? model.operationError {
+                            SettingsNotice(localizedError(error), error: true) {
+                                if model.draft.error != nil {
+                                    HStack(spacing: 16) {
+                                        Button(locale.text(model.draft.conflicted ? "保留我的修改并重试" : "重试保存", model.draft.conflicted ? "Keep my changes and retry" : "Retry saving")) { model.draft.retry() }
+                                            .nativeSettingsAction("retry", label: "Retry saving") { model.draft.retry() }
+                                        if model.draft.conflicted {
+                                            Button(locale.text("放弃草稿并载入最新设置", "Discard draft and load latest settings")) { model.draft.discardConflict() }
+                                                .nativeSettingsAction("discard", label: "Discard draft") { model.draft.discardConflict() }
                                         }
-                                    }.id("notice")
+                                    }.buttonStyle(.bordered).disabled(busy || !model.runtimeAvailable)
                                 }
-                                sectionBody.disabled(busy)
-                                    .environment(\.nativeSettingsFormPage, true)
-                            }.background(GeometryReader { content in
-                                Color.clear.onAppear { settingsContentHeight = content.size.height }
-                                    .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
-                            }).coordinateSpace(name: "settings-form")
-                                .padding(.bottom, detailOverflow)
-                                .frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
-                                .padding(.horizontal, compact ? 20 : 32).padding(.top, 10).padding(.bottom, compact ? 20 : 32)
-                        }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
-                            .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
-                            .onChange(of: navigation.focusRequest) { _, _ in
-                                if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
-                            }
+                            }.id("notice")
+                        }
+                        sectionBody.disabled(busy)
+                            .environment(\.nativeSettingsFormPage, true)
+                    }.background(GeometryReader { content in
+                        Color.clear.onAppear { settingsContentHeight = content.size.height }
+                            .onChange(of: content.size.height) { _, height in settingsContentHeight = height }
+                    }).coordinateSpace(name: "settings-form")
+                        .padding(.bottom, detailOverflow)
+                        .frame(maxWidth: 560, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
+                        .padding(.horizontal, 30).padding(.top, 18).padding(.bottom, 36)
+                }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
+                    .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                    .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
+                    .onChange(of: navigation.focusRequest) { _, _ in
+                        if let field = model.draft.firstInvalidField { reader.scrollTo(field, anchor: .center) }
                     }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(NativeAppKitPalette.settings.main.swiftUI)
             }
         }
     }
 
-    private func sidebar(compact: Bool) -> some View {
-        VStack(spacing: 0) {
-            NativeScrollView(compact ? .horizontal : .vertical) {
-                let tabs = compact ? AnyLayout(HStackLayout(spacing: 4)) : AnyLayout(VStackLayout(spacing: 3))
-                tabs {
-                    ForEach(sections, id: \.self) { id in
-                        Button { navigation.section = id; focusedTab = id } label: {
-                            HStack(spacing: 8) {
-                                Group { if id == "general" { NativeIcon(name: "SlidersHorizontal", size: 14, strokeWidth: 2) } else { Circle().frame(width: 9, height: 9) } }.frame(width: 20)
-                                Text(sectionLabel(id)).font(.system(size: 13, weight: activeSection == id ? .medium : .regular))
-                                if !compact { Spacer(minLength: 0) }
-                            }.padding(.horizontal, 12).frame(height: compact ? 34 : 38).contentShape(Rectangle())
-                        }.buttonStyle(.plain).foregroundStyle(activeSection == id ? NativeAppKitPalette.settings.selectedTab.swiftUI : NativeAppKitPalette.settings.tab.swiftUI)
-                            .background {
-                                RoundedRectangle(cornerRadius: 7)
-                                    .fill(activeSection == id ? NativeAppKitPalette.settings.selectedTabFill.swiftUI : hoveredTab == id ? Color.white.opacity(colorScheme == .dark ? 21 / 255 : 80 / 255) : .clear)
-                                    .shadow(color: activeSection == id ? NativeAppKitPalette.color(0x34435a, alpha: 9 / 255).swiftUI : .clear, radius: 1.5, y: 1)
+    private var header: some View {
+        HStack(spacing: 0) {
+            Color.clear.frame(width: 30, height: 30).accessibilityHidden(true)
+            GeometryReader { geometry in
+                ScrollViewReader { reader in
+                    ScrollView(.horizontal) {
+                        tabs.frame(minWidth: geometry.size.width)
+                    }.scrollIndicators(.never)
+                        .onChange(of: activeSection) { _, id in reader.scrollTo(id, anchor: .center) }
+                }
+            }.frame(height: 42)
+            Button(action: requestClose) {
+                NativeIcon(name: "X", size: 14, strokeWidth: 2)
+                    .frame(width: 30, height: 30).contentShape(Circle())
+            }.buttonStyle(.plain).disabled(busy).focused($focusedBack)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(locale.text("关闭设置", "Close settings"))
+                .accessibilityIdentifier("settings-close")
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { navigation.returnRect = $0 }
+        }.padding(.horizontal, 22).padding(.top, 16).padding(.bottom, 12)
+    }
+
+    private var tabs: some View {
+        HStack(spacing: 8) {
+            ForEach(sections, id: \.self) { id in
+                Button { navigation.section = id; focusedTab = id } label: {
+                    Text(sectionLabel(id))
+                        .font(.system(size: 13, weight: activeSection == id ? .semibold : .regular))
+                        .padding(.horizontal, 12).frame(height: 42)
+                        .foregroundStyle(activeSection == id ? Color.primary : Color.secondary)
+                        .background {
+                            if hoveredTab == id { RoundedRectangle(cornerRadius: 10).fill(.primary.opacity(0.045)) }
+                        }
+                        .overlay(alignment: .bottom) {
+                            if activeSection == id {
+                                Capsule().fill(.primary.opacity(0.8)).frame(width: 18, height: 2)
+                                    .matchedGeometryEffect(id: "settings-tab", in: tabSelection)
                             }
-                            .onHover { hovering in if hovering { hoveredTab = id } else if hoveredTab == id { hoveredTab = nil } }
-                            .focusable(activeSection == id)
-                            .focused($focusedTab, equals: id)
-                            .modifier(SettingsNavigationFocusRing(visible: keyboardNavigation && focusedTab == id))
-                            .accessibilityRepresentation {
-                                SettingsTabAccessibilityRepresentation(title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {
-                                    navigation.section = id; focusedTab = id
-                                }
-                            }
-                            .accessibilityLabel(sectionLabel(id))
-                            .accessibilityAddTraits(activeSection == id ? .isSelected : [])
-                            .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow, .home, .end]) { event in
-                                navigateTab(from: id, key: event.key); return .handled
-                            }
-                            .settingsTabAccessibilityAnchor(id: id)
+                        }.contentShape(Rectangle())
+                }.buttonStyle(.plain).focusable(activeSection == id).focused($focusedTab, equals: id)
+                    .modifier(SettingsNavigationFocusRing(visible: keyboardNavigation && focusedTab == id))
+                    .onHover { hovering in
+                        if hovering { hoveredTab = id } else if hoveredTab == id { hoveredTab = nil }
                     }
-                }.padding(.horizontal, 12).padding(.bottom, compact ? 9 : 24)
-                    .settingsTabListAccessibility(title: locale.text("设置分类", "Settings sections"), horizontal: compact,
-                        tabs: sections.map { id in
-                            SettingsAccessibilityTab(id: id, title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {
-                                navigation.section = id; focusedTab = id
-                            }
-                        })
-            }.scrollIndicators(.hidden).fixedSize(horizontal: false, vertical: compact)
-        }.frame(maxWidth: .infinity, maxHeight: compact ? nil : .infinity, alignment: .top).background(NativeAppKitPalette.settings.sidebar.swiftUI)
-            .overlay(alignment: compact ? .bottom : .trailing) {
-                Rectangle().fill(NativeAppKitPalette.settings.line.swiftUI).frame(width: compact ? nil : 1, height: compact ? 1 : nil)
+                    .accessibilityRepresentation {
+                        SettingsTabAccessibilityRepresentation(title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {
+                            navigation.section = id; focusedTab = id
+                        }
+                    }
+                    .accessibilityLabel(sectionLabel(id))
+                    .accessibilityAddTraits(activeSection == id ? .isSelected : [])
+                    .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow, .home, .end]) { event in
+                        navigateTab(from: id, key: event.key); return .handled
+                    }
+                    .settingsTabAccessibilityAnchor(id: id).id(id)
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(locale.text("设置分类", "Settings sections"))
+        }.padding(.horizontal, 4)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: activeSection)
+            .settingsTabListAccessibility(title: locale.text("设置分类", "Settings sections"), horizontal: true,
+                tabs: sections.map { id in
+                    SettingsAccessibilityTab(id: id, title: sectionLabel(id), selected: activeSection == id, focused: focusedTab == id) {
+                        navigation.section = id; focusedTab = id
+                    }
+                })
+            .accessibilityElement(children: .contain).accessibilityLabel(locale.text("设置分类", "Settings sections"))
+    }
+
+    private var animationHarnesses: [AnyHarnessPlugin] {
+        harnesses.filter { harness in
+            let id = harness.descriptor.id.string
+            let plugin = model.plugins.first { $0.key == "harness:" + id }
+            return model.installations[id]?.status == .installed && plugin?.enabled != false && plugin?.unavailableReason == nil
+        }
     }
 
     @ViewBuilder private var sectionBody: some View {
-        if activeSection == "general" { general }
-        else if activeSection == "moku", model.runtimeAvailable {
-            NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
-                               harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
-                               onCloseRequest: requestClose)
+        if activeSection == "general" {
+            VStack(spacing: 0) {
+                Text(locale.text("通用", "General")).font(.system(size: 25, weight: .medium)).tracking(-0.5)
+                    .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
+                Text(locale.text("界面偏好与本地 Agent", "Interface preferences and local Agents"))
+                    .font(.system(size: 13)).foregroundStyle(.secondary).padding(.bottom, 48)
+                general
+            }
+        } else if let role = NativeSettingsRole(section: activeSection), model.runtimeAvailable {
+            NativeRoleConfigurationPanel(role: role, harnesses: animationHarnesses, locale: locale) {
+                if role == .moku {
+                    NativeMokuSettings(model: model, harnesses: harnesses, locale: locale, focusRequest: navigation.focusRequest, motion: mokuMotion,
+                        harnessSettings: harnessSettings, controller: mokuController, onCoordinatorFrame: onCoordinatorFrame,
+                        onCloseRequest: requestClose, presentation: .compact, showsRoutingGuidance: true)
+                } else if let application = activeApplications.first(where: { $0.id == activeSection }) {
+                    applicationContent(application)
+                }
+            }.id(activeSection)
         } else if let application = activeApplications.first(where: { $0.id == activeSection }), model.runtimeAvailable {
-            let saved = model.savedSettings["pluginSettings"]?.arrayValue?.first { $0["id"]?.stringValue == application.id }?["value"] ?? .null
-            application.content(saved, model.applicationValueBinding(application.id))
+            applicationContent(application)
         }
+    }
+
+    private func applicationContent(_ application: NativeApplicationSettingsSection) -> some View {
+        let saved = model.savedSettings["pluginSettings"]?.arrayValue?.first { $0["id"]?.stringValue == application.id }?["value"] ?? .null
+        return application.content(saved, model.applicationValueBinding(application.id))
+            .environment(\.nativeSettingsInteractionScope, application.id)
     }
 
     private var general: some View {
@@ -416,7 +441,7 @@ import SwiftUI
         switch id {
         case "general": locale.text("通用", "General")
         case "moku": "Moku"
-        default: activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) } ?? id
+        default: NativeSettingsRole(section: id)?.tabLabel ?? activeApplications.first(where: { $0.id == id }).map { locale.text($0.label, $0.englishLabel) } ?? id
         }
     }
     private func statusText(_ id: String) -> String {

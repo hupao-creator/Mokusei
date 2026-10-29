@@ -18,9 +18,11 @@ public final class NativeSettingsNavigation {
     public init(section: String = "moku") { self.section = section }
 
     public static func sections(model: NativeSettingsModel, applications: [NativeApplicationSettingsSection]) -> [String] {
-        ["general", "moku"] + applications.filter { definition in
+        let available = applications.filter { definition in
             model.plugins.first { $0.key == "extension:\(definition.owner)" }?.enabled != false
         }.map(\.id)
+        let roles = ["tag.settings", "report.settings"].filter { available.contains($0) }
+        return ["general", "moku"] + roles + available.filter { !roles.contains($0) }
     }
 
     public func closeBlockReason(model: NativeSettingsModel) -> String? {

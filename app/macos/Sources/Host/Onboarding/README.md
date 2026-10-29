@@ -24,7 +24,8 @@ combines resource acquisition and incomplete local input; IME, failed saves,
 unavailable Harnesses and invalid fields prevent advancing.
 
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
-shared with the visual demo. They use the discovered Harness logos, cancel on
+shared with Settings through `NativeRoleConfigurationPanel` and with the visual
+demo. Settings retains the animations without onboarding step admission. They use the discovered Harness logos, cancel on
 step exit, and show a static completed composition with Reduce Motion. Tag's
 collision boundaries remain invisible. Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.

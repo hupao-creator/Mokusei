@@ -82,6 +82,43 @@ import MokuseiApplications
             #expect(DesktopPreferences(directory: directory).onboardingCompleted)
             #expect(setup.settings.draft.value == setup.settings.draft.saved)
             #expect(presentation.interactionPage == "overview")
+
+            // Reuse this mounted workspace to certify the same role editors in
+            // Settings, now without the onboarding admission/step sequence.
+            try presentation.performInteraction(.openSettings)
+            try await wait("Production Settings did not mount") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
+            #expect(presentation.interactionSnapshot()["settingsSections"] == .array([.text("general"), .text("moku"), .text("tag.settings"), .text("report.settings")]))
+            let settings = workspace.settingsModel
+            func application(_ id: String) -> JSONValue? {
+                settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]
+            }
+            try presentation.performInteraction(.selectSettingsSection("report.settings"))
+            try await activate("independent", in: presentation)
+            try await control("report.settings.codex.model", operation: "select", value: .text("settings-b"), in: presentation)
+            try await control("report.settings.codex.effort", operation: "select", value: .text("medium"), in: presentation)
+            try await wait("Independent Report profile did not persist") {
+                application("report.settings")?["mode"] == .text("override") &&
+                application("report.settings")?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
+            }
+            try presentation.performInteraction(.selectSettingsSection("tag.settings"))
+            try await activate("independent", in: presentation)
+            try await wait("Independent Tag profile did not persist") { application("tag.settings")?["mode"] == .text("override") }
+            try await activate("inherit", in: presentation)
+            try await wait("Tag inheritance did not persist") { application("tag.settings")?["mode"] == .text("inherit") }
+            #expect(application("tag.settings")?["independent"] != nil)
+            try presentation.performInteraction(.selectSettingsSection("report.settings"))
+            try await activate("inherit", in: presentation)
+            try await wait("Report inheritance did not retain its profile") {
+                application("report.settings")?["mode"] == .text("inherit") &&
+                application("report.settings")?["independent"]?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
+            }
+            try await activate("independent", in: presentation)
+            try await wait("Independent Report choice was not restored") {
+                application("report.settings")?["mode"] == .text("override") &&
+                application("report.settings")?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
+            }
+            try presentation.performInteraction(.closeSettings)
+            try await wait("Settings did not release its modal gate") { !presentation.scene.settingsOpen }
         } catch {
             try? presentation.interactionSnapshot().encodedData().write(to: directory.appendingPathComponent("onboarding-failure.json"))
             if let target = try? await SCShareableContent.currentProcess.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) {

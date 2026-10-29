@@ -13,9 +13,11 @@ import SwiftUI
     var controller: MokuCharacterController?
     var onCoordinatorFrame: (CGRect?, Bool) -> Void
     var onCloseRequest: () -> Void
-    enum Presentation { case settings, setup }
-    // Setup keeps the same map and character while omitting editor explanations.
+    enum Presentation { case settings, compact }
+    // Compact panels keep the same map and character without group explanations.
     var presentation = Presentation.settings
+    var showsRoutingGuidance = false
+    @State private var routingExpanded = false
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
@@ -61,7 +63,7 @@ import SwiftUI
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if presentation == .setup {
+            if presentation == .compact {
                 coordinationContent.padding(.bottom, 20)
             } else {
                 SettingsGroup {
@@ -87,26 +89,28 @@ import SwiftUI
                     ? locale.text("当前值不可用，请选择", "The current value is unavailable. Please choose one.")
                     : locale.text("当前 Moku provider 值不可用，请重新选择。", "The selected Moku provider is unavailable. Please choose another."), error: selectedHost != nil)
             }
-            // These are later direct .sf-group siblings of the dispatch group.
-            // Harness-owned groups are nested in each plugin's own wrapper and
-            // inherit only the 8-point bottom margin, never this top adjustment.
             if presentation == .settings {
-                SettingsGroup {
-                    SettingsRow(label: locale.text("自定义模型路由指导", "Custom model routing guidance"), inlineControl: true) {
-                        NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
-                            .nativeSettingsControl("routingEnabled")
-                            .accessibilityLabel(locale.text("自定义模型路由指导", "Custom model routing guidance"))
+                routingGuidance.padding(.top, -10)
+            } else if showsRoutingGuidance {
+                DisclosureGroup(isExpanded: $routingExpanded) {
+                    routingGuidance.padding(.top, 12)
+                } label: {
+                    Text(locale.text("高级配置", "Advanced settings")).font(.system(size: 12))
+                }.padding(.top, 18)
+                    .nativeSettingsAction("advanced", label: locale.text("高级配置", "Advanced settings"), selected: routingExpanded) {
+                        routingExpanded.toggle()
                     }
-                    if routingEnabled {
-                        SettingsRow(label: locale.text("Moku 模型路由指导", "Moku model routing guidance"), error: model.draft.validationError("routingGuidance", locale: locale), stacked: true) {
-                            textArea(field: "routingGuidance", label: locale.text("输入 Moku 选择模型时应遵循的规则", "Enter the rules Moku should follow when selecting models"), height: 112)
-                        }.id("routingGuidance")
-                    }
-                }.padding(.top, -10)
             }
         }
         .environment(\.nativeSettingsGroupBottomSpacing, 8)
+        .background(NativeSettingsWindowVisibility { motion.setVisible($0) })
+        .onDisappear { motion.setVisible(false); onCoordinatorFrame(nil, true) }
+        .onChange(of: focusRequest, initial: true) { _, _ in
+            if model.draft.firstInvalidField == "routingGuidance" { routingExpanded = true }
+        }
         .onAppear {
+            motion.setVisible(true)
+            if routingEnabled { routingExpanded = true }
             presentedInstallations = model.installations
             motion.configure(hostID: host?.descriptor.id.string, inFlight: model.mokuInFlight)
             reportCoordinator()
@@ -126,6 +130,21 @@ import SwiftUI
         .onChange(of: host?.descriptor.id) { _, new in
             motion.configure(hostID: new?.string, inFlight: model.mokuInFlight)
             if new == nil { onCoordinatorFrame(nil, true) }
+        }
+    }
+
+    private var routingGuidance: some View {
+        SettingsGroup {
+            SettingsRow(label: locale.text("自定义模型路由指导", "Custom model routing guidance"), inlineControl: true) {
+                NativeSettingsToggle(value: Binding(get: { routingEnabled }, set: { changeMoku("routingGuidance", $0 ? .text("") : .null) }))
+                    .nativeSettingsControl("routingEnabled")
+                    .accessibilityLabel(locale.text("自定义模型路由指导", "Custom model routing guidance"))
+            }
+            if routingEnabled {
+                SettingsRow(label: locale.text("Moku 模型路由指导", "Moku model routing guidance"), error: model.draft.validationError("routingGuidance", locale: locale), stacked: true) {
+                    textArea(field: "routingGuidance", label: locale.text("输入 Moku 选择模型时应遵循的规则", "Enter the rules Moku should follow when selecting models"), height: 112)
+                }.id("routingGuidance")
+            }
         }
     }
 

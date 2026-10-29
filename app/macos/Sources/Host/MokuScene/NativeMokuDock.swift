@@ -224,17 +224,18 @@ public struct NativeMokuDock: View {
             let viewport = state.dockViewport(in: geometry.size)
             let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
-            let settingsSize = CGSize(width: min(900, max(0, viewport.width - 48)), height: min(640, frame.height))
+            let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(680, max(0, viewport.height - 112)))
             let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(480, frame.width) : frame.width
             let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
                 : rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
             let noteAvailableHeight = max(0, frame.height - rowHeight)
             let noteHeight = state.notePanelOpen
                 ? NativeMokuNoteLayout.fittedHeight(content: noteContentHeight, available: noteAvailableHeight) : 0
-            let availableSurface = CGRect(x: frame.midX - width / 2, y: frame.minY,
-                                          width: width, height: frame.height)
+            let availableSurface = CGRect(x: frame.midX - width / 2,
+                y: state.settingsExpanded ? viewport.minY : frame.minY,
+                width: width, height: state.settingsExpanded ? viewport.height : frame.height)
             let surface = NativeMokuCapsuleLayout.surface(in: availableSurface, expanded: expanded,
-                height: state.settingsExpanded ? settingsSize.height : rowHeight + noteHeight, centered: landing)
+                height: state.settingsExpanded ? settingsSize.height : rowHeight + noteHeight, centered: landing || state.settingsExpanded)
             let arcSize = NativeMokuCapsuleLayout.idleSurface(in: viewport).size
             let arcBody = CGRect(x: surface.midX - arcSize.width / 2,
                                  y: surface.maxY - rowHeight / 2 - arcSize.height / 2,
@@ -544,7 +545,7 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
-                    .frame(width: settingsSize.width, height: max(0, settingsSize.height - NativeMokuCapsuleLayout.idleSize.height))
+                    .frame(width: settingsSize.width, height: settingsSize.height)
                     .transaction { $0.animation = nil }
                     .compositingGroup()
                     .opacity(state.settingsExpanded ? 1 : 0)
@@ -590,6 +591,8 @@ public struct NativeMokuDock: View {
             .padding(.bottom, followsEditor
                 ? idleHeight / 2 - 12.5 + (editorBottomInset - idleHeight / 2) * capsuleFraction : 0)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .opacity(state.settingsOpen ? 0 : 1)
+            .allowsHitTesting(!state.settingsOpen).accessibilityHidden(state.settingsOpen)
         }
         .overlay(alignment: .bottomTrailing) {
             if running && !inputPresent && !voiceModeActive && !state.settingsOpen {
@@ -618,7 +621,8 @@ public struct NativeMokuDock: View {
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
         .background {
             ZStack {
-                NativeMokuCapsuleGlass().id(colorScheme)
+                NativeMokuCapsuleGlass().id(colorScheme).opacity(state.settingsExpanded ? 0 : 1)
+                if state.settingsOpen { NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0) }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }
         }.clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
@@ -632,8 +636,8 @@ public struct NativeMokuDock: View {
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)
         .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
         .nativeCanvasNavigationRegion()
-        .accessibilityElement(children: .contain).accessibilityLabel("Moku")
-        .accessibilityHint(localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
+        .accessibilityElement(children: .contain).accessibilityLabel(state.settingsOpen ? localize("设置", "Settings") : "Moku")
+        .accessibilityHint(state.settingsOpen ? "" : localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
         .accessibilityIdentifier("moku-capsule")
     }
