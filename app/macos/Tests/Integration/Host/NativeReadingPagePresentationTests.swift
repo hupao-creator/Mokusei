@@ -314,6 +314,44 @@ struct NativeReadingPageHeadlessTests {
         }
     }
 
+    @Test(arguments: [CGFloat(-1), CGFloat(1)])
+    func historyReplacementKeepsTheHiddenCurrentDocumentDisabled(direction: CGFloat) async throws {
+        let fixture = ReadingFixture()
+        fixture.axis = .vertical
+        fixture.open = true
+        fixture.direction = direction
+        fixture.duration = 0.2
+        fixture.scrollParent = true
+        let host = NSHostingView(rootView: ReadingReplay(fixture: fixture).environment(\.scenePhase, .active))
+        host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
+        for _ in 0..<8 { host.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(10)) }
+        #expect(!fixture.parentEnabled && !fixture.motion.active)
+        fixture.identity = "replacement"
+        for _ in 0..<8 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(10))
+            #expect(!fixture.parentEnabled, "History-only motion must not admit keyboard input into the hidden current document")
+        }
+        #expect(fixture.motion.active == !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        #expect(fixture.frontAppearances == 2)
+        // Replacement has a cancellable timer, so its completion is observable
+        // without a window, unlike opening/return animation removal.
+        try await Task.sleep(for: .milliseconds(250))
+        host.layoutSubtreeIfNeeded()
+        #expect(!fixture.motion.active && !fixture.parentEnabled)
+        fixture.identity = "interrupted-replacement"
+        for _ in 0..<4 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(10))
+            #expect(!fixture.parentEnabled)
+        }
+        fixture.motion.cancel()
+        try await Task.sleep(for: .milliseconds(250))
+        host.layoutSubtreeIfNeeded()
+        #expect(!fixture.motion.active && !fixture.parentEnabled)
+        #expect(fixture.open && fixture.parentAppearances == 1 && host.window == nil)
+    }
+
     @Test func cancellationFencesAnObsoleteReturnWithoutAWindow() async throws {
         let fixture = ReadingFixture()
         fixture.axis = .vertical

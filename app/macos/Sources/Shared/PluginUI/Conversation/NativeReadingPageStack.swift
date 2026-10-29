@@ -56,18 +56,22 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
     public var body: some View {
         GeometryReader { bounds in
+            // Observe replacement state even while motion is idle.
+            let openingOrClosing = !replacing && motion.active
             ZStack {
                 parent
                     .overlay { Color.black.opacity(axis == .horizontal ? 0.14 * progress : 0).allowsHitTesting(false) }
                     .blur(radius: axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
                     .offset(x: stationaryParent || axis == .vertical ? 0 : -0.25 * bounds.size.width * progress * direction,
                             y: stationaryParent || axis == .horizontal ? 0 : -bounds.size.height * progress * direction)
-                    .opacity(replacing || open && !motion.active ? 0 : 1)
+                    .opacity(open && !openingOrClosing ? 0 : 1)
                     .allowsHitTesting(!open && enabled)
                     // Disabling removes the native scroller gutter. Defer that
                     // input gate until the vertical parent is offscreen; restore
                     // its layout during return preparation, before either page moves.
-                    .disabled(open && (axis == .horizontal || progress == 1 && !motion.active))
+                    // History replacement never involves this hidden parent and
+                    // must keep its keyboard input gate closed throughout.
+                    .disabled(open && (axis == .horizontal || progress == 1 && !openingOrClosing))
                     .accessibilityHidden(open)
                 if open {
                     ZStack {

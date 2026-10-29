@@ -101,7 +101,9 @@ path has no dimming, blur, rounded page corners or shadow. The retained current
 document keeps its enabled layout during travel and return preparation, so its
 native scrollbar gutter cannot disappear and recenter the column. Only after it
 is offscreen does its keyboard input gate disable it; hit testing and accessibility
-remain gated throughout the history visit. Departing history stays mounted only
+remain gated throughout the history visit. History-to-history replacement never
+reenables the hidden current document: its input gate distinguishes opening/return
+from replacement even though both publish active motion. Departing history stays mounted only
 for its transition; cancellation fences obsolete completion. Other page
 stacks retain their default horizontal direction. Reduce Motion settles transitions
 without travel, including a return already in progress. New turns do not replace

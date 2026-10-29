@@ -105,3 +105,49 @@ failure was hidden by retrying an unchanged check.
 
 Local logs and decoded frames are retained in `.scratch/vertical-transition/`.
 No full `make check`, signed bundle replay or hosted CI is claimed.
+
+
+## P2 follow-up: keep the hidden current document disabled during replacement
+
+Independent review `49fde8a9-663b-4a42-9a4d-0a8723c2268a` identified that
+`motion.active` covers both current/history opening or return and history-only
+replacement. The initial fix incorrectly treated every active transition as
+permission to enable the retained current page. During history replacement that
+page stays transparent and offscreen, so enabling it could admit keyboard focus
+into hidden controls.
+
+The stack now derives opening/closing from active motion **and the absence of
+replacement**, and uses that distinction for both the parent's visibility and
+its disabled input gate. Replacement state is observed even while motion is idle,
+so the first replacement participates in SwiftUI state invalidation. Opening and
+return still restore the scroller before visible travel. History replacement
+keeps the current page disabled throughout completion or cancellation.
+
+`historyReplacementKeepsTheHiddenCurrentDocumentDisabled` mounts the production
+stack without an NSWindow and checks the inherited enabled environment for both
+vertical directions, repeatedly during two replacements, after normal completion,
+and after cancellation beyond the old timer deadline. It also verifies that the
+current page is retained and the new history identity mounts. Actual keyboard
+focus delivery remains outside this windowless boundary.
+
+Before changing production code, the new regression on `4a91d97` exited 1 with
+24 enabled-environment assertion failures across the two direction cases. An
+initial implementation still failed the first replacement (16 assertions);
+ensuring replacement state is read while motion is idle resolved that failure.
+The final focused headless command below exited 0: three test methods executed
+successfully (the new method has two parameter cases), and 11 graphical methods
+were explicitly skipped. The existing opening/return scroller and cancellation
+regressions passed alongside the new case.
+
+```sh
+MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos \
+  --scratch-path .build/vertical-transition \
+  --filter 'NativeReadingPageHeadlessTests|NativeReadingPagePresentationTests|NativeThreadHistorySidebarTests'
+```
+
+Before this follow-up's verification, GitHub again showed no open PRs and no
+status-check rules in the active main ruleset. Existing unrelated CI failures
+were not retried or treated as validation. This follow-up does not push or merge.
+Negative-control and final logs are in `.scratch/vertical-transition/` as
+`review-p2-negative.log` and `review-p2-swift.log`. System accessibility preferences
+were not changed, and no graphical replay or hosted CI ran.
