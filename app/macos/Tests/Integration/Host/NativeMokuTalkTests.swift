@@ -192,7 +192,8 @@ struct NativeMokuTalkTests {
         #expect(state.talkPresentation.message?.id == "pending")
     }
 
-    @Test func longMessagesKeepClearOfEyesWithoutOpeningAWindow() async throws {
+    @Test(arguments: [false, true])
+    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool) async throws {
         func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
             ((root as? T).map { [$0] } ?? [])
                 + root.subviews.flatMap { descendants($0, of: type) }
@@ -206,7 +207,7 @@ struct NativeMokuTalkTests {
                     state.receiveTalk(.init(id: "headless-eyes", text: text))
                     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
                     let host = NSHostingView(rootView: NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
-                        landing: landing, talk: text, onSend: { _ in }, onCancel: {})
+                        landing: landing, running: running, talk: text, onSend: { _ in }, onCancel: {})
                         .environment(\.locale, Locale(identifier: locale))
                         // Check settled layout; AppKit presentation animation
                         // needs a visible window and is covered by native replays.
@@ -232,6 +233,12 @@ struct NativeMokuTalkTests {
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)
+                    if running {
+                        // The hover/focus-revealed Stop target is 30pt wide,
+                        // inset 7pt from the trailing edge. Reserve an 8pt gap
+                        // even while its square is invisible, without a window.
+                        #expect(textFrame.maxX + 8 <= state.capsuleFrame.maxX - 37)
+                    }
                     // Offscreen SwiftUI supplies the native clip geometry but
                     // leaves its document bounds empty. Scroll behavior still
                     // belongs to the display-gated transcript layout replay.

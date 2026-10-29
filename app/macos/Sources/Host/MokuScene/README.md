@@ -165,7 +165,7 @@ edge. The eye drawing uses its own centered 58×49-point canvas (scaled in
 landing), so its painted bounds, rather than that canvas's frame, determine
 clearance. `NativeMokuTalkTests.longMessagesKeepClearOfEyesWithoutOpeningAWindow`
 mounts the production Dock in windowless hosting views at 188, 320 and 900
-points, with Chinese/English long messages and ordinary/landing sizes. It checks
+points, with Chinese/English long messages, ordinary/landing sizes and idle/running states. It checks
 settled eye-path and native message-clip separation. This headless check does
 not certify animation frames, rendered pixels or native scrolling behavior;
 those remain in the display-gated transcript and transition replays.
@@ -176,6 +176,15 @@ at the tail; the same layout applies to the voice transcript. The Dock's Stop
 square is revealed by pointer hover, keyboard focus or VoiceOver focus and fades
 out otherwise. The Button itself stays in the accessibility tree, while pointer
 hit testing follows the visual state so an invisible square cannot be clicked.
+Running messages reserve a 48-point trailing inset even before hover/focus,
+keeping text and dispatch content clear of the 30-point Stop target and its
+7-point edge inset. Revealing the square therefore does not rewrap the message.
+This is cancellation (`moku:cancel`), with no pause/resume action. Composer Stop
+is a separate item in the input HStack. Voice controls use a 34-point target and
+the same 48-point message reservation; their “Voice paused during thread call”
+status reports audio ownership suspension, while actions are mute/unmute,
+start/end and takeover. Blink/cloud clock pauses are animation lifecycle state,
+not message-bar controls.
 
 Each notification expires 60 seconds after its first actual presentation, using a
 monotonic deadline retained by the scene. Refreshes and in-place operation updates

@@ -166,7 +166,14 @@ public struct NativeMokuDock: View {
             : surface.height
         return CGRect(x: surface.minX, y: surface.maxY - height, width: surface.width, height: height)
     }
-    private var talkTrailing: CGFloat { voiceControlVisible ? 48 : NativeMokuTalkTypography.trailing }
+    private var stopControlPresent: Bool {
+        running && !inputPresent && !voiceModeActive && !state.settingsOpen
+    }
+    // Reserve the Stop hit target before hover/focus reveals its ink. Otherwise
+    // the overlay covers selectable prose, or revealing it changes line breaks.
+    private var talkTrailing: CGFloat {
+        voiceControlVisible || stopControlPresent ? 48 : NativeMokuTalkTypography.trailing
+    }
     private var stopVisible: Bool { hovered || stopFocused || stopAccessibilityFocused }
     private func surfaceHeight(width: CGFloat) -> CGFloat {
         guard let message = displayedMessage else {
@@ -595,7 +602,7 @@ public struct NativeMokuDock: View {
             .allowsHitTesting(!state.settingsOpen).accessibilityHidden(state.settingsOpen)
         }
         .overlay(alignment: .bottomTrailing) {
-            if running && !inputPresent && !voiceModeActive && !state.settingsOpen {
+            if stopControlPresent {
                 Button(action: onCancel) {
                     // Hide only the drawn square, not the Button: a fully
                     // transparent button is pruned from the accessibility tree.
