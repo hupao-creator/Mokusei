@@ -225,7 +225,7 @@ public struct NativeMokuDock: View {
             let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(680, max(0, viewport.height - 112)))
-            let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(480, frame.width) : frame.width
+            let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(560, baseFrame.width) : frame.width
             let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
                 : rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height
             let noteAvailableHeight = max(0, frame.height - rowHeight)
@@ -518,7 +518,7 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.notePanelOpen {
                 ZStack {
-                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight, rowHeight: rowHeight,
+                    NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
                                           routeEligible: state.notePanelOpen && !state.settingsOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
                                           openExternal: openExternal, openExecution: openExecution,
