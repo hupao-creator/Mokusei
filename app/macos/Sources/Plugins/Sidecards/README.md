@@ -2,6 +2,11 @@
 
 The shared [NativePlugins](../../Composition/NativePlugins.swift) composition registers Conversation, Browser (`iab`) and Voice. The host in [Host/Sidecards](../../Host/Sidecards/) selects one expanded card, owns widths/responsive layout, outer transitions, focus and suppression, and injects [thread-bound capabilities](../../Shared/PluginAPI/SidecardPlugin.swift). Sidecards apply to ordinary Agent Threads.
 
+The collapsed launcher group uses concentric capsules: 30pt-high button feedback
+inside 5pt padding and a 40pt-high glass surface. Clip launcher contents before
+applying glass so the system owns the capsule's outer highlight and shadow;
+clipping the glass itself would cut off that shadow.
+
 ## Conversation
 
 [Conversation](Conversation/) owns its draft and active-execution presentation. Its history qualification comes from the Harness's complete public turn index, not whichever lazy body is loaded. A first running/waiting turn remains in the main reading area. With earlier/inherited history, the active process can be shown in the execution card. Send intents and receipts coordinate with other cards through the host; plugins do not import siblings.
