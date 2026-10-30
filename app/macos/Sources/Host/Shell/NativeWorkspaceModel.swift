@@ -12,12 +12,18 @@ public final class NativeWorkspaceModel {
     public let timer: NativeMokuTimerController
     public let catalog = NativeWorkspaceCatalog()
     @ObservationIgnored public let startupPerformance: NativeStartupPerformance?
-    public var hasInitialContent: Bool { state != nil && catalog.moku != nil }
+    public var hasInitialContent: Bool { hasSnapshot && catalog.hasMoku }
+    private var hasSnapshot = false
     public private(set) var connection: RuntimeConnectionStatus = .connecting
     public private(set) var connectionRevision = 0
     public private(set) var recoveryRevision = 0
     public private(set) var snapshotAuthority: UUID?
-    public private(set) var state: JSONValue?
+    public private(set) var state: JSONValue? {
+        didSet {
+            let loaded = state != nil
+            if hasSnapshot != loaded { hasSnapshot = loaded }
+        }
+    }
     public private(set) var connectionError: String? {
         didSet { if connectionError != nil && !hasInitialContent { startupPerformance?.fail() } }
     }

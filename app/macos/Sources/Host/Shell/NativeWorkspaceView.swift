@@ -290,7 +290,7 @@ public final class NativeWorkspacePresentation {
     }
 
     public var canOpenSettings: Bool {
-        workspace.hasInitialContent && workspace.catalog.moku != nil && !workspace.stopping
+        workspace.hasInitialContent && !workspace.stopping
             && !onboarding.blocksWorkspace
             && selected == nil && scene.canOpenSettings && !messageMotion.active
     }
@@ -365,7 +365,7 @@ public final class NativeWorkspacePresentation {
     public var canToggleMokuNote: Bool {
         started && scene.overviewVisible && !scene.disabled && !scene.dockCovered
             && !onboarding.blocksWorkspace
-            && workspace.catalog.moku != nil
+            && workspace.catalog.hasMoku
     }
     public func toggleMokuNote() {
         guard canToggleMokuNote else { return }

@@ -9,7 +9,11 @@ import MokuseiTestSupport
 
 @MainActor @Observable private final class TransitionFixture {
     let state = NativeOverviewCanvasState()
-    var items: [NativeOverviewItem] = [.init(id: "a"), .init(id: "b")]
+    let content = NativeOverviewContentStore(items: [.init(id: "a"), .init(id: "b")])
+    var items: [NativeOverviewItem] {
+        get { content.items }
+        set { content.install(newValue) }
+    }
     var scene = "all"
     var resetEpoch: UInt64 = 0
     var selection: String? = nil
@@ -26,23 +30,25 @@ import MokuseiTestSupport
     @ObservationIgnored var semanticLocales: [String: String] = [:]
     @ObservationIgnored var slowMountIDs = Set<String>()
     @ObservationIgnored var delayedMounts = Set<String>()
-    @ObservationIgnored var observedItems: [NativeOverviewItem] = []
+    @ObservationIgnored var presentationHistory: [String: [String]] = [:]
 }
 
 private struct TransitionCanvas: View {
     let fixture: TransitionFixture
     var body: some View {
-        NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.scene, state: fixture.state,
+        NativeOverviewCanvas(contentSource: fixture.content, sceneKey: fixture.scene, state: fixture.state,
             selectionID: fixture.selection, resetEpoch: fixture.resetEpoch,
             revisions: fixture.revisions, onRevisionsConsumed: { fixture.consumed.append($0) }) { item in
             slowCard(item)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("transitions")) } action: { fixture.frames[item.id] = $0; fixture.sampleTimes[item.id] = ProcessInfo.processInfo.systemUptime }
                 .onAppear { fixture.appearances[item.id, default: 0] += 1 }
-                .onChange(of: item.presentationID, initial: true) { _, value in fixture.presentations[item.id] = value }
+                .onChange(of: item.presentationID, initial: true) { _, value in
+                    fixture.presentations[item.id] = value
+                    fixture.presentationHistory[item.id, default: []].append(value)
+                }
         }.coordinateSpace(name: "transitions")
             .environment(\.locale, fixture.locale)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
-            .onChange(of: fixture.items, initial: true) { _, value in fixture.observedItems = value }
     }
 
     private func slowCard(_ item: NativeOverviewItem) -> some View {
@@ -254,6 +260,7 @@ struct NativeOverviewTransitionTests {
             #expect(abs(after.width - before.width) < 1)
             #expect(fixture.state.camera.liveTransform == camera)
             #expect(fixture.state.camera.manual == manual)
+            #expect(fixture.state.memory.current?.sceneKey == selection)
             let placements = fixture.state.presentedPlacements
             #expect(placements.map(\.column).max() == placements.map(\.column).min())
             #expect(placements.map(\.row).max()! - placements.map(\.row).min()! == 1)
@@ -478,11 +485,52 @@ struct NativeOverviewTransitionTests {
         fixture.items.append(.init(id: "new", presentationID: "old-content"))
         try await SwiftUIReplay.wait { fixture.state.isLayingOut }
         fixture.items[1].presentationID = "latest-content"
-        try await SwiftUIReplay.wait { fixture.observedItems.last?.presentationID == "latest-content" }
+        // The admitted content store is synchronous: no intervening render
+        // turn may be required before a queued layout uses the newest content.
         stage.release()
         try await settled(fixture)
         #expect(fixture.presentations["new"] == "latest-content")
         #expect(fixture.appearances["a"] == 1)
+    }
+
+    @Test func queuedIncompatibleFootprintKeepsTheLastMountedContent() async throws {
+        let fixture = TransitionFixture()
+        fixture.items = [.init(id: "a", presentationID: "initial-small")]
+        let window = try await setup(fixture)
+        defer { window.close(); fixture.state.camera.dispose() }
+        fixture.items[0].presentationID = "latest-small"
+        try await SwiftUIReplay.wait { fixture.presentations["a"] == "latest-small" }
+        let stage = try await fixture.state.motionStages.acquire(owner: "content-boundary")
+        defer { stage.release() }
+        fixture.items = [.init(id: "a", columns: 2, presentationID: "initial-wide")]
+        try await SwiftUIReplay.wait { fixture.state.isLayingOut }
+        fixture.items[0].presentationID = "latest-wide"
+        #expect(fixture.presentations["a"] == "latest-small")
+        #expect(fixture.content.retainedPresentationIDs.contains("latest-small"))
+        stage.release()
+        try await settled(fixture)
+        try await SwiftUIReplay.wait { fixture.presentations["a"] == "latest-wide" }
+        #expect(fixture.appearances["a"] == 1)
+        #expect(!fixture.content.retainedPresentationIDs.contains("latest-small"))
+    }
+
+    @Test func queuedFootprintReversalPreservesFIFOAndLatestContent() async throws {
+        let fixture = TransitionFixture()
+        fixture.items = [.init(id: "a", presentationID: "initial-small")]
+        let window = try await setup(fixture)
+        defer { window.close(); fixture.state.camera.dispose() }
+        let wide = [NativeOverviewItem(id: "a", columns: 2, presentationID: "queued-wide")]
+        let latest = [NativeOverviewItem(id: "a", presentationID: "latest-small")]
+        fixture.revisions = [
+            .init(revision: 1, sceneKey: fixture.scene, items: wide),
+            .init(revision: 2, sceneKey: fixture.scene, items: latest),
+        ]
+        fixture.items = latest
+        try await SwiftUIReplay.wait { fixture.consumed == [1, 2] && !fixture.state.isLayingOut }
+        #expect(fixture.presentationHistory["a"]?.contains("queued-wide") == true)
+        #expect(fixture.presentations["a"] == "latest-small")
+        #expect(fixture.appearances["a"] == 1)
+        #expect(fixture.state.presentedPlacements.first?.columns == 1)
     }
 
     @Test func aNewRevisionDoesNotInterruptAnEntryAlreadyInFlight() async throws {

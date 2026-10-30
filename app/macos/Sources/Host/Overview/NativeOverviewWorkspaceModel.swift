@@ -48,6 +48,7 @@ public enum NativeOverviewCardSnapshot {
 public final class NativeOverviewWorkspaceModel {
     public let workspace: NativeWorkspaceModel
     public let canvasState: NativeOverviewCanvasState
+    public let content = NativeOverviewContentStore()
     public let applicationFactories: NativeOverviewApplicationFactories
     public let chromeInteractions = NativeOverviewChromeInteractions()
     public private(set) var tagSelection: NativeOverviewTagSelection?
@@ -342,6 +343,7 @@ public final class NativeOverviewWorkspaceModel {
                 revisions.append(.init(revision: revision, sceneKey: sceneKey, items: nextItems, instantEntryIDs: inserted))
             }
             items = nextItems
+            content.install(nextItems)
             error = nil
             // Plugin caches retain only the current catalog; queued presentation
             // snapshots are pinned separately by revisions and canvas retention.
@@ -527,7 +529,8 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func pruneSnapshots() {
-        let used = retainedPresentationIDs.union(items.map(\.presentationID)).union(revisions.flatMap { $0.items.map(\.presentationID) })
+        let used = retainedPresentationIDs.union(content.retainedPresentationIDs)
+            .union(items.map(\.presentationID)).union(revisions.flatMap { $0.items.map(\.presentationID) })
         snapshots = snapshots.filter { used.contains($0.key) }
     }
 
@@ -601,6 +604,7 @@ public final class NativeOverviewWorkspaceModel {
         invalidateSemanticSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)
+        content.stop()
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
         membershipFacts = nil; filterMembers.removeAll(); allMembers = .init(); applicationsByRef.removeAll()
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false

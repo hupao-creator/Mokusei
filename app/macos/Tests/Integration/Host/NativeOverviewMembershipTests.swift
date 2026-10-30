@@ -1,4 +1,7 @@
+import AppKit
 import Foundation
+import Observation
+import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
@@ -83,6 +86,87 @@ struct NativeOverviewMembershipTests {
         await model.stop(); await model.workspace.client.close()
     }
 
+    @Test(.requiresDisplay)
+    func mountedContentUpdatesAvoidCanvasInvalidationAndRetainLatestExitSnapshot() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = try model(directory), authority = UUID()
+        var threads = try (0..<10).map { index in
+            try thread(JSONText("mounted-\(index)"), title: JSONText("Mounted initial \(index)"), status: .completed)
+        }
+        try deliver(threads, to: model, authority: authority)
+        let window = SwiftUIReplay.window(NativeOverviewWorkspaceView(model: model,
+            callbacks: .init(openThread: { _, _ in }, openApplication: { _, _ in }, onSettings: {})))
+        defer { window.close(); model.canvasState.camera.dispose() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait {
+            !model.canvasState.isLayingOut && !model.canvasState.camera.isAnimating && model.canvasState.mountedCardIDs.count == 10
+                && SwiftUIReplay.text(in: root).contains("Mounted initial 0")
+        }
+        try await Task.sleep(for: .milliseconds(800))
+        let updates = model.canvasState.bodyEvaluationCount
+        let solves = model.canvasState.layoutSolveCount
+        for revision in 1...3 {
+            threads[0] = try thread("mounted-0", title: JSONText("Mounted latest \(revision)"), revision: revision, status: .completed)
+            try deliver(threads, to: model, authority: authority)
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Mounted latest \(revision)") }
+            #expect(model.canvasState.bodyEvaluationCount == updates)
+            #expect(model.canvasState.layoutSolveCount == solves)
+        }
+        let exiting = try #require(model.items.first { $0.id == "mounted-0" })
+        let stage = try await model.canvasState.motionStages.acquire(owner: "retain-latest-exit")
+        defer { stage.release() }
+        threads.removeFirst()
+        try deliver(threads, to: model, authority: authority)
+        // The model prunes synchronously, before SwiftUI can start the exit.
+        // The mounted slot, rather than the oldest rendered array, pins this.
+        #expect(model.snapshot(for: exiting) != nil)
+        try await SwiftUIReplay.wait { model.canvasState.isLayingOut }
+        #expect(SwiftUIReplay.text(in: root).contains("Mounted latest 3"))
+        stage.release()
+        try await SwiftUIReplay.wait {
+            !model.canvasState.isLayingOut && !model.canvasState.mountedCardIDs.contains(exiting.id)
+        }
+        #expect(model.snapshot(for: exiting) == nil)
+        await model.stop(); await model.workspace.client.close()
+    }
+
+    @Test func availabilityObservesPresenceAndNotCatalogPayloads() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = try model(directory), workspace = model.workspace, authority = UUID()
+        func snapshot(_ revision: Int, includeMoku: Bool, title: String) throws -> JSONValue {
+            var moku = try thread("moku", title: JSONText(title), revision: revision, status: .completed).json.objectValue!
+            moku.removeValue(forKey: "archived")
+            moku["moku"] = .bool(true); moku["transcript"] = .array([])
+            return .object(["revision": .integer(revision), "settingsRevision": .integer(0),
+                "defaultCwd": .text("/fixture"), "settings": .object([:]),
+                "threads": .array(includeMoku ? [.object(moku)] : []),
+                "executions": .array([]), "applicationThreads": .array([])])
+        }
+        #expect(!workspace.hasInitialContent && !workspace.catalog.hasMoku)
+        let first = try snapshot(0, includeMoku: true, title: "Initial")
+        await workspace.installPrepared(first, event: .snapshot(first, authority: authority))
+        #expect(workspace.hasInitialContent && workspace.catalog.hasMoku)
+        let changes = OverviewAvailabilityChanges()
+        withObservationTracking {
+            _ = workspace.hasInitialContent
+            _ = workspace.catalog.hasMoku
+        } onChange: {
+            MainActor.assumeIsolated { changes.count += 1 }
+        }
+        let updated = try snapshot(1, includeMoku: true, title: "Unrelated payload update")
+        await workspace.installPrepared(updated, event: .mutation(.object([:]), state: updated, authority: authority))
+        #expect(changes.count == 0 && workspace.hasInitialContent && workspace.catalog.hasMoku)
+        // A direct catalog installation must have the same availability
+        // semantics as the asynchronous workspace installation boundary.
+        try workspace.catalog.install(snapshot(2, includeMoku: false, title: "Absent"))
+        #expect(changes.count == 1 && !workspace.hasInitialContent && !workspace.catalog.hasMoku)
+        try workspace.catalog.install(snapshot(3, includeMoku: true, title: "Restored"))
+        #expect(workspace.hasInitialContent && workspace.catalog.hasMoku)
+        await model.stop(); await workspace.client.close()
+    }
+
     @Test func visibilityTagsScopeOrderingAndAuthorityInvalidateMembership() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -155,3 +239,6 @@ struct NativeOverviewMembershipTests {
         await model.stop(); await model.workspace.client.close()
     }
 }
+
+
+@MainActor private final class OverviewAvailabilityChanges { var count = 0 }

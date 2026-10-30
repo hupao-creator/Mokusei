@@ -40,6 +40,13 @@ Hosted macOS CI now runs graphical tests and the Go/AppKit fixture launchers,
 rejecting unexpected skips. Its current-revision results replace equivalent
 local runs under the [verification policy](../../scripts/ci/verification-policy.md).
 
+Workspace startup and Dock presence are narrow observable facts. `hasSnapshot`
+changes only when the workspace snapshot becomes present/absent, and the catalog
+publishes `hasMoku` only when Moku is added or removed. `hasInitialContent` derives
+from those two booleans, so payload updates do not invalidate startup/overview
+ancestors and direct catalog installations retain the same presence semantics.
+Offline and shutdown paths keep the last admitted snapshot as before.
+
 The application, runtime-exit helper and Probe enter the shared
 [native profile lease](Sources/Core/RuntimeProfileClientLease.swift) boundary
 before retaining any profile-local state. Fresh rotation uses the same
