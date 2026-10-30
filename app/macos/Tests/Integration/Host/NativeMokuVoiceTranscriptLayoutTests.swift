@@ -35,7 +35,7 @@ import MokuseiPluginUI
                 let text = String(source.prefix(count))
                 let height = NativeMokuTalkTypography.height(text, width: textWidth)
                 guard height > previousHeight else { continue }
-                guard height <= NativeMokuTalkTypography.maximumHeight else { break }
+                guard height <= NativeMokuTalkTypography.transcriptMaximumHeight else { break }
                 previousHeight = height
                 input.message = .init(id: "session:item", text: text)
                 var overflow: CGFloat = 0
@@ -64,6 +64,34 @@ import MokuseiPluginUI
             #expect(findScroll(host) === scroll)
             #expect(SwiftUIReplay.text(in: host).contains(source + " More live words."))
         }
+    }
+
+    @Test func liveTranscriptGrowsPastTalkViewportAndKeepsEveryLineVisible() async throws {
+        let state = NativeMokuSceneState()
+        state.setWindowVisible(true)
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        let input = TranscriptSurfaceInput()
+        let width = CGFloat(900)
+        let host = NSHostingView(rootView: TranscriptSurface(state: state, draft: draft, input: input))
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: width, height: 500),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        await settle(host)
+        let textWidth = min(560, width - 48) - NativeMokuTalkTypography.leading - 48
+        let text = String(repeating: "实时转写的内容需要在气泡里完整换行显示，而不是只露出最后一行。", count: 5)
+        let expected = NativeMokuTalkTypography.height(text, width: textWidth)
+        #expect(expected > NativeMokuTalkTypography.maximumHeight,
+                "Fixture must exceed the four-line Talk viewport this transcript used to inherit")
+        #expect(expected <= NativeMokuTalkTypography.transcriptMaximumHeight)
+        input.message = .init(id: "session:item", text: text)
+        await settle(host)
+        #expect(state.capsuleFrame.height == expected + 38)
+        let scroll = try #require(findScroll(host))
+        let document = try #require(scroll.documentView)
+        #expect(document.bounds.height <= scroll.contentView.bounds.height + 1,
+                "The whole transcript stays visible before its viewport starts scrolling")
     }
 
     private func findScroll(_ view: NSView) -> NSScrollView? {
@@ -101,7 +129,7 @@ import MokuseiPluginUI
             input.message = .init(id: "session:item", text: long)
             await settle(host)
             #expect(SwiftUIReplay.text(in: host).contains(long))
-            #expect(state.capsuleFrame.height == NativeMokuTalkTypography.maximumHeight + 38)
+            #expect(state.capsuleFrame.height == NativeMokuTalkTypography.transcriptMaximumHeight + 38)
 
             // Feedback removes only the ephemeral surface; the existing native
             // transition restores the capsule and never submits/edits the draft.

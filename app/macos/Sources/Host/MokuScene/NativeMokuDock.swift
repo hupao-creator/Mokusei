@@ -232,7 +232,12 @@ public struct NativeMokuDock: View {
             return max(landing ? 76 : 58, capsuleHeight) + (completionVisible ? completionHeight : 0)
         }
         if message.dispatch != nil { return landing ? 76 : 58 }
-        return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width, trailingInset: talkTrailing(width: width)))
+        // Live ASR is unbounded like dictation, not length-capped like Talk, so it
+        // keeps growing past the notification viewport before it scrolls.
+        let maximumHeight = visibleVoiceTranscript == nil
+            ? NativeMokuTalkTypography.maximumHeight : NativeMokuTalkTypography.transcriptMaximumHeight
+        return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width,
+            trailingInset: talkTrailing(width: width), maximumHeight: maximumHeight))
     }
     private var residentPresenting: Bool {
         !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
