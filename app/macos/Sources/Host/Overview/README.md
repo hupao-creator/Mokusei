@@ -20,6 +20,23 @@ The same rebuild also normalizes each distinct tag/label once and supplies those
 
 The `glassWorld` preference controls only the outer shells of Thread cards. Enabled shells use regular glass with the existing success tint for completed Threads; disabled shells use the opaque overview surface with a soft border. Both styles stay inside the same animated card frame, so geometry, opacity and exit behavior remain shared. Semantic badges retain their own glass composition, and Follow-up, plan, tag and Moku surfaces are unaffected.
 
+## Card update isolation
+
+Each card has separate Equatable shell and semantic boundaries outside its
+spatial frame and glass container. A presentation-only update refreshes the
+changed card's semantic wrapper without reevaluating unchanged cards' frames or
+the target card's unchanged shell. The canvas still constructs wrapper values
+for all placements. Geometry, motion, visibility and completed tint remain shell
+inputs; semantic inputs also include the item presentation, viewport, locale,
+decorative-animation policy, layout/activation state and renderer/state identity.
+
+The card closure captures stable owners. Callers replacing its renderer must
+update `cardContentIdentity`; the workspace supplies its model identity.
+Callbacks use a stable workspace-owned reference whose current receivers are
+refreshed when the workspace view is rebuilt, so mounted card actions reach the
+latest receiver without requiring content reevaluation or remounting. Observable
+content dependencies remain owned by the card.
+
 ## Layout, motion and input
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves every surviving top-left position, accepts nonconflicting footprint changes and fills existing vacancies before extending the envelope for entrants. This path must fit at the readable floor and occupy at least 75% of its bounding grid. Necessary vacancies, including enclosed ones, are allowed; if production packing proves the collection can lose an entire row or column without enlarging the other axis, the existing bounded compact planner repairs the avoidable envelope. This catches deletion/shrink histories that strand a wide card below a fitting vacancy even at exactly 75% occupancy. An area lower bound avoids searching already irreducible envelopes. If that proof exhausts the shared search budget, the legal preserved candidate returns with incomplete search; once a smaller readable witness exists, subsequent optimization retains it as a geometric fallback. Conflicting growth, excessive fragmentation and insufficient capacity also use the compact planner and its collision-certified move order. Calls without a fitting region retain the compact-planning contract.
