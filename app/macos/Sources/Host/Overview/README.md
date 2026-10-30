@@ -56,7 +56,9 @@ This keeps ordinary wide-window packing/reading scale while balancing the gaps
 to controls. The [balance investigation](../../../../../tools/verification/overview-layout/BALANCE.md)
 records screenshot measurements, the compact fallback and verification limits.
 
-Content-only and carousel-fact updates do not restart an already queued or playing automatic refit. Queued work reads the latest bounds after acquiring the spatial stage; a playing refit reconciles newer framing revisions on completion. Continuous Harness output therefore cannot postpone insertion framing until output stops or the user clicks the background.
+Carousel facts join the presented placements against the canvas's existing current-record index in linear time. For unchanged structural identities, the canvas rebuilds those facts only when carousel eligibility changes; text, counters and other presentation metadata skip that work while attention counts still refresh. Structural and geometry changes retain the ordinary presentation/refit path, and manual navigation keeps ownership.
+
+Changed carousel facts do not restart an already queued or playing automatic refit. Queued work reads the latest bounds after acquiring the spatial stage; a playing refit reconciles newer framing revisions on completion. Continuous Harness output therefore cannot postpone insertion framing until output stops or the user clicks the background. The mounted carousel replay checks content-only updates, eligibility changes and manual-camera retention against the production canvas.
 
 Reading-position preservation starts from settled automatic framing, or from an
 already retained reading target. A footprint revision arriving before insertion

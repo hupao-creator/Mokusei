@@ -280,7 +280,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 }
                 attach(viewport)
                 if previous.map(\.structuralIdentity) == updated.map(\.structuralIdentity) {
-                    updateCarousel(); state.camera.onChange?()
+                    if previous.map(\.carouselEligible) != updated.map(\.carouselEligible) { updateCarousel() }
+                    state.camera.onChange?()
                 }
                 retain()
             }
@@ -430,8 +431,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
     private func retain() { onRetainedPresentationIDsChanged?(Set(rendered.map(\.presentationID)).union(retiringPresentationIDs)) }
     private func updateCarousel() {
+        let records = latestRecords
         state.camera.setCarouselCards(state.presentedPlacements.compactMap { placement in
-            guard let item = items.first(where: { $0.id == placement.id }) else { return nil }
+            guard let item = records[placement.id] else { return nil }
             return .init(id: item.id, rect: .init(left: Double(placement.column) * 376, top: Double(placement.row) * 216,
                 width: Double(placement.columns) * 376 - 16, height: Double(placement.rows) * 216 - 16), eligible: item.carouselEligible)
         })
