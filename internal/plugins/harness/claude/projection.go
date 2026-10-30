@@ -292,8 +292,7 @@ func compactInteraction(interaction map[string]any) map[string]any {
 			}
 		}
 		copy["input"] = selected
-		display, _ := json.MarshalIndent(selected, "", "  ")
-		copy["inputDisplay"] = string(display)
+		copy["inputDisplay"] = displayJSON(selected)
 	}
 	return copy
 }

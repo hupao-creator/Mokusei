@@ -626,8 +626,7 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				for _, i := range t.Interactions {
 					for _, field := range []string{"input", "schema"} {
 						if v, ok := i[field]; ok {
-							b, _ := json.MarshalIndent(v, "", "  ")
-							i[field+"Display"] = string(b)
+							i[field+"Display"] = displayJSON(v)
 						}
 					}
 				}
