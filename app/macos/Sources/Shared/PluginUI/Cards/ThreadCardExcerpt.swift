@@ -11,23 +11,34 @@ public struct ThreadCardExcerpt: View {
     public let messageId: JSONText?
     public let messageText: String?
     @Environment(\.lineLimit) private var inheritedLineLimit
-    @State private var frame: ExcerptFrame?
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardAnimationVisibility) private var visibility
+    @State private var buffer = ExcerptBuffer()
+    @State private var placeholder: String
+    @State private var display: ExcerptDisplay?
     @State private var settledKey: ExcerptKey?
     @State private var reveal: ExcerptReveal?
     @State private var revealProgress: CGFloat = 0
-    @State private var held: ExcerptHold?
+
+    private var isVisible: Bool { scenePhase != .background && (visibility?.isVisible ?? true) }
 
     public init(content: String, messageId: JSONText? = nil, messageText: String? = nil) {
         self.content = content; self.messageId = messageId; self.messageText = messageText
+        _placeholder = State(initialValue: content)
     }
 
     public var body: some View {
-        text(frame?.visible ?? content)
+        let activeReveal = reveal
+        let hold = holdSchedule
+        let update = ExcerptUpdate(input: .init(content: content, id: messageId, text: messageText ?? content),
+                                   visible: isVisible, animates: !reduceMotion)
+        text(display?.text ?? placeholder)
             // The first pass still lays out the raw snapshot at full line-limit
             // height (never collapsed), but stays invisible until the lifecycle
             // installs the processed preview, so the unprocessed placeholder
             // text is never shown and no artificial delay is introduced.
-            .opacity(frame != nil && reveal == nil ? 1 : 0)
+            .opacity(display != nil && reveal == nil ? 1 : 0)
             .overlay(alignment: .topLeading) {
                 if let reveal {
                     ZStack(alignment: .topLeading) {
@@ -45,43 +56,43 @@ public struct ThreadCardExcerpt: View {
             }
             .clipped()
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(frame?.visible ?? content)
+            .accessibilityLabel(display?.text ?? placeholder)
             // The gated frame exposes no readable placeholder; once installed,
             // the label matches the visible processed text.
-            .accessibilityHidden(frame == nil)
+            .accessibilityHidden(display == nil)
             .onAppear {
-                // Initializing in the lifecycle avoids reparsing the initial
-                // snapshot whenever an ancestor constructs this value view.
-                if frame == nil {
-                    install(ExcerptFrame(content: content, id: messageId, text: messageText ?? content))
-                }
+                // A retained hosting view may reappear without an input edge.
+                // The active guard also keeps initial onChange from reparsing.
+                if !buffer.active { updatePresentation(update) }
             }
-            .onChange(of: ExcerptInput(content: content, id: messageId, text: messageText ?? content)) { _, input in
-                var next = frame ?? ExcerptFrame(content: input.content, id: input.id, text: input.text)
-                if frame != nil { next.update(content: input.content, id: input.id, text: input.text) }
-                install(next)
+            .onChange(of: update, initial: true) { _, update in
+                updatePresentation(update)
             }
-            .task(id: reveal?.key) {
-                guard let active = reveal else { return }
+            .onDisappear { suspend() }
+            .task(id: activeReveal?.key) {
+                guard !Task.isCancelled, let active = activeReveal, reveal?.key == active.key else { return }
                 var transaction = Transaction(); transaction.disablesAnimations = true
                 withTransaction(transaction) { revealProgress = 0 }
                 await Task.yield()
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, buffer.active, buffer.animates, reveal?.key == active.key else { return }
                 withAnimation(.linear(duration: 0.28)) { revealProgress = 1 }
                 do { try await Task.sleep(for: .milliseconds(280)) } catch { return }
 
-                guard !Task.isCancelled, reveal?.key == active.key else { return }
+                guard !Task.isCancelled, buffer.active, reveal?.key == active.key else { return }
                 reveal = nil; settledKey = active.key
             }
-            .task(id: holdSchedule) {
-                guard let schedule = holdSchedule else { held = nil; return }
-                if held?.key != schedule.key { held = ExcerptHold(key: schedule.key, since: .now) }
-                guard schedule.more, let held else { return }
+            .task(id: hold) {
+                guard !Task.isCancelled, hold == holdSchedule else { return }
+                guard let schedule = hold else { buffer.held = nil; return }
+                if buffer.held?.key != schedule.key { buffer.held = ExcerptHold(key: schedule.key, since: .now) }
+                guard schedule.more, let held = buffer.held else { return }
                 let delay = max(0, 0.8 - Date.now.timeIntervalSince(held.since))
                 do { try await Task.sleep(for: .seconds(delay)) } catch { return }
-                guard !Task.isCancelled, var next = frame, next.key == schedule.key else { return }
+                guard !Task.isCancelled, buffer.active, holdSchedule == schedule,
+                      var next = buffer.frame, next.key == schedule.key else { return }
                 next.advance(to: schedule.absoluteEnd)
-                install(next)
+                buffer.frame = next
+                install(next, animates: buffer.animates)
             }
     }
 
@@ -94,29 +105,97 @@ public struct ThreadCardExcerpt: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private var holdSchedule: HoldSchedule? {
-        guard let frame, frame.hasMessage, !frame.initial, frame.batch.count == ExcerptFrame.batchSize,
-              settledKey == frame.key else { return nil }
-        return HoldSchedule(key: frame.key, absoluteEnd: frame.origin + frame.batch.end,
-                            more: frame.batch.end < frame.source.length)
+    private var holdSchedule: ExcerptHoldSchedule? {
+        guard isVisible, let display, settledKey == display.key else { return nil }
+        return display.hold
     }
 
-    private func install(_ next: ExcerptFrame) {
-        if let frame, next.key != frame.key {
+    private func updatePresentation(_ update: ExcerptUpdate) {
+        let changed = buffer.latest != update.input
+        buffer.latest = update.input
+        buffer.animates = update.animates
+        guard update.visible else { suspend(); return }
+        guard buffer.active, var next = buffer.frame else {
+            buffer.active = true
+            let next = ExcerptFrame(content: update.input.content, id: update.input.id, text: update.input.text)
+            buffer.frame = next
+            // Returning to a retained card shows the current tail immediately;
+            // hidden output is never replayed as a backlog of animated batches.
+            install(next, animates: false)
+            return
+        }
+        if changed {
+            next.update(content: update.input.content, id: update.input.id, text: update.input.text)
+            buffer.frame = next
+        }
+        install(next, animates: update.animates)
+    }
+
+    private func suspend() {
+        guard buffer.active else { return }
+        buffer.active = false
+        buffer.frame = nil
+        buffer.held = nil
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) { reveal = nil; revealProgress = 0; settledKey = display?.key }
+    }
+
+    private func install(_ next: ExcerptFrame, animates: Bool) {
+        let snapshot = ExcerptDisplay(frame: next)
+        if animates, let display, next.key != display.key, next.visible != display.text {
             var transaction = Transaction(); transaction.disablesAnimations = true
             withTransaction(transaction) {
                 revealProgress = 0
-                reveal = ExcerptReveal(key: next.key, previous: frame.visible, incoming: next.visible)
+                reveal = ExcerptReveal(key: next.key, previous: display.text, incoming: next.visible)
                 settledKey = nil
             }
-        } else if frame == nil {
-            settledKey = next.key
+        } else if !animates || display == nil || next.key != display?.key {
+            if reveal != nil || revealProgress != 0 || settledKey != next.key {
+                var transaction = Transaction(); transaction.disablesAnimations = true
+                withTransaction(transaction) { reveal = nil; revealProgress = 0; settledKey = next.key }
+            }
+        } else if var active = reveal, active.key == next.key,
+                  !active.incoming.utf16.elementsEqual(next.visible.utf16) {
+            // Appending to an unfinished batch updates its incoming text without
+            // restarting the reveal that already owns this window.
+            active.incoming = next.visible
+            reveal = active
         }
-        frame = next
+        // Buffer appends beyond a full window do not invalidate the rendering
+        // state; a false→true `more` edge still starts its existing hold schedule.
+        if display != snapshot { display = snapshot }
+    }
+}
+
+/// Source accumulation is deliberately not observable. Only display facts and
+/// scheduling edges enter SwiftUI state; hidden input needs neither parsing nor UI work.
+@MainActor private final class ExcerptBuffer {
+    var latest: ExcerptInput?
+    var active = false
+    var animates = true
+    var frame: ExcerptFrame?
+    var held: ExcerptHold?
+}
+
+private struct ExcerptUpdate: Equatable { let input: ExcerptInput; let visible: Bool; let animates: Bool }
+private struct ExcerptDisplay: Equatable {
+    let key: ExcerptKey
+    let text: String
+    let hold: ExcerptHoldSchedule?
+
+    init(frame: ExcerptFrame) {
+        key = frame.key; text = frame.visible
+        hold = frame.hasMessage && !frame.initial && frame.batch.count == ExcerptFrame.batchSize
+            ? ExcerptHoldSchedule(key: frame.key, absoluteEnd: frame.origin + frame.batch.end,
+                                  more: frame.batch.end < frame.source.length) : nil
     }
 
-    private struct HoldSchedule: Equatable { let key: ExcerptKey; let absoluteEnd: Int; let more: Bool }
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.key == rhs.key && lhs.hold == rhs.hold && lhs.text.utf16.elementsEqual(rhs.text.utf16)
+    }
 }
+
+private struct ExcerptHoldSchedule: Equatable { let key: ExcerptKey; let absoluteEnd: Int; let more: Bool }
 
 private struct ExcerptInput: Equatable {
     let content: String
@@ -127,8 +206,8 @@ private struct ExcerptInput: Equatable {
             && lhs.text.utf16.elementsEqual(rhs.text.utf16)
     }
 }
-private struct ExcerptKey: Equatable { let id: JSONText?; let revision: Int; let offset: Int }
-private struct ExcerptReveal { let key: ExcerptKey; let previous: String; let incoming: String }
+private struct ExcerptKey: Equatable { let session: UUID; let id: JSONText?; let revision: Int; let offset: Int }
+private struct ExcerptReveal { let key: ExcerptKey; let previous: String; var incoming: String }
 private struct ExcerptHold { let key: ExcerptKey; let since: Date }
 private struct ExcerptBatch { let text: String; let end: Int; let count: Int }
 
@@ -142,6 +221,7 @@ private struct ExcerptBatch { let text: String; let end: Int; let count: Int }
 
 private struct ExcerptFrame {
     static let batchSize = 600
+    let session = UUID()
     var id: JSONText?
     var source: NSString
     var origin = 0
@@ -152,7 +232,7 @@ private struct ExcerptFrame {
     var visible = ""
     var batch: ExcerptBatch
     var hasMessage: Bool { id?.codeUnits.isEmpty == false }
-    var key: ExcerptKey { ExcerptKey(id: id, revision: revision, offset: origin + offset) }
+    var key: ExcerptKey { ExcerptKey(session: session, id: id, revision: revision, offset: origin + offset) }
 
     init(content: String, id: JSONText?, text: String) {
         self.id = id; source = text as NSString; snapshot = content
@@ -168,12 +248,17 @@ private struct ExcerptFrame {
             let append = sameMessage && next.length >= source.length
                 && next.compare(source as String, options: .literal,
                                 range: NSRange(location: 0, length: source.length)) == .orderedSame
+            // A proven append cannot change the full displayed window or any
+            // Markdown context before it. Partial batches, rewrites and shifted
+            // transport windows still prepare their new preview normally.
+            let reusePreview = append && hasMessage && !initial && batch.count == Self.batchSize
             let shift = sameMessage && !append ? Self.windowShift(source, next) : 0
             let rewrite = !append && shift == 0
             offset = rewrite ? 0 : shift > offset ? Self.tailStart(next) : offset - shift
             origin = rewrite ? 0 : origin + shift
             revision += rewrite ? 1 : 0
             self.id = id; source = next; initial = false
+            if reusePreview { return }
             batch = Self.batchAt(source, start: offset)
         }
         refresh(content: content)
