@@ -193,21 +193,60 @@ private struct ThreadCardIdentity: View {
 
 private struct CardTitleSwap: View {
     let text: String
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var displayed: String
     @State private var phase = 0
+    @State private var transition = CardTitleTransition()
     init(text: String) { self.text = text; _displayed = State(initialValue: text) }
     var body: some View {
         Text(displayed).cardFont(size: 15, weight: 620).offset(y: phase == 1 ? -4 : phase == 2 ? 4 : 0)
             .blur(radius: phase == 0 ? 0 : 2).opacity(phase == 0 ? 1 : 0)
-            .task(id: text) {
-                guard displayed != text else { return }
-                withAnimation(.easeInOut(duration: 0.15)) { phase = 1 }
-                do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
-                displayed = text; phase = 2
-                do { try await Task.sleep(for: .seconds(NativeFrameRate.interval)) } catch { return }
-                withAnimation(.easeInOut(duration: 0.15)) { phase = 0 }
+            .onChange(of: Input(text: text, animates: scenePhase != .background
+                && (visibility?.isVisible ?? true) && !reduceMotion), initial: true) { _, input in
+                transition.latest = input.text
+                guard input.animates else { settle(); return }
+                guard transition.task == nil, displayed != transition.latest else { return }
+                let owner = UUID()
+                transition.owner = owner
+                // One owner finishes its current beat. Streaming title changes
+                // replace the pending value instead of cancelling the 150ms wait.
+                transition.task = Task { @MainActor in
+                    while transition.owner == owner && displayed != transition.latest {
+                        withAnimation(.easeInOut(duration: 0.15)) { phase = 1 }
+                        do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+                        guard !Task.isCancelled, transition.owner == owner else { return }
+                        displayed = transition.latest; phase = 2
+                        do { try await Task.sleep(for: .seconds(NativeFrameRate.interval)) } catch { return }
+                        guard !Task.isCancelled, transition.owner == owner else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) { phase = 0 }
+                        do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+                        guard !Task.isCancelled, transition.owner == owner else { return }
+                    }
+                    guard transition.owner == owner else { return }
+                    phase = 0
+                    transition.task = nil
+                }
             }
+            .onDisappear { settle() }
     }
+
+    private func settle() {
+        transition.owner = UUID()
+        transition.task?.cancel(); transition.task = nil
+        var transaction = Transaction(); transaction.disablesAnimations = true
+        withTransaction(transaction) { displayed = transition.latest; phase = 0 }
+    }
+
+    private struct Input: Equatable { let text: String; let animates: Bool }
+}
+
+/// Pending input and task ownership do not participate in SwiftUI observation.
+@MainActor private final class CardTitleTransition {
+    var latest = ""
+    var owner = UUID()
+    var task: Task<Void, Never>?
 }
 
 public struct ThreadCardLatestTool: View {

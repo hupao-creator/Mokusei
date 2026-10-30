@@ -318,6 +318,24 @@ hidden/background cards, disabled host animations or Reduce Motion. Pausing does
 not unmount the card or replace its controls, and restoring visibility resumes
 the existing presentation.
 
+Titles and excerpts use the same viewport/page and background visibility gate.
+Hidden excerpts retain only their latest input and stop parsing, hold timers and
+reveal masks; returning installs the latest preview directly, without replaying
+hidden output. Visible excerpts keep their 600-character windows and 800ms hold
+policy. Their source buffer is not observed by SwiftUI: only changed display or
+hold-schedule facts are published. A proven append beyond a full window reuses its
+parsed preview; partial windows, rewrites, message replacement and transport-window
+shifts keep the ordinary preview path. Each resumed buffer has a new session so
+an obsolete reveal or hold cannot install a prior presentation.
+
+One title transition consumes the latest pending value at each completed beat;
+new titles do not cancel its wait, so sustained updates cannot starve display.
+Hiding, backgrounding or detaching cancels that owner and settles the latest title.
+Reduce Motion makes both text effects immediate while visible excerpt windows
+continue advancing. Disabling cloud effects does not freeze text content. The
+mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
+streaming windows, rapid title updates and cancellation without replacing cards.
+
 There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity. [NativeVoiceCloud.swift](Design/NativeVoiceCloud.swift) consumes bounded voice visualization state without starting capture.
