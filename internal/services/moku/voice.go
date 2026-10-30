@@ -234,9 +234,14 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	if request.Action == "prepare" {
 		// A prepared relay retains this service-owned context after the command
 		// returns. The per-command tracking context is detached on installation.
+		// The command's admission identity still transfers so a pending host
+		// replacement does not reject the preparation's own claim.
 		v.c.mu.Lock()
 		service := v.c.ctx
 		v.c.mu.Unlock()
+		if v.c.config.VoicePreparationContext != nil {
+			service = v.c.config.VoicePreparationContext(service, ctx)
+		}
 		prepareCtx, cancel := context.WithCancel(service)
 		preparation = &mokuVoicePreparation{id: request.RequestID, device: device, ctx: prepareCtx, cancel: cancel}
 		detachPrepare = context.AfterFunc(ctx, cancel)

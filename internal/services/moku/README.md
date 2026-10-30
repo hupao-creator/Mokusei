@@ -161,7 +161,7 @@ Outgoing workspace context reads the Thread catalog only when a directory tag
 needs resolving. Explicit directory mentions and inputs without a directory tag
 do not load unrelated Thread histories.
 
-[voice.go](voice.go) owns media leases and device/owner fencing. A Codex Moku uses its native voice capability and fails if unavailable; it does not fall back to a relay. Other hosts use the Codex relay with their normal target admission. Ending Moku media leaves already admitted task work running. Typed dispatch and accepted handoffs fence old delivery; caption fragments do not create a new task generation. See [Codex voice](../../plugins/harness/codex/README.md#voice) and the [native media client](../../../app/macos/Sources/Voice/README.md).
+[voice.go](voice.go) owns media leases and device/owner fencing. A Codex Moku uses its native voice capability and fails if unavailable; it does not fall back to a relay. Other hosts use the Codex relay with their normal target admission. Preparation adopts a saved host preference first; its own service admission is not treated as competing work for that replacement. Ending Moku media leaves already admitted task work running. Typed dispatch and accepted handoffs fence old delivery; caption fragments do not create a new task generation. See [Codex voice](../../plugins/harness/codex/README.md#voice) and the [native media client](../../../app/macos/Sources/Voice/README.md).
 
 Relay requests still waiting for target admission belong to the media lease and
 leave the queue when that lease ends. Once admission begins, the service owns

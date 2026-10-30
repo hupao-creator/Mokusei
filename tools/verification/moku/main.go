@@ -62,6 +62,7 @@ func runMokuReplays() error {
 		{"runtime admission and SQLite", runRuntimeReplay},
 		{"settings at successor admission", runAdmissionSettingsChangeReplay},
 		{"relay voice across settings changes", runRelaySettingsChangeReplay},
+		{"pending host preference at voice preparation", runPendingHostVoiceReplay},
 		{"native voice settings recovery", runNativeVoiceSettingsReplay},
 		{"execution-fenced public cancellation", runFencedMokuCancellationReplay},
 		{"sidecard direct thread notifications", runUserThreadInputReplay},

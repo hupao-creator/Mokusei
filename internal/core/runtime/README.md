@@ -45,7 +45,9 @@ checks again and reserves the native admission boundary through old-owner
 cleanup and durable replacement. Its triggering queued Moku input may proceed
 on the new owner afterward. Private Report/Tag executions do not themselves
 block switching; an in-flight native admission still does. Unrelated settings
-retain their existing save behavior.
+retain their existing save behavior. Voice preparation adopts a saved Harness
+preference before preparing media; the preparation's own admission does not
+block that replacement, while any other concurrent admission still does.
 
 Moku rechecks pending configuration before reserving a successor execution,
 including when a prepared follow-up races its predecessor's completion. A
