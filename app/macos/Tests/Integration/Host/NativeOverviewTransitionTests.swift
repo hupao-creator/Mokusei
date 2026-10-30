@@ -14,6 +14,7 @@ import MokuseiTestSupport
     var resetEpoch: UInt64 = 0
     var selection: String? = nil
     var revisions: [NativeOverviewLayoutRevision] = []
+    var locale = Locale(identifier: "en")
     var toolbarBottom: Double { 58 }
     @ObservationIgnored var viewport = CGSize.zero
     @ObservationIgnored var frames: [String: CGRect] = [:]
@@ -21,6 +22,8 @@ import MokuseiTestSupport
     @ObservationIgnored var appearances: [String: Int] = [:]
     @ObservationIgnored var consumed: [UInt64] = []
     @ObservationIgnored var presentations: [String: String] = [:]
+    @ObservationIgnored var semanticIdentities: [String: UUID] = [:]
+    @ObservationIgnored var semanticLocales: [String: String] = [:]
     @ObservationIgnored var slowMountIDs = Set<String>()
     @ObservationIgnored var delayedMounts = Set<String>()
     @ObservationIgnored var observedItems: [NativeOverviewItem] = []
@@ -37,6 +40,7 @@ private struct TransitionCanvas: View {
                 .onAppear { fixture.appearances[item.id, default: 0] += 1 }
                 .onChange(of: item.presentationID, initial: true) { _, value in fixture.presentations[item.id] = value }
         }.coordinateSpace(name: "transitions")
+            .environment(\.locale, fixture.locale)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
             .onChange(of: fixture.items, initial: true) { _, value in fixture.observedItems = value }
     }
@@ -47,7 +51,22 @@ private struct TransitionCanvas: View {
         if fixture.slowMountIDs.contains(item.id), fixture.delayedMounts.insert(item.id).inserted {
             Thread.sleep(forTimeInterval: 0.04)
         }
-        return Color.red
+        return TransitionSemanticCard(id: item.id, fixture: fixture)
+    }
+}
+
+private struct TransitionSemanticCard: View {
+    let id: String
+    let fixture: TransitionFixture
+    @State private var identity = UUID()
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        Color.red
+            .onAppear { fixture.semanticIdentities[id] = identity }
+            .onChange(of: locale.identifier, initial: true) { _, value in
+                fixture.semanticLocales[id] = value
+            }
     }
 }
 
@@ -423,6 +442,7 @@ struct NativeOverviewTransitionTests {
         let window = try await setup(fixture)
         defer { window.close(); fixture.state.camera.dispose() }
         let scale = fixture.state.camera.liveTransform.scale
+        let identity = try #require(fixture.semanticIdentities["a"])
         fixture.items = [.init(id: "a", rows: 2)]
         var sample: CGRect?
         try await SwiftUIReplay.wait {
@@ -434,10 +454,17 @@ struct NativeOverviewTransitionTests {
         let shrinking = try #require(sample)
         #expect(shrinking.width > 360 * scale && shrinking.width < 736 * scale)
         #expect(abs(shrinking.height - 200 * scale) < 0.5)
+        fixture.items[0].presentationID = "content-during-resize"
+        fixture.locale = Locale(identifier: "ja")
+        try await SwiftUIReplay.wait {
+            fixture.presentations["a"] == "content-during-resize" && fixture.semanticLocales["a"] == "ja"
+        }
         try await SwiftUIReplay.wait { (fixture.frames["a"]?.height ?? 0) > 205 * scale }
         #expect(abs(try frame("a", fixture).width - 360 * scale) < 0.5)
         try await settled(fixture)
         #expect(fixture.appearances["a"] == 1)
+        #expect(fixture.semanticIdentities["a"] == identity)
+        #expect(fixture.presentations["a"] == "content-during-resize")
         #expect(abs(try frame("a", fixture).height - 416 * scale) < 0.5)
     }
 
