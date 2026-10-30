@@ -519,9 +519,17 @@ extension SwiftUIOverviewInteractionTests {
     }
 
     private func saveTextCaptures(_ captures: [(String, Data)], measurements: [[String: String]]) throws {
-        var directory = URL(fileURLWithPath: #filePath)
-        for _ in 0..<6 { directory.deleteLastPathComponent() }
-        directory.appendPathComponent(".scratch/reading-presentation/overview-text-motion", isDirectory: true)
+        let directory: URL
+        if let artifacts = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
+            // NativeReplay stages these sources outside the checkout and
+            // exports this writable artifact root after the app exits.
+            directory = URL(fileURLWithPath: artifacts, isDirectory: true)
+                .appendingPathComponent("overview-text-motion", isDirectory: true)
+        } else {
+            var repository = URL(fileURLWithPath: #filePath)
+            for _ in 0..<6 { repository.deleteLastPathComponent() }
+            directory = repository.appendingPathComponent(".scratch/reading-presentation/overview-text-motion", isDirectory: true)
+        }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         for (name, pixels) in captures {
             try pixels.write(to: directory.appendingPathComponent(name + ".png"))

@@ -348,9 +348,12 @@ the existing continuous WindowServer capture before a blank NBSP title changes
 to visible text. Only a current partial incoming frame admits cancellation;
 the first replacement frame and every later complete frame must match the
 settled reference from that same stream. AX delivery and `cacheDisplay` are not
-used to identify the moving frame. PNGs and frame/cancellation timestamps are
-retained under `.scratch/reading-presentation/overview-text-motion` for the
-hosted capture artifact, after the stream has stopped.
+used to identify the moving frame. After the stream stops, PNGs and
+frame/cancellation timestamps go to the launcher's
+`MOKUSEI_READING_MOTION_ARTIFACTS/overview-text-motion` directory. The native
+launcher exports it under
+`.scratch/reading-presentation/NativeOverviewTagGlassTests/overview-text-motion`
+for the hosted capture artifact; staged source paths do not determine that root.
 The internal `threadCardTextReduceMotionOverride` environment entry lets these
 native replays change the text policy locally. It is optional and defaults to
 `nil`; titles and excerpts resolve it before the system accessibility value.
