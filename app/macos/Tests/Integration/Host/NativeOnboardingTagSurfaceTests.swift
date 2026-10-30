@@ -23,8 +23,7 @@ struct NativeOnboardingTagSurfaceTests {
         fixture.paused = true
         try await SwiftUIReplay.wait { firstView.isPaused }
         let pausedUpdates = firstScene.updates
-        // Rendering is synchronous, so no frame remains in flight after the
-        // mounted view acknowledges pause. Keep the zero-update assertion exact.
+        // Once the mounted view acknowledges pause, scene updates must stop.
         try await Task.sleep(for: .milliseconds(100))
         #expect(firstScene.updates == pausedUpdates)
         #expect(surface(in: root) === firstView && firstScene.presentations == 1)
@@ -36,6 +35,7 @@ struct NativeOnboardingTagSurfaceTests {
         let replacement = TagSurfaceScene()
         fixture.scene = replacement
         try await SwiftUIReplay.wait { firstView.scene === replacement && replacement.updates > 1 }
+        expectTransparent(firstView)
         #expect(surface(in: root) === firstView)
         #expect(firstScene.view == nil && replacement.presentations == 1)
 

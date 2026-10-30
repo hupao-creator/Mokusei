@@ -45,7 +45,7 @@ after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
 collision boundaries remain invisible. Its native SpriteKit host configures a
 clear, nonopaque backing layer before presenting the scene and synchronizes
 rendering with Core Animation, keeping newly mounted Settings tabs transparent
-before the first frame. Unmounting pauses the renderer and detaches its scene.
+before the first frame. Unmounting detaches the scene and leaves the renderer paused.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 

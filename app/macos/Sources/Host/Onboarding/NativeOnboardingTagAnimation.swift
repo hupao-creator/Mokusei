@@ -86,22 +86,26 @@ struct NativeOnboardingTagAnimation: View {
         view.wantsLayer = true
         view.layer?.isOpaque = false
         view.layer?.backgroundColor = NSColor.clear.cgColor
+        view.presentScene(scene)
         // Tab replacement can commit the AppKit layer before an asynchronous
-        // SpriteKit frame. Keep both in the same Core Animation update instead.
+        // SpriteKit frame. Configure timing after presentation initializes the
+        // renderer so both participate in the same Core Animation update.
         view.isAsynchronous = false
         view.isPaused = isPaused
-        view.presentScene(scene)
         return view
     }
 
     func updateNSView(_ view: TransparentView, context: Context) {
-        if view.scene !== scene { view.presentScene(scene) }
+        if view.scene !== scene {
+            view.presentScene(scene)
+            view.isAsynchronous = false
+        }
         view.isPaused = isPaused
     }
 
     static func dismantleNSView(_ view: TransparentView, coordinator: ()) {
-        view.isPaused = true
         view.presentScene(nil)
+        view.isPaused = true
     }
 
     final class TransparentView: SKView {
