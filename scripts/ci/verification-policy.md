@@ -41,8 +41,11 @@ Methods needing an exclusive native owner are recorded in `swift_ownership.py`
 and the verified build manifest before ordinary partitioning. The title
 cancellation replay belongs to the existing `native-capture/tag-glass-captures`
 check so its incoming-frame assertion runs with AppKit's event loop and real
-WindowServer delivery. Its full method identity remains in discovery and is
-excluded from ordinary execution without a test-level skip or environment bypass.
+WindowServer delivery. The full Workspace search geometry method belongs to
+`native-controls/isolated-input`; its morph and emphasized caret must advance
+in the real AppKit loop and report `SEARCH_CARET_GEOMETRY_CONFIRMED` after the
+native geometry assertions. Both full method identities remain in discovery and
+are excluded from ordinary execution without a test-level skip or environment bypass.
 Ordinary commands retain suite-prefix `--filter` selection and pass a separate
 shared `--skip` for the full native method ID and its runtime source-location
 suffix. This command selection does not add a framework skip outcome; the method

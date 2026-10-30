@@ -436,6 +436,100 @@ struct NativeOverviewTagGlassTests {
             #expect((bitmap.colorAt(x: inside, y: y)?.usingColorSpace(.sRGB)?.greenComponent ?? 0) > 0.025)
             #expect((bitmap.colorAt(x: outside, y: y)?.usingColorSpace(.sRGB)?.greenComponent ?? 1) < 0.025)
         }
+        try await Self.searchMaterialMatchesMoku(in: window, filter: filter, configuration: configuration)
+    }
+
+    /// Compare the production search carrier with Moku at the same window
+    /// coordinates. ImageRenderer cannot certify the native glass underneath
+    /// the gradient, and two positions can sample different backdrop pixels.
+    private static func searchMaterialMatchesMoku(in window: NSWindow, filter: SCContentFilter,
+                                                  configuration: SCStreamConfiguration) async throws {
+        let size = try #require(window.contentView).bounds.size
+        let target = CGRect(x: 32, y: 60, width: 320, height: OverviewTagMetrics.buttonHeight)
+        let sourceFrame = CGRect(x: target.minX + 60, y: target.minY, width: 100, height: target.height)
+        let source = OverviewSearchMorphGeometry.Source(id: "selected", title: "Selected tag", count: 3,
+            directory: false, selected: true, frame: sourceFrame, labelFrame: sourceFrame)
+        let titlebar = window.frame.height - size.height
+        var measurements: [[String: Any]] = []
+        let directory = ProcessInfo.processInfo.environment["MOKUSEI_TAG_SWITCH_ARTIFACTS"].map {
+            URL(fileURLWithPath: $0, isDirectory: true)
+        }
+        func content(search: Bool, scheme: ColorScheme) -> some View {
+            ZStack(alignment: .topLeading) {
+                LinearGradient(colors: [Color(red: 0.95, green: 0.77, blue: 0.59),
+                                        Color(red: 0.59, green: 0.81, blue: 0.95)],
+                    startPoint: .leading, endPoint: .trailing)
+                if search {
+                    OverviewSearchMorphLayer(progress: 1, searching: true, sources: [source], target: target) { _ in
+                        Color.clear
+                    }
+                } else {
+                    NativeMokuCapsuleGlass()
+                        .frame(width: target.width, height: target.height)
+                        .position(x: target.midX, y: target.midY)
+                }
+                Rectangle().fill(search ? Color.red : Color.green)
+                    .frame(width: 16, height: 16)
+                    .position(x: size.width - 32, y: target.midY)
+            }
+            .frame(width: size.width, height: size.height)
+            .environment(\.colorScheme, scheme)
+            .transaction { $0.disablesAnimations = true }
+            .allowsHitTesting(false)
+        }
+        for scheme in [ColorScheme.light, .dark] {
+            let name = scheme == .light ? "light" : "dark"
+            window.appearance = NSAppearance(named: scheme == .light ? .aqua : .darkAqua)
+            let host = NSHostingView(rootView: content(search: false, scheme: scheme))
+            window.contentView = host
+            var captures: [NSBitmapImageRep] = []
+            for search in [false, true] {
+                host.rootView = content(search: search, scheme: scheme)
+                host.layoutSubtreeIfNeeded()
+                window.displayIfNeeded()
+                try await Task.sleep(for: .milliseconds(350))
+                let bitmap = NSBitmapImageRep(cgImage: try await captureTagWindow(window, filter: filter, configuration: configuration))
+                let marker = try #require(bitmap.colorAt(x: Int((size.width - 32) * 2),
+                    y: Int((target.midY + titlebar) * 2))?.usingColorSpace(.sRGB))
+                #expect(search ? marker.redComponent > marker.greenComponent + 0.2
+                               : marker.greenComponent > marker.redComponent + 0.2,
+                        "Capture must show the current material fixture, not the previous surface")
+                captures.append(bitmap)
+                if let directory {
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    try #require(bitmap.representation(using: .png, properties: [:]))
+                        .write(to: directory.appendingPathComponent("search-material-\(name)-\(search ? "search" : "moku").png"))
+                }
+            }
+            let reference = captures[0], actual = captures[1]
+            let x0 = Int(target.minX * 2), y0 = Int((target.minY + titlebar) * 2)
+            let width = Int(target.width * 2), height = Int(target.height * 2)
+            let center = try #require(reference.colorAt(x: x0 + width / 2, y: y0 + height / 4)?.usingColorSpace(.sRGB))
+            #expect(max(center.redComponent, max(center.greenComponent, center.blueComponent)) < 0.35,
+                    "Moku reference must contain the rendered dark surface, not a stale backdrop")
+            // Check each quarter separately so a different lower glass fill or
+            // edge cannot disappear in the almost-opaque top of the gradient.
+            var sums = [Double](repeating: 0, count: 4), counts = [Int](repeating: 0, count: 4)
+            for y in stride(from: 0, to: height, by: 2) {
+                let band = min(3, y * 4 / height)
+                for x in stride(from: 0, to: width, by: 2) {
+                    let a = try #require(reference.colorAt(x: x0 + x, y: y0 + y)?.usingColorSpace(.sRGB))
+                    let b = try #require(actual.colorAt(x: x0 + x, y: y0 + y)?.usingColorSpace(.sRGB))
+                    sums[band] += Double(abs(a.redComponent - b.redComponent)
+                        + abs(a.greenComponent - b.greenComponent) + abs(a.blueComponent - b.blueComponent))
+                    counts[band] += 3
+                }
+            }
+            let differences = zip(sums, counts).map { $0.0 / Double($0.1) }
+            measurements.append(["scheme": name, "meanRGBDifferenceByQuarter": differences,
+                "systemReduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency])
+            if let directory {
+                try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
+                    .write(to: directory.appendingPathComponent("search-material.json"))
+            }
+            #expect(differences.allSatisfy { $0 <= 0.012 },
+                    "Completed search must render Moku's whole material in \(name): \(differences)")
+        }
     }
 
     /// Sample the real glass while it returns to a wider parent. Checking the

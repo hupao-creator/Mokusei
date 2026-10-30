@@ -109,10 +109,10 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         OverviewSearchMorphGeometry.frame(source: origin, target: target, progress: progress)
     }
     /// The selected tag becomes Moku's warm-black material as its label
-    /// retires; the search contents only start appearing after it is opaque.
+    /// retires; the search contents fade in toward the end of that transition.
     /// Reduce Transparency still fades the material in, so the tag label is not
     /// left on an already opaque dark fill while it is still visible.
-    private var carrierGradientOpacity: CGFloat {
+    private var carrierMaterialOpacity: CGFloat {
         max(0, min(1, (progress - 0.2) / 0.45))
     }
     var body: some View {
@@ -134,7 +134,7 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
                     .environment(\.colorScheme, .dark)
                     .frame(width: max(96, carrier.width), height: carrier.height)
                     .frame(width: carrier.width, height: carrier.height, alignment: .trailing)
-                    .clipShape(Capsule())
+                    .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                     .opacity(min(1, max(0, (progress - 0.45) / 0.30)))
                     .allowsHitTesting(progress > 0.45)
                     .position(x: carrier.midX, y: carrier.midY)
@@ -165,14 +165,20 @@ struct OverviewSearchMorphLayer<Controls: View>: View, @preconcurrency Animatabl
         }
         .frame(width: rect.width, height: rect.height)
         .clipped()
-        .background { if reduceTransparency { Capsule().fill(NativePalette.overview.surface.swiftUI) } }
-        .glassEffect((!isCarrier || progress < 0.001 ? Glass.clear : Glass.regular)
-            .tint(source?.selected == true && progress < 0.5 ? NativePalette.overview.accent.swiftUI.opacity(0.16 * (1 - progress * 2)) : nil), in: .capsule)
-        .overlay {
-            if isCarrier {
-                NativeMokuCapsuleGradient().opacity(carrierGradientOpacity)
-                    .allowsHitTesting(false).accessibilityHidden(true)
+        .background {
+            ZStack {
+                Color.clear
+                    .background { if reduceTransparency { Capsule().fill(NativePalette.overview.surface.swiftUI) } }
+                    .glassEffect(Glass.clear.tint(source?.selected == true && progress < 0.5
+                        ? NativePalette.overview.accent.swiftUI.opacity(0.16 * (1 - progress * 2)) : nil), in: .capsule)
+                    .opacity(isCarrier ? 1 - carrierMaterialOpacity : 1)
+                if isCarrier {
+                    // Crossfade the whole surface. Keeping regular/light glass
+                    // underneath only Moku's gradient changes its material.
+                    NativeMokuCapsuleGlass().opacity(carrierMaterialOpacity)
+                }
             }
+            .allowsHitTesting(false).accessibilityHidden(true)
         }
         .opacity(isCarrier ? 1 : OverviewSearchMorphGeometry.neighborOpacity(progress: progress))
         .overviewSearchAnchor(isCarrier ? "__search_carrier__" : "__search_neighbor__\(source?.id ?? "")")

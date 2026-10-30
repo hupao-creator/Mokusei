@@ -31,9 +31,13 @@ import SwiftUI
     func show(at nativeRect: CGRect, in editor: NSTextView) {
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
-        let width: CGFloat = 2.6
-        let height = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
-        let rect = CGRect(x: nativeRect.midX - width / 2, y: nativeRect.midY - height / 2, width: width, height: height)
+        let nativeWidth: CGFloat = 2.6
+        let nativeHeight = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
+        // AppKit supplies view coordinates, which need not match its backing
+        // layer's coordinates (notably for flipped or scaled text views).
+        let rect = editor.convertToLayer(CGRect(x: nativeRect.midX - nativeWidth / 2,
+            y: nativeRect.midY - nativeHeight / 2, width: nativeWidth, height: nativeHeight))
+        let width = rect.width, height = rect.height
         let previous = layer.presentation()?.position ?? layer.position
         let moved = hasFrame && rect.origin != layer.position
         let animate = moved && !reduceMotion && abs(rect.midY - layer.frame.midY) < min(rect.height, layer.bounds.height) / 2
