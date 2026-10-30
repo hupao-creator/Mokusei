@@ -335,6 +335,11 @@ Reduce Motion makes both text effects immediate while visible excerpt windows
 continue advancing. Disabling cloud effects does not freeze text content. The
 mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
+The internal `threadCardTextReduceMotionOverride` environment entry lets these
+native replays change the text policy locally. It is optional and defaults to
+`nil`; titles and excerpts resolve it before the system accessibility value.
+Ordinary application hosts leave it unset and continue following macOS Reduce
+Motion. The override does not change clocks, other effects or system preferences.
 
 There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
 

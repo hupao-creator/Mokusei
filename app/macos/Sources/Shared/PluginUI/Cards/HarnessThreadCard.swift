@@ -194,11 +194,13 @@ private struct ThreadCardIdentity: View {
 private struct CardTitleSwap: View {
     let text: String
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.threadCardTextReduceMotionOverride) private var reduceMotionOverride
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var displayed: String
     @State private var phase = 0
     @State private var transition = CardTitleTransition()
+    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
     init(text: String) { self.text = text; _displayed = State(initialValue: text) }
     var body: some View {
         Text(displayed).cardFont(size: 15, weight: 620).offset(y: phase == 1 ? -4 : phase == 2 ? 4 : 0)

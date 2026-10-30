@@ -6,6 +6,12 @@ public extension EnvironmentValues {
     @Entry var threadCardTextRasterScale: CGFloat = 1
 }
 
+extension EnvironmentValues {
+    /// A local policy input for native replays; ordinary hosts leave it nil and
+    /// the title/excerpt leaves continue reading the system accessibility value.
+    @Entry var threadCardTextReduceMotionOverride: Bool? = nil
+}
+
 extension View {
     func cardFont(size: CGFloat, weight: CGFloat = 400, monospaced: Bool = false,
                   lineSpacing: CGFloat = 0) -> some View {

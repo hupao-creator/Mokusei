@@ -150,7 +150,7 @@ private struct OverviewTextReplay: View {
         .environment(\.locale, Locale(identifier: "en"))
         .environment(\.colorScheme, .light)
         .environment(\.scenePhase, fixture.scenePhase)
-        .environment(\.accessibilityReduceMotion, fixture.reduceMotion)
+        .environment(\.threadCardTextReduceMotionOverride, Optional(fixture.reduceMotion))
         .environment(\.threadCardAnimationVisibility, fixture.suppliesVisibility ? fixture.visibility : nil)
         .environment(\.threadCardCloudAnimationsEnabled, false)
         .onAppear { fixture.appearances += 1; fixture.identities.append(identity) }

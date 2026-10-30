@@ -12,7 +12,8 @@ public struct ThreadCardExcerpt: View {
     public let messageText: String?
     @Environment(\.lineLimit) private var inheritedLineLimit
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.threadCardTextReduceMotionOverride) private var reduceMotionOverride
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var buffer = ExcerptBuffer()
     @State private var placeholder: String
@@ -22,6 +23,7 @@ public struct ThreadCardExcerpt: View {
     @State private var revealProgress: CGFloat = 0
 
     private var isVisible: Bool { scenePhase != .background && (visibility?.isVisible ?? true) }
+    private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
     public init(content: String, messageId: JSONText? = nil, messageText: String? = nil) {
         self.content = content; self.messageId = messageId; self.messageText = messageText
