@@ -110,7 +110,8 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 				return nil, err
 			}
 			if action == "prepare" || action == "start" {
-				release, err := r.beginServiceAdmission(false)
+				var release func()
+				ctx, release, err = r.beginConfigurationAdmission(ctx, false)
 				if err != nil {
 					return nil, err
 				}

@@ -137,7 +137,7 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 	}
 	stage = "persist"
 	if previous.Moku.HostHarnessPreference != settings.Moku.HostHarnessPreference {
-		release, changeErr := r.beginMokuHarnessChange(false)
+		release, changeErr := r.beginMokuHarnessChange(ctx, false)
 		if changeErr != nil {
 			return SettingsResult{}, changeErr
 		}

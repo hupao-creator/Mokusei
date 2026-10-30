@@ -70,52 +70,53 @@ type Config struct {
 	OutputLocale       func(context.Context) (string, error)
 }
 type Runtime struct {
-	mokuDeliveryMu      sync.Mutex
-	mokuDeliveryEpoch   string
-	serviceMu           sync.Mutex
-	serviceDraining     bool
-	serviceAdmissions   int
-	mokuHarnessChanging bool
-	threadCacheMu       sync.Mutex
-	threadCacheRevision uint64
-	projectionMu        sync.Mutex
-	compute             *workpool.Pool
-	threadCache         map[string]cachedThread
-	overviewCache       map[string]cachedOverview
-	search              *threadsearch.Manager
-	voiceOnce           sync.Once
-	voice               *threadvoice.Manager
-	config              Config
-	ctx                 context.Context
-	cancel              context.CancelFunc
-	generationCtx       context.Context
-	generationCancel    context.CancelFunc
-	lifecycleMu         sync.Mutex
-	mu                  sync.Mutex
-	configurationGate   chan struct{}
-	closed              bool
-	resetting           bool
-	generation          uint64
-	handles             map[string]*threadHandle
-	locks               map[string]*threadCommandLock
-	deleting            map[string]bool
-	sendClaims          map[string]map[*sendClaim]struct{}
-	cancellationStates  map[string]*threadCancellation
-	operations          sync.WaitGroup
-	closeOnce           sync.Once
-	closeErr            error
-	publishMu           sync.Mutex
-	baseline            model.AppState
-	listeners           map[uint64]func(json.RawMessage)
-	threadListeners     map[uint64]func(model.ThreadRecord)
-	nextListener        uint64
-	stopStore           func()
-	publisherDone       chan struct{}
-	lifecycle           *lifecycleCapability
-	pendingPublications []json.RawMessage
-	delivering          bool
-	pendingActivities   []model.RuntimeActivity
-	publisherWake       chan struct{}
+	mokuDeliveryMu          sync.Mutex
+	mokuDeliveryEpoch       string
+	serviceMu               sync.Mutex
+	serviceDraining         bool
+	serviceAdmissions       int
+	configurationAdmissions map[*serviceAdmissionToken]struct{}
+	mokuHarnessChanging     bool
+	threadCacheMu           sync.Mutex
+	threadCacheRevision     uint64
+	projectionMu            sync.Mutex
+	compute                 *workpool.Pool
+	threadCache             map[string]cachedThread
+	overviewCache           map[string]cachedOverview
+	search                  *threadsearch.Manager
+	voiceOnce               sync.Once
+	voice                   *threadvoice.Manager
+	config                  Config
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+	generationCtx           context.Context
+	generationCancel        context.CancelFunc
+	lifecycleMu             sync.Mutex
+	mu                      sync.Mutex
+	configurationGate       chan struct{}
+	closed                  bool
+	resetting               bool
+	generation              uint64
+	handles                 map[string]*threadHandle
+	locks                   map[string]*threadCommandLock
+	deleting                map[string]bool
+	sendClaims              map[string]map[*sendClaim]struct{}
+	cancellationStates      map[string]*threadCancellation
+	operations              sync.WaitGroup
+	closeOnce               sync.Once
+	closeErr                error
+	publishMu               sync.Mutex
+	baseline                model.AppState
+	listeners               map[uint64]func(json.RawMessage)
+	threadListeners         map[uint64]func(model.ThreadRecord)
+	nextListener            uint64
+	stopStore               func()
+	publisherDone           chan struct{}
+	lifecycle               *lifecycleCapability
+	pendingPublications     []json.RawMessage
+	delivering              bool
+	pendingActivities       []model.RuntimeActivity
+	publisherWake           chan struct{}
 }
 
 func New(ctx context.Context, config Config) (*Runtime, error) {
@@ -139,6 +140,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 	lifetime, cancel := context.WithCancel(ctx)
 	r := &Runtime{config: config, ctx: lifetime, cancel: cancel, handles: map[string]*threadHandle{}, locks: map[string]*threadCommandLock{}, listeners: map[uint64]func(json.RawMessage){}, publisherDone: make(chan struct{})}
 	r.configurationGate = make(chan struct{}, 1)
+	r.configurationAdmissions = map[*serviceAdmissionToken]struct{}{}
 	r.lifecycle = &lifecycleCapability{runtime: r, consumers: map[string]*lifecycleConsumer{}}
 	r.threadListeners = map[uint64]func(model.ThreadRecord){}
 	r.deleting = map[string]bool{}

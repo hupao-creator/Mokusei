@@ -85,8 +85,13 @@ type Configuration struct {
 	Ledger                    func(string) plugin.TelemetryLedger
 	PrepareNativeVoice        func(context.Context, string, []plugin.ContextEntry) (plugin.VoiceSession, error)
 	Voice                     plugin.VoiceCapability
-	CompletedReply            func(string, string) (string, bool)
-	ReportFailure             func(string, error)
+	// VoicePreparationContext returns a Moku-lifetime context that retains the
+	// preparing command's admission identity without its cancellation. Applying
+	// a pending host preference during preparation must not count that same
+	// admission as competing work.
+	VoicePreparationContext func(service, command context.Context) context.Context
+	CompletedReply          func(string, string) (string, bool)
+	ReportFailure           func(string, error)
 }
 type SubmitRequest struct {
 	Input            model.AgentInput `json:"input"`

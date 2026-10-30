@@ -44,12 +44,16 @@ func runHarnessSwitchReplay() error {
 }
 
 func saveReplayHost(s *replaySystem, host string) error {
-	settings, revision, err := s.r.Settings()
+	return saveReplayHostRuntime(s.r, host)
+}
+
+func saveReplayHostRuntime(r *runtimepkg.Runtime, host string) error {
+	settings, revision, err := r.Settings()
 	if err != nil {
 		return err
 	}
 	settings.Moku.HostHarnessPreference = host
-	result, err := s.r.UpdateSettings(mokuReplayContext(), revision, settings)
+	result, err := r.UpdateSettings(mokuReplayContext(), revision, settings)
 	if err == nil && result.Status != "saved" {
 		return errors.New("Harness selection conflicted")
 	}

@@ -450,7 +450,7 @@ func replaySettingsModel(r json.RawMessage) string {
 func newReplayConfiguration(root string, r *runtimepkg.Runtime, h *replayNativeHarness) moku.Configuration {
 	workspace := filepath.Join(root, "moku")
 	mokuReplayMust(os.MkdirAll(workspace, 0700))
-	return moku.Configuration{Workspace: workspace, DataDir: root, Harnesses: map[string]plugin.Harness{"mock": h}, WithSettingsAdmission: r.WithConfigurationAdmission, PrepareSettings: r.PrepareSettings, Settings: r.Settings, Threads: r.Threads, Thread: r.Thread, UpdateThread: r.UpdateThread, UpdateNote: r.UpdateMokuNote,
+	return moku.Configuration{Workspace: workspace, DataDir: root, Harnesses: map[string]plugin.Harness{"mock": h}, WithSettingsAdmission: r.WithConfigurationAdmission, PrepareSettings: r.PrepareSettings, Settings: r.Settings, Threads: r.Threads, Thread: r.Thread, UpdateThread: r.UpdateThread, UpdateNote: r.UpdateMokuNote, VoicePreparationContext: r.VoicePreparationContext,
 		ReadSessionConfiguration: func() (moku.SessionConfiguration, error) {
 			c, e := r.ReadMokuConfiguration()
 			return moku.SessionConfiguration{Unapplied: c.Unapplied, HarnessID: c.HarnessID, Settings: c.Settings, Cwd: c.Cwd, AppliedSettings: c.AppliedSettings, SettingsRevision: c.SettingsRevision}, e

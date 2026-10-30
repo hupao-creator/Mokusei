@@ -78,6 +78,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 		},
 		Ledger:             b.ledger,
 		PrepareNativeVoice: r.PrepareMokuVoice, CompletedReply: r.CompletedReply, ReportFailure: b.log,
+		VoicePreparationContext: r.VoicePreparationContext,
 	}
 	for _, id := range []string{"codex", "claude", "pi", "opencode"} {
 		if b.disabled[id] != "" {
