@@ -321,9 +321,12 @@ the existing presentation.
 Titles and excerpts use the same viewport/page and background visibility gate.
 Hidden excerpts retain only their latest input and stop parsing, hold timers and
 reveal masks; returning installs the latest preview directly, without replaying
-hidden output. Visible excerpts keep their 600-character windows and 800ms hold
-policy. Their source buffer is not observed by SwiftUI: only changed display or
-hold-schedule facts are published. A proven append beyond a full window reuses its
+hidden output. Their accessibility label still receives the latest authoritative,
+bounded raw excerpt, including first content that replaces loading while hidden.
+That semantic label does not report visual processing progress; the rendered
+text remains frozen until return. Visible excerpts keep their 600-character
+windows and 800ms hold policy. Their source buffer is not observed by SwiftUI:
+only changed display or hold-schedule facts are published. A proven append beyond a full window reuses its
 parsed preview; partial windows, rewrites, message replacement and transport-window
 shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
@@ -331,10 +334,31 @@ an obsolete reveal or hold cannot install a prior presentation.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display.
 Hiding, backgrounding or detaching cancels that owner and settles the latest title.
+Cancelling an active transition replaces only its stateless animated text leaf,
+so an in-flight fade-in is retired even when its model phase is already settled;
+the transition owner and card keep their identity.
 Reduce Motion makes both text effects immediate while visible excerpt windows
 continue advancing. Disabling cloud effects does not freeze text content. The
 mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
+The title cancellation method runs once in the mandatory
+`reading-presentation/run.py --tag-glass-captures` native AppKit entry point;
+the CI manifest assigns it there instead of an ordinary Swift shard. It arms
+the existing continuous WindowServer capture before a blank NBSP title changes
+to visible text. Only a current partial incoming frame admits cancellation;
+the first replacement frame and every later complete frame must match the
+settled reference from that same stream. AX delivery and `cacheDisplay` are not
+used to identify the moving frame. After the stream stops, PNGs and
+frame/cancellation timestamps go to the launcher's
+`MOKUSEI_READING_MOTION_ARTIFACTS/overview-text-motion` directory. The native
+launcher exports it under
+`.scratch/reading-presentation/NativeOverviewTagGlassTests/overview-text-motion`
+for the hosted capture artifact; staged source paths do not determine that root.
+The internal `threadCardTextReduceMotionOverride` environment entry lets these
+native replays change the text policy locally. It is optional and defaults to
+`nil`; titles and excerpts resolve it before the system accessibility value.
+Ordinary application hosts leave it unset and continue following macOS Reduce
+Motion. The override does not change clocks, other effects or system preferences.
 
 There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
 

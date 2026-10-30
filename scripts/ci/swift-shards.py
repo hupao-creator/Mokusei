@@ -11,6 +11,7 @@ import subprocess
 import time
 
 import deadline
+from swift_ownership import NATIVE_METHOD_OWNERS, native_filter, ordinary_filter
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "app/macos/.build/ci-manifest.json"
@@ -35,9 +36,12 @@ def prepare():
     tests = sorted(line.strip() for line in listed if line.strip())
     if not tests or len(tests) != len(set(tests)) or any("/" not in test or "." not in test.split("/")[0] for test in tests):
         raise RuntimeError("Invalid or empty Swift test inventory")
+    if set(NATIVE_METHOD_OWNERS) - set(tests):
+        raise RuntimeError("A declared native method is absent from the current Swift inventory")
     suites = {}
     for test in tests:
-        suites.setdefault(test.split("/", 1)[0], []).append(test)
+        if test not in NATIVE_METHOD_OWNERS:
+            suites.setdefault(test.split("/", 1)[0], []).append(test)
     weights = json.loads((ROOT / "scripts/ci/swift-suite-weights.json").read_text())
     # Account for the real boundary replays sharing each native session. This
     # lets shorter replay lanes consume more Swift work without GUI overlap.
@@ -51,13 +55,17 @@ def prepare():
         shard["tests"].extend(suites[suite])
         shard["estimatedSeconds"] += weights.get(suite, 1)
     for shard in shards:
-        shard["filter"] = "^(?:" + "|".join(re.escape(suite) for suite in shard["suites"]) + ")/"
         shard["tests"].sort()
-    if any(sum(bool(re.search(shard["filter"], test)) for shard in shards) != 1 for test in tests):
+        # Preserve suite selection and pass an independent exclusion to Swift
+        # Testing, whose runtime method IDs also contain a source location.
+        shard["filter"] = ordinary_filter(shard["suites"])
+        shard["skip"] = native_filter()
+    if any(sum(bool(re.search(shard["filter"], test)) and not re.search(shard["skip"], test) for shard in shards)
+           != (0 if test in NATIVE_METHOD_OWNERS else 1) for test in tests):
         raise RuntimeError("Swift filters omit or duplicate discovered methods")
-    manifest = {**identity(), "tests": tests, "shards": shards}
+    manifest = {**identity(), "tests": tests, "shards": shards, "nativeMethods": NATIVE_METHOD_OWNERS}
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
-    print(json.dumps({"methods": len(tests), "suites": len(suites),
+    print(json.dumps({"methods": len(tests), "nativeMethods": len(NATIVE_METHOD_OWNERS), "suites": len(suites),
                       "shards": [{"methods": len(row["tests"]), "estimatedSeconds": row["estimatedSeconds"]} for row in shards]}))
 
 
@@ -66,6 +74,10 @@ def verify(evidence):
     for key, value in identity().items():
         if manifest.get(key) != value:
             raise RuntimeError(f"Shared build {key} mismatch: {manifest.get(key)!r} != {value!r}")
+    if manifest.get("nativeMethods") != NATIVE_METHOD_OWNERS:
+        raise RuntimeError("Shared build native method ownership mismatch")
+    if any(shard.get("skip") != native_filter() for shard in manifest["shards"]):
+        raise RuntimeError("Shared build native method exclusion mismatch")
     evidence.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(MANIFEST, evidence / "build-manifest.json")
     return manifest
@@ -92,11 +104,11 @@ def main():
         parser.error("--shard is required")
     shard = manifest["shards"][args.shard]
     receipt = {"revision": manifest["revision"], "shard": args.shard, "tests": shard["tests"],
-               "filter": shard["filter"], "status": "running", "startedAt": time.time()}
+               "filter": shard["filter"], "skip": shard["skip"], "status": "running", "startedAt": time.time()}
     path = args.evidence / f"swift-{args.shard}.json"
     path.write_text(json.dumps(receipt, indent=2) + "\n")
     command = ["xcrun", "swift", "test", "--skip-build", "--no-parallel", "--package-path", "app/macos",
-               "--filter", shard["filter"]]
+               "--filter", shard["filter"], "--skip", shard["skip"]]
     try:
         with (args.evidence / f"swift-{args.shard}.log").open("w") as log:
             receipt["exit_code"] = deadline.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)

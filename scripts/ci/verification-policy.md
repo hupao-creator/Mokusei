@@ -27,7 +27,7 @@ documentation scope are not claimed as executed.
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only clipboard/profile-lease tests on macOS |
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh and cache ownership | Linux `adapters` replay group; scripted external peers and loopback services |
-| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Five disjoint shards after one macOS build; display skips fail CI; DirectoryTag is included once |
+| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Five disjoint ordinary shards plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
 | Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five producers export six files through the preparation artifact before the Swift shards |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage and native profile leases | Six existing interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
@@ -36,6 +36,26 @@ The Swift shards defer only named methods needing a live Go fixture or
 the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
 tests and retain reports/logs. New or display-related skips fail the job. Do not
 turn a regression into an allowlist entry.
+
+Methods needing an exclusive native owner are recorded in `swift_ownership.py`
+and the verified build manifest before ordinary partitioning. The title
+cancellation replay belongs to the existing `native-capture/tag-glass-captures`
+check so its incoming-frame assertion runs with AppKit's event loop and real
+WindowServer delivery. Its full method identity remains in discovery and is
+excluded from ordinary execution without a test-level skip or environment bypass.
+Ordinary commands retain suite-prefix `--filter` selection and pass a separate
+shared `--skip` for the full native method ID and its runtime source-location
+suffix. This command selection does not add a framework skip outcome; the method
+must still execute at its declared native owner.
+Coverage requires exactly one successful owner receipt, one passing terminal
+outcome and the required execution marker at that declared check; missing frames fail the native assertion, while
+missing, skipped, failed, repeated or misrouted outcomes fail aggregation.
+Local `make check-swift` uses the same ordinary exclusion, then runs the existing
+producer for the declared check and validates its actual native evidence.
+Producer reports limited with `--check` are local evidence and cannot substitute
+for a complete mandatory CI group.
+Controlled CLI fixtures verify argument and evidence contracts; only the actual
+current-head Swift/native run validates Swift Testing's runtime selection semantics.
 
 ## Runner allocation and execution limits
 

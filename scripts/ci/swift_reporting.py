@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from swift_ownership import native_filter
 
 
 def summarize(logs):
@@ -72,9 +73,47 @@ def summarize(logs):
     return results, errors, rows
 
 
+def terminal_methods(log, inventory, errors, *, allow_other=False):
+    """Read framework outcomes, never infer execution from the requested filter."""
+    log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", log)
+    by_name = {}
+    for test in inventory:
+        by_name.setdefault(test.split("/", 1)[1], []).append(test)
+    current_suites = []
+    outcomes = []
+    for line in log.splitlines():
+        suite = re.match(r"^◇ Suite (.+) started\.", line)
+        if suite:
+            current_suites.append(suite[1].strip('"'))
+        xctest = re.match(r"^Test Case '-\[([^ ]+) ([^\]]+)\]' (passed|failed|skipped) \(", line)
+        if xctest:
+            identity = f"{xctest[1]}/{xctest[2]}"
+            if not allow_other or identity in inventory:
+                outcomes.append((identity, xctest[3]))
+        testing = re.match(r"^[✔✘] Test (?!run with )(.+?)(?: with \d+ test cases)? (passed|failed) after ", line)
+        skipped = re.match(r"^[➜↷✘] Test (.+?) skipped(?:[.:]| because)", line)
+        if testing or skipped:
+            name = testing[1] if testing else skipped[1]
+            status = testing[2] if testing else "skipped"
+            candidates = by_name.get(name, [])
+            if not candidates and allow_other:
+                continue
+            if len(candidates) > 1:
+                candidates = [test for test in candidates if test.split("/")[0].split(".")[-1] in current_suites]
+            if len(candidates) != 1:
+                errors.append(f"Cannot identify framework outcome {name!r} unambiguously.")
+            else:
+                outcomes.append((candidates[0], status))
+        finished = re.match(r"^[✔✘] Suite (.+) (?:passed|failed) after ", line)
+        if finished and finished[1].strip('"') in current_suites:
+            current_suites.remove(finished[1].strip('"'))
+    return outcomes
+
+
 def capture(output_dir):
     repo = Path(__file__).resolve().parents[2]
-    command = ["xcrun", "swift", "test", "--package-path", str(repo / "app/macos")]
+    command = ["xcrun", "swift", "test", "--package-path", str(repo / "app/macos"),
+               "--skip", native_filter()]
     path = output_dir / "swift-tests.log"
     status = output_dir / "swift-status.json"
     record = {"command": command, "exit_code": None, "log": str(path)}

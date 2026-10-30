@@ -50,7 +50,7 @@ def main():
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
-              if isolated_input else [suite])
+              if isolated_input else [suite, "SwiftUIOverviewInteractionTests"] if glass_captures else [suite])
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
@@ -92,7 +92,7 @@ def main():
         selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
-                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds"
+                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels"
                     if glass_captures else
                     "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
@@ -120,18 +120,25 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              14 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
-             6 if "--overview-mounting" in sys.argv else
+             11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
              8 if "--markdown" in sys.argv else
-             2 if glass_captures else
+             3 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
              11 if "--moku-note-tests" in sys.argv else 6)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if glass_captures:
+        for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
+                     "titleReversalAndVisibilityCancellationSettlePixels"]:
+            if f"Test {name}() passed" not in result.stdout:
+                raise SystemExit("FAIL: incomplete native capture replay: " + name)
+        if "TITLE_INCOMING_MOTION_CONFIRMED" not in result.stdout:
+            raise SystemExit("FAIL: title replay did not observe and cancel a live incoming frame")
     if isolated_input:
         for name in isolated_methods:
             if f"Test {name}() passed" not in result.stdout:

@@ -440,6 +440,8 @@ struct NativeOverviewSearchTests {
                 #expect(geometry.size == CGSize(width: width, height: 480))
                 let selectedFrame = try #require(geometry.bounds[selected.id])
                 #expect(geometry.bounds["__all__"] != nil && geometry.bounds["__scroll__"] != nil)
+                let structureBeforeSearch = model.content.structureRevision
+                let solvesBeforeSearch = model.canvasState.layoutSolveCount
                 model.beginSearch()
                 try await Task.sleep(for: .milliseconds(250))
                 try await capture(window, name: name + "-opening")
@@ -453,13 +455,19 @@ struct NativeOverviewSearchTests {
                 let origin = try #require(OverviewSearchMorphGeometry.carrier(in: sources)).frame
                 #expect(sources.contains { $0.id == selected.id } && origin.intersects(selectedFrame))
                 let progress = (carrier.width - origin.width) / (target.width - origin.width)
-                #expect(progress > 0 && progress < 1)
+                let openingContext = "iteration=\(name), width=\(width), theme=\(dark ? "dark" : "light"), "
+                    + "selectedFrame=\(selectedFrame), origin=\(origin), target=\(target), carrier=\(carrier), progress=\(progress), "
+                    + "structureRevision=\(structureBeforeSearch)->\(model.content.structureRevision), "
+                    + "layoutSolveCount=\(solvesBeforeSearch)->\(model.canvasState.layoutSolveCount)"
+                #expect(progress > 0 && progress < 1, "\(openingContext)")
                 let expected = OverviewSearchMorphGeometry.frame(source: origin, target: target, progress: progress)
-                #expect(abs(carrier.minX - expected.minX) < 2)
+                #expect(abs(carrier.minX - expected.minX) < 2, "\(openingContext), expected=\(expected)")
                 for source in sources where source.id != selected.id {
                     let neighbor = try #require(geometry.bounds["__search_neighbor__\(source.id)"])
-                    #expect(abs(neighbor.width - source.frame.width) < 1)
-                    #expect(source.frame.midX < origin.midX ? neighbor.minX < source.frame.minX : neighbor.minX > source.frame.minX)
+                    #expect(abs(neighbor.width - source.frame.width) < 1,
+                            "\(openingContext), neighborID=\(source.id), source=\(source.frame), neighbor=\(neighbor)")
+                    #expect(source.frame.midX < origin.midX ? neighbor.minX < source.frame.minX : neighbor.minX > source.frame.minX,
+                            "\(openingContext), neighborID=\(source.id), source=\(source.frame), neighbor=\(neighbor)")
                 }
                 try await Task.sleep(for: .milliseconds(1400))
                 #expect(model.isSearching && model.selectedTag == "Selected" && model.items.map(\.id) == ["a"])
