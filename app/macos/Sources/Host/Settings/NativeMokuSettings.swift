@@ -21,7 +21,6 @@ import SwiftUI
     @State private var presentedInstallations: [String: NativeHarnessInstallation] = [:]
     @State private var coordinatorFrame = CGRect.zero
     @State private var dispatchFrame = CGRect.zero
-    @State private var textAreaHeights: [String: CGFloat] = [:]
     @FocusState private var focusedHost: String?
 
     private var moku: JSONValue { model.draft.value["moku"] ?? .object([:]) }
@@ -292,19 +291,13 @@ import SwiftUI
 
     private func textArea(field: String, label: String, height: CGFloat) -> some View {
         let error = model.draft.validationError(field, locale: locale)
-        return VStack(alignment: .leading, spacing: 6) {
-            SettingsTextArea(text: Binding(get: { moku[field]?.stringValue ?? "" }, set: { text in
-                changeMoku(field, .text(text), textEdit: true)
-            }), accessibilityLabel: label, placeholder: label, invalid: error != nil,
-               focusRequest: model.draft.firstInvalidField == field ? focusRequest : 0,
-               onEscape: onCloseRequest)
-                .nativeSettingsControl(field)
-                .frame(height: textAreaHeights[field] ?? height)
-            Stepper(locale.text("编辑器高度", "Editor height"), value: Binding(
-                get: { textAreaHeights[field] ?? height }, set: { textAreaHeights[field] = $0 }),
-                in: 112...CGFloat.greatestFiniteMagnitude, step: 28)
-                .controlSize(.small).frame(maxWidth: .infinity, alignment: .trailing)
-        }
+        return SettingsTextArea(text: Binding(get: { moku[field]?.stringValue ?? "" }, set: { text in
+            changeMoku(field, .text(text), textEdit: true)
+        }), accessibilityLabel: label, placeholder: label, invalid: error != nil,
+           focusRequest: model.draft.firstInvalidField == field ? focusRequest : 0,
+           onEscape: onCloseRequest)
+            .nativeSettingsControl(field)
+            .frame(height: height)
     }
 
     private func changeMoku(_ field: String, _ value: JSONValue?, textEdit: Bool = false) {
