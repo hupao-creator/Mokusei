@@ -213,8 +213,15 @@ private struct CardTitleSwap: View {
 public struct ThreadCardLatestTool: View {
     public let tool: ThreadCardIdentityTool
     @Environment(\.locale) private var locale
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
+    @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var spinning = false
     @Environment(\.threadCardProviderColor) private var providerColor
+    private var animates: Bool {
+        tool.status == .running && scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true)
+    }
     public init(tool: ThreadCardIdentityTool) { self.tool = tool }
     public var body: some View {
         HStack(spacing: 6) {
@@ -224,9 +231,10 @@ public struct ThreadCardLatestTool: View {
             else { Spacer(minLength: 0) }
             NativeIcon(name: statusIcon, size: 13)
                 .foregroundStyle(tool.status == .failed ? NativePalette.overview.danger.swiftUI : tool.status == .running ? NativePalette.overview.accent.swiftUI : NativePalette.overview.faint.swiftUI)
-                .rotationEffect(.degrees(spinning && tool.status == .running ? 360 : 0))
-                .animation(tool.status == .running ? .linear(duration: 0.8).repeatForever(autoreverses: false) : nil, value: spinning)
-                .onAppear { spinning = true }
+                .rotationEffect(.degrees(spinning ? 360 : 0))
+                .animation(animates ? .linear(duration: 0.8).repeatForever(autoreverses: false) : nil, value: spinning)
+                .onChange(of: animates, initial: true) { _, value in spinning = value }
+                .onDisappear { spinning = false }
                 .accessibilityLabel(cardLocalized(statusLabel, locale))
         }.font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.muted.swiftUI)
     }
