@@ -86,6 +86,7 @@ def main():
                             "reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack",
                             "reportNativeDialogsAndDownloadsPreserveTheDocument",
                             "pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation",
+                            "fullWorkspaceSearchMorphKeepsTextAndCaretCentered",
                             "realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer",
                             "oneResidentOwnsSubmissionRunningTalkDispatchAndStop",
                             "centerSurvivesEscapeResizeCoveringRoutesAndRemount"]
@@ -110,7 +111,7 @@ def main():
         replay.export(evidence)
         replay.close()
     count = (4 if "--model-selector" in sys.argv else
-             9 if isolated_input else
+             10 if isolated_input else
              2 if "--report-controls" in sys.argv else
              5 if "--thread-sidebar" in sys.argv else
              8 if "--moku-execution-links" in sys.argv else
@@ -143,6 +144,9 @@ def main():
         for name in isolated_methods:
             if f"Test {name}() passed" not in result.stdout:
                 raise SystemExit("FAIL: incomplete isolated input replay: " + name)
+    if isolated_input or "--moku-landing" in sys.argv:
+        if "SEARCH_CARET_GEOMETRY_CONFIRMED" not in result.stdout:
+            raise SystemExit("FAIL: search replay did not confirm native text and caret geometry")
     if "--application-navigation" in sys.argv:
         if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 2 test cases passed" not in result.stdout:
             raise SystemExit("FAIL: application and Git navigation cases did not both pass")

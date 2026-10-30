@@ -81,14 +81,20 @@ The three Settings capsule methods likewise run in the required native-capture
 lane, because their production Dock/form mouse actions and WindowServer blur
 assertions need an activated AppKit host. The coverage aggregator requires each
 observed passing method; SwiftPM deferral alone cannot satisfy coverage.
-The nine input/responder, pointer-tracking and native-panel methods deferred by
-the browser, history composer, Report, Thread TOC and Landing suites share one
+The ten input/responder, pointer-tracking, search-geometry and native-panel methods
+from the browser, history composer, Report, Thread TOC and Landing suites share one
 isolated AppKit host, without repeating their other methods. The TOC pointer
 case needs a running event loop and a foreground visible window. Landing's
 three mouse/key methods also require that loop: native NSTextView tracking can
 otherwise exit a plain SwiftPM process with status zero before its completion
-summary. All nine must produce observed passing native-controls outcomes; the
-aggregate continues to reject incomplete processes even when their exit is zero.
+summary. The full Workspace search method likewise has an explicit
+`native-controls/isolated-input` owner in `swift_ownership.py`: its production
+morph and caret must advance in the AppKit loop, with a settled native viewport
+and the `SEARCH_CARET_GEOMETRY_CONFIRMED` marker. The ordinary shard excludes its
+complete identity without a test-level skip; conditional caret assertions cannot
+substitute for execution. All ten must produce observed passing native-controls
+outcomes; the aggregate continues to reject incomplete processes even when their
+exit is zero.
 The Go producer also exports this attempt's warmed race and ordinary build caches;
 downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.
@@ -166,8 +172,9 @@ Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
 `.build/check-swift` as its output directory. Its ordinary `xcrun swift test`
 uses the same explicit `--skip` exclusion as CI, without a positive filter that
 could select the excluded method's ancestor suite. It then invokes the existing
-`replays.py` producer for each declared owner check; currently this is
-`native-capture --check tag-glass-captures`. Both hosts run serially. This path
+`replays.py` producer for each declared owner check:
+`native-capture --check tag-glass-captures` and
+`native-controls --check isolated-input`. All hosts run serially. This path
 needs the native display/capture capability and cannot pass by skipping it.
 The ordinary stream, command and actual exit code remain in `swift-tests.log`
 and `swift-status.json`; native reports/logs are retained in a new `native-*`
@@ -175,7 +182,7 @@ subdirectory per invocation. `swift-summary.json` includes both forms of evidenc
 Success requires both frameworks' completion summaries and matching ordinary
 counts, plus each native owner's zero process status, exactly one passing
 outcome and required execution marker. An early zero exit, missing marker,
-duplicate or wrong-host title execution fails. Other named fixture/native skips
+duplicate or wrong-host native execution fails. Other named fixture/native skips
 still require their separate launchers before those flows can be certified.
 
 To inspect an existing ordinary capture without starting Swift, supply its actual

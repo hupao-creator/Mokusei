@@ -100,8 +100,8 @@ struct NativeMokuCapsuleEyes: Shape {
 
 /// The warm-black fill and edge are above the glass sampling layer, below the
 /// text. Their stops describe surface density; system refraction still comes
-/// from native glass. Overview search reuses this fill so both inputs share one
-/// material instead of a second copy of the gradient.
+/// from native glass. Matching surfaces, including Overview search, reuse the
+/// complete NativeMokuCapsuleGlass so the sampling layer and appearance agree.
 struct NativeMokuCapsuleGradient: View {
     var strength = 0.85
     /// A local preview override; system Reduce Transparency always takes priority.

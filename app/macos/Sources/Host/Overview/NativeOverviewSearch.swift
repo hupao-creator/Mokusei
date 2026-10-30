@@ -32,6 +32,8 @@ struct NativeOverviewSearch {
 
 struct OverviewThreadSearchField: View {
     static let identifier = "overview-thread-search"
+    private static let lineHeight: CGFloat = 17
+    private static let verticalInset = (OverviewTagMetrics.buttonHeight - lineHeight) / 2
     let text: String
     let placeholder: String
     /// A scoped search can have no placeholder, so the editor keeps a stable
@@ -51,8 +53,8 @@ struct OverviewThreadSearchField: View {
             NativeComposerTextInput(value: Binding(get: { text }, set: { onChange(Self.singleLine($0)) }),
                 placeholder: placeholder, automaticFocus: false,
                 minHeight: OverviewTagMetrics.buttonHeight, maxHeight: OverviewTagMetrics.buttonHeight,
-                fontSize: 13, lineHeight: 17,
-                insets: .init(top: 10, left: 6, bottom: 10, right: 6),
+                fontSize: 13, lineHeight: Self.lineHeight,
+                insets: .init(top: Self.verticalInset, left: 6, bottom: Self.verticalInset, right: 6),
                 onSubmit: {}, onEscape: onExit, selectionRequest: selectionRequest,
                 singleLine: true, emphasizedInsertionPoint: true)
                 .accessibilityLabel(label ?? placeholder)

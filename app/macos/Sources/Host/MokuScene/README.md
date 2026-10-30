@@ -29,7 +29,8 @@ All Moku capsule surfaces use the approved warm-black gradient over native clear
 glass, fading toward the bottom with a fine warm edge. Production density is 85%.
 Reduce Transparency uses the existing opaque warm-black fill. Content ink, eyes,
 voice cloud and reasoning feedback use their existing dark palette. Overview's
-expanded search carrier reuses the same gradient and local dark appearance
+expanded search carrier reuses the complete clear-glass surface, gradient, edge,
+rounded shape and local dark appearance
 ([shared material](NativeMokuCapsule.swift)), including its caret.
 The material does not change layout, clipping, voice ownership or motion clocks.
 The historical [material demo](../../../../../demos/moku-gradient-material/README.md)

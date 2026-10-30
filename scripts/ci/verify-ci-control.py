@@ -25,10 +25,12 @@ def verify_swift_ownership(root, repo, environment):
     for name in ("swift-shards.py", "swift-tests.py", "swift_coverage.py", "swift_reporting.py",
                  "swift_ownership.py", "replays.py", "deadline.py"):
         shutil.copyfile(SCRIPTS / name, scripts / name)
-    native, owner = next(iter(NATIVE_METHOD_OWNERS.items()))
-    suite, method = native.split("/", 1)
-    tests = sorted([native, suite + "/ordinarySibling()", suite + "/" + method.removesuffix("()") + "Extra()",
-                    *[f"Fixture.Suite{index}/case{index}(value:)" for index in range(5)]])
+    native_names = set(NATIVE_METHOD_OWNERS)
+    sample_suite = next(iter(NATIVE_METHOD_OWNERS)).split("/", 1)[0]
+    tests = sorted(native_names
+                   | {name.removesuffix("()") + "OrdinarySibling()" for name in native_names}
+                   | {name.removesuffix("()") + "Extra()" for name in native_names}
+                   | {f"Fixture.Suite{index}/case{index}(value:)" for index in range(5)})
     (scripts / "swift-suite-weights.json").write_text(json.dumps({test.split("/")[0]: 100 for test in tests}))
     build = repo / "app/macos/.build"
     build.mkdir(parents=True)
@@ -52,7 +54,7 @@ def verify_swift_ownership(root, repo, environment):
     command([sys.executable, str(scripts / "swift-shards.py"), "prepare"], cwd=repo, env=environment)
     manifest = json.loads((build / "ci-manifest.json").read_text())
     if manifest["tests"] != tests or manifest["nativeMethods"] != NATIVE_METHOD_OWNERS:
-        raise AssertionError("Discovery must retain the explicit native method and owner")
+        raise AssertionError("Discovery must retain every explicit native method and owner")
     for shard in manifest["shards"]:
         old_filter = "^(?:" + "|".join(re.escape(name) for name in shard["suites"]) + ")/"
         # Discovery omits source locations for unique Swift Testing methods;
@@ -62,12 +64,14 @@ def verify_swift_ownership(root, repo, environment):
         for test in probes:
             if bool(re.search(shard["filter"], test)) != bool(re.search(old_filter, test)):
                 raise AssertionError("Ordinary/parameterized suite selection changed")
-            if bool(re.search(shard["skip"], test)) != (test == native or test.startswith(native + "/")):
+            if bool(re.search(shard["skip"], test)) != any(test == native or test.startswith(native + "/")
+                                                       for native in native_names):
                 raise AssertionError("Native exclusion missed a runtime ID or excluded a sibling")
         if [test for test in tests if re.search(shard["filter"], test) and not re.search(shard["skip"], test)] != shard["tests"]:
             raise AssertionError("Selected ordinary identities must match the shard receipt")
-    inventory.write_text("\n".join(test for test in tests if test != native))
-    command([sys.executable, str(scripts / "swift-shards.py"), "prepare"], cwd=repo, env=environment, success=False)
+    for native in native_names:
+        inventory.write_text("\n".join(test for test in tests if test != native))
+        command([sys.executable, str(scripts / "swift-shards.py"), "prepare"], cwd=repo, env=environment, success=False)
     inventory.write_text("\n".join(tests))
 
     def swift_log(identities):
@@ -81,7 +85,7 @@ def verify_swift_ownership(root, repo, environment):
 
     # Exercise the real shard command and receipt around a controlled executable.
     # The native CI run, not this peer, validates Swift's runtime ID selection.
-    shard_index = next(index for index, shard in enumerate(manifest["shards"]) if suite in shard["suites"])
+    shard_index = next(index for index, shard in enumerate(manifest["shards"]) if sample_suite in shard["suites"])
     shard = manifest["shards"][shard_index]
     peer_log = root / "shard-peer.log"
     peer_log.write_text(swift_log(shard["tests"]))
@@ -112,72 +116,98 @@ def verify_swift_ownership(root, repo, environment):
             "revision": manifest["revision"], "shard": index, "filter": shard["filter"], "skip": shard["skip"],
             "tests": shard["tests"], "status": "passed", "exit_code": 0}))
         (evidence / f"swift-{index}/swift-{index}.log").write_text(swift_log(shard["tests"]))
-    native_line = f"✔ Test {method} passed after 0.001 seconds.\n"
-    native_log = owner["marker"] + "\n\x1b[32m" + native_line.rstrip() + "\x1b[0m\n"
-    owner_path = None
+    native_lines = {name: f"✔ Test {name.split('/', 1)[1]} passed after 0.001 seconds.\n"
+                    for name in NATIVE_METHOD_OWNERS}
+    native_logs = {name: owner["marker"] + "\n\x1b[32m" + native_lines[name].rstrip() + "\x1b[0m\n"
+                   for name, owner in NATIVE_METHOD_OWNERS.items()}
+    check_logs = {}
+    for name, owner in NATIVE_METHOD_OWNERS.items():
+        key = (owner["group"], owner["check"])
+        check_logs[key] = check_logs.get(key, "") + native_logs[name]
+    group_paths = {}
     for group in ("fixtures", "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"):
         directory = evidence / ("ci-" + group)
         directory.mkdir()
-        name = owner["check"] if group == owner["group"] else "fixture"
-        (directory / "check.log").write_text(native_log if group == owner["group"] else "")
-        report = {"revision": manifest["revision"], "group": group,
-                  "checks": [{"name": name, "status": "passed", "exit_code": 0, "log": "check.log"}]}
+        group_paths[group] = directory
+        logs = {check: log for (owner_group, check), log in check_logs.items() if owner_group == group} or {"fixture": ""}
+        checks = []
+        for name, log in logs.items():
+            filename = name + ".log"
+            (directory / filename).write_text(log)
+            checks.append({"name": name, "status": "passed", "exit_code": 0, "log": filename})
+        report = {"revision": manifest["revision"], "group": group, "checks": checks}
         (directory / "report.json").write_text(json.dumps(report))
-        if group == owner["group"]:
-            owner_path = directory
     environment.update(MOKUSEI_CI_EVIDENCE=str(evidence), RUNNER_TEMP=str(root), GITHUB_SHA=manifest["revision"])
     audit = [sys.executable, str(scripts / "swift-tests.py")]
     command(audit, cwd=repo, env=environment)
-    for label, log in (("missing", owner["marker"]), ("duplicate", native_log + native_line),
-                       ("failed", native_log.replace("passed after", "failed after")),
-                       ("skipped", owner["marker"] + f"\n➜ Test {method} skipped: fixture\n"),
-                       ("missing marker", native_line)):
-        (owner_path / "check.log").write_text(log)
-        command(audit, cwd=repo, env=environment, success=False)
-    (owner_path / "check.log").write_text(native_log)
-    report_path = owner_path / "report.json"
-    report = json.loads(report_path.read_text())
-    for changes in ({"selectedChecks": [owner["check"]]}, {"selectedChecks": []},
-                    {"checks": [dict(report["checks"][0], name="wrong-owner")]},
-                    {"checks": [dict(report["checks"][0], exit_code=7)]}):
-        report_path.write_text(json.dumps(report | changes))
-        command(audit, cwd=repo, env=environment, success=False)
-    report_path.write_text(json.dumps(report))
     ordinary_log = evidence / "swift-0/swift-0.log"
     ordinary_before = ordinary_log.read_text()
-    ordinary_log.write_text(ordinary_before + native_line)
-    command(audit, cwd=repo, env=environment, success=False)
-    ordinary_log.write_text(ordinary_before)
+    for native, owner in NATIVE_METHOD_OWNERS.items():
+        method = native.split("/", 1)[1]
+        native_log, native_line = native_logs[native], native_lines[native]
+        original = check_logs[owner["group"], owner["check"]]
+        owner_path = group_paths[owner["group"]]
+        log_path = owner_path / (owner["check"] + ".log")
+        for label, log in (("missing", owner["marker"]), ("duplicate", native_log + native_line),
+                           ("failed", native_log.replace("passed after", "failed after")),
+                           ("skipped", owner["marker"] + f"\n➜ Test {method} skipped: fixture\n"),
+                           ("missing marker", native_line)):
+            log_path.write_text(original.replace(native_log, log, 1))
+            command(audit, cwd=repo, env=environment, success=False)
+        log_path.write_text(original)
+        report_path = owner_path / "report.json"
+        report = json.loads(report_path.read_text())
+        for changes in ({"selectedChecks": [owner["check"]]}, {"selectedChecks": []},
+                        *[{"checks": [check | mutation if check["name"] == owner["check"] else check
+                                      for check in report["checks"]]}
+                          for mutation in ({"name": "wrong-owner"}, {"exit_code": 7})]):
+            report_path.write_text(json.dumps(report | changes))
+            command(audit, cwd=repo, env=environment, success=False)
+        report_path.write_text(json.dumps(report))
+        ordinary_log.write_text(ordinary_before + native_line)
+        command(audit, cwd=repo, env=environment, success=False)
+        ordinary_log.write_text(ordinary_before)
     receipt_path = evidence / "swift-0/swift-0.json"
     receipt = json.loads(receipt_path.read_text())
     for exclusion in (None, "wrong-exclusion"):
         receipt_path.write_text(json.dumps(receipt | {"skip": exclusion}))
         command(audit, cwd=repo, env=environment, success=False)
     receipt_path.write_text(json.dumps(receipt))
-    print("PASS Swift ownership CLI: suite filters, declared/runtime ID boundaries, skip argument/receipt, full inventory, exclusive owner, ANSI outcomes, omissions, duplicates, failure/skip, missing marker and partial/misrouted receipts")
+    print("PASS Swift ownership CLI: suite filters, declared/runtime ID boundaries, skip argument/receipt, full inventory, every exclusive owner, ANSI outcomes, omissions, duplicates, failure/skip, missing marker and partial/misrouted receipts")
 
     # Keep the real local wrapper and replay producer; only the native executable
     # boundary is a controlled peer, so no macOS rendering is claimed here.
     launcher = repo / "tools/verification/reading-presentation/run.py"
     launcher.parent.mkdir(parents=True)
-    launcher.write_text("import os\nfrom pathlib import Path\nprint(Path(os.environ['CI_NATIVE_LOG']).read_text(), end='')\n")
+    launcher.write_text("import json, os, sys\nfrom pathlib import Path\n"
+                        "logs = json.loads(os.environ['CI_NATIVE_LOGS'])\n"
+                        "selected = [argument for argument in sys.argv[1:] if argument in logs]\n"
+                        "assert len(selected) == 1, 'Expected exactly one native check'\n"
+                        "print(Path(logs[selected[0]]).read_text(), end='')\n")
     ordinary = root / "ordinary.log"
-    ordinary.write_text(swift_log([test for test in tests if test != native]))
-    native_peer = root / "native.log"
-    native_peer.write_text(native_log)
-    environment.update(CI_SWIFT_LOG=str(ordinary), CI_NATIVE_LOG=str(native_peer))
+    ordinary.write_text(swift_log([test for test in tests if test not in native_names]))
+    native_peers = {}
+    for (group, check), log in check_logs.items():
+        path = root / (group + "-" + check + ".log")
+        path.write_text(log)
+        native_peers["--" + check] = str(path)
+    environment.update(CI_SWIFT_LOG=str(ordinary), CI_NATIVE_LOGS=json.dumps(native_peers))
     local = [sys.executable, str(scripts / "swift-tests.py"), "--run", "--output-dir", str(root / "local-evidence")]
     command(local, cwd=repo, env=environment)
     arguments = json.loads((root / "swift-arguments.json").read_text())
     local_skip = arguments[arguments.index("--skip") + 1]
     if "--filter" in arguments or local_skip != native_filter():
         raise AssertionError("Local execution must use the shared exclusion without a positive ancestor filter")
-    if {test for test in tests if not re.search(local_skip, test)} != set(tests) - {native}:
-        raise AssertionError("Local ordinary execution must exclude only the native owner")
-    for log in (owner["marker"], native_line, native_log + native_line):
-        native_peer.write_text(log)
-        command(local, cwd=repo, env=environment, success=False)
-    native_peer.write_text(native_log)
+    if {test for test in tests if not re.search(local_skip, test)} != set(tests) - native_names:
+        raise AssertionError("Local ordinary execution must exclude exactly the native owners")
+    for native, owner in NATIVE_METHOD_OWNERS.items():
+        native_log, native_line = native_logs[native], native_lines[native]
+        original = check_logs[owner["group"], owner["check"]]
+        native_peer = Path(native_peers["--" + owner["check"]])
+        for log in (owner["marker"], native_line, native_log + native_line):
+            native_peer.write_text(original.replace(native_log, log, 1))
+            command(local, cwd=repo, env=environment, success=False)
+        native_peer.write_text(original)
     ordinary.write_text(swift_log(tests))
     command(local, cwd=repo, env=environment, success=False)
     print("PASS local Swift CLI: ordinary exclusion plus real replay producer, required outcome/marker, duplicate and wrong-host rejection")

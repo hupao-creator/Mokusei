@@ -55,8 +55,9 @@ narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click keeps it open without losing the draft, including
 after covering routes and remounting. The three methods sending
-native mouse/key events run in CI's isolated AppKit input host; the remaining
-state/layout methods also run in the ordinary Swift shard. Plain SwiftPM's native
+native mouse/key events and the full Workspace search geometry method run in
+CI's isolated AppKit input host; the remaining state/layout methods also run in
+the ordinary Swift shard. Plain SwiftPM's native
 text tracking was observed to exit zero before its completion summary, which
 coverage treats as failure. A second native window also
 checks that both focus loss and an actual click retain input and preserve the
@@ -64,14 +65,18 @@ draft. The outside-click Swift suite additionally drives native
 child/sheet windows and nested menu-tracking notifications to protect auxiliary
 composer interactions; this is not a physical cross-app mouse-delivery test.
 
-The full Workspace search case runs the production morph in a full-size native
-window, measures the carrier, the rendered text bounds and the native insertion
-rectangle, and checks the emphasized caret layer in the AppKit host. It also
-sends a direct clip scroll after layout. At 1180 × 780 points on the investigation
-machine, the pre-fix build placed the caret and text centers 13 and 14.25 points
-from the carrier center; the fixed build measured 1.5 points for each. These
-geometry checks accompany visual inspection of the isolated full application;
-they are not a WindowServer pixel comparison.
+The full Workspace search case runs the production morph in a native window
+and waits for settled carrier and viewport geometry before comparing rendered
+text, the native insertion rectangle and the emphasized caret layer. The layer
+assertions always execute, including horizontal position, long-query scrolling,
+clear/reopen, resize and application scaling. A direct clip scroll retains the
+vertical-origin assertion. The method is explicitly owned by CI's
+`native-controls/isolated-input` check and excluded from ordinary Swift execution,
+because a plain SwiftPM host can leave the production morph and native viewport
+unfinished. Both `--isolated-input` and `--moku-landing` require its passing result
+and `SEARCH_CARET_GEOMETRY_CONFIRMED` marker; a partial morph or absent caret
+cannot count as successful coverage. These are native geometry assertions, not
+a WindowServer pixel comparison.
 
 Catalog transactions pass through the actual preparation/installation boundary.
 The fixture also delivers a connected client event to the real workspace so a
@@ -90,9 +95,9 @@ must complete all seven tests without skips to certify it.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
-exactly the nine input/responder, pointer and native-panel methods deferred by
-SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
-in the normal Swift shards. The Report modal case acknowledges WebKit's focused
+exactly the ten input/responder, pointer, search-geometry and native-panel methods
+assigned to the native host, requiring all ten to pass without skips, while their
+remaining methods execute in the normal Swift shards. The Report modal case acknowledges WebKit's focused
 frame before native Escape and observes its close event and trusted cancel;
 a fixed delay or JavaScript dismissal cannot certify default input handling.
 
