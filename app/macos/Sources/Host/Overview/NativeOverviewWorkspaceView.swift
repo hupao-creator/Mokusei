@@ -25,6 +25,14 @@ public struct NativeOverviewWorkspaceCallbacks {
     }
 }
 
+/// A stable reference for the current callbacks. The view is reconstructed with
+/// fresh closures by its owner, but already-mounted cards retain this store, so
+/// actions always invoke the latest receiver.
+@MainActor private final class NativeOverviewWorkspaceCallbackStore {
+    var current: NativeOverviewWorkspaceCallbacks
+    init(_ callbacks: NativeOverviewWorkspaceCallbacks) { current = callbacks }
+}
+
 /// Full overview composition; all semantic content is rendered by the owning native
 /// plugin snapshot. The surrounding navigation/Moku scene remains owned by the shell.
 @MainActor
@@ -36,6 +44,7 @@ public struct NativeOverviewWorkspaceView: View {
     public var landing: Bool
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
+    @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
     private var locale: DesktopLocale { model.workspace.preferences.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
@@ -43,9 +52,11 @@ public struct NativeOverviewWorkspaceView: View {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
         self.landing = landing
+        _callbackStore = State(initialValue: NativeOverviewWorkspaceCallbackStore(callbacks))
     }
     public var body: some View {
-        GeometryReader { geometry in
+        callbackStore.current = callbacks
+        return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
                                          hasDock: model.workspace.catalog.moku != nil)
             ZStack {
@@ -58,8 +69,9 @@ public struct NativeOverviewWorkspaceView: View {
                     interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
                     onRetainedPresentationIDsChanged: { model.retainPresentations($0) },
+                    cardContentIdentity: ObjectIdentifier(model),
                     inputRegions: inputRegions) { item in
-                        NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbacks)
+                        NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbackStore)
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
                     }
                     .opacity(landing ? 0 : 1)
@@ -164,7 +176,7 @@ public struct NativeOverviewWorkspaceView: View {
 private struct NativeOverviewWorkspaceCard: View {
     let item: NativeOverviewItem
     let model: NativeOverviewWorkspaceModel
-    let callbacks: NativeOverviewWorkspaceCallbacks
+    let callbacks: NativeOverviewWorkspaceCallbackStore
     @State private var lifetime = PluginLifetime()
     @State private var error: String?
     @Environment(\.colorScheme) private var colorScheme
@@ -180,7 +192,7 @@ private struct NativeOverviewWorkspaceCard: View {
                         guard model.canvasState.allowsActivation(cardID: item.id),
                               let current = model.workspace.catalog.thread(thread.id),
                               model.applicationFactories.gitStatus(current)?.id == id else { return }
-                        callbacks.openApplication(.init(threadID: id, typeID: "git.worktree"), nil)
+                        callbacks.current.openApplication(.init(threadID: id, typeID: "git.worktree"), nil)
                     })
                     .environment(\.threadCardLogo, { @MainActor in
                         (try? model.workspace.harnessHost.registry.require(thread.harnessID))?.logo(size: 12) ?? AnyView(EmptyView())
@@ -219,7 +231,7 @@ private struct NativeOverviewWorkspaceCard: View {
     }
     private func open(_ id: JSONText) {
         guard model.canvasState.allowsActivation(cardID: item.id) else { return }
-        callbacks.openThread(id, nil)
+        callbacks.current.openThread(id, nil)
         Task { await model.recordUserAction(kind: "open-thread", thread: .init(threadID: id, typeID: JSONText("agent"))) }
     }
     private func actions(_ thread: HarnessThread) -> HarnessThreadActions {
@@ -232,7 +244,7 @@ private struct NativeOverviewWorkspaceCard: View {
         openExternal: actions.openExternal, openFollowUp: { draft in
             guard model.canvasState.allowsActivation(cardID: item.id),
                   let current = model.workspace.catalog.thread(thread.id), current.archived != true else { return }
-            if let onFollowUp = callbacks.onFollowUp { onFollowUp(thread.id, draft) }
+            if let onFollowUp = callbacks.current.onFollowUp { onFollowUp(thread.id, draft) }
             else { actions.openFollowUp(draft) }
         })
     }
@@ -249,7 +261,7 @@ private struct NativeOverviewWorkspaceCard: View {
                 })
             return try snapshot.card(context: context, openThread: {
                 guard plugin.hasDetail, model.canvasState.allowsActivation(cardID: item.id) else { return }
-                callbacks.openApplication(snapshot.entry.ref, nil)
+                callbacks.current.openApplication(snapshot.entry.ref, nil)
                 Task { await model.recordUserAction(kind: "open-thread", thread: snapshot.entry.ref) }
             })
         } catch {
