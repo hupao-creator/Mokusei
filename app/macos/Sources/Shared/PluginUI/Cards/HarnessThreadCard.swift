@@ -199,12 +199,14 @@ private struct CardTitleSwap: View {
     @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var displayed: String
     @State private var phase = 0
+    @State private var visualIdentity = UUID()
     @State private var transition = CardTitleTransition()
     private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
     init(text: String) { self.text = text; _displayed = State(initialValue: text) }
     var body: some View {
         Text(displayed).cardFont(size: 15, weight: 620).offset(y: phase == 1 ? -4 : phase == 2 ? 4 : 0)
             .blur(radius: phase == 0 ? 0 : 2).opacity(phase == 0 ? 1 : 0)
+            .id(visualIdentity).transition(.identity)
             .onChange(of: Input(text: text, animates: scenePhase != .background
                 && (visibility?.isVisible ?? true) && !reduceMotion), initial: true) { _, input in
                 transition.latest = input.text
@@ -235,10 +237,17 @@ private struct CardTitleSwap: View {
     }
 
     private func settle() {
+        let retiresAnimation = transition.task != nil || phase != 0
         transition.owner = UUID()
         transition.task?.cancel(); transition.task = nil
-        var transaction = Transaction(); transaction.disablesAnimations = true
-        withTransaction(transaction) { displayed = transition.latest; phase = 0 }
+        var transaction = Transaction(animation: nil); transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            displayed = transition.latest; phase = 0
+            // During fade-in the model phase is already zero. Retire only the
+            // stateless animated leaf so cancelling also clears its in-flight
+            // presentation, without remounting this owner or the card.
+            if retiresAnimation { visualIdentity = UUID() }
+        }
     }
 
     private struct Input: Equatable { let text: String; let animates: Bool }

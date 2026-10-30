@@ -58,10 +58,11 @@ public struct ThreadCardExcerpt: View {
             }
             .clipped()
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(display?.text ?? placeholder)
-            // The gated frame exposes no readable placeholder; once installed,
-            // the label matches the visible processed text.
-            .accessibilityHidden(display == nil)
+            // Offscreen visual work pauses, but semantic first content still
+            // replaces loading. Use the authoritative bounded excerpt without
+            // parsing or exposing the full message buffer to accessibility.
+            .accessibilityLabel(isVisible ? display?.text ?? placeholder : content)
+            .accessibilityHidden(isVisible && display == nil)
             .onAppear {
                 // A retained hosting view may reappear without an input edge.
                 // The active guard also keeps initial onChange from reparsing.
@@ -170,7 +171,7 @@ public struct ThreadCardExcerpt: View {
 }
 
 /// Source accumulation is deliberately not observable. Only display facts and
-/// scheduling edges enter SwiftUI state; hidden input needs neither parsing nor UI work.
+/// scheduling edges enter SwiftUI state; hidden input needs no parsing or visual work.
 @MainActor private final class ExcerptBuffer {
     var latest: ExcerptInput?
     var active = false

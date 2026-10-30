@@ -321,9 +321,12 @@ the existing presentation.
 Titles and excerpts use the same viewport/page and background visibility gate.
 Hidden excerpts retain only their latest input and stop parsing, hold timers and
 reveal masks; returning installs the latest preview directly, without replaying
-hidden output. Visible excerpts keep their 600-character windows and 800ms hold
-policy. Their source buffer is not observed by SwiftUI: only changed display or
-hold-schedule facts are published. A proven append beyond a full window reuses its
+hidden output. Their accessibility label still receives the latest authoritative,
+bounded raw excerpt, including first content that replaces loading while hidden.
+That semantic label does not report visual processing progress; the rendered
+text remains frozen until return. Visible excerpts keep their 600-character
+windows and 800ms hold policy. Their source buffer is not observed by SwiftUI:
+only changed display or hold-schedule facts are published. A proven append beyond a full window reuses its
 parsed preview; partial windows, rewrites, message replacement and transport-window
 shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
@@ -331,10 +334,15 @@ an obsolete reveal or hold cannot install a prior presentation.
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display.
 Hiding, backgrounding or detaching cancels that owner and settles the latest title.
+Cancelling an active transition replaces only its stateless animated text leaf,
+so an in-flight fade-in is retired even when its model phase is already settled;
+the transition owner and card keep their identity.
 Reduce Motion makes both text effects immediate while visible excerpt windows
 continue advancing. Disabling cloud effects does not freeze text content. The
 mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
+The cancellation replay retains before/after PNGs under
+`.scratch/reading-presentation/overview-text-motion` for the hosted capture artifact.
 The internal `threadCardTextReduceMotionOverride` environment entry lets these
 native replays change the text policy locally. It is optional and defaults to
 `nil`; titles and excerpts resolve it before the system accessibility value.

@@ -182,15 +182,23 @@ extension SwiftUIOverviewInteractionTests {
         let fixture = OverviewTextFixture()
         let window = SwiftUIReplay.window(OverviewTextReplay(fixture: fixture, titleOnly: true), width: 360, height: 200)
         defer { window.close() }
+        var captures: [(String, Data)] = []
+        defer {
+            do { try saveTextCaptures(captures) }
+            catch { Issue.record(Comment(rawValue: "Could not save title cancellation captures: \(error)")) }
+        }
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Title A") }
         try await Task.sleep(for: .milliseconds(350))
         let original = try textPixels(in: root)
+        captures.append(("01-original", original))
         fixture.title = "Title B"
         try await Task.sleep(for: .milliseconds(50))
         fixture.title = "Title A"
         try await Task.sleep(for: .milliseconds(500))
-        #expect(try textPixels(in: root) == original)
+        let reversed = try textPixels(in: root)
+        captures.append(("02-reversed", reversed))
+        #expect(reversed == original)
 
         fixture.title = "Cancelled title"
         try await Task.sleep(for: .milliseconds(40))
@@ -198,26 +206,56 @@ extension SwiftUIOverviewInteractionTests {
         fixture.title = "Hidden latest"
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Hidden latest") }
         let hidden = try textPixels(in: root)
+        captures.append(("03-hidden-before-reversal", hidden))
         fixture.visibility.isVisible = true
         try await Task.sleep(for: .milliseconds(20))
         fixture.visibility.isVisible = false
         try await Task.sleep(for: .milliseconds(350))
-        #expect(try textPixels(in: root) == hidden)
+        let hiddenAfter = try textPixels(in: root)
+        captures.append(("04-hidden-after-reversal", hiddenAfter))
+        #expect(hiddenAfter == hidden)
 
         fixture.visibility.isVisible = true
         fixture.scenePhase = .background
         fixture.title = "Background latest"
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Background latest") }
         let background = try textPixels(in: root)
+        captures.append(("05-background", background))
         fixture.scenePhase = .inactive
         try await Task.sleep(for: .milliseconds(350))
-        #expect(try textPixels(in: root) == background)
+        let foreground = try textPixels(in: root)
+        captures.append(("06-foreground", foreground))
+        #expect(foreground == background)
         fixture.reduceMotion = true
         fixture.title = "Reduced motion latest"
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
         let reduced = try textPixels(in: root)
+        captures.append(("07-reduced-motion", reduced))
         try await Task.sleep(for: .milliseconds(350))
-        #expect(try textPixels(in: root) == reduced)
+        let reducedAfter = try textPixels(in: root)
+        captures.append(("08-reduced-motion-after", reducedAfter))
+        #expect(reducedAfter == reduced)
+
+        // The new Text is installed after fade-out. One frame later its model
+        // phase returns to zero while the 150ms fade-in is still interpolating.
+        // Observe a non-settled frame before changing the live motion policy.
+        fixture.reduceMotion = false
+        fixture.title = "Title A"
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Title A") }
+        try await Task.sleep(for: .milliseconds(40))
+        let fadingIn = try textPixels(in: root)
+        captures.append(("09-fading-in", fadingIn))
+        #expect(fadingIn != original)
+        fixture.reduceMotion = true
+        fixture.title = "Reduced motion latest"
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
+        let cancelled = try textPixels(in: root)
+        captures.append(("10-fade-in-cancelled", cancelled))
+        #expect(cancelled == reducedAfter)
+        try await Task.sleep(for: .milliseconds(350))
+        let cancelledAfter = try textPixels(in: root)
+        captures.append(("11-fade-in-cancelled-after", cancelledAfter))
+        #expect(cancelledAfter == cancelled)
         #expect(fixture.appearances == 1)
     }
 
@@ -230,32 +268,49 @@ extension SwiftUIOverviewInteractionTests {
         fixture.setMessage("First hidden replacement")
         fixture.setMessage("Latest before first appearance")
         try await Task.sleep(for: .milliseconds(100))
+        #expect(SwiftUIReplay.text(in: root).contains("Latest before first appearance"))
+        let initialHiddenPixels = try textPixels(in: root)
         fixture.visibility.isVisible = true
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Latest before first appearance") }
+        try await SwiftUIReplay.wait {
+            guard let pixels = try? textPixels(in: root) else { return false }
+            return pixels != initialHiddenPixels && SwiftUIReplay.text(in: root).contains("Latest before first appearance")
+        }
 
         let first = String(repeating: "A", count: 600), second = String(repeating: "B", count: 600)
         fixture.setMessage(first + second + "old tail")
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains(first) }
         fixture.visibility.isVisible = false
         try await Task.sleep(for: .milliseconds(100))
-        let hidden = SwiftUIReplay.text(in: root), hiddenPixels = try textPixels(in: root)
+        let hiddenPixels = try textPixels(in: root)
         fixture.setMessage(first + second + "latest hidden tail", excerpt: "latest hidden tail")
         try await Task.sleep(for: .milliseconds(1_200))
-        #expect(SwiftUIReplay.text(in: root) == hidden)
+        // Semantic content stays current while the rendered window is frozen.
+        #expect(SwiftUIReplay.text(in: root).contains("latest hidden tail"))
         #expect(try textPixels(in: root) == hiddenPixels)
         fixture.visibility.isVisible = true
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("latest hidden tail") }
-        let resumed = try textPixels(in: root)
+        var resumedPixels: Data?
+        try await SwiftUIReplay.wait {
+            guard let pixels = try? textPixels(in: root), pixels != hiddenPixels,
+                  SwiftUIReplay.text(in: root).contains("latest hidden tail") else { return false }
+            resumedPixels = pixels
+            return true
+        }
+        let resumed = try #require(resumedPixels)
         try await Task.sleep(for: .milliseconds(350))
         #expect(try textPixels(in: root) == resumed)
 
         fixture.scenePhase = .background
         try await Task.sleep(for: .milliseconds(50))
+        let backgroundPixels = try textPixels(in: root)
         fixture.setMessage("new background message", id: "replacement")
         try await Task.sleep(for: .milliseconds(100))
-        #expect(SwiftUIReplay.text(in: root).contains("latest hidden tail"))
+        #expect(SwiftUIReplay.text(in: root).contains("new background message"))
+        #expect(try textPixels(in: root) == backgroundPixels)
         fixture.scenePhase = .inactive
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("new background message") }
+        try await SwiftUIReplay.wait {
+            guard let pixels = try? textPixels(in: root) else { return false }
+            return pixels != backgroundPixels && SwiftUIReplay.text(in: root).contains("new background message")
+        }
         #expect(fixture.appearances == 1)
     }
 
@@ -345,5 +400,15 @@ extension SwiftUIOverviewInteractionTests {
         let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
         root.cacheDisplay(in: root.bounds, to: image)
         return try #require(image.representation(using: .png, properties: [:]))
+    }
+
+    private func saveTextCaptures(_ captures: [(String, Data)]) throws {
+        var directory = URL(fileURLWithPath: #filePath)
+        for _ in 0..<6 { directory.deleteLastPathComponent() }
+        directory.appendPathComponent(".scratch/reading-presentation/overview-text-motion", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for (name, pixels) in captures {
+            try pixels.write(to: directory.appendingPathComponent(name + ".png"))
+        }
     }
 }
