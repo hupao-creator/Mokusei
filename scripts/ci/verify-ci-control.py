@@ -19,7 +19,7 @@ def command(arguments, *, cwd, env=None, success=True):
 
 
 def verify_swift_ownership(root, repo, environment):
-    from swift_ownership import NATIVE_METHOD_OWNERS
+    from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
     scripts = repo / "scripts/ci"
     scripts.mkdir(parents=True)
     for name in ("swift-shards.py", "swift-tests.py", "swift_coverage.py", "swift_reporting.py",
@@ -55,11 +55,16 @@ def verify_swift_ownership(root, repo, environment):
         raise AssertionError("Discovery must retain the explicit native method and owner")
     for shard in manifest["shards"]:
         old_filter = "^(?:" + "|".join(re.escape(name) for name in shard["suites"]) + ")/"
-        probes = tests + [test + "/argument-1" for test in tests if "(value:)" in test]
+        # Discovery omits source locations for unique Swift Testing methods;
+        # runtime filter IDs append them. These are protocol fixtures, not an
+        # execution of Swift Testing's own selection engine.
+        probes = tests + [test + "/Fixture.swift:42:7" for test in tests]
         for test in probes:
-            if bool(re.search(shard["filter"], test)) != (test != native and bool(re.search(old_filter, test))):
-                raise AssertionError("Native exclusion changed ordinary/parameterized suite selection")
-        if [test for test in tests if re.search(shard["filter"], test)] != shard["tests"]:
+            if bool(re.search(shard["filter"], test)) != bool(re.search(old_filter, test)):
+                raise AssertionError("Ordinary/parameterized suite selection changed")
+            if bool(re.search(shard["skip"], test)) != (test == native or test.startswith(native + "/")):
+                raise AssertionError("Native exclusion missed a runtime ID or excluded a sibling")
+        if [test for test in tests if re.search(shard["filter"], test) and not re.search(shard["skip"], test)] != shard["tests"]:
             raise AssertionError("Selected ordinary identities must match the shard receipt")
     inventory.write_text("\n".join(test for test in tests if test != native))
     command([sys.executable, str(scripts / "swift-shards.py"), "prepare"], cwd=repo, env=environment, success=False)
@@ -74,6 +79,28 @@ def verify_swift_ownership(root, repo, environment):
         lines.append(f"✔ Test run with {len(identities)} tests passed after 0.001 seconds.")
         return "\n".join(lines) + "\n"
 
+    # Exercise the real shard command and receipt around a controlled executable.
+    # The native CI run, not this peer, validates Swift's runtime ID selection.
+    shard_index = next(index for index, shard in enumerate(manifest["shards"]) if suite in shard["suites"])
+    shard = manifest["shards"][shard_index]
+    peer_log = root / "shard-peer.log"
+    peer_log.write_text(swift_log(shard["tests"]))
+    environment["CI_SWIFT_LOG"] = str(peer_log)
+    command([sys.executable, str(scripts / "swift-shards.py"), "run", "--shard", str(shard_index),
+             "--evidence", str(root / "shard-cli")], cwd=repo, env=environment)
+    arguments = json.loads((root / "swift-arguments.json").read_text())
+    actual_receipt = json.loads((root / f"shard-cli/swift-{shard_index}.json").read_text())
+    if (arguments[arguments.index("--filter") + 1] != shard["filter"]
+            or arguments[arguments.index("--skip") + 1] != native_filter()
+            or actual_receipt["skip"] != native_filter()):
+        raise AssertionError("The shard command and receipt must include the shared native exclusion")
+    changed_manifest = json.loads(json.dumps(manifest))
+    changed_manifest["shards"][shard_index]["skip"] = "wrong-exclusion"
+    (build / "ci-manifest.json").write_text(json.dumps(changed_manifest))
+    command([sys.executable, str(scripts / "swift-shards.py"), "verify", "--evidence", str(root / "invalid-build")],
+            cwd=repo, env=environment, success=False)
+    (build / "ci-manifest.json").write_text(json.dumps(manifest))
+
     evidence = root / "swift-evidence"
     evidence.mkdir()
     for slot in ("build", *(f"swift-{index}" for index in range(5))):
@@ -82,7 +109,7 @@ def verify_swift_ownership(root, repo, environment):
         (directory / "build-manifest.json").write_text(json.dumps(manifest))
     for index, shard in enumerate(manifest["shards"]):
         (evidence / f"swift-{index}/swift-{index}.json").write_text(json.dumps({
-            "revision": manifest["revision"], "shard": index, "filter": shard["filter"],
+            "revision": manifest["revision"], "shard": index, "filter": shard["filter"], "skip": shard["skip"],
             "tests": shard["tests"], "status": "passed", "exit_code": 0}))
         (evidence / f"swift-{index}/swift-{index}.log").write_text(swift_log(shard["tests"]))
     native_line = f"✔ Test {method} passed after 0.001 seconds.\n"
@@ -121,7 +148,13 @@ def verify_swift_ownership(root, repo, environment):
     ordinary_log.write_text(ordinary_before + native_line)
     command(audit, cwd=repo, env=environment, success=False)
     ordinary_log.write_text(ordinary_before)
-    print("PASS Swift ownership CLI: preserved suite filters, full inventory, exclusive owner, ANSI outcomes, omissions, duplicates, failure/skip, missing marker and partial/misrouted receipts")
+    receipt_path = evidence / "swift-0/swift-0.json"
+    receipt = json.loads(receipt_path.read_text())
+    for exclusion in (None, "wrong-exclusion"):
+        receipt_path.write_text(json.dumps(receipt | {"skip": exclusion}))
+        command(audit, cwd=repo, env=environment, success=False)
+    receipt_path.write_text(json.dumps(receipt))
+    print("PASS Swift ownership CLI: suite filters, declared/runtime ID boundaries, skip argument/receipt, full inventory, exclusive owner, ANSI outcomes, omissions, duplicates, failure/skip, missing marker and partial/misrouted receipts")
 
     # Keep the real local wrapper and replay producer; only the native executable
     # boundary is a controlled peer, so no macOS rendering is claimed here.
@@ -136,9 +169,11 @@ def verify_swift_ownership(root, repo, environment):
     local = [sys.executable, str(scripts / "swift-tests.py"), "--run", "--output-dir", str(root / "local-evidence")]
     command(local, cwd=repo, env=environment)
     arguments = json.loads((root / "swift-arguments.json").read_text())
-    local_filter = arguments[arguments.index("--filter") + 1]
-    if {test for test in tests if re.search(local_filter, test)} != set(tests) - {native}:
-        raise AssertionError("Local ordinary execution must use the same native exclusion")
+    local_skip = arguments[arguments.index("--skip") + 1]
+    if "--filter" in arguments or local_skip != native_filter():
+        raise AssertionError("Local execution must use the shared exclusion without a positive ancestor filter")
+    if {test for test in tests if not re.search(local_skip, test)} != set(tests) - {native}:
+        raise AssertionError("Local ordinary execution must exclude only the native owner")
     for log in (owner["marker"], native_line, native_log + native_line):
         native_peer.write_text(log)
         command(local, cwd=repo, env=environment, success=False)

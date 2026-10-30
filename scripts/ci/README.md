@@ -47,9 +47,13 @@ exporting six fixture files (Moku exports both status and Timer snapshots);
 the other **always builds** current Swift sources and all test targets. It lists
 methods from that binary, records explicit native method owners, then partitions
 the remaining methods by suite into five balanced groups, accounting for the
-replays assigned to each runner. Filters retain their suite prefixes and exclude
-only complete native-owned identities, preserving parameterized method selection
-while preventing the native-owned method from running again. Historical
+replays assigned to each runner. `--filter` retains the existing suite prefixes,
+and a shared `--skip` excludes each native-owned method at its complete identity
+boundary. The exclusion accepts the runtime `/file:line:column` suffix that Swift
+Testing omits when listing a uniquely named method. Keeping exclusion separate
+also prevents an included ancestor suite from restoring that method through
+Swift Testing's recursive selection. Parameterized method selection is preserved.
+Historical
 suite weights affect placement only: new suites are
 automatically included, never silently omitted.
 
@@ -71,7 +75,7 @@ five methods already execute in the Swift shards. The same mandatory
 its incoming-title proof needs complete WindowServer frames while the native
 AppKit loop runs. `swift_ownership.py` records this method before partitioning;
 it stays in the discovered inventory but is never selected by an ordinary shard.
-The method has no environment-based bypass or added skip. Missing, failed,
+The method has no environment-based bypass or test-level skip. Missing, failed,
 skipped, duplicated or incorrectly routed native outcomes fail coverage.
 The three Settings capsule methods likewise run in the required native-capture
 lane, because their production Dock/form mouse actions and WindowServer blur
@@ -127,7 +131,8 @@ required execution marker from its declared group/check; a passing result
 elsewhere does not substitute for it. Partial reports created with `--check`
 cannot satisfy a complete CI replay group.
 The summary includes these native receipts/outcomes separately from ordinary
-framework totals. Same-count omissions/substitutions fail.
+framework totals. Each ordinary receipt must also match the manifest's exact
+`--filter` and `--skip` arguments. Same-count omissions/substitutions fail.
 Named fixture/isolated-host skips additionally need observed passing outcomes in
 the required replay logs; a new skip is not admitted just because most tests ran.
 
@@ -159,7 +164,8 @@ without creating a window. It does not count as rendered scrollbar coverage.
 
 Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
 `.build/check-swift` as its output directory. Its ordinary `xcrun swift test`
-uses the same exclusive-owner filter as CI. It then invokes the existing
+uses the same explicit `--skip` exclusion as CI, without a positive filter that
+could select the excluded method's ancestor suite. It then invokes the existing
 `replays.py` producer for each declared owner check; currently this is
 `native-capture --check tag-glass-captures`. Both hosts run serially. This path
 needs the native display/capture capability and cannot pass by skipping it.
@@ -215,8 +221,11 @@ entry points with temporary Git histories and retained artifact directories,
 and runs real subprocess success, nonzero exit and command-timeout termination cases.
 It also exercises native ownership through the actual prepare, coverage, local
 capture and replay CLIs with controlled external executables: suite filters,
-omissions/duplicates, failed/skipped outcomes, missing markers, wrong owners and
-partial reports. These checks validate routing and reporting, not macOS rendering.
+declared/runtime ID boundaries, exclusion arguments/receipts, omissions/duplicates,
+failed/skipped outcomes, missing markers, wrong owners and partial reports.
+These checks validate command construction and evidence reporting. They do not
+execute Swift Testing's selection engine or macOS rendering; the current-head
+native CI run must confirm the actual ordinary and native method sets exactly once.
 It runs on Linux alongside the existing Go reporter verifier.
 
 ## Pull request protection and advisory CI

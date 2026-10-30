@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from swift_ownership import ordinary_filter
+from swift_ownership import native_filter
 
 
 def summarize(logs):
@@ -113,7 +113,7 @@ def terminal_methods(log, inventory, errors, *, allow_other=False):
 def capture(output_dir):
     repo = Path(__file__).resolve().parents[2]
     command = ["xcrun", "swift", "test", "--package-path", str(repo / "app/macos"),
-               "--filter", ordinary_filter()]
+               "--skip", native_filter()]
     path = output_dir / "swift-tests.log"
     status = output_dir / "swift-status.json"
     record = {"command": command, "exit_code": None, "log": str(path)}

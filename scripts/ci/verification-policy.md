@@ -42,7 +42,11 @@ and the verified build manifest before ordinary partitioning. The title
 cancellation replay belongs to the existing `native-capture/tag-glass-captures`
 check so its incoming-frame assertion runs with AppKit's event loop and real
 WindowServer delivery. Its full method identity remains in discovery and is
-excluded from ordinary filters, with no added skip or environment bypass.
+excluded from ordinary execution without a test-level skip or environment bypass.
+Ordinary commands retain suite-prefix `--filter` selection and pass a separate
+shared `--skip` for the full native method ID and its runtime source-location
+suffix. This command selection does not add a framework skip outcome; the method
+must still execute at its declared native owner.
 Coverage requires exactly one successful owner receipt, one passing terminal
 outcome and the required execution marker at that declared check; missing frames fail the native assertion, while
 missing, skipped, failed, repeated or misrouted outcomes fail aggregation.
@@ -50,6 +54,8 @@ Local `make check-swift` uses the same ordinary exclusion, then runs the existin
 producer for the declared check and validates its actual native evidence.
 Producer reports limited with `--check` are local evidence and cannot substitute
 for a complete mandatory CI group.
+Controlled CLI fixtures verify argument and evidence contracts; only the actual
+current-head Swift/native run validates Swift Testing's runtime selection semantics.
 
 ## Runner allocation and execution limits
 

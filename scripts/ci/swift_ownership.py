@@ -8,8 +8,15 @@ NATIVE_METHOD_OWNERS = {
 }
 
 
-def ordinary_filter(suites=None):
-    """Preserve suite selection while excluding only complete owned identities."""
-    excluded = "|".join(re.escape(name) for name in NATIVE_METHOD_OWNERS)
-    selection = "" if suites is None else "(?:" + "|".join(re.escape(suite) for suite in suites) + ")/"
-    return "^(?!(?:" + excluded + ")$)" + selection
+def ordinary_filter(suites):
+    """Retain SwiftPM's suite selection, including parameterized methods."""
+    return "^(?:" + "|".join(re.escape(suite) for suite in suites) + ")/"
+
+
+def native_filter():
+    """Match declared IDs and Swift Testing's runtime source-location suffixes."""
+    # Swift Testing lists a unique method without its source location, but its
+    # runtime Test.ID.description appends /file:line:column. A trailing $ alone
+    # misses that ID. A separate --skip also prevents an included ancestor suite
+    # from restoring this method through Swift Testing's recursive selection.
+    return "^(?:" + "|".join(re.escape(name) for name in NATIVE_METHOD_OWNERS) + ")(?:/|$)"

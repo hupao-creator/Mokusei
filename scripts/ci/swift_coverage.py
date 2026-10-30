@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 from collections import Counter
 from swift_reporting import summarize, terminal_methods
-from swift_ownership import NATIVE_METHOD_OWNERS
+from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
 
 
 def main():
@@ -48,6 +48,8 @@ def main():
     if manifest:
         if manifest.get("nativeMethods") != NATIVE_METHOD_OWNERS:
             errors.append("Shared build native method ownership does not match the current registry.")
+        if any(shard.get("skip") != native_filter() for shard in manifest["shards"]):
+            errors.append("Shared build native method exclusion does not match the current registry.")
         assigned = [test for shard in manifest["shards"] for test in shard["tests"]] + list(NATIVE_METHOD_OWNERS)
         if len(assigned) != len(set(assigned)) or sorted(assigned) != manifest["tests"]:
             errors.append("Shard/native ownership plan omits or duplicates discovered tests.")
@@ -109,7 +111,8 @@ def main():
         if receipt and manifest:
             if (receipt.get("revision") != manifest["revision"] or receipt.get("shard") != shard_index
                     or receipt.get("tests") != manifest["shards"][shard_index]["tests"]
-                    or receipt.get("filter") != manifest["shards"][shard_index]["filter"]):
+                    or receipt.get("filter") != manifest["shards"][shard_index]["filter"]
+                    or receipt.get("skip") != manifest["shards"][shard_index].get("skip")):
                 errors.append(f"{label}: receipt does not match the complete test inventory.")
             receipt_tests.extend(receipt.get("tests", []))
         path = log_paths[shard_index]
