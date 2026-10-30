@@ -67,7 +67,10 @@ composer interactions; this is not a physical cross-app mouse-delivery test.
 
 The full Workspace search case runs the production morph in a native window
 and waits for settled carrier and viewport geometry before comparing rendered
-text, the native insertion rectangle and the emphasized caret layer. The layer
+text, AppKit's actual `drawInsertionPoint` rectangle and the emphasized caret
+layer. The recorded native rectangle must belong to the current selection; the
+zero-width `firstRect` logical boundary independently checks text centering and
+scroll visibility. The layer
 assertions always execute, including horizontal position, long-query scrolling,
 clear/reopen, resize and application scaling. A direct clip scroll retains the
 vertical-origin assertion. The method is explicitly owned by CI's

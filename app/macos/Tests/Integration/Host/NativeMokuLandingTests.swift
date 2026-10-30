@@ -7,7 +7,7 @@ import MokuseiTestSupport
 #endif
 @testable import MokuseiCore
 import MokuseiPluginAPI
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 import MokuseiHarnessCodex
 import MokuseiApplications
 @testable import MokuseiUI
@@ -235,25 +235,34 @@ struct NativeMokuLandingTests {
             }
             func checkCaretLayer(_ candidate: NSTextView, carrier: CGRect, scale: CGFloat = 1, stage: String) async throws {
                 try await SwiftUIReplay.wait { window.isKeyWindow && window.firstResponder === candidate }
-                #expect(candidate.selectedRange().length == 0, "stage=\(stage)")
+                let textView = try #require(candidate as? ComposerTextView, "stage=\(stage)")
+                try #require(candidate.selectedRange().length == 0, "stage=\(stage)")
                 candidate.updateInsertionPointStateAndRestartTimer(true)
                 candidate.needsDisplay = true
                 candidate.displayIfNeeded()
                 try await SwiftUIReplay.wait {
                     candidate.layer?.sublayers?.contains { $0.name == "composer-insertion-point" } == true
+                        && textView.nativeInsertionPointDrawing?.selection == candidate.selectedRange()
                 }
                 let layer = try #require(candidate.layer?.sublayers?.first { $0.name == "composer-insertion-point" })
                 let layerRect = candidate.convert(candidate.convertFromLayer(layer.frame), to: root)
-                let nativeRect = caretRect(candidate)
-                try #require(nativeRect.height > 0, "stage=\(stage) native insertion rectangle is unavailable: \(nativeRect)")
-                #expect(abs(layerRect.midY - carrier.midY) <= 2 * scale, "stage=\(stage)")
+                let drawing = try #require(textView.nativeInsertionPointDrawing, "stage=\(stage) AppKit has not drawn an insertion point")
+                try #require(drawing.selection == candidate.selectedRange(), "stage=\(stage) drawing belongs to an earlier selection")
+                try #require(drawing.rect.width > 0 && drawing.rect.height > 0,
+                             "stage=\(stage) native drawing rectangle is unavailable: \(drawing.rect)")
+                let drawingRect = candidate.convert(drawing.rect, to: root)
+                let logicalRect = caretRect(candidate)
+                try #require(logicalRect.height > 0, "stage=\(stage) logical insertion rectangle is unavailable: \(logicalRect)")
+                print("SEARCH CARET stage=\(stage) draw=\(drawingRect) logical=\(logicalRect) layer=\(layerRect)")
+                try #require(abs(layerRect.midY - carrier.midY) <= 2 * scale, "stage=\(stage)")
                 // Comparing both to the capsule center alone can accept a
-                // mirrored offset. The native insertion rectangle is the oracle
-                // for the custom mark, including its horizontal scroll position.
-                #expect(abs(layerRect.midX - nativeRect.midX) <= 0.5 * scale,
-                        "stage=\(stage) layer=\(layerRect) native=\(nativeRect)")
-                #expect(abs(layerRect.midY - nativeRect.midY) <= 0.5 * scale,
-                        "stage=\(stage) layer=\(layerRect) native=\(nativeRect)")
+                // mirrored offset. Compare the custom mark with AppKit's real
+                // draw callback; firstRect is a logical zero-width boundary,
+                // which need not share the pixel-aligned drawing rect's center.
+                try #require(abs(layerRect.midX - drawingRect.midX) <= 0.5 * scale,
+                        "stage=\(stage) layer=\(layerRect) draw=\(drawingRect) logical=\(logicalRect)")
+                try #require(abs(layerRect.midY - drawingRect.midY) <= 0.5 * scale,
+                        "stage=\(stage) layer=\(layerRect) draw=\(drawingRect) logical=\(logicalRect)")
             }
             func checkPosition(_ candidate: NSTextView, scale: CGFloat = 1, stage: String) async throws {
                 root.layoutSubtreeIfNeeded()
@@ -262,17 +271,17 @@ struct NativeMokuLandingTests {
                 let currentScroll = try #require(candidate.enclosingScrollView)
                 let viewport = currentScroll.contentView.convert(currentScroll.contentView.bounds, to: root)
                 let nativeRect = caretRect(candidate)
-                #expect(currentScroll.contentView.bounds.origin.y == 0, "stage=\(stage)")
-                #expect(abs(nativeRect.midY - currentCarrier.midY) <= 2 * scale, "stage=\(stage)")
-                #expect(nativeRect.midX >= viewport.minX && nativeRect.midX <= viewport.maxX,
+                try #require(currentScroll.contentView.bounds.origin.y == 0, "stage=\(stage)")
+                try #require(abs(nativeRect.midY - currentCarrier.midY) <= 2 * scale, "stage=\(stage)")
+                try #require(nativeRect.midX >= viewport.minX && nativeRect.midX <= viewport.maxX,
                         "stage=\(stage) native=\(nativeRect) viewport=\(viewport)")
                 try await checkCaretLayer(candidate, carrier: currentCarrier, scale: scale, stage: stage)
             }
-            #expect(abs(caretRect(editor).midY - carrier.midY) <= 2)
+            try #require(abs(caretRect(editor).midY - carrier.midY) <= 2)
             try await checkCaretLayer(editor, carrier: carrier, stage: "opened")
             editor.insertText("Search text", replacementRange: NSRange(location: 0, length: 0))
             try await SwiftUIReplay.wait { fixture.overview.searchQuery == "Search text" }
-            #expect(abs(caretRect(editor).midY - carrier.midY) <= 2)
+            try #require(abs(caretRect(editor).midY - carrier.midY) <= 2)
             let manager = try #require(editor.layoutManager)
             let container = try #require(editor.textContainer)
             manager.ensureLayout(for: container)
@@ -280,10 +289,10 @@ struct NativeMokuLandingTests {
             let textRect = manager.boundingRect(forGlyphRange: glyphs, in: container).offsetBy(dx: editor.textContainerOrigin.x, dy: editor.textContainerOrigin.y)
             let textMidY = editor.convert(textRect, to: root).midY
             print("SEARCH POSITION carrier=\(carrier) caret=\(caretRect(editor)) textMidY=\(textMidY) clip=\(scroll.contentView.bounds)")
-            #expect(abs(textMidY - carrier.midY) <= 3)
+            try #require(abs(textMidY - carrier.midY) <= 3)
             scroll.contentView.scroll(to: NSPoint(x: scroll.contentView.bounds.origin.x, y: -15))
-            #expect(scroll.contentView.bounds.origin.y == 0)
-            #expect(abs(caretRect(editor).midY - carrier.midY) <= 2)
+            try #require(scroll.contentView.bounds.origin.y == 0)
+            try #require(abs(caretRect(editor).midY - carrier.midY) <= 2)
             try await checkPosition(editor, stage: "typed")
 
             let longQuery = String(repeating: "Search 搜索 🙂 ", count: 24)
@@ -292,13 +301,13 @@ struct NativeMokuLandingTests {
                 fixture.overview.searchQuery == longQuery && editor.frame.width > scroll.contentSize.width
             }
             editor.scrollRangeToVisible(editor.selectedRange())
-            #expect(scroll.contentView.bounds.origin.x > 0)
-            #expect(editor.selectedRange() == NSRange(location: longQuery.utf16.count, length: 0))
+            try #require(scroll.contentView.bounds.origin.x > 0)
+            try #require(editor.selectedRange() == NSRange(location: longQuery.utf16.count, length: 0))
             try await checkPosition(editor, stage: "long query end")
             editor.moveToBeginningOfDocument(nil)
             editor.scrollRangeToVisible(editor.selectedRange())
-            #expect(editor.selectedRange() == NSRange(location: 0, length: 0))
-            #expect(scroll.contentView.bounds.origin.x == 0)
+            try #require(editor.selectedRange() == NSRange(location: 0, length: 0))
+            try #require(scroll.contentView.bounds.origin.x == 0)
             try await checkPosition(editor, stage: "long query start")
 
             window.setContentSize(CGSize(width: 720, height: 620))
@@ -306,16 +315,16 @@ struct NativeMokuLandingTests {
                 guard let frame = probe.bounds["__search_carrier__"] else { return false }
                 return abs(host.bounds.width - 720) < 0.5 && abs(frame.midX + probe.origin.x - host.bounds.midX) < 0.5
             }
-            #expect(mountedEditor(in: root) === editor)
-            #expect(editor.string == longQuery && editor.selectedRange() == NSRange(location: 0, length: 0))
+            try #require(mountedEditor(in: root) === editor)
+            try #require(editor.string == longQuery && editor.selectedRange() == NSRange(location: 0, length: 0))
             try await checkPosition(editor, stage: "resized")
             for scale in [CGFloat(1.25), CGFloat(1)] {
                 host.rootView = content(scale: scale)
                 try await SwiftUIReplay.wait {
                     abs((probe.bounds["__search_carrier__"]?.height ?? 0) - OverviewTagMetrics.buttonHeight * scale) < 0.5
                 }
-                #expect(mountedEditor(in: root) === editor)
-                #expect(editor.string == longQuery && editor.selectedRange() == NSRange(location: 0, length: 0))
+                try #require(mountedEditor(in: root) === editor)
+                try #require(editor.string == longQuery && editor.selectedRange() == NSRange(location: 0, length: 0))
                 try await checkPosition(editor, scale: scale, stage: "zoom \(scale)")
             }
 
@@ -324,14 +333,14 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait {
                 fixture.overview.searchQuery.isEmpty && editor.string.isEmpty && editor.frame.width <= scroll.contentSize.width + 0.5
             }
-            #expect(editor.selectedRange() == NSRange(location: 0, length: 0))
-            #expect(scroll.contentView.bounds.origin.x == 0)
+            try #require(editor.selectedRange() == NSRange(location: 0, length: 0))
+            try #require(scroll.contentView.bounds.origin.x == 0)
             try await checkPosition(editor, stage: "cleared")
             fixture.overview.endSearch()
             try await SwiftUIReplay.wait { probe.bounds["__search_carrier__"] == nil && mountedEditor(in: root) == nil }
             fixture.overview.beginSearch()
             let reopened = try await settledSearchEditor()
-            #expect(reopened.string.isEmpty && reopened.selectedRange() == NSRange(location: 0, length: 0))
+            try #require(reopened.string.isEmpty && reopened.selectedRange() == NSRange(location: 0, length: 0))
             try await checkPosition(reopened, stage: "reopened")
             print("SEARCH_CARET_GEOMETRY_CONFIRMED")
         } catch { await fixture.close(); throw error }

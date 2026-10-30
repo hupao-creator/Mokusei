@@ -276,6 +276,9 @@ struct NativeComposerEditor: NSViewRepresentable {
         if !singleLine { super.insertLineBreak(sender) }
     }
     private let caret = NativeComposerCaret()
+    /// The latest real on callback, in this view's coordinates. AppKit's
+    /// firstRect logical boundary is not the insertion mark's drawing rectangle.
+    private(set) var nativeInsertionPointDrawing: (rect: NSRect, selection: NSRange)?
     var composerTextInsets = EdgeInsets() {
         didSet {
             guard composerTextInsets != oldValue else { return }
@@ -329,7 +332,10 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
         // Off callbacks also erase the old insertion rectangle during movement.
         // Keep the breathing layer alive, but only position it on an on callback.
-        if flag { caret.show(at: rect, in: self) }
+        if flag {
+            nativeInsertionPointDrawing = (rect, selectedRange())
+            caret.show(at: rect, in: self)
+        }
     }
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
