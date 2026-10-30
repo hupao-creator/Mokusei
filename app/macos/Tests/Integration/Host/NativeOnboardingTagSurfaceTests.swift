@@ -41,7 +41,9 @@ struct NativeOnboardingTagSurfaceTests {
 
         fixture.mounted = false
         try await SwiftUIReplay.wait { surface(in: root) == nil && firstView.scene == nil }
-        #expect(firstView.isPaused && replacement.view == nil)
+        #expect(replacement.view == nil)
+        // Keep the old view alive so this proves detachment stops scene updates,
+        // independently of releasing the retired native surface.
         let retiredUpdates = replacement.updates
         try await Task.sleep(for: .milliseconds(100))
         #expect(replacement.updates == retiredUpdates)

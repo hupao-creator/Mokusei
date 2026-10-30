@@ -104,8 +104,8 @@ struct NativeOnboardingTagAnimation: View {
     }
 
     static func dismantleNSView(_ view: TransparentView, coordinator: ()) {
-        view.presentScene(nil)
         view.isPaused = true
+        view.presentScene(nil)
     }
 
     final class TransparentView: SKView {
