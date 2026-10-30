@@ -8,6 +8,7 @@ import MokuseiPluginAPI
 public final class NativeWorkspaceCatalog {
     public private(set) var threads: [HarnessThread] = []
     public private(set) var moku: HarnessThread?
+    public private(set) var hasMoku = false
     public private(set) var applicationThreads: [JSONValue] = []
     public private(set) var settings: JSONValue = .object([:])
     public private(set) var settingsRevision = 0
@@ -61,6 +62,7 @@ public final class NativeWorkspaceCatalog {
         installGeneration &+= 1
         if threads != ordered { threads = ordered }
         if moku != nextMoku { moku = nextMoku }
+        if hasMoku != (nextMoku != nil) { hasMoku = nextMoku != nil }
         let applications = snapshot["applicationThreads"]!.arrayValue!
         if applicationThreads != applications { applicationThreads = applications }
         if settings != snapshot["settings"]! { settings = snapshot["settings"]! }

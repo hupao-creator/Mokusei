@@ -58,9 +58,9 @@ public struct NativeOverviewWorkspaceView: View {
         callbackStore.current = callbacks
         return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
-                                         hasDock: model.workspace.catalog.moku != nil)
+                                         hasDock: model.workspace.catalog.hasMoku)
             ZStack {
-                NativeOverviewCanvas(items: model.items, sceneKey: model.sceneKey, state: model.canvasState,
+                NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
@@ -77,7 +77,7 @@ public struct NativeOverviewWorkspaceView: View {
                     .opacity(landing ? 0 : 1)
                     .allowsHitTesting(!landing)
                     .accessibilityHidden(landing)
-                if !landing && model.items.isEmpty && model.error == nil {
+                if !landing && model.content.isEmpty && model.error == nil {
                     NativeOverviewEmptyState(title: emptyTitle, detail: emptyDetail)
                 }
                 if let error = model.error ?? model.canvasState.layoutError {

@@ -51,6 +51,8 @@ public final class NativeOverviewCanvasState {
     public let motionStages: NativeOverviewStageCoordinator
     public let memory: NativeOverviewCameraMemory
     @ObservationIgnored public fileprivate(set) var sceneSnapshotCount = 0
+    /// Mounted integration replays verify content invalidation without timing the UI.
+    @ObservationIgnored public fileprivate(set) var bodyEvaluationCount = 0
     /// Geometric fallbacks actually presented after the straight-move budget ran out.
     @ObservationIgnored public fileprivate(set) var repackCount = 0
     @ObservationIgnored public fileprivate(set) var layoutSolveCount = 0
@@ -134,7 +136,11 @@ private struct OverviewCanvasWork {
 
 /// Cards share one SwiftUI tree and inherit the workspace environment directly.
 public struct NativeOverviewCanvas<Content: View>: View {
-    public var items: [NativeOverviewItem]
+    private let suppliedItems: [NativeOverviewItem]?
+    private let suppliedContent: NativeOverviewContentStore?
+    @State private var localContent: NativeOverviewContentStore
+    @State private var attachedContent: NativeOverviewContentStore?
+    private var contentStore: NativeOverviewContentStore { suppliedContent ?? localContent }
     public var sceneKey: String
     public var selectionID: String?
     public var state: NativeOverviewCanvasState
@@ -162,8 +168,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @Environment(\.nativeWindowContentScale) private var windowContentScale
     @Environment(\.locale) private var locale
     @FocusedValue(\.overviewFocusedCard) private var focusedCard
-    @State private var rendered: [NativeOverviewItem] = []
-    @State private var latestRecords: [String: NativeOverviewItem] = [:]
+    @State private var rendered: [OverviewCardContentState] = []
+    @State private var renderedRecords: [String: OverviewCardContentState] = [:]
     @State private var retiringPresentationIDs = Set<String>()
     @State private var outgoingPlacements: [NativeOverviewPlacement] = []
     @State private var cardPoses: [String: OverviewCardPose] = [:]
@@ -173,6 +179,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var worker: Task<Void, Never>?
     @State private var workerEpoch = UUID()
     @State private var scheduledScene: String?
+    @State private var scheduledContent: ObjectIdentifier?
     @State private var scheduledSelection: String?
     @State private var scheduledResetEpoch: UInt64?
     @State private var mountedScene: String?
@@ -188,7 +195,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @GestureState private var zoomActive = false
     @State private var navigationInput: NativeOverviewNavigationInput
 
-    public init(items: [NativeOverviewItem], sceneKey: String, state: NativeOverviewCanvasState,
+    public init(items: [NativeOverviewItem] = [], contentSource: NativeOverviewContentStore? = nil,
+                sceneKey: String, state: NativeOverviewCanvasState,
                 selectionID: String? = nil, toolbarBottom: Double = 58, bottomReservedHeight: Double = 0, visible: Bool = true,
                 cloudAnimationsEnabled: Bool = true, glassWorld: Bool = true,
                 interactionPaused: Bool = false, resetEpoch: UInt64 = 0,
@@ -197,7 +205,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 cardContentIdentity: ObjectIdentifier? = nil,
                 inputRegions: NativeCanvasInputRegions? = nil,
                 @ViewBuilder card: @escaping (NativeOverviewItem) -> Content) {
-        self.items = items; self.sceneKey = sceneKey; self.state = state; self.selectionID = selectionID
+        suppliedItems = contentSource == nil ? items : nil
+        suppliedContent = contentSource
+        _localContent = State(initialValue: NativeOverviewContentStore(items: contentSource == nil ? items : []))
+        self.sceneKey = sceneKey; self.state = state; self.selectionID = selectionID
         self.toolbarBottom = toolbarBottom; self.visible = visible; self.cloudAnimationsEnabled = cloudAnimationsEnabled
         self.bottomReservedHeight = bottomReservedHeight
         self.glassWorld = glassWorld
@@ -210,9 +221,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
 
     public var body: some View {
+        state.bodyEvaluationCount += 1
         let placements = state.presentedPlacements + outgoingPlacements
-        let records = Dictionary(rendered.map { ($0.id, $0) }, uniquingKeysWith: { _, next in next })
-        GeometryReader { geometry in
+        let records = renderedRecords
+        return GeometryReader { geometry in
             let viewport = NativeOverviewViewport(width: geometry.size.width, height: geometry.size.height,
                                                   toolbarBottom: toolbarBottom, bottomReservedHeight: bottomReservedHeight)
             ZStack(alignment: .topLeading) {
@@ -229,7 +241,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                     ZStack(alignment: .topLeading) {
                         ForEach(placements, id: \.id) { placement in
                             if let item = records[placement.id] {
-                                cardShell(placement, item: item)
+                                cardShell(placement, slot: item)
                             }
                         }
                     }
@@ -242,7 +254,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                     ZStack(alignment: .topLeading) {
                         ForEach(placements, id: \.id) { placement in
                             if let item = records[placement.id] {
-                                semanticCard(placement, item: item, size: geometry.size)
+                                semanticCard(placement, slot: item, size: geometry.size)
                             }
                         }
                     }
@@ -275,23 +287,14 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .onChange(of: zoomActive) { _, active in if !active { navigationInput.endPinch() } }
             .onChange(of: state.isLayingOut) { _, layingOut in if layingOut { navigationInput.cancel() } }
             .disabled(interactionPaused)
-            .onChange(of: requestKey(viewport)) { _, _ in enqueue(viewport) }
+            .onChange(of: requestKey(viewport)) { _, _ in attach(viewport); enqueue(viewport) }
             .onAppear { attach(viewport); state.camera.setVisible(visible); enqueue(viewport) }
-            .onChange(of: items) { previous, updated in
-                state.activeIDs = Set(updated.map(\.id))
-                let latest = Dictionary(updated.map { ($0.id, $0) }, uniquingKeysWith: { _, next in next })
-                latestRecords = latest
-                rendered = rendered.map { item in
-                    guard let next = latest[item.id], next.structuralIdentity == item.structuralIdentity else { return item }
-                    return next
-                }
-                attach(viewport)
-                if previous.map(\.structuralIdentity) == updated.map(\.structuralIdentity) {
-                    if previous.map(\.carouselEligible) != updated.map(\.carouselEligible) { updateCarousel() }
-                    state.camera.onChange?()
-                }
-                retain()
+            // Simple array hosts feed the same store as the production model.
+            // Production supplies a stable source and never observes the array.
+            .onChange(of: suppliedItems) { _, updated in
+                if let updated { contentStore.install(updated) }
             }
+            .onChange(of: ObjectIdentifier(contentStore)) { _, _ in attach(viewport) }
             .onChange(of: visible) { _, value in state.visible = value; state.camera.setVisible(value) }
             .onChange(of: spatialMotionReduced) { _, value in state.camera.reduceMotion = value }
             .onChange(of: viewport) { _, _ in attach(viewport) }
@@ -305,16 +308,16 @@ public struct NativeOverviewCanvas<Content: View>: View {
         .accessibilityIdentifier("overview.canvas")
     }
 
-    private func cardShell(_ placement: NativeOverviewPlacement, item: NativeOverviewItem) -> some View {
-        return OverviewCardShell(id: item.id, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
-                                 glassWorld: glassWorld, completed: item.completed).equatable()
+    private func cardShell(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState) -> some View {
+        return OverviewCardShell(slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
+                                 glassWorld: glassWorld).equatable()
     }
-    private func semanticCard(_ placement: NativeOverviewPlacement, item: NativeOverviewItem, size: CGSize) -> some View {
+    private func semanticCard(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState, size: CGSize) -> some View {
         return OverviewCardSemantic(
-            item: item, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
+            slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
             viewport: size, coordinateSpace: ownership,
             cloudAnimationsEnabled: inheritedCloudAnimationsEnabled && cloudAnimationsEnabled,
-            isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(item.id),
+            isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(slot.id),
             localeIdentifier: locale.identifier, contentIdentity: cardContentIdentity,
             stateIdentity: ObjectIdentifier(state),
             onAppear: { state.cardAppeared($0) }, onDisappear: { state.cardDisappeared($0) },
@@ -346,19 +349,25 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .onEnded { _ in navigationInput.endPinch() }
     }
     private func requestKey(_ viewport: NativeOverviewViewport) -> String {
-        "\(sceneKey)|\(selectionID ?? "")|\(items.map(\.structuralIdentity))|\(viewport)|\(resetEpoch)|\(retry)|\(revisions.last?.revision ?? 0)"
+        "\(ObjectIdentifier(contentStore))|\(sceneKey)|\(selectionID ?? "")|\(contentStore.structureRevision)|\(viewport)|\(resetEpoch)|\(retry)|\(revisions.last?.revision ?? 0)"
     }
     private func enqueue(_ viewport: NativeOverviewViewport) {
         let replaceScene = scheduledScene != nil && (scheduledSelection != selectionID ||
             (scheduledScene != sceneKey && (scheduledSelection == nil || selectionID == nil)))
-        if replaceScene || (scheduledResetEpoch != nil && scheduledResetEpoch != resetEpoch) {
+        let replaceContent = scheduledContent != nil && scheduledContent != ObjectIdentifier(contentStore)
+        if replaceScene || replaceContent || (scheduledResetEpoch != nil && scheduledResetEpoch != resetEpoch) {
             worker?.cancel(); worker = nil
             pendingWork.removeAll()
         }
         scheduledScene = sceneKey; scheduledSelection = selectionID; scheduledResetEpoch = resetEpoch
+        scheduledContent = ObjectIdentifier(contentStore)
         // Same-scene updates join the FIFO instead of cancelling a partly played
         // exit/shrink/move/grow/entry revision. Filter changes still interrupt.
-        pendingWork.append(.init(run: { await reconcile(viewport) }))
+        // Freeze this request's structural collection. A worker suspended in
+        // motion must not pull a later collection before its FIFO revision and
+        // instant-entry flags have been consumed. Content is resolved per slot.
+        let requestedItems = suppliedItems ?? contentStore.items
+        pendingWork.append(.init(run: { await reconcile(viewport, items: requestedItems) }))
         guard worker == nil else { return }
         let epoch = UUID(); workerEpoch = epoch
         worker = Task { @MainActor in
@@ -370,18 +379,27 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
     }
     private func attach(_ viewport: NativeOverviewViewport) {
-        latestRecords = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { _, next in next })
+        let source = contentStore
+        if let previous = attachedContent, previous !== source { previous.release(owner: ownership) }
+        attachedContent = source
+        let owner = ownership, state = state
+        source.observe(owner: owner) { [weak source, weak state] change in
+            guard let source, let state, state.hostOwner == owner else { return }
+            state.activeIDs = source.activeIDs
+            if change.carousel && !change.structure { Self.updateCarousel(state, records: source.records) }
+            if change.attention || change.structure { state.camera.onChange?() }
+        }
         state.camera.reduceMotion = spatialMotionReduced
         state.hostOwner = ownership
         state.visible = visible
         state.externalInteractionPaused = interactionPaused
-        state.activeIDs = Set(items.map(\.id))
+        state.activeIDs = source.activeIDs
         state.retryHandler = { retry += 1 }
         state.activationCheck = { id in !state.externalInteractionPaused && !state.isLayingOut && state.activeIDs.contains(id) }
-        // Membership changes reattach this callback; camera movement only needs
-        // to project the already-known attention cards.
-        let attention = Set(items.filter(\.needsAttention).map(\.id))
+        // The callback reads current attention facts, while scene/viewport changes
+        // reattach its coordinate and memory ownership.
         state.camera.onChange = {
+            let attention = source.attentionIDs
             if let view = state.camera.live { state.memory.current = (sceneKey, view) }
             guard !attention.isEmpty else {
                 state.overflowAttentionCount = 0
@@ -399,7 +417,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
     private func detach() {
         navigationInput.cancel(); navigationInput.endPinch()
         worker?.cancel(); worker = nil; workerEpoch = UUID(); pendingWork.removeAll()
-        scheduledScene = nil; scheduledSelection = nil; scheduledResetEpoch = nil
+        scheduledScene = nil; scheduledSelection = nil; scheduledResetEpoch = nil; scheduledContent = nil
+        attachedContent?.release(owner: ownership); attachedContent = nil
         guard state.hostOwner == ownership else { return }
         if let view = state.camera.live { state.memory.current = (sceneKey, view) }
         state.camera.setVisible(false)
@@ -410,16 +429,24 @@ public struct NativeOverviewCanvas<Content: View>: View {
         state.refreshInteractionPause()
         onRetainedPresentationIDsChanged?([])
     }
-    private func retain() { onRetainedPresentationIDsChanged?(Set(rendered.map(\.presentationID)).union(retiringPresentationIDs)) }
-    private func updateCarousel() {
-        let records = latestRecords
+    private func installRendered(_ items: [NativeOverviewItem]) {
+        let slots = items.map { contentStore.slot(for: $0) }
+        rendered = slots
+        renderedRecords = Dictionary(slots.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        contentStore.retain(Set(slots.map(\.structuralIdentity)), owner: ownership)
+    }
+    private func retain() {
+        onRetainedPresentationIDsChanged?(Set(rendered.map { $0.item.presentationID }).union(retiringPresentationIDs))
+    }
+    private func updateCarousel() { Self.updateCarousel(state, records: contentStore.records) }
+    private static func updateCarousel(_ state: NativeOverviewCanvasState, records: [String: NativeOverviewItem]) {
         state.camera.setCarouselCards(state.presentedPlacements.compactMap { placement in
             guard let item = records[placement.id] else { return nil }
             return .init(id: item.id, rect: .init(left: Double(placement.column) * 376, top: Double(placement.row) * 216,
                 width: Double(placement.columns) * 376 - 16, height: Double(placement.rows) * 216 - 16), eligible: item.carouselEligible)
         })
     }
-    private func reconcile(_ viewport: NativeOverviewViewport) async {
+    private func reconcile(_ viewport: NativeOverviewViewport, items: [NativeOverviewItem]) async {
         guard viewport.width > 0, viewport.height > 0, state.hostOwner == ownership else { return }
         // Attachment callbacks and active IDs belong to the latest view, not a
         // historical revision snapshot being drained by the FIFO.
@@ -439,7 +466,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 consumedRevision = revision.revision
                 onRevisionsConsumed?(revision.revision)
             }
-            if rendered != items || mountedScene != sceneKey || pending.isEmpty {
+            if rendered.map(\.item) != items || mountedScene != sceneKey || pending.isEmpty {
                 try await present(items, instantEntryIDs: [], viewport: viewport)
             }
             try Task.checkCancellation()
@@ -470,7 +497,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
            plannedViewport == viewport || NativeOverviewCameraGeometry.fitsAtReadingScale(contentRect, viewport: viewport) {
             // Internal slot/content revisions still retire their snapshots and
             // acknowledge the FIFO, but never acquire a spatial stage or solver.
-            rendered = next.map(currentContentItem)
+            installRendered(next.map(currentContentItem))
             retain()
             state.geometryReuseCount += 1
             plannedViewport = viewport
@@ -531,14 +558,14 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let oldPlacements = displayed + outgoingPlacements
         let oldPoses = Dictionary(oldPlacements.map { ($0.id, livePose($0, at: now)) }, uniquingKeysWith: { first, _ in first })
         let oldIDs = Set(displayed.map(\.id))
-        let oldRecords = rendered
+        let oldRecords = rendered.map(\.item)
         let box = plan.bounds
         contentRect = .init(left: Double(box.column) * 376, top: Double(box.row) * 216, width: box.width, height: box.height)
         mountedScene = sceneKey; mountedSelection = selectionID
         state.layoutError = nil
         retiringPresentationIDs.formUnion(oldRecords.map(\.presentationID))
         outgoingPlacements = oldPlacements.filter { !nextIDs.contains($0.id) }
-        rendered = next.map(currentContentItem) + oldRecords.filter { !nextIDs.contains($0.id) }
+        installRendered(next.map(currentContentItem) + oldRecords.filter { !nextIDs.contains($0.id) })
         cardMotions.removeAll()
         cardPoses = oldPoses
         state.camera.deferRefit()
@@ -651,7 +678,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
         try Task.checkCancellation()
         cardMotions.removeAll(); cardPoses.removeAll(); outgoingPlacements.removeAll()
-        rendered = next.map(currentContentItem)
+        installRendered(next.map(currentContentItem))
         retiringPresentationIDs.removeAll()
         retain()
         if next.isEmpty { state.memory.current = nil }
@@ -668,7 +695,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     private func currentContentItem(_ item: NativeOverviewItem) -> NativeOverviewItem {
         // Queued structural history must not roll back newer text/status for an
         // unchanged footprint. The model retains older structural projections.
-        guard let latest = latestRecords[item.id], latest.structuralIdentity == item.structuralIdentity else { return item }
+        guard let latest = contentStore.records[item.id], latest.structuralIdentity == item.structuralIdentity else { return item }
         return latest
     }
 
@@ -746,18 +773,17 @@ private struct OverviewCameraPlane<Content: View>: View {
 
 /// The outer shell only depends on geometry, visibility and the glass inputs.
 /// Keeping it Equatable stops a content-only update from invalidating every
-/// GlassEffectContainer. The parent still constructs one value per card.
+/// GlassEffectContainer. Only structural/environment updates rebuild the parent.
 private struct OverviewCardShell: View, Equatable {
-    let id: String
+    let slot: OverviewCardContentState
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
     let glassWorld: Bool
-    let completed: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id && lhs.pose == rhs.pose && lhs.motion == rhs.motion && lhs.visible == rhs.visible
-            && lhs.glassWorld == rhs.glassWorld && lhs.completed == rhs.completed
+        lhs.slot === rhs.slot && lhs.pose == rhs.pose && lhs.motion == rhs.motion && lhs.visible == rhs.visible
+            && lhs.glassWorld == rhs.glassWorld
     }
 
     var body: some View {
@@ -768,7 +794,7 @@ private struct OverviewCardShell: View, Equatable {
                 // visible. Keep the motion wrapper outside each card's container.
                 GlassEffectContainer(spacing: 0) {
                     Color.clear
-                        .glassEffect(.regular.tint(completed ? NativePalette.overview.success.swiftUI.opacity(0.12) : nil),
+                        .glassEffect(.regular.tint(slot.completed ? NativePalette.overview.success.swiftUI.opacity(0.12) : nil),
                                      in: .rect(cornerRadius: 22))
                 }
             } else {
@@ -789,7 +815,7 @@ private struct OverviewCardShell: View, Equatable {
 /// its captured model/callback store is stable for the canvas lifetime.
 /// `contentIdentity`, locale and item changes still rebuild the wrapper.
 private struct OverviewCardSemantic<Content: View>: View, Equatable {
-    let item: NativeOverviewItem
+    let slot: OverviewCardContentState
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
@@ -806,7 +832,7 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     let content: (NativeOverviewItem) -> Content
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.item == rhs.item && lhs.pose == rhs.pose && lhs.motion == rhs.motion
+        lhs.slot === rhs.slot && lhs.pose == rhs.pose && lhs.motion == rhs.motion
             && lhs.visible == rhs.visible && lhs.viewport == rhs.viewport
             && lhs.coordinateSpace == rhs.coordinateSpace
             && lhs.cloudAnimationsEnabled == rhs.cloudAnimationsEnabled
@@ -817,14 +843,15 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     }
 
     var body: some View {
-        OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
+        let item = slot.item
+        return OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
             // Isolate the badge's glass from both other cards and this card's
             // backdrop so it fades with its content without fusing into the body.
             GlassEffectContainer(spacing: 0) {
                 // Visibility also owns semantic clocks; disabling decorative
                 // effects must not freeze the duration of a visible card.
                 OverviewSwiftUICard(item: item, visible: visible,
-                    viewport: viewport, coordinateSpace: coordinateSpace, content: content).equatable()
+                    viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
                     .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
                     .onAppear { onAppear(item.id) }
                     .onDisappear { onDisappear(item.id) }
@@ -843,9 +870,11 @@ private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     nonisolated let visible: Bool
     nonisolated let viewport: CGSize
     nonisolated let coordinateSpace: UUID
+    nonisolated let contentIdentity: ObjectIdentifier?
     let content: (NativeOverviewItem) -> Content
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.item == rhs.item && lhs.visible == rhs.visible && lhs.viewport == rhs.viewport && lhs.coordinateSpace == rhs.coordinateSpace
+            && lhs.contentIdentity == rhs.contentIdentity
     }
     @State private var inViewport = false
     @State private var animationVisibility = ThreadCardAnimationVisibility(isVisible: false)

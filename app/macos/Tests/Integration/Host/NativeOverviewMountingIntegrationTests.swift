@@ -10,7 +10,11 @@ import MokuseiTestSupport
 
 @MainActor @Observable private final class OverviewMountingFixture {
     let state = NativeOverviewCanvasState()
-    var items: [NativeOverviewItem]
+    let content = NativeOverviewContentStore()
+    var items: [NativeOverviewItem] {
+        get { content.items }
+        set { content.install(newValue) }
+    }
     var attached = true
     var glassWorld = true
     var visible = true
@@ -19,6 +23,7 @@ import MokuseiTestSupport
     @ObservationIgnored let inputIDs: Set<String>
     // Measurements must not themselves invalidate the canvas being measured.
     @ObservationIgnored var appearances: [String: Int] = [:]
+    @ObservationIgnored var contentBuilds: [String: Int] = [:]
     @ObservationIgnored var visualIDs: [String: UUID] = [:]
     @ObservationIgnored var markerIDs: [String: UUID] = [:]
     @ObservationIgnored var drafts: [String: String] = [:]
@@ -27,8 +32,8 @@ import MokuseiTestSupport
     @ObservationIgnored var cloudAnimations: [String: Bool] = [:]
 
     init(items: [NativeOverviewItem], inputIDs: Set<String> = []) {
-        self.items = items
         self.inputIDs = inputIDs
+        content.install(items)
     }
 }
 
@@ -44,15 +49,17 @@ private struct OverviewMountingMarker: NSViewRepresentable {
 }
 
 private struct OverviewMountingCard: View {
-    let id: String
+    let item: NativeOverviewItem
+    private var id: String { item.id }
     let fixture: OverviewMountingFixture
     @State private var draft = ""
     @State private var visualID = UUID()
     @Environment(\.threadCardAnimationVisibility) private var animationVisibility
     @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
     var body: some View {
-        VStack {
-            Text(id)
+        fixture.contentBuilds[id, default: 0] += 1
+        return VStack {
+            Text(item.presentationID.isEmpty ? id : item.presentationID)
             if fixture.inputIDs.contains(id) {
                 TextField("Draft", text: $draft)
                     .onChange(of: draft) { _, value in fixture.drafts[id] = value }
@@ -79,11 +86,11 @@ private struct OverviewMountingReplay: View {
     let fixture: OverviewMountingFixture
     var body: some View {
         if fixture.attached {
-            NativeOverviewCanvas(items: fixture.items, sceneKey: "mounting", state: fixture.state,
+            NativeOverviewCanvas(contentSource: fixture.content, sceneKey: "mounting", state: fixture.state,
                                  selectionID: fixture.selection, visible: fixture.visible,
                                  cloudAnimationsEnabled: fixture.cloudAnimationsEnabled,
                                  glassWorld: fixture.glassWorld) { item in
-                OverviewMountingCard(id: item.id, fixture: fixture)
+                OverviewMountingCard(item: item, fixture: fixture)
             }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
         } else {
@@ -94,6 +101,34 @@ private struct OverviewMountingReplay: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeOverviewMountingIntegrationTests {
+    @Test func contentUpdatesReachOnlyTheirMountedCard() async throws {
+        let fixture = OverviewMountingFixture(items: (0..<10).map {
+            .init(id: "isolated-\($0)", presentationID: "Initial \($0)", completed: true)
+        })
+        let window = SwiftUIReplay.window(OverviewMountingReplay(fixture: fixture))
+        defer { window.close(); fixture.state.camera.dispose() }
+        try await settled(fixture)
+        try await Task.sleep(for: .milliseconds(800))
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Initial 0") }
+        let bodyUpdates = fixture.state.bodyEvaluationCount
+        let solves = fixture.state.layoutSolveCount
+        let constructions = fixture.contentBuilds
+        let mounted = fixture.markerIDs
+        for revision in 1...5 {
+            fixture.items[0].presentationID = "Delivered \(revision)"
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Delivered \(revision)") }
+            #expect(fixture.state.bodyEvaluationCount == bodyUpdates)
+            #expect(fixture.state.layoutSolveCount == solves)
+            for index in 1..<10 {
+                #expect(fixture.contentBuilds["isolated-\(index)"] == constructions["isolated-\(index)"])
+            }
+        }
+        #expect(fixture.markerIDs == mounted)
+        #expect(fixture.appearances.values.allSatisfy { $0 == 1 })
+        #expect(fixture.content.retainedPresentationIDs.contains("Delivered 5"))
+    }
+
     @Test func viewportVisibilityIsIndependentOfCloudEffectsAndRetainsIdentity() async throws {
         let id = "card-000"
         let fixture = OverviewMountingFixture(items: [.init(id: id)])

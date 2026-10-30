@@ -22,20 +22,51 @@ The `glassWorld` preference controls only the outer shells of Thread cards. Enab
 
 ## Card update isolation
 
-Each card has separate Equatable shell and semantic boundaries outside its
-spatial frame and glass container. A presentation-only update refreshes the
-changed card's semantic wrapper without reevaluating unchanged cards' frames or
-the target card's unchanged shell. The canvas still constructs wrapper values
-for all placements. Geometry, motion, visibility and completed tint remain shell
-inputs; semantic inputs also include the item presentation, viewport, locale,
-decorative-animation policy, layout/activation state and renderer/state identity.
+[NativeOverviewContentStore](NativeOverviewContentStore.swift) separates the
+latest semantic snapshots from the canvas's structural inputs. The workspace
+installs it synchronously at each admitted catalog transaction; the canvas reads
+only its structural revision and retains a stable slot for each mounted
+structural identity. A content-only change updates that card's slot directly,
+without rebuilding the canvas body, its two placement loops or a second
+`items`-to-`rendered` state copy. The input transaction still compares/indexes the
+current collection; this boundary does not claim constant-time model projection.
+Array-based fixture hosts feed the same store and layout state machine.
+
+Each card retains separate Equatable shell and semantic boundaries outside its
+spatial frame and glass container. The shell observes only its slot's completed
+tint; the semantic wrapper observes its current item. Geometry, motion,
+visibility, viewport, locale, decorative policy, activation and explicit
+renderer/state identities still invalidate the appropriate wrappers. Completion
+changes cannot be hidden behind a slot's stable reference identity.
+
+Slots are keyed by structural identity, including footprint and internal
+structure, rather than thread ID alone. Leaving the current collection or
+changing footprint freezes the old mounted slot at its last compatible content.
+The model retains those slots' current presentation IDs alongside queued
+revision snapshots until exit finishes. A queued revision can adopt newer
+content only for the same structural identity; A→B→A lifecycle history remains
+FIFO. Source replacement cancels the old queued work and refreshes ownership.
+
+Carousel eligibility and attention changes notify the mounted coordinator
+without routing ordinary text updates through canvas attachment. Structural,
+scene and viewport changes refresh the camera callback, so its saved memory
+always belongs to the active scene. The workspace's empty-state and Dock
+reservation read separate presence facts, not the high-frequency item array or
+complete Moku thread.
 
 The card closure captures stable owners. Callers replacing its renderer must
-update `cardContentIdentity`; the workspace supplies its model identity.
-Callbacks use a stable workspace-owned reference whose current receivers are
-refreshed when the workspace view is rebuilt, so mounted card actions reach the
-latest receiver without requiring content reevaluation or remounting. Observable
-content dependencies remain owned by the card.
+update `cardContentIdentity`; the workspace supplies its model identity, and the
+identity reaches the innermost Equatable content boundary. Callbacks use a stable
+workspace-owned reference whose current receivers are refreshed when the
+workspace view is rebuilt, so mounted actions reach the latest receiver without
+remounting.
+
+The existing mounting, transition and membership integration suites exercise
+single-card text delivery with unchanged canvas-body/solver counts, retained
+native identities, queued incompatible footprints and reversals, current-scene
+camera memory, and the last visible snapshot surviving model pruning during
+exit. The body counter is an observation-boundary diagnostic, not a CPU/FPS
+measurement.
 
 ## Layout, motion and input
 
