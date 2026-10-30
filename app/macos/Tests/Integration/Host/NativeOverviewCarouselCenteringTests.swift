@@ -231,6 +231,59 @@ struct NativeOverviewCarouselCenteringTests {
         }
     }
 
+    @Test(.requiresDisplay) func productionCanvasSeparatesContentUpdatesFromCarouselNavigation() async throws {
+        let fixture = CarouselCanvasFixture(count: 40)
+        let camera = fixture.state.camera
+        camera.carouselDwell = 0.05
+        let window = SwiftUIReplay.window(CarouselCenteringCanvas(fixture: fixture))
+        defer { window.close(); camera.dispose() }
+        try await settle(fixture)
+        let firstID = fixture.items[0].id
+        try await SwiftUIReplay.wait {
+            camera.carouselTargetID == firstID && !camera.isAnimating && renderedCenterError(firstID, fixture) <= 1
+        }
+        let resting = camera.transform
+        let solves = fixture.state.layoutSolveCount
+        var destinations: [NativeOverviewTransform] = []
+        camera.onSubmission = { destinations.append($0.to) }
+
+        // Observe each new semantic projection through the mounted production
+        // card, without making diagnostics invalidate the canvas themselves.
+        for revision in 0..<6 {
+            let presentation = "content-\(revision)"
+            fixture.items[0].presentationID = presentation
+            fixture.items[0].completed.toggle()
+            fixture.items[0].needsAttention.toggle()
+            try await SwiftUIReplay.wait { fixture.presentations[firstID] == presentation }
+            #expect(camera.transform == resting)
+            #expect(camera.carouselTargetID == firstID)
+        }
+        #expect(destinations.isEmpty)
+        #expect(fixture.state.layoutSolveCount == solves)
+
+        let nextID = fixture.items[1].id
+        fixture.items[0].carouselEligible = false
+        fixture.items[1].carouselEligible = true
+        try await SwiftUIReplay.wait {
+            camera.carouselTargetID == nextID && !camera.isAnimating && renderedCenterError(nextID, fixture) <= 1
+        }
+        #expect(!destinations.isEmpty)
+        #expect(fixture.state.layoutSolveCount == solves)
+
+        camera.pan(deltaX: 37, deltaY: -23)
+        let manual = camera.transform
+        destinations.removeAll()
+        fixture.items[1].presentationID = "manual-content"
+        fixture.items[1].carouselEligible = false
+        fixture.items[0].carouselEligible = true
+        try await SwiftUIReplay.wait { fixture.presentations[nextID] == "manual-content" }
+        #expect(camera.manual)
+        #expect(camera.transform == manual)
+        #expect(camera.carouselTargetID == nil)
+        #expect(destinations.isEmpty)
+        #expect(fixture.state.layoutSolveCount == solves)
+    }
+
     private func preparedCamera() -> NativeOverviewCamera {
         let camera = NativeOverviewCamera()
         camera.cutTo(content: content, viewport: viewport)
@@ -317,8 +370,9 @@ struct NativeOverviewCarouselCenteringTests {
 
 @MainActor @Observable private final class CarouselCanvasFixture {
     let state = NativeOverviewCanvasState()
-    let items: [NativeOverviewItem]
+    var items: [NativeOverviewItem]
     @ObservationIgnored var frames: [String: CGRect] = [:]
+    @ObservationIgnored var presentations: [String: String] = [:]
     @ObservationIgnored var viewport = CGSize.zero
 
     init(count: Int) {
@@ -337,6 +391,7 @@ private struct CarouselCenteringCanvas: View {
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("carousel-centering")) } action: {
                     fixture.frames[item.id] = $0
                 }
+                .onChange(of: item.presentationID, initial: true) { _, value in fixture.presentations[item.id] = value }
         }
         .coordinateSpace(name: "carousel-centering")
         .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
