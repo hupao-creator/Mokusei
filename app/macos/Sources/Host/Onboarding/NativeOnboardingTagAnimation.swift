@@ -1,3 +1,4 @@
+import AppKit
 import SpriteKit
 import SwiftUI
 import MokuseiPluginAPI
@@ -35,7 +36,7 @@ struct NativeOnboardingTagAnimation: View {
     }
 
     private var animation: some View {
-        SpriteView(scene: scene, isPaused: staticFrameReady, options: [.allowsTransparency])
+        NativeOnboardingTagSurface(scene: scene, isPaused: staticFrameReady)
             .frame(height: 250)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
             .allowsHitTesting(false)
@@ -71,6 +72,40 @@ struct NativeOnboardingTagAnimation: View {
                 } catch { return }
             }
             .onDisappear { scene.stop() }
+    }
+}
+
+/// The native surface must be transparent before SpriteKit submits its first frame.
+@MainActor struct NativeOnboardingTagSurface: NSViewRepresentable {
+    let scene: SKScene
+    let isPaused: Bool
+
+    func makeNSView(context: Context) -> TransparentView {
+        let view = TransparentView(frame: .zero)
+        view.allowsTransparency = true
+        view.wantsLayer = true
+        view.layer?.isOpaque = false
+        view.layer?.backgroundColor = NSColor.clear.cgColor
+        // Tab replacement can commit the AppKit layer before an asynchronous
+        // SpriteKit frame. Keep both in the same Core Animation update instead.
+        view.isAsynchronous = false
+        view.isPaused = isPaused
+        view.presentScene(scene)
+        return view
+    }
+
+    func updateNSView(_ view: TransparentView, context: Context) {
+        if view.scene !== scene { view.presentScene(scene) }
+        view.isPaused = isPaused
+    }
+
+    static func dismantleNSView(_ view: TransparentView, coordinator: ()) {
+        view.isPaused = true
+        view.presentScene(nil)
+    }
+
+    final class TransparentView: SKView {
+        override var isOpaque: Bool { false }
     }
 }
 

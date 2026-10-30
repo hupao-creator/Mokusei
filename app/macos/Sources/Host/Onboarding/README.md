@@ -42,7 +42,11 @@ playback settles to the completed composition without replaying on activation.
 Reduce Motion shows the completed composition without deferred playback. Tag
 also rebuilds a static final frame on size, appearance, locale or Harness changes
 after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
-collision boundaries remain invisible. Report gathers dense documents into one
+collision boundaries remain invisible. Its native SpriteKit host configures a
+clear, nonopaque backing layer before presenting the scene and synchronizes
+rendering with Core Animation, keeping newly mounted Settings tabs transparent
+before the first frame. Unmounting pauses the renderer and detaches its scene.
+Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 
 The setup panel does not mount a hidden composer. Pointer, keyboard, semantic
