@@ -305,6 +305,19 @@ raster tier suppresses animation only when its scale changes; it must not clear
 unrelated glyph-motion transactions. This number path retains the existing
 always-animate policy even with system Reduce Motion enabled.
 
+The native overview retains offscreen cards and the overview behind a reading
+page. `ThreadCardAnimationVisibility` reports their actual viewport/page visibility
+independently of the cloud-animation switch. A running duration suspends its
+one-second task while that visibility is false or the scene is in the background;
+on return it immediately samples wall time. Completed durations stay fixed.
+Reduce Motion and disabled cloud effects do not stop a visible duration. Outside
+the overview, omitting the visibility environment keeps the ordinary visible
+behavior; an inactive but still visible window can continue showing elapsed time.
+Derived-work scans, permission attention and running-tool spinners pause for
+hidden/background cards, disabled host animations or Reduce Motion. Pausing does
+not unmount the card or replace its controls, and restoring visibility resumes
+the existing presentation.
+
 There is no global Reduce Motion policy applied to every animation. The current [Moku Dock](../../Host/MokuScene/NativeMokuDock.swift) disables its surface/eye expansion animation when that preference is enabled; [Overview chrome](../../Host/Overview/NativeOverviewChrome.swift) separately handles tag/control transitions. Other animation paths follow their own implementation. Do not infer support or removal from an old blanket statement.
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity. [NativeVoiceCloud.swift](Design/NativeVoiceCloud.swift) consumes bounded voice visualization state without starting capture.

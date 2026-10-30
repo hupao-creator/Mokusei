@@ -121,7 +121,11 @@ public struct ThreadCardRuntime: View {
     public let startedAt: Double
     public let endedAt: Double?
     @Environment(\.locale) private var locale
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.threadCardAnimationVisibility) private var visibility
     @State private var now = Date().timeIntervalSince1970 * 1_000
+
+    private var isVisible: Bool { scenePhase != .background && (visibility?.isVisible ?? true) }
 
     public init(startedAt: Double, endedAt: Double? = nil) {
         self.startedAt = startedAt; self.endedAt = endedAt
@@ -134,14 +138,16 @@ public struct ThreadCardRuntime: View {
             .map { $0 < 10 ? "0\($0)" : String($0) }.joined(separator: ":")
         let label = locale.language.languageCode?.identifier == "zh" ? "用时：\(duration)" : "Duration: \(duration)"
         RollingNumberText(value: duration, clock: true, dimColon: endedAt == nil && seconds % 2 == 1,
-                          ticking: endedAt == nil)
+                          ticking: endedAt == nil && isVisible)
             .help(label)
             .focusable()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
-            .task(id: RuntimeSchedule(startedAt: startedAt, endedAt: endedAt)) {
-                guard endedAt == nil else { return }
+            .task(id: RuntimeSchedule(startedAt: startedAt, endedAt: endedAt, isVisible: isVisible)) {
+                guard isVisible, endedAt == nil else { return }
                 while !Task.isCancelled {
+                    // Retained cards do not tick while hidden. Resuming samples
+                    // wall time directly instead of replaying missed seconds.
                     let current = Date().timeIntervalSince1970 * 1_000
                     now = current
                     let elapsed = max(0, current - startedAt)
@@ -154,5 +160,6 @@ public struct ThreadCardRuntime: View {
     private struct RuntimeSchedule: Equatable {
         let startedAt: Double
         let endedAt: Double?
+        let isVisible: Bool
     }
 }

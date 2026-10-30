@@ -153,6 +153,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     // override lets isolated hosts exercise both policies without OS changes.
     var reduceMotionOverride: Bool?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardCloudAnimationsEnabled) private var inheritedCloudAnimationsEnabled
     private var spatialMotionReduced: Bool { reduceMotionOverride ?? reduceMotion }
     @Environment(\.nativeWindowContentScale) private var windowContentScale
     @FocusedValue(\.overviewFocusedCard) private var focusedCard
@@ -323,8 +324,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
             // Isolate the badge's glass from both other cards and this card's
             // backdrop so it fades with its content without fusing into the body.
             GlassEffectContainer(spacing: 0) {
-                OverviewSwiftUICard(item: item, visible: visible && cloudAnimationsEnabled,
+                // Visibility also owns semantic clocks; disabling decorative
+                // effects must not freeze the duration of a visible card.
+                OverviewSwiftUICard(item: item, visible: visible,
                     viewport: size, coordinateSpace: ownership, content: card).equatable()
+                    .environment(\.threadCardCloudAnimationsEnabled, inheritedCloudAnimationsEnabled && cloudAnimationsEnabled)
                     .onAppear { state.cardAppeared(item.id) }
                     .onDisappear { state.cardDisappeared(item.id) }
                     .clipShape(.rect(cornerRadius: 22))

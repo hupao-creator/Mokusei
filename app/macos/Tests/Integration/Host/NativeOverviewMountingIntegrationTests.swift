@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 import Testing
+import MokuseiPluginUI
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
 #endif
@@ -12,6 +13,8 @@ import MokuseiTestSupport
     var items: [NativeOverviewItem]
     var attached = true
     var glassWorld = true
+    var visible = true
+    var cloudAnimationsEnabled = false
     var selection = "all"
     @ObservationIgnored let inputIDs: Set<String>
     // Measurements must not themselves invalidate the canvas being measured.
@@ -20,6 +23,8 @@ import MokuseiTestSupport
     @ObservationIgnored var markerIDs: [String: UUID] = [:]
     @ObservationIgnored var drafts: [String: String] = [:]
     @ObservationIgnored var viewport = CGSize.zero
+    @ObservationIgnored var animationVisibility: [String: Bool] = [:]
+    @ObservationIgnored var cloudAnimations: [String: Bool] = [:]
 
     init(items: [NativeOverviewItem], inputIDs: Set<String> = []) {
         self.items = items
@@ -43,6 +48,8 @@ private struct OverviewMountingCard: View {
     let fixture: OverviewMountingFixture
     @State private var draft = ""
     @State private var visualID = UUID()
+    @Environment(\.threadCardAnimationVisibility) private var animationVisibility
+    @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
     var body: some View {
         VStack {
             Text(id)
@@ -59,6 +66,12 @@ private struct OverviewMountingCard: View {
             fixture.visualIDs[id] = visualID
             fixture.drafts[id] = draft
         }
+        .onChange(of: animationVisibility?.isVisible, initial: true) { _, value in
+            fixture.animationVisibility[id] = value ?? true
+        }
+        .onChange(of: cloudAnimationsEnabled, initial: true) { _, value in
+            fixture.cloudAnimations[id] = value
+        }
     }
 }
 
@@ -67,7 +80,8 @@ private struct OverviewMountingReplay: View {
     var body: some View {
         if fixture.attached {
             NativeOverviewCanvas(items: fixture.items, sceneKey: "mounting", state: fixture.state,
-                                 selectionID: fixture.selection, cloudAnimationsEnabled: false,
+                                 selectionID: fixture.selection, visible: fixture.visible,
+                                 cloudAnimationsEnabled: fixture.cloudAnimationsEnabled,
                                  glassWorld: fixture.glassWorld) { item in
                 OverviewMountingCard(id: item.id, fixture: fixture)
             }
@@ -80,6 +94,27 @@ private struct OverviewMountingReplay: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeOverviewMountingIntegrationTests {
+    @Test func viewportVisibilityIsIndependentOfCloudEffectsAndRetainsIdentity() async throws {
+        let id = "card-000"
+        let fixture = OverviewMountingFixture(items: [.init(id: id)])
+        let window = SwiftUIReplay.window(OverviewMountingReplay(fixture: fixture))
+        defer { window.close(); fixture.state.camera.dispose() }
+        try await settled(fixture)
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == true && fixture.cloudAnimations[id] == false }
+        let identities = fixture.markerIDs, appearances = fixture.appearances
+        let transform = fixture.state.camera.transform
+        fixture.state.camera.setManualTransform(.init(scale: 1, x: -100_000, y: -100_000))
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == false }
+        fixture.state.camera.setManualTransform(transform)
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == true }
+        fixture.visible = false
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == false }
+        fixture.visible = true
+        fixture.cloudAnimationsEnabled = true
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == true && fixture.cloudAnimations[id] == true }
+        #expect(fixture.markerIDs == identities && fixture.appearances == appearances)
+    }
+
     @Test func allCardsStayMountedAcrossPanZoomAndAutomaticFraming() async throws {
         let fixture = OverviewMountingFixture(items: cards() + [
             .init(id: "running", carouselEligible: true),
@@ -291,5 +326,145 @@ struct NativeOverviewMountingIntegrationTests {
                 && fixture.state.layoutError == nil
                 && (fixture.items.first.map { fixture.state.allowsActivation(cardID: $0.id) } ?? true)
         }
+    }
+}
+
+@MainActor @Observable private final class OverviewCardVisualFixture {
+    let visibility = ThreadCardAnimationVisibility()
+    let startedAt = Date().timeIntervalSince1970 * 1_000 - 10_000
+    var endedAt: Double?
+    var suppliesVisibility = true
+    var scenePhase = ScenePhase.active
+    var animationsEnabled = true
+    @ObservationIgnored var appearances = 0
+}
+
+private struct OverviewCardVisualReplay: View {
+    let fixture: OverviewCardVisualFixture
+    var decoration: Int?
+    var body: some View {
+        Group {
+            switch decoration {
+            case 0:
+                CardDerivedWork(rows: [.init(id: "derived", label: "Running child", status: .running, kind: .agent)],
+                                variant: .compact, capacity: 1)
+            case 1:
+                CardInterventionPanel(intervention: .init(id: "permission", title: "Permission",
+                    actions: [.init(id: "allow", label: "Allow")]), variant: .compact, onRespond: { _ in })
+            case 2:
+                ThreadCardLatestTool(tool: .init(kind: .tool, name: "Running tool", status: .running))
+            default:
+                ThreadCardRuntime(startedAt: fixture.startedAt, endedAt: fixture.endedAt)
+            }
+        }
+        .padding(20)
+        .frame(width: 360, height: 200)
+        .background(Color.white)
+        .environment(\.locale, Locale(identifier: "en"))
+        .environment(\.colorScheme, .light)
+        .environment(\.scenePhase, fixture.scenePhase)
+        .environment(\.threadCardAnimationVisibility, fixture.suppliesVisibility ? fixture.visibility : nil)
+        .environment(\.threadCardCloudAnimationsEnabled, fixture.animationsEnabled)
+        .onAppear { fixture.appearances += 1 }
+    }
+}
+
+extension NativeOverviewMountingIntegrationTests {
+    @Test func retainedRuntimePausesAndResumesWithoutReplayingMissedSeconds() async throws {
+        let fixture = OverviewCardVisualFixture()
+        fixture.animationsEnabled = false
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 200)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { runtimeSeconds(in: root) != nil }
+        let initial = try #require(runtimeSeconds(in: root))
+        // Disabling decorative effects must not stop a visible running clock.
+        try await SwiftUIReplay.wait { (runtimeSeconds(in: root) ?? 0) > initial }
+        fixture.visibility.isVisible = false
+        try await Task.sleep(for: .milliseconds(100))
+        let hidden = try #require(runtimeSeconds(in: root))
+        try await Task.sleep(for: .milliseconds(2_200))
+        #expect(runtimeSeconds(in: root) == hidden)
+        fixture.visibility.isVisible = true
+        let wallSeconds = Int((Date().timeIntervalSince1970 * 1_000 - fixture.startedAt) / 1_000)
+        try await SwiftUIReplay.wait { (runtimeSeconds(in: root) ?? 0) >= wallSeconds }
+        fixture.scenePhase = .background
+        try await Task.sleep(for: .milliseconds(100))
+        let background = try #require(runtimeSeconds(in: root))
+        try await Task.sleep(for: .milliseconds(1_200))
+        #expect(runtimeSeconds(in: root) == background)
+        // A visible, unfocused window still shows elapsed time.
+        fixture.scenePhase = .inactive
+        try await SwiftUIReplay.wait { (runtimeSeconds(in: root) ?? 0) > background }
+        fixture.endedAt = fixture.startedAt + 23_000
+        try await SwiftUIReplay.wait { runtimeSeconds(in: root) == 23 }
+        fixture.visibility.isVisible = false
+        try await Task.sleep(for: .milliseconds(100))
+        fixture.visibility.isVisible = true
+        try await Task.sleep(for: .milliseconds(1_200))
+        #expect(runtimeSeconds(in: root) == 23)
+        #expect(fixture.appearances == 1)
+    }
+
+    @Test func runtimeWithoutOverviewVisibilityKeepsUpdating() async throws {
+        let fixture = OverviewCardVisualFixture()
+        fixture.suppliesVisibility = false
+        fixture.visibility.isVisible = false
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 200)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { runtimeSeconds(in: root) != nil }
+        let initial = try #require(runtimeSeconds(in: root))
+        try await SwiftUIReplay.wait { (runtimeSeconds(in: root) ?? 0) > initial }
+    }
+
+    @Test(arguments: [0, 1, 2])
+    func retainedDecorationsPauseAndResumeWithoutRemount(decoration: Int) async throws {
+        let fixture = OverviewCardVisualFixture()
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture, decoration: decoration), width: 360, height: 200)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        window.appearance = NSAppearance(named: .aqua)
+        func pixels() throws -> Data {
+            root.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+            let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
+            root.cacheDisplay(in: root.bounds, to: image)
+            return try #require(image.representation(using: .png, properties: [:]))
+        }
+        try await Task.sleep(for: .milliseconds(250))
+        fixture.visibility.isVisible = false
+        try await Task.sleep(for: .milliseconds(100))
+        let hidden = try pixels()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try pixels() == hidden)
+        fixture.visibility.isVisible = true
+        try await Task.sleep(for: .milliseconds(100))
+        let resumed = try pixels()
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(try pixels() == resumed)
+        } else {
+            // Permission attention has a transparent rest within its cycle;
+            // sample through that rest rather than requiring every frame to move.
+            var moved = false
+            for _ in 0..<60 {
+                try await Task.sleep(for: .milliseconds(50))
+                if try pixels() != resumed { moved = true; break }
+            }
+            #expect(moved)
+        }
+        fixture.animationsEnabled = false
+        try await Task.sleep(for: .milliseconds(100))
+        let disabled = try pixels()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try pixels() == disabled)
+        #expect(fixture.appearances == 1)
+    }
+
+    private func runtimeSeconds(in root: NSView) -> Int? {
+        guard let label = SwiftUIReplay.text(in: root).first(where: { $0.hasPrefix("Duration: ") }) else { return nil }
+        let parts = label.dropFirst("Duration: ".count).split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return parts[0] * 3_600 + parts[1] * 60 + parts[2]
     }
 }

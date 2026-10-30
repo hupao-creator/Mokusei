@@ -213,8 +213,14 @@ private struct CardTitleSwap: View {
 public struct ThreadCardLatestTool: View {
     public let tool: ThreadCardIdentityTool
     @Environment(\.locale) private var locale
-    @State private var spinning = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
+    @Environment(\.threadCardAnimationVisibility) private var visibility
     @Environment(\.threadCardProviderColor) private var providerColor
+    private var animates: Bool {
+        tool.status == .running && scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true)
+    }
     public init(tool: ThreadCardIdentityTool) { self.tool = tool }
     public var body: some View {
         HStack(spacing: 6) {
@@ -222,13 +228,19 @@ public struct ThreadCardLatestTool: View {
             Text(tool.name).font(NativeTypography.inter(size: 10, weight: 650)).lineLimit(1)
             if let summary = tool.summary { Text(summary).lineLimit(1).help(summary).frame(maxWidth: .infinity, alignment: .leading) }
             else { Spacer(minLength: 0) }
-            NativeIcon(name: statusIcon, size: 13)
-                .foregroundStyle(tool.status == .failed ? NativePalette.overview.danger.swiftUI : tool.status == .running ? NativePalette.overview.accent.swiftUI : NativePalette.overview.faint.swiftUI)
-                .rotationEffect(.degrees(spinning && tool.status == .running ? 360 : 0))
-                .animation(tool.status == .running ? .linear(duration: 0.8).repeatForever(autoreverses: false) : nil, value: spinning)
-                .onAppear { spinning = true }
-                .accessibilityLabel(cardLocalized(statusLabel, locale))
+            // Flipping state cannot retract a repeatForever animation because
+            // that change is animated too; only the schedule pauses at its source.
+            TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
+                NativeIcon(name: statusIcon, size: 13)
+                    .foregroundStyle(tool.status == .failed ? NativePalette.overview.danger.swiftUI : tool.status == .running ? NativePalette.overview.accent.swiftUI : NativePalette.overview.faint.swiftUI)
+                    .rotationEffect(.degrees(rotation(at: context.date)))
+            }
+            .accessibilityLabel(cardLocalized(statusLabel, locale))
         }.font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.muted.swiftUI)
+    }
+    private func rotation(at date: Date) -> Double {
+        guard animates else { return 0 }
+        return date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.8) / 0.8 * 360
     }
     private var kindIcon: String { switch tool.kind { case .command: "Terminal"; case .file: "FileText"; case .search: "Search"; case .tool: "Wrench" } }
     private var statusIcon: String { switch tool.status { case .running: "LoaderCircle"; case .failed: "CircleX"; case .cancelled: "CircleAlert"; case .completed: "CheckCircle2" } }

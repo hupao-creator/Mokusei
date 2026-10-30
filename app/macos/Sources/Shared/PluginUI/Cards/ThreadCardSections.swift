@@ -246,8 +246,14 @@ private struct CardDerivedRowView: View {
 }
 
 private struct CardDerivedScan: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
+    @Environment(\.threadCardAnimationVisibility) private var visibility
+    private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: NativeFrameRate.interval)) { context in
+        TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
             GeometryReader { geometry in
                 let progress = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.4) / 3.4
                 LinearGradient(colors: [.clear, NativePalette.overview.ink.swiftUI.opacity(0.3), .clear],
@@ -645,8 +651,14 @@ private struct CardInterventionButtonBody: View {
 }
 
 private struct CardPermissionAttention: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
+    @Environment(\.threadCardAnimationVisibility) private var visibility
+    private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: NativeFrameRate.interval)) { context in
+        TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
             let cycle = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.4) / 2.4
             let progress = min(1, cycle / 0.7)
             RoundedRectangle(cornerRadius: 999)
