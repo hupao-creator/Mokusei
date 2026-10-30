@@ -341,8 +341,16 @@ Reduce Motion makes both text effects immediate while visible excerpt windows
 continue advancing. Disabling cloud effects does not freeze text content. The
 mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
-The cancellation replay retains before/after PNGs under
-`.scratch/reading-presentation/overview-text-motion` for the hosted capture artifact.
+The title cancellation method runs once in the mandatory
+`reading-presentation/run.py --tag-glass-captures` native AppKit entry point;
+the CI manifest assigns it there instead of an ordinary Swift shard. It arms
+the existing continuous WindowServer capture before a blank NBSP title changes
+to visible text. Only a current partial incoming frame admits cancellation;
+the first replacement frame and every later complete frame must match the
+settled reference from that same stream. AX delivery and `cacheDisplay` are not
+used to identify the moving frame. PNGs and frame/cancellation timestamps are
+retained under `.scratch/reading-presentation/overview-text-motion` for the
+hosted capture artifact, after the stream has stopped.
 The internal `threadCardTextReduceMotionOverride` environment entry lets these
 native replays change the text policy locally. It is optional and defaults to
 `nil`; titles and excerpts resolve it before the system accessibility value.

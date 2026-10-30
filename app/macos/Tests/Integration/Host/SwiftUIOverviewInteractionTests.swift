@@ -1,5 +1,8 @@
 import AppKit
+import CoreMedia
+import CoreVideo
 import Observation
+import ScreenCaptureKit
 import SwiftUI
 import Testing
 import MokuseiCore
@@ -183,8 +186,17 @@ extension SwiftUIOverviewInteractionTests {
         let window = SwiftUIReplay.window(OverviewTextReplay(fixture: fixture, titleOnly: true), width: 360, height: 200)
         defer { window.close() }
         var captures: [(String, Data)] = []
+        var windowCaptures: [(String, CGImage)] = []
+        var measurements: [[String: String]] = []
         defer {
-            do { try saveTextCaptures(captures) }
+            do {
+                // Every stream path stops before leaving the method. Encoding
+                // and disk writes cannot delay the live cancellation boundary.
+                for (name, image) in windowCaptures {
+                    captures.append((name, try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))))
+                }
+                try saveTextCaptures(captures, measurements: measurements)
+            }
             catch { Issue.record(Comment(rawValue: "Could not save title cancellation captures: \(error)")) }
         }
         let root = try #require(window.contentView)
@@ -236,26 +248,87 @@ extension SwiftUIOverviewInteractionTests {
         captures.append(("08-reduced-motion-after", reducedAfter))
         #expect(reducedAfter == reduced)
 
-        // The new Text is installed after fade-out. One frame later its model
-        // phase returns to zero while the 150ms fade-in is still interpolating.
-        // Observe a non-settled frame before changing the live motion policy.
-        fixture.reduceMotion = false
-        fixture.title = "Title A"
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Title A") }
-        try await Task.sleep(for: .milliseconds(40))
-        let fadingIn = try textPixels(in: root)
-        captures.append(("09-fading-in", fadingIn))
-        #expect(fadingIn != original)
-        fixture.reduceMotion = true
-        fixture.title = "Reduced motion latest"
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
-        let cancelled = try textPixels(in: root)
-        captures.append(("10-fade-in-cancelled", cancelled))
-        #expect(cancelled == reducedAfter)
-        try await Task.sleep(for: .milliseconds(350))
-        let cancelledAfter = try textPixels(in: root)
-        captures.append(("11-fade-in-cancelled-after", cancelledAfter))
-        #expect(cancelledAfter == cancelled)
+        // AX can publish the title after its presentation has settled, and
+        // cacheDisplay is not a WindowServer animation oracle. Arm the existing
+        // continuous capture before input; all references use this same stream.
+        let shareable = try await SCShareableContent.currentProcess
+        let target = try #require(shareable.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
+        let configuration = SCStreamConfiguration()
+        let scale = window.backingScaleFactor
+        configuration.width = Int(window.frame.width * scale)
+        configuration.height = Int(window.frame.height * scale)
+        configuration.ignoreShadowsSingleWindow = true
+        configuration.showsCursor = false
+        configuration.pixelFormat = kCVPixelFormatType_32BGRA
+        configuration.colorSpaceName = CGColorSpace.sRGB
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+        configuration.queueDepth = 3
+        let frames = TagGlassFrames()
+        let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration, delegate: nil)
+        try stream.addStreamOutput(frames, type: .screen, sampleHandlerQueue: DispatchQueue(label: "overview-title-capture"))
+        let titlebar = window.frame.height - root.bounds.height
+        let region = CGRect(x: 8 * scale, y: (titlebar + 8) * scale,
+                            width: (root.bounds.width - 16) * scale, height: 64 * scale).integral
+        try await stream.startCapture()
+        do {
+            let reducedWindow = try await titleWindowFrame(frames, region: region, stage: "reduced-reference",
+                captures: &windowCaptures, measurements: &measurements) { _ in true }
+            fixture.title = "Title A"
+            let titleWindow = try await titleWindowFrame(frames, region: region, stage: "title-reference",
+                captures: &windowCaptures, measurements: &measurements) { $0.pixels.data != reducedWindow.pixels.data }
+            // NBSP preserves the title line's layout but has no visible ink.
+            // A partial nonblank frame can therefore only be incoming motion.
+            fixture.title = "\u{00a0}"
+            let blankWindow = try await titleWindowFrame(frames, region: region, stage: "blank-reference",
+                captures: &windowCaptures, measurements: &measurements) { $0.pixels.ink() < titleWindow.pixels.ink() * 0.01 }
+            let fullInk = titleWindow.pixels.ink() - blankWindow.pixels.ink()
+            try #require(fullInk > 0)
+            let incomingEnd = try #require(titleWindow.pixels.lastInkColumn(comparedTo: blankWindow.pixels))
+            let newTitleStart = incomingEnd + Int(8 * scale)
+            let changedTitleInk = reducedWindow.pixels.ink(after: newTitleStart) - blankWindow.pixels.ink(after: newTitleStart)
+            try #require(changedTitleInk > 0)
+            _ = frames.takeSamples()
+            fixture.reduceMotion = false
+            fixture.title = "Title A"
+            let incoming = try await titleWindowFrame(frames, region: region, stage: "incoming",
+                captures: &windowCaptures, measurements: &measurements) { frame in
+                let fraction = (frame.pixels.ink() - blankWindow.pixels.ink()) / fullInk
+                return fraction > 0.1 && fraction < 0.6
+                    && ProcessInfo.processInfo.systemUptime - frame.sample.receivedAt < 0.05
+            }
+            try #require(incoming.pixels.data != blankWindow.pixels.data && incoming.pixels.data != titleWindow.pixels.data,
+                         "Cancellation requires a live incoming frame, not either static endpoint")
+            let cancelledAt = ProcessInfo.processInfo.systemUptime
+            try #require(cancelledAt - incoming.sample.receivedAt < 0.05, "The observed incoming frame is stale")
+            fixture.reduceMotion = true
+            fixture.title = "Reduced motion latest"
+            measurements.append(["stage": "cancel", "receivedAt": "\(incoming.sample.receivedAt)",
+                "cancelledAt": "\(cancelledAt)", "inkFraction": "\((incoming.pixels.ink() - blankWindow.pixels.ink()) / fullInk)"])
+            // The long replacement has ink beyond Title A's bounds, even after
+            // allowing for its blur. Inspect its first real frame, without an
+            // AX wait that could conceal continued interpolation.
+            _ = try await titleWindowFrame(frames, region: region, stage: "cancelled",
+                captures: &windowCaptures, measurements: &measurements, firstMatching: true,
+                check: { frame in #expect(frame.pixels.data == reducedWindow.pixels.data) }) { frame in
+                // Old Title A frames may arrive after the cancellation call.
+                // Require both increasing presentation time and actual ink
+                // unique to the replacement, not just a callback timestamp.
+                frame.sample.presentationTime > incoming.sample.presentationTime
+                    && frame.pixels.ink(after: newTitleStart) - blankWindow.pixels.ink(after: newTitleStart) > changedTitleInk * 0.02
+            }
+            try await Task.sleep(for: .milliseconds(350))
+            // Complete frames represent changed window surfaces. Every update
+            // after cancellation must remain identical to the settled reference.
+            for (index, sample) in frames.takeSamples().enumerated() {
+                windowCaptures.append(("window-after-cancel-\(index)", sample.image))
+                #expect(try titleWindowPixels(sample.image, region: region).data == reducedWindow.pixels.data)
+            }
+            try await stream.stopCapture()
+            print("TITLE_INCOMING_MOTION_CONFIRMED received=\(incoming.sample.receivedAt) cancelled=\(cancelledAt)")
+        } catch {
+            try? await stream.stopCapture()
+            throw error
+        }
         #expect(fixture.appearances == 1)
     }
 
@@ -402,7 +475,50 @@ extension SwiftUIOverviewInteractionTests {
         return try #require(image.representation(using: .png, properties: [:]))
     }
 
-    private func saveTextCaptures(_ captures: [(String, Data)]) throws {
+    private func titleWindowFrame(_ frames: TagGlassFrames, region: CGRect, stage: String,
+                                  captures: inout [(String, CGImage)], measurements: inout [[String: String]],
+                                  firstMatching: Bool = false, check: ((TitleWindowFrame) -> Void)? = nil,
+                                  accepts: (TitleWindowFrame) -> Bool) async throws -> TitleWindowFrame {
+        let deadline = ContinuousClock.now + .seconds(3)
+        var selected: TitleWindowFrame?
+        while ContinuousClock.now < deadline {
+            let samples = frames.takeSamples()
+            for sample in samples {
+                captures.append(("window-\(stage)-\(captures.count)", sample.image))
+            }
+            // Incoming motion requires the newest complete frame. Cancellation
+            // inspects the first replacement frame and every later frame in its
+            // batch, so a settled last frame cannot conceal an earlier fade.
+            for sample in firstMatching ? samples : Array(samples.suffix(1)) {
+                let frame = TitleWindowFrame(sample: sample, pixels: try titleWindowPixels(sample.image, region: region))
+                measurements.append(["stage": stage, "receivedAt": "\(sample.receivedAt)",
+                    "presentationTime": "\(sample.presentationTime)", "ink": "\(frame.pixels.ink())"])
+                if selected != nil || accepts(frame) {
+                    if selected == nil { selected = frame }
+                    check?(frame)
+                }
+            }
+            if selected != nil { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
+    }
+
+    private func titleWindowPixels(_ image: CGImage, region: CGRect) throws -> TitleWindowPixels {
+        try #require(image.bitsPerPixel == 32 && image.bitsPerComponent == 8)
+        try #require(region.minX >= 0 && region.minY >= 0 && region.maxX <= CGFloat(image.width) && region.maxY <= CGFloat(image.height))
+        let provider = try #require(image.dataProvider?.data)
+        let source = try #require(CFDataGetBytePtr(provider))
+        let width = Int(region.width), height = Int(region.height)
+        var pixels = Data(capacity: width * height * 4)
+        for y in Int(region.minY)..<Int(region.maxY) {
+            // Compare only valid BGRA pixels, never bytesPerRow padding.
+            pixels.append(source.advanced(by: y * image.bytesPerRow + Int(region.minX) * 4), count: width * 4)
+        }
+        return TitleWindowPixels(data: pixels, width: width)
+    }
+
+    private func saveTextCaptures(_ captures: [(String, Data)], measurements: [[String: String]]) throws {
         var directory = URL(fileURLWithPath: #filePath)
         for _ in 0..<6 { directory.deleteLastPathComponent() }
         directory.appendPathComponent(".scratch/reading-presentation/overview-text-motion", isDirectory: true)
@@ -410,5 +526,38 @@ extension SwiftUIOverviewInteractionTests {
         for (name, pixels) in captures {
             try pixels.write(to: directory.appendingPathComponent(name + ".png"))
         }
+        try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
+            .write(to: directory.appendingPathComponent("window-frames.json"))
+    }
+}
+
+private struct TitleWindowFrame { let sample: TagGlassFrames.Sample; let pixels: TitleWindowPixels }
+private struct TitleWindowPixels {
+    let data: Data
+    let width: Int
+
+    func ink(after column: Int = 0) -> Double {
+        guard column < width else { return 0 }
+        return data.withUnsafeBytes { raw in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            var total = 0
+            for row in stride(from: 0, to: bytes.count, by: width * 4) {
+                for x in max(0, column)..<width {
+                    let offset = row + x * 4
+                    total += 765 - Int(bytes[offset]) - Int(bytes[offset + 1]) - Int(bytes[offset + 2])
+                }
+            }
+            return Double(total)
+        }
+    }
+
+    func lastInkColumn(comparedTo blank: Self) -> Int? {
+        guard data.count == blank.data.count, width == blank.width else { return nil }
+        for x in stride(from: width - 1, through: 0, by: -1) {
+            for offset in stride(from: x * 4, to: data.count, by: width * 4) {
+                if (0..<3).contains(where: { abs(Int(data[offset + $0]) - Int(blank.data[offset + $0])) > 6 }) { return x }
+            }
+        }
+        return nil
     }
 }

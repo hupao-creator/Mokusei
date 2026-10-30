@@ -17,6 +17,7 @@ def main():
     parser.add_argument("group", choices=["runtime", "adapters", "fixtures", "interop", "native",
                                          "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"])
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--check", action="append", help="Run only named checks (local evidence, not a complete CI group)")
     parser.add_argument("--go", default=os.environ.get("MOKUSEI_GO", "go"))
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
@@ -86,11 +87,18 @@ def main():
     groups["native"].extend(groups["native-controls"][1:])
     if args.group == "fixtures":
         environment.update(fixtures)
+    checks = groups[args.group]
+    if args.check:
+        if len(args.check) != len(set(args.check)) or set(args.check) - {name for name, _ in checks}:
+            parser.error("--check must name distinct checks in the selected group")
+        checks = [(name, command) for name, command in checks if name in args.check]
     records = [{"name": name, "command": command, "status": "not_run", "log": name + ".log"}
-               for name, command in groups[args.group]]
+               for name, command in checks]
     report = {"revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root)),
               "group": args.group, "checks": records}
+    if args.check:
+        report["selectedChecks"] = args.check
 
     def save():
         (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")

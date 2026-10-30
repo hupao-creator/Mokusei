@@ -45,8 +45,11 @@ The normal workflow runs Linux checks/replays alongside two macOS preparation
 jobs. One macOS job warms Go binaries and runs five real Go fixture producers,
 exporting six fixture files (Moku exports both status and Timer snapshots);
 the other **always builds** current Swift sources and all test targets. It lists
-methods from that binary, then partitions every discovered suite into five
-balanced groups, accounting for the replays assigned to each runner. Historical
+methods from that binary, records explicit native method owners, then partitions
+the remaining methods by suite into five balanced groups, accounting for the
+replays assigned to each runner. Filters retain their suite prefixes and exclude
+only complete native-owned identities, preserving parameterized method selection
+while preventing the native-owned method from running again. Historical
 suite weights affect placement only: new suites are
 automatically included, never silently omitted.
 
@@ -61,8 +64,15 @@ option. Re-running failed jobs can reuse the successful producer's recorded atte
 Five macOS runners then execute concurrently. Each runs its Swift shard and
 assigned Go/Swift or isolated AppKit replays serially; scheduling weights balance
 the combined workload. Tests within one graphical session remain serial.
-Only the two capture-dependent tag-glass methods need the
-standalone host; its other five methods already execute in the Swift shards.
+The two capture-dependent tag-glass methods use the standalone host; its other
+five methods already execute in the Swift shards. The same mandatory
+`native-capture/tag-glass-captures` check exclusively owns
+`SwiftUIOverviewInteractionTests.titleReversalAndVisibilityCancellationSettlePixels`:
+its incoming-title proof needs complete WindowServer frames while the native
+AppKit loop runs. `swift_ownership.py` records this method before partitioning;
+it stays in the discovered inventory but is never selected by an ordinary shard.
+The method has no environment-based bypass or added skip. Missing, failed,
+skipped, duplicated or incorrectly routed native outcomes fail coverage.
 The three Settings capsule methods likewise run in the required native-capture
 lane, because their production Dock/form mouse actions and WindowServer blur
 assertions need an activated AppKit host. The coverage aggregator requires each
@@ -111,7 +121,13 @@ Swift reports XCTest and Swift Testing separately. XCTest failures and Swift
 Testing issues are framework counts, not interchangeable assertion counts.
 The builder and all five consumers must supply identical manifests. Actual
 terminal method identities, counts and receipts must match the discovered
-inventory exactly once across shards. Same-count omissions/substitutions fail.
+inventory exactly once across shards and explicit native owners. Every explicit
+owner needs one successful process receipt, one passing method outcome and its
+required execution marker from its declared group/check; a passing result
+elsewhere does not substitute for it. Partial reports created with `--check`
+cannot satisfy a complete CI replay group.
+The summary includes these native receipts/outcomes separately from ordinary
+framework totals. Same-count omissions/substitutions fail.
 Named fixture/isolated-host skips additionally need observed passing outcomes in
 the required replay logs; a new skip is not admitted just because most tests ran.
 
@@ -142,16 +158,22 @@ which compiles the production viewport policy and checks native control state
 without creating a window. It does not count as rendered scrollbar coverage.
 
 Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
-`.build/check-swift` as its output directory. It streams the real `xcrun swift
-test` output while retaining `swift-tests.log`, the command and actual exit code
-in `swift-status.json`, and the framework counts/errors in `swift-summary.json`.
-Success requires exit status zero, both frameworks' completion summaries and
-matching case/skip counts. A process that exits zero partway through Swift
-Testing fails this check. A complete run still does not certify skipped native
-flows; run their named launchers separately.
+`.build/check-swift` as its output directory. Its ordinary `xcrun swift test`
+uses the same exclusive-owner filter as CI. It then invokes the existing
+`replays.py` producer for each declared owner check; currently this is
+`native-capture --check tag-glass-captures`. Both hosts run serially. This path
+needs the native display/capture capability and cannot pass by skipping it.
+The ordinary stream, command and actual exit code remain in `swift-tests.log`
+and `swift-status.json`; native reports/logs are retained in a new `native-*`
+subdirectory per invocation. `swift-summary.json` includes both forms of evidence.
+Success requires both frameworks' completion summaries and matching ordinary
+counts, plus each native owner's zero process status, exactly one passing
+outcome and required execution marker. An early zero exit, missing marker,
+duplicate or wrong-host title execution fails. Other named fixture/native skips
+still require their separate launchers before those flows can be certified.
 
-To inspect an existing capture without starting Swift, supply its actual process
-status explicitly:
+To inspect an existing ordinary capture without starting Swift, supply its actual
+process status explicitly. This log-only mode does not certify native owners:
 
 ```sh
 python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
@@ -191,6 +213,10 @@ truncated, malformed and absent captures. CI runs the same verifier on Linux.
 `python3 scripts/ci/verify-ci-control.py` exercises the real scope and evidence
 entry points with temporary Git histories and retained artifact directories,
 and runs real subprocess success, nonzero exit and command-timeout termination cases.
+It also exercises native ownership through the actual prepare, coverage, local
+capture and replay CLIs with controlled external executables: suite filters,
+omissions/duplicates, failed/skipped outcomes, missing markers, wrong owners and
+partial reports. These checks validate routing and reporting, not macOS rendering.
 It runs on Linux alongside the existing Go reporter verifier.
 
 ## Pull request protection and advisory CI

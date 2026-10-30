@@ -13,11 +13,17 @@ import MokuseiTestSupport
 
 /// Copy complete WindowServer frames off the main actor. Retaining the capture
 /// pool's pixel buffers would stall delivery; PNG conversion belongs after stop.
-private final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendable {
+final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendable {
+    struct Sample {
+        let image: CGImage
+        let receivedAt: TimeInterval
+        let presentationTime: Double
+    }
     private let lock = NSLock()
-    private var frames: [CGImage] = []
+    private var frames: [Sample] = []
     var ready: Bool { lock.withLock { !frames.isEmpty } }
-    func take() -> [CGImage] { lock.withLock { let result = frames; frames = []; return result } }
+    func take() -> [CGImage] { takeSamples().map(\.image) }
+    func takeSamples() -> [Sample] { lock.withLock { let result = frames; frames = []; return result } }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sample: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sample.isValid,
@@ -26,6 +32,7 @@ private final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendabl
               let buffer = sample.imageBuffer,
               CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA,
               lock.withLock({ frames.count < 60 }) else { return }
+        let receivedAt = ProcessInfo.processInfo.systemUptime
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
         guard let base = CVPixelBufferGetBaseAddress(buffer) else { return }
@@ -45,7 +52,8 @@ private final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendabl
                 bytesPerRow: stride, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                 bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little),
                 provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return }
-        lock.withLock { frames.append(image) }
+        lock.withLock { frames.append(Sample(image: image, receivedAt: receivedAt,
+                                             presentationTime: sample.presentationTimeStamp.seconds)) }
     }
 }
 
