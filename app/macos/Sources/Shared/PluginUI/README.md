@@ -318,6 +318,21 @@ hidden/background cards, disabled host animations or Reduce Motion. Pausing does
 not unmount the card or replace its controls, and restoring visibility resumes
 the existing presentation.
 
+The Overview workspace opts card clouds and derived-work scans into
+`NativeCardDecorationHost`. Each decoration keeps its existing SwiftUI timeline
+and drawing inside a stable, transparent AppKit host with a separate view graph.
+The surrounding card still owns its semantic content, input, accessibility and
+spatial motion. The native boundary accepts the parent's proposed bounds, disables
+intrinsic-size feedback and forwards the environment and update transaction; it
+does not measure the animated content or publish layout on each tick.
+Cloud intensity fades and rounded clipping live inside that graph. A paused or
+completed cloud retains its host, seed and start time; only normal card removal
+tears it down. Scan presence still follows the existing running-row structure.
+Both drivers retain their original cadence and visibility gates. Other surfaces
+keep their existing drawing path, including the shared loading field used by
+tag glass. Native CPU and rendered-frame comparisons are required to establish
+the candidate's benefit and the behavior of the new composition boundary.
+
 Titles and excerpts use the same viewport/page and background visibility gate.
 Hidden excerpts retain only their latest input and stop parsing, hold timers and
 reveal masks; returning installs the latest preview directly, without replaying

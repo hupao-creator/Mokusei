@@ -73,6 +73,7 @@ public struct NativeOverviewWorkspaceView: View {
                     inputRegions: inputRegions) { item in
                         NativeOverviewWorkspaceCard(item: item, model: model, callbacks: callbackStore)
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
+                            .environment(\.threadCardDecorationsIsolated, true)
                     }
                     .opacity(landing ? 0 : 1)
                     .allowsHitTesting(!landing)

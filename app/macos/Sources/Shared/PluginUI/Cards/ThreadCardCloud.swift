@@ -17,6 +17,9 @@ private struct ThreadCardCloudAnimationsEnabledKey: EnvironmentKey {
 private struct ThreadCardAnimationVisibilityKey: EnvironmentKey {
     static let defaultValue: ThreadCardAnimationVisibility? = nil
 }
+private struct ThreadCardDecorationsIsolatedKey: EnvironmentKey {
+    static let defaultValue = false
+}
 
 public extension EnvironmentValues {
     /// Harness-owned colors; a shared card never looks up a harness by ID.
@@ -34,6 +37,11 @@ public extension EnvironmentValues {
         get { self[ThreadCardAnimationVisibilityKey.self] }
         set { self[ThreadCardAnimationVisibilityKey.self] = newValue }
     }
+    /// Overview opts its continuous decorations into separate drawing graphs.
+    var threadCardDecorationsIsolated: Bool {
+        get { self[ThreadCardDecorationsIsolatedKey.self] }
+        set { self[ThreadCardDecorationsIsolatedKey.self] = newValue }
+    }
 }
 
 struct ThreadCardCloud: View {
@@ -41,13 +49,32 @@ struct ThreadCardCloud: View {
     @Environment(\.threadCardCloudPalette) private var palette
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.threadCardDecorationsIsolated) private var isolated
 
     var body: some View {
         if let palette {
-            NativeCloudLoading(palette: palette, intensity: running ? 1 : 0,
-                               isAnimating: enabled && (visibility?.isVisible ?? true), motionSpeed: 1.4)
-                .clipShape(RoundedRectangle(cornerRadius: NativeGeometry.overviewCardRadius))
-                .animation(.easeInOut(duration: 0.4), value: running)
+            let cloud = ThreadCardCloudDrawing(palette: palette, running: running,
+                animates: enabled && (visibility?.isVisible ?? true))
+            if isolated {
+                NativeCardDecorationHost(content: cloud)
+            } else {
+                cloud
+            }
         }
+    }
+}
+
+private struct ThreadCardCloudDrawing: View {
+    let palette: NativeCloudPalette
+    let running: Bool
+    let animates: Bool
+
+    var body: some View {
+        NativeCloudLoading(palette: palette, intensity: running ? 1 : 0,
+                           isAnimating: animates, motionSpeed: 1.4)
+            .clipShape(RoundedRectangle(cornerRadius: NativeGeometry.overviewCardRadius))
+            // The fade belongs to the drawing graph, including after a native
+            // host receives a new root value. Keep its seed and clock mounted.
+            .animation(.easeInOut(duration: 0.4), value: running)
     }
 }

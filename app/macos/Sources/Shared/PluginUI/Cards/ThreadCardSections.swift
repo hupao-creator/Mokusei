@@ -250,7 +250,26 @@ private struct CardDerivedScan: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.threadCardDecorationsIsolated) private var isolated
     private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
+
+    var body: some View {
+        let scan = CardDerivedScanDrawing(animates: animates)
+        Group {
+            if isolated {
+                NativeCardDecorationHost(content: scan)
+            } else {
+                scan
+            }
+        }
+        .frame(height: 1.5)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct CardDerivedScanDrawing: View {
+    let animates: Bool
 
     var body: some View {
         TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
@@ -262,9 +281,6 @@ private struct CardDerivedScan: View {
                     .offset(x: geometry.size.width * (progress * 1.34 - 0.34))
             }
         }
-        .frame(height: 1.5)
-        .accessibilityHidden(true)
-        .allowsHitTesting(false)
     }
 }
 

@@ -22,6 +22,15 @@ The `glassWorld` preference controls only the outer shells of Thread cards. Enab
 
 ## Card update isolation
 
+The workspace opts only its card clouds and derived-work scans into separate,
+stable native drawing hosts. Their existing timelines, Canvas/Metal field and
+gradient run inside those small SwiftUI graphs; card semantics, glass shells and
+spatial motion remain in the canvas. The hosts accept the surrounding layout's
+bounds without reporting animated intrinsic sizes upstream. Both paths must be
+isolated together: the measured N40 scene remained CPU-intensive with either
+timeline alone. This is a candidate rendering boundary, not a measured CPU
+reduction; native A/B and composition checks must establish its benefit.
+
 [NativeOverviewContentStore](NativeOverviewContentStore.swift) separates the
 latest semantic snapshots from the canvas's structural inputs. The workspace
 installs it synchronously at each admitted catalog transaction; the canvas reads
