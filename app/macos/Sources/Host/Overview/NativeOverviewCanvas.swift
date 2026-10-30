@@ -203,6 +203,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
 
     public var body: some View {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        let _: Void = OverviewPerformanceDiagnostics.canvasBody()
+        #endif
         let placements = state.presentedPlacements + outgoingPlacements
         let records = Dictionary(rendered.map { ($0.id, $0) }, uniquingKeysWith: { _, next in next })
         GeometryReader { geometry in
@@ -271,6 +274,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .onChange(of: requestKey(viewport)) { _, _ in enqueue(viewport) }
             .onAppear { attach(viewport); state.camera.setVisible(visible); enqueue(viewport) }
             .onChange(of: items) { previous, updated in
+                #if OVERVIEW_PERF_DIAGNOSTICS
+                OverviewPerformanceDiagnostics.itemsChanged()
+                #endif
                 state.activeIDs = Set(updated.map(\.id))
                 let latest = Dictionary(updated.map { ($0.id, $0) }, uniquingKeysWith: { _, next in next })
                 latestRecords = latest
@@ -299,7 +305,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
 
     private func cardShell(_ placement: NativeOverviewPlacement, item: NativeOverviewItem) -> some View {
-        OverviewCardFrame(pose: pose(placement), motion: cardMotions[placement.id], visible: visible) {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.cardBuild(layer: "shell")
+        #endif
+        return OverviewCardFrame(pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
+                          diagnosticLayer: "shell") {
             if glassWorld {
                 // Glass is composited at its container boundary. An opacity inside
                 // a canvas-wide container fades text but leaves extracted surfaces
@@ -320,7 +330,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
     }
     private func semanticCard(_ placement: NativeOverviewPlacement, item: NativeOverviewItem, size: CGSize) -> some View {
-        OverviewCardFrame(pose: pose(placement), motion: cardMotions[placement.id], visible: visible) {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.cardBuild(layer: "semantic")
+        #endif
+        return OverviewCardFrame(pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
+                          diagnosticLayer: "semantic") {
             // Isolate the badge's glass from both other cards and this card's
             // backdrop so it fades with its content without fusing into the body.
             GlassEffectContainer(spacing: 0) {
@@ -425,6 +439,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
         state.camera.onChange = nil
         state.retryHandler = nil; state.activationCheck = nil
         state.hostOwner = nil; state.isLayingOut = false; state.inputFocused = false; state.activeIDs.removeAll()
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.motionsRemoved()
+        #endif
         cardMotions.removeAll(); cardPoses.removeAll(); outgoingPlacements.removeAll()
         state.refreshInteractionPause()
         onRetainedPresentationIDsChanged?([])
@@ -558,6 +575,12 @@ public struct NativeOverviewCanvas<Content: View>: View {
         retiringPresentationIDs.formUnion(oldRecords.map(\.presentationID))
         outgoingPlacements = oldPlacements.filter { !nextIDs.contains($0.id) }
         rendered = next.map(currentContentItem) + oldRecords.filter { !nextIDs.contains($0.id) }
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.present(items: next.count, outgoing: outgoingPlacements.count,
+            animations: cardMotions.count, animated: animated, repack: plan.requiresRepack,
+            initial: initial, replacesScene: replaceScene)
+        OverviewPerformanceDiagnostics.motionsRemoved()
+        #endif
         cardMotions.removeAll()
         cardPoses = oldPoses
         state.camera.deferRefit()
@@ -617,6 +640,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
                           duration: 0.14, curve: .layout, layoutSize: from.frame.size)
             }
             try await waitForMotion(0.14)
+            #if OVERVIEW_PERF_DIAGNOSTICS
+            OverviewPerformanceDiagnostics.motionsRemoved()
+            #endif
             cardMotions.removeAll(); outgoingPlacements.removeAll()
             prepareCamera(next, initial: initial, replaceScene: false, viewport: viewport)
             for placement in plan.placements {
@@ -669,6 +695,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
         }
         try Task.checkCancellation()
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.motionsRemoved()
+        #endif
         cardMotions.removeAll(); cardPoses.removeAll(); outgoingPlacements.removeAll()
         rendered = next.map(currentContentItem)
         retiringPresentationIDs.removeAll()
@@ -709,11 +738,20 @@ public struct NativeOverviewCanvas<Content: View>: View {
     private func setMotion(_ id: String, from: OverviewCardPose, to: OverviewCardPose,
                            duration: Double, delay: Double = 0, curve: OverviewCardMotion.Curve,
                            layoutSize: CGSize?, start: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        if cardMotions[id] == nil { OverviewPerformanceDiagnostics.motionStarted() }
+        #endif
         cardPoses[id] = to
         cardMotions[id] = .init(from: from, to: to, start: start, delay: delay, duration: duration,
                                curve: curve, layoutSize: layoutSize)
     }
-    private func finishMotion(_ id: String) { cardMotions.removeValue(forKey: id) }
+    private func finishMotion(_ id: String) {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        if cardMotions.removeValue(forKey: id) != nil { OverviewPerformanceDiagnostics.motionFinished() }
+        #else
+        cardMotions.removeValue(forKey: id)
+        #endif
+    }
     private func waitForMotion(_ seconds: Double) async throws {
         if state.visible { try await Task.sleep(for: .seconds(seconds)) }
         try Task.checkCancellation()
@@ -775,6 +813,9 @@ private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     @State private var inViewport = false
     @State private var animationVisibility = ThreadCardAnimationVisibility(isVisible: false)
     var body: some View {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        let _: Void = OverviewPerformanceDiagnostics.swiftUICardBody()
+        #endif
         let coordinateSpace = coordinateSpace, viewport = viewport
         content(item).environment(\.threadCardAnimationVisibility, animationVisibility)
             .onGeometryChange(for: Bool.self) { proxy in

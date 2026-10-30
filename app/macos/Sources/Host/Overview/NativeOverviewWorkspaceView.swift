@@ -171,7 +171,10 @@ private struct NativeOverviewWorkspaceCard: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        Group {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        let _: Void = OverviewPerformanceDiagnostics.workspaceCardBody()
+        #endif
+        return Group {
             switch model.snapshot(for: item) {
             case .harness(let snapshot):
                 let thread = snapshot.input.thread

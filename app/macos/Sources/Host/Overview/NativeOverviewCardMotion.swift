@@ -60,6 +60,9 @@ struct OverviewCardMotion: Equatable {
     func sample(at now: TimeInterval) -> OverviewCardPose {
         let t = curve.value(at: (now - start - delay) / duration)
         func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * t }
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.motionSample(from: from.frame, to: to.frame)
+        #endif
         return .init(frame: CGRect(x: mix(from.frame.minX, to.frame.minX), y: mix(from.frame.minY, to.frame.minY),
                                    width: mix(from.frame.width, to.frame.width), height: mix(from.frame.height, to.frame.height)),
                      opacity: mix(from.opacity, to.opacity))
@@ -72,11 +75,18 @@ struct OverviewCardFrame<Content: View>: View {
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
+    var diagnosticLayer: String = ""
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        TimelineView(.animation(paused: motion == nil || !visible)) { context in
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        let _: Void = OverviewPerformanceDiagnostics.frameBody(layer: diagnosticLayer)
+        #endif
+        return TimelineView(.animation(paused: motion == nil || !visible)) { context in
             let current = motion?.sample(at: context.date.timeIntervalSinceReferenceDate - OverviewCardMotion.clockEpoch) ?? pose
+            #if OVERVIEW_PERF_DIAGNOSTICS
+            let _: Void = OverviewPerformanceDiagnostics.cardFrameTick(layer: diagnosticLayer)
+            #endif
             let size = motion?.layoutSize ?? current.frame.size
             content()
                 .frame(width: max(1, size.width), height: max(1, size.height))

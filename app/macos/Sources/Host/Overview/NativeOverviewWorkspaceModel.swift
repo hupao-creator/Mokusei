@@ -487,8 +487,12 @@ public final class NativeOverviewWorkspaceModel {
         for thread in collection.threads {
             let input = HarnessThreadInput(thread: thread, git: applicationFactories.gitStatus(thread))
             let projection: HarnessOverviewSnapshot
-            if let cached = harnessCache[thread.id], cached.input == input { projection = cached }
+            let cacheHit = harnessCache[thread.id]?.input == input
+            if cacheHit, let cached = harnessCache[thread.id] { projection = cached }
             else { projection = try workspace.harnessHost.overview(input: input, availableColumns: 3); harnessCache[thread.id] = projection }
+            #if OVERVIEW_PERF_DIAGNOSTICS
+            OverviewPerformanceDiagnostics.harnessProjection(cacheHit)
+            #endif
             let token = "agent:\(thread.id.string):\(ObjectIdentifier(projection))"
             snapshots[token] = .harness(projection)
             let completed = !thread.pendingInput && thread.observation.backgroundWork == nil && thread.observation.latestExecution?.status == .completed
@@ -527,8 +531,15 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func pruneSnapshots() {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.pruneSnapshotCall()
+        #endif
         let used = retainedPresentationIDs.union(items.map(\.presentationID)).union(revisions.flatMap { $0.items.map(\.presentationID) })
         snapshots = snapshots.filter { used.contains($0.key) }
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.modelRetained(snapshots: snapshots.count, harnessCache: harnessCache.count,
+                                                     revisions: revisions.count)
+        #endif
     }
 
     private func appendAction(_ fields: [JSONText: JSONValue]) {

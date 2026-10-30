@@ -144,8 +144,11 @@ private func idPrecedes(_ a: String, _ b: String) -> Bool {
 }
 
 private func intersects(_ a: Placement, _ b: Placement) -> Bool {
-    a.column < b.column + b.columns && b.column < a.column + a.columns &&
-    a.row < b.row + b.rows && b.row < a.row + a.rows
+    #if OVERVIEW_PERF_DIAGNOSTICS
+    OverviewPerformanceDiagnostics.layoutIntersectCheck()
+    #endif
+    return a.column < b.column + b.columns && b.column < a.column + a.columns &&
+        a.row < b.row + b.rows && b.row < a.row + a.rows
 }
 
 private func shifted(_ before: Placement?, _ next: Placement) -> Bool {
@@ -227,6 +230,9 @@ private func validate(previous: [Placement], next: [Member], budget: Int) throws
         }
     }
     for (index, placement) in previous.enumerated() {
+        #if OVERVIEW_PERF_DIAGNOSTICS
+        OverviewPerformanceDiagnostics.layoutValidatePair()
+        #endif
         if previous.dropFirst(index + 1).contains(where: { intersects(placement, $0) }) {
             throw NativeOverviewLayoutError.invalidInput("Previous layout members must not overlap")
         }
@@ -386,6 +392,9 @@ private func planStraightMoves(_ previous: [Placement], _ next: [Placement], tic
     }
     for a in survivors where a.moved {
         for b in survivors where a.id != b.id {
+            #if OVERVIEW_PERF_DIAGNOSTICS
+            OverviewPerformanceDiagnostics.layoutStraightPair()
+            #endif
             try tick()
             if crosses(a.from, a.to, b.from) {
                 if !b.moved { return StraightMovePlan(conflictIDs: [a.id, b.id], blockedBy: (a.id, b.id)) }
