@@ -51,6 +51,14 @@ Geometry and straight-move optimization have separate outcomes. If the search bu
 
 [NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions serialize exit, shrink, ordered moves, grow and entry. Outgoing content survives until its exit finishes; glass and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
 
+The spatial frame builds its content when receiving new inputs and reuses that
+view value across animation ticks. Ticks only sample the pose and apply its
+geometry, opacity and accessibility state; they do not rerun the glass/semantic
+content builder. New card inputs still replace the value without changing its
+mounted identity, and child state, Observation and environment updates remain
+live. The native resize replay changes presentation and locale during motion and
+checks the retained semantic identity and final geometry.
+
 [NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes spatial motion with camera activity. Explicit return to automatic framing first restores the default fit, then resumes attention. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
 
 Carousel admission, restoration and exit use the whole collection's readable

@@ -72,13 +72,21 @@ struct OverviewCardFrame<Content: View>: View {
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
-    @ViewBuilder var content: () -> Content
+    let content: Content
+
+    init(pose: OverviewCardPose, motion: OverviewCardMotion?, visible: Bool,
+         @ViewBuilder content: () -> Content) {
+        self.pose = pose
+        self.motion = motion
+        self.visible = visible
+        self.content = content()
+    }
 
     var body: some View {
         TimelineView(.animation(paused: motion == nil || !visible)) { context in
             let current = motion?.sample(at: context.date.timeIntervalSinceReferenceDate - OverviewCardMotion.clockEpoch) ?? pose
             let size = motion?.layoutSize ?? current.frame.size
-            content()
+            content
                 .frame(width: max(1, size.width), height: max(1, size.height))
                 .scaleEffect(x: current.frame.width / max(1, size.width),
                              y: current.frame.height / max(1, size.height), anchor: .topLeading)
