@@ -9,6 +9,10 @@ import SwiftUI
     static let trailing: CGFloat = 20
     static let lineHeight: CGFloat = 16
     static var maximumHeight: CGFloat { lineHeight * 4 + lineSpacing * 3 }
+    /// Talk stays inside a four-line notification viewport. Live dictation has no
+    /// equivalent length bound, so it may grow to twice that before the same
+    /// internal scroller takes over; a normal sentence never shows only its tail.
+    static var transcriptMaximumHeight: CGFloat { lineHeight * 8 + lineSpacing * 7 }
     static func height(_ text: String, width: CGFloat) -> CGFloat {
         // Match the rendered weight so Latin wrapping and the viewport agree.
         let font = NativePlatformFont.systemFont(ofSize: 13, weight: .medium)
@@ -23,7 +27,8 @@ import SwiftUI
         return ceil(CTFramesetterSuggestFrameSizeWithConstraints(framesetter, CFRange(location: 0, length: 0), nil,
             CGSize(width: max(1, width), height: .greatestFiniteMagnitude), nil).height)
     }
-    static func capsuleHeight(_ text: String, width: CGFloat, trailingInset: CGFloat? = nil) -> CGFloat {
+    static func capsuleHeight(_ text: String, width: CGFloat, trailingInset: CGFloat? = nil,
+                              maximumHeight: CGFloat = NativeMokuTalkTypography.maximumHeight) -> CGFloat {
         max(58, min(maximumHeight, height(text, width: width - leading - (trailingInset ?? trailing))) + verticalPadding * 2)
     }
 }
@@ -32,8 +37,12 @@ struct NativeMokuTalkContent: View {
     @State private var followsTail = true
     var body: some View {
         NativeScrollView {
+            // Pin the text to its natural height before the viewport clips it.
+            // Otherwise a shorter proposal can truncate wrapped transcript text
+            // instead of letting the scroller reveal it.
             Text(message.text).font(.system(size: 13, weight: .medium))
                 .lineSpacing(3).multilineTextAlignment(.center).textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
         }
         .defaultScrollAnchor(.bottom)
