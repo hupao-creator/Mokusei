@@ -28,7 +28,8 @@ The expensive work was repeated native acquisition, not JSON decoding:
   discovery. Presentation receives immutable native facts first, marked
   `accountCheckPending`; exact validation still waits for the filtered result.
   The account phase is bounded and SettingsAPI-owned, with cancellation/drain on
-  Close. The Swift editor shows uncertainty and makes bounded, non-forced rereads.
+  Close. The Swift editor keeps that transient uncertainty silent and makes
+  bounded, non-forced rereads; only settled failures show a notice and retry.
 
 Refresh supersedes only the matching source; concurrent forced refresh readers
 join. Old flights cannot publish over a replacement, including when the newer

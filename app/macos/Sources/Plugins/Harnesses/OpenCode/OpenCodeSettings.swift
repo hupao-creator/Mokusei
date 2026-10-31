@@ -316,8 +316,10 @@ private struct OpenCodeResourceStatus: View {
         if case .ready(let data) = resource.state { return data.raw["accountCheckPending"] == .bool(true) }
         return false
     }
+    /// A pending account/telemetry check is not a user-facing state. The native
+    /// catalog is already published and the bounded rereads below fold in the
+    /// filtered result; only a settled error keeps its notice and retry action.
     private var hidden: Bool {
-        if accountPending { return false }
         if reloading || failure != nil { return false }
         switch resource.state { case .loading: return true; case .ready(let data): return data.raw["cli"]?["status"] == .text("ready") && !ocTruthy(data.raw["cli"]?["message"]); case .error: return false }
     }
@@ -329,6 +331,8 @@ private struct OpenCodeResourceStatus: View {
                     action: AnyView(refresh))
             }
         }
+        // Silent: the pending account phase resolves through these rereads
+        // without telling the user that telemetry has not arrived yet.
         .task(id: accountPending) {
             guard accountPending else { return }
             for delay in [1, 2, 4, 8, 15, 30] {
@@ -346,9 +350,6 @@ private struct OpenCodeResourceStatus: View {
     case .loading: return (ocLocalized("正在读取 OpenCode 环境…", locale: locale), .info)
     case .error(let error): return (error, .error)
     case .ready(let data):
-        if data.raw["accountCheckPending"] == .bool(true) {
-            return (locale.identifier.hasPrefix("zh") ? "模型列表已就绪，账户可用性尚未确认。" : "Models are ready; account availability is not yet confirmed.", .info)
-        }
         let cli = data.raw["cli"] ?? .null, ready = data.raw["cli"]?["status"] == .text("ready")
         return ([ocLocalized(ready ? "可用" : "不可用", locale: locale), cli["version"]?.stringValue, cli["message"]?.stringValue].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "), ready && !ocTruthy(cli["message"]) ? .success : .warning)
     }
