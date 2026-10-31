@@ -93,6 +93,14 @@ Geometry and straight-move optimization have separate outcomes. If the search bu
 
 [NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions serialize exit, shrink, ordered moves, grow and entry. Outgoing content survives until its exit finishes; glass and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
 
+Card motion starts, interruption samples and display samples all use
+`ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
+exact SwiftUI timeline date across the glass and semantic planes. Dates are only
+tick identifiers, so wall-clock drift or adjustments cannot accumulate into the
+motion's elapsed time. The clock retains the 64 most recent distinct ticks in
+insertion order to share interleaved contexts while bounding process-lifetime
+state; an evicted date receives a fresh uptime sample if it appears again.
+
 The spatial frame builds its content when receiving new inputs and reuses that
 view value across animation ticks. Ticks only sample the pose and apply its
 geometry, opacity and accessibility state; they do not rerun the glass/semantic
