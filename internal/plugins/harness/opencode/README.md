@@ -120,11 +120,14 @@ is `python3 tools/verification/reading-presentation/run.py --initial-response`.
 
 Settings presentation publishes an immutable native model/agent/default catalog
 before optional Console account/remote billing checks finish. The response marks
-`accountCheckPending`; the native editor displays this uncertainty and performs
-bounded non-forced rereads. This is not an authentication success. Exact settings
-validation, model descriptions and provenance continue to await the complete
-filtered catalog. Initial execution-default capture uses native defaults without
-forcing a global cache invalidation; execution admission remains native-owned.
+`accountCheckPending`, but the native editor keeps that transient state silent:
+the user sees no banner or retry action while account evidence is merely
+unsettled, and bounded non-forced rereads fold in the filtered result. Settled
+failures still surface through the CLI status message and retry action. A
+pending check is not an authentication success. Exact settings validation,
+model descriptions and provenance continue to await the complete filtered
+catalog. Initial execution-default capture uses native defaults without forcing
+a global cache invalidation; execution admission remains native-owned.
 
 The account phase belongs to SettingsAPI after native publication, retains its
 existing bounded budgets, and is cancelled/joined on Close. Billing cannot mutate

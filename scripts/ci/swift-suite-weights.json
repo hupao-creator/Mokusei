@@ -12,6 +12,7 @@
   "MokuseiGitIntegrationTests.GitNativeTests": 3.043,
   "MokuseiGitIntegrationTests.GitThreadExtensionTests": 13.589,
   "MokuseiGitIntegrationTests.NativeHarnessFormTests": 1.4,
+  "MokuseiGitIntegrationTests.NativeOpenCodeSettingsStatusTests": 0.7,
   "MokuseiGitIntegrationTests.PiTokenUsageTests": 0.2,
   "MokuseiGitIntegrationTests.RollingNumberCellTests": 7.199,
   "MokuseiGitIntegrationTests.ThreadCardExtensionLayoutTests": 0.033,
