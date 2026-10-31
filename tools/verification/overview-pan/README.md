@@ -1,13 +1,21 @@
 # Canvas pan frame and cost measurement
 
 ```sh
+./scripts/go.sh run ./cmd/mokusei-dev bundle --channel development   # Release bundle
 python3 tools/verification/overview-pan/run.py \
-  --app app/macos/.build/arm64-apple-macosx/release/Mokusei \
-  --runtime .build/go/mokusei-runtime \
+  --app "app/macos/dist/Mokusei Native Dev.app" \
   --source-profile "$HOME/Library/Application Support/Mokusei Native Dev" \
   --workdir /private/tmp/mokusei-pan --label release --pairs 3 \
   --baseline tools/verification/overview-pan/baseline.json --enforce regression
 ```
+
+Only a signed bundle is accepted. A raw SwiftPM executable is not the product:
+it has no `Info.plist`, no bundle resources, and its window may not be
+high-resolution capable, which quarters the rendered pixels and makes a slow
+build look fast. The runner opens the bundle with `open -n` so the window is
+activated the way a user's is, reads the build provenance and window geometry
+for the report, and fails if the two conditions or repeated runs disagree on
+that geometry.
 
 Dragging the Overview canvas must not get slower as the catalog grows. This
 runner compares two catalog conditions on the **same** real profile — every
@@ -64,6 +72,39 @@ own geometry per frame. The decorative shell plane already avoids that path with
 `OverviewCameraAffineEffect(...).ignoredByLayout()`; moving the semantic plane
 onto it requires moving the per-card viewport decision into the canvas, because
 cards currently derive their visibility from that geometry read.
+
+## Acceptance
+
+`--enforce target` requires the A/B ratios to reach parity: `panP50` ≤ 1.1,
+frames/s ≥ 0.95, CPU ≤ 1.5. `--enforce regression` compares each condition
+against the retained `baseline.json` (`panP50` ≤ 1.15, frames/s ≥ 0.95, CPU ≤
+1.15) and fails if a condition's card count changed. `--enforce both` runs both
+checks. Nothing is asserted unless requested, so a run can be recorded before a
+fix lands.
+
+## Retained baseline
+
+`baseline.json` — packaged Release bundle (`bundle --channel development`) built
+from this tree, opened with `open -n` so its window is activated, on an Apple M1
+Pro with macOS 26.5.1 and the built-in display. Three ABBA pairs, four-second
+drags at 120 Hz, `--label release`, window 1283×905 points. The store held 10
+cards for the whole catalog (6 agent threads and 4 report documents) and 1
+report document for `研报`.
+
+| Condition | cards | panP50 | frames/s | interval p95 | CPU mean |
+| --- | --- | --- | --- | --- | --- |
+| all | 10 | 4.35 ms | **41.2** | 133.62 ms | 70.0 % |
+| yanbao | 1 | 0.14 ms | 119.4 | 33.87 ms | 33.6 % |
+| A/B | | **31.1×** | **0.35×** | | 2.08× |
+
+Dragging the whole catalog renders at a third of the single-card rate while
+costing 31× the main-thread time per camera update, and that is the reported
+symptom: the Release application visibly stutters with every card visible and
+not with one. Earlier numbers taken from a raw SwiftPM executable reported
+117–119 frames/s for the same content; that build has no `Info.plist` and its
+window is not high-resolution capable, so it rendered a quarter of the pixels.
+Do not measure a raw executable, and do not compare numbers recorded before this
+runner required a signed bundle.
 
 ## Acceptance
 

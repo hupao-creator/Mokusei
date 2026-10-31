@@ -1,6 +1,13 @@
 {
  "label": "release",
- "commit": "180d91b4fa8eb35793886816b2e8492fc59da8d1",
+ "commit": "53df2ff3d88ca932b2cdbab26bb4229ad73acf9c",
+ "app": "/Users/felixwang/Desktop/Mokusei/app/macos/dist/Mokusei Native Dev.app",
+ "provenance": {
+  "channel": "development",
+  "configuration": "release",
+  "executableInputSHA256": "f2df32064a9ca8d3a8fb4fe2a8ad1feaa46ab5207762f6cdfab25b4eb0357310",
+  "runtimeInputSHA256": "b1026c874ba6b5f4d77828aa4d5951ffd890abf9efba20b7b851d50daee1065d"
+ },
  "machine": {
   "model": "MacBookPro18,3",
   "os": "26.5.1",
@@ -16,86 +23,98 @@
    "filterId": "semantic:inbox:研报"
   }
  ],
+ "bridgeReconnects": 4,
  "dragSeconds": 4.0,
  "ratePerSecond": 120.0,
  "summary": {
   "all": {
-   "panP50": 3.93,
-   "panP95": 5.56,
-   "framesPerSecond": 117.4,
-   "intervalP95": 33.87,
-   "longIntervalRatio": 0.022,
-   "hitchRatio": 0.06,
-   "cpuMean": 66.4,
-   "cpuMax": 100.3,
-   "renderP50": 3.83,
+   "panP50": 4.35,
+   "panP95": 6.67,
+   "framesPerSecond": 41.2,
+   "intervalP95": 133.62,
+   "longIntervalRatio": 0.131,
+   "hitchRatio": 0.516,
+   "cpuMean": 70.0,
+   "cpuMax": 100.4,
+   "renderP50": 16.97,
    "cards": 10,
+   "viewport": [
+    "{\"height\": 905, \"toolbarBottom\": 60, \"width\": 1283}"
+   ],
    "runs": 3
   },
   "yanbao": {
    "panP50": 0.14,
-   "panP95": 0.18,
+   "panP95": 0.23,
    "framesPerSecond": 119.4,
-   "intervalP95": 38.92,
-   "longIntervalRatio": 0.33,
-   "hitchRatio": 0.318,
-   "cpuMean": 23.5,
-   "cpuMax": 101.9,
-   "renderP50": 2.64,
+   "intervalP95": 33.87,
+   "longIntervalRatio": 0.01,
+   "hitchRatio": 0.021,
+   "cpuMean": 33.6,
+   "cpuMax": 101.5,
+   "renderP50": 3.37,
    "cards": 1,
+   "viewport": [
+    "{\"height\": 905, \"toolbarBottom\": 60, \"width\": 1283}"
+   ],
    "runs": 3
   }
  },
  "ratios": {
-  "panP50": 28.071,
-  "framesPerSecond": 0.983,
-  "cpuMean": 2.826
+  "panP50": 31.071,
+  "framesPerSecond": 0.345,
+  "cpuMean": 2.083
  },
  "results": [
   {
    "label": "all",
    "filterId": null,
    "cards": 10,
-   "panP50": 3.93,
-   "panP95": 5.6,
-   "panAbsorption": 249.2,
-   "cameraMovedPx": 264.0,
-   "frames": 548,
-   "framesPerSecond": 114.4,
-   "intervalP50": 25.05,
-   "intervalP95": 37.85,
-   "intervalMax": 56.46,
-   "longIntervalRatio": 0.0661,
-   "lifetimeP50": 28.04,
-   "lifetimeP95": 33.33,
-   "renderP50": 3.83,
-   "hitches": 33,
-   "hitchRatio": 0.06,
-   "cpuMean": 66.6,
-   "cpuMax": 100.6,
+   "panP50": 4.35,
+   "panP95": 7.96,
+   "panAbsorption": 200.9,
+   "cameraMovedPx": 149.9,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
+   },
+   "frames": 255,
+   "framesPerSecond": 41.2,
+   "intervalP50": 62.5,
+   "intervalP95": 133.62,
+   "intervalMax": 712.5,
+   "longIntervalRatio": 0.131,
+   "lifetimeP50": 44.64,
+   "lifetimeP95": 89.8,
+   "renderP50": 16.97,
+   "hitches": 152,
+   "hitchRatio": 0.5067,
+   "cpuMean": 70.0,
+   "cpuMax": 100.1,
    "surfaces": {
+    "18": {
+     "frames": 108,
+     "p50": 58.33,
+     "p95": 91.22,
+     "max": 124.52
+    },
     "16": {
-     "frames": 183,
-     "p50": 25.05,
-     "p95": 37.84,
-     "max": 53.44
+     "frames": 102,
+     "p50": 62.16,
+     "p95": 97.15,
+     "max": 133.62
     },
     "3": {
-     "frames": 181,
-     "p50": 25.03,
-     "p95": 38.2,
-     "max": 56.46
-    },
-    "18": {
-     "frames": 184,
-     "p50": 25.05,
-     "p95": 37.74,
-     "max": 45.36
+     "frames": 45,
+     "p50": 87.45,
+     "p95": 495.83,
+     "max": 712.5
     }
    },
    "camera": {
-    "x": 175.85434195305925,
-    "y": 225.12207793366935
+    "x": 135.43122959133098,
+    "y": 198.56694943871562
    },
    "pair": 0
   },
@@ -104,186 +123,206 @@
    "filterId": "semantic:inbox:研报",
    "cards": 1,
    "panP50": 0.14,
-   "panP95": 0.2,
-   "panAbsorption": 6409.0,
-   "cameraMovedPx": 233.0,
-   "frames": 555,
-   "framesPerSecond": 120.1,
-   "intervalP50": 24.99,
-   "intervalP95": 37.0,
-   "intervalMax": 50.09,
-   "longIntervalRatio": 0.0127,
-   "lifetimeP50": 26.74,
-   "lifetimeP95": 28.42,
-   "renderP50": 2.74,
-   "hitches": 3,
-   "hitchRatio": 0.0108,
-   "cpuMean": 21.9,
-   "cpuMax": 101.9,
-   "surfaces": {
-    "3": {
-     "frames": 184,
-     "p50": 25.02,
-     "p95": 36.96,
-     "max": 50.09
-    },
-    "16": {
-     "frames": 186,
-     "p50": 24.84,
-     "p95": 37.2,
-     "max": 38.31
-    },
-    "18": {
-     "frames": 185,
-     "p50": 24.98,
-     "p95": 36.93,
-     "max": 37.61
-    }
+   "panP95": 0.21,
+   "panAbsorption": 6019.8,
+   "cameraMovedPx": 230.2,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
    },
-   "camera": {
-    "x": 199.44318297450522,
-    "y": 262.35112507845287
-   },
-   "pair": 0
-  },
-  {
-   "label": "yanbao",
-   "filterId": "semantic:inbox:研报",
-   "cards": 1,
-   "panP50": 0.14,
-   "panP95": 0.18,
-   "panAbsorption": 6545.0,
-   "cameraMovedPx": 223.6,
-   "frames": 522,
+   "frames": 614,
    "framesPerSecond": 119.4,
-   "intervalP50": 25.16,
-   "intervalP95": 38.92,
-   "intervalMax": 49.24,
-   "longIntervalRatio": 0.3295,
-   "lifetimeP50": 28.16,
-   "lifetimeP95": 30.06,
-   "renderP50": 2.62,
-   "hitches": 164,
-   "hitchRatio": 0.3183,
-   "cpuMean": 23.6,
-   "cpuMax": 102.0,
+   "intervalP50": 25.0,
+   "intervalP95": 33.88,
+   "intervalMax": 50.0,
+   "longIntervalRatio": 0.0098,
+   "lifetimeP50": 24.97,
+   "lifetimeP95": 33.3,
+   "renderP50": 3.17,
+   "hitches": 35,
+   "hitchRatio": 0.0567,
+   "cpuMean": 32.7,
+   "cpuMax": 101.5,
    "surfaces": {
     "16": {
-     "frames": 173,
-     "p50": 25.19,
-     "p95": 38.88,
-     "max": 49.24
+     "frames": 204,
+     "p50": 25.0,
+     "p95": 33.87,
+     "max": 50.0
     },
     "18": {
-     "frames": 175,
-     "p50": 25.1,
-     "p95": 39.01,
-     "max": 41.55
+     "frames": 205,
+     "p50": 25.0,
+     "p95": 33.92,
+     "max": 42.2
     },
     "3": {
-     "frames": 174,
-     "p50": 25.04,
-     "p95": 38.89,
-     "max": 39.14
+     "frames": 205,
+     "p50": 25.0,
+     "p95": 33.88,
+     "max": 42.21
     }
    },
    "camera": {
-    "x": 37.75738747214755,
-    "y": 283.8278177939571
+    "x": 179.37814061666046,
+    "y": 393.5839881019136
    },
-   "pair": 1
+   "pair": 0
   },
   {
-   "label": "all",
-   "filterId": null,
-   "cards": 10,
-   "panP50": 4.22,
-   "panP95": 5.56,
-   "panAbsorption": 245.6,
-   "cameraMovedPx": 266.5,
-   "frames": 513,
-   "framesPerSecond": 117.4,
-   "intervalP50": 25.05,
-   "intervalP95": 33.55,
-   "intervalMax": 52.57,
-   "longIntervalRatio": 0.0216,
-   "lifetimeP50": 28.28,
-   "lifetimeP95": 30.13,
-   "renderP50": 4.05,
-   "hitches": 26,
-   "hitchRatio": 0.0524,
-   "cpuMean": 66.4,
-   "cpuMax": 100.3,
-   "surfaces": {
-    "3": {
-     "frames": 171,
-     "p50": 25.03,
-     "p95": 34.04,
-     "max": 52.57
-    },
-    "18": {
-     "frames": 171,
-     "p50": 25.05,
-     "p95": 32.98,
-     "max": 50.29
-    },
-    "16": {
-     "frames": 171,
-     "p50": 25.05,
-     "p95": 33.62,
-     "max": 50.2
-    }
+   "label": "yanbao",
+   "filterId": "semantic:inbox:研报",
+   "cards": 1,
+   "panP50": 0.14,
+   "panP95": 0.23,
+   "panAbsorption": 5732.6,
+   "cameraMovedPx": 242.0,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
    },
-   "camera": {
-    "x": 104.07368056254279,
-    "y": 152.46600645517265
-   },
-   "pair": 1
-  },
-  {
-   "label": "all",
-   "filterId": null,
-   "cards": 10,
-   "panP50": 3.19,
-   "panP95": 4.43,
-   "panAbsorption": 303.8,
-   "cameraMovedPx": 159.9,
-   "frames": 536,
-   "framesPerSecond": 118.9,
+   "frames": 1105,
+   "framesPerSecond": 119.3,
    "intervalP50": 25.0,
    "intervalP95": 33.87,
-   "intervalMax": 58.33,
-   "longIntervalRatio": 0.0206,
-   "lifetimeP50": 24.98,
-   "lifetimeP95": 30.42,
-   "renderP50": 3.11,
-   "hitches": 52,
-   "hitchRatio": 0.098,
-   "cpuMean": 55.7,
-   "cpuMax": 100.3,
+   "intervalMax": 65.51,
+   "longIntervalRatio": 0.0109,
+   "lifetimeP50": 22.2,
+   "lifetimeP95": 25.59,
+   "renderP50": 3.37,
+   "hitches": 21,
+   "hitchRatio": 0.0207,
+   "cpuMean": 33.6,
+   "cpuMax": 102.5,
    "surfaces": {
     "18": {
-     "frames": 179,
+     "frames": 368,
      "p50": 25.0,
      "p95": 33.87,
-     "max": 50.53
+     "max": 49.97
     },
     "16": {
-     "frames": 179,
-     "p50": 25.0,
-     "p95": 33.86,
-     "max": 41.67
-    },
-    "3": {
-     "frames": 178,
+     "frames": 370,
      "p50": 25.0,
      "p95": 33.87,
-     "max": 58.33
+     "max": 65.51
+    },
+    "3": {
+     "frames": 367,
+     "p50": 25.0,
+     "p95": 33.44,
+     "max": 49.45
     }
    },
    "camera": {
-    "x": 76.88802408415938,
-    "y": 139.02217724874495
+    "x": 10.176833756437563,
+    "y": 293.22159417586334
+   },
+   "pair": 1
+  },
+  {
+   "label": "all",
+   "filterId": null,
+   "cards": 10,
+   "panP50": 4.4,
+   "panP95": 6.67,
+   "panAbsorption": 236.3,
+   "cameraMovedPx": 252.3,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
+   },
+   "frames": 287,
+   "framesPerSecond": 41.6,
+   "intervalP50": 58.74,
+   "intervalP95": 150.0,
+   "intervalMax": 375.63,
+   "longIntervalRatio": 0.1831,
+   "lifetimeP50": 46.56,
+   "lifetimeP95": 83.7,
+   "renderP50": 16.6,
+   "hitches": 199,
+   "hitchRatio": 0.543,
+   "cpuMean": 76.7,
+   "cpuMax": 100.4,
+   "surfaces": {
+    "18": {
+     "frames": 127,
+     "p50": 54.08,
+     "p95": 104.64,
+     "max": 130.41
+    },
+    "16": {
+     "frames": 108,
+     "p50": 58.32,
+     "p95": 121.96,
+     "max": 220.71
+    },
+    "3": {
+     "frames": 52,
+     "p50": 95.85,
+     "p95": 233.23,
+     "max": 375.63
+    }
+   },
+   "camera": {
+    "x": 170.02055295125552,
+    "y": 186.23469437739664
+   },
+   "pair": 1
+  },
+  {
+   "label": "all",
+   "filterId": null,
+   "cards": 10,
+   "panP50": 3.35,
+   "panP95": 5.47,
+   "panAbsorption": 274.0,
+   "cameraMovedPx": 255.2,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
+   },
+   "frames": 233,
+   "framesPerSecond": 36.7,
+   "intervalP50": 65.58,
+   "intervalP95": 115.48,
+   "intervalMax": 840.22,
+   "longIntervalRatio": 0.087,
+   "lifetimeP50": 44.49,
+   "lifetimeP95": 84.62,
+   "renderP50": 18.59,
+   "hitches": 144,
+   "hitchRatio": 0.516,
+   "cpuMean": 68.2,
+   "cpuMax": 100.5,
+   "surfaces": {
+    "18": {
+     "frames": 101,
+     "p50": 61.51,
+     "p95": 98.08,
+     "max": 115.48
+    },
+    "16": {
+     "frames": 97,
+     "p50": 61.53,
+     "p95": 95.34,
+     "max": 145.1
+    },
+    "3": {
+     "frames": 35,
+     "p50": 81.99,
+     "p95": 324.85,
+     "max": 840.22
+    }
+   },
+   "camera": {
+    "x": 118.29822328607897,
+    "y": 286.7195673428685
    },
    "pair": 2
   },
@@ -292,45 +331,50 @@
    "filterId": "semantic:inbox:研报",
    "cards": 1,
    "panP50": 0.14,
-   "panP95": 0.18,
-   "panAbsorption": 6600.1,
-   "cameraMovedPx": 130.5,
-   "frames": 522,
-   "framesPerSecond": 119.0,
-   "intervalP50": 25.28,
-   "intervalP95": 39.35,
-   "intervalMax": 55.26,
-   "longIntervalRatio": 0.3776,
-   "lifetimeP50": 29.38,
-   "lifetimeP95": 30.48,
-   "renderP50": 2.64,
-   "hitches": 235,
-   "hitchRatio": 0.4485,
-   "cpuMean": 23.5,
-   "cpuMax": 101.8,
+   "panP95": 0.24,
+   "panAbsorption": 5654.4,
+   "cameraMovedPx": 114.3,
+   "viewport": {
+    "height": 905,
+    "toolbarBottom": 60,
+    "width": 1283
+   },
+   "frames": 579,
+   "framesPerSecond": 119.4,
+   "intervalP50": 25.0,
+   "intervalP95": 30.18,
+   "intervalMax": 58.85,
+   "longIntervalRatio": 0.0035,
+   "lifetimeP50": 24.99,
+   "lifetimeP95": 25.0,
+   "renderP50": 4.01,
+   "hitches": 4,
+   "hitchRatio": 0.0069,
+   "cpuMean": 35.1,
+   "cpuMax": 100.9,
    "surfaces": {
-    "3": {
-     "frames": 174,
-     "p50": 25.31,
-     "p95": 39.33,
-     "max": 55.26
-    },
     "16": {
-     "frames": 174,
-     "p50": 25.06,
-     "p95": 39.3,
-     "max": 41.96
+     "frames": 193,
+     "p50": 25.0,
+     "p95": 33.33,
+     "max": 37.12
     },
     "18": {
-     "frames": 174,
-     "p50": 25.28,
-     "p95": 39.4,
-     "max": 47.38
+     "frames": 193,
+     "p50": 25.0,
+     "p95": 28.42,
+     "max": 58.85
+    },
+    "3": {
+     "frames": 193,
+     "p50": 25.0,
+     "p95": 28.89,
+     "max": 36.76
     }
    },
    "camera": {
-    "x": 137.08683053005456,
-    "y": 222.21205378778038
+    "x": 173.37031919418592,
+    "y": 283.7293734447807
    },
    "pair": 2
   }

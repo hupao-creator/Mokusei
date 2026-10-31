@@ -12,12 +12,17 @@ Two independent observations of the same drag, per condition:
 The socket path must be pre-created by the launcher; this tool never touches the
 user's daily profile. See README.md for the contract and the retained baseline.
 
+Only a signed application bundle is measured: a raw SwiftPM executable is not
+the product (no Info.plist, no bundle resources, and its window may not be
+high-resolution capable, which silently quarters the rendered pixels). The
+bundle is opened with `open -n` so the window is activated.
+
 usage:
   python3 tools/verification/overview-pan/run.py \
-    --app app/macos/.build/arm64-apple-macosx/release/Mokusei \
-    --runtime .build/go/mokusei-runtime \
+    --app app/macos/dist/Mokusei\ Native\ Dev.app \
     --source-profile "$HOME/Library/Application Support/Mokusei Native Dev" \
-    --workdir /private/tmp/mokusei-pan --label release --pairs 3 --enforce
+    --workdir /private/tmp/mokusei-pan --label release --pairs 3 --enforce regression \
+    --baseline tools/verification/overview-pan/baseline.json
 """
 import argparse
 import json
@@ -25,6 +30,7 @@ import math
 import os
 import platform
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -83,33 +89,65 @@ def clone_profile(source, destination):
     return destination
 
 
-def launch(app, runtime, data_dir, sock, log):
-    app = Path(app).resolve()
-    if app.is_dir():
-        binaries = sorted((app / "Contents" / "MacOS").iterdir())
-        binary = next((candidate for candidate in binaries if candidate.name == "Mokusei"), binaries[0])
-        args = [str(binary)]
-    else:
-        args = [str(app)]
-    if runtime:
-        args += ["--runtime", str(Path(runtime).resolve())]
-    args += ["--data-dir", str(data_dir), "--automation-socket", str(sock)]
-    handle = open(log, "w")
-    process = subprocess.Popen(args, stdout=handle, stderr=subprocess.STDOUT, start_new_session=True)
-    return process, handle
+def launch(app, data_dir, sock, log):
+    """Open the signed bundle the way a user does, so the window is activated.
+
+    Finder/`open` activation decides whether the window is frontmost, and an
+    occluded or throttled window is not the configuration being measured.
+    """
+    completed = subprocess.run(["open", "-n", str(app), "--args",
+                                "--data-dir", str(data_dir), "--automation-socket", str(sock)],
+                               capture_output=True, text=True)
+    if completed.returncode != 0:
+        fail(f"open failed: {completed.stderr.strip()[:200]}")
+
+
+def provenance(app):
+    path = Path(app) / "Contents" / "Resources" / "build-provenance.json"
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
 
 
 # ---------------------------------------------------------------- client
 
 class Client:
     def __init__(self, path):
+        self.path = path
+        self.reconnects = 0
+        self.pid = None
+        self.connect()
+
+    def close(self):
+        try:
+            self.reader.close()
+            self.socket.close()
+        except OSError:
+            pass
+
+    def connect(self):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.settimeout(30)
-        self.socket.connect(path)
+        self.socket.connect(self.path)
         self.reader = self.socket.makefile("rb")
         self.sequence = 0
 
     def call(self, action=None, snapshot=True):
+        """One request/response. A closed bridge connection is reopened once:
+        the app keeps serving, and a reconnect is counted, never hidden."""
+        try:
+            return self.call_once(action, snapshot)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            self.reconnects += 1
+            self.close()
+            if self.reconnects > 8:
+                fail("automation bridge kept closing")
+            time.sleep(0.2)
+            self.connect()
+            return self.call_once(action, snapshot)
+
+    def call_once(self, action=None, snapshot=True):
         self.sequence += 1
         request = {"protocol": 1, "id": str(self.sequence), "op": "snapshot" if action is None else "perform"}
         if action is not None:
@@ -122,8 +160,11 @@ class Client:
         self.socket.sendall(json.dumps(request, ensure_ascii=False).encode() + b"\n")
         line = self.reader.readline(2 * 1024 * 1024 + 1)
         if not line.endswith(b"\n"):
-            fail("automation connection closed")
-        return json.loads(line), (time.monotonic() - started) * 1000
+            raise BrokenPipeError("automation connection closed")
+        response = json.loads(line)
+        if self.pid is None and isinstance(response.get("pid"), int):
+            self.pid = response["pid"]
+        return response, (time.monotonic() - started) * 1000
 
 
 def wait_ready(client, seconds=90):
@@ -230,19 +271,29 @@ def percentile(values, share):
     return ordered[min(len(ordered) - 1, max(0, int(round(share / 100 * len(ordered))) - 1))]
 
 
-def compositor(process, client, drag, rate, trace):
+def fingerprint(overview):
+    """Membership and geometry that a pure camera move must not change."""
+    return {
+        "cards": [card["id"] for card in overview["cards"]],
+        "mounted": sorted(overview["mountedCardIds"]),
+        "placements": sorted((p["id"], p["column"], p["row"], p["columns"], p["rows"])
+                             for p in overview["placements"]),
+    }
+
+
+def compositor(pid, client, drag, rate, trace):
     """Record frames while the canvas is dragged for the whole recorded window."""
     subprocess.run(["rm", "-rf", str(trace)], check=False)
     recorder = subprocess.Popen(
         ["xcrun", "xctrace", "record", "--template", "Animation Hitches",
-         "--attach", str(process.pid), "--time-limit", f"{int(round(drag))}s", "--output", str(trace)],
+         "--attach", str(pid), "--time-limit", f"{int(round(drag))}s", "--output", str(trace)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     stop = {"value": False}
     cpu = []
 
     def poll():
         while not stop["value"]:
-            out = subprocess.run(["ps", "-o", "%cpu=", "-p", str(process.pid)],
+            out = subprocess.run(["ps", "-o", "%cpu=", "-p", str(pid)],
                                  capture_output=True, text=True).stdout.strip()
             if out:
                 cpu.append(float(out))
@@ -312,16 +363,22 @@ def compositor(process, client, drag, rate, trace):
 
 # ---------------------------------------------------------------- conditions
 
-def condition(process, client, spec, drag, rate, trace):
+def condition(pid, client, spec, drag, rate, trace):
     cards = settle(client, spec["filterId"])
-    before = client.call()[0]["snapshot"]["overview"]["camera"]
+    overview = client.call()[0]["snapshot"]["overview"]
+    before = overview["camera"]
+    viewport = before["viewport"]
+    start = fingerprint(overview)
     latencies, absorption = service_cost(client)
-    frames = compositor(process, client, drag, rate, trace)
-    after = client.call()[0]["snapshot"]["overview"]["camera"]
+    frames = compositor(pid, client, drag, rate, trace)
+    settled = client.call()[0]["snapshot"]["overview"]
+    after = settled["camera"]
     client.call({"name": "overview.auto"})
     moved = abs(after["x"] - before["x"]) + abs(after["y"] - before["y"])
     if moved < 20:
         fail(f"{spec['label']}: camera barely moved ({moved:.1f}px)")
+    if fingerprint(settled) != start:
+        fail(f"{spec['label']}: the drag changed card membership or geometry")
     return {
         "label": spec["label"],
         "filterId": spec["filterId"],
@@ -330,6 +387,7 @@ def condition(process, client, spec, drag, rate, trace):
         "panP95": round(percentile(latencies, 95), 2),
         "panAbsorption": round(absorption, 1),
         "cameraMovedPx": round(moved, 1),
+        "viewport": viewport,
         **frames,
     }
 
@@ -349,7 +407,10 @@ def summarize(results, conditions):
             values = [r[key] for r in rows if r.get(key) is not None]
             entry[key] = round(median(values), 3) if values else None
         entry["cards"] = rows[0]["cards"]
+        entry["viewport"] = sorted({json.dumps(r["viewport"], sort_keys=True) for r in rows})
         entry["runs"] = len(rows)
+        if len(entry["viewport"]) != 1:
+            fail(f"{spec['label']}: window geometry changed between runs: {entry['viewport']}")
         summary[spec["label"]] = entry
     return summary
 
@@ -382,12 +443,11 @@ def compare(summary, conditions):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", required=True, help="application bundle or raw executable")
-    parser.add_argument("--runtime", help="mokusei-runtime for a raw executable")
+    parser.add_argument("--app", required=True, help="signed application bundle")
     parser.add_argument("--data-dir", help="prepared isolated profile")
     parser.add_argument("--source-profile", help="clone this profile into <workdir>/profile first")
     parser.add_argument("--workdir", default="/private/tmp/mokusei-overview-pan")
-    parser.add_argument("--label", default="release")
+    parser.add_argument("--label", required=True, help="release or debug build identity")
     parser.add_argument("--pairs", type=int, default=3)
     parser.add_argument("--drag", type=float, default=4.0)
     parser.add_argument("--rate", type=float, default=120.0)
@@ -408,6 +468,9 @@ def main():
         data_dir = Path(args.data_dir)
     else:
         fail("either --data-dir or --source-profile is required")
+    # A runtime left by an interrupted earlier run holds this path's lease and
+    # makes the next launch fail before it becomes ready.
+    subprocess.run(["pkill", "-f", f"mokusei-runtime serve --data-dir {data_dir}"], check=False)
     socket_path = workdir / "ui.sock"
     if socket_path.exists():
         socket_path.unlink()
@@ -417,33 +480,34 @@ def main():
         conditions = json.loads(args.conditions) if args.conditions.strip().startswith("[") \
             else json.loads(Path(args.conditions).read_text())
 
-    process, log = launch(args.app, args.runtime, data_dir, socket_path, workdir / "app.log")
+    launch(args.app, data_dir, socket_path, workdir / "app.log")
     results = []
+    client = None
+    pid = None
     try:
         deadline = time.monotonic() + 120
         while time.monotonic() < deadline and not socket_path.exists():
-            if process.poll() is not None:
-                fail(f"app exited: {(workdir / 'app.log').read_text()[-400:]}")
             time.sleep(0.2)
+        if not socket_path.exists():
+            fail("automation socket never appeared")
         client = Client(str(socket_path))
         wait_ready(client)
+        pid = client.pid
+        if pid is None:
+            fail("the bridge did not report its pid")
         for pair in range(args.pairs):
             order = conditions if pair % 2 == 0 else list(reversed(conditions))
             for spec in order:
-                result = condition(process, client, spec, args.drag, args.rate,
+                result = condition(pid, client, spec, args.drag, args.rate,
                                    workdir / f"pan-{spec['label']}-p{pair}.trace")
                 result["pair"] = pair
                 results.append(result)
                 print(json.dumps({k: v for k, v in result.items() if k != "surfaces"},
                                  ensure_ascii=False), flush=True)
     finally:
-        if not args.keep:
-            process.terminate()
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill()
-        log.close()
+        client and client.close()
+        if not args.keep and pid:
+            os.kill(pid, signal.SIGTERM)
 
     summary = summarize(results, conditions)
     ratios = compare(summary, conditions)
@@ -451,10 +515,13 @@ def main():
         "label": args.label,
         "commit": subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                                  capture_output=True, text=True).stdout.strip(),
+        "app": str(Path(args.app).resolve()),
+        "provenance": provenance(args.app),
         "machine": {"model": subprocess.run(["sysctl", "-n", "hw.model"], capture_output=True,
                                             text=True).stdout.strip(),
                     "os": platform.mac_ver()[0], "python": platform.python_version()},
         "conditions": conditions,
+        "bridgeReconnects": client.reconnects,
         "dragSeconds": args.drag,
         "ratePerSecond": args.rate,
         "summary": summary,
