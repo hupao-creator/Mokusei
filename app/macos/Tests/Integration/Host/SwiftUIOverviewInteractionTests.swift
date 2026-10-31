@@ -852,12 +852,15 @@ private struct ExcerptInkReplay: View {
                     fixture.widths.append(.init(uptime: ProcessInfo.processInfo.systemUptime, width: Double(width)))
                 }
                 .frame(width: fixture.width, height: 96, alignment: .topLeading)
-                .overlay(alignment: .bottomLeading) {
-                    // Overlay proposal comes from the actual local frame,
-                    // without reading the requested width a second time.
-                    Color(.sRGB, red: 0, green: 0, blue: 1, opacity: 1)
-                        .frame(height: 3)
-                        .offset(y: 6)
+                .overlay {
+                    // Use the actual frame's geometry. A bottom alignment can
+                    // inherit the excerpt's text guide, which moves as lines
+                    // change and can put the marker inside the ink crop.
+                    GeometryReader { geometry in
+                        Color(.sRGB, red: 0, green: 0, blue: 1, opacity: 1)
+                            .frame(width: geometry.size.width, height: 3)
+                            .offset(y: geometry.size.height + 3)
+                    }
                 }
                 .offset(x: 16, y: 48)
             reference(ExcerptInkFixture.first, width: 360).offset(x: 16, y: 174)
