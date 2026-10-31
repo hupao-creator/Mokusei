@@ -246,24 +246,13 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 rounded caret, sized to 25/24 of the text size plus one point, with its center
 one point below AppKit's actual `drawInsertionPoint` rectangle. The top edge
 sits half a point lower and the lower end reaches the descender without moving
-glyphs. Its last drawing input and selection are retained as read-only geometry
-for native replay inspection. The zero-width logical
-boundary from `firstRect` is a separate text/input-method location and can differ
-from the pixel-aligned drawing rectangle. View coordinates are converted through AppKit to the backing
-layer's coordinates before placement; movement also stays in layer coordinates.
-The opt-in presentation always uses a 2.6-point white core
-with a warm-yellow upper halo and cool-blue lower halo. Moku's composers and
-Overview's expanded search field are its production callers and supply a fixed
-dark surface; ordinary composers retain their native caret and appearance. Empty
-emphasized inputs leave three points between the insertion origin and placeholder
-text. The `singleLine` option lays the native editor out as one horizontally
-scrolling, non-wrapping line, keeps Return from inserting a break and omits the
-multiline submit tooltip; the field owner is responsible for replacing pasted
-line breaks. With no horizontal scroller, the native editor still scrolls the
-caret into view and responds to trackpad movement. Its layout pins the vertical
-clip origin after a viewport resize, including when SwiftUI initially presents a
-short document and for direct native scroll requests; horizontal scrolling remains
-owned by the text editor.
+glyphs. View coordinates are converted through AppKit to the backing layer's
+coordinates before placement, so a flipped or scaled text view does not
+displace the mark. The opt-in presentation always uses a 2.6-point white core
+with a warm-yellow upper halo and cool-blue lower halo. Moku is its production
+caller and supplies a fixed dark surface; ordinary composers retain their native
+caret and appearance. Empty emphasized inputs leave three points between the
+insertion origin and placeholder text.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered

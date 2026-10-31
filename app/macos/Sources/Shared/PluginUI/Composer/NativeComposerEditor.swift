@@ -18,7 +18,6 @@ struct NativeComposerEditor: NSViewRepresentable {
     var onSubmit: () -> Void
     var onEscape: (() -> Void)?
     var submitOnReturn = false
-    var singleLine = false
     var emphasizedInsertionPoint = false
     var reduceCaretMotion = false
     var onPaste: (([NSItemProvider], NSRange) -> Void)? = nil
@@ -26,8 +25,7 @@ struct NativeComposerEditor: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = singleLine ? SingleLineComposerScrollView() : NativeStyledScrollView()
-        if singleLine { scroll.contentView = SingleLineComposerClipView() }
+        let scroll = NativeStyledScrollView()
         scroll.drawsBackground = false
         scroll.contentView.drawsBackground = false
         let editor = ComposerTextView()
@@ -37,21 +35,10 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.focusRingType = .none
         editor.textContainerInset = .zero
         editor.textContainer?.lineFragmentPadding = 5
-        if singleLine {
-            // Search-style fields scroll horizontally instead of wrapping; the
-            // document view grows past the viewport and stays one line high.
-            editor.isVerticallyResizable = false
-            editor.isHorizontallyResizable = true
-            editor.autoresizingMask = [.height]
-            editor.textContainer?.widthTracksTextView = false
-            editor.textContainer?.heightTracksTextView = true
-            editor.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: 0)
-        } else {
-            editor.isVerticallyResizable = true
-            editor.isHorizontallyResizable = false
-            editor.autoresizingMask = [.width]
-            editor.textContainer?.widthTracksTextView = true
-        }
+        editor.isVerticallyResizable = true
+        editor.isHorizontallyResizable = false
+        editor.autoresizingMask = [.width]
+        editor.textContainer?.widthTracksTextView = true
         editor.layoutManager?.allowsNonContiguousLayout = false
         editor.minSize = .zero
         editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -113,34 +100,9 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.pasteAttachments = unavailable ? nil : onPaste
         editor.isEditable = !unavailable
         editor.isSelectable = !unavailable
-        editor.singleLine = singleLine
         editor.emphasizedInsertionPoint = emphasizedInsertionPoint
         editor.reduceCaretMotion = reduceCaretMotion
-        if singleLine {
-            // The document must be at least as wide as its text or late caret
-            // positions cannot be scrolled into view. It also stays at least as
-            // wide as the field, keeping the empty area clickable.
-            let viewport = NSSize(width: max(1, scroll.contentSize.width),
-                                  height: max(1, scroll.contentSize.height))
-            editor.minSize = viewport
-            var used: CGFloat = 0
-            if let container = editor.textContainer, let layout = editor.layoutManager {
-                layout.ensureLayout(for: container)
-                used = layout.usedRect(for: container).width
-            }
-            let width = max(viewport.width, ceil(used) + editor.textContainerInset.width * 2 + 10)
-            if editor.frame.width != width || editor.frame.height != viewport.height {
-                editor.setFrameSize(NSSize(width: width, height: viewport.height))
-                editor.scrollRangeToVisible(editor.selectedRange())
-            }
-            // No horizontal scroller: legacy scrollbar styles would reserve a
-            // row inside the one-line field. The native editor still brings the
-            // caret into view and scrolls with the trackpad.
-            scroll.hasHorizontalScroller = false
-            scroll.hasVerticalScroller = false
-        } else {
-            scroll.hasVerticalScroller = showsScroller
-        }
+        scroll.hasVerticalScroller = showsScroller
         coordinator.applySelectionRequest()
         if let window = editor.window {
             if focused && focusEnabled && !unavailable && window.firstResponder !== editor { window.makeFirstResponder(editor) }
@@ -188,17 +150,6 @@ struct NativeComposerEditor: NSViewRepresentable {
             guard let editor, editor.operationDepth == 0 else { return }
             guard !updating else { schedulePublish(); return }
             applySelectionRequest()
-            if synchronizeText, parent.singleLine, !editor.hasMarkedText(), let storage = editor.textStorage {
-                // Normalize at the editor boundary even if the resulting model
-                // value is unchanged and SwiftUI therefore does not rerender.
-                // Each newline occupies one UTF-16 unit, preserving selection.
-                let text = storage.string as NSString
-                for index in (0..<text.length).reversed() {
-                    if let scalar = UnicodeScalar(text.character(at: index)), CharacterSet.newlines.contains(scalar) {
-                        storage.replaceCharacters(in: NSRange(location: index, length: 1), with: " ")
-                    }
-                }
-            }
             let state = NativeComposerEditorState(text: editor.string, selection: editor.selectedRange(),
                 focused: editor.window?.firstResponder === editor, composing: editor.hasMarkedText())
             // Passive rerenders/focus reports must not overwrite a model update
@@ -227,9 +178,6 @@ struct NativeComposerEditor: NSViewRepresentable {
             case 48: key = .tab
             case 53: key = .escape
             case 36, 76:
-                // A single-line field owns no submission and must not insert a
-                // break for any Return variant.
-                if parent.singleLine { return true }
                 if parent.submitOnReturn, returnModifiers == .command {
                     editor.insertText("\n", replacementRange: editor.selectedRange())
                     return true
@@ -266,19 +214,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
     }
     var reduceCaretMotion = false { didSet { caret.reduceMotion = reduceCaretMotion } }
-    /// Shift/Option-Return bypass `handle` and reach the native bindings, so
-    /// the editor itself must also refuse line breaks in a single-line field.
-    var singleLine = false
-    override func insertNewline(_ sender: Any?) {
-        if !singleLine { super.insertNewline(sender) }
-    }
-    override func insertLineBreak(_ sender: Any?) {
-        if !singleLine { super.insertLineBreak(sender) }
-    }
     private let caret = NativeComposerCaret()
-    /// The latest real on callback, in this view's coordinates. AppKit's
-    /// firstRect logical boundary is not the insertion mark's drawing rectangle.
-    private(set) var nativeInsertionPointDrawing: (rect: NSRect, selection: NSRange)?
     var composerTextInsets = EdgeInsets() {
         didSet {
             guard composerTextInsets != oldValue else { return }
@@ -332,10 +268,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         }
         // Off callbacks also erase the old insertion rectangle during movement.
         // Keep the breathing layer alive, but only position it on an on callback.
-        if flag {
-            nativeInsertionPointDrawing = (rect, selectedRange())
-            caret.show(at: rect, in: self)
-        }
+        if flag { caret.show(at: rect, in: self) }
     }
     override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting flag: Bool) {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: flag)
@@ -375,38 +308,5 @@ struct NativeComposerEditor: NSViewRepresentable {
         let accepted = super.resignFirstResponder()
         if accepted { caret.remove(); focusChanged?() }
         return accepted
-    }
-}
-
-/// SwiftUI can resize the one-line viewport after AppKit has centered a
-/// shorter initial document. Keep vertical scrolling pinned as it grows, while
-/// preserving the horizontal position used for long queries.
-@MainActor private final class SingleLineComposerScrollView: NativeStyledScrollView {
-    override func layout() {
-        super.layout()
-        guard let documentView else { return }
-        let viewport = contentView.bounds
-        if documentView.frame.height != viewport.height {
-            documentView.setFrameSize(NSSize(width: documentView.frame.width, height: viewport.height))
-        }
-        if contentView.bounds.origin.y != 0 {
-            contentView.scroll(to: NSPoint(x: contentView.bounds.origin.x, y: 0))
-            reflectScrolledClipView(contentView)
-        }
-    }
-}
-
-/// AppKit also constrains the clip while caret scrolling or text sizing occurs,
-/// outside the scroll view's layout pass. Single-line fields have no vertical
-/// scroll range, even while their document is temporarily shorter than the clip.
-@MainActor private final class SingleLineComposerClipView: NSClipView {
-    override func scroll(to newOrigin: NSPoint) {
-        super.scroll(to: NSPoint(x: newOrigin.x, y: 0))
-    }
-
-    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
-        var constrained = super.constrainBoundsRect(proposedBounds)
-        constrained.origin.y = 0
-        return constrained
     }
 }
