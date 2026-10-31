@@ -65,6 +65,19 @@ each excluded method must produce its actual passing outcome, marker and zero
 exit receipt in the declared `native/tag-glass-captures` check. The title-reversal
 pixel proof needs that host's AppKit loop and WindowServer delivery.
 
+The same capture check owns
+`SwiftUIOverviewInteractionTests.excerptRevealKeepsMovingThroughRewriteAndWidthChanges`.
+It observes the production excerpt's intermediate ink through fixed-width reveal,
+rewrite cancellation and a measured local width change, using complete WindowServer
+frames in the AppKit host. `EXCERPT_INK_MOTION_CONFIRMED` is emitted only after
+those pixel assertions. Its screenshots, frame times and source/binary provenance
+are retained under the capture evidence's `excerpt` directory. Task completion
+or final text alone cannot pass this exactly-once owner contract.
+The native cloud/scan composition and retained Overview return cases use that
+same `native/tag-glass-captures` owner, with
+`NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED` and
+`OVERVIEW_RETAINED_RETURN_CONFIRMED` respectively.
+
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings
 capsule transitions, native input/responder/pointer cases and model-selector flows

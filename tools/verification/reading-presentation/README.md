@@ -79,11 +79,30 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
-Its long-press fixture queues each down event before a serial worker supplies
-the timed drag/release through the test-only [native input bridge](../../../app/macos/Tests/NativeInputSupport/README.md).
-Receipts check actual posting deadlines independently of AppKit layout/tracking;
-the existing short-press, drag, long-press and unavailable-state assertions still
-check recognition. Posting receipts do not claim physical input delivery.
+The composer hold replay queues each down/drag/up through AppKit in order. A
+window- and gesture-scoped local monitor anchors a private serial Dispatch timer
+to actual down dispatch. Strict zero-leeway deadlines supply drag after 100ms
+and release after the unchanged 100/800ms duration; the worker creates and posts
+each event without waiting for the MainActor. Apple permits
+[posting events from secondary threads](https://developer.apple.com/documentation/appkit/nsapplication/postevent(_:atstart:)).
+The Swift SDK nevertheless imports this inherited AppKit method as `MainActor`.
+The [native input test support](../../../app/macos/Tests/NativeInputSupport/README.md)
+provides one typed Objective-C function that creates and posts the mouse event
+on the calling worker. The application reference and window coordinates are
+captured on the main actor; the bridge never inspects a window or view. SwiftPM's
+Host test target and the isolated replay compile the same source. The replay
+stages its header, module map and implementation, compiles with warnings as errors,
+and records their hashes, the object hash and compiler command in `launch.json`.
+Planned and actual post times, optional drag/up dispatch observations and
+voice-start timestamps are retained. Each post must complete within 50ms of its
+deadline; drag and short release must also precede the recognizer's actual
+minimum press duration. Nested text tracking can bypass local drag/up monitors,
+so these optional observations cannot certify or invalidate execution merely by
+being absent. Every stage still requires real release posting and the recognizer
+back at `.possible` within three seconds, without forcing layout/display while
+the gesture is in flight. The original start-count, draft and detachment
+assertions, 90-second replay timeout and owned-process stack capture remain unchanged.
+Posting receipts do not claim physical input delivery.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
@@ -209,6 +228,101 @@ other native replays and SwiftPM builds. Plain SwiftPM still runs the existing
 portal geometry, render layers and navigation cases. The real annotation mouse
 input and focused document responder-chain tests explicitly skip without this
 native replay capability; both run without skips in this eight-test launcher.
+
+## Overview animation and native decoration evidence
+
+The title cancellation case starts its WindowServer stream before the initial
+`A → B → A` reversal. It sends B once and establishes an outgoing A from the
+latest post-input frame with 10–90% reference ink and less than 50ms age. The
+actual A setter must begin and return before B's `ContinuousClock` instant plus
+the production owner's 150ms outgoing sleep, with freshness rechecked. This
+earliest-replacement bound excludes B's incoming frames; the saved before/after
+receipts reject preemption across it. It proves early source submission, not
+SwiftUI consumption. AX label/value is diagnostic outside that live path because
+model opacity zero can hide a still-visible fading Text from AX. The bounded
+three-second prerequisite replaces the assumed 50ms sleep; it does not repeat B
+or change the original 500ms return observation and self-rendered equality
+assertion. The last available WindowServer frame at that same check must follow
+A's setter return and exactly match the original content pixels, without waiting
+for a match or using a later frame. Continuous/raw source times, pixel-analysis
+times, all captured frames and the actual observation time distinguish a blank
+`cacheDisplay` snapshot from a blank composed window; a later settled frame cannot
+certify the earlier observation. The incoming-cancellation sensor still requires the
+latest frame, 10–60% ink, less than 50ms sample age and the original three-second
+deadline. It caches each frame's exact ink total using Accelerate's integer
+histogram over the same BGRA pixels, with static references computed before
+input. It retains batch sizes and processing times, then checks the accelerated
+values against the original scalar formula after the stream stops. Skipped
+intermediate frames remain evidence, not substitutes for a current frame.
+
+The existing `--tag-glass-captures` host also executes
+`SwiftUIOverviewInteractionTests.excerptRevealKeepsMovingThroughRewriteAndWidthChanges`.
+It mounts production `ThreadCardExcerpt` in a fixed onscreen window, captures
+complete WindowServer frames during reveal and rewrite, and changes the component's
+local width from 360 to 280pt during a reveal. Measured width and intermediate ink
+observations are required; a completed 280ms task or matching final text is
+insufficient. Reference frames use the same production text renderer. The moving
+cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
+
+The rewrite input waits for two observed partial frames with the same minimum
+0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
+latest frame must still be partial, at most 80% exposed, and less than 50ms old
+after sensor work; the 450ms sensor deadline fails if this prerequisite is
+unavailable. Every raw frame is retained, while the live sensor examines only
+the latest frame in each received batch. It validates sRGB premultiplied BGRA
+format and row stride, reads precomputed glyph offsets and a narrow width-marker
+region, and records per-stage processing times and sample age. Before input,
+its exposure and boundary values must match the existing crop oracle on the
+settled blank and full reference; after capture, every live sample is checked
+against the unchanged offline oracle. Sensor samples, input times, presentation
+timestamps and accepted frame indices are retained. PNG encoding and complete
+frame, geometry and motion assertions run after capture stops. The local resize
+still occurs
+140ms after input. Rewrite frames must have no hard rising mask edge and must
+still show an early reset within 65ms, new incoming motion and the exact settled
+production reference within the existing pixel-error tolerance.
+
+The method has one explicit `native/tag-glass-captures` owner, so the
+ordinary Swift run excludes it while complete coverage requires its passing native
+outcome and `EXCERPT_INK_MOTION_CONFIRMED` marker. Screenshots, capture timestamps
+and measurements are retained in `excerpt/` under this host's evidence directory,
+including failed runs. `provenance.json` records the actual checkout and product
+Git tree, worktree-diff digest, input-file and signed replay binary SHA256 values,
+run/attempt identifiers, and capture-file hashes. The width stripe uses the
+component frame's top-leading geometry; its measured pixel bounds must stay
+outside all ink regions. This Debug replay validates component behavior; the
+separate [Release CI comparison](../overview-ci-performance/README.md) owns CPU.
+
+`NativeOverviewDecorationCaptureTests.nativeCloudAndScanMoveInComposedOverview`
+mounts the production Overview workspace with one public Codex running thread
+and a running subagent. It requires the actual 2×1 projection, native cloud and
+scan views, a live Metal layer and CA scan animation. Two disjoint later capture
+intervals must show cloud pixel changes in a quiet region that excludes duration,
+text and scan pixels. The fixed fixture's quiet bottom strip spans both card cells
+(x=24...712, y=106...176 card points). Its title, duration, single excerpt and
+derived row stay above the strip; 24-point side/bottom insets exclude rounded
+corners. This covers a random cloud concentrated in either cell. The former
+right-cell crop remains diagnostic, since a locally dark region cannot establish
+that the cloud stopped. The 3.9-second capture, two predetermined intervals,
+static control and movement thresholds are unchanged. Narrow-row contrast must show the scan moving through the
+composed image. A legal 0.90→1.0 camera change must preserve the native objects.
+Complete fixed/zoom PNGs, pixel measurements, geometry and provenance are retained
+under `native-decoration/`. Transparency, glass colors, rounded corners and zoom
+alignment require review of those real images; neither callbacks nor these
+capture samples certify optical FPS or GPU time. The required success marker is
+`NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED`.
+
+The same running AppKit host owns
+`NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
+This test requires an actual `NSApplication.run` loop before observing an opening
+midpoint, reversing the page and checking latest Overview content with no remount.
+Its original geometry and return assertions remain intact. Ordinary Swift execution
+excludes this exact method; complete coverage requires its native passing outcome
+and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
+These are AppKit geometry/content observations, not WindowServer pixel assertions.
+
+The capture launcher requires all six assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations and retained Overview return.
 
 ## Overview tag bar
 

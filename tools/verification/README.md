@@ -39,9 +39,19 @@ For Note viewport evidence and authenticated Swift/Runtime/context round trips,
 see the [Note replay](moku-note/README.md). Its native launcher, Talk dismissal
 and reading-presentation stage inputs, build artifacts and resources in temporary
 workspaces, retain path/PID diagnostics and clean up the owned app on timeout.
+Before timeout cleanup, native replays attempt a two-second sample of the startup
+PID only after confirming its staged executable, with an eight-second sampler
+limit. Evidence retains `timeout-sample.txt` when available and
+`timeout-sample.log` for the attempt; the original replay timeout remains a failure.
 Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
+For the foreground Overview performance baseline, see the
+[Release CI comparison](overview-ci-performance/README.md). It uses one hosted
+macOS runner for serial, balanced A/B pairs with a separate production Core
+producer, real transport/catalog consumption and four fully visible running
+cards. Its retained Markdown report and raw measurements are the continuing
+baseline; historical target-Mac measurements are not pooled with CI results.
 For empty-workspace Moku centering, global catalog membership and first-dispatch
 admission, run `python3 tools/verification/reading-presentation/run.py --moku-landing`;
 see the [production landing replay](reading-presentation/README.md#empty-workspace-and-first-dispatch).
@@ -68,6 +78,20 @@ The runtime-helper replay also keeps a real zombie child unreaped after its
 process-group leader exits. It verifies macOS's `EPERM` probe result and calls
 production cleanup before and after reaping, alongside the live-descendant
 drain scenario. No user runtime or external Harness is used for these fixtures.
+
+CI passes `--artifacts <directory>` after `--swift-shutdown` to the runtime-helper
+replay. A concurrent-launch error is captured immediately; a parent panic also
+captures a separate snapshot before deleting its owned temporary profiles, then
+rethrows the original panic. Only named runtime logs and private startup/owner/
+connection/launch metadata from those fixture profiles are copied. Symbolic links and
+special files are rejected, logs are capped at 2 MiB, JSON at 64 KiB, and each
+profile exports at most 64 launch files. The manifest records missing/read errors,
+truncation, copied-byte hashes and observed PID liveness. These snapshots are not
+atomic ownership observations and do not turn an unavailable historical log into
+a diagnosed failure. Capture errors remain additional diagnostics; they never
+replace the replay's original failure or relax its assertions.
+The portable evidence-retention tests run in CI's existing Go unit group; the
+full `--swift-shutdown` replay still runs separately on macOS.
 
 Property-based tests complement the executable replays: `make pbt` runs Rapid
 with the race detector against Runtime/SQLite admission schedules and Codex
@@ -106,6 +130,12 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/settings-shell` | Schema, normalization, CAS, diagnostic bounds and redaction |
 | `./tools/verification/artificialanalysis` | [Intelligence Index v5](artificialanalysis/README.md) version/metric contracts, cache isolation, cold/warm cache, detail/provenance matching and output bounds; opt-in live website check |
 | `./tools/verification/artificialanalysis/lifecycle` | Independent Context host registration/enablement, runtime catalog/settings/history reset, shared acquisition, cancellation, drain, fallback and bounds |
+
+The Settings replay waits for the current mounted onboarding control to be both
+settled and enabled within its existing 12-second bound. A timeout reports the
+step, model readiness and matching control state. Its `-artifacts` directory also
+retains any `onboarding-failure.json` and `onboarding-failure.png` captured by the
+native flow, alongside the Swift/Runtime logs and Settings summary.
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
 

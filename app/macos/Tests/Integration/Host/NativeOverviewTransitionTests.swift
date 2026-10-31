@@ -31,6 +31,9 @@ import MokuseiTestSupport
     @ObservationIgnored var slowMountIDs = Set<String>()
     @ObservationIgnored var delayedMounts = Set<String>()
     @ObservationIgnored var presentationHistory: [String: [String]] = [:]
+    @ObservationIgnored var entrySource1At: TimeInterval?
+    @ObservationIgnored var geometryObserver: (@MainActor (String, CGRect, TimeInterval) -> Void)?
+    @ObservationIgnored var revisionObserver: (@MainActor (UInt64, TimeInterval) -> Void)?
 }
 
 private struct TransitionCanvas: View {
@@ -38,9 +41,16 @@ private struct TransitionCanvas: View {
     var body: some View {
         NativeOverviewCanvas(contentSource: fixture.content, sceneKey: fixture.scene, state: fixture.state,
             selectionID: fixture.selection, resetEpoch: fixture.resetEpoch,
-            revisions: fixture.revisions, onRevisionsConsumed: { fixture.consumed.append($0) }) { item in
+            revisions: fixture.revisions, onRevisionsConsumed: { revision in
+                fixture.consumed.append(revision)
+                fixture.revisionObserver?(revision, ProcessInfo.processInfo.systemUptime)
+            }) { item in
             slowCard(item)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("transitions")) } action: { fixture.frames[item.id] = $0; fixture.sampleTimes[item.id] = ProcessInfo.processInfo.systemUptime }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("transitions")) } action: { frame in
+                    let now = ProcessInfo.processInfo.systemUptime
+                    fixture.frames[item.id] = frame; fixture.sampleTimes[item.id] = now
+                    fixture.geometryObserver?(item.id, frame, now)
+                }
                 .onAppear { fixture.appearances[item.id, default: 0] += 1 }
                 .onChange(of: item.presentationID, initial: true) { _, value in
                     fixture.presentations[item.id] = value
@@ -538,22 +548,116 @@ struct NativeOverviewTransitionTests {
         fixture.items = [.init(id: "a")]
         let window = try await setup(fixture)
         defer { window.close(); fixture.state.camera.dispose() }
+        typealias GeometryReceipt = (frame: CGRect, targetY: Double, camera: NativeOverviewTransform, at: TimeInterval)
+        var previous: GeometryReceipt?
+        var precedingInjection: GeometryReceipt?
+        var beforeInjection: GeometryReceipt?
+        var latestAfterInjection: GeometryReceipt?
+        var beforeFirstConsumption: GeometryReceipt?
+        var source2At: TimeInterval?
+        var source2CommittedAt: TimeInterval?
+        var consumed1At: TimeInterval?
+        var samples: [[String: Any]] = []
+        var consumed: [[String: Any]] = []
+        var droppedSamples = 0
+        let camera = fixture.state.camera.liveTransform
+        let final = [NativeOverviewItem(id: "a"), .init(id: "instant")]
+
+        @MainActor func describe(_ sample: GeometryReceipt?) -> Any {
+            guard let sample else { return NSNull() }
+            return ["at": sample.at, "x": Double(sample.frame.minX), "y": Double(sample.frame.minY),
+                    "width": Double(sample.frame.width), "height": Double(sample.frame.height),
+                    "targetY": sample.targetY, "remainingY": Double(sample.frame.minY) - sample.targetY,
+                    "cameraX": sample.camera.x, "cameraY": sample.camera.y, "cameraScale": sample.camera.scale]
+        }
+        @MainActor func timestamp(_ value: TimeInterval?) -> Any {
+            if let value { return value }
+            return NSNull()
+        }
+        @MainActor func waitForReceipt(_ predicate: @MainActor () -> Bool, _ failure: String) async throws {
+            let deadline = ContinuousClock.now + .seconds(3)
+            while ContinuousClock.now < deadline {
+                if predicate() { return }
+                // This case observes geometry callbacks without forcing layouts
+                // in this or another window while entry is in flight.
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            let satisfied = predicate()
+            try #require(satisfied, Comment(rawValue: failure))
+        }
+        defer {
+            fixture.geometryObserver = nil; fixture.revisionObserver = nil
+            let report: [String: Any] = ["source1At": timestamp(fixture.entrySource1At), "source2At": timestamp(source2At),
+                "source2CommittedAt": timestamp(source2CommittedAt), "consumed1At": timestamp(consumed1At),
+                "precedingInjection": describe(precedingInjection), "beforeInjection": describe(beforeInjection),
+                "beforeFirstConsumption": describe(beforeFirstConsumption), "samples": samples,
+                "droppedSamples": droppedSamples, "consumptions": consumed]
+            do {
+                let data = try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys])
+                FileHandle.standardOutput.write(Data("OVERVIEW_ENTRY_REVISION_RECEIPTS ".utf8) + data + Data("\n".utf8))
+            } catch {
+                Issue.record(Comment(rawValue: "Could not encode entry revision receipts: \(error)"))
+            }
+        }
+        fixture.geometryObserver = { [weak fixture] id, frame, now in
+            guard let fixture, id == "temporary",
+                  let target = fixture.state.presentedPlacements.first(where: { $0.id == id }) else { return }
+            let transform = fixture.state.camera.liveTransform
+            let sample: GeometryReceipt = (frame, transform.y + target.cardFrame.minY * transform.scale, transform, now)
+            if samples.count < 64 {
+                samples.append(["geometry": describe(sample), "isLayingOut": fixture.state.isLayingOut,
+                                "consumed": fixture.consumed, "revision2Installed": source2CommittedAt != nil])
+            } else { droppedSamples += 1 }
+            let prior = previous
+            previous = sample
+            guard fixture.state.isLayingOut, !fixture.consumed.contains(1), transform == camera else { return }
+            if let committed = source2CommittedAt {
+                if now > committed, let beforeInjection, sample.targetY == beforeInjection.targetY,
+                   frame.minY >= sample.targetY {
+                    latestAfterInjection = sample
+                }
+                return
+            }
+            guard source2At == nil, let prior, let source1At = fixture.entrySource1At, prior.at > source1At, now > prior.at,
+                  prior.camera == transform, prior.targetY == sample.targetY,
+                  frame.minY < prior.frame.minY, frame.minY - sample.targetY >= 4 else { return }
+            // Two observed frames prove upward motion. Keeping at least 4pt
+            // leaves 2pt of margin beyond the unchanged >2pt assertion. A fixed
+            // 40ms delay after polling could instead inject at the endpoint.
+            precedingInjection = prior; beforeInjection = sample
+            source2At = ProcessInfo.processInfo.systemUptime
+            fixture.items = final
+            fixture.revisions.append(.init(revision: 2, sceneKey: fixture.scene, items: final, instantEntryIDs: ["instant"]))
+            source2CommittedAt = ProcessInfo.processInfo.systemUptime
+        }
+        fixture.revisionObserver = { revision, now in
+            consumed.append(["revision": revision, "at": now, "lastEntryGeometry": describe(latestAfterInjection)])
+            if revision == 1 {
+                consumed1At = now
+                // Freeze only observed entry geometry before this consumption;
+                // a later revision's exit cannot supply the displacement.
+                beforeFirstConsumption = latestAfterInjection
+            }
+        }
         let next = [NativeOverviewItem(id: "a"), .init(id: "temporary")]
+        fixture.entrySource1At = ProcessInfo.processInfo.systemUptime
         fixture.items = next
         fixture.revisions = [.init(revision: 1, sceneKey: fixture.scene, items: next)]
-        try await SwiftUIReplay.wait { fixture.frames["temporary"] != nil && fixture.state.isLayingOut }
-        let before = try frame("temporary", fixture)
-        // Append while the first entry is rising, rather than submitting an
-        // already complete batch. The first revision must finish its own beat.
-        try await Task.sleep(for: .milliseconds(40))
-        let final = [NativeOverviewItem(id: "a"), .init(id: "instant")]
-        fixture.items = final
-        fixture.revisions.append(.init(revision: 2, sceneKey: fixture.scene, items: final, instantEntryIDs: ["instant"]))
-        try await SwiftUIReplay.wait { fixture.consumed.contains(1) }
-        let after = try frame("temporary", fixture)
+        try await waitForReceipt({ source2CommittedAt != nil },
+            "Entry observation incomplete: no two rising frames with at least 4pt remaining before revision 1 completed")
+        try await waitForReceipt({ consumed1At != nil }, "Revision 1 was not consumed after the in-flight injection")
+        let beforeSample = try #require(beforeInjection)
+        let afterSample = try #require(beforeFirstConsumption,
+            "Entry observation incomplete: no actual geometry after revision 2 injection and before revision 1 consumption")
+        let committedAt = try #require(source2CommittedAt)
+        let consumedAt = try #require(consumed1At)
+        try #require(afterSample.at > committedAt && afterSample.at < consumedAt)
+        let before = beforeSample.frame
+        let after = afterSample.frame
         #expect(after.minY < before.minY - 2)
         #expect(fixture.consumed.first == 1)
-        try await SwiftUIReplay.wait { fixture.consumed == [1, 2] && !fixture.state.isLayingOut }
+        try await waitForReceipt({ fixture.consumed == [1, 2] && !fixture.state.isLayingOut },
+            "The queued revisions did not complete in FIFO order")
         #expect(fixture.appearances["a"] == 1)
         #expect(fixture.state.mountedCardIDs == ["a", "instant"])
     }

@@ -49,3 +49,54 @@ for the baseline, failure classifications, skipped fixtures and validation logs.
 The tag-prefix geometry-only case mounts its filter bar offscreen to exclude
 native glass hover from chip-height measurements. Its optional WindowServer
 capture mode remains on-screen; glyph reference and pixel assertions are unchanged.
+
+## Overview revision timing
+
+The entry-revision fixture observes geometry as it is delivered. A card's first
+polled frame can arrive with only two points of its eight-point entry remaining;
+sleeping another 40ms cannot establish an interruption during that entry.
+The fixture instead injects its second revision synchronously after two actual
+descending samples while at least four points remain and the first revision is
+unconsumed. It records the injection and consumption boundaries and uses actual
+geometry from before the first consumption. The original strict movement of more
+than two points, FIFO, mounted-identity and final-membership assertions remain.
+Failure to observe the prerequisite within the original three seconds is an
+explicit incomplete-observation failure. Diagnostics retain the finite geometry
+history; a theoretical destination or the next revision's exit cannot stand in
+for continued entry motion.
+
+## Execution-link streaming input
+
+The running execution-link replay supplies complete Markdown paragraphs while
+the message remains streaming. Mounted reading timelines publish closed pages;
+a single unclosed paragraph, even with many single line breaks, cannot establish
+the prerequisite of visible page growth. The replay keeps its original height,
+follow, user-scroll, Jump Latest and exact-execution assertions and wait budgets.
+Finite stage receipts include the actual timeline controls and supplied input
+lengths, and the final state is emitted on both success and failure.
+
+## Title reversal timing
+
+The early `A → B → A` replay sends B once, then observes an outgoing A before
+sending A. A requested 50ms sleep can resume after B is already displayed and
+does not establish that prerequisite. The replacement observation has a fixed
+three-second budget: the newest WindowServer frame must follow B's input, have
+10–90% of the settled A ink, and be less than 50ms old. Both the final check before
+A and its actual setter return must precede B's `ContinuousClock` instant plus
+150ms. That is the earliest possible replacement allowed by the production
+owner's outgoing sleep, not an extra observation allowance. The same clock
+brackets the single A setter; a preemption across the bound explicitly fails
+after saving its receipt. This establishes early source submission, not when
+SwiftUI consumes it. AX label/value is diagnostic outside the live input path:
+a still-visible fading A can have model opacity zero and disappear from AX.
+Raw frames, pixel-analysis timings, sample age, and continuous/raw input receipts
+remain evidence. Failure to establish the prerequisite fails the case; there
+is no repeated B input or retrospective use of an older partial frame.
+
+This replaces the assumed 50ms input interval, not the fixed 500ms final check or
+its original self-rendered equality assertion. The last available WindowServer
+frame at that same check must also follow A's setter return and exactly match
+the original content pixels. The replay does not wait for a match or accept a
+frame presented after the check. A later return to A cannot certify that earlier
+check. The separate incoming-cancellation oracle retains its 10–60% ink, 50ms
+freshness, three-second budget and exact replacement-pixel assertions.

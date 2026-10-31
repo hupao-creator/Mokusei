@@ -31,6 +31,17 @@ While cleanup is pending, authenticated `/health` reports `status: stopping`; or
 
 Logs live under the selected profile at `runtime/debug-logs/service.jsonl` and `runtime/process.log`.
 
+If an `Ensure` child loses the ownership guard before a competing child publishes
+its owner record, it waits for the competitor's existing private launch receipt.
+Pending launches are read before the owner record to cover that handoff; errors
+from either metadata read remain errors. A pending receipt never proves success:
+the existing health/identity check must still confirm the published service.
+The original two-minute deadline, cancellation barrier and fail-closed behavior
+for an occupied port without a known pending launch remain unchanged. This
+guarantee covers children using `AwaitLaunch`, not an unidentified foreground
+process holding the port. Deterministic real-process tests in `manager_test.go`
+cover the prepublication window and absent/invalid launch or owner metadata.
+
 Native worker cleanup treats a reaped process group or a group containing only
 zombies as stopped. On macOS, a signal probe for a zombie-only group returns
 `EPERM`; bounded process-table inspection must establish that no member can

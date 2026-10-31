@@ -19,6 +19,12 @@ must stop them before the next compiler enters; successful leader exit must
 join them before publication. A nonzero compiler preserves its exit status and
 the previous artifact. The watcher case runs a nested production devtool build
 to check that cancellation waits for the inner tool's independent compiler group.
+Each heartbeat is written and closed in a temporary file in the same directory,
+then renamed over the published value. Killing the fixture during its next write
+therefore preserves the previous complete receipt. Directly truncating the
+published file could leave it empty after correct cleanup, making the later
+nonempty-receipt check impossible to satisfy. PID-stop checks, the ten-second
+receipt deadline and the unchanged-heartbeat comparison remain in force.
 
 Profile checks hold real owners of the current profile and its previous backup
 without a GUI and require fresh rotation to preserve both directories and owner

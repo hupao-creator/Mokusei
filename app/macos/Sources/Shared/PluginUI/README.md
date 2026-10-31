@@ -329,6 +329,15 @@ parsed preview; partial windows, rewrites, message replacement and transport-win
 shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
 
+The 280ms ink reveal uses the built-in offset effect to translate its two
+gradient masks. The mask view itself does not interpolate progress, removing
+that cause of per-frame body evaluation. Buffer advancement, reveal
+ownership, disabled-animation resets and the 800ms hold remain leaf-owned.
+Each new reveal key replaces only its two stateless visual layers, retiring
+the previous offset animation's presentation before the incoming mask starts
+at zero. The excerpt owner, buffer and tasks remain mounted; appends within
+the same window and local width changes retain the current visual identity.
+
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display.
 Hiding, backgrounding or detaching cancels that owner and settles the latest title.
@@ -341,7 +350,7 @@ mounted `SwiftUIOverviewInteractionTests` replay exercises retained visibility,
 streaming windows, rapid title updates and cancellation without replacing cards.
 The title cancellation method runs once in the mandatory
 `reading-presentation/run.py --tag-glass-captures` native AppKit entry point;
-the CI manifest assigns it there instead of an ordinary Swift shard. It arms
+the CI manifest assigns it there instead of ordinary Swift execution. It arms
 the existing continuous WindowServer capture before a blank NBSP title changes
 to visible text. Only a current partial incoming frame admits cancellation;
 the first replacement frame and every later complete frame must match the

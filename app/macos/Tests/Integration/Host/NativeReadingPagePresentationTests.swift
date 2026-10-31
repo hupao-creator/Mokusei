@@ -87,17 +87,43 @@ struct NativeReadingPagePresentationTests {
     }
 
     @Test func retainedOverviewReturnsWithLatestContent() async throws {
+        try #require(NSApp?.isRunning == true,
+            "Run this method through native-capture/tag-glass-captures; a real NSApplication event loop is required")
         let fixture = ReadingFixture()
         fixture.duration = 1.2
         let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
         defer { window.close() }
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
+        var openingSamples: [[String: Any]] = [], latestOpeningSample: [String: Any] = [:]
+        var nextDiagnosticAt = diagnosticStart, openingChecks = 0
+        defer {
+            let diagnostic: [String: Any] = ["AppKitRunning": NSApp.isRunning,
+                "applicationActive": NSApp.isActive, "windowVisible": window.isVisible,
+                "windowKey": window.isKeyWindow, "open": fixture.open, "motionActive": fixture.motion.active,
+                "openingChecks": openingChecks, "openingSamples": openingSamples, "latestOpeningSample": latestOpeningSample,
+                "parentAppearances": fixture.parentAppearances, "frontAppearances": fixture.frontAppearances]
+            if let data = try? JSONSerialization.data(withJSONObject: diagnostic, options: [.sortedKeys]),
+               let text = String(data: data, encoding: .utf8) {
+                print("OVERVIEW_RETAINED_RETURN_DIAGNOSTICS \(text)")
+            }
+        }
         try await SwiftUIReplay.wait { fixture.parentAppearances == 1 && fixture.renderedText == "Initial overview" }
         let count = fixture.parentAppearances
         fixture.open = true
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait {
-            guard let probe = fixture.frontProbe else { return false }
-            let x = probe.convert(probe.bounds, to: root).minX
+            let x = fixture.frontProbe.map { $0.convert($0.bounds, to: root).minX }
+            let now = ProcessInfo.processInfo.systemUptime
+            openingChecks += 1
+            latestOpeningSample = ["elapsedMilliseconds": (now - diagnosticStart) * 1000,
+                "x": x.map { $0 as Any } ?? NSNull(), "rootWidth": root.bounds.width,
+                "motionActive": fixture.motion.active, "AppKitRunning": NSApp.isRunning,
+                "applicationActive": NSApp.isActive, "windowVisible": window.isVisible, "windowKey": window.isKeyWindow]
+            if now >= nextDiagnosticAt && openingSamples.count < 64 {
+                openingSamples.append(latestOpeningSample)
+                nextDiagnosticAt = now + 0.05
+            }
+            guard let x else { return false }
             return x > root.bounds.width * 0.4 && x < root.bounds.width * 0.6
         }
         let probe = try #require(fixture.frontProbe)
@@ -109,6 +135,7 @@ struct NativeReadingPagePresentationTests {
         #expect(duringReturn >= beforeReturn - 1, "Returning during opening must not jump toward the open position")
         try await SwiftUIReplay.wait { !fixture.open && fixture.renderedText == "Latest overview" }
         #expect(fixture.parentAppearances == count)
+        print("OVERVIEW_RETAINED_RETURN_CONFIRMED AppKit=true latestContent=true preservedParent=true")
     }
     private func pixels(_ window: NSWindow) throws -> (left: NSColor, right: NSColor) {
         let root = try #require(window.contentView)

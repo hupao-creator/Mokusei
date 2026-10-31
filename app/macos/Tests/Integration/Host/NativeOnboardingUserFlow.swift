@@ -201,16 +201,32 @@ import MokuseiApplications
     }
 
     private static func control(_ suffix: String, operation: String, value: JSONValue, in presentation: NativeWorkspacePresentation) async throws {
-        func matches() -> [JSONValue] {
+        @MainActor func matches() -> [JSONValue] {
             let controls = presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? []
             return controls.filter {
                 let id = $0["id"]?.stringValue ?? ""
                 return id == suffix || id.hasSuffix("." + suffix)
             }
         }
-        try await wait("Onboarding control did not refresh: \(suffix)") {
+        try await wait("Onboarding control did not refresh: \(suffix)", diagnostic: {
+            let setup = presentation.onboarding
             let controls = matches()
+            let summary = JSONValue.array(controls.prefix(3).map { control in
+                .object(["id": control["id"] ?? .null, "handle": control["handle"] ?? .null,
+                         "pending": control["pending"] ?? .null, "enabled": control["enabled"] ?? .null])
+            })
+            let encoded = (try? summary.encodedData()) ?? Data()
+            let controlDetails = String(String(decoding: encoded, as: UTF8.self).prefix(2048))
+            return "page=\(presentation.interactionPage) step=\(setup.step) admitted=\(setup.admitted) mounted=\(setup.mounted) "
+                + "canAdvance=\(setup.canAdvance) editorReady=\(setup.editorReady) busy=\(setup.busy) "
+                + "runtimeAvailable=\(presentation.workspace.runtimeAvailable) composing=\(setup.settings.draft.composing) "
+                + "invalidField=\(String((setup.settings.draft.firstInvalidField ?? "none").prefix(160))) "
+                + "draftStatus=\(setup.settings.draft.status) matchCount=\(controls.count) controls=\(controlDetails)"
+        }) {
+            let controls = matches()
+            // Model readiness can precede SwiftUI's update of the mounted control.
             return controls.count == 1 && controls[0]["pending"] == .bool(false)
+                && controls[0]["enabled"] == .bool(true)
         }
         let control = try #require(matches().first, "Missing mounted onboarding control: \(suffix)")
         try #require(control["enabled"] == .bool(true), "Onboarding control is disabled: \(suffix)")
@@ -218,12 +234,14 @@ import MokuseiApplications
             handle: try #require(control["handle"]?.stringValue), operation: operation, value: value))
     }
 
-    private static func wait(_ message: String, until predicate: () -> Bool) async throws {
+    private static func wait(_ message: String, diagnostic: @MainActor () -> String = { "" }, until predicate: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(12)
         while !predicate(), Date() < deadline {
             for window in NSApp.windows { window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded() }
             try await Task.sleep(for: .milliseconds(30))
         }
-        try #require(predicate(), Comment(rawValue: message))
+        let completed = predicate()
+        let detail = completed ? "" : diagnostic()
+        try #require(completed, Comment(rawValue: detail.isEmpty ? message : "\(message)\n\(detail)"))
     }
 }

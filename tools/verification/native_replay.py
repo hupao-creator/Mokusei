@@ -13,7 +13,9 @@ import time
 
 
 class NativeReplay:
-    def __init__(self, repo, name, bundle_id):
+    def __init__(self, repo, name, bundle_id, configuration="debug"):
+        if configuration not in {"debug", "release"}:
+            raise ValueError("Native replay configuration must be debug or release")
         self.temporary = tempfile.TemporaryDirectory(prefix="mokusei-native-replay-")
         self.root = Path(self.temporary.name).resolve()
         self.workspace = self.root / "workspace"
@@ -30,7 +32,7 @@ class NativeReplay:
         self.manifest = {"root": str(self.root), "workspace": str(self.workspace)}
         self.isolation_source = repo / "tools/verification/NativeReplayIsolation.swift"
         package = repo / "app/macos"
-        production = package / f".build/{platform.machine()}-apple-macosx/debug"
+        production = package / f".build/{platform.machine()}-apple-macosx/{configuration}"
         link_list = production / "Mokusei.product/Objects.LinkFileList"
         if not link_list.is_file():
             raise RuntimeError("Build current production modules first: make check")
@@ -112,6 +114,8 @@ class NativeReplay:
         signal.signal(signal.SIGTERM, terminate)
 
     def run(self, arguments, timeout=180, launch_services=True, env=None, launch_environment=None):
+        for name in ("timeout-sample.txt", "timeout-sample.log"):
+            (self.root / name).unlink(missing_ok=True)
         self.manifest["arguments"] = list(map(str, arguments))
         (self.root / "launch.json").write_text(json.dumps(self.manifest, indent=2))
         # LaunchServices grants foreground activation, but does not inherit the
@@ -128,14 +132,41 @@ class NativeReplay:
                                             stdout=output, stderr=subprocess.STDOUT if output else None)
             return self.process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
+            self.sample_timeout()
             raise RuntimeError(f"Native replay exceeded {timeout}s; stopping its owned app. "
-                               "Inspect runtime-isolation.json; a permission/focus failure must not be blindly retried")
+                               "Inspect runtime-isolation.json and timeout-sample.log; "
+                               "a permission/focus failure must not be blindly retried")
         finally:
             try:
                 self.stop()
             finally:
                 if output:
                     output.close()
+
+    def sample_timeout(self):
+        details = ["Timeout diagnostic: 2-second sample, 8-second sampler limit."]
+        try:
+            receipt = json.loads((self.root / "runtime-isolation.json").read_text())
+            pid = receipt.get("pid")
+            if not isinstance(pid, int) or pid <= 1:
+                raise ValueError("No valid owned app PID in startup receipt")
+            identity = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "comm="],
+                                      capture_output=True, text=True, timeout=2)
+            if identity.returncode != 0 or identity.stdout.strip() != str(self.executable):
+                raise ValueError("Startup PID no longer belongs to this staged executable; sampling skipped")
+            details.append(f"Verified PID {pid}: {self.executable}")
+            result = subprocess.run(["/usr/bin/sample", str(pid), "2", "1", "-file",
+                                     str(self.root / "timeout-sample.txt")],
+                                    capture_output=True, text=True, timeout=8)
+            details.append(f"Sampler exit code: {result.returncode}")
+            details.extend([result.stdout[-8192:], result.stderr[-8192:]])
+        except Exception as error:
+            # Diagnostics must not replace the original timeout or prevent owned-app cleanup.
+            details.append(f"Sample unavailable: {type(error).__name__}: {error}")
+        try:
+            (self.root / "timeout-sample.log").write_text("\n".join(details) + "\n")
+        except OSError as error:
+            print(f"Could not retain timeout sampling diagnostic: {error}", flush=True)
 
     def stop(self):
         # open -W is not the app PID. A startup receipt lets us retire the app
@@ -182,7 +213,8 @@ class NativeReplay:
 
     def export(self, evidence):
         evidence.mkdir(parents=True, exist_ok=True)
-        for name in ["launch.json", "runtime-isolation.json", "result.json", "stdout.log", "stderr.log", "cleanup.json"]:
+        for name in ["launch.json", "runtime-isolation.json", "result.json", "stdout.log", "stderr.log", "cleanup.json",
+                     "timeout-sample.txt", "timeout-sample.log"]:
             source = self.root / name
             if source.is_file():
                 shutil.copy2(source, evidence / name)

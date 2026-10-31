@@ -51,6 +51,11 @@ public struct ThreadCardExcerpt: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .mask(ExcerptInkMask(progress: revealProgress, outgoing: true))
                     }
+                    // A disabled-animation reset does not retire an offset's
+                    // in-flight presentation. Replace only these stateless
+                    // visual layers when a new reveal takes ownership.
+                    .id(reveal.key)
+                    .transition(.identity)
                     .clipped()
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
@@ -209,7 +214,7 @@ private struct ExcerptInput: Equatable {
             && lhs.text.utf16.elementsEqual(rhs.text.utf16)
     }
 }
-private struct ExcerptKey: Equatable { let session: UUID; let id: JSONText?; let revision: Int; let offset: Int }
+private struct ExcerptKey: Hashable { let session: UUID; let id: JSONText?; let revision: Int; let offset: Int }
 private struct ExcerptReveal { let key: ExcerptKey; let previous: String; var incoming: String }
 private struct ExcerptHold { let key: ExcerptKey; let since: Date }
 private struct ExcerptBatch { let text: String; let end: Int; let count: Int }
@@ -342,10 +347,11 @@ private struct ExcerptFrame {
 
 /// The original 240%-wide masks travel from x=0 to x=-140% in 280ms. Text
 /// remains stationary, with the outgoing ink tail above the incoming layer.
-private struct ExcerptInkMask: View, @MainActor Animatable {
+/// The built-in offset interpolates the translation without reevaluating this
+/// gradient/geometry view for every intermediate progress value.
+private struct ExcerptInkMask: View {
     var progress: CGFloat
     let outgoing: Bool
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
 
     var body: some View {
         GeometryReader { geometry in

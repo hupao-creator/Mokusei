@@ -38,10 +38,15 @@ turn a regression into an allowlist entry.
 
 Methods needing an exclusive native owner are recorded in `swift_ownership.py`
 and the verified build manifest before ordinary execution. The title
-cancellation replay belongs to the existing `native/tag-glass-captures`
-check so its incoming-frame assertion runs with AppKit's event loop and real
-WindowServer delivery. Its full method identity remains in discovery and is
-excluded from ordinary execution without a test-level skip or environment bypass.
+cancellation and excerpt-mask replays belong to the existing
+`native/tag-glass-captures` check so their intermediate-frame assertions run
+with AppKit's event loop and real WindowServer delivery. The excerpt case
+requires observed ink movement through rewrite and an actual component-width
+change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
+do not replace its moving-pixel evidence. The native cloud/scan composition and
+retained Overview return cases share this owner with their own required markers.
+All full method identities remain in discovery and are excluded from ordinary
+execution without a test-level skip or environment bypass.
 The complete ordinary command has no positive `--filter` and passes the shared
 `--skip` for the full native method ID and its runtime source-location suffix. This command selection does not add a framework skip outcome; the method
 must still execute at its declared native owner.
@@ -80,6 +85,29 @@ establish that the first failure was harmless. The required aggregate only passe
 when every applicable job and complete observed native coverage succeeds.
 
 ## Extended hosted checks
+
+### Foreground Overview performance
+
+The separate `Overview performance` workflow owns the continuing foreground
+Overview performance baseline. Its production-linked Release probe measures N40
+with four fully visible running cards for idle animation, short message rewrite
+and cumulative message append. A separate Core process supplies events through
+the production store, publisher, HTTP/NDJSON transport and Swift workspace.
+Both fixed revisions use identical harness sources and run serial A/B and B/A
+pairs on the same hosted Mac after both builds finish. The runner retains exact
+source/build identities, environment and visibility observations, actual CPU/wall
+intervals, source/publication counts, raw JSON and a complete Markdown report.
+
+Formal CPU runs exclude capture, sampling profilers and temporary product probes.
+Missing foreground/display capability, source delivery or final convergence is
+an invalid measurement, not a passing comparison. Keep invalid and failed raw
+runs and explain any subsequent replacement. Native animation correctness stays
+in its separate WindowServer capture owner; CPU and display-link callbacks do
+not establish optical FPS, GPU time or energy. CI percentages form their own
+baseline and are not pooled with historical target-Mac percentages. No local
+measurement agent is required to advance this Overview optimization work.
+
+### Native CLI and system matrices
 
 Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.

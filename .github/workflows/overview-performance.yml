@@ -1,0 +1,107 @@
+name: Overview performance
+
+"on":
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'app/macos/Sources/Host/Overview/**'
+      - 'app/macos/Sources/Shared/PluginUI/Cards/**'
+      - 'app/macos/Sources/Shared/PluginUI/Design/**'
+      - 'app/macos/Sources/Shared/PluginUI/Shaders/**'
+      - 'app/macos/Sources/Core/**'
+      - 'internal/**'
+      - 'tools/verification/overview-ci-performance/**'
+      - 'tools/verification/native_replay.py'
+      - 'tools/verification/NativeReplayIsolation.swift'
+      - '.github/workflows/overview-performance.yml'
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Full baseline product commit SHA'
+        required: true
+        type: string
+      candidate:
+        description: 'Full candidate product commit SHA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Independent of ordinary CI; preserve an already running experiment and never
+# cancel another PR's verification. AB/BA runs are serial inside one runner.
+concurrency:
+  group: overview-performance-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  paired-release:
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/overview') }}
+    name: Release A/B · foreground Overview
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+      BASELINE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.baseline }}
+      CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.candidate }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Prepare the Release toolchain and foreground display policy
+        run: |
+          test "$(uname -m)" = arm64
+          sw_vers
+          xcodebuild -version
+          xcrun swift --version
+          go version
+          if ! xcrun --sdk macosx metal --version; then
+            python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
+          fi
+          # These preferences belong to the disposable runner account only.
+          defaults write com.apple.universalaccess reduceMotion -bool false
+          defaults write com.apple.universalaccess reduceTransparency -bool false
+      - name: Verify the source and shared-clock contracts
+        run: |
+          python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_clock_contract.py -v \
+            2>&1 | tee "$RUNNER_TEMP/overview-clock-python.log"
+          go test ./tools/verification/overview-ci-performance/runtime \
+            2>&1 | tee "$RUNNER_TEMP/overview-clock-go.log"
+      - name: Measure fixed Release products with one harness
+        run: |
+          python3 tools/verification/overview-ci-performance/run.py \
+            --baseline "$BASELINE_SHA" --candidate "$CANDIDATE_SHA" \
+            --output "$RUNNER_TEMP/overview-performance" \
+            --configure-display --time-budget-seconds 1500
+      - name: Publish complete measurement report
+        if: ${{ always() }}
+        run: |
+          if [[ -f "$RUNNER_TEMP/overview-performance/report.md" ]]; then
+            cat "$RUNNER_TEMP/overview-performance/report.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            mkdir -p "$RUNNER_TEMP/overview-performance"
+            printf '%s\n' 'The benchmark did not start; inspect toolchain/setup logs. No CPU result is certified.' \
+              > "$RUNNER_TEMP/overview-performance/not-started.txt"
+          fi
+          for log in "$RUNNER_TEMP"/overview-clock-*.log; do
+            if [[ -f "$log" ]]; then cp "$log" "$RUNNER_TEMP/overview-performance/"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: overview-release-performance-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/overview-performance
+          if-no-files-found: error
+          retention-days: 14

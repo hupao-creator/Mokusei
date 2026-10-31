@@ -130,7 +130,7 @@ jobs:
       - name: Go unit tests (including directory tags)
         if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: |
-          packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost)"
+          packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost ./tools/verification/runtime-helpers)"
           portable_packages=()
           while IFS= read -r package; do
             if [[ "$package" != */internal/tooling/devtool ]]; then

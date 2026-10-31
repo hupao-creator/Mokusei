@@ -5,6 +5,15 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/titleReversalAndVisibilityCancellationSettlePixels()": {
         "group": "native", "check": "tag-glass-captures", "marker": "TITLE_INCOMING_MOTION_CONFIRMED",
     },
+    "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/excerptRevealKeepsMovingThroughRewriteAndWidthChanges()": {
+        "group": "native", "check": "tag-glass-captures", "marker": "EXCERPT_INK_MOTION_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeOverviewDecorationCaptureTests/nativeCloudAndScanMoveInComposedOverview()": {
+        "group": "native", "check": "tag-glass-captures", "marker": "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeReadingPagePresentationTests/retainedOverviewReturnsWithLatestContent()": {
+        "group": "native", "check": "tag-glass-captures", "marker": "OVERVIEW_RETAINED_RETURN_CONFIRMED",
+    },
 }
 
 
