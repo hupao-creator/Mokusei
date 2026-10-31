@@ -32,12 +32,18 @@ import Testing
         window.makeKeyAndOrderFront(nil)
         return window
     }
-    static func wait(timeout: Duration = .seconds(3), _ predicate: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+    static func wait(timeout: Duration = .seconds(3), driveLayout: Bool = true, _ predicate: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        if !driveLayout {
+            try #require(NSApp?.isRunning == true,
+                "Passive presentation observation requires a running NSApplication event loop", sourceLocation: sourceLocation)
+        }
         let deadline = ContinuousClock.now + timeout
         var settled = false
         while ContinuousClock.now < deadline {
             // Model-only callers must not initialize AppKit in a headless run.
-            for window in NSApp?.windows ?? [] { window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded() }
+            if driveLayout {
+                for window in NSApp?.windows ?? [] { window.contentView?.layoutSubtreeIfNeeded(); window.displayIfNeeded() }
+            }
             settled = predicate()
             if settled { return }
             try await Task.sleep(for: .milliseconds(10))

@@ -177,6 +177,29 @@ without travel, including a return already in progress. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
 Execution sidecards keep their single-execution presentation.
+
+A horizontal return requested during opening starts from the current AppKit
+viewport geometry when matching native anchors are available. The anchors belong
+to this stack's root and outer front viewport, outside the replaceable history
+identity. They draw nothing, accept no input or accessibility focus, hold only
+weak ownership links, and do not force layout or observe frames continuously.
+The close action first cancels the old generation, validates the same identity,
+direction, window and viewport extent, then synchronously installs the measured
+progress without animation. The existing preparation, curve, duration and final
+navigation callback remain in place. Detached, mismatched or invalid geometry
+keeps the previous model-based fallback. Vertical/history replacement, cancellation
+and settled-page returns do not use this correction. This boundary accounts for
+a model value being ahead of committed native geometry; it does not treat AppKit
+bounds as proof of WindowServer pixels or assert that such lag caused a specific
+historical failure. Headless geometry tests cover both horizontal directions,
+nonzero bounds origins, stale metadata, invalid extents and weak ownership;
+the retained-Overview native replay keeps its original midpoint, 100ms return
+direction, latest-content and parent-retention assertions. Before closing, that
+replay synchronously requires the current two anchors to share one owner, produce
+a valid sample and agree with the already-qualified front within the original
+one-point tolerance. It records the native frames, progress and sampling times
+without forcing layout; a model-fallback-only run cannot certify this path.
+
 An external result request is the host route's entry document, so its Back and
 Escape use that route's return action. It gains an internal history return only
 after explicit TOC navigation. Each mounted row owns an independent content

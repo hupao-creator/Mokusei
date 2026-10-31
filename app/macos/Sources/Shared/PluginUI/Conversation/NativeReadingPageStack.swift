@@ -1,3 +1,4 @@
+import AppKit
 import Observation
 import MokuseiCore
 import SwiftUI
@@ -39,6 +40,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @State private var generation = 0
     @State private var mountedIdentity: JSONText?
     @State private var animationTask: Task<Void, Never>?
+    @State private var geometry = NativeReadingPageGeometry()
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
@@ -56,6 +58,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
     public var body: some View {
         GeometryReader { bounds in
+            let geometryContext = NativeReadingPageGeometry.Context(identity: identity, axis: axis,
+                direction: direction, size: bounds.size)
             // Observe replacement state even while motion is idle.
             let openingOrClosing = !replacing && motion.active
             ZStack {
@@ -88,9 +92,23 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         // opening/return travel and timeline layout have their own owners.
                         .animation(axis == .vertical && direction != 0 && !reduceMotion ? curve : nil, value: identity)
                         .frame(width: bounds.size.width, height: bounds.size.height)
+                        .background {
+                            if axis == .horizontal {
+                                NativeReadingPageAnchor(geometry: geometry, role: .front, geometryContext: geometryContext)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                        }
                         .modifier(ReadingPageSurface(progress: progress, active: motion.active && axis == .horizontal, axis: axis))
                         .offset(x: axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
                                 y: axis == .vertical ? bounds.size.height * (1 - progress) * direction : 0)
+                }
+            }
+            .background {
+                if axis == .horizontal {
+                    NativeReadingPageAnchor(geometry: geometry, role: .root, geometryContext: geometryContext)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
             }
             .onChange(of: bounds.size) { _, _ in settle() }
@@ -182,9 +200,20 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             if closing { onClose() }
             return
         }
+        let returningDuringOpening = closing && axis == .horizontal && motion.active && !self.closing && !replacing
         animationTask?.cancel()
         generation += 1
         let token = generation
+        let initialProgress: Double
+        if returningDuringOpening, let displayed = geometry.progress(identity: identity, direction: direction) {
+            // A queued SwiftUI update can be ahead of the native geometry at
+            // the click. Retarget from that committed pose, without flushing
+            // pending layout or advancing the opening before reversing it.
+            var transaction = Transaction(animation: nil)
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { progress = displayed }
+            initialProgress = displayed
+        } else { initialProgress = progress }
         replacing = false
         self.closing = closing
         motion.active = true
@@ -195,7 +224,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // not adjoined to its neighbour.
         let controlPoints: (x1: Double, x2: Double) = !closing && emphasizedOpening
             ? (0.76, 0.24) : (0.42, 0.58)
-        let initialProgress = progress
         let targetProgress = closing ? 0.0 : 1.0
         animationTask = Task { @MainActor in
             // Commit the offscreen front (or reveal the blurred retained
@@ -259,4 +287,95 @@ private struct ReadingPageSurface: ViewModifier, @MainActor Animatable {
             .shadow(color: .black.opacity(active ? 0.16 * envelope : 0), radius: 12,
                     x: axis == .horizontal ? -8 : 0, y: axis == .vertical ? -8 : 0)
     }
+}
+
+/// These anchors belong to the two viewport surfaces, not to a history identity's
+/// transitioning content. Geometry is read only when reversing an opening.
+@MainActor final class NativeReadingPageGeometry {
+    enum Role { case root, front }
+    struct Context: Equatable {
+        let identity: JSONText
+        let axis: Axis
+        let direction: CGFloat
+        let size: CGSize
+    }
+    private weak var root: NativeReadingPageAnchorView?
+    private weak var front: NativeReadingPageAnchorView?
+
+    func install(_ view: NativeReadingPageAnchorView, role: Role, context: Context) {
+        if owns(view, role: role), view.geometryContext == context { return }
+        if view.owner !== self { view.owner?.remove(view) }
+        view.owner = self
+        view.geometryContext = context
+        switch role { case .root: root = view; case .front: front = view }
+    }
+
+    func remove(_ view: NativeReadingPageAnchorView) {
+        if root === view { root = nil }
+        if front === view { front = nil }
+        if view.owner === self { view.owner = nil; view.geometryContext = nil }
+    }
+
+    func owns(_ view: NativeReadingPageAnchorView, role: Role) -> Bool {
+        guard view.owner === self else { return false }
+        switch role { case .root: return root === view; case .front: return front === view }
+    }
+
+    func progress(identity: JSONText, direction: CGFloat) -> Double? {
+        guard let root, let front, root !== front, owns(root, role: .root), owns(front, role: .front),
+              let rootContext = root.geometryContext, let frontContext = front.geometryContext else { return nil }
+        let rootWindow = root.window
+        let frontWindow = front.window
+        guard let window = rootWindow, frontWindow === window,
+              root.ancestorShared(with: front) != nil else { return nil }
+        let rootBounds = root.bounds
+        let frontFrame = front.convert(front.bounds, to: root)
+        let tolerance = 1 / max(1, window.backingScaleFactor)
+        return Self.progress(rootBounds: rootBounds, frontFrame: frontFrame,
+            rootContext: rootContext, frontContext: frontContext,
+            identity: identity, direction: direction, tolerance: tolerance)
+    }
+
+    static func progress(rootBounds: CGRect, frontFrame: CGRect, rootContext: Context, frontContext: Context,
+                         identity: JSONText, direction: CGFloat, tolerance: CGFloat) -> Double? {
+        guard rootContext == frontContext, rootContext.identity == identity,
+              rootContext.axis == .horizontal, rootContext.direction == direction else { return nil }
+        let size = rootContext.size
+        let values = [rootBounds.origin.x, rootBounds.origin.y, rootBounds.width, rootBounds.height,
+            frontFrame.origin.x, frontFrame.origin.y, frontFrame.width, frontFrame.height,
+            size.width, size.height, direction, tolerance]
+        guard values.allSatisfy({ $0.isFinite }), size.width > 0, size.height > 0,
+              abs(direction) == 1, tolerance >= 0, rootBounds.width > 0, rootBounds.height > 0,
+              abs(rootBounds.width - size.width) <= tolerance, abs(rootBounds.height - size.height) <= tolerance,
+              abs(frontFrame.width - size.width) <= tolerance, abs(frontFrame.height - size.height) <= tolerance,
+              abs(frontFrame.minY - rootBounds.minY) <= tolerance else { return nil }
+        let travel = rootBounds.width * direction
+        guard travel.isFinite, travel != 0 else { return nil }
+        let progress = 1 - (frontFrame.minX - rootBounds.minX) / travel
+        let rounding = tolerance / abs(travel)
+        guard progress.isFinite, progress >= -rounding, progress <= 1 + rounding else { return nil }
+        return Double(min(1, max(0, progress)))
+    }
+}
+
+private struct NativeReadingPageAnchor: NSViewRepresentable {
+    let geometry: NativeReadingPageGeometry
+    let role: NativeReadingPageGeometry.Role
+    let geometryContext: NativeReadingPageGeometry.Context
+    func makeNSView(context: Context) -> NativeReadingPageAnchorView { NativeReadingPageAnchorView() }
+    func updateNSView(_ view: NativeReadingPageAnchorView, context: Context) {
+        geometry.install(view, role: role, context: geometryContext)
+    }
+    static func dismantleNSView(_ view: NativeReadingPageAnchorView, coordinator: ()) { view.owner?.remove(view) }
+}
+
+@MainActor final class NativeReadingPageAnchorView: NSView {
+    fileprivate(set) weak var owner: NativeReadingPageGeometry?
+    fileprivate var geometryContext: NativeReadingPageGeometry.Context?
+    override var isOpaque: Bool { false }
+    override var acceptsFirstResponder: Bool { false }
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func isAccessibilityElement() -> Bool { false }
+    override func accessibilityChildren() -> [Any]? { [] }
 }

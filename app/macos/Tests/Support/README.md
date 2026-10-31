@@ -65,6 +65,36 @@ explicit incomplete-observation failure. Diagnostics retain the finite geometry
 history; a theoretical destination or the next revision's exit cannot stand in
 for continued entry motion.
 
+## Retained Overview return observation
+
+Post-merge CI #261 failed to observe the retained-page opening midpoint. Its
+recorded x positions crossed the unchanged 40–60% window-width band between
+716.14ms and 800.98ms; by 1345.84ms the opening had finished. The latest-content,
+return-direction and parent-retention assertions had not run. These observations
+do not establish whether a qualifying intermediate frame was committed or only
+missed by polling, so the failure is not classified as a product regression or
+discarded as flaky.
+
+This method now uses `SwiftUIReplay.wait(driveLayout: false)`, which requires an
+actual running `NSApplication` event loop. Other callers retain the default
+layout/display driving behavior. Repeated synchronous all-window layout and
+display share the main actor with the production animation task and can disturb
+the observation; passive waiting removes that intervention, not OS scheduling
+uncertainty. Each wait retains the original three-second deadline and 10ms sleep.
+
+Before the single opening, the existing initial-content wait also requires the
+actual root to reach the explicitly requested 1180×780 points within one physical
+pixel and motion to be idle. The original 1.2-second duration and strict
+`0.4W < x < 0.6W` qualification are unchanged. After observing that band, the test
+synchronously rereads the current front, root, window ownership and active motion
+and requires the same band before updating the text and closing. There is no
+intervening await or forced layout. Setup, every opening/return predicate,
+open/close source times, the 100ms return observation and the final state are
+retained with their uptime clock; no 50ms diagnostic subsampling omits checks.
+The original return direction, latest content and parent appearance assertions
+remain. No wider band, longer animation or deadline, retry, skip, or retrospective
+midpoint interpolation can substitute for the actual prerequisite.
+
 ## Execution-link streaming input
 
 The running execution-link replay supplies complete Markdown paragraphs while
