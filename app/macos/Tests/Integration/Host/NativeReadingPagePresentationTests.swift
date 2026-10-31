@@ -91,49 +91,93 @@ struct NativeReadingPagePresentationTests {
             "Run this method through native-capture/tag-glass-captures; a real NSApplication event loop is required")
         let fixture = ReadingFixture()
         fixture.duration = 1.2
-        let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
+        let requestedSize = CGSize(width: 1180, height: 780)
+        let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture), width: requestedSize.width, height: requestedSize.height)
         defer { window.close() }
+        let root = try #require(window.contentView)
         let diagnosticStart = ProcessInfo.processInfo.systemUptime
-        var openingSamples: [[String: Any]] = [], latestOpeningSample: [String: Any] = [:]
-        var nextDiagnosticAt = diagnosticStart, openingChecks = 0
+        var setupSamples: [[String: Any]] = [], openingSamples: [[String: Any]] = [], returnSamples: [[String: Any]] = []
+        var openSet: [String: Any] = [:], closeSet: [String: Any] = [:]
+        var beforeReturnSample: [String: Any] = [:], duringReturnSample: [String: Any] = [:]
+        @MainActor func observe() -> (x: CGFloat?, size: CGSize, tolerance: CGFloat, active: Bool, record: [String: Any]) {
+            let x = fixture.frontProbe.map { $0.convert($0.bounds, to: root).minX }
+            let size = root.bounds.size
+            let tolerance = 1 / max(1, window.backingScaleFactor)
+            let active = fixture.motion.active
+            let now = ProcessInfo.processInfo.systemUptime
+            let record: [String: Any] = ["uptime": now, "elapsedMilliseconds": (now - diagnosticStart) * 1000,
+                "x": x.map { $0 as Any } ?? NSNull(), "rootWidth": size.width, "rootHeight": size.height,
+                "pixelTolerance": tolerance, "motionActive": active, "open": fixture.open,
+                "renderedText": fixture.renderedText, "parentAppearances": fixture.parentAppearances,
+                "frontAppearances": fixture.frontAppearances, "AppKitRunning": NSApp.isRunning,
+                "applicationActive": NSApp.isActive, "windowVisible": window.isVisible, "windowKey": window.isKeyWindow,
+                "currentRoot": window.contentView === root, "rootInWindow": root.window === window,
+                "probeInWindow": fixture.frontProbe?.window === window]
+            return (x, size, tolerance, active, record)
+        }
         defer {
-            let diagnostic: [String: Any] = ["AppKitRunning": NSApp.isRunning,
-                "applicationActive": NSApp.isActive, "windowVisible": window.isVisible,
-                "windowKey": window.isKeyWindow, "open": fixture.open, "motionActive": fixture.motion.active,
-                "openingChecks": openingChecks, "openingSamples": openingSamples, "latestOpeningSample": latestOpeningSample,
-                "parentAppearances": fixture.parentAppearances, "frontAppearances": fixture.frontAppearances]
+            let diagnostic: [String: Any] = ["clock": "ProcessInfo.systemUptime", "diagnosticStartUptime": diagnosticStart,
+                "driveLayout": false, "requestedWidth": requestedSize.width, "requestedHeight": requestedSize.height,
+                "setupChecks": setupSamples.count, "setupSamples": setupSamples,
+                "openSet": openSet, "openingChecks": openingSamples.count, "openingSamples": openingSamples,
+                "latestOpeningSample": openingSamples.last ?? [:], "beforeReturn": beforeReturnSample,
+                "closeSet": closeSet, "duringReturn": duringReturnSample,
+                "returnChecks": returnSamples.count, "returnSamples": returnSamples, "finalState": observe().record]
             if let data = try? JSONSerialization.data(withJSONObject: diagnostic, options: [.sortedKeys]),
                let text = String(data: data, encoding: .utf8) {
                 print("OVERVIEW_RETAINED_RETURN_DIAGNOSTICS \(text)")
             }
         }
-        try await SwiftUIReplay.wait { fixture.parentAppearances == 1 && fixture.renderedText == "Initial overview" }
+        try await SwiftUIReplay.wait(driveLayout: false) {
+            let sample = observe()
+            setupSamples.append(sample.record)
+            return fixture.parentAppearances == 1 && fixture.renderedText == "Initial overview" && !sample.active
+                && abs(sample.size.width - requestedSize.width) <= sample.tolerance
+                && abs(sample.size.height - requestedSize.height) <= sample.tolerance
+        }
         let count = fixture.parentAppearances
+        let openSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.open = true
-        let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait {
-            let x = fixture.frontProbe.map { $0.convert($0.bounds, to: root).minX }
-            let now = ProcessInfo.processInfo.systemUptime
-            openingChecks += 1
-            latestOpeningSample = ["elapsedMilliseconds": (now - diagnosticStart) * 1000,
-                "x": x.map { $0 as Any } ?? NSNull(), "rootWidth": root.bounds.width,
-                "motionActive": fixture.motion.active, "AppKitRunning": NSApp.isRunning,
-                "applicationActive": NSApp.isActive, "windowVisible": window.isVisible, "windowKey": window.isKeyWindow]
-            if now >= nextDiagnosticAt && openingSamples.count < 64 {
-                openingSamples.append(latestOpeningSample)
-                nextDiagnosticAt = now + 0.05
-            }
-            guard let x else { return false }
-            return x > root.bounds.width * 0.4 && x < root.bounds.width * 0.6
+        let openSetAfter = ProcessInfo.processInfo.systemUptime
+        openSet = ["beforeUptime": openSetBefore, "afterUptime": openSetAfter]
+        try await SwiftUIReplay.wait(driveLayout: false) {
+            let sample = observe()
+            openingSamples.append(sample.record)
+            guard let x = sample.x else { return false }
+            return x > sample.size.width * 0.4 && x < sample.size.width * 0.6
         }
         let probe = try #require(fixture.frontProbe)
         let beforeReturn = probe.convert(probe.bounds, to: root).minX
+        let returnWidth = root.bounds.width
+        let motionActive = fixture.motion.active
+        let currentRoot = window.contentView === root
+        let rootInWindow = root.window === window
+        let probeInWindow = probe.window === window
+        let currentProbe = fixture.frontProbe === probe
+        beforeReturnSample = observe().record
+        beforeReturnSample["x"] = beforeReturn
+        beforeReturnSample["qualifiedWidth"] = returnWidth
+        beforeReturnSample["qualifiedMotionActive"] = motionActive
+        beforeReturnSample["currentProbe"] = currentProbe
+        try #require(currentRoot && rootInWindow && probeInWindow && currentProbe && motionActive
+            && beforeReturn > returnWidth * 0.4 && beforeReturn < returnWidth * 0.6,
+            "The current front must still be in the original opening midpoint before returning")
+        let textSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.text = "Latest overview"
+        let closeSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.motion.close()
+        let closeSetAfter = ProcessInfo.processInfo.systemUptime
+        closeSet = ["textSetBeforeUptime": textSetBefore, "beforeUptime": closeSetBefore, "afterUptime": closeSetAfter]
         try await Task.sleep(for: .milliseconds(100))
         let duringReturn = probe.convert(probe.bounds, to: root).minX
+        duringReturnSample = observe().record
+        duringReturnSample["x"] = duringReturn
+        duringReturnSample["currentProbe"] = fixture.frontProbe === probe
         #expect(duringReturn >= beforeReturn - 1, "Returning during opening must not jump toward the open position")
-        try await SwiftUIReplay.wait { !fixture.open && fixture.renderedText == "Latest overview" }
+        try await SwiftUIReplay.wait(driveLayout: false) {
+            returnSamples.append(observe().record)
+            return !fixture.open && fixture.renderedText == "Latest overview"
+        }
         #expect(fixture.parentAppearances == count)
         print("OVERVIEW_RETAINED_RETURN_CONFIRMED AppKit=true latestContent=true preservedParent=true")
     }
