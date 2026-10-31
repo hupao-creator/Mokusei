@@ -342,10 +342,11 @@ private struct ExcerptFrame {
 
 /// The original 240%-wide masks travel from x=0 to x=-140% in 280ms. Text
 /// remains stationary, with the outgoing ink tail above the incoming layer.
-private struct ExcerptInkMask: View, @MainActor Animatable {
+/// The built-in offset interpolates the translation without reevaluating this
+/// gradient/geometry view for every intermediate progress value.
+private struct ExcerptInkMask: View {
     var progress: CGFloat
     let outgoing: Bool
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
 
     var body: some View {
         GeometryReader { geometry in

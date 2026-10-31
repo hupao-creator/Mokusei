@@ -336,6 +336,11 @@ parsed preview; partial windows, rewrites, message replacement and transport-win
 shifts keep the ordinary preview path. Each resumed buffer has a new session so
 an obsolete reveal or hold cannot install a prior presentation.
 
+The 280ms ink reveal uses the built-in offset effect to translate its two
+gradient masks. The mask view itself does not interpolate progress, removing
+that cause of per-frame body evaluation. Buffer advancement, reveal
+ownership, disabled-animation resets and the 800ms hold remain leaf-owned.
+
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display.
 Hiding, backgrounding or detaching cancels that owner and settles the latest title.
