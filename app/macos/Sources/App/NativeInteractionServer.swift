@@ -174,6 +174,9 @@ final class NativeInteractionServer {
     private func respond(_ data: Data) -> Data {
         var id = JSONValue.null
         var failure: NativeInteractionError?
+        // High-rate input replay must not pay for a full snapshot per action:
+        // "snapshot": false omits it, and the caller observes state separately.
+        var includeSnapshot = true
         let current = presentation()
         do {
             let request = try JSONValue.parse(data: data, maxDepth: 16)
@@ -187,8 +190,19 @@ final class NativeInteractionServer {
             case .text("snapshot"):
                 guard fields == ["protocol", "id", "op"] else { throw NativeInteractionError("invalid_request", "Unexpected snapshot fields") }
             case .text("perform"):
-                guard fields == ["protocol", "id", "op", "action"], let action = request["action"] else {
+                guard let action = request["action"] else {
                     throw NativeInteractionError("invalid_request", "Perform requires an action")
+                }
+                switch fields {
+                case ["protocol", "id", "op", "action"]:
+                    includeSnapshot = true
+                case ["protocol", "id", "op", "action", "snapshot"]:
+                    guard case .bool(let requested) = request["snapshot"] else {
+                        throw NativeInteractionError("invalid_request", "snapshot must be a boolean")
+                    }
+                    includeSnapshot = requested
+                default:
+                    throw NativeInteractionError("invalid_request", "Unexpected perform fields")
                 }
                 let intent = try NativeWorkspaceAction(json: action)
                 guard let current else { throw NativeInteractionError("unavailable", "Workspace is loading or reloading") }
@@ -198,11 +212,13 @@ final class NativeInteractionServer {
         } catch let error as NativeInteractionError { failure = error }
         catch { failure = NativeInteractionError("invalid_request", "Malformed JSON request") }
         sequence += 1
-        let reply = JSONValue.object([
+        var fields: [JSONText: JSONValue] = [
             "protocol": .integer(1), "id": id, "session": .text(session), "sequence": .integer(sequence),
             "pid": .integer(ProcessInfo.processInfo.processIdentifier), "ok": .bool(failure == nil),
-            "error": failure?.json ?? .null, "snapshot": current?.interactionSnapshot() ?? .null
-        ])
+            "error": failure?.json ?? .null
+        ]
+        if includeSnapshot { fields["snapshot"] = current?.interactionSnapshot() ?? .null }
+        let reply = JSONValue.object(fields)
         return (try? reply.encodedData()) ?? Data("{\"ok\":false,\"error\":{\"code\":\"encoding_failed\"}}".utf8)
     }
 }

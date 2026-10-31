@@ -32,6 +32,56 @@ public extension NativeWorkspacePresentation {
         }.sorted { ($0.typeID.string, $0.threadID.string) < ($1.typeID.string, $1.threadID.string) }
     }
 
+    /// Admissibility only needs to know whether any target can open a detail.
+    /// Rebuilding and sorting the catalog's identity strings for every action
+    /// charges high-rate input for work no drag gesture performs.
+    private var overviewHasOpenableTargets: Bool {
+        overview.items.contains { item in
+            switch overview.snapshot(for: item) {
+            case .harness: return true
+            case .application(let plugin, _): return plugin.hasDetail
+            case nil: return false
+            }
+        }
+    }
+
+    /// Admission for one action without materializing the catalog's action and
+    /// target lists. High-rate input must not pay for work the matching gesture
+    /// never performs; the rules mirror `interactionActions` exactly.
+    func admits(_ action: NativeWorkspaceAction) -> Bool {
+        guard interactionReady else { return false }
+        let name = action.name
+        if onboarding.blocksWorkspace {
+            return name == "settings.control" && onboarding.mounted && onboarding.admitted
+                && !onboarding.busy && onboarding.step != .landing
+        }
+        if scene.settingsOpen {
+            // The closing page stays mounted for its capsule animation, but a
+            // section/control command can no longer produce a readable result.
+            if scene.settingsClosing { return ["navigation.back", "overview.show", "settings.close"].contains(name) }
+            if name == "settings.select" || name == "settings.control" { return true }
+            guard settingsNavigation.closeBlockReason(model: workspace.settingsModel) == nil else { return false }
+            return ["settings.close", "navigation.back", "overview.show"].contains(name)
+        }
+        if name == "settings.open" { return canOpenSettings }
+        if interactionPage == "overview" {
+            switch name {
+            case "filter.select": return true
+            case "search.update", "search.end": return overview.isSearching
+            case "search.begin": return !overview.isSearching
+            case "thread.open": return overviewHasOpenableTargets
+            default: break
+            }
+        } else {
+            if name == "overview.show" { return true }
+            if name == "navigation.back" {
+                return navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation)
+            }
+        }
+        if overviewInteractionActions.contains(name) { return true }
+        return readingInteractionActions.contains(name)
+    }
+
     var interactionActions: [String] {
         guard interactionReady else { return [] }
         if onboarding.blocksWorkspace {
@@ -51,7 +101,7 @@ public extension NativeWorkspacePresentation {
         if interactionPage == "overview" {
             actions += ["filter.select"]
             actions += overview.isSearching ? ["search.update", "search.end"] : ["search.begin"]
-            if !interactionThreads.isEmpty { actions += ["thread.open"] }
+            if overviewHasOpenableTargets { actions += ["thread.open"] }
         } else {
             actions += ["overview.show"]
             if navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
@@ -118,7 +168,7 @@ public extension NativeWorkspacePresentation {
             settingsNavigation.requestClose(model: workspace.settingsModel) { _ in }
             throw NativeInteractionError("blocked", reason)
         }
-        guard interactionActions.contains(action.name) else {
+        guard admits(action) else {
             throw NativeInteractionError("unavailable", "\(action.name) is unavailable on the current page")
         }
         switch action {

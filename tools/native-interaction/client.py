@@ -36,11 +36,15 @@ class Client:
         self.reader.close()
         self.socket.close()
 
-    def request(self, action=None):
+    def request(self, action=None, snapshot=True):
         self.sequence += 1
         request = {"protocol": 1, "id": str(self.sequence), "op": "perform" if action is not None else "snapshot"}
         if action is not None:
             request["action"] = action
+            # High-rate input replay omits the per-action snapshot; the caller
+            # observes state with a separate request when it needs to.
+            if not snapshot:
+                request["snapshot"] = False
         self.socket.sendall(json.dumps(request, ensure_ascii=False).encode() + b"\n")
         line = self.reader.readline(2 * 1024 * 1024 + 1)
         if not line.endswith(b"\n") or len(line) > 2 * 1024 * 1024:
@@ -250,6 +254,8 @@ def main():
     sub.add_parser("snapshot")
     perform = sub.add_parser("perform")
     perform.add_argument("action", help='JSON action, e.g. {"name":"settings.open"}')
+    perform.add_argument("--no-snapshot", action="store_true",
+                         help="omit the response snapshot; observe state separately")
     chaos = sub.add_parser("monkey")
     chaos.add_argument("--seed", type=int, default=1)
     chaos.add_argument("--steps", type=int, default=100)
@@ -263,7 +269,8 @@ def main():
     trace = None
     try:
         if args.command in ("snapshot", "perform"):
-            result = client.request(json.loads(args.action) if args.command == "perform" else None)
+            result = client.request(json.loads(args.action) if args.command == "perform" else None,
+                                    snapshot=not getattr(args, "no_snapshot", False))
             print(json.dumps(result, ensure_ascii=False, indent=2))
             if not result["ok"]:
                 raise SystemExit(1)

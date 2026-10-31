@@ -36,11 +36,16 @@ client when order matters. Oversized frames/output or stalled clients are closed
 ```json
 {"protocol":1,"id":"inspect-1","op":"snapshot"}
 {"protocol":1,"id":"action-1","op":"perform","action":{"name":"settings.open"}}
+{"protocol":1,"id":"pan-1","op":"perform","action":{"name":"overview.pan","deltaX":1,"deltaY":1},"snapshot":false}
 ```
 
 `id` is a caller correlation string (1–128 UTF-16 units), not a deduplication key.
 Do not automatically retry an uncertain action. Each response contains
 `protocol`, `id`, `session`, `sequence`, `pid`, `ok`, `error` and `snapshot`.
+A `perform` may send `"snapshot": false` to omit the response snapshot; the field
+is then absent, and the caller observes state with a separate request. Input-rate
+measurements use this so a drag update is not charged for snapshot generation,
+which is work no drag gesture performs.
 `error` is null on success, otherwise `{ "code": "…", "message": "…" }`.
 Codes are `invalid_request`, `unavailable`, `not_found`, `blocked` and `stale_control`.
 Unknown/missing fields and invalid argument types are rejected.
