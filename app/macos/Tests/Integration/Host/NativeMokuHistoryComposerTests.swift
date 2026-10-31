@@ -1,7 +1,9 @@
 import AppKit
 import MokuseiCore
+import MokuseiNativeInputSupport
 import MokuseiPluginUI
 import MokuseiPluginAPI
+import Synchronization
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -9,9 +11,117 @@ import MokuseiTestSupport
 #endif
 @testable import MokuseiUI
 
+/// Supply timed input independently of AppKit layout and tracking. Apple permits
+/// postEvent from secondary threads; event creation and posting stay together.
+private final class MokuHoldInputClock: Sendable {
+    struct Delivery: Sendable {
+        let name: String
+        let planned: UInt64
+        let began: UInt64
+        let ended: UInt64
+        let posted: Bool
+        var latenessMilliseconds: Double { Double(Int64(ended) - Int64(planned)) / 1e6 }
+    }
+    struct Receipt: Sendable {
+        var down: UInt64?
+        var deliveries: [Delivery] = []
+        var cancelled = false
+    }
+    private struct Input: Sendable {
+        let name: String
+        let type: NSEvent.EventType
+        let delay: UInt64
+        let point: CGPoint
+    }
+    private let application: NSApplication
+    private let windowNumber: Int
+    private let eventNumber: Int
+    private let phase: String
+    private let inputs: [Input]
+    private let receipt = Mutex(Receipt())
+    private let timer: any DispatchSourceTimer
+
+    init(application: NSApplication, windowNumber: Int, eventNumber: Int,
+         phase: String, point: CGPoint, duration: TimeInterval, drag: Bool) {
+        self.application = application; self.windowNumber = windowNumber
+        self.eventNumber = eventNumber; self.phase = phase
+        let release = Input(name: "release", type: .leftMouseUp,
+                            delay: UInt64(duration * 1e9), point: point)
+        inputs = drag ? [Input(name: "drag", type: .leftMouseDragged, delay: 100_000_000,
+                               point: CGPoint(x: point.x + 20, y: point.y)), release] : [release]
+        timer = DispatchSource.makeTimerSource(flags: .strict,
+            queue: DispatchQueue(label: "com.mokusei.test.hold-input.\(eventNumber)", qos: .userInteractive))
+        timer.setEventHandler { [weak self] in self?.postNext() }
+        timer.activate()
+    }
+
+    deinit { timer.cancel() }
+
+    func arm(at down: UInt64) {
+        receipt.withLock { value in
+            guard value.down == nil, !value.cancelled else { return }
+            value.down = down
+            schedule(down + inputs[0].delay)
+        }
+    }
+
+    func snapshot() -> Receipt { receipt.withLock { $0 } }
+
+    func cancel() {
+        // Synchronize cancellation with posting, so cleanup cannot leave an
+        // in-progress handler that injects another gesture's late event.
+        receipt.withLock { value in value.cancelled = true; timer.cancel() }
+    }
+
+    private func schedule(_ deadline: UInt64) {
+        timer.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline),
+                       repeating: .never, leeway: .nanoseconds(0))
+    }
+
+    private func postNext() {
+        let message = receipt.withLock { value -> String? in
+            guard !value.cancelled, let down = value.down,
+                  value.deliveries.count < inputs.count else { return nil }
+            let input = inputs[value.deliveries.count]
+            let planned = down + input.delay
+            let began = DispatchTime.now().uptimeNanoseconds
+            guard began >= planned else { schedule(planned); return nil }
+            let posted = MokuseiPostMouseEvent(application, input.type, input.point,
+                ProcessInfo.processInfo.systemUptime, windowNumber, eventNumber)
+            let delivery = Delivery(name: input.name, planned: planned, began: began,
+                                    ended: DispatchTime.now().uptimeNanoseconds, posted: posted)
+            value.deliveries.append(delivery)
+            let message = "MOKU_COMPOSER_INPUT hold.\(phase).clock.\(input.name) "
+                + "plannedNanoseconds=\(planned) beganNanoseconds=\(began) endedNanoseconds=\(delivery.ended) "
+                + "posted=\(posted) latenessMilliseconds=\(delivery.latenessMilliseconds)\n"
+            if value.deliveries.count < inputs.count { schedule(down + inputs[value.deliveries.count].delay) }
+            else { timer.cancel() }
+            return message
+        }
+        if let message { FileHandle.standardOutput.write(Data(message.utf8)) }
+    }
+}
+
 @MainActor
 @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuHistoryComposerTests {
+    @MainActor private final class HoldReceipt {
+        var downDispatchedAt: UInt64?
+        var dragDispatchedAt: UInt64?
+        var upDispatchedAt: UInt64?
+
+        var summary: String {
+            "downDispatchedNanoseconds=\(String(describing: downDispatchedAt)) "
+                + "dragDispatchedNanoseconds=\(String(describing: dragDispatchedAt)) "
+                + "upDispatchedNanoseconds=\(String(describing: upDispatchedAt))"
+        }
+    }
+
+    private static func inputPhase(_ phase: String) {
+        // Write directly so a blocked AppKit tracking loop cannot strand buffered diagnostics.
+        FileHandle.standardOutput.write(Data("MOKU_COMPOSER_INPUT \(phase) uptime=\(ProcessInfo.processInfo.systemUptime)\n".utf8))
+    }
+
     private func editor(in view: NSView) -> NSTextView? { SwiftUIReplay.editor(in: view) }
     private func enter(_ editor: NSTextView, window: NSWindow) throws {
         window.makeKeyAndOrderFront(nil)
@@ -91,11 +201,14 @@ struct NativeMokuHistoryComposerTests {
         let persistence = NativeComposerDraftPersistence(storageDirectory: directory, scope: "moku")
         let services = NativeComposerServices(stageFiles: { _, _ in [] }, discardAttachments: { _ in })
         let draft = NativeComposerDraft(services: services, persistence: persistence)
+        Self.inputPhase("click.mount.begin")
         let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
             suppressInitialFocus: true, onSend: { _ in }, onCancel: {}), width: 560, height: 220)
+        Self.inputPhase("click.mount.returned")
         defer { window.close() }
         try await SwiftUIReplay.wait { editor(in: window.contentView!) != nil }
         let input = try #require(editor(in: window.contentView!))
+        Self.inputPhase("click.editor.ready")
         window.makeFirstResponder(nil)
         let point = input.convert(CGPoint(x: 12, y: 8), to: nil)
         let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
@@ -107,17 +220,24 @@ struct NativeMokuHistoryComposerTests {
         // NSTextView can enter synchronous selection tracking inside mouseDown.
         // Queue the real release first so that tracking can consume the complete
         // click without waiting for this test's main-actor continuation.
+        Self.inputPhase("click.mouseUp.post.begin")
         NSApp.postEvent(up, atStart: true)
+        Self.inputPhase("click.mouseUp.post.returned")
+        Self.inputPhase("click.mouseDown.send.begin")
         NSApp.sendEvent(down)
+        Self.inputPhase("click.mouseDown.send.returned")
         try await Task.sleep(for: .milliseconds(100))
         #expect(window.firstResponder === input)
+        Self.inputPhase("unicode.persistence.begin")
         input.insertText("é", replacementRange: NSRange(location: 0, length: input.string.utf16.count))
         input.insertText("e\u{301}", replacementRange: NSRange(location: 0, length: input.string.utf16.count))
         try await SwiftUIReplay.wait { Array(draft.text.utf16) == [0x65, 0x301] }
         #expect(Array(input.string.utf16) == [0x65, 0x301])
         let restored = NativeComposerDraft(services: services, persistence: persistence)
         #expect(Array(restored.text.utf16) == [0x65, 0x301])
+        Self.inputPhase("unicode.persistence.checked")
         try await mountedEditorHoldStartsOnceAndRetainsDraft()
+        Self.inputPhase("click-and-hold.completed")
     }
 
     private func monitor(in view: NSView) -> NativeMokuLongPressVoiceMonitor.MonitorView? {
@@ -130,59 +250,131 @@ struct NativeMokuHistoryComposerTests {
         draft.text = "保持这份草稿"
         var starts = 0
         var available = true
+        var activeHold = "none"
+        Self.inputPhase("hold.mount.begin")
         let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
-            onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: { starts += 1 }), width: 560, height: 180)
+            onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: {
+                starts += 1
+                Self.inputPhase("hold.\(activeHold).startVoice starts=\(starts) monotonicNanoseconds=\(DispatchTime.now().uptimeNanoseconds)")
+            }), width: 560, height: 180)
+        Self.inputPhase("hold.mount.returned")
         defer { window.close() }
         try await SwiftUIReplay.wait {
             guard let view = monitor(in: window.contentView!) else { return false }
             return view.bounds.width > 100 && view.bounds.height >= 58 && window.isKeyWindow && NSApp.isActive
         }
         let view = try #require(monitor(in: window.contentView!))
-        let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view })
-        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint) -> NSEvent = { type, point in
+        let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view } as? NSPressGestureRecognizer)
+        let application = NSApplication.shared
+        Self.inputPhase("hold.monitor.ready")
+        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint, Int) -> NSEvent = { type, point, eventNumber in
             NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+                context: nil, eventNumber: eventNumber, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
         }
-        func hold(duration: TimeInterval, drag: Bool = false) async throws {
+        var nextEventNumber = 100
+        @MainActor func hold(_ phase: String, duration: TimeInterval, drag: Bool = false) async throws {
+            activeHold = phase
+            Self.inputPhase("hold.\(phase).begin")
             window.makeKeyAndOrderFront(nil)
             try await SwiftUIReplay.wait { window.isKeyWindow && NSApp.isActive && recognizer.state == .possible }
+            Self.inputPhase("hold.\(phase).ready")
             let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
-            // Create each event when delivered: pre-creating the release gives
-            // AppKit a zero-duration gesture even though the timer waited.
-            let sendUp: @MainActor @Sendable () -> Void = { NSApp.postEvent(event(.leftMouseUp, point), atStart: true) }
-            let sendDrag: @MainActor @Sendable () -> Void = {
-                NSApp.postEvent(event(.leftMouseDragged, CGPoint(x: point.x + 20, y: point.y)), atStart: true)
-            }
-            let release = Timer(timeInterval: duration, repeats: false) { _ in
-                MainActor.assumeIsolated { sendUp() }
-            }
-            RunLoop.main.add(release, forMode: .common)
-            RunLoop.main.add(release, forMode: .eventTracking)
-            var movement: Timer?
-            if drag {
-                let timer = Timer(timeInterval: 0.1, repeats: false) { _ in
-                    MainActor.assumeIsolated { sendDrag() }
+            let eventNumber = nextEventNumber
+            nextEventNumber += 1
+            let minimumPressDuration = recognizer.minimumPressDuration
+            let receipt = HoldReceipt()
+            let clock = MokuHoldInputClock(application: application, windowNumber: window.windowNumber,
+                                          eventNumber: eventNumber, phase: phase, point: point, duration: duration, drag: drag)
+            let observer = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) { incoming in
+                MainActor.assumeIsolated {
+                    guard incoming.window === window, incoming.eventNumber == eventNumber else { return }
+                    let dispatched = DispatchTime.now().uptimeNanoseconds
+                    if incoming.type == .leftMouseUp {
+                        receipt.upDispatchedAt = dispatched
+                        Self.inputPhase("hold.\(phase).mouseUp.dispatch")
+                        return
+                    }
+                    if incoming.type == .leftMouseDragged {
+                        receipt.dragDispatchedAt = dispatched
+                        Self.inputPhase("hold.\(phase).mouseDragged.dispatch")
+                        return
+                    }
+                    guard receipt.downDispatchedAt == nil else { return }
+                    receipt.downDispatchedAt = dispatched
+                    clock.arm(at: dispatched)
+                    Self.inputPhase("hold.\(phase).mouseDown.dispatch monotonicNanoseconds=\(dispatched) "
+                        + "minimumPressDuration=\(minimumPressDuration) releaseDelay=\(duration) drag=\(drag)")
                 }
-                RunLoop.main.add(timer, forMode: .common)
-                RunLoop.main.add(timer, forMode: .eventTracking)
-                movement = timer
+                return incoming
             }
-            NSApp.sendEvent(event(.leftMouseDown, point))
-            try await Task.sleep(for: .seconds(duration + 0.1))
-            try await SwiftUIReplay.wait { recognizer.state == .possible }
-            release.invalidate(); movement?.invalidate()
+            let monitor = try #require(observer)
+            defer {
+                clock.cancel()
+                NSEvent.removeMonitor(monitor)
+                Self.inputPhase("hold.\(phase).cleanup \(receipt.summary) recognizer=\(recognizer.state)")
+            }
+            // Queue the whole gesture in order. A synchronous down from this
+            // Swift task can overtake the preceding queued up and reenter tracking.
+            NSApp.postEvent(event(.leftMouseDown, point, eventNumber), atStart: false)
+            Self.inputPhase("hold.\(phase).mouseDown.queued eventNumber=\(eventNumber)")
+            let deadline = ContinuousClock.now + .seconds(3)
+            var settled = false
+            while ContinuousClock.now < deadline {
+                let posted = clock.snapshot().deliveries
+                // No geometry changes during a hold: forced layout/display here
+                // would compete with AppKit's event handling and input deadlines.
+                // .possible alone is initial state; actual release posting is required.
+                let released = posted.contains { $0.name == "release" && $0.posted }
+                let moved = !drag || posted.contains { $0.name == "drag" && $0.posted }
+                if receipt.downDispatchedAt != nil, released, moved, recognizer.state == .possible {
+                    settled = true
+                    break
+                }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            Self.inputPhase("hold.\(phase).settled \(receipt.summary)")
+            try #require(settled, Comment(rawValue: "Input replay did not post release and settle within 3 seconds: " + receipt.summary))
+            let supplied = clock.snapshot()
+            let down = try #require(supplied.down)
+            try #require(supplied.deliveries.count == (drag ? 2 : 1))
+            for delivery in supplied.deliveries {
+                try #require(delivery.posted && delivery.began >= delivery.planned
+                             && delivery.latenessMilliseconds <= 50,
+                    Comment(rawValue: "Input supply missed its fixed deadline: hold.\(phase).\(delivery.name), lateness \(delivery.latenessMilliseconds)ms"))
+            }
+            let recognitionDeadline = down + UInt64(minimumPressDuration * 1e9)
+            if drag {
+                let movement = try #require(supplied.deliveries.first { $0.name == "drag" })
+                try #require(movement.ended < recognitionDeadline,
+                    "Input replay posted drag after the recognizer's actual minimum press duration")
+                // Nested text tracking can consume drag/up without a local
+                // monitor callback. Keep those observations optional; the
+                // unchanged starts assertions still check actual recognition.
+                if let dispatched = receipt.dragDispatchedAt {
+                    try #require(dispatched < recognitionDeadline,
+                        "Input replay dispatched drag after the recognizer's actual minimum press duration")
+                }
+            } else if duration < minimumPressDuration {
+                let release = try #require(supplied.deliveries.first { $0.name == "release" })
+                try #require(release.ended < recognitionDeadline,
+                    "Input replay posted a short release after the recognizer's actual minimum press duration")
+                if let dispatched = receipt.upDispatchedAt {
+                    try #require(dispatched < recognitionDeadline,
+                        "Input replay dispatched a short release after the recognizer's actual minimum press duration")
+                }
+            }
         }
         #expect(view.hitTest(.zero) == nil)
-        try await hold(duration: 0.1)
+        try await hold("short", duration: 0.1)
         #expect(starts == 0)
-        try await hold(duration: 0.8, drag: true)
+        try await hold("drag", duration: 0.8, drag: true)
         #expect(starts == 0)
-        try await hold(duration: 0.8)
+        try await hold("long", duration: 0.8)
         #expect(starts == 1)
         #expect(draft.text == "保持这份草稿")
         available = false
-        try await hold(duration: 0.8)
+        try await hold("unavailable", duration: 0.8)
         #expect(starts == 1)
         // Detachment removes the recognizer owned by this editor.
         let count = window.contentView?.gestureRecognizers.count ?? 0

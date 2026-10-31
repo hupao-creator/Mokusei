@@ -33,7 +33,7 @@ For Moku's fixed dark appearance and native caret without windows, see the
 [windowless appearance replay](moku-appearance/README.md).
 For the windowless shared native scrollbar/control-state replay, run
 `python3 tools/verification/scrollbars/run.py`; see its [coverage and visual
-limitations](scrollbars/README.md). It also runs in CI's `native-controls` lane.
+limitations](scrollbars/README.md). It also runs in CI's `native` replay group.
 For public Harness thinking text and native Arc lifecycle, see the [Moku reasoning replay](moku-reasoning/README.md).
 For Note viewport evidence and authenticated Swift/Runtime/context round trips,
 see the [Note replay](moku-note/README.md). Its native launcher, Talk dismissal
@@ -58,8 +58,9 @@ windowing in the same production app, see the [reading interaction replay](threa
 
 CI builds Swift once and verifies its exact manifest before replay launchers use
 `MOKUSEI_SWIFT_SKIP_BUILD=1`; see [the shared command helper](swiftfixture/README.md).
-Local commands keep their default build behavior. UI shards and independent
-replays run on separate hosted runners, not competing windows in one session.
+Local commands keep their default build behavior. The complete ordinary Swift
+suite and all interop/native replays execute serially in one macOS job, reusing
+that job's verified build and graphical session.
 
 Run from the repository root with `./scripts/go.sh`. These executable integration drivers complement the package tests. They exercise production boundaries against fixed protocol fixtures, temporary databases/profiles or loopback model services. Failures return nonzero. Build the runtime with `make runtime` before the native settings launcher.
 
