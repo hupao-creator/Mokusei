@@ -238,7 +238,11 @@ Holding the text editor for 0.5 seconds starts the workspace-owned voice client
 through [NativeMokuLongPressVoiceMonitor](../VoiceControls/NativeMokuLongPressVoiceMonitor.swift).
 Landing, bottom-Dock and history editors share this entrance. The native press recognizer
 preserves ordinary click/focus and cancels on movement, early release,
-lost window activity, unavailable input or unmount. AppKit tracks the delivered
+lost window activity, unavailable input or unmount. The monitor owns the 0.5-second
+deadline itself, on a timer registered for `.eventTracking` as well as `.common`.
+The editor's nested selection loop owns the run loop for the whole press and only
+services `.eventTracking`, so a recognizer-only deadline began 263-393ms late and
+could lose the race against the release. AppKit still tracks the delivered
 event stream, including native text selection. Only the editor is eligible; eyes, attachment/send controls,
 notes and directory suggestions are excluded. Release after activation keeps the
 voice session running and retains the draft. The localized placeholder/help and
