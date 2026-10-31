@@ -88,3 +88,5 @@ The public source history starts from a single release snapshot. Older revisions
 Mokusei is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 hupao-creator.
 
 Third-party materials retain their existing licenses and attribution notices, including [agent skills](.agents/skills/LICENSE), [fonts and icons](app/macos/Sources/Shared/PluginUI/Resources/), and [Unicode data](internal/services/taglabel/UNICODE-LICENSE.txt).
+
+<!-- ci probe: temporary documentation-only change to verify the merge gate; this PR is closed unmerged. -->
