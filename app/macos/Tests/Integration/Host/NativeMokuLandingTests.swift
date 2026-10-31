@@ -245,7 +245,8 @@ struct NativeMokuLandingTests {
                         && textView.nativeInsertionPointDrawing?.selection == candidate.selectedRange()
                 }
                 let layer = try #require(candidate.layer?.sublayers?.first { $0.name == "composer-insertion-point" })
-                let layerRect = candidate.convert(candidate.convertFromLayer(layer.frame), to: root)
+                let layerInEditor = candidate.convertFromLayer(layer.frame)
+                let layerRect = candidate.convert(layerInEditor, to: root)
                 let drawing = try #require(textView.nativeInsertionPointDrawing, "stage=\(stage) AppKit has not drawn an insertion point")
                 try #require(drawing.selection == candidate.selectedRange(), "stage=\(stage) drawing belongs to an earlier selection")
                 try #require(drawing.rect.width > 0 && drawing.rect.height > 0,
@@ -261,7 +262,15 @@ struct NativeMokuLandingTests {
                 // which need not share the pixel-aligned drawing rect's center.
                 try #require(abs(layerRect.midX - drawingRect.midX) <= 0.5 * scale,
                         "stage=\(stage) layer=\(layerRect) draw=\(drawingRect) logical=\(logicalRect)")
-                try #require(abs(layerRect.midY - drawingRect.midY) <= 0.5 * scale,
+                // The shared mark is a 25/24 study core plus one point, moved
+                // one point down; its center therefore trails the drawing
+                // rectangle by one point while its top edge drops half a point.
+                let expectedHeight: CGFloat = 13 * 25 / 24 + 1
+                try #require(abs(layerInEditor.height - expectedHeight) <= 0.5,
+                        "stage=\(stage) layer=\(layerInEditor) height=\(layerInEditor.height) expected=\(expectedHeight)")
+                try #require(abs(layerInEditor.midY - drawing.rect.midY - 1) <= 0.5,
+                        "stage=\(stage) layer=\(layerInEditor) draw=\(drawing.rect)")
+                try #require(abs(layerRect.midY - drawingRect.midY - scale) <= 0.5 * scale,
                         "stage=\(stage) layer=\(layerRect) draw=\(drawingRect) logical=\(logicalRect)")
             }
             func checkPosition(_ candidate: NSTextView, scale: CGFloat = 1, stage: String) async throws {
