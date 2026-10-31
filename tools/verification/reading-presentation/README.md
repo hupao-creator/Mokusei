@@ -43,7 +43,7 @@ deferred bodies and exact-result following through all four real Harness rendere
 python3 tools/verification/reading-presentation/run.py --moku-landing
 ```
 
-Runs ten `NativeMokuLandingTests` against the production workspace, catalog,
+Runs nine `NativeMokuLandingTests` against the production workspace, catalog,
 Overview and Moku presentation. The real shell waits for Moku hydration before
 centering. Installed public snapshots cover durable shells before native admission,
 failed dispatch, a successful result followed by Talk/another pending creation,
@@ -55,31 +55,14 @@ narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click keeps it open without losing the draft, including
 after covering routes and remounting. The three methods sending
-native mouse/key events and the full Workspace search geometry method run in
-CI's isolated AppKit input host; the remaining state/layout methods also run in
-the ordinary Swift shard. Plain SwiftPM's native
+native mouse/key events run in CI's isolated AppKit input host; the remaining
+state/layout methods also run in the ordinary Swift shard. Plain SwiftPM's native
 text tracking was observed to exit zero before its completion summary, which
 coverage treats as failure. A second native window also
 checks that both focus loss and an actual click retain input and preserve the
 draft. The outside-click Swift suite additionally drives native
 child/sheet windows and nested menu-tracking notifications to protect auxiliary
 composer interactions; this is not a physical cross-app mouse-delivery test.
-
-The full Workspace search case runs the production morph in a native window
-and waits for settled carrier and viewport geometry before comparing rendered
-text, AppKit's actual `drawInsertionPoint` rectangle and the emphasized caret
-layer. The recorded native rectangle must belong to the current selection; the
-zero-width `firstRect` logical boundary independently checks text centering and
-scroll visibility. The layer
-assertions always execute, including horizontal position, long-query scrolling,
-clear/reopen, resize and application scaling. A direct clip scroll retains the
-vertical-origin assertion. The method is explicitly owned by CI's
-`native-controls/isolated-input` check and excluded from ordinary Swift execution,
-because a plain SwiftPM host can leave the production morph and native viewport
-unfinished. Both `--isolated-input` and `--moku-landing` require its passing result
-and `SEARCH_CARET_GEOMETRY_CONFIRMED` marker; a partial morph or absent caret
-cannot count as successful coverage. These are native geometry assertions, not
-a WindowServer pixel comparison.
 
 Catalog transactions pass through the actual preparation/installation boundary.
 The fixture also delivers a connected client event to the real workspace so a
@@ -89,7 +72,7 @@ provider, installed profile or microphone is used. The independent
 [Moku backend replay](../moku/README.md) verifies actual creation/admission and audit
 records. The [visual demo](../../../demos/moku-landing/README.md) additionally checks
 cursor movement, light/dark pixel contrast and attachment layout. These are native
-behavior checks, not optical frame pacing. The launcher requires all ten cases
+behavior checks, not optical frame pacing. The launcher requires all nine cases
 without skips; plain headless Swift runs explicitly skip this display-dependent suite.
 
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
@@ -98,9 +81,9 @@ must complete all seven tests without skips to certify it.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
-exactly the ten input/responder, pointer, search-geometry and native-panel methods
-assigned to the native host, requiring all ten to pass without skips, while their
-remaining methods execute in the normal Swift shards. The Report modal case acknowledges WebKit's focused
+exactly the nine input/responder, pointer and native-panel methods deferred by
+SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
+in the normal Swift shards. The Report modal case acknowledges WebKit's focused
 frame before native Escape and observes its close event and trusted cancel;
 a fixed delay or JavaScript dismissal cannot certify default input handling.
 

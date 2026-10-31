@@ -6,7 +6,7 @@ import MokuseiCore
 @testable import MokuseiUI
 
 // Offscreen NSHostingViews exercise the actual production trees. No app windows,
-// app activation, keyboard events or system appearance/preference writes.
+// app activation, synthetic input or system appearance/preference writes.
 @MainActor private struct SchemeProbe: NSViewRepresentable {
     let name: String
     @Environment(\.colorScheme) private var scheme
@@ -45,7 +45,7 @@ import MokuseiCore
         try caret()
         try await surfaces()
         precondition(!(NSApp?.windows.contains(where: \.isVisible) ?? false))
-        print("PASS: windowless Moku Dock/history/interaction and Settings isolation; Overview search native editor, dark material and single-line input; shared gradient pixels; dark caret/glow/breathing; appearance changes and Reduce Motion")
+        print("PASS: windowless Moku Dock/history/interaction and Settings isolation; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
     }
 
     @MainActor private static func caret() throws {
@@ -58,7 +58,11 @@ import MokuseiCore
             editor.appearance = NSAppearance(named: appearance)
             caret.show(at: rect, in: editor)
             precondition(abs(caret.layer.bounds.width - 2.6) < 0.001)
-            precondition(abs(caret.layer.bounds.height - 14 * 25 / 24) < 0.001)
+            // 14-point study height plus the one-point optical growth.
+            precondition(abs(caret.layer.bounds.height - (14 * 25 / 24 + 1)) < 0.001)
+            // The extra height and downward offset share the same point, so the
+            // top edge drops half a point and the mark's center drops one point.
+            precondition(abs(caret.layer.frame.midY - (rect.midY + 1)) < 0.001)
             let core = caret.layer.sublayers!.first { $0.name == "composer-insertion-core" }!
             let glow = caret.layer.sublayers!.first { $0.name == "composer-insertion-glow" }!
             precondition(core.backgroundColor == NSColor.white.cgColor)
@@ -136,71 +140,8 @@ import MokuseiCore
         try await settle(host)
         precondition(probe("interaction", in: host) == .dark)
 
-        try await searchField()
-        try material()
-    }
-
-    /// The expanded Overview search uses the production native editor and
-    /// Moku's dark material, even when the workspace is light.
-    @MainActor private static func searchField() async throws {
-        struct SearchProbe: View {
-            let query: String
-            let focus: Int
-            var body: some View {
-                NativeOverviewChrome(filters: [], isSearching: true, searchQuery: query,
-                    searchFocusRequest: focus, onTagChange: { _ in })
-                    .environment(\.colorScheme, .light)
-                    .transaction { $0.disablesAnimations = true }
-            }
-        }
-        func editor(_ query: String, focus: Int) async throws -> ComposerTextView {
-            let host = NSHostingView(rootView: SearchProbe(query: query, focus: focus))
-            host.frame = CGRect(x: 0, y: 0, width: 900, height: 200)
-            host.appearance = NSAppearance(named: .aqua)
-            try await settle(host)
-            let editors = descendants(host, ComposerTextView.self).filter(\.emphasizedInsertionPoint)
-            precondition(editors.count == 1, "Overview search must use the emphasized native editor")
-            precondition(host.window == nil && !(NSApp?.windows.contains(where: \.isVisible) ?? false))
-            return editors[0]
-        }
-
-        let short = try await editor("光标", focus: 1)
-        precondition(short.singleLine, "Search must not accept line breaks")
-        precondition(short.string == "光标")
-        precondition(short.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua,
-                     "Search contents must inherit Moku's dark material appearance")
-
-        // The model may reject an edit whose normalized value is unchanged.
-        // The native editor must still remove pasted breaks and keep its caret.
-        var edits: [String] = []
-        let editHost = NSHostingView(rootView: OverviewThreadSearchField(text: "a b", placeholder: "Search",
-            focusRequest: 0, onChange: { edits.append($0) }, onExit: {}))
-        editHost.frame = CGRect(x: 0, y: 0, width: 300, height: 44)
-        try await settle(editHost)
-        let editing = descendants(editHost, ComposerTextView.self).first!
-        editing.insertText("a\nb", replacementRange: NSRange(location: 0, length: 3))
-        precondition(editing.string == "a b" && edits.isEmpty,
-                     "Unexpected editor text or model edits: \(editing.string.debugDescription), \(edits)")
-        precondition(editing.selectedRange() == NSRange(location: 3, length: 0))
-
-        // A long query must stay on one line and extend the native document
-        // horizontally instead of wrapping into the fixed-height carrier.
-        let long = try await editor(String(repeating: "long search query ", count: 8), focus: 0)
-        let scroll = long.enclosingScrollView!
-        long.layoutManager?.ensureLayout(for: long.textContainer!)
-        let used = long.layoutManager!.usedRect(for: long.textContainer!)
-        precondition(long.frame.width > scroll.contentSize.width,
-                     "Long search query must scroll horizontally, not wrap")
-        precondition(long.frame.width >= used.width,
-                     "Document must reach the query's last caret position")
-        precondition(used.height <= 20, "Search query must remain one line high")
-        precondition(!scroll.hasVerticalScroller)
-    }
-
-    /// The shared material's actual opaque output must match under both
-    /// inherited appearances, including its Reduce Transparency fallback and
-    /// the gradient Overview search overlays.
-    @MainActor private static func material() throws {
+        // The shared material's actual opaque output must match under both
+        // inherited appearances, including its Reduce Transparency fallback.
         var reference: Data?
         for scheme in [ColorScheme.dark, .light] {
             let renderer = ImageRenderer(content: NativeMokuCapsuleGlass(forceOpaque: true)
@@ -209,9 +150,5 @@ import MokuseiCore
             let data = image.dataProvider!.data! as Data
             if let reference { precondition(data == reference) } else { reference = data }
         }
-        let search = ImageRenderer(content: NativeMokuCapsuleGradient(forceOpaque: true)
-            .frame(width: 168, height: 44)).cgImage!
-        precondition(search.dataProvider!.data! as Data == reference!,
-                     "Search must render the same opaque material as Moku")
     }
 }

@@ -25,7 +25,9 @@ public struct NativeMarkdownView: View {
     public var documentToken: String?
     public var onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)?
     @Environment(\.nativeMarkdownMediaResolver) private var environmentMediaResolver
+    @Environment(\.nativeReadingPageCapacity) private var pageCapacity
     @StateObject private var model = MarkdownViewModel()
+    @State private var hasStreamed = false
     @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
@@ -56,7 +58,14 @@ public struct NativeMarkdownView: View {
             openLink: actions.open, resolveMedia: media,
             anchorPrefix: model.anchorPrefix, actions: actions)
         return Group {
-            if streaming {
+            if pageCapacity != nil, streaming || hasStreamed {
+                // Page-level streaming keeps the open page invisible until it
+                // cannot accept another block. The view owns its own settled
+                // blocks because the ordinary parser deliberately stays idle
+                // while a message is still growing.
+                NativeStreamingPagedMarkdown(text: text, streaming: streaming,
+                                             fontSize: fontSize, options: options)
+            } else if streaming {
                 // One literal span preserves native selection/copy without
                 // parsing Markdown, constructing blocks or resolving media.
                 MarkdownSelectableText(spans: [MarkdownSpan(text: text)], fontSize: fontSize,
@@ -68,6 +77,11 @@ public struct NativeMarkdownView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
             Button("复制 Markdown") { MarkdownPlatformActions.copy(text) }
+        }
+        .onChange(of: streaming, initial: true) { _, value in
+            // Keep the paged projection mounted after completion until the
+            // whole-document parse replaces its final page.
+            if value { hasStreamed = true }
         }
         .task(id: MarkdownRevision(text: text, streaming: streaming, token: documentToken)) {
             model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation)
@@ -181,6 +195,11 @@ struct MarkdownContent: View {
     let blocks: [MarkdownBlock]
     let options: MarkdownViewOptions
     var compact = false
+    /// The block immediately before this page in the same document. A page
+    /// that starts with a heading needs it to preserve the document's seam.
+    var precedingBlock: MarkdownBlock?
+    /// False while more pages follow, so the last block keeps its bottom margin.
+    var isFinal = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -188,25 +207,16 @@ struct MarkdownContent: View {
                 MarkdownBlockView(block: block, options: options)
                     .equatable()
                     .padding(.top, headingMargin(block, index: index))
-                    .padding(.bottom, index == blocks.count - 1 ? 0 : compact ? 5 : bottomMargin(block))
+                    .padding(.bottom, index == blocks.count - 1 && isFinal ? 0
+                        : NativeStreamingPageMetrics.bottomMargin(block, fontSize: options.fontSize, compact: compact))
             }
         }
     }
 
-    private func bottomMargin(_ block: MarkdownBlock) -> CGFloat {
-        if case .heading(let level, _) = block {
-            switch level { case 1...3: return 12; case 4: return 10; case 5: return options.fontSize * 0.83 * 1.67; default: return options.fontSize * 0.67 * 2.33 }
-        }
-        return 14
-    }
-
     private func headingMargin(_ block: MarkdownBlock, index: Int) -> CGFloat {
-        guard index > 0 else { return 0 }
-        if case .heading(let level, _) = block {
-            let desired: CGFloat = level <= 3 ? 26 : level == 4 ? 24 : bottomMargin(block)
-            return max(0, desired - (compact ? 5 : bottomMargin(blocks[index - 1])))
-        }
-        return 0
+        let previous = index > 0 ? blocks[index - 1] : precedingBlock
+        return NativeStreamingPageMetrics.headingTopPadding(for: block, previous: previous,
+                                                            compact: compact, fontSize: options.fontSize)
     }
 
 }
@@ -230,7 +240,8 @@ private struct MarkdownBlockView: View, Equatable {
         case .paragraph(let spans):
             MarkdownInlineView(spans: spans, fontSize: options.fontSize, muted: options.muted, options: options)
         case .heading(let level, let spans):
-            MarkdownInlineView(spans: spans, fontSize: headingSize(level), weight: level <= 3 ? 600 : level == 4 ? 680 : 700, strongInk: level <= 4, tracking: level <= 3 ? -0.25 : 0, lineHeight: headingSize(level) * (level <= 4 ? 1.28 : 1.8), options: options)
+            let size = NativeStreamingPageMetrics.headingSize(level, fontSize: options.fontSize)
+            MarkdownInlineView(spans: spans, fontSize: size, weight: level <= 3 ? 600 : level == 4 ? 680 : 700, strongInk: level <= 4, tracking: level <= 3 ? -0.25 : 0, lineHeight: NativeStreamingPageMetrics.headingLineHeight(level, size: size), options: options)
                 .accessibilityAddTraits(.isHeader)
         case .quote(let children):
             HStack(alignment: .top, spacing: 15) {
@@ -282,10 +293,6 @@ private struct MarkdownBlockView: View, Equatable {
     }
 
     private var quoteOptions: MarkdownViewOptions { var value = options; value.muted = true; return value }
-
-    private func headingSize(_ level: Int) -> CGFloat {
-        switch level { case 1: 30; case 2: 20; case 3: 16; case 4: 14; case 5: options.fontSize * 0.83; default: options.fontSize * 0.67 }
-    }
 }
 
 struct MarkdownInlineView: View {

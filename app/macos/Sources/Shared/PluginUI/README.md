@@ -118,7 +118,9 @@ reference remains unperformed when only headless execution is allowed.
 
 ## Reading and execution disclosure
 
-[Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text. Streaming revisions do not enter the Markdown parser. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.
+[Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text only when no reading viewport is known. Mounted Thread timelines supply `nativeReadingPageCapacity`, so [Reading/NativeStreamingPage.swift](Reading/NativeStreamingPage.swift) instead holds the open page back until it closes. Streaming revisions do not enter the ordinary Markdown parser; a settled prefix is parsed at top-level block boundaries and published one page at a time. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.
+
+A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance and honor Reduce Motion. A message that is one unsplittable block (for example a single long list) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush.
 
 [Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection uses the active reading selection palette consistently across blocks. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
@@ -241,25 +243,16 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
-rounded caret, sized to 25/24 of the text size and centered in AppKit's actual
-`drawInsertionPoint` rectangle. Its last drawing input and selection are retained
-as read-only geometry for native replay inspection. The zero-width logical
-boundary from `firstRect` is a separate text/input-method location and can differ
-from the pixel-aligned drawing rectangle. View coordinates are converted through AppKit to the backing
-layer's coordinates before placement; movement also stays in layer coordinates.
-The opt-in presentation always uses a 2.6-point white core
-with a warm-yellow upper halo and cool-blue lower halo. Moku's composers and
-Overview's expanded search field are its production callers and supply a fixed
-dark surface; ordinary composers retain their native caret and appearance. Empty
-emphasized inputs leave three points between the insertion origin and placeholder
-text. The `singleLine` option lays the native editor out as one horizontally
-scrolling, non-wrapping line, keeps Return from inserting a break and omits the
-multiline submit tooltip; the field owner is responsible for replacing pasted
-line breaks. With no horizontal scroller, the native editor still scrolls the
-caret into view and responds to trackpad movement. Its layout pins the vertical
-clip origin after a viewport resize, including when SwiftUI initially presents a
-short document and for direct native scroll requests; horizontal scrolling remains
-owned by the text editor.
+rounded caret, sized to 25/24 of the text size plus one point, with its center
+one point below AppKit's actual `drawInsertionPoint` rectangle. The top edge
+sits half a point lower and the lower end reaches the descender without moving
+glyphs. View coordinates are converted through AppKit to the backing layer's
+coordinates before placement, so a flipped or scaled text view does not
+displace the mark. The opt-in presentation always uses a 2.6-point white core
+with a warm-yellow upper halo and cool-blue lower halo. Moku is its production
+caller and supplies a fixed dark surface; ordinary composers retain their native
+caret and appearance. Empty emphasized inputs leave three points between the
+insertion origin and placeholder text.
 The halo preserves the approved study’s blurred 16-point warm and 14-point cool
 ellipses plus a 4.6-point gradient fringe. Halo widths and blur radii scale from
 the study’s 25-point core to the editor’s actual caret height. The transparent glow image is rendered
