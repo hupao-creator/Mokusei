@@ -1,6 +1,9 @@
-name: Overview performance
+name: Overview identical-product control
 
 "on":
+  push:
+    branches:
+      - 'diag/overview-ci-aa-20261031'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
@@ -41,7 +44,7 @@ defaults:
 
 jobs:
   paired-release:
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/overview') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/overview') || (github.event_name == 'push' && github.ref == 'refs/heads/diag/overview-ci-aa-20261031') }}
     name: Release A/B · foreground Overview
     runs-on: macos-26
     timeout-minutes: 30
@@ -49,8 +52,8 @@ jobs:
       CGO_ENABLED: '1'
       GOTOOLCHAIN: local
       GOFLAGS: -mod=readonly
-      BASELINE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.baseline }}
-      CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.candidate }}
+      BASELINE_SHA: ${{ github.event_name == 'push' && github.ref == 'refs/heads/diag/overview-ci-aa-20261031' && '69c30b9a3356ca3a5c9a4de9ce78f1b683960125' || (github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.baseline) }}
+      CANDIDATE_SHA: ${{ github.event_name == 'push' && github.ref == 'refs/heads/diag/overview-ci-aa-20261031' && '69c30b9a3356ca3a5c9a4de9ce78f1b683960125' || (github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.candidate) }}
     steps:
       - uses: actions/checkout@v4
         with:
