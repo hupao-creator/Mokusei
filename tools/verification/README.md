@@ -78,6 +78,20 @@ process-group leader exits. It verifies macOS's `EPERM` probe result and calls
 production cleanup before and after reaping, alongside the live-descendant
 drain scenario. No user runtime or external Harness is used for these fixtures.
 
+CI passes `--artifacts <directory>` after `--swift-shutdown` to the runtime-helper
+replay. A concurrent-launch error is captured immediately; a parent panic also
+captures a separate snapshot before deleting its owned temporary profiles, then
+rethrows the original panic. Only named runtime logs and private startup/owner/
+connection/launch metadata from those fixture profiles are copied. Symbolic links and
+special files are rejected, logs are capped at 2 MiB, JSON at 64 KiB, and each
+profile exports at most 64 launch files. The manifest records missing/read errors,
+truncation, copied-byte hashes and observed PID liveness. These snapshots are not
+atomic ownership observations and do not turn an unavailable historical log into
+a diagnosed failure. Capture errors remain additional diagnostics; they never
+replace the replay's original failure or relax its assertions.
+The portable evidence-retention tests run in CI's existing Go unit group; the
+full `--swift-shutdown` replay still runs separately on macOS.
+
 Property-based tests complement the executable replays: `make pbt` runs Rapid
 with the race detector against Runtime/SQLite admission schedules and Codex
 terminal-state transitions. It is included in `make check`. Increase generation

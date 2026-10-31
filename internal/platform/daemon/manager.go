@@ -246,11 +246,18 @@ func Ensure(ctx context.Context, p profile.Profile, options LaunchOptions) (*pro
 			return connection, ctx.Err()
 		}
 		if childExited {
+			// A competing Ensure child can own the guard before publishing the
+			// owner record. Read its handoff before owner metadata so a successful
+			// competitor cannot retire its receipt between two negative reads.
+			pending, err := hasPendingLaunch(p)
+			if err != nil {
+				return nil, err
+			}
 			live, err := profile.HasLiveOwner(p)
 			if err != nil {
 				return nil, err
 			}
-			if !live {
+			if !pending && !live {
 				if ctx.Err() != nil {
 					return nil, ctx.Err()
 				}

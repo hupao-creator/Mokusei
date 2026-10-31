@@ -149,9 +149,13 @@ func main() {
 	must(verifyDescendantDrain())
 	must(verifyZombieGroupDrain())
 	ctx := context.Background()
+	artifacts, e := helperArtifactDirectory(os.Args[1:])
+	must(e)
 	temp, e := os.MkdirTemp("", "mokusei-go-helper-")
 	must(e)
 	defer os.RemoveAll(temp)
+	evidence := helperStartupEvidence{root: temp, directory: artifacts}
+	defer evidence.onPanic()
 	repo := attachments.New(filepath.Join(temp, "attachments"))
 	for _, item := range []struct{ source, stored string }{
 		{".env", "env"}, {".gitignore", "gitignore"}, {".config.json", "config.json"},
@@ -337,6 +341,9 @@ func main() {
 		go func() {
 			defer wg.Done()
 			c, e := daemon.Ensure(ctx, p, daemon.LaunchOptions{Executable: executable})
+			if e != nil {
+				evidence.capture(fmt.Sprintf("concurrent-launch-%d", i))
+			}
 			launchedAgain[i] = c
 			errs2 <- e
 		}()
