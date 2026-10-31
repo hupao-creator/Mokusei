@@ -201,9 +201,10 @@ public struct HarnessMessageTimeline: View {
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
-                    .padding(.top, readingNavigation != nil ? 94 : bounds.size.width >= 1024 ? 24 : bounds.size.width <= 540 ? 28 : 44)
-                    .padding(.bottom, 36).frame(maxWidth: .infinity)
+                    .padding(.top, readingTopInset(bounds.size.width))
+                    .padding(.bottom, readingBottomInset).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
+                    .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
                     .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
                 }
                 .scrollIndicators(.automatic)
@@ -327,6 +328,19 @@ public struct HarnessMessageTimeline: View {
         position.scrollTo(edge: .bottom)
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
+
+    /// One page is the content height actually visible under the timeline's
+    /// fixed insets. Keep the top inset in step with the padding above; a page
+    /// taller than this would not be visible as a whole when it flushes.
+    private func readingPageCapacity(_ size: CGSize) -> CGFloat {
+        max(0, size.height - readingTopInset(size.width) - readingBottomInset)
+    }
+
+    private var readingBottomInset: CGFloat { 36 }
+
+    private func readingTopInset(_ width: CGFloat) -> CGFloat {
+        readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44
+    }
     private func reportReading() {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)
     }
