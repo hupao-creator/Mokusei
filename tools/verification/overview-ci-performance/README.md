@@ -116,8 +116,11 @@ cannot become valid pairs.
 
 ## Running and reading results
 
-The workflow runs for relevant pull requests whose head branch begins with
-`perf/overview`. A is that PR event's base SHA; B is its head SHA. The harness
+The workflow runs on opening, code synchronization and reopening of relevant
+pull requests whose head branch begins with `perf/overview`, including drafts.
+Changing a draft to ready does not repeat the matrix solely for that metadata
+event; use explicit fixed-SHA dispatch when a new base comparison is needed.
+A is that PR event's base SHA; B is its head SHA. The harness
 checkout is also recorded separately, since GitHub's PR checkout is a merge tree.
 `workflow_dispatch` accepts explicit `baseline` and `candidate` SHAs for future
 comparisons. Both revisions must be available in the checkout's full Git history.

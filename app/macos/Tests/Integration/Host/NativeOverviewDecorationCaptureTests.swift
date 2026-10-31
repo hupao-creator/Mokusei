@@ -275,19 +275,27 @@ struct NativeOverviewDecorationCaptureTests {
         let card = pixelFrame(nodes.cloud), scan = pixelFrame(nodes.scan)
         let camera = overview.canvasState.camera.liveTransform
         let multiplier = CGFloat(camera.scale) * scale
-        // The left 360pt identity cell owns the ticking duration. Use only the
-        // right derived cell, below its single static 21pt row plus 5/6pt inner
-        // and 16pt outer padding. This excludes every identity glyph and scan.
-        let cloud = CGRect(x: card.minX + 400 * multiplier, y: card.minY + 106 * multiplier,
-                           width: 312 * multiplier, height: 70 * multiplier).integral
+        // This fixed fixture's title, duration, single excerpt and derived row
+        // all end above y=106. Observe the quiet bottom strip across both cells:
+        // a random cloud may concentrate in either half. The 24pt side/bottom
+        // insets keep the integral crop inside the 22pt rounded-corner boundary.
+        let cloud = CGRect(x: card.minX + 24 * multiplier, y: card.minY + 106 * multiplier,
+                           width: 688 * multiplier, height: 70 * multiplier).integral
+        // Retain the former right-cell crop as diagnostics, not an additional
+        // gate: a locally dark region cannot establish that the cloud stopped.
+        let rightCellCloud = CGRect(x: card.minX + 400 * multiplier, y: card.minY + 106 * multiplier,
+                                    width: 312 * multiplier, height: 70 * multiplier).integral
         let control = CGRect(x: 8 * scale, y: (window.frame.height - 32) * scale,
                              width: 48 * scale, height: 16 * scale).integral
-        let result = DecorationGeometry(card: card, scan: scan, cloud: cloud, control: control,
+        let result = DecorationGeometry(card: card, scan: scan, cloud: cloud, rightCellCloud: rightCellCloud, control: control,
             scale: scale, multiplier: multiplier, imageSize: CGSize(width: window.frame.width * scale, height: window.frame.height * scale),
             camera: camera)
         try #require(abs(card.width - 736 * multiplier) <= 2 && abs(card.height - 200 * multiplier) <= 2,
                      "Native cloud geometry did not follow the actual manual camera")
-        try #require(card.insetBy(dx: -1, dy: -1).contains(scan) && !cloud.intersects(scan.insetBy(dx: -4 * scale, dy: -4 * scale)),
+        try #require(card.insetBy(dx: -1, dy: -1).contains(scan)
+                     && card.insetBy(dx: 22 * multiplier, dy: 22 * multiplier).contains(cloud)
+                     && cloud.contains(rightCellCloud)
+                     && !cloud.intersects(scan.insetBy(dx: -4 * scale, dy: -4 * scale)),
                      "The scan or quiet cloud observation region is outside its intended production card region")
         let image = CGRect(origin: .zero, size: result.imageSize)
         let scanSampling = scan.integral.insetBy(dx: 0, dy: -CGFloat(max(3, Int(4 * scale)) + 1))
@@ -352,10 +360,12 @@ struct NativeOverviewDecorationCaptureTests {
         let columns = Int(scan.width)
         for (index, pixels) in bitmaps.enumerated() {
             let cloud = pixels.change(from: baseline, in: geometry.cloud)
+            let rightCell = pixels.change(from: baseline, in: geometry.rightCellCloud)
             let control = pixels.change(from: baseline, in: geometry.control)
             cloudRows.append(["index": index, "presentationTime": samples[index].presentationTime,
                 "receivedAt": samples[index].receivedAt, "meanAbsoluteRGB": cloud.mean,
-                "changedFraction": cloud.fraction, "controlMeanAbsoluteRGB": control.mean])
+                "changedFraction": cloud.fraction, "controlMeanAbsoluteRGB": control.mean,
+                "rightCellMeanAbsoluteRGB": rightCell.mean, "rightCellChangedFraction": rightCell.fraction])
             profiles.append((0..<columns).map { x in
                 let column = Int(scan.minX) + x
                 let line = pixels.meanLuma(x: column, from: Int(scan.minY), to: Int(scan.maxY))
@@ -374,13 +384,15 @@ struct NativeOverviewDecorationCaptureTests {
             let lower = try #require(samples.firstIndex { $0.presentationTime - first.presentationTime >= start })
             let upper = try #require(samples.firstIndex { $0.presentationTime - first.presentationTime >= end })
             let cloud = bitmaps[upper].change(from: bitmaps[lower], in: geometry.cloud)
+            let rightCell = bitmaps[upper].change(from: bitmaps[lower], in: geometry.rightCellCloud)
             let control = bitmaps[upper].change(from: bitmaps[lower], in: geometry.control)
             let moved = cloud.mean > max(0.25, control.mean * 4 + 0.1) && cloud.fraction > 0.02
             if moved { movingCloudIntervals += 1 }
             cloudIntervals.append(["fromIndex": lower, "toIndex": upper,
                 "fromPresentationTime": samples[lower].presentationTime, "toPresentationTime": samples[upper].presentationTime,
                 "meanAbsoluteRGB": cloud.mean, "changedFraction": cloud.fraction,
-                "controlMeanAbsoluteRGB": control.mean, "moved": moved])
+                "controlMeanAbsoluteRGB": control.mean, "moved": moved,
+                "rightCellMeanAbsoluteRGB": rightCell.mean, "rightCellChangedFraction": rightCell.fraction])
         }
         let cloudMoved = movingCloudIntervals == 2
         // Remove static row/background edges independently at each column. The
@@ -415,7 +427,8 @@ struct NativeOverviewDecorationCaptureTests {
         return DecorationMotion(cloudMoved: cloudMoved, scanMoved: scanMoved,
             report: ["cloudMoved": cloudMoved, "scanMoved": scanMoved, "cloud": cloudRows, "cloudIntervals": cloudIntervals, "scan": scanRows,
                 "scanExpectedNormalizedVelocity": 1.34 / 3.4,
-                "cloudRegion": "Right derived cell below its only static row; entire left identity/runtime cell and scan excluded",
+                "cloudRegion": "Fixed quiet bottom strip across both cells, x=24...712 and y=106...176 card points; all fixture glyphs, scan and rounded corners excluded",
+                "rightCellDiagnosticOnly": true,
                 "scanMethod": "Narrow-row contrast minus neighboring rows and per-column temporal floor; ordered pixel centroid movement"])
     }
 
@@ -444,7 +457,7 @@ struct NativeOverviewDecorationCaptureTests {
 }
 
 private struct DecorationGeometry {
-    let card: CGRect, scan: CGRect, cloud: CGRect, control: CGRect
+    let card: CGRect, scan: CGRect, cloud: CGRect, rightCellCloud: CGRect, control: CGRect
     let scale: CGFloat, multiplier: CGFloat
     let imageSize: CGSize
     let camera: NativeOverviewTransform
@@ -452,6 +465,7 @@ private struct DecorationGeometry {
         func rect(_ value: CGRect) -> [CGFloat] { [value.minX, value.minY, value.width, value.height] }
         return ["imagePixels": [imageSize.width, imageSize.height], "backingScale": scale,
             "cardPixels": rect(card), "scanPixels": rect(scan), "cloudObservationPixels": rect(cloud),
+            "rightCellDiagnosticPixels": rect(rightCellCloud),
             "staticControlPixels": rect(control), "roundedCornerRadiusPixels": 22 * multiplier,
             "camera": ["scale": camera.scale, "x": camera.x, "y": camera.y],
             "coordinateConvention": "Full-window image, top-left origin; native view frames converted through NSWindow"]

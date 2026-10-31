@@ -97,14 +97,20 @@ loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
 The composer hold replay queues each down/drag/up through AppKit in order. A
-window- and gesture-scoped local monitor starts the unchanged 0.1/0.8-second
-release timer when down is dispatched. Each stage must post its actual release
-(and the drag event for the drag case), then observe the recognizer back at
-`.possible` before advancing; a fixed sleep or the initial `.possible` state
-cannot certify completion. Phase timestamps retain these receipts. A local
-monitor may not see mouse-up consumed by nested text tracking, so that optional
-observation is diagnostic rather than a completion requirement. The existing
-90-second replay timeout and owned-process stack capture remain unchanged.
+window- and gesture-scoped local monitor anchors a private serial Dispatch timer
+to actual down dispatch. Strict zero-leeway deadlines supply drag after 100ms
+and release after the unchanged 100/800ms duration; the worker creates and posts
+each event without waiting for the MainActor. Apple permits
+[posting events from secondary threads](https://developer.apple.com/documentation/appkit/nsapplication/postevent(_:atstart:)).
+Planned and actual post times, optional drag/up dispatch observations and
+voice-start timestamps are retained. Each post must complete within 50ms of its
+deadline; drag and short release must also precede the recognizer's actual
+minimum press duration. Nested text tracking can bypass local drag/up monitors,
+so these optional observations cannot certify or invalidate execution merely by
+being absent. Every stage still requires real release posting and the recognizer
+back at `.possible` within three seconds, without forcing layout/display while
+the gesture is in flight. The original start-count, draft and detachment
+assertions, 90-second replay timeout and owned-process stack capture remain unchanged.
 
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
@@ -276,7 +282,13 @@ mounts the production Overview workspace with one public Codex running thread
 and a running subagent. It requires the actual 2×1 projection, native cloud and
 scan views, a live Metal layer and CA scan animation. Two disjoint later capture
 intervals must show cloud pixel changes in a quiet region that excludes duration,
-text and scan pixels. Narrow-row contrast must show the scan moving through the
+text and scan pixels. The fixed fixture's quiet bottom strip spans both card cells
+(x=24...712, y=106...176 card points). Its title, duration, single excerpt and
+derived row stay above the strip; 24-point side/bottom insets exclude rounded
+corners. This covers a random cloud concentrated in either cell. The former
+right-cell crop remains diagnostic, since a locally dark region cannot establish
+that the cloud stopped. The 3.9-second capture, two predetermined intervals,
+static control and movement thresholds are unchanged. Narrow-row contrast must show the scan moving through the
 composed image. A legal 0.90→1.0 camera change must preserve the native objects.
 Complete fixed/zoom PNGs, pixel measurements, geometry and provenance are retained
 under `native-decoration/`. Transparency, glass colors, rounded corners and zoom

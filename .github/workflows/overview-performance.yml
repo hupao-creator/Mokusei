@@ -2,7 +2,7 @@ name: Overview performance
 
 "on":
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
     paths:
       - 'app/macos/Sources/Host/Overview/**'
       - 'app/macos/Sources/Shared/PluginUI/Cards/**'
