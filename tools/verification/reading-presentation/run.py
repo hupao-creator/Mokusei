@@ -1,11 +1,50 @@
 """Run production reading integration suites in a staged temporary AppKit app."""
 from pathlib import Path
+import hashlib
+import json
 import os
+import platform
+import shutil
 import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from native_replay import NativeReplay
+
+
+def compile_native_input_support(replay, repo):
+    source = repo / "app/macos/Tests/NativeInputSupport"
+    staged = replay.build / "NativeInputSupport"
+    include = staged / "include"
+    include.mkdir(parents=True)
+    inputs = {}
+    staged_inputs = {}
+    for relative in ("NativeInputSupport.m", "include/MokuseiNativeInputSupport.h", "include/module.modulemap"):
+        target = staged / relative
+        shutil.copy2(source / relative, target)
+        name = str((source / relative).relative_to(repo))
+        inputs[name] = hashlib.sha256(target.read_bytes()).hexdigest()
+        staged_inputs[name] = str(target)
+    sdk = subprocess.check_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
+    # NativeReplay.compile uses this host architecture and deployment target.
+    target = f"{platform.machine()}-apple-macosx26.0"
+    module_map = include / "module.modulemap"
+    object_file = staged / "NativeInputSupport.o"
+    command = ["/usr/bin/xcrun", "--sdk", "macosx", "clang", "-fobjc-arc", "-Wall", "-Wextra", "-Werror",
+               "-isysroot", sdk, "-target", target, "-fmodules",
+               "-fmodules-cache-path=" + str(replay.root / "ClangModuleCache"),
+               "-I", str(include), "-fmodule-map-file=" + str(module_map),
+               "-c", str(staged / "NativeInputSupport.m"), "-o", str(object_file)]
+    receipt = {"inputSHA256": inputs, "stagedInputs": staged_inputs, "compileCommand": command,
+               "sdk": sdk, "target": target, "objectPath": str(object_file)}
+    replay.manifest["nativeInputSupport"] = receipt
+    try:
+        subprocess.run(command, cwd=replay.workspace, check=True)
+        receipt["objectSHA256"] = hashlib.sha256(object_file.read_bytes()).hexdigest()
+    finally:
+        # Retain compiler inputs even when compilation fails before app launch.
+        (replay.root / "launch.json").write_text(json.dumps(replay.manifest, indent=2) + "\n")
+    return ["-sdk", sdk, "-I", str(include), "-Xcc", "-fmodule-map-file=" + str(module_map), str(object_file)]
 
 
 def main():
@@ -57,6 +96,8 @@ def main():
     evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     try:
         replay.acquire()
+        if "NativeMokuHistoryComposerTests" in suites:
+            args += compile_native_input_support(replay, repo)
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES",
                        "MOKUSEI_READING_MOTION_ARTIFACTS": str(replay.workspace / "evidence")}

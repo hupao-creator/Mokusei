@@ -56,7 +56,7 @@ Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click keeps it open without losing the draft, including
 after covering routes and remounting. The three methods sending
 native mouse/key events run in CI's isolated AppKit input host; the remaining
-state/layout methods also run in the ordinary Swift shard. Plain SwiftPM's native
+state/layout methods also run in the ordinary Swift suite. Plain SwiftPM's native
 text tracking was observed to exit zero before its completion summary, which
 coverage treats as failure. A second native window also
 checks that both focus loss and an actual click retain input and preserve the
@@ -79,11 +79,17 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
+Its long-press fixture queues each down event before a serial worker supplies
+the timed drag/release through the test-only [native input bridge](../../../app/macos/Tests/NativeInputSupport/README.md).
+Receipts check actual posting deadlines independently of AppKit layout/tracking;
+the existing short-press, drag, long-press and unavailable-state assertions still
+check recognition. Posting receipts do not claim physical input delivery.
+
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
 exactly the nine input/responder, pointer and native-panel methods deferred by
 SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
-in the normal Swift shards. The Report modal case acknowledges WebKit's focused
+in the single ordinary Swift suite. The Report modal case acknowledges WebKit's focused
 frame before native Escape and observes its close event and trusted cancel;
 a fixed delay or JavaScript dismissal cannot certify default input handling.
 
@@ -214,8 +220,8 @@ python3 tools/verification/reading-presentation/run.py --tag-glass
 
 This runs seven `NativeOverviewTagGlassTests` cases against production Chrome.
 CI uses `--tag-glass-captures` for the two WindowServer pixel cases, because the
-other five already run in its Swift shards. Both modes reject skips and retain
-the same assertions. A verified shared CI build avoids repeating SwiftPM build;
+other five already run in the ordinary Swift suite. Both modes reject skips and retain
+the same assertions. The same job's verified Swift build avoids repeating SwiftPM build;
 ordinary local invocations still build current sources.
 WindowServer capture explicitly scales to the requested two-pixels-per-point
 buffer. On a 1x screen the default only downsizes, leaving padded space instead
@@ -322,9 +328,9 @@ suite launches through LaunchServices so its first window has foreground
 activation; capture requires a key window and full-size WindowServer geometry,
 rejecting system transition thumbnails. Reduce Motion is observed
 from production's environment without changing system preferences.
-The required CI native-capture lane runs all three methods in this host;
-SwiftPM explicitly defers them and the coverage aggregator rejects any missing
-passing replay outcome. The separate Go Settings launcher retains real persistence, conflict, validation
+The required CI `native` replay group runs all three methods through
+`settings-transition` in this host. SwiftPM explicitly defers them and the coverage
+auditor rejects any missing passing replay outcome. The separate Go Settings launcher retains real persistence, conflict, validation
 and IME coverage. The production-app navigation replay verifies rejection outside
 Overview and keeps reading routes and their back actions intact.
 
@@ -549,6 +555,6 @@ and the reasoning panel are rendered under
 renders do not certify WindowServer compositing or physical input delivery.
 
 SwiftPM defers these four methods to this launcher because transient popovers
-need a running AppKit application. The default CI `native-controls` replay group
-runs them and the coverage collector requires their observed passing outcomes;
+need a running AppKit application. The default CI `native` replay group
+runs them and the coverage auditor requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.

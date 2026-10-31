@@ -48,8 +48,10 @@ let package = Package(
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .executableTarget(name: "MokuseiProbe", dependencies: ["MokuseiCore"], path: "Sources/Tools/Probe"),
         .target(name: "MokuseiTestSupport", path: "Tests/Support", exclude: ["README.md"]),
+        .target(name: "MokuseiNativeInputSupport", path: "Tests/NativeInputSupport", exclude: ["README.md"],
+            publicHeadersPath: "include", linkerSettings: [.linkedFramework("AppKit")]),
         .testTarget(name: "MokuseiSettingsIntegrationTests", dependencies: [
-            "MokuseiTestSupport",
+            "MokuseiTestSupport", "MokuseiNativeInputSupport",
             "MokuseiCore", "MokuseiUI", "MokuseiPluginAPI", "MokuseiPluginUI",
             "MokuseiHarnessCodex", "MokuseiHarnessPi", "MokuseiHarnessClaude", "MokuseiHarnessOpenCode", "MokuseiSidecardBrowser", "MokuseiSidecardConversation", "MokuseiVoice", "MokuseiApplications"
         ], path: "Tests/Integration/Host"),

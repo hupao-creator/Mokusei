@@ -1,4 +1,4 @@
-"""Audit observed shard and replay identities against the current verified build."""
+"""Audit the ordinary suite and native replays against the current verified build."""
 import json
 import os
 from pathlib import Path
@@ -37,22 +37,17 @@ def main():
             return None
 
 
-    # One builder plus five consumers must agree on the exact build/inventory.
-    manifest_paths = list(evidence.rglob("build-manifest.json"))
-    manifests = [read_json(path) for path in manifest_paths]
-    manifest = next((value for value in manifests if value), None)
-    if len(manifests) != 6 or any(value != manifest for value in manifests) or manifest is None:
-        errors.append("Missing or inconsistent builder/consumer manifests.")
+    manifest = read_json(one("build-manifest.json"))
     if manifest and os.environ.get("GITHUB_SHA", manifest["revision"]) != manifest["revision"]:
-        errors.append("Shared build does not belong to the current commit.")
+        errors.append("Native build does not belong to the current commit.")
     if manifest:
         if manifest.get("nativeMethods") != NATIVE_METHOD_OWNERS:
-            errors.append("Shared build native method ownership does not match the current registry.")
-        if any(shard.get("skip") != native_filter() for shard in manifest["shards"]):
-            errors.append("Shared build native method exclusion does not match the current registry.")
-        assigned = [test for shard in manifest["shards"] for test in shard["tests"]] + list(NATIVE_METHOD_OWNERS)
+            errors.append("Native build method ownership does not match the current registry.")
+        if manifest["ordinary"].get("skip") != native_filter():
+            errors.append("Native build method exclusion does not match the current registry.")
+        assigned = manifest["ordinary"]["tests"] + list(NATIVE_METHOD_OWNERS)
         if len(assigned) != len(set(assigned)) or sorted(assigned) != manifest["tests"]:
-            errors.append("Shard/native ownership plan omits or duplicates discovered tests.")
+            errors.append("Ordinary/native ownership plan omits or duplicates discovered tests.")
     receipt_tests = []
     observed_tests = []
     native_receipts = {name: [] for name in NATIVE_METHOD_OWNERS}
@@ -100,25 +95,22 @@ def main():
     }
     allowed_skips = swift_launchers | {name.rsplit(".", 1)[0] + "/" + name.rsplit(".", 1)[1] for name in xctest_launchers}
     deferred = set()
-    log_paths = {index: one(f"swift-{index}.log") for index in range(5)}
-    results, parser_errors, rows = summarize([(f"Swift shard {index + 1}", path) for index, path in log_paths.items() if path is not None])
+    label = "Ordinary Swift suite"
+    path = one("swift.log")
+    results, parser_errors, rows = summarize([(label, path)] if path is not None else [])
     errors.extend(parser_errors)
-    for shard_index in range(5):
-        label = f"Swift shard {shard_index + 1}"
-        receipt = read_json(one(f"swift-{shard_index}.json"))
-        if receipt is None or receipt.get("status") != "passed" or receipt.get("exit_code") != 0:
-            errors.append(f"{label}: missing successful process receipt.")
-        if receipt and manifest:
-            if (receipt.get("revision") != manifest["revision"] or receipt.get("shard") != shard_index
-                    or receipt.get("tests") != manifest["shards"][shard_index]["tests"]
-                    or receipt.get("filter") != manifest["shards"][shard_index]["filter"]
-                    or receipt.get("skip") != manifest["shards"][shard_index].get("skip")):
-                errors.append(f"{label}: receipt does not match the complete test inventory.")
-            receipt_tests.extend(receipt.get("tests", []))
-        path = log_paths[shard_index]
-        if path is None:
-            errors.append(f"{label}: no test log; tests did not run.")
-            continue
+    receipt = read_json(one("swift.json"))
+    if receipt is None or receipt.get("status") != "passed" or receipt.get("exit_code") != 0:
+        errors.append(f"{label}: missing successful process receipt.")
+    if receipt and manifest:
+        if (receipt.get("revision") != manifest["revision"]
+                or receipt.get("tests") != manifest["ordinary"]["tests"]
+                or receipt.get("skip") != manifest["ordinary"].get("skip")):
+            errors.append(f"{label}: receipt does not match the complete test inventory.")
+        receipt_tests.extend(receipt.get("tests", []))
+    if path is None:
+        errors.append(f"{label}: no test log; tests did not run.")
+    else:
         log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", path.read_text(errors="replace"))
         if "Requires a logged-in WindowServer session and a display" in log:
             errors.append(f"{label}: native display tests skipped; hosted UI coverage is required.")
@@ -126,18 +118,18 @@ def main():
             outcomes = terminal_methods(log, manifest["tests"], errors)
             identities = [name for name, _ in outcomes]
             observed_tests.extend(identities)
-            expected = manifest["shards"][shard_index]["tests"]
+            expected = manifest["ordinary"]["tests"]
             if Counter(identities) != Counter(expected):
-                errors.append(f"{label}: observed method identities omit, repeat or substitute assigned tests.")
+                errors.append(f"{label}: observed method identities omit, repeat or substitute discovered ordinary tests.")
             skipped_names = {name for name, status in outcomes if status == "skipped"}
             deferred.update(skipped_names)
             for name in sorted(skipped_names - allowed_skips):
                 errors.append(f"{label}: unexpected skip: {name}")
-        if manifest and sum(result["tests"] for result in results if result["run"] == label) != len(manifest["shards"][shard_index]["tests"]):
-            errors.append(f"{label}: framework totals do not account for every assigned method.")
+        if manifest and sum(result["tests"] for result in results) != len(manifest["ordinary"]["tests"]):
+            errors.append(f"{label}: framework totals do not account for every ordinary method.")
 
     replay_passes = set()
-    for group in ("fixtures", "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"):
+    for group in ("fixtures", "interop", "native"):
         replay_path = one("ci-" + group + "/report.json")
         replay = read_json(replay_path)
         if replay is None:
@@ -145,7 +137,7 @@ def main():
             continue
         if manifest and replay.get("revision") != manifest["revision"]:
             errors.append(f"{group}: replay belongs to a different commit.")
-        if (replay.get("errors") or "selectedChecks" in replay or not replay["checks"]
+        if (replay.get("group") != group or replay.get("errors") or "selectedChecks" in replay or not replay["checks"]
                 or any(check["status"] != "passed" for check in replay["checks"])):
             errors.append(f"{group}: required replays failed or did not complete.")
         if manifest and group != "fixtures":
@@ -178,15 +170,15 @@ def main():
         owned_receipts = [name for name, receipts in native_receipts.items() for _ in receipts]
         owned_outcomes = [name for name, outcomes in native_outcomes.items() for _ in outcomes]
         if Counter(receipt_tests + owned_receipts) != Counter(manifest["tests"]):
-            errors.append("Shard/native receipts do not cover the complete discovered inventory exactly once.")
+            errors.append("Ordinary/native receipts do not cover the complete discovered inventory exactly once.")
         if Counter(observed_tests + owned_outcomes) != Counter(manifest["tests"]):
-            errors.append("Observed shard/native outcomes do not cover the complete inventory exactly once.")
+            errors.append("Observed ordinary/native outcomes do not cover the complete inventory exactly once.")
 
     for name in sorted(deferred - replay_passes):
         errors.append(f"Deferred method has no observed passing replay: {name}")
 
     rows += ["", "Named live-fixture/isolated-host methods require observed passing replay outcomes.",
-             "All discovered methods are observed once across five shards and explicit native owners; directory tags are not repeated.",
+             "All discovered methods are observed once across the ordinary suite and explicit native owners; directory tags are not repeated.",
              f"Explicit native owners: {len(NATIVE_METHOD_OWNERS)} methods, each requiring its declared mandatory replay receipt and passing outcome.",
              "Display-capability skips fail CI."]
     report = "\n".join(rows) + "\n"

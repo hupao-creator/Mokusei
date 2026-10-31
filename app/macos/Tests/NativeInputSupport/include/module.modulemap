@@ -1,0 +1,4 @@
+module MokuseiNativeInputSupport {
+    header "MokuseiNativeInputSupport.h"
+    export *
+}

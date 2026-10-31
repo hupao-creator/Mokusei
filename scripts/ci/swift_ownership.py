@@ -3,20 +3,15 @@ import re
 
 NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/titleReversalAndVisibilityCancellationSettlePixels()": {
-        "group": "native-capture", "check": "tag-glass-captures", "marker": "TITLE_INCOMING_MOTION_CONFIRMED",
+        "group": "native", "check": "tag-glass-captures", "marker": "TITLE_INCOMING_MOTION_CONFIRMED",
     },
 }
-
-
-def ordinary_filter(suites):
-    """Retain SwiftPM's suite selection, including parameterized methods."""
-    return "^(?:" + "|".join(re.escape(suite) for suite in suites) + ")/"
 
 
 def native_filter():
     """Match declared IDs and Swift Testing's runtime source-location suffixes."""
     # Swift Testing lists a unique method without its source location, but its
     # runtime Test.ID.description appends /file:line:column. A trailing $ alone
-    # misses that ID. A separate --skip also prevents an included ancestor suite
-    # from restoring this method through Swift Testing's recursive selection.
+    # misses that ID. Run the whole ordinary suite with this exclusion and no
+    # positive ancestor filter that could restore the native-owned method.
     return "^(?:" + "|".join(re.escape(name) for name in NATIVE_METHOD_OWNERS) + ")(?:/|$)"

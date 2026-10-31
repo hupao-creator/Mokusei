@@ -14,8 +14,7 @@ import deadline
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("group", choices=["runtime", "adapters", "fixtures", "interop", "native",
-                                         "interop-wire", "interop-process", "native-controls", "native-capture", "native-runtime"])
+    parser.add_argument("group", choices=["runtime", "adapters", "fixtures", "interop", "native"])
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--check", action="append", help="Run only named checks (local evidence, not a complete CI group)")
     parser.add_argument("--go", default=os.environ.get("MOKUSEI_GO", "go"))
@@ -69,22 +68,12 @@ def main():
                                "-artifacts", str(output / "settings")]),
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name])
-              for name in ["browser-dialogs", "application-navigation", "tag-glass-captures"]],
+              for name in ["browser-dialogs", "application-navigation", "tag-glass-captures",
+                           "settings-transition", "isolated-input"]],
+            ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
+            ("model-selector", [sys.executable, "tools/verification/reading-presentation/run.py", "--model-selector"]),
         ],
     }
-    # Keep GUI work serial in each process/session, but spread independent
-    # boundary replays across all five runners instead of two long tails.
-    groups["interop-wire"] = groups["interop"][:6]
-    groups["interop-process"] = groups["interop"][6:]
-    groups["native-runtime"] = groups["native"][:3]
-    settings_panel = ("settings-transition", [sys.executable, "tools/verification/reading-presentation/run.py", "--settings-transition"])
-    groups["native-capture"] = [groups["native"][3], groups["native"][5], settings_panel]
-    groups["native"].append(settings_panel)
-    groups["native-controls"] = [groups["native"][4],
-        ("isolated-input", [sys.executable, "tools/verification/reading-presentation/run.py", "--isolated-input"]),
-        ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
-        ("model-selector", [sys.executable, "tools/verification/reading-presentation/run.py", "--model-selector"])]
-    groups["native"].extend(groups["native-controls"][1:])
     if args.group == "fixtures":
         environment.update(fixtures)
     checks = groups[args.group]

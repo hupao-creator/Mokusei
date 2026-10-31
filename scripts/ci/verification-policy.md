@@ -11,9 +11,8 @@ remain useful for iteration and diagnosis; their existence does not make every
 tool mandatory for every change. Historical logs and checks from a different
 revision cannot certify the new revision.
 
-Plan focused local checks first. Hosted CI currently provides advisory feedback;
-its completion is not a merge requirement. Honor any actual remote required
-checks if protection rules change. Do not add a full local `make check` merely
+Plan focused local checks first, then require the final revision's successful
+hosted `Complete coverage` check and the actual remote branch rules. Do not add a full local `make check` merely
 before or after equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
 coordination. Documentation-only diffs proven by the workflow's conservative
 path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
@@ -27,25 +26,24 @@ documentation scope are not claimed as executed.
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only clipboard/profile-lease tests on macOS |
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh and cache ownership | Linux `adapters` replay group; scripted external peers and loopback services |
-| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Five disjoint ordinary shards plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
-| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five producers export six files through the preparation artifact before the Swift shards |
+| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | One complete serial ordinary run plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
+| Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five producers export six files locally before the complete Swift run |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage and native profile leases | Six existing interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
 
-The Swift shards defer only named methods needing a live Go fixture or
+The ordinary Swift run defers only named methods needing a live Go fixture or
 the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
 tests and retain reports/logs. New or display-related skips fail the job. Do not
 turn a regression into an allowlist entry.
 
 Methods needing an exclusive native owner are recorded in `swift_ownership.py`
-and the verified build manifest before ordinary partitioning. The title
-cancellation replay belongs to the existing `native-capture/tag-glass-captures`
+and the verified build manifest before ordinary execution. The title
+cancellation replay belongs to the existing `native/tag-glass-captures`
 check so its incoming-frame assertion runs with AppKit's event loop and real
 WindowServer delivery. Its full method identity remains in discovery and is
 excluded from ordinary execution without a test-level skip or environment bypass.
-Ordinary commands retain suite-prefix `--filter` selection and pass a separate
-shared `--skip` for the full native method ID and its runtime source-location
-suffix. This command selection does not add a framework skip outcome; the method
+The complete ordinary command has no positive `--filter` and passes the shared
+`--skip` for the full native method ID and its runtime source-location suffix. This command selection does not add a framework skip outcome; the method
 must still execute at its declared native owner.
 Coverage requires exactly one successful owner receipt, one passing terminal
 outcome and the required execution marker at that declared check; missing frames fail the native assertion, while
@@ -59,23 +57,27 @@ current-head Swift/native run validates Swift Testing's runtime selection semant
 
 ## Runner allocation and execution limits
 
-The workflow serializes PR/main and extended cohorts in a repository-wide queue.
-Each admitted cohort still builds current sources once and runs five disjoint
-native shards in parallel, with serial GUI work inside each runner. An exact
-run/producer-attempt manifest gates shared artifacts and all discovered method
-IDs must appear exactly once; weights are scheduling hints, never a coverage list.
-Obsolete queued PR heads/bases and main pushes stop before native scheduling.
+The default workflow uses one macOS job for build, fixtures, the complete ordinary
+Swift suite and all interop/native replays. GUI work remains serial within that
+session. One current-build manifest and the observed method IDs establish complete
+execution; no weights, cross-runner build transport or artifact-slot aggregation
+are involved. Compiler caches never replace the current-source build or tests.
+
+New PR/main revisions cancel older work only in the same event/ref group; explicit
+dispatches have independent run-specific groups. Obsolete work retains GitHub's
+cancelled status instead of becoming a green required check. Remote strict branch
+rules control freshness; scope only determines the conservative documentation path.
 
 There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
-Queue, attempt and total retry elapsed times are diagnostic metrics. Thirty-minute
-job/command execution limits stop hung work; narrower CLI/test timeouts retain
-their independent purpose. A timeout still means incomplete verification.
+Queue, attempt and total retry elapsed times are diagnostic. The single native job
+has a sixty-minute guard; Linux/extended jobs and owned commands retain thirty-minute
+guards, with narrower existing CLI/test limits. Timeout is incomplete verification.
 
-Preserve each attempt's evidence and select the latest execution of each required
-slot; never fall back from a new failure to an old success. Re-run failed jobs
-only after diagnosis shows a retry is appropriate. A same-commit passing retry
-does not establish that the first failure was harmless. The workflow still
-requires all selected jobs and complete observed method coverage to report success; that result is advisory for merging.
+Preserve each attempt's complete native artifact. A failed native job must rerun
+its full local build/test/replay/audit path; successful independent Linux jobs may
+be carried forward. Diagnose before retrying. A same-commit passing retry does not
+establish that the first failure was harmless. The required aggregate only passes
+when every applicable job and complete observed native coverage succeeds.
 
 ## Extended hosted checks
 
