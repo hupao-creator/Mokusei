@@ -58,7 +58,11 @@ import MokuseiCore
             editor.appearance = NSAppearance(named: appearance)
             caret.show(at: rect, in: editor)
             precondition(abs(caret.layer.bounds.width - 2.6) < 0.001)
-            precondition(abs(caret.layer.bounds.height - 14 * 25 / 24) < 0.001)
+            // 14-point study height plus the one-point optical growth.
+            precondition(abs(caret.layer.bounds.height - (14 * 25 / 24 + 1)) < 0.001)
+            // The extra height and downward offset share the same point, so the
+            // top edge drops half a point and the mark's center drops one point.
+            precondition(abs(caret.layer.frame.midY - (rect.midY + 1)) < 0.001)
             let core = caret.layer.sublayers!.first { $0.name == "composer-insertion-core" }!
             let glow = caret.layer.sublayers!.first { $0.name == "composer-insertion-glow" }!
             precondition(core.backgroundColor == NSColor.white.cgColor)

@@ -241,9 +241,11 @@ Native text bindings compare UTF-16 code units so canonically equivalent Unicode
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a
-rounded caret, sized to 25/24 of the text size and centered in AppKit's actual
-`drawInsertionPoint` rectangle. Its last drawing input and selection are retained
-as read-only geometry for native replay inspection. The zero-width logical
+rounded caret, sized to 25/24 of the text size plus one point, with its center
+one point below AppKit's actual `drawInsertionPoint` rectangle. The top edge
+sits half a point lower and the lower end reaches the descender without moving
+glyphs. Its last drawing input and selection are retained as read-only geometry
+for native replay inspection. The zero-width logical
 boundary from `firstRect` is a separate text/input-method location and can differ
 from the pixel-aligned drawing rectangle. View coordinates are converted through AppKit to the backing
 layer's coordinates before placement; movement also stays in layer coordinates.
