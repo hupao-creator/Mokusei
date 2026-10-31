@@ -1,0 +1,330 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
+	"runtime/trace"
+	"strconv"
+	"sync"
+	"sync/atomic"
+)
+
+// This file is applied only to the independently built diagnostic Core. It is
+// never an input to the formal harness or a production module.
+const coreTraceMaximumBytes = 8 * 1024 * 1024
+const coreTraceMaximumAnchors = 8192
+const coreTraceMaximumIdentifiers = 4096
+
+const (
+	traceSpanWait = iota
+	traceSpanFIFOLock
+	traceSpanFIFOClock
+	traceSpanProducerReceipt
+	traceSpanStore
+	traceSpanPublication
+)
+
+var coreTraceSpanNames = [...]string{
+	"overview.source.wait", "overview.source.fifo-lock", "overview.source.fifo-clock",
+	"overview.source.receipt", "overview.worker.store-update", "overview.publisher.observer",
+}
+
+const (
+	tracePointStart = iota
+	tracePointWaitReturn
+	tracePointEnqueued
+	tracePointStoreStart
+	tracePointStoreReturn
+	tracePointPublication
+	tracePointStop
+)
+
+var coreTracePointNames = [...]string{
+	"overview.trace-start", "overview.wait-return", "overview.enqueued",
+	"overview.store-start", "overview.store-return", "overview.publication", "overview.trace-stop",
+}
+
+// The trace package's reader keeps draining even after this sink fills. Returning
+// len(p) is intentional: runtime/trace does not report Writer errors to Start or
+// Stop. We retain the exact prefix and count every discarded byte; overflow is
+// an explicit incomplete capture, never a successfully decoded full trace.
+type boundedCoreTrace struct {
+	mu      sync.Mutex
+	bytes   []byte
+	seen    int64
+	dropped int64
+}
+
+func newBoundedCoreTrace(limit int) *boundedCoreTrace {
+	return &boundedCoreTrace{bytes: make([]byte, 0, limit)}
+}
+
+func (w *boundedCoreTrace) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.seen += int64(len(p))
+	n := min(len(p), cap(w.bytes)-len(w.bytes))
+	w.bytes = append(w.bytes, p[:n]...)
+	w.dropped += int64(len(p) - n)
+	return len(p), nil
+}
+
+type coreTraceRawAnchor struct {
+	Category              string `json:"category"`
+	Message               string `json:"message"`
+	Identifier            int    `json:"identifier"`
+	RawBeforeNanoseconds  int64  `json:"rawBeforeNanoseconds"`
+	RawAfterNanoseconds   int64  `json:"rawAfterNanoseconds"`
+	RelatedRawNanoseconds int64  `json:"relatedRawNanoseconds"`
+	ClockError            string `json:"clockError,omitempty"`
+}
+
+type coreTraceBracket struct {
+	Before int64 `json:"beforeUptimeNanoseconds"`
+	After  int64 `json:"afterUptimeNanoseconds"`
+}
+
+type coreTraceHeap struct {
+	HeapAlloc uint64 `json:"heapAllocBytes"`
+	NextGC    uint64 `json:"nextGCBytes"`
+	NumGC     uint32 `json:"numGC"`
+}
+
+func readCoreTraceHeap() coreTraceHeap {
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	return coreTraceHeap{stats.HeapAlloc, stats.NextGC, stats.NumGC}
+}
+
+type coreTraceEnvironmentValue struct {
+	Set   bool   `json:"set"`
+	Value string `json:"value"`
+}
+
+func readCoreTraceEnvironment() map[string]coreTraceEnvironmentValue {
+	values := make(map[string]coreTraceEnvironmentValue, 4)
+	for _, name := range [...]string{"GODEBUG", "GOGC", "GOMEMLIMIT", "GOMAXPROCS"} {
+		value, present := os.LookupEnv(name)
+		values[name] = coreTraceEnvironmentValue{Set: present, Value: value}
+	}
+	return values
+}
+
+type coreTraceDiagnostic struct {
+	path, sidecarPath string
+	file              *os.File
+	writer            *boundedCoreTrace
+	origin            clockObservation
+	start, stopTimes  coreTraceBracket
+	heapBefore        coreTraceHeap
+	heapAfter         coreTraceHeap
+	heapStopped       coreTraceHeap
+	environment       map[string]coreTraceEnvironmentValue
+	anchors           []coreTraceRawAnchor
+	anchorCount       atomic.Uint64
+	anchorErrors      atomic.Uint64
+	invalidIDs        atomic.Uint64
+	identifiers       [coreTraceMaximumIdentifiers]string
+	spanStarted       [len(coreTraceSpanNames)]atomic.Uint64
+	spanEnded         [len(coreTraceSpanNames)]atomic.Uint64
+	pointCounts       [len(coreTracePointNames)]atomic.Uint64
+	started           bool
+	stopOnce          sync.Once
+	stopError         error
+}
+
+func startCoreTraceDiagnostic(path string, origin clockObservation) (*coreTraceDiagnostic, error) {
+	return startCoreTraceWithLimit(path, origin, coreTraceMaximumBytes)
+}
+
+func startCoreTraceWithLimit(path string, origin clockObservation, limit int) (*coreTraceDiagnostic, error) {
+	if limit <= 0 || limit > coreTraceMaximumBytes {
+		return nil, errors.New("invalid diagnostic trace memory bound")
+	}
+	if path == "" || !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return nil, errors.New("MOKUSEI_OVERVIEW_CORE_TRACE_PATH must name a new absolute trace file")
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("create diagnostic trace: %w", err)
+	}
+	d := &coreTraceDiagnostic{path: path, sidecarPath: path + ".json", file: file, origin: origin,
+		environment: readCoreTraceEnvironment()}
+	if sidecar, err := os.OpenFile(d.sidecarPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("create diagnostic trace receipt: %w", err)
+	} else if err := sidecar.Close(); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	d.heapBefore = readCoreTraceHeap()
+	d.writer = newBoundedCoreTrace(limit)
+	d.anchors = make([]coreTraceRawAnchor, coreTraceMaximumAnchors)
+	for index := range d.identifiers {
+		d.identifiers[index] = strconv.Itoa(index)
+	}
+	d.heapAfter = readCoreTraceHeap()
+	if err := writeJSON(d.sidecarPath, d.receipt("starting", false, "", nil)); err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	d.start.Before, err = rawUptimeNanoseconds()
+	if err == nil {
+		err = trace.Start(d.writer)
+		d.started = err == nil
+	}
+	var clockErr error
+	d.start.After, clockErr = rawUptimeNanoseconds()
+	err = errors.Join(err, clockErr)
+	if err != nil {
+		return nil, errors.Join(err, d.stop(err))
+	}
+	d.mark(tracePointStart, -1, origin.UptimeNanoseconds)
+	return d, nil
+}
+
+// Regions retain the current goroutine identity; no LockOSThread, QoS setting,
+// timer replacement, per-event task allocation or detached pacing is added.
+func (d *coreTraceDiagnostic) region(kind int) func() {
+	if d == nil {
+		return func() {}
+	}
+	d.spanStarted[kind].Add(1)
+	region := trace.StartRegion(context.Background(), coreTraceSpanNames[kind])
+	return func() {
+		region.End()
+		d.spanEnded[kind].Add(1)
+	}
+}
+
+// These raw readings bracket execution of trace.Log, not necessarily its
+// numeric timestamp: the tracer has its own clock domain. The decoder must
+// validate a mapping from these anchors, especially for Linux MONOTONIC_RAW.
+// Each category/message pair identifies one event in the single fixed replay;
+// relatedRaw is an existing source deadline/receipt, never a replacement for it.
+func (d *coreTraceDiagnostic) mark(kind, identifier int, relatedRaw int64) {
+	if d == nil {
+		return
+	}
+	message := "lifecycle"
+	if identifier >= 0 && identifier < len(d.identifiers) {
+		message = d.identifiers[identifier]
+	} else if identifier != -1 {
+		d.invalidIDs.Add(1)
+		message = "invalid-identifier"
+	}
+	index := d.anchorCount.Add(1) - 1
+	d.pointCounts[kind].Add(1)
+	before, beforeErr := rawUptimeNanoseconds()
+	trace.Log(context.Background(), coreTracePointNames[kind], message)
+	after, afterErr := rawUptimeNanoseconds()
+	anchor := coreTraceRawAnchor{Category: coreTracePointNames[kind], Message: message,
+		Identifier: identifier, RawBeforeNanoseconds: before, RawAfterNanoseconds: after,
+		RelatedRawNanoseconds: relatedRaw}
+	if err := errors.Join(beforeErr, afterErr); err != nil {
+		anchor.ClockError = err.Error()
+		d.anchorErrors.Add(1)
+	} else if after < before {
+		anchor.ClockError = "raw clock moved backwards around trace annotation"
+		d.anchorErrors.Add(1)
+	}
+	if index < uint64(len(d.anchors)) {
+		d.anchors[index] = anchor
+	}
+}
+
+// run() registers this defer before Store, runtime and transport cleanup. Normal
+// shutdown has already joined the benchmark workers; later defers close the
+// production publisher before this Stop, so all annotated spans have ended.
+func (d *coreTraceDiagnostic) stop(runError error) error {
+	if d == nil {
+		return nil
+	}
+	d.stopOnce.Do(func() {
+		var failures []error
+		if d.started {
+			d.mark(tracePointStop, -1, 0)
+			var err error
+			d.stopTimes.Before, err = rawUptimeNanoseconds()
+			failures = append(failures, err)
+			trace.Stop() // Waits for the reader to drain into the bounded sink.
+			d.stopTimes.After, err = rawUptimeNanoseconds()
+			failures = append(failures, err)
+		}
+		d.heapStopped = readCoreTraceHeap()
+		n, err := d.file.Write(d.writer.bytes)
+		failures = append(failures, err)
+		if n != len(d.writer.bytes) {
+			failures = append(failures, io.ErrShortWrite)
+		}
+		failures = append(failures, d.file.Sync(), d.file.Close())
+		if d.writer.dropped != 0 {
+			failures = append(failures, fmt.Errorf("trace memory bound exceeded: %d bytes discarded", d.writer.dropped))
+		}
+		if d.anchorCount.Load() > uint64(len(d.anchors)) || d.anchorErrors.Load() != 0 || d.invalidIDs.Load() != 0 {
+			failures = append(failures, errors.New("trace raw anchor storage or clock validation failed"))
+		}
+		for kind := range coreTraceSpanNames {
+			if d.spanStarted[kind].Load() != d.spanEnded[kind].Load() {
+				failures = append(failures, fmt.Errorf("unclosed trace region %s", coreTraceSpanNames[kind]))
+			}
+		}
+		d.stopError = errors.Join(failures...)
+		complete := d.started && d.stopError == nil
+		status := "complete"
+		if !complete {
+			status = "incomplete"
+		}
+		priorFailure := ""
+		if runError != nil {
+			priorFailure = runError.Error()
+		}
+		if err := writeJSON(d.sidecarPath, d.receipt(status, complete, priorFailure, d.stopError)); err != nil {
+			d.stopError = errors.Join(d.stopError, err)
+		}
+	})
+	return d.stopError
+}
+
+func (d *coreTraceDiagnostic) receipt(status string, complete bool, runError string, captureError error) map[string]any {
+	spans, points := map[string]any{}, map[string]uint64{}
+	for kind, name := range coreTraceSpanNames {
+		spans[name] = map[string]uint64{"started": d.spanStarted[kind].Load(), "ended": d.spanEnded[kind].Load()}
+	}
+	for kind, name := range coreTracePointNames {
+		points[name] = d.pointCounts[kind].Load()
+	}
+	count := min(d.anchorCount.Load(), uint64(len(d.anchors)))
+	digest := sha256.Sum256(d.writer.bytes)
+	errText := ""
+	if captureError != nil {
+		errText = captureError.Error()
+	}
+	return map[string]any{
+		"schemaVersion": 1, "diagnosticKind": "overview-core-execution-trace", "status": status,
+		"captureComplete": complete, "tracePath": d.path, "sidecarPath": d.sidecarPath,
+		"traceBytes": len(d.writer.bytes), "traceSHA256": hex.EncodeToString(digest[:]),
+		"maximumTraceBytes": cap(d.writer.bytes), "totalWriterBytes": d.writer.seen,
+		"droppedTraceBytes": d.writer.dropped, "overflow": d.writer.dropped != 0,
+		"writerError": errText, "runErrorBeforeTraceCleanup": runError,
+		"traceStart": d.start, "traceStop": d.stopTimes,
+		"measurementClockVersion": measurementClockVersion, "measurementClockID": measurementClockID(),
+		"clockOriginUptimeNanoseconds": d.origin.UptimeNanoseconds,
+		"rawAnchors":                   d.anchors[:count], "rawAnchorCount": d.anchorCount.Load(),
+		"maximumRawAnchors": len(d.anchors), "rawAnchorClockErrors": d.anchorErrors.Load(),
+		"invalidIdentifiers": d.invalidIDs.Load(), "spanCounts": spans, "pointCounts": points,
+		"goVersion": runtime.Version(), "gomaxprocs": runtime.GOMAXPROCS(0),
+		"environment":                  d.environment,
+		"heapBeforeRecorderAllocation": d.heapBefore, "heapAfterRecorderAllocation": d.heapAfter,
+		"heapAfterStop":  d.heapStopped,
+		"bufferPolicy":   "One preallocated Go byte slice (maximumTraceBytes, production diagnostic limit 8 MiB) plus bounded raw-anchor and identifier arrays; no trace-file writes until Stop returns. Heap snapshots are outside source supply. Overflow preserves the exact prefix and marks the capture incomplete.",
+		"interpretation": "Diagnostic instrumentation changes memory, GC and scheduling. CPU is not a formal performance result. Capture completion is separate from the original source/clock/window validity; no missed deadline is reclassified. No missing pause in this replay disproves an earlier unobserved pause.",
+	}
+}

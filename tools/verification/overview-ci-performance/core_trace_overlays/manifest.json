@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "target": "tools/verification/overview-ci-performance/runtime/core_trace_diagnostic.go",
+      "source": "core_trace_diagnostic.go.txt",
+      "beforeSHA256": null,
+      "afterSHA256": "f002532b73fc9377079ffdc27fe0733c9fea881c08ce2b9546daea44c02f3775",
+      "beforeGitBlobSHA1": null,
+      "afterGitBlobSHA1": "3c7f6c9e44fe87768a79354cae2eba58d7854a7a",
+      "mode": "100644"
+    },
+    {
+      "target": "tools/verification/overview-ci-performance/runtime/core_trace_diagnostic_test.go",
+      "source": "core_trace_diagnostic_test.go.txt",
+      "beforeSHA256": null,
+      "afterSHA256": "e1ccd995354c853ea81109e1e9a13c74b172665bf233155250bafce1bb270dcd",
+      "beforeGitBlobSHA1": null,
+      "afterGitBlobSHA1": "e34db3c358e582c8d78b4ef8d2c1e12ca6166c37",
+      "mode": "100644"
+    },
+    {
+      "target": "tools/verification/overview-ci-performance/runtime/main.go",
+      "source": "main.go.txt",
+      "beforeSHA256": "4c2cdf7020dff311eb9ca2e28a4238c1b95585ad60486acfe8e6f6b8ed864b3e",
+      "afterSHA256": "7d3499fb533dc291818797d24e1a05181b2f305abe6527b6a4510c31f3aa3d06",
+      "beforeGitBlobSHA1": "93c12e5aa90d819b6565818b6c9aa5e9aef9867c",
+      "afterGitBlobSHA1": "62b8e460b40feb72e8f8b810f299704625fe0d44",
+      "mode": "100644"
+    },
+    {
+      "target": "tools/verification/overview-ci-performance/runtime/metrics.go",
+      "source": "metrics.go.txt",
+      "beforeSHA256": "9cb21ee7de2ba0b519715bf41909f2ecfcb4928bff3f60650662e9ebcec90268",
+      "afterSHA256": "3710b2e9b38fa6d7f944ff16cc25a9422548a37da7cbc4c2ad258f62228a4824",
+      "beforeGitBlobSHA1": "d9f1b57131df9f41e72e413dc8a4e7203f42f6ef",
+      "afterGitBlobSHA1": "3a0d745570a3e40a06609daca035300c5e8eb15c",
+      "mode": "100644"
+    },
+    {
+      "target": "tools/verification/overview-ci-performance/runtime/source.go",
+      "source": "source.go.txt",
+      "beforeSHA256": "f4f94d0e3036352d16442f4aeedacf3ff10706af443d8070602e5295f0ede823",
+      "afterSHA256": "562479a5c66d3ae900a99dcd97b27557ce287ac8755c46cc6c20a9fbb3408263",
+      "beforeGitBlobSHA1": "beb69e9d684ae994920cea8654ddfbe588c6ec1e",
+      "afterGitBlobSHA1": "f03aa90f006d15f37d113d6c07e8e011daaaf61e",
+      "mode": "100644"
+    }
+  ],
+  "sourcePathsRelativeTo": "this manifest directory",
+  "baselineProductCommit": "69c30b9a3356ca3a5c9a4de9ce78f1b683960125",
+  "originalFormalHarnessSHA256": "7da390645f45624de3f8e77da8472387bb292e9c92c5544de8c59812917e7254",
+  "diagnosticOnly": true,
+  "fixedPlan": "one S4, N40/K4, unchanged 5+20 seconds, source protocol 2, shared raw clock, 50 ms gates and original tail budget",
+  "traceEnvironmentVariable": "MOKUSEI_OVERVIEW_CORE_TRACE_PATH",
+  "sidecarSuffix": ".json"
+}

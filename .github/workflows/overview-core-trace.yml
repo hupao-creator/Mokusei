@@ -1,0 +1,82 @@
+name: Overview Core execution trace
+
+"on":
+  push:
+    branches: [diag/overview-ci-coretrace-20261031]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overview-core-trace-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  core-trace:
+    if: ${{ github.ref == 'refs/heads/diag/overview-ci-coretrace-20261031' }}
+    name: Fixed S4 · one instrumented Core trace
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
+      GOFLAGS: -mod=readonly
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Prepare the unchanged Release toolchain and display policy
+        run: |
+          test "$(uname -m)" = arm64
+          sw_vers
+          xcodebuild -version
+          xcrun swift --version
+          go version
+          if ! xcrun --sdk macosx metal --version; then
+            python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
+          fi
+          defaults write com.apple.universalaccess reduceMotion -bool false
+          defaults write com.apple.universalaccess reduceTransparency -bool false
+      - name: Verify the original measurement contracts
+        run: |
+          python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_clock_contract.py -v \
+            2>&1 | tee "$RUNNER_TEMP/overview-trace-clock-python.log"
+          python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_core_trace.py -v \
+            2>&1 | tee "$RUNNER_TEMP/overview-trace-overlay-python.log"
+          go test ./tools/verification/overview-ci-performance/runtime \
+            2>&1 | tee "$RUNNER_TEMP/overview-trace-clock-go.log"
+      - name: Capture one fixed S4 trace without changing source validity
+        run: |
+          python3 tools/verification/overview-ci-performance/core_trace.py \
+            --output "$RUNNER_TEMP/overview-core-trace" \
+            --configure-display --time-budget-seconds 1200
+      - name: Publish complete diagnostic evidence
+        if: ${{ always() }}
+        run: |
+          if [[ -f "$RUNNER_TEMP/overview-core-trace/report.md" ]]; then
+            cat "$RUNNER_TEMP/overview-core-trace/report.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            mkdir -p "$RUNNER_TEMP/overview-core-trace"
+            printf '%s\n' 'Trace collection did not start; inspect setup logs. No CPU performance result is certified.' \
+              > "$RUNNER_TEMP/overview-core-trace/not-started.txt"
+          fi
+          for log in "$RUNNER_TEMP"/overview-trace-*.log; do
+            if [[ -f "$log" ]]; then cp "$log" "$RUNNER_TEMP/overview-core-trace/"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: overview-core-execution-trace-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/overview-core-trace
+          if-no-files-found: error
+          retention-days: 14
