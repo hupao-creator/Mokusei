@@ -5,6 +5,9 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/titleReversalAndVisibilityCancellationSettlePixels()": {
         "group": "native-capture", "check": "tag-glass-captures", "marker": "TITLE_INCOMING_MOTION_CONFIRMED",
     },
+    "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/excerptRevealKeepsMovingThroughRewriteAndWidthChanges()": {
+        "group": "native-capture", "check": "tag-glass-captures", "marker": "EXCERPT_INK_MOTION_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/fullWorkspaceSearchMorphKeepsTextAndCaretCentered()": {
         "group": "native-controls", "check": "isolated-input", "marker": "SEARCH_CARET_GEOMETRY_CONFIRMED",
     },

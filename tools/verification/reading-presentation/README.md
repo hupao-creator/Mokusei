@@ -223,6 +223,25 @@ native replay capability; both run without skips in this eight-test launcher.
 
 ## Overview tag bar
 
+The existing `--tag-glass-captures` host also executes
+`SwiftUIOverviewInteractionTests.excerptRevealKeepsMovingThroughRewriteAndWidthChanges`.
+It mounts production `ThreadCardExcerpt` in a fixed onscreen window, captures
+complete WindowServer frames during reveal and rewrite, and changes the component's
+local width from 360 to 280pt during a reveal. Measured width and intermediate ink
+observations are required; a completed 280ms task or matching final text is
+insufficient. Reference frames use the same production text renderer. The moving
+cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
+
+The method has one explicit `native-capture/tag-glass-captures` owner, so ordinary
+Swift shards exclude it while complete coverage requires its passing native
+outcome and `EXCERPT_INK_MOTION_CONFIRMED` marker. Screenshots, capture timestamps
+and measurements are retained in `excerpt/` under this host's evidence directory,
+including failed runs. `provenance.json` records the actual checkout and product
+Git tree, worktree-diff digest, input-file and signed replay binary SHA256 values,
+run/attempt identifiers, and capture-file hashes. This Debug replay validates
+component behavior; it does not measure Release CPU, optical FPS or #198 cloud/glass
+composition.
+
 The same isolated AppKit runner can exercise the production Overview tag bar:
 
 ```sh

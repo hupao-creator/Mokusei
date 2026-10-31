@@ -77,6 +77,14 @@ AppKit loop runs. `swift_ownership.py` records this method before partitioning;
 it stays in the discovered inventory but is never selected by an ordinary shard.
 The method has no environment-based bypass or test-level skip. Missing, failed,
 skipped, duplicated or incorrectly routed native outcomes fail coverage.
+The same capture check also owns
+`SwiftUIOverviewInteractionTests.excerptRevealKeepsMovingThroughRewriteAndWidthChanges`.
+It observes the production excerpt's intermediate ink through fixed-width reveal,
+rewrite cancellation and a measured local width change, using complete WindowServer
+frames in the AppKit host. `EXCERPT_INK_MOTION_CONFIRMED` is emitted only after
+those pixel assertions. Its screenshots, frame times and source/binary provenance
+are retained under the capture artifact's `excerpt` directory. It follows the
+same exactly-once owner contract; task completion or final text alone cannot pass it.
 The three Settings capsule methods likewise run in the required native-capture
 lane, because their production Dock/form mouse actions and WindowServer blur
 assertions need an activated AppKit host. The coverage aggregator requires each

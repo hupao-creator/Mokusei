@@ -468,6 +468,277 @@ extension SwiftUIOverviewInteractionTests {
         #expect(fixture.appearances == 2)
     }
 
+    /// Observe the production mask in WindowServer frames. Static production
+    /// excerpts supply glyph references; no test changes the animation policy.
+    @Test(.requiresDisplay) func excerptRevealKeepsMovingThroughRewriteAndWidthChanges() async throws {
+        try #require(!NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                     "Excerpt motion observation requires the native runner's ordinary motion-enabled environment")
+        for scenario in ExcerptInkScenario.allCases {
+            try await captureExcerptInk(scenario)
+        }
+        print("EXCERPT_INK_MOTION_CONFIRMED fixed=true rewrite=true localResize=true WindowServer=true")
+    }
+
+    private func captureExcerptInk(_ scenario: ExcerptInkScenario) async throws {
+        let fixture = ExcerptInkFixture()
+        let window = SwiftUIReplay.window(ExcerptInkReplay(fixture: fixture), width: 420, height: 580)
+        window.appearance = NSAppearance(named: .aqua)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        var captures: [TagGlassFrames.Sample] = []
+        var report = ExcerptInkReport(scenario: scenario.rawValue, backingScale: Double(window.backingScaleFactor))
+        defer {
+            report.widths = fixture.widths
+            report.appearances = fixture.appearances
+            do { try saveExcerptInk(captures, report: report) }
+            catch { Issue.record(Comment(rawValue: "Could not retain excerpt WindowServer evidence: \(error)")) }
+        }
+        try await SwiftUIReplay.wait {
+            fixture.widths.contains { abs($0.width - 360) < 0.01 }
+                && SwiftUIReplay.text(in: root).contains(ExcerptInkFixture.first)
+                && SwiftUIReplay.text(in: root).contains(ExcerptInkFixture.second)
+        }
+        // Initial mounting installs the production preview without a reveal.
+        // References settle before capture; timed actions never wait on AX.
+        try await Task.sleep(for: .milliseconds(350))
+        let shareable = try await SCShareableContent.currentProcess
+        let target = try #require(shareable.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
+        let scale = window.backingScaleFactor
+        let titlebar = window.frame.height - root.bounds.height
+        let configuration = SCStreamConfiguration()
+        configuration.width = Int(window.frame.width * scale)
+        configuration.height = Int(window.frame.height * scale)
+        configuration.ignoreShadowsSingleWindow = true
+        configuration.showsCursor = false
+        configuration.pixelFormat = kCVPixelFormatType_32BGRA
+        configuration.colorSpaceName = CGColorSpace.sRGB
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 60)
+        configuration.queueDepth = 3
+        let frames = TagGlassFrames()
+        let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: target),
+                              configuration: configuration, delegate: nil)
+        try stream.addStreamOutput(frames, type: .screen,
+                                   sampleHandlerQueue: DispatchQueue(label: "overview-excerpt-capture"))
+        try await stream.startCapture()
+        do {
+            try await SwiftUIReplay.wait { frames.ready }
+            captures.append(contentsOf: frames.takeSamples())
+            report.baselineIndex = captures.count - 1
+            let began = ProcessInfo.processInfo.systemUptime
+            report.events.append(.init(name: "rewrite-from-blank", uptime: began, width: 360))
+            fixture.message = ExcerptInkFixture.first
+            fixture.phase = 1
+            if let delay = scenario.interruptionDelay {
+                try await collectExcerptFrames(frames, until: began + delay, into: &captures)
+                let changed = ProcessInfo.processInfo.systemUptime
+                report.actualInterruptionMilliseconds = (changed - began) * 1000
+                report.events.append(.init(name: scenario == .rewrite ? "rewrite-again" : "change-local-width",
+                                           uptime: changed, width: scenario == .resize ? 280 : 360))
+                if scenario == .rewrite { fixture.message = ExcerptInkFixture.second }
+                else { fixture.width = 280 }
+                fixture.phase = 2
+                try await collectExcerptFrames(frames, until: changed + 0.45, into: &captures)
+            } else {
+                try await collectExcerptFrames(frames, until: began + 0.45, into: &captures)
+            }
+            try await stream.stopCapture()
+            captures.append(contentsOf: frames.takeSamples())
+        } catch {
+            try? await stream.stopCapture()
+            captures.append(contentsOf: frames.takeSamples())
+            throw error
+        }
+
+        // All pixel work and encoding occur after stop. During motion, draining
+        // every 5 ms keeps TagGlassFrames' 60-frame bound from discarding evidence.
+        func region(_ top: CGFloat) -> CGRect {
+            CGRect(x: 16 * scale, y: (titlebar + top) * scale,
+                   width: 360 * scale, height: 96 * scale).integral
+        }
+        let baseline = try #require(captures.indices.contains(report.baselineIndex) ? captures[report.baselineIndex] : nil,
+                                    "Observation incomplete: no full WindowServer baseline")
+        report.capturedPixels = [baseline.image.width, baseline.image.height]
+        try #require(baseline.image.width == configuration.width && baseline.image.height == configuration.height,
+                     "Observation incomplete: capture dimensions do not match the full window at its actual backing scale")
+        let blank = try titleWindowPixels(baseline.image, region: region(48))
+        let wide = try titleWindowPixels(baseline.image, region: region(174))
+        let replacement = try titleWindowPixels(baseline.image, region: region(300))
+        let narrow = try titleWindowPixels(baseline.image, region: region(426))
+        let wideMask = ExcerptInkReference(blank: blank, full: wide)
+        let replacementMask = ExcerptInkReference(blank: blank, full: replacement, excluding: wide)
+        let previousMask = ExcerptInkReference(blank: blank, full: wide, excluding: replacement)
+        let narrowMask = ExcerptInkReference(blank: blank, full: narrow)
+        try #require([wideMask, replacementMask, previousMask, narrowMask].allSatisfy { $0.pointCount > 30 },
+                     "Observation incomplete: settled production references have insufficient independent glyph pixels")
+        var crops: [TitleWindowPixels] = []
+        for (index, sample) in captures.enumerated() {
+            let pixels = try titleWindowPixels(sample.image, region: region(48))
+            crops.append(pixels)
+            let phase = try excerptPhase(sample.image,
+                                         at: CGPoint(x: 22 * scale, y: (titlebar + 22) * scale))
+            let widthPixels = try excerptComposedWidth(sample.image,
+                at: CGPoint(x: 16 * scale, y: (titlebar + 148) * scale), maximum: Int(362 * scale))
+            report.frames.append(.init(index: index, phase: phase,
+                composedWidth: Double(widthPixels) / Double(scale), composedWidthPixels: widthPixels,
+                receivedAt: sample.receivedAt, presentationTime: sample.presentationTime,
+                wide: wideMask.exposure(pixels), replacement: replacementMask.exposure(pixels),
+                previous: previousMask.exposure(pixels), narrow: narrowMask.exposure(pixels)))
+        }
+        try #require(report.frames.allSatisfy { $0.phase >= 0 },
+                     "Observation incomplete: a WindowServer frame does not contain the fixture's phase marker")
+        if let delay = scenario.interruptionDelay {
+            let actual = report.events[1].uptime - report.events[0].uptime
+            try #require(actual >= delay - 0.005 && actual < delay + 0.06,
+                         "Observation incomplete: the requested interruption was delivered too late to characterize this short reveal")
+        }
+        func hasWidth(_ frame: ExcerptInkFrameRecord, _ points: CGFloat) -> Bool {
+            abs(frame.composedWidthPixels - Int(points * scale)) <= 1
+        }
+        let phaseOne = report.frames.filter { $0.phase == 1 && hasWidth($0, 360) }
+        try #require(!phaseOne.isEmpty, "Observation incomplete: no composed frame acknowledged the first input")
+        try requireExcerptMotion(phaseOne, key: \.wide, stage: scenario.rawValue + "-before-interruption",
+                                 minimumFrames: scenario == .fixed ? 3 : 2,
+                                 minimumGain: scenario == .fixed ? 0.18 : 0.06, scale: scale)
+        let finalFrames: [ExcerptInkFrameRecord]
+        let expected: TitleWindowPixels
+        switch scenario {
+        case .fixed:
+            finalFrames = phaseOne
+            expected = wide
+        case .rewrite:
+            let after = report.frames.filter { $0.phase == 2 && hasWidth($0, 360) }
+            try #require(!after.isEmpty, "Observation incomplete: no composed frame acknowledged the second rewrite")
+            let firstTime = try #require(after.first).presentationTime
+            // The old display is the complete logical text by contract. A
+            // rewrite may restore that ink; its NEW incoming row must restart
+            // near zero, then reveal. Independent glyph supports prevent the
+            // incoming/outgoing colors from cancelling this measurement.
+            let reset = after.first {
+                $0.presentationTime - firstTime <= 0.065
+                    && $0.replacement.fraction <= 0.15 && $0.previous.fraction >= 0.80
+            }
+            let observedReset = try #require(reset,
+                "Observation incomplete or changed reset behavior: no early frame shows complete previous ink and a reset incoming mask")
+            report.resetFrameIndex = observedReset.index
+            try #require(after.prefix { $0.index <= observedReset.index }.allSatisfy { $0.replacement.fraction <= 0.20 },
+                         "The incoming replacement was already advanced before its observed reset")
+            try requireExcerptMotion(after, key: \.replacement, stage: "rewrite-new-incoming",
+                                     minimumFrames: 3, minimumGain: 0.18, scale: scale)
+            finalFrames = after
+            expected = replacement
+        case .resize:
+            try #require(fixture.widths.contains { abs($0.width - 360) < 0.01 }
+                         && fixture.widths.contains { abs($0.width - 280) < 0.01 },
+                         "Observation incomplete: the production excerpt's local width did not change from 360 to 280 points")
+            try #require(abs(root.bounds.width - 420) < 0.01,
+                         "Resize fixture must change local excerpt width while the window stays fixed")
+            let after = report.frames.filter { $0.phase == 2 && hasWidth($0, 280) }
+            try #require(!after.isEmpty, "Observation incomplete: no composed frame acknowledged local resize")
+            try requireExcerptMotion(after, key: \.narrow, stage: "after-local-resize",
+                                     minimumFrames: 2, minimumGain: 0.06, scale: scale)
+            finalFrames = after
+            expected = narrow
+        }
+        let final = try #require(finalFrames.last)
+        let error = ExcerptInkReference.relativeError(crops[final.index], expected: expected, blank: blank)
+        report.finalRelativeError = error
+        try #require(error < 0.02, "The settled WindowServer excerpt differs from its production reference")
+        try #require(fixture.appearances == 1, "The moving production excerpt remounted during the observed reveal")
+        report.assertionsPassed = true
+    }
+
+    private func collectExcerptFrames(_ frames: TagGlassFrames, until deadline: TimeInterval,
+                                      into captures: inout [TagGlassFrames.Sample]) async throws {
+        while ProcessInfo.processInfo.systemUptime < deadline {
+            captures.append(contentsOf: frames.takeSamples())
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            if remaining > 0 { try await Task.sleep(for: .seconds(min(0.005, remaining))) }
+        }
+        captures.append(contentsOf: frames.takeSamples())
+    }
+
+    private func requireExcerptMotion(_ frames: [ExcerptInkFrameRecord],
+                                      key: KeyPath<ExcerptInkFrameRecord, ExcerptInkExposure>,
+                                      stage: String, minimumFrames: Int,
+                                      minimumGain: Double, scale: CGFloat) throws {
+        // Inspect every frame of this phase and composed geometry before
+        // selecting motion samples. A full->partial jump or an earlier peak
+        // cannot disappear merely because a later pair moves correctly.
+        var peak = 0.0
+        var reachedFull = false
+        for frame in frames {
+            let fraction = frame[keyPath: key].fraction
+            try #require(fraction + 0.025 >= peak,
+                Comment(rawValue: "Incoming ink visibly regressed in " + stage + " at frame \(frame.index)"))
+            try #require(!reachedFull || fraction >= 0.965,
+                Comment(rawValue: "A fully exposed frame was followed by partial ink in " + stage + " at frame \(frame.index)"))
+            peak = max(peak, fraction)
+            reachedFull = reachedFull || fraction >= 0.98
+        }
+        let partial = frames.filter {
+            let exposure = $0[keyPath: key]
+            return exposure.fraction > 0.02 && exposure.fraction < 0.98 && exposure.front != nil
+        }
+        try #require(partial.count >= minimumFrames,
+                     Comment(rawValue: "Observation incomplete: too few intermediate WindowServer ink frames for " + stage))
+        let movesLeft = partial.enumerated().contains { index, first in
+            partial.dropFirst(index + 1).contains { last in
+                guard let start = first[keyPath: key].front, let end = last[keyPath: key].front else { return false }
+                return last.presentationTime > first.presentationTime + 0.012
+                    && first[keyPath: key].fraction + minimumGain <= last[keyPath: key].fraction
+                    && start - end >= Int(4 * scale)
+            }
+        }
+        try #require(movesLeft,
+                     Comment(rawValue: "No observed right-to-left mask boundary motion between intermediate frames for " + stage))
+    }
+
+    private func excerptPhase(_ image: CGImage, at point: CGPoint) throws -> Int {
+        let pixel = try titleWindowPixels(image, region: CGRect(origin: point, size: CGSize(width: 1, height: 1)))
+        let bytes = [UInt8](pixel.data)
+        let blue = Int(bytes[0]), green = Int(bytes[1]), red = Int(bytes[2])
+        if max(red, max(green, blue)) < 48 { return 0 }
+        if red > 200 && blue > 200 && green < 64 { return 1 }
+        if green > 200 && blue > 200 && red < 64 { return 2 }
+        return -1
+    }
+
+    private func excerptComposedWidth(_ image: CGImage, at point: CGPoint, maximum: Int) throws -> Int {
+        let pixels = try titleWindowPixels(image,
+            region: CGRect(origin: point, size: CGSize(width: CGFloat(maximum), height: 1)))
+        let bytes = [UInt8](pixels.data)
+        func blue(_ column: Int) -> Bool {
+            let offset = column * 4
+            return bytes[offset] > 200 && bytes[offset + 1] < 64 && bytes[offset + 2] < 64
+        }
+        let width = (0..<maximum).prefix(while: blue).count
+        // A contiguous bar must end in this crop; disconnected pixels are not
+        // accepted as the local layout width.
+        guard width < maximum, !(width..<maximum).contains(where: blue) else { return -1 }
+        return width
+    }
+
+    private func saveExcerptInk(_ captures: [TagGlassFrames.Sample], report: ExcerptInkReport) throws {
+        let directory: URL
+        if let root = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
+            directory = URL(fileURLWithPath: root, isDirectory: true).appendingPathComponent("excerpt", isDirectory: true)
+        } else {
+            var repository = URL(fileURLWithPath: #filePath)
+            for _ in 0..<6 { repository.deleteLastPathComponent() }
+            directory = repository.appendingPathComponent(".scratch/reading-presentation/excerpt", isDirectory: true)
+        }
+        let output = directory.appendingPathComponent(report.scenario, isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        for (index, sample) in captures.enumerated() {
+            let image = NSBitmapImageRep(cgImage: sample.image)
+            let data = try #require(image.representation(using: .png, properties: [:]))
+            try data.write(to: output.appendingPathComponent(String(format: "%03d.png", index)))
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(report).write(to: output.appendingPathComponent("measurements.json"))
+    }
+
     private func textPixels(in root: NSView) throws -> Data {
         root.layoutSubtreeIfNeeded(); root.window?.displayIfNeeded()
         let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
@@ -536,6 +807,178 @@ extension SwiftUIOverviewInteractionTests {
         }
         try JSONSerialization.data(withJSONObject: measurements, options: [.prettyPrinted, .sortedKeys])
             .write(to: directory.appendingPathComponent("window-frames.json"))
+    }
+}
+
+private enum ExcerptInkScenario: String, CaseIterable {
+    case fixed, rewrite, resize
+    var interruptionDelay: TimeInterval? {
+        switch self {
+        case .fixed: nil
+        case .rewrite: 0.100
+        case .resize: 0.140
+        }
+    }
+}
+
+@MainActor @Observable private final class ExcerptInkFixture {
+    // The replacement occupies another line. Its independent glyph pixels
+    // distinguish new incoming ink from the complete logical previous text.
+    static let first = String(repeating: "M", count: 36)
+    static let second = "\n" + first
+    var message = "\u{00a0}"
+    var width: CGFloat = 360
+    var phase = 0
+    @ObservationIgnored var widths: [ExcerptInkWidth] = []
+    @ObservationIgnored var appearances = 0
+}
+
+private struct ExcerptInkReplay: View {
+    let fixture: ExcerptInkFixture
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color.white
+            Rectangle()
+                .fill(Color(.sRGB, red: fixture.phase == 1 ? 1 : 0,
+                            green: fixture.phase == 2 ? 1 : 0,
+                            blue: fixture.phase == 0 ? 0 : 1, opacity: 1))
+                .frame(width: 12, height: 12)
+                .offset(x: 16, y: 16)
+            ThreadCardExcerpt(content: fixture.message, messageId: "excerpt-ink-motion", messageText: fixture.message)
+                .lineLimit(5)
+                .onAppear { fixture.appearances += 1 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                    fixture.widths.append(.init(uptime: ProcessInfo.processInfo.systemUptime, width: Double(width)))
+                }
+                .frame(width: fixture.width, height: 96, alignment: .topLeading)
+                .overlay(alignment: .bottomLeading) {
+                    // Overlay proposal comes from the actual local frame,
+                    // without reading the requested width a second time.
+                    Color(.sRGB, red: 0, green: 0, blue: 1, opacity: 1)
+                        .frame(height: 3)
+                        .offset(y: 6)
+                }
+                .offset(x: 16, y: 48)
+            reference(ExcerptInkFixture.first, width: 360).offset(x: 16, y: 174)
+            reference(ExcerptInkFixture.second, width: 360).offset(x: 16, y: 300)
+            reference(ExcerptInkFixture.first, width: 280).offset(x: 16, y: 426)
+        }
+        .preferredColorScheme(.light)
+        .environment(\.scenePhase, .active)
+    }
+
+    private func reference(_ value: String, width: CGFloat) -> some View {
+        ThreadCardExcerpt(content: value, messageId: "excerpt-ink-reference", messageText: value)
+            .lineLimit(5)
+            .frame(width: width, height: 96, alignment: .topLeading)
+    }
+}
+
+private struct ExcerptInkWidth: Encodable { let uptime: TimeInterval; let width: Double }
+private struct ExcerptInkEvent: Encodable { let name: String; let uptime: TimeInterval; let width: Double }
+private struct ExcerptInkReport: Encodable {
+    let scenario: String
+    let backingScale: Double
+    let captureKind = "WindowServer/ScreenCaptureKit complete BGRA frames"
+    let initialLocalFramePoints = [360, 96]
+    let windowContentPoints = [420, 580]
+    let camera = "none"
+    var capturedPixels: [Int]?
+    var assertionsPassed = false
+    var appearances = 0
+    var baselineIndex = -1
+    var events: [ExcerptInkEvent] = []
+    var widths: [ExcerptInkWidth] = []
+    var frames: [ExcerptInkFrameRecord] = []
+    var actualInterruptionMilliseconds: Double?
+    var resetFrameIndex: Int?
+    var finalRelativeError: Double?
+}
+
+private struct ExcerptInkFrameRecord: Encodable {
+    let index: Int
+    let phase: Int
+    let composedWidth: Double
+    let composedWidthPixels: Int
+    let receivedAt: TimeInterval
+    let presentationTime: Double
+    let wide: ExcerptInkExposure
+    let replacement: ExcerptInkExposure
+    let previous: ExcerptInkExposure
+    let narrow: ExcerptInkExposure
+}
+
+private struct ExcerptInkExposure: Encodable {
+    let fraction: Double
+    /// Leftmost reference-glyph column with at least 30% of its settled ink.
+    /// Uniform opacity can change fraction without moving this boundary.
+    let front: Int?
+    let columns: [Double?]
+}
+
+private struct ExcerptInkReference {
+    private struct Point {
+        let offset: Int
+        let column: Int
+        let blue: Double
+        let green: Double
+        let red: Double
+    }
+    private let blank: [UInt8]
+    private let points: [Point]
+    private let weights: [Double]
+    private let totalWeight: Double
+    var pointCount: Int { points.count }
+
+    init(blank: TitleWindowPixels, full: TitleWindowPixels, excluding: TitleWindowPixels? = nil) {
+        let empty = [UInt8](blank.data), target = [UInt8](full.data)
+        let excluded = excluding.map { [UInt8]($0.data) }
+        var points: [Point] = []
+        var weights = [Double](repeating: 0, count: full.width)
+        for offset in stride(from: 0, to: target.count, by: 4) {
+            let blue = Double(Int(empty[offset]) - Int(target[offset]))
+            let green = Double(Int(empty[offset + 1]) - Int(target[offset + 1]))
+            let red = Double(Int(empty[offset + 2]) - Int(target[offset + 2]))
+            guard blue + green + red > 24 else { continue }
+            if let excluded,
+               (0..<3).reduce(0, { $0 + abs(Int(empty[offset + $1]) - Int(excluded[offset + $1])) }) > 12 {
+                continue
+            }
+            let column = (offset / 4) % full.width
+            points.append(.init(offset: offset, column: column, blue: blue, green: green, red: red))
+            weights[column] += blue * blue + green * green + red * red
+        }
+        self.blank = empty; self.points = points; self.weights = weights
+        totalWeight = weights.reduce(0, +)
+    }
+
+    func exposure(_ pixels: TitleWindowPixels) -> ExcerptInkExposure {
+        let bytes = [UInt8](pixels.data)
+        var sums = [Double](repeating: 0, count: weights.count)
+        for point in points {
+            let offset = point.offset
+            sums[point.column] += Double(Int(blank[offset]) - Int(bytes[offset])) * point.blue
+                + Double(Int(blank[offset + 1]) - Int(bytes[offset + 1])) * point.green
+                + Double(Int(blank[offset + 2]) - Int(bytes[offset + 2])) * point.red
+        }
+        let columns: [Double?] = sums.indices.map { weights[$0] > 400 ? sums[$0] / weights[$0] : nil }
+        return .init(fraction: sums.reduce(0, +) / max(1, totalWeight),
+                     front: columns.indices.first { (columns[$0] ?? 0) >= 0.30 },
+                     columns: columns)
+    }
+
+    static func relativeError(_ pixels: TitleWindowPixels, expected: TitleWindowPixels,
+                              blank: TitleWindowPixels) -> Double {
+        let actual = [UInt8](pixels.data), wanted = [UInt8](expected.data), empty = [UInt8](blank.data)
+        var error = 0, reference = 0
+        for offset in stride(from: 0, to: actual.count, by: 4) {
+            for channel in 0..<3 {
+                error += abs(Int(actual[offset + channel]) - Int(wanted[offset + channel]))
+                reference += abs(Int(empty[offset + channel]) - Int(wanted[offset + channel]))
+            }
+        }
+        return Double(error) / Double(max(1, reference))
     }
 }
 
