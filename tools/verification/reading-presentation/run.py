@@ -98,7 +98,8 @@ def main():
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests", env=environment,
                             launch_environment={key: environment[key] for key in (
-                                "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO")
+                                "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO",
+                                "MOKUSEI_DIAG_LONG_PRESS")
                                 if key in environment})
         output = (replay.root / "stdout.log").read_text()
         if (replay.root / "stderr.log").is_file():

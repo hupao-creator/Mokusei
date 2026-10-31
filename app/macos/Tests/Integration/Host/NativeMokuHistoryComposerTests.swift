@@ -198,6 +198,17 @@ struct NativeMokuHistoryComposerTests {    private func editor(in view: NSView) 
         available = false
         try await hold(duration: 0.8)
         #expect(starts == 1)
+        if diag.isEnabled {
+            // A single run cannot distinguish "the press never began" from a run
+            // that happened to win the race, so repeat the same hold and report
+            // how many attempts actually start.
+            available = true
+            for attempt in 1...8 {
+                let before = starts
+                try await hold(duration: 0.8)
+                diag.log("repeat \(attempt) started=\(starts > before)")
+            }
+        }
         // Detachment removes the recognizer owned by this editor.
         let count = window.contentView?.gestureRecognizers.count ?? 0
         view.stop()
