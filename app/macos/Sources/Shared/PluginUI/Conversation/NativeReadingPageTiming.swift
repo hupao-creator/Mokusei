@@ -1,10 +1,17 @@
 import QuartzCore
+import SwiftUI
 
 /// The ordinary workspace Thread Detail opening, shared with tag/card travel.
 public enum NativeReadingPageTiming {
     private static let x1 = 0.76
     private static let x2 = 0.24
     public static let duration: TimeInterval = 0.42
+    /// The vertical history replacement curve (see NativeReadingPageStack).
+    /// Page-level streaming reuses it so a flushed page enters like a history
+    /// page, without driving the full-viewport page stack inline.
+    public static var replacementAnimation: Animation {
+        .timingCurve(0.42, 0, 0.58, 1, duration: duration)
+    }
     public static var emphasizedOpening: CAMediaTimingFunction {
         CAMediaTimingFunction(controlPoints: Float(x1), 0, Float(x2), 1)
     }
