@@ -11,8 +11,7 @@ import MokuseiTestSupport
 
 @MainActor
 @Suite(.serializedNative, .requiresDisplay, .serialized)
-struct NativeMokuHistoryComposerTests {
-    private func editor(in view: NSView) -> NSTextView? { SwiftUIReplay.editor(in: view) }
+struct NativeMokuHistoryComposerTests {    private func editor(in view: NSView) -> NSTextView? { SwiftUIReplay.editor(in: view) }
     private func enter(_ editor: NSTextView, window: NSWindow) throws {
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(editor)
@@ -139,14 +138,27 @@ struct NativeMokuHistoryComposerTests {
         }
         let view = try #require(monitor(in: window.contentView!))
         let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view })
+        // `MOKUSEI_DIAG_LONG_PRESS=1` samples the recognizer and app state while a
+        // hold is in flight. The sampler only observes; it never sends events or
+        // changes recognition, so the default run is byte-for-byte unchanged.
+        let diag = LongPressHoldDiag()
+        if diag.isEnabled {
+            diag.start(window: window, recognizer: recognizer)
+        }
+        defer { diag.finish("starts=\(starts) resign=\(diag.resignations)") }
+        func diagLog(_ message: @autoclosure () -> String) { diag.log(message()) }
         let event: @MainActor @Sendable (NSEvent.EventType, CGPoint) -> NSEvent = { type, point in
             NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                 context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
         }
         func hold(duration: TimeInterval, drag: Bool = false) async throws {
+            diagLog("hold begin duration=\(duration) drag=\(drag) starts=\(starts)"
+                + " state=\(recognizer.state.rawValue) enabled=\(recognizer.isEnabled)")
             window.makeKeyAndOrderFront(nil)
             try await SwiftUIReplay.wait { window.isKeyWindow && NSApp.isActive && recognizer.state == .possible }
+            diagLog("hold armed appActive=\(NSApp.isActive) key=\(window.isKeyWindow)"
+                + " state=\(recognizer.state.rawValue) enabled=\(recognizer.isEnabled)")
             let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
             // Create each event when delivered: pre-creating the release gives
             // AppKit a zero-duration gesture even though the timer waited.
@@ -169,8 +181,10 @@ struct NativeMokuHistoryComposerTests {
                 movement = timer
             }
             NSApp.sendEvent(event(.leftMouseDown, point))
+            diagLog("hold down-sent state=\(recognizer.state.rawValue) enabled=\(recognizer.isEnabled)")
             try await Task.sleep(for: .seconds(duration + 0.1))
             try await SwiftUIReplay.wait { recognizer.state == .possible }
+            diagLog("hold end state=\(recognizer.state.rawValue) starts=\(starts) resign=\(diag.resignations)")
             release.invalidate(); movement?.invalidate()
         }
         #expect(view.hitTest(.zero) == nil)
@@ -370,4 +384,58 @@ struct NativeMokuHistoryComposerTests {
         }
     }
 
+}
+
+/// Samples a mounted hold under `MOKUSEI_DIAG_LONG_PRESS=1`. It exists so the
+/// `@Sendable` timer and notification blocks can reach MainActor state without
+/// capturing AppKit objects directly; every field is read on the main actor.
+@MainActor
+private final class LongPressHoldDiag: @unchecked Sendable {
+    let isEnabled = ProcessInfo.processInfo.environment["MOKUSEI_DIAG_LONG_PRESS"] == "1"
+    private let origin = Date()
+    private var window: NSWindow?
+    private var recognizer: NSGestureRecognizer?
+    private var observer: NSObjectProtocol?
+    private var sampler: Timer?
+    private(set) var resignations = 0
+
+    func log(_ message: String) {
+        guard isEnabled else { return }
+        print("LONGPRESS-TEST +\(String(format: "%.3f", Date().timeIntervalSince(origin)))s \(message)")
+    }
+
+    func start(window: NSWindow, recognizer: NSGestureRecognizer) {
+        self.window = window
+        self.recognizer = recognizer
+        log("mounted recognizers=\(window.contentView?.gestureRecognizers.count ?? 0)"
+            + " state=\(recognizer.state.rawValue) enabled=\(recognizer.isEnabled)")
+        observer = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification,
+            object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.resignations += 1
+                    self.log("resignKey count=\(self.resignations)"
+                        + " state=\(self.recognizer?.state.rawValue ?? -1)")
+                }
+            }
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sample() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        RunLoop.main.add(timer, forMode: .eventTracking)
+        sampler = timer
+    }
+
+    private func sample() {
+        guard isEnabled, let window, let recognizer else { return }
+        log("sample state=\(recognizer.state.rawValue) enabled=\(recognizer.isEnabled)"
+            + " appActive=\(NSApp.isActive) key=\(window.isKeyWindow)"
+            + " firstResponderIsEditor=\(window.firstResponder is NSTextView) resign=\(resignations)")
+    }
+
+    func finish(_ summary: String) {
+        sampler?.invalidate(); sampler = nil
+        if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
+        log("finished \(summary)")
+    }
 }

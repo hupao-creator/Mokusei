@@ -340,6 +340,7 @@ jobs:
       MOKUSEI_SWIFT_BUILD_ATTEMPT: ${{ needs.swift-build.outputs.attempt }}
       MOKUSEI_SWIFT_SKIP_BUILD: '1'
       MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY: '1'
+      MOKUSEI_DIAG_LONG_PRESS: '1'
     steps:
       - uses: actions/checkout@v4
         with:
