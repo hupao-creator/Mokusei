@@ -256,12 +256,22 @@ def main():
         current_env = dict(environment, GITHUB_EVENT_NAME="pull_request", GITHUB_REPOSITORY="fixture/repo",
                            PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], CI_API_FIXTURE=str(api))
         head = current["head"]["sha"]
-        for state, current_head, current_base, expected in (("open", head, base, True), ("open", base, base, False),
-                                                           ("open", head, head, False), ("closed", head, base, False)):
+        # A superseded cohort ends successfully so it never reports a red required
+        # check for work that was never attempted, but it must also publish the
+        # superseded output that keeps every downstream job from starting.
+        for state, current_head, current_base, superseded in (("open", head, base, False),
+                                                              ("open", base, base, True),
+                                                              ("open", head, head, True),
+                                                              ("closed", head, base, True)):
             current.update(state=state, head={"sha": current_head}, base={"sha": current_base})
             api.write_text(json.dumps(current))
-            command([sys.executable, str(SCRIPTS / "scope.py"), "--current"], cwd=repo, env=current_env, success=expected)
-        print("PASS queued admission CLI: current PR accepted; superseded and closed PRs rejected")
+            output = root / "output"
+            output.write_text("")
+            value = command([sys.executable, str(SCRIPTS / "scope.py"), "--current"], cwd=repo, env=current_env)
+            written = output.read_text()
+            if f"superseded={str(superseded).lower()}\n" not in written:
+                raise AssertionError(value + written)
+        print("PASS queued admission CLI: current PR accepted; superseded heads, moved bases and closed PRs stop with a superseded result")
         scope(True, "push")
         scope(False, "workflow_dispatch")
         (repo / "source.go").write_text("package changed\n")

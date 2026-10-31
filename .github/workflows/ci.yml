@@ -16,11 +16,14 @@ permissions:
   actions: read
 
 concurrency:
-  # Reserve one workflow cohort for this repository; each cohort still runs
-  # its native shards in parallel. Queued obsolete revisions exit at scope.
-  group: ci-native-capacity-${{ github.repository }}
-  cancel-in-progress: false
-  queue: max
+  # One cohort per ref instead of a repository-wide queue: a required check only
+  # gates a merge if it starts while the change is still being reviewed, and a
+  # shared queue held every PR behind the previous cohort's native shards.
+  # A newer push on the same ref makes its predecessor obsolete, so cancel it
+  # rather than spend a macOS cohort on a revision nobody can merge. Main pushes
+  # are never cancelled, so no main commit settles with a partial result.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
@@ -38,6 +41,8 @@ jobs:
     timeout-minutes: 2
     outputs:
       documentation_only: ${{ steps.scope.outputs.documentation_only }}
+      superseded: ${{ steps.scope.outputs.superseded }}
+      verify: ${{ steps.plan.outputs.verify }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,10 +53,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/scope.py --current
+      # One place decides whether the complete suite applies. If this step or the
+      # scope step fails, the output stays empty, the evidence steps below skip
+      # and the aggregate still fails on its skipped required jobs.
+      - name: Decide whether the complete verification suite applies
+        id: plan
+        if: ${{ always() }}
+        env:
+          DOCUMENTATION_ONLY: ${{ steps.scope.outputs.documentation_only }}
+          SUPERSEDED: ${{ steps.scope.outputs.superseded }}
+          EXTENDED: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
+        run: |
+          if [[ "$SUPERSEDED" == 'true' || "$DOCUMENTATION_ONLY" == 'true' || "$EXTENDED" == 'true' ]]; then
+            printf 'verify=false\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'verify=true\n' >> "$GITHUB_OUTPUT"
+          fi
 
   go:
     needs: scope
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
+    if: ${{ needs.scope.outputs.superseded != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.extended) }}
     name: Go / Linux
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -179,7 +200,7 @@ jobs:
 
   replays:
     needs: scope
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+    if: ${{ needs.scope.outputs.superseded != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Integration / ${{ matrix.group }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -209,7 +230,7 @@ jobs:
 
   native-go:
     needs: scope
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+    if: ${{ needs.scope.outputs.superseded != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Native Go and Swift fixture preparation
     runs-on: macos-26
     timeout-minutes: 30
@@ -266,7 +287,7 @@ jobs:
 
   swift-build:
     needs: scope
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+    if: ${{ needs.scope.outputs.superseded != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: Swift build and complete test inventory
     runs-on: macos-26
     timeout-minutes: 30
@@ -319,7 +340,7 @@ jobs:
           retention-days: 7
 
   mac:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+    if: ${{ needs.scope.outputs.superseded != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: macOS / ${{ matrix.name }}
     needs: [scope, swift-build, native-go]
     runs-on: macos-26
@@ -493,7 +514,7 @@ jobs:
           persist-credentials: false
       - name: Select artifact IDs before downloading retry evidence
         id: evidence
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        if: ${{ needs.scope.outputs.verify == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_RESULTS: ${{ toJSON(needs) }}
@@ -501,22 +522,22 @@ jobs:
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
           python3 scripts/ci/collect-evidence.py --plan "$RUNNER_TEMP/artifacts.json"
       - uses: actions/download-artifact@v4
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        if: ${{ needs.scope.outputs.verify == 'true' }}
         with:
           artifact-ids: ${{ steps.evidence.outputs.artifact_ids }}
           path: ${{ runner.temp }}/history
       - name: Select each native job's newest execution evidence
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        if: ${{ needs.scope.outputs.verify == 'true' }}
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
         run: python3 scripts/ci/collect-evidence.py "$RUNNER_TEMP/history" "$RUNNER_TEMP/collected"
       - name: Enforce complete Swift and replay execution
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        if: ${{ needs.scope.outputs.verify == 'true' }}
         env:
           MOKUSEI_CI_EVIDENCE: ${{ runner.temp }}/collected
         run: python3 scripts/ci/swift-tests.py
       - uses: actions/upload-artifact@v4
-        if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
+        if: ${{ always() && needs.scope.outputs.verify == 'true' }}
         with:
           name: swift-coverage-summary-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/swift-summary.json
@@ -540,11 +561,21 @@ jobs:
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
           DOCUMENTATION_ONLY: ${{ needs.scope.outputs.documentation_only }}
+          SUPERSEDED: ${{ needs.scope.outputs.superseded }}
           EXTENDED: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
         run: |
           python3 - <<'PY'
           import json, os
           results = json.loads(os.environ['JOB_RESULTS'])
+          # A superseded cohort verifies nothing by design; it is neither a pass
+          # nor a failure for its revision, so it must not report a red required
+          # check for work that was never attempted.
+          if os.environ['SUPERSEDED'] == 'true':
+              message = 'Superseded cohort: no verification was attempted for this obsolete revision.'
+              print(message)
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+                  output.write('\n' + message + '\n')
+              raise SystemExit(0)
           required = ['scope', 'external'] if os.environ['EXTENDED'] == 'true' else ['scope', 'go']
           if os.environ['EXTENDED'] != 'true' and os.environ['DOCUMENTATION_ONLY'] != 'true':
               required += ['replays', 'native-go', 'swift-build', 'mac']
