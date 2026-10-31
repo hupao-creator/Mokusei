@@ -369,6 +369,40 @@ There is no global Reduce Motion policy applied to every animation. The current 
 
 Window visibility, detachment, cancellation and explicit pause are separate lifecycle controls. Reduce Transparency fallbacks, contrast and accessibility labels are independently owned by the relevant views. [NativeCloudLoading.swift](Design/NativeCloudLoading.swift) and [NativeCloudField.swift](Design/NativeCloudField.swift) share the loading field and pause at zero visibility/intensity. [NativeVoiceCloud.swift](Design/NativeVoiceCloud.swift) consumes bounded voice visualization state without starting capture.
 
+### Native Overview decorations
+
+`threadCardNativeDecorationsEnabled` defaults to false; only the production
+Overview card closure opts in. Its cloud uses
+[NativeOverviewCloudView](Design/NativeOverviewCloudView.swift), a stable native
+view with its own display link and transparent Metal layer, instead of a SwiftUI
+timeline or nested hosting graph. The existing seeded, point-space
+`NativeCloudField` and the shader's `cloudField` function serve both renderers.
+Palette colors resolve from the current SwiftUI environment into premultiplied
+linear components; the native drawable declares the same linear working space.
+
+The native view retains its seed and epoch across running, palette and visibility
+updates. It interpolates light intensity over 0.4 seconds, including reversals,
+without publishing per-frame SwiftUI state; fading final layer opacity would not
+preserve the field's additive energy. Geometry and semantic updates remain inputs
+from the surrounding card. Inactive completed views do not request drawables;
+bounded rendering work runs off the UI thread and removal retires its driver.
+The existing shared SwiftUI renderer remains the capability fallback and the
+renderer for other cloud consumers.
+
+[NativeCardScan](Design/NativeCardScan.swift) moves the existing gradient through
+Core Animation's 3.4-second linear cycle. Pausing retains its displayed position;
+resuming aligns to the current wall-clock phase. It needs no application
+per-frame callback. The existing scene, visibility and Reduce Motion gates stay
+in the card, while native views exclude themselves from input and accessibility.
+
+Acceptance compares the complete enabled Overview scene on a fixed target Mac.
+The native path's submit counts and scan presentation positions replace the old
+Timeline counters; neither establishes display FPS. Native WindowServer frames
+must cover color, glass sampling, rounded clipping, camera transforms, exit
+opacity and interrupted intensity fades. AppKit self-rendering and model values
+alone cannot certify that composition. The native path is a performance
+candidate until that evidence and a repeatable process-CPU benefit are recorded.
+
 Fonts, icon licenses and attribution live under [Resources](Resources/). Metal assets are compiled through the package's build plugin. Tests under `app/macos/Tests` and [functional replays](../../../../../tools/verification/README.md) exercise native components; macOS window tests require an actual graphical session.
 
 ## Semantic Settings controls

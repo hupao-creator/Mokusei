@@ -250,9 +250,20 @@ private struct CardDerivedScan: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
+    @Environment(\.threadCardNativeDecorationsEnabled) private var nativeDecorations
     private var animates: Bool { scenePhase != .background && !reduceMotion && enabled && (visibility?.isVisible ?? true) }
 
     var body: some View {
+        Group {
+            if nativeDecorations { NativeCardScan(animates: animates) }
+            else { timelineScan }
+        }
+        .frame(height: 1.5)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+
+    private var timelineScan: some View {
         TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
             GeometryReader { geometry in
                 let progress = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3.4) / 3.4
@@ -262,9 +273,6 @@ private struct CardDerivedScan: View {
                     .offset(x: geometry.size.width * (progress * 1.34 - 0.34))
             }
         }
-        .frame(height: 1.5)
-        .accessibilityHidden(true)
-        .allowsHitTesting(false)
     }
 }
 
