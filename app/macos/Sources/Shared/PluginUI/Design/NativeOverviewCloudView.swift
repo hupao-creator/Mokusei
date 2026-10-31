@@ -189,7 +189,7 @@ final class NativeOverviewCloudSurface: NSView {
         refreshDriver()
     }
 
-    private var canDraw: Bool {
+    private var canRenderCloud: Bool {
         !dismantled && visible && !isHiddenOrHasHiddenAncestor
             && window?.occlusionState.contains(.visible) == true
             && bounds.width.isFinite && bounds.height.isFinite && bounds.width > 0 && bounds.height > 0
@@ -209,7 +209,7 @@ final class NativeOverviewCloudSurface: NSView {
         }
         // Visibility pauses preserve the most recent image, including while an
         // Overview transition still exposes part of its outgoing contents.
-        guard canDraw else { suspendSurface(); frameLink?.isPaused = true; return }
+        guard canRenderCloud else { suspendSurface(); frameLink?.isPaused = true; return }
         suspended = false
         if frameLink == nil {
             let target = NativeOverviewCloudLinkTarget(view: self)
@@ -226,7 +226,7 @@ final class NativeOverviewCloudSurface: NSView {
 
     fileprivate func tick() {
         refreshDriver()
-        guard canDraw, let renderer, frameLink?.isPaused == false else { return }
+        guard canRenderCloud, let renderer, frameLink?.isPaused == false else { return }
         // Wait for the requested static frame's completion without submitting
         // duplicate frames when the GPU has finished but its main-actor task has
         // not yet run. A new input change still requests a replacement frame.
@@ -260,7 +260,7 @@ final class NativeOverviewCloudSurface: NSView {
     private func completedFrame(_ succeeded: Bool, generation: UInt64, version: UInt64, id: UInt64) {
         guard !dismantled, generation == frameGeneration, awaitingFrame == id else { return }
         awaitingFrame = nil
-        if succeeded && version == redrawVersion && canDraw && intensity(at: CACurrentMediaTime()) > 0 {
+        if succeeded && version == redrawVersion && canRenderCloud && intensity(at: CACurrentMediaTime()) > 0 {
             if metal.isHidden {
                 CATransaction.begin(); CATransaction.setDisableActions(true)
                 metal.isHidden = false
