@@ -6,7 +6,7 @@ import Testing
 import MokuseiTestSupport
 #endif
 import MokuseiCore
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 import MokuseiUI
 
 @MainActor @Observable private final class ReadingFixture {
@@ -97,7 +97,7 @@ struct NativeReadingPagePresentationTests {
         let root = try #require(window.contentView)
         let diagnosticStart = ProcessInfo.processInfo.systemUptime
         var setupSamples: [[String: Any]] = [], openingSamples: [[String: Any]] = [], returnSamples: [[String: Any]] = []
-        var openSet: [String: Any] = [:], closeSet: [String: Any] = [:]
+        var openSet: [String: Any] = [:], closeSet: [String: Any] = [:], closeGeometry: [String: Any] = [:]
         var beforeReturnSample: [String: Any] = [:], duringReturnSample: [String: Any] = [:]
         @MainActor func observe() -> (x: CGFloat?, size: CGSize, tolerance: CGFloat, active: Bool, record: [String: Any]) {
             let x = fixture.frontProbe.map { $0.convert($0.bounds, to: root).minX }
@@ -121,7 +121,7 @@ struct NativeReadingPagePresentationTests {
                 "setupChecks": setupSamples.count, "setupSamples": setupSamples,
                 "openSet": openSet, "openingChecks": openingSamples.count, "openingSamples": openingSamples,
                 "latestOpeningSample": openingSamples.last ?? [:], "beforeReturn": beforeReturnSample,
-                "closeSet": closeSet, "duringReturn": duringReturnSample,
+                "closeSet": closeSet, "closeGeometry": closeGeometry, "duringReturn": duringReturnSample,
                 "returnChecks": returnSamples.count, "returnSamples": returnSamples, "finalState": observe().record]
             if let data = try? JSONSerialization.data(withJSONObject: diagnostic, options: [.sortedKeys]),
                let text = String(data: data, encoding: .utf8) {
@@ -164,6 +164,42 @@ struct NativeReadingPagePresentationTests {
             "The current front must still be in the original opening midpoint before returning")
         let textSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.text = "Latest overview"
+        // Establish that this return has a usable production geometry pair;
+        // a passing direction assertion alone could also use the model fallback.
+        let geometryReadStart = ProcessInfo.processInfo.systemUptime
+        var pendingViews = [root], anchors: [NativeReadingPageAnchorView] = []
+        while let view = pendingViews.popLast() {
+            if let anchor = view as? NativeReadingPageAnchorView { anchors.append(anchor) }
+            pendingViews.append(contentsOf: view.subviews)
+        }
+        closeGeometry = ["sampleStartUptime": geometryReadStart, "textSetBeforeUptime": textSetBefore, "anchorCount": anchors.count,
+            "identity": fixture.identity.string, "axis": fixture.axis == .horizontal ? "horizontal" : "vertical",
+            "direction": Double(fixture.direction)]
+        let owner = try #require(anchors.first?.owner)
+        var rootAnchors: [NativeReadingPageAnchorView] = [], frontAnchors: [NativeReadingPageAnchorView] = []
+        var sameOwner = true
+        for anchor in anchors {
+            if anchor.owner !== owner { sameOwner = false }
+            if owner.owns(anchor, role: .root) { rootAnchors.append(anchor) }
+            if owner.owns(anchor, role: .front) { frontAnchors.append(anchor) }
+        }
+        closeGeometry["sameOwner"] = sameOwner
+        closeGeometry["rootCount"] = rootAnchors.count
+        closeGeometry["frontCount"] = frontAnchors.count
+        try #require(anchors.count == 2 && sameOwner && rootAnchors.count == 1 && frontAnchors.count == 1,
+            "The current stack must own one root and one front geometry anchor")
+        let nativeRoot = rootAnchors[0], nativeFront = frontAnchors[0]
+        let nativeRootFrame = nativeRoot.convert(nativeRoot.bounds, to: root)
+        let nativeFrontFrame = nativeFront.convert(nativeFront.bounds, to: root)
+        let sampledProgress = owner.progress(identity: fixture.identity, direction: fixture.direction)
+        closeGeometry["rootFrame"] = ["x": Double(nativeRootFrame.minX), "y": Double(nativeRootFrame.minY),
+            "width": Double(nativeRootFrame.width), "height": Double(nativeRootFrame.height)]
+        closeGeometry["frontFrame"] = ["x": Double(nativeFrontFrame.minX), "y": Double(nativeFrontFrame.minY),
+            "width": Double(nativeFrontFrame.width), "height": Double(nativeFrontFrame.height)]
+        closeGeometry["progress"] = sampledProgress.map { $0 as Any } ?? NSNull()
+        closeGeometry["sampleEndUptime"] = ProcessInfo.processInfo.systemUptime
+        try #require(sampledProgress != nil && abs(nativeFrontFrame.minX - beforeReturn) <= 1,
+            "The production return sample must match the currently qualified front, without driving layout")
         let closeSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.motion.close()
         let closeSetAfter = ProcessInfo.processInfo.systemUptime
@@ -343,6 +379,88 @@ struct NativeReadingPagePresentationTests {
 /// preference writes. Intermediate rendered motion remains display-gated above.
 @MainActor @Suite(.serializedNative, .serialized)
 struct NativeReadingPageHeadlessTests {
+    @Test func horizontalReturnGeometryUsesTheCurrentViewportForEitherDirection() throws {
+        let size = CGSize(width: 400, height: 260)
+        let root = CGRect(x: 17, y: 23, width: size.width, height: size.height)
+        for direction in [CGFloat(-1), CGFloat(1)] {
+            let context = NativeReadingPageGeometry.Context(identity: "detail", axis: .horizontal,
+                direction: direction, size: size)
+            let front = root.offsetBy(dx: 300 * direction, dy: 0)
+            let progress = try #require(NativeReadingPageGeometry.progress(rootBounds: root, frontFrame: front,
+                rootContext: context, frontContext: context, identity: "detail", direction: direction, tolerance: 0.5))
+            #expect(abs(progress - 0.25) < 1e-12)
+            let roundedEndpoint = root.offsetBy(dx: 400.25 * direction, dy: 0)
+            #expect(NativeReadingPageGeometry.progress(rootBounds: root, frontFrame: roundedEndpoint,
+                rootContext: context, frontContext: context, identity: "detail", direction: direction, tolerance: 0.5) == 0)
+            let outside = root.offsetBy(dx: 402 * direction, dy: 0)
+            #expect(NativeReadingPageGeometry.progress(rootBounds: root, frontFrame: outside,
+                rootContext: context, frontContext: context, identity: "detail", direction: direction, tolerance: 0.5) == nil)
+        }
+    }
+
+    @Test func horizontalReturnRejectsStaleOrInvalidGeometry() {
+        let size = CGSize(width: 400, height: 260)
+        let root = CGRect(origin: .zero, size: size)
+        let front = root.offsetBy(dx: 300, dy: 0)
+        let context = NativeReadingPageGeometry.Context(identity: "detail", axis: .horizontal, direction: 1, size: size)
+        @MainActor func measured(rootBounds: CGRect? = nil, frontFrame: CGRect? = nil,
+                      frontContext: NativeReadingPageGeometry.Context? = nil,
+                      identity: JSONText = "detail", direction: CGFloat = 1) -> Double? {
+            NativeReadingPageGeometry.progress(rootBounds: rootBounds ?? root, frontFrame: frontFrame ?? front,
+                rootContext: context, frontContext: frontContext ?? context, identity: identity, direction: direction, tolerance: 0.5)
+        }
+        #expect(measured(identity: "replacement") == nil)
+        #expect(measured(direction: -1) == nil)
+        for changed in [
+            NativeReadingPageGeometry.Context(identity: "replacement", axis: .horizontal, direction: 1, size: size),
+            .init(identity: "detail", axis: .vertical, direction: 1, size: size),
+            .init(identity: "detail", axis: .horizontal, direction: -1, size: size),
+            .init(identity: "detail", axis: .horizontal, direction: 1, size: CGSize(width: 401, height: 260))
+        ] { #expect(measured(frontContext: changed) == nil) }
+        #expect(measured(rootBounds: CGRect(x: 0, y: 0, width: 420, height: 260)) == nil)
+        #expect(measured(frontFrame: CGRect(x: 300, y: 0, width: 400, height: 240)) == nil)
+        #expect(measured(frontFrame: front.offsetBy(dx: 0, dy: 2)) == nil)
+        #expect(measured(rootBounds: .zero) == nil)
+        #expect(measured(frontFrame: CGRect(x: CGFloat.nan, y: 0, width: 400, height: 260)) == nil)
+        for direction in [CGFloat(0), CGFloat(0.5), CGFloat.infinity] {
+            let invalid = NativeReadingPageGeometry.Context(identity: "detail", axis: .horizontal, direction: direction, size: size)
+            #expect(NativeReadingPageGeometry.progress(rootBounds: root, frontFrame: front,
+                rootContext: invalid, frontContext: invalid, identity: "detail", direction: direction, tolerance: 0.5) == nil)
+        }
+    }
+
+    @Test func detachedAnchorsAndObsoleteOwnersCannotSupplyAReturnPose() throws {
+        let geometry = NativeReadingPageGeometry()
+        let other = NativeReadingPageGeometry()
+        let context = NativeReadingPageGeometry.Context(identity: "detail", axis: .horizontal,
+            direction: 1, size: CGSize(width: 400, height: 260))
+        let root = NativeReadingPageAnchorView(frame: CGRect(origin: .zero, size: context.size))
+        let oldFront = NativeReadingPageAnchorView(frame: CGRect(x: 300, y: 0, width: 400, height: 260))
+        let front = NativeReadingPageAnchorView(frame: oldFront.frame)
+        geometry.install(root, role: .root, context: context)
+        geometry.install(oldFront, role: .front, context: context)
+        #expect(geometry.owns(root, role: .root) && geometry.owns(oldFront, role: .front))
+        geometry.install(front, role: .front, context: context)
+        geometry.remove(oldFront)
+        #expect(geometry.owns(front, role: .front), "Dismantling an old anchor must not clear its replacement")
+        root.addSubview(front)
+        #expect(geometry.progress(identity: "detail", direction: 1) == nil, "A detached hierarchy is not a displayed viewport")
+        other.install(front, role: .front, context: context)
+        #expect(!geometry.owns(front, role: .front) && other.owns(front, role: .front))
+        geometry.remove(front)
+        #expect(other.owns(front, role: .front), "An obsolete owner must not remove another stack's anchor")
+        front.removeFromSuperview()
+        #expect(other.progress(identity: "detail", direction: 1) == nil)
+        #expect(!front.isOpaque && !front.acceptsFirstResponder && front.hitTest(.zero) == nil)
+        #expect(!front.isAccessibilityElement() && front.accessibilityChildren()?.isEmpty == true)
+        weak var released: NativeReadingPageAnchorView?
+        var temporary: NativeReadingPageAnchorView? = NativeReadingPageAnchorView()
+        released = temporary
+        other.install(try #require(temporary), role: .front, context: context)
+        temporary = nil
+        #expect(released == nil, "The geometry owner must not retain a dismantled surface")
+    }
+
     @Test func verticalPreparationPreservesTheScrollerAndRetainedDocument() async throws {
         for width: CGFloat in [360, 1180] {
             let fixture = ReadingFixture()
