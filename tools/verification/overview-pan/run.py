@@ -72,8 +72,15 @@ def clone_profile(source, destination):
     if destination.exists():
         shutil.rmtree(destination)
     (destination / "mokusei-go-state-v1").mkdir(parents=True)
-    subprocess.run(["sqlite3", "-readonly", str(state / "state.sqlite"),
-                    f".backup {destination / 'mokusei-go-state-v1' / 'state.sqlite'}"], check=True)
+    target = destination / "mokusei-go-state-v1" / "state.sqlite"
+    for attempt in range(5):
+        completed = subprocess.run(["sqlite3", "-readonly", str(state / "state.sqlite"), f".backup {target}"],
+                                   capture_output=True, text=True)
+        if completed.returncode == 0:
+            break
+        if attempt == 4:
+            fail(f"could not snapshot the store: {completed.stderr.strip()[:200]}")
+        time.sleep(1.0)
     for name in ("harnesses", "attachments", "search-models"):
         if (state / name).is_dir():
             subprocess.run(["cp", "-cR", str(state / name), str(destination / "mokusei-go-state-v1")], check=True)

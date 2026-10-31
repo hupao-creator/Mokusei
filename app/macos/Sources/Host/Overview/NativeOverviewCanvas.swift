@@ -48,6 +48,9 @@ public struct NativeOverviewLayoutRevision: Sendable {
 @MainActor @Observable
 public final class NativeOverviewCanvasState {
     public let camera = NativeOverviewCamera()
+    /// Canvas-owned viewport gate. Registrations belong to mounted cards and are
+    /// dropped with the attachment, never with a content update.
+    let cardVisibility = NativeOverviewCardVisibility()
     public let motionStages: NativeOverviewStageCoordinator
     public let memory: NativeOverviewCameraMemory
     @ObservationIgnored public fileprivate(set) var sceneSnapshotCount = 0
@@ -188,6 +191,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var plannedViewport: NativeOverviewViewport?
     @State private var retry = 0
     @State private var ownership = UUID()
+    @State private var worldSpace = UUID()
     @State private var layoutToken = UUID()
     @State private var presentationToken = UUID()
     @State private var preparedPresentationToken: UUID?
@@ -260,6 +264,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
                     }
                     .frame(width: max(1, contentRect.left + contentRect.width),
                            height: max(1, contentRect.top + contentRect.height), alignment: .topLeading)
+                    // Cards measure themselves here, before the camera transform:
+                    // their rect then only changes with layout or card motion.
+                    .coordinateSpace(name: worldSpace)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -295,7 +302,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 if let updated { contentStore.install(updated) }
             }
             .onChange(of: ObjectIdentifier(contentStore)) { _, _ in attach(viewport) }
-            .onChange(of: visible) { _, value in state.visible = value; state.camera.setVisible(value) }
+            .onChange(of: visible) { _, value in
+                state.visible = value
+                state.cardVisibility.setCanvasVisible(value)
+                state.camera.setVisible(value)
+            }
             .onChange(of: spatialMotionReduced) { _, value in state.camera.reduceMotion = value }
             .onChange(of: viewport) { _, _ in attach(viewport) }
              .onChange(of: interactionPaused) { _, value in
@@ -315,7 +326,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     private func semanticCard(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState, size: CGSize) -> some View {
         return OverviewCardSemantic(
             slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
-            viewport: size, coordinateSpace: ownership,
+            viewport: size, worldSpace: worldSpace, visibility: state.cardVisibility,
             cloudAnimationsEnabled: inheritedCloudAnimationsEnabled && cloudAnimationsEnabled,
             isLayingOut: state.isLayingOut, isActive: state.activeIDs.contains(slot.id),
             localeIdentifier: locale.identifier, contentIdentity: cardContentIdentity,
@@ -389,6 +400,12 @@ public struct NativeOverviewCanvas<Content: View>: View {
             if change.carousel && !change.structure { Self.updateCarousel(state, records: source.records) }
             if change.attention || change.structure { state.camera.onChange?() }
         }
+        state.cardVisibility.activate(camera: state.camera,
+                                      viewport: CGSize(width: viewport.width, height: viewport.height),
+                                      canvasVisible: visible)
+        state.camera.onPresentationChange = { [weak state] transform in
+            state?.cardVisibility.presentationChanged(transform)
+        }
         state.camera.reduceMotion = spatialMotionReduced
         state.hostOwner = ownership
         state.visible = visible
@@ -421,6 +438,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
         attachedContent?.release(owner: ownership); attachedContent = nil
         guard state.hostOwner == ownership else { return }
         if let view = state.camera.live { state.memory.current = (sceneKey, view) }
+        state.cardVisibility.deactivate()
+        state.camera.onPresentationChange = nil
         state.camera.setVisible(false)
         state.camera.onChange = nil
         state.retryHandler = nil; state.activationCheck = nil
@@ -820,7 +839,8 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     let motion: OverviewCardMotion?
     let visible: Bool
     let viewport: CGSize
-    let coordinateSpace: UUID
+    let worldSpace: UUID
+    let visibility: NativeOverviewCardVisibility
     let cloudAnimationsEnabled: Bool
     let isLayingOut: Bool
     let isActive: Bool
@@ -834,7 +854,8 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.slot === rhs.slot && lhs.pose == rhs.pose && lhs.motion == rhs.motion
             && lhs.visible == rhs.visible && lhs.viewport == rhs.viewport
-            && lhs.coordinateSpace == rhs.coordinateSpace
+            && lhs.worldSpace == rhs.worldSpace
+            && lhs.visibility === rhs.visibility
             && lhs.cloudAnimationsEnabled == rhs.cloudAnimationsEnabled
             && lhs.isLayingOut == rhs.isLayingOut && lhs.isActive == rhs.isActive
             && lhs.localeIdentifier == rhs.localeIdentifier
@@ -850,8 +871,9 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
             GlassEffectContainer(spacing: 0) {
                 // Visibility also owns semantic clocks; disabling decorative
                 // effects must not freeze the duration of a visible card.
-                OverviewSwiftUICard(item: item, visible: visible,
-                    viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
+                OverviewSwiftUICard(item: item,
+                    viewport: viewport, worldSpace: worldSpace, visibility: visibility,
+                    contentIdentity: contentIdentity, content: content).equatable()
                     .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
                     .onAppear { onAppear(item.id) }
                     .onDisappear { onDisappear(item.id) }
@@ -867,26 +889,30 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
 
 private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     nonisolated let item: NativeOverviewItem
-    nonisolated let visible: Bool
     nonisolated let viewport: CGSize
-    nonisolated let coordinateSpace: UUID
+    nonisolated let worldSpace: UUID
+    nonisolated let visibility: NativeOverviewCardVisibility
     nonisolated let contentIdentity: ObjectIdentifier?
     let content: (NativeOverviewItem) -> Content
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.item == rhs.item && lhs.visible == rhs.visible && lhs.viewport == rhs.viewport && lhs.coordinateSpace == rhs.coordinateSpace
-            && lhs.contentIdentity == rhs.contentIdentity
+        lhs.item == rhs.item && lhs.viewport == rhs.viewport && lhs.worldSpace == rhs.worldSpace
+            && lhs.visibility === rhs.visibility && lhs.contentIdentity == rhs.contentIdentity
     }
-    @State private var inViewport = false
+    @State private var token = UUID()
     @State private var animationVisibility = ThreadCardAnimationVisibility(isVisible: false)
     var body: some View {
-        let coordinateSpace = coordinateSpace, viewport = viewport
+        let worldSpace = worldSpace, visibility = visibility
+        // The rect is measured before the camera transform, so a pan reports
+        // nothing; the gate decides the viewport answer for every card at once.
         content(item).environment(\.threadCardAnimationVisibility, animationVisibility)
-            .onGeometryChange(for: Bool.self) { proxy in
-                proxy.frame(in: .named(coordinateSpace)).intersects(CGRect(origin: .zero, size: viewport))
-            } action: { value in inViewport = value; animationVisibility.isVisible = visible && value }
-            .onAppear { animationVisibility.isVisible = visible && inViewport }
-            .onChange(of: visible) { _, value in animationVisibility.isVisible = value && inViewport }
-            .onDisappear { animationVisibility.isVisible = false }
+            .onGeometryChange(for: CGRect.self) { proxy in proxy.frame(in: .named(worldSpace)) } action: { rect in
+                visibility.updateRect(token: token, rect: rect)
+            }
+            .onAppear { visibility.register(token: token, handle: animationVisibility) }
+            .onDisappear {
+                visibility.unregister(token: token)
+                animationVisibility.isVisible = false
+            }
     }
 }
 

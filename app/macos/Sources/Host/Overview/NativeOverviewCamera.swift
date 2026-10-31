@@ -342,6 +342,10 @@ public final class NativeOverviewCamera {
     @ObservationIgnored public var onSubmission: ((NativeOverviewCameraSubmission) -> Void)?
     @ObservationIgnored public var onFrameSubmission: ((NativeOverviewTransform, NativeOverviewTransform, TimeInterval, TimeInterval) -> Void)?
     @ObservationIgnored public var onChange: (() -> Void)?
+    /// Presentation-only hook: fires for every camera intent and at the end of a
+    /// motion. Observers that only need the matrix must not use `onChange`,
+    /// which also runs the attention projection.
+    @ObservationIgnored public var onPresentationChange: ((NativeOverviewTransform) -> Void)?
     @ObservationIgnored public var stageCoordinator: NativeOverviewStageCoordinator?
 
     @ObservationIgnored private var state: NativeOverviewCameraState?
@@ -894,6 +898,7 @@ public final class NativeOverviewCamera {
 
     private func publish() {
         carouselPaused = carouselActive && interactionPaused
+        onPresentationChange?(liveTransform)
         onChange?()
     }
 }
