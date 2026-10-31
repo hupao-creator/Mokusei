@@ -20,10 +20,12 @@ workspace appearance preference. This covers the Dock (idle, landing, composer,
 Talk, dispatch and note), interaction panel, dispatch details, and the current and
 archived Moku conversation reader with its history composer. The override is a
 local SwiftUI environment, not a window/application appearance preference.
-The Settings page and its regular-glass shell retain the workspace appearance
-even while expanded inside the Dock. Overview, ordinary Agent Threads, onboarding,
-Browser/Report surfaces and Report Agent's generated-document requirements keep
-their existing appearance ownership.
+The Settings page and its regular-glass shell are always dark, including in a
+light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
+hosted AppKit popups/editors, scrollers and native controls resolve the dark
+settings palette; the Dock's expanded regular-glass shell no longer inherits
+the workspace appearance, and onboarding does the same for its own panel. The
+theme preference still owns the window and every other surface.
 
 All Moku capsule surfaces use the approved warm-black gradient over native clear
 glass, fading toward the bottom with a fine warm edge. Production density is 85%.
@@ -309,7 +311,7 @@ Escape, outside-click, focus-loss or timeout acknowledgment. Static eyes and
 nonanimated presentation respect Reduce Motion. Native text/buttons expose the
 content and action to accessibility; acknowledgment does not require audio.
 Like the other Moku surfaces, the Timer bar uses a local dark environment even
-in a light workspace; it does not override the window or Settings appearance.
+in a light workspace; it does not override the window appearance.
 
 The model owns the controller across scene and route remounts, including UI
 reload. Its first installed snapshot establishes a silent history baseline;
