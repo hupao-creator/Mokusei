@@ -25,7 +25,9 @@ light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
 hosted AppKit popups/editors, scrollers and native controls resolve the dark
 settings palette; the Dock's expanded regular-glass shell no longer inherits
 the workspace appearance, and onboarding does the same for its own panel. The
-theme preference still owns the window and every other surface.
+theme preference still owns the window and every other surface. Moku's face
+keeps its existing ink when it moves into the page's header, because that panel
+is now the same dark surface as the capsule.
 
 All Moku capsule surfaces use the approved warm-black gradient over native clear
 glass, fading toward the bottom with a fine warm edge. Production density is 85%.
@@ -282,7 +284,10 @@ for the production note-to-reader replay across all four Harnesses.
 
 Settings occupies the resident Dock's existing glass capsule, with a stable
 viewport-bounded centered 780×680-point target. Its full panel uses untinted
-regular glass and hides the persistent character row until returning; the other
+regular glass and keeps the persistent face mounted: the same eye view leaves
+the composer row for `NativeSettingsHeaderLayout.faceCenter` in the page's
+leading header column and returns as the shell contracts, so the character is
+never replaced or duplicated and its blink clock survives the visit. The other
 Dock surfaces retain their existing gradient material and anchors.
 The scene blurs and disables Overview, while the capsule and retained input/Note
 visit stay mounted. Closing uses the Settings draft gate and restores the
