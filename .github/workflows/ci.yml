@@ -213,9 +213,12 @@ jobs:
     # This is a hang guard, not a whole-run performance or merge deadline.
     timeout-minutes: 60
     env:
-      MOKUSEI_CI_EVIDENCE: ${{ runner.temp }}/native-evidence
       MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY: '1'
     steps:
+      - name: Prepare native evidence directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-evidence"
+          printf 'MOKUSEI_CI_EVIDENCE=%s/native-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
