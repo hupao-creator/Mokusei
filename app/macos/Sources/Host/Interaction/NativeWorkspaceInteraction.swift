@@ -32,6 +32,19 @@ public extension NativeWorkspacePresentation {
         }.sorted { ($0.typeID.string, $0.threadID.string) < ($1.typeID.string, $1.threadID.string) }
     }
 
+    /// Admissibility only needs to know whether any target can open a detail.
+    /// Rebuilding and sorting the catalog's identity strings for every action
+    /// charges high-rate input for work no drag gesture performs.
+    private var overviewHasOpenableTargets: Bool {
+        overview.items.contains { item in
+            switch overview.snapshot(for: item) {
+            case .harness: return true
+            case .application(let plugin, _): return plugin.hasDetail
+            case nil: return false
+            }
+        }
+    }
+
     var interactionActions: [String] {
         guard interactionReady else { return [] }
         if onboarding.blocksWorkspace {
@@ -51,7 +64,7 @@ public extension NativeWorkspacePresentation {
         if interactionPage == "overview" {
             actions += ["filter.select"]
             actions += overview.isSearching ? ["search.update", "search.end"] : ["search.begin"]
-            if !interactionThreads.isEmpty { actions += ["thread.open"] }
+            if overviewHasOpenableTargets { actions += ["thread.open"] }
         } else {
             actions += ["overview.show"]
             if navigation != nil || scene.mokuOpen || (selected != nil && nativeApplicationNavigation) { actions += ["navigation.back"] }
