@@ -121,6 +121,20 @@ struct NativeSettingsTransitionTests {
         }
         return try #require(samples.max()) - #require(samples.min())
     }
+    /// Sample the Settings shell just inside the panel's left edge, in the page
+    /// margin beside the centered form instead of over its ink.
+    private func panelLuminance(_ window: NSWindow, panel: CGRect) async throws -> CGFloat {
+        let bitmap = try await pixels(window)
+        let width = try #require(window.contentView).bounds.width
+        let color = try #require(bitmap.colorAt(x: Int((panel.minX + 10) / width * CGFloat(bitmap.pixelsWide)),
+            y: bitmap.pixelsHigh / 2)?.usingColorSpace(.sRGB))
+        func linear(_ value: CGFloat) -> Double {
+            let value = Double(value)
+            return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        return CGFloat(0.2126 * linear(color.redComponent) + 0.7152 * linear(color.greenComponent)
+            + 0.0722 * linear(color.blueComponent))
+    }
     private func click(_ window: NSWindow, point: CGPoint) async throws {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -154,6 +168,11 @@ struct NativeSettingsTransitionTests {
             let fixture = SettingsTransitionFixture()
             fixture.size = size; fixture.scale = scale; fixture.landing = landing
             let window = SwiftUIReplay.window(SettingsTransitionReplay(fixture: fixture), width: size.width, height: size.height)
+            // Pin the host's appearance so the dark page is sampled against a
+            // light surface instead of the machine's current system appearance.
+            // Only the content view is pinned: changing the live window's own
+            // appearance perturbs click delivery in the later serialized cases.
+            try #require(window.contentView).appearance = NSAppearance(named: .aqua)
             defer { window.close(); fixture.dispose() }
             try await SwiftUIReplay.wait { fixture.scene.windowVisible && !fixture.scene.capsuleFrame.isEmpty }
             let original = fixture.scene.capsuleFrame
@@ -172,6 +191,8 @@ struct NativeSettingsTransitionTests {
             if originalContrast > 0 {
                 #expect(try await contrast(pixels(window)) < originalContrast * 0.5, "The real Overview backdrop must be blurred")
                 #expect(abs(panel.width - 780) < 1 && abs(panel.height - 668) < 1)
+                #expect(try await panelLuminance(window, panel: panel) < 0.6,
+                        "The dark Settings page and glass shell must not follow the light window")
             }
             let before = fixture.pageSize
             fixture.navigation.section = "moku"

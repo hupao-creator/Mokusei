@@ -313,7 +313,8 @@ python3 tools/verification/reading-presentation/run.py --settings-transition
 
 Three integration cases mount the production scene, Dock and Settings page.
 They check the stable panel size, bottom and landing anchors, narrow windows and
-1×/2×/5× zoom, retained page/Overview identity, rendered backdrop blur, consumed
+1×/2×/5× zoom, retained page/Overview identity, rendered backdrop blur, the dark
+page and glass shell inside a forced light window, consumed
 outside clicks, native Escape and close clicks, input/Note restoration, pending
 messages/interventions, reversal, resize, inactivity and explicit settling.
 Screenshots are exported with the suite's evidence. This compositor-dependent

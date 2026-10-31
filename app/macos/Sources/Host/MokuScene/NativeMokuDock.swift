@@ -94,7 +94,6 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @Environment(\.colorScheme) private var workspaceColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var hovered = false
@@ -612,7 +611,6 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
-                    .environment(\.colorScheme, workspaceColorScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
                     // Settle the page layout during the capsule morph without
                     // suppressing animations initiated later by its children.
@@ -707,7 +705,6 @@ public struct NativeMokuDock: View {
                 NativeMokuCapsuleGlass().opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
                     NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
-                        .environment(\.colorScheme, workspaceColorScheme)
                 }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }
