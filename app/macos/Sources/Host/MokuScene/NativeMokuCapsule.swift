@@ -36,6 +36,16 @@ enum NativeMokuCapsuleLayout {
     }
 }
 
+/// The resident character's painted canvas and the seat it occupies. Moku's
+/// message row and Settings' header share this seat, so the face keeps one size
+/// wherever it sits.
+enum NativeMokuFaceLayout {
+    /// Canvas the painter scales its 640-unit geometry into.
+    static let canvas = CGSize(width: 58, height: 49)
+    /// Layout seat that centres the canvas on Moku's row.
+    static let seat = CGSize(width: 34, height: 25)
+}
+
 /// Reuses the real Moku eyes, including their tilt, proportions and expression.
 struct NativeMokuCapsuleEyes: Shape {
     typealias ScalarPair = AnimatablePair<Double, Double>

@@ -4,6 +4,24 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
+/// Point geometry of the Settings header. The leading seat belongs to Moku's
+/// face: the resident Dock draws the same eyes into it while Settings owns the
+/// shell, so the page never mounts a second character and the face can travel
+/// from the capsule without being replaced. Keep both call sites on these
+/// constants so the eye lands in the reserved column exactly.
+enum NativeSettingsHeaderLayout {
+    static let horizontalInset: CGFloat = 22
+    static let topInset: CGFloat = 16
+    static let bottomInset: CGFloat = 12
+    static let rowHeight: CGFloat = 42
+    /// Placeholder the header reserves at the leading edge, left of the tabs.
+    static let faceSlot = CGSize(width: 30, height: 30)
+    /// Centre of that column in panel-local points.
+    static var faceCenter: CGPoint {
+        CGPoint(x: horizontalInset + faceSlot.width / 2, y: topInset + rowHeight / 2)
+    }
+}
+
 @MainActor public struct NativeSettingsPage: View {
     public let model: NativeSettingsModel
     public let preferences: DesktopPreferences
@@ -176,7 +194,9 @@ import SwiftUI
 
     private var header: some View {
         HStack(spacing: 0) {
-            Color.clear.frame(width: 30, height: 30).accessibilityHidden(true)
+            // Reserved for the resident face, which the Dock centres here.
+            Color.clear.frame(width: NativeSettingsHeaderLayout.faceSlot.width, height: NativeSettingsHeaderLayout.faceSlot.height)
+                .accessibilityHidden(true)
             GeometryReader { geometry in
                 ScrollViewReader { reader in
                     ScrollView(.horizontal) {
@@ -184,7 +204,7 @@ import SwiftUI
                     }.scrollIndicators(.never)
                         .onChange(of: activeSection) { _, id in reader.scrollTo(id, anchor: .center) }
                 }
-            }.frame(height: 42)
+            }.frame(height: NativeSettingsHeaderLayout.rowHeight)
             Button(action: requestClose) {
                 NativeIcon(name: "X", size: 14, strokeWidth: 2)
                     .frame(width: 30, height: 30).contentShape(Circle())
@@ -193,7 +213,9 @@ import SwiftUI
                 .accessibilityLabel(locale.text("关闭设置", "Close settings"))
                 .accessibilityIdentifier("settings-close")
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("workspace")) } action: { navigation.returnRect = $0 }
-        }.padding(.horizontal, 22).padding(.top, 16).padding(.bottom, 12)
+        }.padding(.horizontal, NativeSettingsHeaderLayout.horizontalInset)
+            .padding(.top, NativeSettingsHeaderLayout.topInset)
+            .padding(.bottom, NativeSettingsHeaderLayout.bottomInset)
     }
 
     private var tabs: some View {

@@ -85,7 +85,13 @@ same capsule grows toward a centered 780×680-point target, bounded by 24-point
 horizontal and 56-point vertical viewport margins. Its expanded surface uses
 untinted system regular glass without separate sidebar/content fills; Reduce
 Transparency supplies a solid fallback. The resident character remains mounted
-but hidden while Settings owns the full panel. A single
+and moves to the header instead of being hidden: `NativeSettingsHeaderLayout`
+reserves the leading 30-point column of the tab row for Moku's eyes, which the
+Dock draws by shifting that one face view from its composer row to
+`faceCenter`. The face keeps its seat and clock, so no second character is
+mounted on any sample of the transition, and the shift returns to zero as the
+shell contracts so the eyes finish exactly on Moku's own row. Onboarding mounts
+neither the Dock nor this header, so it has no face at all. A single
 Close button replaces the full-page traffic-light/back capsule and its 74-point
 safe area; the main window retains its own native controls. When extreme zoom
 leaves less than 220 logical points of page height, the entire settings shell
@@ -103,7 +109,13 @@ pending intervention takes its ordinary priority over a retained Note/composer.
 page lays out at its final size; closing fades its ink before glass contraction.
 Reversals fence obsolete completions. Resize, inactivity, Reduce Motion and
 explicit settling retire the current animation without leaving the modal gate
-stuck. Opening and return both report transitioning to semantic callers.
+stuck. Opening and return both report transitioning to semantic callers. The
+header face follows the same 420 ms `smooth` curve: it leaves the composer row
+after the page mounts, lands in `NativeSettingsHeaderLayout.faceCenter`, and
+rides the contraction back to Moku's own row. The shift is measured against the
+settled shell instead of reporting animated geometry back, so the destination
+is exact and the face never reads its own animated geometry. Reduce Motion snaps
+the shift with the rest of the transition.
 `python3 tools/verification/reading-presentation/run.py --settings-transition`
 mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
 blur and click-through, restoration, interruption and lifecycle regression checks.
