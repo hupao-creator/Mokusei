@@ -57,6 +57,14 @@ struct NativeMokuLongPressVoiceMonitor: NSViewRepresentable {
             press.minimumPressDuration = 0.5
             press.allowableMovement = 4
             press.buttonMask = 1
+            // AppKit must hold the primary button events back until this press
+            // either begins or fails. Otherwise the editor's nested selection
+            // loop owns the run loop and the press timer is starved: the hold
+            // then began 263-393ms after its own threshold, so a release could
+            // reach the editor before the recognizer ever fired. Withholding
+            // the events keeps the threshold honest and still replays the
+            // original click/drag to the editor when the press fails.
+            press.delaysPrimaryMouseButtonEvents = true
             // Keep AppKit's press delay: a short click or drag fails the
             // recognizer and forwards the original events to the text editor.
             // Otherwise NSTextView can consume drag/release in its nested
