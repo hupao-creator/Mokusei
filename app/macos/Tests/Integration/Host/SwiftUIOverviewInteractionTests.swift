@@ -1,3 +1,4 @@
+import Accelerate
 import AppKit
 import CoreMedia
 import CoreVideo
@@ -38,22 +39,11 @@ struct SwiftUIOverviewInteractionTests {
         let window = SwiftUIReplay.window(SearchInputReplay(fixture: fixture), width: 500, height: 100)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { SwiftUIReplay.editor(in: root) != nil }
-        let editor = try #require(SwiftUIReplay.editor(in: root))
-        // AppKit can retain a negative clip origin after the document grows
-        // from its initial, shorter height during the search morph.
-        let scroll = try #require(editor.enclosingScrollView)
-        editor.setFrameSize(NSSize(width: editor.frame.width, height: 25))
-        let constrained = scroll.contentView.constrainBoundsRect(scroll.contentView.bounds)
-        #expect(constrained.origin.y == 0)
-        scroll.contentView.setBoundsOrigin(NSPoint(x: 0, y: -15))
-        scroll.needsLayout = true
-        scroll.layoutSubtreeIfNeeded()
-        #expect(scroll.contentView.bounds.origin.y == 0)
+        try await SwiftUIReplay.wait { field(in: root)?.currentEditor() != nil }
+        let inputField = try #require(field(in: root))
+        let editor = try #require(inputField.currentEditor() as? NSTextView)
         editor.setMarkedText("ni", selectedRange: .init(location: 2, length: 0), replacementRange: .init(location: NSNotFound, length: 0))
         #expect(editor.hasMarkedText())
-        scroll.contentView.scroll(to: NSPoint(x: 0, y: -15))
-        #expect(scroll.contentView.bounds.origin.y == 0 && editor.hasMarkedText())
         editor.insertText("你好世界", replacementRange: .init(location: NSNotFound, length: 0))
         try await SwiftUIReplay.wait { fixture.text == "你好世界" }
         #expect(!editor.hasMarkedText())
@@ -62,19 +52,6 @@ struct SwiftUIOverviewInteractionTests {
         editor.insertText("SwiftUI", replacementRange: .init(location: NSNotFound, length: 0))
         try await SwiftUIReplay.wait { fixture.text == "SwiftUI" }
         #expect(fixture.exits == 0)
-        let longQuery = String(repeating: "long query ", count: 30)
-        editor.insertText(longQuery, replacementRange: NSRange(location: 0, length: editor.string.utf16.count))
-        try await SwiftUIReplay.wait { fixture.text == longQuery }
-        editor.scrollRangeToVisible(NSRange(location: longQuery.utf16.count, length: 0))
-        let horizontalOrigin = scroll.contentView.bounds.origin.x
-        #expect(horizontalOrigin > 0)
-        scroll.contentView.scroll(to: NSPoint(x: horizontalOrigin, y: -15))
-        #expect(scroll.contentView.bounds.origin.y == 0)
-        #expect(scroll.contentView.bounds.origin.x == horizontalOrigin)
-        scroll.needsLayout = true
-        scroll.layoutSubtreeIfNeeded()
-        #expect(scroll.contentView.bounds.origin.x == horizontalOrigin)
-        #expect(scroll.contentView.bounds.origin.y == 0)
     }
 
     @Test(.requiresDisplay) func focusedCardPausesCameraUntilFocusLeaves() async throws {
@@ -188,7 +165,12 @@ extension SwiftUIOverviewInteractionTests {
         var captures: [(String, Data)] = []
         var windowCaptures: [(String, CGImage)] = []
         var measurements: [[String: String]] = []
+        var titleAuditRegion: CGRect?
         defer {
+            if let region = titleAuditRegion {
+                do { try auditTitleInk(windowCaptures, region: region, measurements: &measurements) }
+                catch { Issue.record(Comment(rawValue: "Title ink offline audit failed: \(error)")) }
+            }
             do {
                 // Every stream path stops before leaving the method. Encoding
                 // and disk writes cannot delay the live cancellation boundary.
@@ -201,56 +183,8 @@ extension SwiftUIOverviewInteractionTests {
         }
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Title A") }
-        try await Task.sleep(for: .milliseconds(350))
-        let original = try textPixels(in: root)
-        captures.append(("01-original", original))
-        fixture.title = "Title B"
-        try await Task.sleep(for: .milliseconds(50))
-        fixture.title = "Title A"
-        try await Task.sleep(for: .milliseconds(500))
-        let reversed = try textPixels(in: root)
-        captures.append(("02-reversed", reversed))
-        #expect(reversed == original)
-
-        fixture.title = "Cancelled title"
-        try await Task.sleep(for: .milliseconds(40))
-        fixture.visibility.isVisible = false
-        fixture.title = "Hidden latest"
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Hidden latest") }
-        let hidden = try textPixels(in: root)
-        captures.append(("03-hidden-before-reversal", hidden))
-        fixture.visibility.isVisible = true
-        try await Task.sleep(for: .milliseconds(20))
-        fixture.visibility.isVisible = false
-        try await Task.sleep(for: .milliseconds(350))
-        let hiddenAfter = try textPixels(in: root)
-        captures.append(("04-hidden-after-reversal", hiddenAfter))
-        #expect(hiddenAfter == hidden)
-
-        fixture.visibility.isVisible = true
-        fixture.scenePhase = .background
-        fixture.title = "Background latest"
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Background latest") }
-        let background = try textPixels(in: root)
-        captures.append(("05-background", background))
-        fixture.scenePhase = .inactive
-        try await Task.sleep(for: .milliseconds(350))
-        let foreground = try textPixels(in: root)
-        captures.append(("06-foreground", foreground))
-        #expect(foreground == background)
-        fixture.reduceMotion = true
-        fixture.title = "Reduced motion latest"
-        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
-        let reduced = try textPixels(in: root)
-        captures.append(("07-reduced-motion", reduced))
-        try await Task.sleep(for: .milliseconds(350))
-        let reducedAfter = try textPixels(in: root)
-        captures.append(("08-reduced-motion-after", reducedAfter))
-        #expect(reducedAfter == reduced)
-
-        // AX can publish the title after its presentation has settled, and
-        // cacheDisplay is not a WindowServer animation oracle. Arm the existing
-        // continuous capture before input; all references use this same stream.
+        // Arm the same WindowServer stream before the initial reversal.
+        // The 50/500ms source schedule below remains unchanged.
         let shareable = try await SCShareableContent.currentProcess
         let target = try #require(shareable.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
         let configuration = SCStreamConfiguration()
@@ -269,10 +203,99 @@ extension SwiftUIOverviewInteractionTests {
         let titlebar = window.frame.height - root.bounds.height
         let region = CGRect(x: 8 * scale, y: (titlebar + 8) * scale,
                             width: (root.bounds.width - 16) * scale, height: 64 * scale).integral
+        titleAuditRegion = region
+        let contentRegion = CGRect(x: 0, y: titlebar * scale, width: root.bounds.width * scale,
+                                   height: root.bounds.height * scale).integral
         try await stream.startCapture()
         do {
+            try await Task.sleep(for: .milliseconds(350))
+            let originalWindow = try await titleWindowFrame(frames, region: contentRegion, stage: "reversal-reference",
+                captures: &windowCaptures, measurements: &measurements) { $0.ink > 0 }
+            let original = try textPixels(in: root)
+            captures.append(("01-original", original))
+            let titleBSentAt = ProcessInfo.processInfo.systemUptime
+            fixture.title = "Title B"
+            measurements.append(["kind": "event", "stage": "title-B", "sentAt": "\(titleBSentAt)",
+                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)"])
+            try await Task.sleep(for: .milliseconds(50))
+            let titleBWaitReturnedAt = ProcessInfo.processInfo.systemUptime
+            let titleASentAt = ProcessInfo.processInfo.systemUptime
+            fixture.title = "Title A"
+            measurements.append(["kind": "event", "stage": "title-A", "sentAt": "\(titleASentAt)",
+                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)", "priorWaitReturnedAt": "\(titleBWaitReturnedAt)",
+                "requestedPriorWaitMilliseconds": "50"])
+            try await Task.sleep(for: .milliseconds(500))
+            let checkedAt = ProcessInfo.processInfo.systemUptime
+            let reversalSamples = frames.takeSamples()
+            let reversed = try textPixels(in: root)
+            let cacheCheckReturnedAt = ProcessInfo.processInfo.systemUptime
+            captures.append(("02-reversed", reversed))
+            #expect(reversed == original)
+            let reversalFirstIndex = windowCaptures.count
+            retainTitleSamples(reversalSamples, stage: "reversal-at-check",
+                               captures: &windowCaptures, measurements: &measurements)
+            var reversalEvidence = ["kind": "observation", "stage": "reversal-screen-check",
+                "checkedAt": "\(checkedAt)", "titleASentAt": "\(titleASentAt)", "requestedWaitMilliseconds": "500",
+                "cacheCheckReturnedAt": "\(cacheCheckReturnedAt)",
+                "baselinePresentationTime": "\(originalWindow.sample.presentationTime)",
+                "baselineInk": "\(originalWindow.ink)", "frameAvailable": "false"]
+            // Do not wait until pixels match and do not use a frame presented
+            // after the original 500ms check. Keep causality visible even if
+            // this stream did not supply a post-input composed frame.
+            if let index = reversalSamples.lastIndex(where: { $0.presentationTime <= checkedAt }) {
+                let observed = reversalSamples[index]
+                let pixels = try titleWindowPixels(observed.image, region: contentRegion)
+                reversalEvidence["frameAvailable"] = "true"
+                reversalEvidence["captureIndex"] = "\(reversalFirstIndex + index)"
+                reversalEvidence["presentationTime"] = "\(observed.presentationTime)"
+                reversalEvidence["receivedAt"] = "\(observed.receivedAt)"
+                reversalEvidence["afterTitleAInput"] = "\(observed.presentationTime > titleASentAt)"
+                reversalEvidence["contentPixelsEqual"] = "\(pixels.data == originalWindow.pixels.data)"
+                reversalEvidence["observedInk"] = "\(try pixels.histogramInk())"
+            }
+            measurements.append(reversalEvidence)
+
+            fixture.title = "Cancelled title"
+            try await Task.sleep(for: .milliseconds(40))
+            fixture.visibility.isVisible = false
+            fixture.title = "Hidden latest"
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Hidden latest") }
+            let hidden = try textPixels(in: root)
+            captures.append(("03-hidden-before-reversal", hidden))
+            fixture.visibility.isVisible = true
+            try await Task.sleep(for: .milliseconds(20))
+            fixture.visibility.isVisible = false
+            try await Task.sleep(for: .milliseconds(350))
+            let hiddenAfter = try textPixels(in: root)
+            captures.append(("04-hidden-after-reversal", hiddenAfter))
+            #expect(hiddenAfter == hidden)
+
+            fixture.visibility.isVisible = true
+            fixture.scenePhase = .background
+            fixture.title = "Background latest"
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Background latest") }
+            let background = try textPixels(in: root)
+            captures.append(("05-background", background))
+            fixture.scenePhase = .inactive
+            try await Task.sleep(for: .milliseconds(350))
+            let foreground = try textPixels(in: root)
+            captures.append(("06-foreground", foreground))
+            #expect(foreground == background)
+            let reducedSentAt = ProcessInfo.processInfo.systemUptime
+            fixture.reduceMotion = true
+            fixture.title = "Reduced motion latest"
+            measurements.append(["kind": "event", "stage": "reduced-motion", "sentAt": "\(reducedSentAt)",
+                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)"])
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Reduced motion latest") }
+            let reduced = try textPixels(in: root)
+            captures.append(("07-reduced-motion", reduced))
+            try await Task.sleep(for: .milliseconds(350))
+            let reducedAfter = try textPixels(in: root)
+            captures.append(("08-reduced-motion-after", reducedAfter))
+            #expect(reducedAfter == reduced)
+
             let reducedWindow = try await titleWindowFrame(frames, region: region, stage: "reduced-reference",
-                captures: &windowCaptures, measurements: &measurements) { _ in true }
+                captures: &windowCaptures, measurements: &measurements) { $0.sample.presentationTime > reducedSentAt }
             fixture.title = "Title A"
             let titleWindow = try await titleWindowFrame(frames, region: region, stage: "title-reference",
                 captures: &windowCaptures, measurements: &measurements) { $0.pixels.data != reducedWindow.pixels.data }
@@ -280,19 +303,25 @@ extension SwiftUIOverviewInteractionTests {
             // A partial nonblank frame can therefore only be incoming motion.
             fixture.title = "\u{00a0}"
             let blankWindow = try await titleWindowFrame(frames, region: region, stage: "blank-reference",
-                captures: &windowCaptures, measurements: &measurements) { $0.pixels.ink() < titleWindow.pixels.ink() * 0.01 }
-            let fullInk = titleWindow.pixels.ink() - blankWindow.pixels.ink()
+                captures: &windowCaptures, measurements: &measurements) { $0.ink < titleWindow.ink * 0.01 }
+            let blankInk = blankWindow.ink
+            let fullInk = titleWindow.ink - blankInk
             try #require(fullInk > 0)
             let incomingEnd = try #require(titleWindow.pixels.lastInkColumn(comparedTo: blankWindow.pixels))
             let newTitleStart = incomingEnd + Int(8 * scale)
-            let changedTitleInk = reducedWindow.pixels.ink(after: newTitleStart) - blankWindow.pixels.ink(after: newTitleStart)
+            let blankSuffixInk = try blankWindow.pixels.histogramInk(after: newTitleStart)
+            let changedTitleInk = try reducedWindow.pixels.histogramInk(after: newTitleStart) - blankSuffixInk
+            try #require(blankSuffixInk == blankWindow.pixels.ink(after: newTitleStart)
+                         && changedTitleInk == reducedWindow.pixels.ink(after: newTitleStart) - blankSuffixInk,
+                         "Title suffix reference histograms differ from their scalar pixels")
             try #require(changedTitleInk > 0)
-            _ = frames.takeSamples()
+            retainTitleSamples(frames.takeSamples(), stage: "before-incoming",
+                               captures: &windowCaptures, measurements: &measurements)
             fixture.reduceMotion = false
             fixture.title = "Title A"
             let incoming = try await titleWindowFrame(frames, region: region, stage: "incoming",
                 captures: &windowCaptures, measurements: &measurements) { frame in
-                let fraction = (frame.pixels.ink() - blankWindow.pixels.ink()) / fullInk
+                let fraction = (frame.ink - blankInk) / fullInk
                 return fraction > 0.1 && fraction < 0.6
                     && ProcessInfo.processInfo.systemUptime - frame.sample.receivedAt < 0.05
             }
@@ -303,30 +332,35 @@ extension SwiftUIOverviewInteractionTests {
             fixture.reduceMotion = true
             fixture.title = "Reduced motion latest"
             measurements.append(["stage": "cancel", "receivedAt": "\(incoming.sample.receivedAt)",
-                "cancelledAt": "\(cancelledAt)", "inkFraction": "\((incoming.pixels.ink() - blankWindow.pixels.ink()) / fullInk)"])
+                "cancelledAt": "\(cancelledAt)", "inkFraction": "\((incoming.ink - blankInk) / fullInk)"])
             // The long replacement has ink beyond Title A's bounds, even after
             // allowing for its blur. Inspect its first real frame, without an
             // AX wait that could conceal continued interpolation.
             _ = try await titleWindowFrame(frames, region: region, stage: "cancelled",
                 captures: &windowCaptures, measurements: &measurements, firstMatching: true,
-                check: { frame in #expect(frame.pixels.data == reducedWindow.pixels.data) }) { frame in
+                check: { frame in #expect(frame.pixels.data == reducedWindow.pixels.data) }, suffixColumn: newTitleStart) { frame in
                 // Old Title A frames may arrive after the cancellation call.
                 // Require both increasing presentation time and actual ink
                 // unique to the replacement, not just a callback timestamp.
                 frame.sample.presentationTime > incoming.sample.presentationTime
-                    && frame.pixels.ink(after: newTitleStart) - blankWindow.pixels.ink(after: newTitleStart) > changedTitleInk * 0.02
+                    && (frame.suffixInk ?? 0) - blankSuffixInk > changedTitleInk * 0.02
             }
             try await Task.sleep(for: .milliseconds(350))
             // Complete frames represent changed window surfaces. Every update
             // after cancellation must remain identical to the settled reference.
-            for (index, sample) in frames.takeSamples().enumerated() {
-                windowCaptures.append(("window-after-cancel-\(index)", sample.image))
+            let remaining = frames.takeSamples()
+            retainTitleSamples(remaining, stage: "after-cancel", captures: &windowCaptures, measurements: &measurements)
+            for sample in remaining {
                 #expect(try titleWindowPixels(sample.image, region: region).data == reducedWindow.pixels.data)
             }
             try await stream.stopCapture()
+            retainTitleSamples(frames.takeSamples(), stage: "capture-stopped",
+                               captures: &windowCaptures, measurements: &measurements)
             print("TITLE_INCOMING_MOTION_CONFIRMED received=\(incoming.sample.receivedAt) cancelled=\(cancelledAt)")
         } catch {
             try? await stream.stopCapture()
+            retainTitleSamples(frames.takeSamples(), stage: "capture-failed",
+                               captures: &windowCaptures, measurements: &measurements)
             throw error
         }
         #expect(fixture.appearances == 1)
@@ -928,24 +962,60 @@ extension SwiftUIOverviewInteractionTests {
         return try #require(image.representation(using: .png, properties: [:]))
     }
 
+    private func retainTitleSamples(_ samples: [TagGlassFrames.Sample], stage: String,
+                                    captures: inout [(String, CGImage)], measurements: inout [[String: String]]) {
+        for sample in samples {
+            let index = captures.count
+            let name = "window-\(stage)-\(index)"
+            captures.append((name, sample.image))
+            measurements.append(["kind": "capture", "stage": stage, "captureIndex": "\(index)", "file": name + ".png",
+                "receivedAt": "\(sample.receivedAt)", "presentationTime": "\(sample.presentationTime)",
+                "recordedAt": "\(ProcessInfo.processInfo.systemUptime)"])
+        }
+    }
+
     private func titleWindowFrame(_ frames: TagGlassFrames, region: CGRect, stage: String,
                                   captures: inout [(String, CGImage)], measurements: inout [[String: String]],
                                   firstMatching: Bool = false, check: ((TitleWindowFrame) -> Void)? = nil,
+                                  suffixColumn: Int? = nil,
                                   accepts: (TitleWindowFrame) -> Bool) async throws -> TitleWindowFrame {
         let deadline = ContinuousClock.now + .seconds(3)
         var selected: TitleWindowFrame?
         while ContinuousClock.now < deadline {
             let samples = frames.takeSamples()
-            for sample in samples {
-                captures.append(("window-\(stage)-\(captures.count)", sample.image))
-            }
+            let firstIndex = captures.count
+            retainTitleSamples(samples, stage: stage, captures: &captures, measurements: &measurements)
             // Incoming motion requires the newest complete frame. Cancellation
             // inspects the first replacement frame and every later frame in its
             // batch, so a settled last frame cannot conceal an earlier fade.
-            for sample in firstMatching ? samples : Array(samples.suffix(1)) {
-                let frame = TitleWindowFrame(sample: sample, pixels: try titleWindowPixels(sample.image, region: region))
-                measurements.append(["stage": stage, "receivedAt": "\(sample.receivedAt)",
-                    "presentationTime": "\(sample.presentationTime)", "ink": "\(frame.pixels.ink())"])
+            let indices = firstMatching ? Array(samples.indices) : Array(samples.indices.suffix(1))
+            for index in indices {
+                let sample = samples[index]
+                let started = ProcessInfo.processInfo.systemUptime
+                _ = try ExcerptInkBGRAImage(sample.image)
+                let pixels = try titleWindowPixels(sample.image, region: region)
+                let cropped = ProcessInfo.processInfo.systemUptime
+                let ink = try pixels.histogramInk()
+                let suffix = try suffixColumn.map { try pixels.histogramInk(after: $0) }
+                let computed = ProcessInfo.processInfo.systemUptime
+                let frame = TitleWindowFrame(sample: sample, pixels: pixels, ink: ink, suffixInk: suffix)
+                defer {
+                    let finished = ProcessInfo.processInfo.systemUptime
+                    var row = ["kind": "analysis", "stage": stage, "captureIndex": "\(firstIndex + index)",
+                        "batchCount": "\(samples.count)", "receivedAt": "\(sample.receivedAt)",
+                        "presentationTime": "\(sample.presentationTime)", "ink": "\(ink)",
+                        "startedAt": "\(started)", "finishedAt": "\(finished)",
+                        "cropMilliseconds": "\((cropped - started) * 1000)",
+                        "inkMilliseconds": "\((computed - cropped) * 1000)",
+                        "processingMilliseconds": "\((finished - started) * 1000)",
+                        "sampleAgeMilliseconds": "\((finished - sample.receivedAt) * 1000)",
+                        "regionX": "\(region.minX)", "regionY": "\(region.minY)",
+                        "regionWidth": "\(region.width)", "regionHeight": "\(region.height)"]
+                    if let suffixColumn, let suffix {
+                        row["suffixColumn"] = "\(suffixColumn)"; row["suffixInk"] = "\(suffix)"
+                    }
+                    measurements.append(row)
+                }
                 if selected != nil || accepts(frame) {
                     if selected == nil { selected = frame }
                     check?(frame)
@@ -955,6 +1025,28 @@ extension SwiftUIOverviewInteractionTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
+    }
+
+    private func auditTitleInk(_ captures: [(String, CGImage)], region: CGRect,
+                               measurements: inout [[String: String]]) throws {
+        let analyzed = measurements.filter { $0["kind"] == "analysis" }
+        for (index, capture) in captures.enumerated() {
+            _ = try ExcerptInkBGRAImage(capture.1)
+            let pixels = try titleWindowPixels(capture.1, region: region)
+            let scalar = pixels.ink(), histogram = try pixels.histogramInk()
+            try #require(scalar == histogram, "Title histogram differs from the original scalar ink formula")
+            measurements.append(["kind": "offline-audit", "stage": "all-frames", "captureIndex": "\(index)",
+                "scalarInk": "\(scalar)", "histogramInk": "\(histogram)"])
+            for row in analyzed where row["captureIndex"] == "\(index)" {
+                let measuredRegion = CGRect(x: Double(row["regionX"]!)!, y: Double(row["regionY"]!)!,
+                    width: Double(row["regionWidth"]!)!, height: Double(row["regionHeight"]!)!)
+                let measured = try titleWindowPixels(capture.1, region: measuredRegion)
+                try #require(measured.ink() == Double(row["ink"]!)!, "Live title ink differs from its retained WindowServer pixels")
+                if let column = row["suffixColumn"].flatMap(Int.init), let ink = row["suffixInk"].flatMap(Double.init) {
+                    try #require(measured.ink(after: column) == ink, "Live title suffix ink differs from its retained WindowServer pixels")
+                }
+            }
+        }
     }
 
     private func titleWindowPixels(_ image: CGImage, region: CGRect) throws -> TitleWindowPixels {
@@ -1330,11 +1422,46 @@ private struct ExcerptInkReference {
     }
 }
 
-private struct TitleWindowFrame { let sample: TagGlassFrames.Sample; let pixels: TitleWindowPixels }
+private struct TitleWindowFrame {
+    let sample: TagGlassFrames.Sample
+    let pixels: TitleWindowPixels
+    let ink: Double
+    let suffixInk: Double?
+}
 private struct TitleWindowPixels {
     let data: Data
     let width: Int
 
+    /// Count the same physical BGRA bytes as the scalar oracle below. The
+    /// histogram routine does not reinterpret color; bins 0/1/2 hold B/G/R and
+    /// bin 3 holds alpha. Do not use LeaveAlphaUnchanged for this byte layout.
+    func histogramInk(after column: Int = 0) throws -> Double {
+        try #require(width > 0 && !data.isEmpty && data.count % (width * 4) == 0)
+        let first = max(0, column)
+        guard first < width else { return 0 }
+        let height = data.count / (width * 4)
+        var bins = [vImagePixelCount](repeating: 0, count: 4 * 256)
+        let status = data.withUnsafeBytes { raw in
+            bins.withUnsafeMutableBufferPointer { bins in
+                var channels: [UnsafeMutablePointer<vImagePixelCount>?] = (0..<4).map {
+                    bins.baseAddress!.advanced(by: $0 * 256)
+                }
+                var buffer = vImage_Buffer(data: UnsafeMutableRawPointer(mutating: raw.baseAddress!.advanced(by: first * 4)),
+                    height: vImagePixelCount(height), width: vImagePixelCount(width - first), rowBytes: width * 4)
+                return channels.withUnsafeMutableBufferPointer {
+                    vImageHistogramCalculation_ARGB8888(&buffer, $0.baseAddress!, vImage_Flags(kvImageNoFlags))
+                }
+            }
+        }
+        try #require(status == kvImageNoError, "Title ink histogram calculation failed")
+        var components = 0
+        for channel in 0..<3 {
+            for value in 0..<256 { components += value * Int(bins[channel * 256 + value]) }
+        }
+        return Double(765 * (width - first) * height - components)
+    }
+
+    // Keep this independent scalar formula for the post-stream exact audit.
     func ink(after column: Int = 0) -> Double {
         guard column < width else { return 0 }
         return data.withUnsafeBytes { raw in

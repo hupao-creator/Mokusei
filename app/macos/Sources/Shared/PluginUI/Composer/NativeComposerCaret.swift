@@ -4,6 +4,11 @@ import SwiftUI
 
 /// Owns only the insertion mark's presentation; AppKit retains text and selection.
 @MainActor final class NativeComposerCaret {
+    /// Optical tuning after visual review. The approved 25/24 study is lengthened
+    /// by one point and moved down by the same amount, so the top edge drops half
+    /// a point while the lower end gains 1.5 points. Glyph layout is untouched.
+    private static let coreHeightGrowth: CGFloat = 1
+    private static let coreVerticalOffset: CGFloat = 1
     let layer = CALayer()
     private let core = CALayer()
     private let glow = CALayer()
@@ -32,11 +37,16 @@ import SwiftUI
         editor.wantsLayer = true
         guard let parent = editor.layer else { return }
         let nativeWidth: CGFloat = 2.6
-        let nativeHeight = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
+        let studyHeight = min(nativeRect.height, (editor.font?.pointSize ?? nativeRect.height) * 25 / 24)
+        let nativeHeight = min(nativeRect.height, studyHeight + Self.coreHeightGrowth)
+        // NSTextView is flipped, so increasing y moves down; keep the optical
+        // correction downward for any text-view coordinate system.
+        let verticalOffset = editor.isFlipped ? Self.coreVerticalOffset : -Self.coreVerticalOffset
         // AppKit supplies view coordinates, which need not match its backing
         // layer's coordinates (notably for flipped or scaled text views).
         let rect = editor.convertToLayer(CGRect(x: nativeRect.midX - nativeWidth / 2,
-            y: nativeRect.midY - nativeHeight / 2, width: nativeWidth, height: nativeHeight))
+            y: nativeRect.midY - nativeHeight / 2 + verticalOffset,
+            width: nativeWidth, height: nativeHeight))
         let width = rect.width, height = rect.height
         let previous = layer.presentation()?.position ?? layer.position
         let moved = hasFrame && rect.origin != layer.position

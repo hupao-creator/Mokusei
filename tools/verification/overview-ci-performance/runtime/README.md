@@ -39,10 +39,22 @@ intended production 2×1 footprint and are fully visible.
 
 S4/A4 each schedule 1,000 independent events: 200 during the nominal five-second
 warmup and 800 during the nominal twenty-second formal window. Each card receives
-250 events. The source runs on its own Go monotonic deadlines; the UI never paces
-it and cannot combine four source events into one transaction. A late event is
-retained and its actual delay is reported. A source deadline missed by more than
-50 ms invalidates the run instead of quietly reducing the workload.
+250 events. Source protocol 2 uses an independent producer on absolute Go
+monotonic deadlines and a separate serial mutation worker. The producer enqueues
+identity/sequence metadata into a preallocated 256-entry FIFO; it never performs
+session reduction or `Store.Update`, and never waits for the worker. Actual
+enqueue lateness beyond 50ms or queue overflow invalidates the run. The queue is
+bounded even when production work stalls; it does not drop inputs silently or
+reshape four events into one transaction. The worker always starts from the
+latest accepted record for that card, not a snapshot captured at enqueue time.
+
+Protocol 1 performed preparation and the store call in its producer. Its
+sent-minus-planned deadline failures remain failures in those archived reports.
+Protocol 2 retains that same sent timing and the old gate's late count, maximum
+and would-fail result in `source.legacySentDeadline`; its new enqueue gate has an
+explicit version. Do not mix the two protocols or retroactively reclassify an old
+experiment. Go and host scheduling can still delay the independent producer, and
+those actual enqueue misses remain invalid.
 
 Both changing loads use the production Codex `text-final` event on a stable
 assistant item while the execution remains running. A4 is **cumulative message
@@ -69,7 +81,8 @@ throughput claim. Global and Moku settings have a pre-existing fixture profile.
 
 `core-ready.json` includes:
 
-- `schemaVersion`, `pid`, absolute `executable`, `parentPID`;
+- `schemaVersion`, `pid`, absolute `executable`, `parentPID`,
+  `sourceProtocolVersion=2`, `sourceQueueCapacity=256`;
 - standard production `connection` (`port`, `token`, `epoch`, `protocolVersion`,
   `pid`, `dataDir`), which the real Swift `RuntimeClient` consumes;
 - `controlURL` and `controlToken`, plus `condition`, `n`, `k`, `seed`;
@@ -80,9 +93,9 @@ loopback-only HTTP server. This server does not replace any production route.
 
 | Request | Response / action |
 | --- | --- |
-| `POST /start` | Starts once, returning future `warmupStartUnixNano`, `formalStartUnixNano`, `formalEndUnixNano`, `warmupSeconds`, `formalSeconds`, and `sourceIntervalNanoseconds`. The first boundary is one second ahead. |
-| `GET /status` | Lightweight `state`, `sourceComplete`, `formalComplete`, `currentSeqs`, and `errors`. Do not poll it per source event. |
-| `GET /result` | Complete evidence snapshot; HTTP 409 until the actual formal-end sample exists. |
+| `POST /start` | Starts once, returning protocol/capacity and future `warmupStartUnixNano`, `formalStartUnixNano`, `formalEndUnixNano`, `warmupSeconds`, `formalSeconds`, and `sourceIntervalNanoseconds`. The first boundary is one second ahead. |
+| `GET /status` | Protocol/capacity, `state`, `sourceComplete`, `enqueueComplete`, `producerFinished`, `formalComplete`, `currentSeqs`, `errors` and a bounded input-FIFO snapshot. Do not poll it per source event. |
+| `GET /result` | Complete versioned evidence snapshot; HTTP 409 until the actual formal-end sample exists. |
 | `POST /finish` | Acknowledges `{ "ok": true }`, stops the owned runtime, writes the final result, and exits. Wait for exit, then read the final output file. |
 
 UTC nanoseconds are JSON integer tokens. They let Swift schedule against a
@@ -90,6 +103,18 @@ single Date→uptime anchor. Each process reports its actual sampling timestamp
 and lateness; planned timestamps are not substituted for actual CPU intervals.
 The Core sampler opens the initial warmup interval before source event zero.
 Subsequent event deadlines remain independent of the UI and of the sampler.
+
+`enqueueComplete` means every planned event was admitted to the FIFO;
+`producerFinished` also records abnormal producer termination. Neither substitutes
+for `sourceComplete`, which still requires acceptance of all planned mutations.
+The worker can finish queued work within the original five-second observation
+budget. Backlog does not move the five-second warmup/twenty-second supply or
+formal CPU boundaries, and does not increase the tail budget. The additional
+tail/full UI CPU windows still end at actual model stability within that budget;
+their duration can therefore increase when more pending work remains.
+Cancellation retains queued identities and any dequeued-but-unsent terminal
+failure. A production transaction that returns success is still accepted even
+if cancellation was requested while its outcome was being determined.
 
 Each expected/final card is:
 
@@ -113,18 +138,40 @@ hashing do not belong in the formal Swift measurement.
 
 `boundaries` retains actual/planned boundary times, cumulative user/system CPU,
 and maximum RSS. `windows.warmup`, `windows.formal`, and `windows.tail` classify
-each actual send, acceptance, and publication by half-open actual sampling
+each actual enqueue, dequeue, send, acceptance and publication by half-open actual sampling
 intervals. They are recomputed from retained event timestamps; warmup cannot
 silently enter the formal count. A source event at a boundary can belong to a
 different actual window than its nominal deadline. `source.nominalWarmupEvents`
 and `source.nominalFormalEvents` preserve the intended 200/800 split separately.
 
-Top-level `source.planned/sent/accepted` are whole-run totals, never formal-only
-numbers. `sourceEvents` preserves all attempted events, including planned, sent,
-and accepted timestamps and errors. `publications` records real Runtime
+Top-level `source.planned/enqueued/dequeued/sent/accepted` are whole-run totals,
+never formal-only numbers. `sourceEvents` preserves every planned event, including
+unsupplied entries after cancellation, with actual enqueue, dequeue, preparation
+start (`sent`), store-call start and accepted/completed timestamps and errors.
+Their monotonic elapsed values separate enqueue lateness, queue waiting,
+preparation, store-call time and overall acceptance latency. Missing actual
+boundaries stay missing; they are not filled with planned times.
+
+`queue` identifies the harness input FIFO, with pending identities, in-flight
+identity/age, high water, oldest waiting age and overflow receipts. Successful
+final evidence requires all planned inputs accepted and no pending/in-flight
+work. The top-level queue snapshot carries its own `observedAt`. Its `boundaries`
+reconstructs historical occupancy from the retained monotonic event-stage
+timestamps at actual Core CPU sample boundaries; it is not a synchronized
+queue-lock snapshot at each boundary. Swift's first-observed completion timestamps
+are tail polling observations, not actual Core completion instants. This is not
+a measurement of production Store, publisher, socket or UI queue depth.
+`publications` records real Runtime
 publication callbacks, revisions, dirty-card identities/sequences, and byte
 counts. The callback decodes only identity/revision fields; it does not retain
 or re-encode the full native state.
+
+An exact published `(cardID, seq)` can be linked to that source event. Source
+events merged by the production publisher remain coalesced, without fabricated
+individual install times. Accepted-to-publish differences can be negative:
+the store commits and notifies subscribers before the calling worker resumes
+and records the successful return. Keep the signed difference; it does not mean
+the publication preceded the commit.
 
 `publish.wireBytes` is the **encoded production mutation NDJSON payload size**:
 the actual mutation bytes plus the exact fixed envelope/newline overhead. It is

@@ -20,8 +20,9 @@ Each invocation receives full baseline and candidate commit SHAs. The runner
 creates detached worktrees and copies the **same current Swift/Go/Python harness
 sources** into both. Product source, plugin and module files must remain unchanged.
 It builds each side once, then launches a fresh application/Core process per run.
-The source-event clock belongs to the Go Core host, not the UI consumer. Updates
-travel through the production store, publication, HTTP/NDJSON and Overview model.
+The source-event clock belongs to the Go Core host. Its producer and the serial
+mutation worker are separate; neither is paced by the UI consumer. Updates travel
+through the production store, publication, HTTP/NDJSON and Overview model.
 
 All conditions use N=40, four running 2×1 cards fully visible in the foreground,
 fixed camera, dark appearance, glass, and enabled motion/transparency. Each run
@@ -37,6 +38,74 @@ Order is `R0 A→B`, `S4 A→B`, `A4 A→B`, then `A4 B→A`, `S4 B→A`, `R0 B�
 There are twelve independent process runs. No N100/N500, hidden/background or
 occluded CPU scenarios are included. A real foreground failure is recorded as an
 invalid run; it is not silently replaced by a better-looking repeat.
+
+### Source protocol 2
+
+Ready, start and result receipts explicitly identify `sourceProtocolVersion=2`
+and `sourceQueueCapacity=256`. For S4/A4, the producer follows the same absolute
+monotonic 25ms deadlines for 1,000 events across five seconds of warmup and twenty
+seconds of formal input; R0 has no source events. It enqueues only event identity
+and timing metadata into a fixed,
+preallocated 256-entry FIFO. It does not create session JSON, call `Store.Update`,
+or wait for the worker. A full queue records overflow and invalidates the run;
+there is no unbounded buffer, silent loss or producer backpressure.
+
+A separate worker consumes FIFO entries serially. It obtains the most recently
+accepted record for that card, performs the original content mutation, and calls
+the production `Store.Update`. The publisher retains its existing coalescing and
+transport behavior. Four simultaneous events are never precombined into one
+mutation. Cancellation, unsent work, failed mutations and accepted commits remain
+distinct in the retained accounting.
+
+| Event boundary | Meaning |
+| --- | --- |
+| planned | Original absolute source deadline |
+| enqueued | Actual admission into the bounded harness FIFO |
+| dequeued | Worker removal from that FIFO |
+| sent | Start of the original session-content preparation path |
+| storeUpdateStarted | Call into the production store after preparation |
+| accepted | Successful return from the production store |
+
+Source validity requires actual enqueue lateness no greater than 50ms. The
+producer remains subject to runner scheduling: missing that deadline is still
+invalid. Queue wait, content preparation, store-call time and complete accepted
+latency are measured separately. The old sent-minus-planned timing remains in
+each event and in `source.legacySentDeadline`, including its late count, maximum
+and whether the old 50ms gate would have failed. A queue delay cannot disappear
+from the report merely because enqueue was timely.
+
+This is a versioned change in the source boundary. Protocol 1 performed content
+preparation and the store call in the producer itself; one slow mutation could
+delay many later planned inputs. Its accepted and invalid experiments keep their
+original interpretation. Do not revalidate old results with the new enqueue
+criterion, combine protocols into a pair, or treat an old baseline as a current
+product comparison.
+
+Receipts retain boundary counts, queue high water, pending/in-flight work, oldest
+queued age, overflow and unprocessed event identities. These describe the
+**harness FIFO**, not unobserved queues inside the production store, transport or
+UI. `enqueueComplete` describes supply admission; `sourceComplete` still means
+all planned mutations were accepted. Final validity also requires no pending or
+in-flight source work and the expected final per-card sequence/hash. The original
+five-second tail budget is unchanged. Backlog that does not settle within it is
+incomplete, even when the producer finished on schedule.
+
+`queue.observedAt` identifies the actual queue snapshot. `queue.boundaries`
+instead reconstructs occupancy at each actual Core CPU boundary from the retained
+monotonic event-stage timestamps; it is not a synchronized queue-lock sample at
+that boundary. Swift's first-observed enqueue/source-complete times describe its
+tail polling observations, not the actual Core completion instant.
+
+Source-to-publish/install observations associate a publication's actual per-card
+sequence with its matching source event. Intermediate events merged by the
+production publisher are counted as coalesced; they are not assigned invented
+individual installation times. Read these timings alongside the publication
+count, changed-card count, formal-end model backlog and full UI CPU cost.
+Accepted-to-publish latency can be negative: `Store.Update` commits and notifies
+subscribers before its caller resumes and records acceptance. These signed values
+are retained, not clamped to zero or interpreted as a publication before commit.
+
+### CPU intervals
 
 UI and Core CPU use their own `getrusage` user+system deltas divided by actual
 monotonic wall intervals. Percentages use a **single-core scale**. Warmup, formal
@@ -151,7 +220,8 @@ The artifact `overview-release-performance-<run>-attempt-<attempt>` retains:
 - Display capability/restore records and retained failure diagnostics.
 
 Temporary runtime authentication data is not part of the report. Ready receipts
-retain only process identity and the loopback control endpoint after shutdown.
+retain public process identity after shutdown, with control credentials removed.
+The complete versioned source contract remains in the UI/Core result receipts.
 The fixed synthetic text is harness-owned; no developer conversation is needed.
 
 Core identity keeps the PID and parent-PID checks. On the runner, reported and

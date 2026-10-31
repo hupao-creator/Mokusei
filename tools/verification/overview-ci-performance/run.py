@@ -26,6 +26,8 @@ from native_replay import NativeReplay
 PRODUCT_PATHS = ["app/macos/Sources", "app/macos/Plugins", "app/macos/Package.swift",
                  "app/macos/Package.resolved", "internal", "cmd", "go.mod", "go.sum"]
 SWIFT_FLAGS = ["-O", "-g", "-enable-testing"]
+SOURCE_PROTOCOL_VERSION = 2
+SOURCE_QUEUE_CAPACITY = 256
 
 # Select only modes already offered by the runner's real display. No virtual
 # display or offscreen window may make the four-card visibility check pass.
@@ -350,6 +352,126 @@ def numeric(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
+def integer(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def object_value(value):
+    """A view for formatting partial receipts; validators still reject the type."""
+    return value if isinstance(value, dict) else {}
+
+
+def validate_source_v2(core, condition):
+    """Recompute the input contract; never reinterpret historical v1 runs."""
+    reasons = []
+    expected = 0 if condition == "R0" else 1000
+    if not isinstance(core, dict):
+        return ["Core result is not an object"]
+    malformed_containers = [key for key in ("schedule", "source", "queue", "windows") if not isinstance(core.get(key), dict)]
+    if malformed_containers:
+        return ["Core source contract has missing/non-object fields: " + ", ".join(malformed_containers)]
+    for label, value in (("Core", core), ("schedule", core.get("schedule", {}))):
+        if (not integer(value.get("sourceProtocolVersion")) or value.get("sourceProtocolVersion") != SOURCE_PROTOCOL_VERSION or
+                not integer(value.get("sourceQueueCapacity")) or value.get("sourceQueueCapacity") != SOURCE_QUEUE_CAPACITY):
+            reasons.append(label + " must identify source protocol v2 and queue capacity 256")
+    if any(core.get(key) is not True for key in ("sourceComplete", "enqueueComplete", "producerFinished")):
+        reasons.append("Independent source/worker completion is missing")
+    source, queue, events = core["source"], core["queue"], core.get("sourceEvents")
+    if not isinstance(source.get("errors"), list) or source.get("errors"):
+        reasons.append("Source errors must be an empty array")
+    if not isinstance(events, list) or len(events) != expected or not all(isinstance(event, dict) for event in events):
+        return reasons + ["The complete planned source-event inventory is missing"]
+    stage_fields = ("planned", "enqueued", "dequeued", "sent", "storeUpdateStarted", "accepted", "completed")
+    malformed = []
+    for index, event in enumerate(events):
+        if (not integer(event.get("index")) or not integer(event.get("seq")) or
+                event.get("index") != index or event.get("cardID") != f"card-{index % 4}" or event.get("seq") != index // 4):
+            malformed.append(index)
+            continue
+        values = [event.get(stage + suffix) for stage in stage_fields for suffix in ("UnixNano", "ElapsedNanoseconds")]
+        if not all(integer(value) and value >= 0 for value in values):
+            malformed.append(index)
+            continue
+        if any(bool(event[stage + "UnixNano"]) != bool(event[stage + "ElapsedNanoseconds"]) for stage in stage_fields):
+            malformed.append(index)
+            continue
+        observed = [event[stage + "ElapsedNanoseconds"] for stage in stage_fields if event[stage + "ElapsedNanoseconds"]]
+        # A cancelled task can have dequeued/completed receipts without sent or
+        # Store.Update. Accepted work must have every predecessor stage.
+        if observed != sorted(observed) or not event["plannedUnixNano"] or (
+                event["acceptedUnixNano"] and not all(event[stage + "UnixNano"] for stage in stage_fields)):
+            malformed.append(index)
+    if malformed:
+        return reasons + ["Malformed or non-monotonic source receipts at indices " + str(malformed)]
+    totals = {stage: sum(event[stage + "UnixNano"] > 0 for event in events)
+              for stage in ("enqueued", "dequeued", "sent", "accepted", "completed")}
+    for stage in ("planned", "enqueued", "dequeued", "sent", "accepted"):
+        actual = expected if stage == "planned" else totals[stage]
+        if not integer(source.get(stage)) or source.get(stage) != actual or actual != expected:
+            reasons.append(f"Source {stage} does not match the prescribed/observed event count")
+    pending = [event["index"] for event in events if event["enqueuedUnixNano"] and not event["dequeuedUnixNano"]]
+    in_flight = [event["index"] for event in events if event["dequeuedUnixNano"] and not event["completedUnixNano"]]
+    if not all(integer(queue.get(key)) for key in ("capacity", "pending", "inFlight", "inFlightIndex", "overflowCount", "highWater")):
+        reasons.append("Input FIFO counters must be explicit JSON integers")
+    if (queue.get("capacity") != SOURCE_QUEUE_CAPACITY or queue.get("closed") is not True or
+            queue.get("overflowCount") != 0 or queue.get("pending") != 0 or queue.get("inFlight") != 0):
+        reasons.append("Input FIFO was not closed and empty without overflow")
+    if (queue.get("pendingIndices") != pending or queue.get("pending") != len(pending) or
+            queue.get("inFlight") != len(in_flight) or
+            queue.get("inFlightIndex") != (in_flight[0] if len(in_flight) == 1 else -1) or
+            totals["enqueued"] != totals["dequeued"] + len(pending) or
+            totals["dequeued"] != totals["completed"] + len(in_flight)):
+        reasons.append("Final input FIFO and event receipts do not conserve admitted work")
+    if not integer(queue.get("highWater")) or not 0 <= queue["highWater"] <= SOURCE_QUEUE_CAPACITY:
+        reasons.append("Input FIFO high-water receipt is invalid")
+    for name, stage, is_gate in (("enqueueDeadline", "enqueued", True), ("legacySentDeadline", "sent", False)):
+        observed = [event for event in events if event[stage + "UnixNano"]]
+        late = [event["index"] for event in observed if
+                event[stage + "ElapsedNanoseconds"] - event["plannedElapsedNanoseconds"] > 50_000_000]
+        maximum = max([0] + [event[stage + "ElapsedNanoseconds"] - event["plannedElapsedNanoseconds"] for event in observed]) / 1e6
+        receipt = source.get(name)
+        if not isinstance(receipt, dict):
+            reasons.append(name + " is missing or not an object")
+            if is_gate and late:
+                reasons.append("Actual source enqueue exceeded the unchanged 50ms deadline at indices " + str(late))
+            continue
+        if (not all(integer(receipt.get(key)) for key in ("thresholdMilliseconds", "observedCount", "missingCount", "exceededCount")) or
+                not isinstance(receipt.get("exceededIndices"), list) or not all(integer(index) for index in receipt["exceededIndices"]) or
+                receipt.get("thresholdMilliseconds") != 50 or receipt.get("observedCount") != len(observed) or
+                receipt.get("missingCount") != expected - len(observed) or receipt.get("exceededCount") != len(late) or
+                receipt.get("exceededIndices") != late or receipt.get("wouldFail") is not bool(late) or
+                receipt.get("isValidityGate") is not is_gate or not numeric(receipt.get("maxLatenessMilliseconds")) or
+                abs(receipt["maxLatenessMilliseconds"] - maximum) > 1e-6):
+            reasons.append(name + " does not match the retained monotonic receipts")
+        if is_gate and late:
+            reasons.append("Actual source enqueue exceeded the unchanged 50ms deadline at indices " + str(late))
+    schedule = core.get("schedule", {})
+    start = schedule.get("warmupStartUnixNano")
+    if (not integer(start) or schedule.get("formalStartUnixNano") != start + 5_000_000_000 or
+            schedule.get("formalEndUnixNano") != start + 25_000_000_000 or schedule.get("warmupSeconds") != 5 or
+            schedule.get("formalSeconds") != 20 or schedule.get("sourceIntervalNanoseconds") != 25_000_000 or
+            any(event["plannedUnixNano"] != start + event["index"] * 25_000_000 or
+                event["plannedElapsedNanoseconds"] != events[0]["plannedElapsedNanoseconds"] + event["index"] * 25_000_000
+                for event in events)):
+        reasons.append("Independent source schedule differs from the fixed 5+20 seconds and 25ms interval")
+    for phase, prefix in (("warmup", "warmup"), ("formal", "formal"), ("tail", "tail")):
+        window = core["windows"].get(phase)
+        if not isinstance(window, dict):
+            reasons.append(phase + " Core count window is missing or not an object")
+            continue
+        before, after = window.get("startUnixNano"), window.get("endUnixNano")
+        if not integer(before) or not integer(after) or after < before:
+            reasons.append(phase + " Core count window is missing")
+            continue
+        for stage in ("planned", "enqueued", "dequeued", "sent", "accepted"):
+            actual = sum(before <= event[stage + "UnixNano"] < after for event in events)
+            if not integer(window.get(stage)) or window.get(stage) != actual:
+                reasons.append(f"{phase} {stage} count does not match actual timestamp boundaries")
+            if stage in ("enqueued", "dequeued", "sent") and (not integer(source.get(prefix + stage.capitalize())) or source.get(prefix + stage.capitalize()) != actual):
+                reasons.append(f"source.{prefix + stage.capitalize()} does not match actual timestamp boundaries")
+    return reasons
+
+
 def validate_startup(receipt, replay, arguments):
     reasons = []
     if not isinstance(receipt.get("pid"), int) or receipt["pid"] <= 1:
@@ -363,40 +485,157 @@ def validate_startup(receipt, replay, arguments):
 
 def validate_result(result, condition, seconds):
     reasons = []
+    if not isinstance(result, dict):
+        return ["UI result is not an object"]
     if result.get("schemaVersion") != 1 or result.get("condition") != condition or result.get("n") != 40 or result.get("k") != 4:
         reasons.append("Unexpected result schema or scenario")
     if result.get("valid") is not True:
         reasons.extend(result.get("invalidReasons") or ["UI harness did not certify foreground validity"])
     if not isinstance(result.get("comparisonIdentity"), dict) or not result["comparisonIdentity"]:
         reasons.append("Missing stable fixture/window/display comparison identity")
-    core = result.get("core", {})
+    for label, value in (("UI", result), ("comparison identity", object_value(result.get("comparisonIdentity")))):
+        if (not integer(value.get("sourceProtocolVersion")) or value.get("sourceProtocolVersion") != SOURCE_PROTOCOL_VERSION or
+                not integer(value.get("sourceQueueCapacity")) or value.get("sourceQueueCapacity") != SOURCE_QUEUE_CAPACITY):
+            reasons.append(label + " must identify source protocol v2 and queue capacity 256")
+    checks = object_value(result.get("sourceProtocolChecks"))
+    if any(checks.get(stage) is not True for stage in ("ready", "start", "status", "result", "final")):
+        reasons.append("Source protocol handshake was not verified at every ready/start/status/result/final stage")
+    core = object_value(result.get("core"))
     if core.get("valid") is not True:
         reasons.extend(core.get("invalidReasons") or ["Core harness did not certify source/publication validity"])
-    for label, cpu in (("UI", result.get("ui", {})), ("Core", core.get("cpu", {}))):
+    for label, cpu in (("UI", object_value(result.get("ui"))), ("Core", object_value(core.get("cpu")))):
         values = [cpu.get(key) for key in ("cpuSeconds", "wallSeconds", "cpuPercent")]
         if not all(numeric(value) for value in values) or values[0] < 0 or values[1] < seconds * 0.9:
             reasons.append(label + " has missing/invalid formal CPU or a shortened formal interval")
         elif abs(values[2] - 100 * values[0] / values[1]) > 0.02:
             reasons.append(label + " CPU percentage does not match CPU seconds / actual wall seconds")
-    source = core.get("source", {})
-    if source.get("planned") != source.get("sent") or source.get("sent") != source.get("accepted") or source.get("errors"):
-        reasons.append("Source events were rejected, lost, or failed")
-    if not all(isinstance(source.get(key), int) for key in ("planned", "sent", "accepted")):
-        reasons.append("Source accounting is missing")
+    reasons.extend(validate_source_v2(core, condition))
     return list(dict.fromkeys(map(str, reasons)))
 
 
 def cpu_values(record):
-    result = record.get("result", {})
-    ui = result.get("ui", {}).get("cpuPercent")
-    core = result.get("core", {}).get("cpu", {}).get("cpuPercent")
+    result = object_value(record.get("result"))
+    ui = object_value(result.get("ui")).get("cpuPercent")
+    core = object_value(object_value(result.get("core")).get("cpu")).get("cpuPercent")
     return (ui, core, ui + core) if numeric(ui) and numeric(core) else (None, None, None)
+
+
+def distribution(values):
+    values = sorted(value for value in values if numeric(value))
+    return {"count": len(values), "p50": values[math.ceil(0.50 * len(values)) - 1] if values else None,
+            "p95": values[math.ceil(0.95 * len(values)) - 1] if values else None,
+            "min": values[0] if values else None, "max": values[-1] if values else None,
+            "percentileMethod": "nearest rank"}
+
+
+def source_flow(result):
+    """Link exact (card,seq) receipts; skipped intermediate seqs have no latency."""
+    result = object_value(result)
+    core = object_value(result.get("core"))
+    summary = {"available": integer(core.get("sourceProtocolVersion")) and core.get("sourceProtocolVersion") == SOURCE_PROTOCOL_VERSION,
+               "meaning": "All supplied events, including warmup and tail; exact published seqs only. "
+                          "Core intervals use monotonic receipts; cross-process model time uses the recorded UTC anchor. "
+                          "A coalesced event is covered by a higher published seq, not individually published/installed."}
+    if not summary["available"]:
+        return summary
+    events, publications = core.get("sourceEvents"), core.get("publications")
+    records = object_value(result.get("installations")).get("records")
+    if (not isinstance(events, list) or not all(isinstance(event, dict) and integer(event.get("index")) and
+            integer(event.get("seq")) and isinstance(event.get("cardID"), str) for event in events) or
+            not isinstance(publications, list) or not all(isinstance(item, dict) and
+            all(integer(item.get(key)) and item[key] > 0 for key in ("revision", "publishedUnixNano", "publishedElapsedNanoseconds")) and
+            isinstance(item.get("cardIDs"), list) and isinstance(item.get("seqs"), list) and
+            len(item["cardIDs"]) == len(item["seqs"]) and all(isinstance(card, str) for card in item["cardIDs"]) and
+            all(integer(seq) for seq in item["seqs"]) for item in publications) or
+            not isinstance(records, list) or not all(isinstance(record, dict) and
+            all(integer(record.get(key)) for key in ("catalogRevision", "unixNanoseconds", "uptimeNanoseconds")) and
+            isinstance(record.get("sequences"), list) for record in records)):
+        summary.update(available=False, unavailableReason="Incomplete or malformed source/publication/model trace; raw result retained")
+        return summary
+    by_revision = {}
+    for record in records:
+        if record.get("kind") == "mutation" and integer(record.get("catalogRevision")) and numeric(record.get("unixNanoseconds")):
+            prior = by_revision.get(record["catalogRevision"])
+            if prior is None or prior["unixNanoseconds"] > record["unixNanoseconds"]:
+                by_revision[record["catalogRevision"]] = record
+    exact, per_card = {}, {}
+    for publication in publications:
+        for card, seq in zip(publication.get("cardIDs", []), publication.get("seqs", [])):
+            exact.setdefault((card, seq), []).append(publication)
+            per_card.setdefault(card, []).append((seq, publication))
+    rows = []
+    metrics = {key: [] for key in ("plannedToPublicationMilliseconds", "enqueueToPublicationMilliseconds",
+               "acceptedToPublicationMilliseconds", "enqueueToModelInstallMilliseconds", "plannedToModelInstallMilliseconds")}
+    counts = {key: 0 for key in ("planned", "exactPublished", "exactInstalled", "coalescedBeforePublication",
+                                "acceptedWithoutPublication", "notEnqueued", "enqueuedUnaccepted")}
+    for event in events:
+        counts["planned"] += 1
+        card, seq = event.get("cardID"), event.get("seq")
+        row = {"index": event.get("index"), "cardID": card, "seq": seq}
+        published = exact.get((card, seq), [])
+        if published:
+            counts["exactPublished"] += 1
+            first = min(published, key=lambda item: item["publishedElapsedNanoseconds"])
+            row["firstExactPublication"] = {"catalogRevision": first["revision"], "unixNanoseconds": first["publishedUnixNano"],
+                                             "elapsedNanoseconds": first["publishedElapsedNanoseconds"]}
+            for metric, field in (("plannedToPublicationMilliseconds", "plannedElapsedNanoseconds"),
+                                  ("enqueueToPublicationMilliseconds", "enqueuedElapsedNanoseconds"),
+                                  ("acceptedToPublicationMilliseconds", "acceptedElapsedNanoseconds")):
+                if numeric(event.get(field)) and event[field] > 0:
+                    value = (first["publishedElapsedNanoseconds"] - event[field]) / 1e6
+                    row[metric] = value
+                    metrics[metric].append(value)
+            matches = []
+            for publication in published:
+                record = by_revision.get(publication["revision"])
+                card_number = event["index"] % 4
+                sequences = record.get("sequences", []) if record else []
+                if len(sequences) == 4 and sequences[card_number] == seq:
+                    matches.append(record)
+            if matches:
+                counts["exactInstalled"] += 1
+                installed = min(matches, key=lambda item: item["unixNanoseconds"])
+                row["classification"] = "exactPublishedAndInstalled"
+                row["firstExactModelInstallation"] = {"catalogRevision": installed["catalogRevision"],
+                    "unixNanoseconds": installed["unixNanoseconds"], "uptimeNanoseconds": installed["uptimeNanoseconds"]}
+                for metric, field in (("enqueueToModelInstallMilliseconds", "enqueuedUnixNano"),
+                                      ("plannedToModelInstallMilliseconds", "plannedUnixNano")):
+                    if numeric(event.get(field)) and event[field] > 0:
+                        value = (installed["unixNanoseconds"] - event[field]) / 1e6
+                        row[metric] = value
+                        metrics[metric].append(value)
+            else:
+                row["classification"] = "exactPublishedWithoutMatchingInstallation"
+        elif not event.get("enqueuedUnixNano"):
+            counts["notEnqueued"] += 1
+            row["classification"] = "notEnqueued"
+        elif not event.get("acceptedUnixNano"):
+            counts["enqueuedUnaccepted"] += 1
+            row["classification"] = "enqueuedUnaccepted"
+        else:
+            covering = [(newer, publication) for newer, publication in per_card.get(card, []) if newer > seq]
+            if covering:
+                counts["coalescedBeforePublication"] += 1
+                newer, publication = min(covering, key=lambda item: item[1]["publishedElapsedNanoseconds"])
+                row.update(classification="coalescedBeforePublication", coveredBySequence=newer,
+                           coveredByPublicationRevision=publication["revision"])
+            else:
+                counts["acceptedWithoutPublication"] += 1
+                row["classification"] = "acceptedWithoutPublication"
+        rows.append(row)
+    summary.update(counts=counts, latency={key: distribution(values) for key, values in metrics.items()}, records=rows,
+                   acceptedToPublicationMayBeNegative="Production Store publishes committed state before Update returns; "
+                                                      "signed intervals are retained, never clamped to zero.")
+    return summary
 
 
 def model_flow(result):
     """Summarize completed model work separately from fixed-window CPU."""
-    records = result.get("installations", {}).get("records", [])
-    end = result.get("clock", {}).get("formalEnd", {}).get("uptimeNanoseconds")
+    result = object_value(result)
+    records = object_value(result.get("installations")).get("records", [])
+    records = [record for record in records if isinstance(record, dict)] if isinstance(records, list) else []
+    core = object_value(result.get("core"))
+    end = object_value(object_value(result.get("clock")).get("formalEnd")).get("uptimeNanoseconds")
     summary = {"meaning": "Model catalog installation, not queue depth, pixels or frame rate"}
     if not numeric(end):
         return summary
@@ -406,17 +645,26 @@ def model_flow(result):
         summary["formalEndSequences"] = max(before, key=lambda record: record["uptimeNanoseconds"]).get("sequences")
     summary["postFormalInstallCount"] = sum(
         numeric(record.get("uptimeNanoseconds")) and record["uptimeNanoseconds"] > end for record in records)
-    expected = result.get("core", {}).get("expectedCards", [])
+    expected = core.get("expectedCards", [])
+    expected = [card for card in expected if isinstance(card, dict) and isinstance(card.get("id"), str)] if isinstance(expected, list) else []
     target = [card.get("seq") for card in sorted(expected, key=lambda card: card["id"])]
     completed = [record for record in records if len(target) == 4 and record.get("sequences") == target
                  and numeric(record.get("unixNanoseconds"))]
-    accepted = [event.get("acceptedUnixNano") for event in result.get("core", {}).get("sourceEvents", [])]
-    accepted = [value for value in accepted if numeric(value)]
+    events = core.get("sourceEvents", [])
+    events = [event for event in events if isinstance(event, dict)] if isinstance(events, list) else []
+    accepted = [event.get("acceptedUnixNano") for event in events]
+    accepted = [value for value in accepted if numeric(value) and value > 0]
     if completed and accepted:
         first = min(record["unixNanoseconds"] for record in completed)
         last = max(accepted)
         summary.update(firstFinalSequenceInstallUnixNanoseconds=first, lastSourceAcceptedUnixNanoseconds=last,
                        finalSequenceInstallAfterLastSourceAcceptedMilliseconds=(first - last) / 1e6)
+    enqueued = [event.get("enqueuedUnixNano") for event in events]
+    enqueued = [value for value in enqueued if numeric(value) and value > 0]
+    if completed and enqueued:
+        first, last = min(record["unixNanoseconds"] for record in completed), max(enqueued)
+        summary.update(lastSourceEnqueuedUnixNanoseconds=last,
+                       finalSequenceInstallAfterLastSourceEnqueuedMilliseconds=(first - last) / 1e6)
     return summary
 
 
@@ -509,6 +757,7 @@ def markdown(report):
              "CPU% is 100 × process user+system CPU seconds / actual monotonic wall seconds, on a single-core scale. "
              "UI and Core are reported separately. Two opposite-order pairs are an initial screen, not a confidence interval "
              "or an estimate comparable to historical local-Mac percentages.", "", "## Fixed versions and builds", "",
+             f"- Source protocol: `{report.get('sourceProtocolVersion', 'unavailable')}`; bounded input FIFO capacity: `{report.get('sourceQueueCapacity', 'unavailable')}`.",
              f"- Baseline A: `{report['baseline']}`", f"- Candidate B: `{report['candidate']}`",
              f"- Harness checkout: `{report.get('harnessRevision', 'unavailable')}`",
              f"- Harness source SHA256: `{report.get('harness', {}).get('sha256', 'unavailable')}`",
@@ -526,14 +775,44 @@ def markdown(report):
               "| Run | Condition | Order/side | Valid | UI CPU s / wall s | UI % | Core CPU s / wall s | Core % | Total % | Formal pubs / D | Formal wire bytes |",
               "| --- | --- | --- | --- | --- | ---: | --- | ---: | ---: | --- | ---: |"]
     for row in report["runs"]:
-        result = row.get("result", {}); ui = result.get("ui", {}); core = result.get("core", {})
-        cpu = core.get("cpu", {}); publish = core.get("publish", {}); values = cpu_values(row)
+        result = object_value(row.get("result")); ui = object_value(result.get("ui")); core = object_value(result.get("core"))
+        cpu = object_value(core.get("cpu")); publish = object_value(core.get("publish")); values = cpu_values(row)
         lines.append(f"| {row['id']} | {row['condition']} | {row['order']}/{row['side']} | {row.get('valid', False)} | "
                      f"{number(ui.get('cpuSeconds'))} / {number(ui.get('wallSeconds'))} | {number(values[0])} | "
                      f"{number(cpu.get('cpuSeconds'))} / {number(cpu.get('wallSeconds'))} | {number(values[1])} | {number(values[2])} | "
                      f"{publish.get('formalCount', '—')} / {number(publish.get('dirtyCardMean'))} | {publish.get('wireBytes', '—')} |")
     lines += ["", "Wire bytes are formal publication NDJSON encoding bytes, not socket-delivery accounting. "
-              "Warmup, formal and tail event counts remain separate in each Core result.", "", "## Paired changes", "",
+              "Warmup, formal and tail event counts remain separate in each Core result.", "", "## Independent input and worker accounting", "",
+              "Protocol v2 enqueues lightweight identities on independent fixed 25ms deadlines into a 256-item FIFO. "
+              "One serial worker performs the original reducer and Store.Update. Actual enqueue lateness above 50ms, overflow, "
+              "incomplete inputs, or failed final convergence invalidate a run. Worker backlog does not move the source or formal CPU boundaries "
+              "or extend the original five-second tail budget. The old sent−planned 50ms timing result remains visible; "
+              "its wouldFail flag describes that timing criterion alone, not the validity of an old run.", "",
+              "| Run | Valid | Planned / enqueued / dequeued / sent / accepted | Enqueued warm / formal / tail | Actual enqueue >50ms count / max ms | Legacy sent >50ms count / max ms / would fail | FIFO high water / pending / in flight / overflow |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+    for row in report["runs"]:
+        core = object_value(object_value(row.get("result")).get("core")); source = object_value(core.get("source")); queue = object_value(core.get("queue"))
+        enqueue, legacy = object_value(source.get("enqueueDeadline")), object_value(source.get("legacySentDeadline"))
+        totals = " / ".join(str(source.get(key, "—")) for key in ("planned", "enqueued", "dequeued", "sent", "accepted"))
+        phases = " / ".join(str(source.get(key, "—")) for key in ("warmupEnqueued", "formalEnqueued", "tailEnqueued"))
+        queued = " / ".join(str(queue.get(key, "—")) for key in ("highWater", "pending", "inFlight", "overflowCount"))
+        lines.append(f"| {row['id']} | {row.get('valid', False)} | {totals} | {phases} | "
+                     f"{enqueue.get('exceededCount', '—')} / {number(enqueue.get('maxLatenessMilliseconds'))} | "
+                     f"{legacy.get('exceededCount', '—')} / {number(legacy.get('maxLatenessMilliseconds'))} / {legacy.get('wouldFail', '—')} | {queued} |")
+    lines += ["", "| Run | Queue wait p50 / p95 / max ms | Dequeue→sent max ms | Reducer/projection preparation p95 / max ms | Store.Update p95 / max ms | Enqueue→accepted p95 / max ms |",
+              "| --- | --- | --- | --- | --- | --- |"]
+    for row in report["runs"]:
+        times = object_value(object_value(object_value(row.get("result")).get("core")).get("sourceTimings"))
+        columns = []
+        for key, fields in (("queueWait", ("p50", "p95", "max")), ("dequeueToSent", ("max",)),
+                            ("preparation", ("p95", "max")), ("storeUpdate", ("p95", "max")), ("enqueueThroughAccepted", ("p95", "max"))):
+            columns.append(" / ".join(number(object_value(times.get(key)).get(field)) for field in fields))
+        lines.append(f"| {row['id']} | " + " | ".join(columns) + " |")
+    lines += ["", "These stages describe the benchmark input FIFO and real serial mutation worker, not a measured production "
+              "Store/HTTP/UI queue. Per-event planned/enqueued/dequeued/sent/Store-start/accepted/completed timestamps, failed or "
+              "unaccepted indices, and overflow attempts remain in JSON. Historical queue boundaries are reconstructed from "
+              "monotonic event receipts; they are not queue.snapshot calls taken atomically with the rusage samples.", "",
+              "## Paired changes", "",
               "Every delta is B − A; negative CPU percentage-point deltas mean less CPU. "
               "Relative reductions are positive when B uses less CPU. Invalid or missing runs never enter a pair.", "",
               "| Condition | Order | Valid pair | UI Δ pp | Core Δ pp | Total Δ pp | UI relative reduction | Total relative reduction |",
@@ -550,32 +829,48 @@ def markdown(report):
               "The sequence/installation columns below are reconstructed from timestamped catalog receipts, "
               "and publish-to-install latency includes installations completed during the observation tail. "
               "These are model observations, not rendered pixels or direct queue-depth measurements.", "",
-              "| Run | Valid | Formal installs | Sequences at formal CPU end | Later installs | Publish→install p50 / p95 ms | Final sequence install after last source accepted ms | Tail UI CPU s / wall s | Source start→tail end UI CPU s / wall s |",
-              "| --- | --- | ---: | --- | ---: | --- | ---: | --- | --- |"]
+              "| Run | Valid | Formal installs | Sequences at formal CPU end | Later installs | Publish→install p50 / p95 ms | Final install after last accepted / last enqueued ms | Tail UI CPU s / wall s | Source start→tail end UI CPU s / wall s |",
+              "| --- | --- | ---: | --- | ---: | --- | --- | --- | --- |"]
     for row in report["runs"]:
-        result = row.get("result", {}); flow = model_flow(result)
-        latency = result.get("delivery", {}).get("publishToModelInstallMilliseconds", {})
-        windows = result.get("uiWindows", {})
-        tail, whole = windows.get("tailObservation", {}), windows.get("sourceThroughTailObservation", {})
-        lines.append(f"| {row['id']} | {row.get('valid', False)} | {result.get('installations', {}).get('formalCount', '—')} | "
+        result = object_value(row.get("result")); flow = model_flow(result)
+        latency = object_value(object_value(result.get("delivery")).get("publishToModelInstallMilliseconds"))
+        windows = object_value(result.get("uiWindows"))
+        tail, whole = object_value(windows.get("tailObservation")), object_value(windows.get("sourceThroughTailObservation"))
+        lines.append(f"| {row['id']} | {row.get('valid', False)} | {object_value(result.get('installations')).get('formalCount', '—')} | "
                      f"{flow.get('formalEndSequences', '—')} | {flow.get('postFormalInstallCount', '—')} | "
                      f"{number(latency.get('p50'))} / {number(latency.get('p95'))} | "
-                     f"{number(flow.get('finalSequenceInstallAfterLastSourceAcceptedMilliseconds'))} | "
+                     f"{number(flow.get('finalSequenceInstallAfterLastSourceAcceptedMilliseconds'))} / "
+                     f"{number(flow.get('finalSequenceInstallAfterLastSourceEnqueuedMilliseconds'))} | "
                      f"{number(tail.get('cpuSeconds'))} / {number(tail.get('wallSeconds'))} | "
                      f"{number(whole.get('cpuSeconds'))} / {number(whole.get('wallSeconds'))} |")
     lines += ["", "The tail CPU interval begins at the independent formal-end sample and ends after the existing "
               "model-stability observation. The whole UI interval also includes the five-second warmup. "
               "They include observation and any remaining model work, are not queue-drain or per-event costs, "
               "and must not be added to Core CPU measured over only the formal interval. A missing interval is unavailable, not zero.", ""]
+    lines += ["## Exact source sequence to publication and model", "",
+              "The next table covers all supplied events, including warmup and tail. It matches each publication's (card ID, seq) "
+              "and its actual catalog-revision installation. Intermediate source seqs absent from publications but covered by a "
+              "higher published seq are explicitly coalesced; they receive no invented publication/install timestamp or latency. "
+              "Latencies are event-weighted over exact matches, unlike the publication-weighted formal delivery table above. "
+              "Signed accepted→publish can be negative because Store notifies committed state before Update returns; values are not clamped.", "",
+              "| Run | Exact published / installed | Coalesced / accepted unobserved | Enqueue→publish p50 / p95 ms | Enqueue→model p50 / p95 ms | Accepted→publish min / p95 ms |",
+              "| --- | --- | --- | --- | --- | --- |"]
+    for row in report["runs"]:
+        flow = source_flow(row.get("result", {})); counts, latency = flow.get("counts", {}), flow.get("latency", {})
+        ep, em, ap = (latency.get(key, {}) for key in ("enqueueToPublicationMilliseconds", "enqueueToModelInstallMilliseconds", "acceptedToPublicationMilliseconds"))
+        lines.append(f"| {row['id']} | {counts.get('exactPublished', '—')} / {counts.get('exactInstalled', '—')} | "
+                     f"{counts.get('coalescedBeforePublication', '—')} / {counts.get('acceptedWithoutPublication', '—')} | "
+                     f"{number(ep.get('p50'))} / {number(ep.get('p95'))} | {number(em.get('p50'))} / {number(em.get('p95'))} | "
+                     f"{number(ap.get('min'))} / {number(ap.get('p95'))} |")
     lines += ["", "## Validity, source convergence, memory and environment", ""]
     for row in report["runs"]:
-        result = row.get("result", {}); source = result.get("core", {}).get("source", {}); ui = result.get("ui", {})
-        boundaries = result.get("core", {}).get("boundaries", {})
+        result = object_value(row.get("result")); core = object_value(result.get("core")); source = object_value(core.get("source")); ui = object_value(result.get("ui"))
+        boundaries = object_value(core.get("boundaries"))
         core_rss = [value.get("maximumRSSBytes") for value in boundaries.values() if isinstance(value, dict)]
         core_rss = [value for value in core_rss if numeric(value)]
         lines += [f"### {row['id']}", "", f"- Status: `{row.get('status')}`; invalid reasons: {json.dumps(row.get('invalidReasons', []), ensure_ascii=False)}.",
                   f"- Power before/after: `{row.get('powerBefore')}` / `{row.get('powerAfter')}`.",
-                  f"- Source planned/sent/accepted: {source.get('planned', '—')} / {source.get('sent', '—')} / {source.get('accepted', '—')}; "
+                  f"- Source planned/enqueued/dequeued/sent/accepted: {source.get('planned', '—')} / {source.get('enqueued', '—')} / {source.get('dequeued', '—')} / {source.get('sent', '—')} / {source.get('accepted', '—')}; "
                   f"warm/formal/tail sent: {source.get('warmupSent', '—')} / {source.get('formalSent', '—')} / {source.get('tailSent', '—')}.",
                   f"- UI sampled physical footprint start/end/max: {ui.get('footprintStartBytes', '—')} / {ui.get('footprintEndBytes', '—')} / {ui.get('footprintMaxSampledBytes', '—')} bytes.",
                   f"- Core process maximum RSS across recorded boundaries: {max(core_rss) if core_rss else '—'} bytes; this is not UI physical footprint.",
@@ -588,9 +883,11 @@ def markdown(report):
                   "- Window/visibility: `" + json.dumps(result.get("visibility", {}), ensure_ascii=False) + "`.",
                   "- Final per-card model state: `" + json.dumps(result.get("perCard", {}), ensure_ascii=False) + "`.",
                   "- Publication/model installation accounting: `" + json.dumps(result.get("delivery", {}), ensure_ascii=False) + "`.",
+                  "- Source deadline gates, including the historical sent criterion: `" + json.dumps({key: source.get(key) for key in ("enqueueDeadline", "legacySentDeadline")}, ensure_ascii=False) + "`.",
+                  "- Input FIFO, outstanding work and reconstructed boundary states: `" + json.dumps(core.get("queue", {}), ensure_ascii=False) + "`.",
                   "- Tail observation: `" + json.dumps(result.get("tailObservation", {}), ensure_ascii=False) + "`.", ""]
     lines += ["Tail stability observation is not queue drain time or proof of displayed pixels. "
-              "Missing direct queue/overflow/pixel measurements must not be inferred from final model convergence. "
+              "Unobserved production Store/HTTP/UI queues and pixels must not be inferred from the instrumented input FIFO or final model convergence. "
               "All supplied raw events and publication records remain in the JSON evidence.", "",
               "### Machine and display", "", "```json", json.dumps(report.get("machine", {}), indent=2, ensure_ascii=False), "```", "",
               "```json", json.dumps(report.get("display", {}), indent=2, ensure_ascii=False), "```", "",
@@ -615,6 +912,7 @@ def markdown(report):
 def save_report(output, report):
     report["pairs"] = paired_results(report["runs"])
     report["modelFlow"] = {row["id"]: model_flow(row.get("result", {})) for row in report["runs"]}
+    report["sourceFlow"] = {row["id"]: source_flow(row.get("result", {})) for row in report["runs"]}
     write_json(output / "report.json", report)
     (output / "report.md").write_text(markdown(report))
 
@@ -632,7 +930,8 @@ def main():
             parser.error("Both product revisions must be full lowercase 40-character commit SHAs")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    report = {"schemaVersion": 1, "status": "running", "startedAt": utc(), "baseline": args.baseline,
+    report = {"schemaVersion": 1, "sourceProtocolVersion": SOURCE_PROTOCOL_VERSION, "sourceQueueCapacity": SOURCE_QUEUE_CAPACITY,
+              "status": "running", "startedAt": utc(), "baseline": args.baseline,
               "candidate": args.candidate, "runs": [], "builds": {}, "errors": []}
     budget = Budget(args.time_budget_seconds)
     replays, worktrees = {}, []
@@ -760,9 +1059,13 @@ def main():
                 else:
                     row["invalidReasons"].append("Missing fresh native startup identity receipt")
                 if result_path.is_file():
-                    row["result"] = json.loads(result_path.read_text())
+                    decoded = json.loads(result_path.read_text())
+                    if not isinstance(decoded, dict):
+                        row["malformedResult"] = decoded
+                        raise ValueError("UI result is not a JSON object; original file retained")
+                    row["result"] = decoded
                     row["invalidReasons"].extend(validate_result(row["result"], condition, 20))
-                    runtime_process = row["result"].get("runtimeProcess", {})
+                    runtime_process = object_value(row["result"].get("runtimeProcess"))
                     identity, identity_errors = validate_runtime_identity(
                         runtime_process, row.get("startupIdentity", {}), replay.workspace / "runtime")
                     row["runtimeIdentity"] = identity

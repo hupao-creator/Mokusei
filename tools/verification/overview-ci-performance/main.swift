@@ -18,6 +18,17 @@ private struct ExpectedCard: Decodable {
     let textLength: Int
 }
 
+private enum SourceProtocol {
+    static let version = 2
+    static let queueCapacity = 256
+
+    static func validate(version: Int, capacity: Int, stage: String) throws {
+        guard version == self.version, capacity == queueCapacity else {
+            throw ProbeFailure(description: "Core \(stage) source protocol mismatch: version=\(version), capacity=\(capacity); requires version 2 and capacity 256")
+        }
+    }
+}
+
 private struct RuntimeReady: Decodable {
     struct Connection: Decodable {
         let port: Int
@@ -39,10 +50,14 @@ private struct RuntimeReady: Decodable {
     let condition: String
     let n: Int
     let k: Int
+    let sourceProtocolVersion: Int
+    let sourceQueueCapacity: Int
     let expectedCards: [ExpectedCard]
 }
 
 private struct SourceSchedule: Decodable {
+    let sourceProtocolVersion: Int
+    let sourceQueueCapacity: Int
     let warmupStartUnixNano: Int64
     let formalStartUnixNano: Int64
     let formalEndUnixNano: Int64
@@ -51,10 +66,97 @@ private struct SourceSchedule: Decodable {
     let sourceIntervalNanoseconds: Int64
 
     var json: [String: Any] {
-        ["warmupStartUnixNano": warmupStartUnixNano, "formalStartUnixNano": formalStartUnixNano,
+        ["sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
+         "warmupStartUnixNano": warmupStartUnixNano, "formalStartUnixNano": formalStartUnixNano,
          "formalEndUnixNano": formalEndUnixNano, "warmupSeconds": warmupSeconds,
          "formalSeconds": formalSeconds, "sourceIntervalNanoseconds": sourceIntervalNanoseconds]
     }
+}
+
+private struct SourceQueueSnapshot: Decodable {
+    struct Instant: Decodable {
+        let unixNano: Int64
+        let elapsedNanoseconds: Int64
+    }
+    let observedAt: Instant
+    let capacity: Int
+    let pending: Int
+    let pendingIndices: [Int]
+    let inFlight: Int
+    let inFlightIndex: Int
+    let inFlightAgeMilliseconds: Double
+    let oldestPendingAgeMilliseconds: Double
+    let highWater: Int
+    let maxOldestPendingAgeMilliseconds: Double
+    let closed: Bool
+    let overflowCount: Int
+
+    func validate() throws {
+        guard capacity == SourceProtocol.queueCapacity, (0...capacity).contains(pending),
+              (0...1).contains(inFlight), (pending...capacity).contains(highWater),
+              pendingIndices.count == pending, Set(pendingIndices).count == pending,
+              pendingIndices.allSatisfy({ $0 >= 0 }),
+              (inFlight == 0 ? inFlightIndex == -1 : inFlightIndex >= 0),
+              !pendingIndices.contains(inFlightIndex), overflowCount >= 0,
+              observedAt.unixNano > 0, observedAt.elapsedNanoseconds >= 0,
+              [inFlightAgeMilliseconds, oldestPendingAgeMilliseconds, maxOldestPendingAgeMilliseconds]
+                .allSatisfy({ $0.isFinite && $0 >= 0 }) else {
+            throw ProbeFailure(description: "Core source FIFO snapshot violates its bounded queue contract")
+        }
+    }
+
+    var json: [String: Any] {
+        ["meaning": "Benchmark input FIFO; not a production Store, transport or UI queue",
+         "observedAt": ["unixNano": observedAt.unixNano, "elapsedNanoseconds": observedAt.elapsedNanoseconds],
+         "capacity": capacity, "pending": pending, "pendingIndices": pendingIndices,
+         "inFlight": inFlight, "inFlightIndex": inFlightIndex, "inFlightAgeMilliseconds": inFlightAgeMilliseconds,
+         "oldestPendingAgeMilliseconds": oldestPendingAgeMilliseconds, "highWater": highWater,
+         "maxOldestPendingAgeMilliseconds": maxOldestPendingAgeMilliseconds, "closed": closed, "overflowCount": overflowCount]
+    }
+}
+
+private struct SourceStatus: Decodable {
+    let sourceProtocolVersion: Int
+    let sourceQueueCapacity: Int
+    let state: String
+    let sourceComplete: Bool
+    let enqueueComplete: Bool
+    let producerFinished: Bool
+    let formalComplete: Bool
+    let currentSeqs: [Int]
+    let errors: [String]
+    let queue: SourceQueueSnapshot
+
+    var json: [String: Any] {
+        ["sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
+         "state": state, "sourceComplete": sourceComplete, "enqueueComplete": enqueueComplete,
+         "producerFinished": producerFinished, "formalComplete": formalComplete,
+         "currentSeqs": currentSeqs, "errors": errors, "queue": queue.json]
+    }
+}
+
+private struct SourceResult: Decodable {
+    struct Counts: Decodable {
+        let planned: Int
+        let enqueued: Int
+        let dequeued: Int
+        let sent: Int
+        let accepted: Int
+        let errors: [String]
+    }
+    let sourceProtocolVersion: Int
+    let sourceQueueCapacity: Int
+    let condition: String
+    let n: Int
+    let k: Int
+    let seed: Int
+    let sourceComplete: Bool
+    let enqueueComplete: Bool
+    let producerFinished: Bool
+    let valid: Bool
+    let invalidReasons: [String]
+    let source: Counts
+    let queue: SourceQueueSnapshot
 }
 
 private struct FixtureConnectionSource: RuntimeConnectionSource {
@@ -107,6 +209,7 @@ private final class CoreProcess {
             guard process.isRunning else { throw ProbeFailure(description: "Core exited before ready; inspect core-stderr.log") }
             if FileManager.default.fileExists(atPath: readyURL.path) {
                 let value = try JSONDecoder().decode(RuntimeReady.self, from: Data(contentsOf: readyURL))
+                try SourceProtocol.validate(version: value.sourceProtocolVersion, capacity: value.sourceQueueCapacity, stage: "ready")
                 guard value.pid == Int(process.processIdentifier), value.parentPID == Int(ProcessInfo.processInfo.processIdentifier),
                       value.condition == options.condition, value.n == 40, value.k == 4,
                       value.expectedCards.count == 4,
@@ -123,10 +226,11 @@ private final class CoreProcess {
         throw ProbeFailure(description: "Core readiness timed out")
     }
 
-    func request(_ path: String, method: String = "GET") async throws -> Data {
+    func request(_ path: String, method: String = "GET", timeout: TimeInterval = 5) async throws -> Data {
         guard let ready, let base = URL(string: ready.controlURL) else { throw ProbeFailure(description: "Core is not ready") }
         var request = URLRequest(url: base.appendingPathComponent(path))
         request.httpMethod = method
+        request.timeoutInterval = timeout
         request.setValue("Bearer \(ready.controlToken)", forHTTPHeaderField: "Authorization")
         if method == "POST" { request.httpBody = Data("{}".utf8) }
         let (data, response) = try await session.data(for: request)
@@ -159,7 +263,8 @@ private final class CoreProcess {
         // process identity for timeout cleanup/evidence after the host has exited.
         if !process.isRunning, let ready {
             try? writeJSON(["pid": ready.pid, "executable": ready.executable,
-                "parentPID": ready.parentPID, "credentialsRemovedAfterExit": true], to: readyURL)
+                "parentPID": ready.parentPID, "sourceProtocolVersion": ready.sourceProtocolVersion,
+                "sourceQueueCapacity": ready.sourceQueueCapacity, "credentialsRemovedAfterExit": true], to: readyURL)
         }
         return failures
     }
@@ -183,16 +288,18 @@ private final class OverviewProbe {
     var sampler: Task<Void, Never>?
     let cpuQueue = DispatchQueue(label: "com.mokusei.overview-ci.process-cpu", qos: .userInitiated)
     var cpuCaptures: [String: ScheduledCPUSample] = [:]
+    var sourceProtocolChecks = ["ready": false, "start": false, "status": false, "result": false, "final": false]
     var requestedCamera: NativeOverviewTransform?
 
     init(options: ProbeOptions) {
         self.options = options; core = CoreProcess(options: options)
         report = ["schemaVersion": 1, "condition": options.condition, "n": options.n, "k": 4,
+            "sourceProtocolVersion": SourceProtocol.version, "sourceQueueCapacity": SourceProtocol.queueCapacity,
             "warmupSeconds": options.warmup, "formalSeconds": options.seconds, "seed": options.seed,
             "valid": false, "invalidReasons": ["run-incomplete"], "stage": "initializing",
             "measurement": "Release product modules, production Overview and transport; process CPU as one-core percent",
             "unobserved": ["WindowServer pixels", "presented FPS and GPU time", "transport receive byte count",
-                "event queue depth and oldest waiting event", "explicit consumer overflow counter"]]
+                "production Store/transport/UI queue depth and oldest waiting event", "explicit consumer overflow counter"]]
     }
 
     func run() async -> Int32 {
@@ -214,9 +321,10 @@ private final class OverviewProbe {
         for failure in await core.stop() { invalid.insert(failure) }
         if FileManager.default.fileExists(atPath: core.outputURL.path) {
             do {
-                if let final = try JSONSerialization.jsonObject(with: Data(contentsOf: core.outputURL)) as? [String: Any] {
+                let data = try Data(contentsOf: core.outputURL)
+                if let final = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     report["core"] = final
-                    if final["valid"] as? Bool != true { invalid.insert("Core marked the source measurement invalid") }
+                    try validateSourceResult(data, stage: "final")
                     validateDelivery(final)
                 } else { invalid.insert("Core final report is not an object") }
             } catch { invalid.insert("Core final report could not be read: \(error)") }
@@ -232,6 +340,7 @@ private final class OverviewProbe {
             "maximumLatenessMilliseconds": observations.compactMap { $0["latenessMilliseconds"] as? Double }.max() ?? 0,
             "meaning": "Window and footprint state at actual observation times; late checks do not move CPU boundaries or certify the unobserved interval"] as [String: Any]
         report["stage"] = "finished"
+        report["sourceProtocolChecks"] = sourceProtocolChecks
         report["valid"] = invalid.isEmpty
         report["invalidReasons"] = invalid.sorted()
         report["completedUnixNanoseconds"] = realtimeNanoseconds()
@@ -244,6 +353,7 @@ private final class OverviewProbe {
 
     private func measure() async throws {
         let ready = try await core.launch()
+        sourceProtocolChecks["ready"] = true
         report["runtimeProcess"] = ["pid": ready.pid, "executable": ready.executable, "parentPID": ready.parentPID] as [String: Any]
         let directory = options.output.deletingLastPathComponent().appendingPathComponent("swift-profile", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -307,6 +417,8 @@ private final class OverviewProbe {
         try writeJSON(report, to: options.output)
         guard invalid.isEmpty else { throw ProbeFailure(description: "Foreground prerequisites failed before source start") }
         let schedule = try JSONDecoder().decode(SourceSchedule.self, from: await core.request("start", method: "POST"))
+        try SourceProtocol.validate(version: schedule.sourceProtocolVersion, capacity: schedule.sourceQueueCapacity, stage: "start")
+        sourceProtocolChecks["start"] = true
         guard schedule.warmupSeconds == options.warmup, schedule.formalSeconds == options.seconds,
               schedule.formalStartUnixNano - schedule.warmupStartUnixNano == 5_000_000_000,
               schedule.formalEndUnixNano - schedule.formalStartUnixNano == 20_000_000_000,
@@ -396,8 +508,12 @@ private final class OverviewProbe {
                 meaning: "Source warmup start through the same final-model stability observation; includes warmup, formal and post-supply work; not a per-event cost or comparable to Core formal CPU")] as [String: Any]
         // Environment subprocesses, report fetch, hashes and full receipt encoding
         // belong after every CPU interval, including the post-supply interval.
-        let result = try JSONSerialization.jsonObject(with: await core.request("result")) as? [String: Any]
-        if let result { report["core"] = result }
+        let resultData = try await core.request("result")
+        guard let result = try JSONSerialization.jsonObject(with: resultData) as? [String: Any] else {
+            throw ProbeFailure(description: "Core result response is not an object")
+        }
+        report["core"] = result
+        try validateSourceResult(resultData, stage: "result")
         let afterEnvironment = environmentJSON()
         report["environment"] = ["start": beforeEnvironment, "end": afterEnvironment]
         if beforeEnvironment["powerSource"] as? String != afterEnvironment["powerSource"] as? String {
@@ -550,6 +666,7 @@ private final class OverviewProbe {
         guard let screen = window.screen else { throw ProbeFailure(description: "Window is not attached to a real display") }
         let transform = model.canvasState.camera.liveTransform
         return ["condition": options.condition, "n": options.n, "k": 4, "seed": options.seed,
+            "sourceProtocolVersion": SourceProtocol.version, "sourceQueueCapacity": SourceProtocol.queueCapacity,
             "fixtureSHA256": fixtureHash, "contentSize": rectangleJSON(window.contentView?.bounds ?? .zero),
             "camera": ["scale": transform.scale, "x": transform.x, "y": transform.y],
             "activeCards": visibilityJSON(model)["activeCards"]!, "screen": screenJSON(screen),
@@ -563,10 +680,48 @@ private final class OverviewProbe {
         var stable = 0, count = 0, previousRevision = -1
         var sourceComplete = false
         var convergenceUptime: UInt64?
+        var enqueueCompleteObservedAt: UInt64?, sourceCompleteObservedAt: UInt64?
+        var sourceObservations: [[String: Any]] = []
         while monotonicNanoseconds() < deadline {
             if !sourceComplete {
-                let status = try JSONSerialization.jsonObject(with: await core.request("status")) as? [String: Any]
-                sourceComplete = status?["sourceComplete"] as? Bool == true
+                let requestStarted = monotonicNanoseconds()
+                guard requestStarted < deadline else { break }
+                do {
+                    let data = try await core.request("status", timeout: min(5, Double(deadline - requestStarted) / 1e9))
+                    let responseReceived = monotonicNanoseconds()
+                    let status = try JSONDecoder().decode(SourceStatus.self, from: data)
+                    try SourceProtocol.validate(version: status.sourceProtocolVersion, capacity: status.sourceQueueCapacity, stage: "status")
+                    try status.queue.validate()
+                    let maximumSequence = options.condition == "R0" ? -1 : 249
+                    guard status.currentSeqs.count == 4, status.currentSeqs.allSatisfy({ (-1...maximumSequence).contains($0) }) else {
+                        throw ProbeFailure(description: "Core source status has invalid card sequences")
+                    }
+                    sourceProtocolChecks["status"] = true
+                    let observed = monotonicNanoseconds()
+                    var receipt = status.json
+                    receipt["requestStartedUptimeNanoseconds"] = requestStarted
+                    receipt["responseReceivedUptimeNanoseconds"] = responseReceived
+                    receipt["observedUptimeNanoseconds"] = observed
+                    receipt["observedUnixNanoseconds"] = clock.unix(at: observed)
+                    receipt["requestMilliseconds"] = Double(responseReceived - requestStarted) / 1e6
+                    sourceObservations.append(receipt)
+                    if status.enqueueComplete && enqueueCompleteObservedAt == nil { enqueueCompleteObservedAt = observed }
+                    if status.sourceComplete && sourceCompleteObservedAt == nil { sourceCompleteObservedAt = observed }
+                    // Enqueue completion is only a producer receipt. It cannot
+                    // satisfy the accepted-input or final-model tail gate.
+                    sourceComplete = status.sourceComplete
+                    for error in status.errors { invalid.insert("Core source status error: \(error)") }
+                    if status.queue.overflowCount != 0 { invalid.insert("Core benchmark input FIFO overflowed") }
+                    if observed >= deadline {
+                        invalid.insert("Core status was observed after the five-second tail budget")
+                        break
+                    }
+                } catch {
+                    sourceObservations.append(["requestStartedUptimeNanoseconds": requestStarted,
+                        "failedUptimeNanoseconds": monotonicNanoseconds(), "error": String(describing: error)])
+                    invalid.insert("Tail source status failed: \(error)")
+                    break
+                }
             }
             let converged = expected.allSatisfy { workspace.catalog.thread(JSONText($0.id))?.revision == $0.revision }
             if sourceComplete && converged && convergenceUptime == nil { convergenceUptime = monotonicNanoseconds() }
@@ -578,15 +733,20 @@ private final class OverviewProbe {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
         let ended = monotonicNanoseconds()
+        report["sourceQueueObservations"] = ["records": sourceObservations,
+            "meaning": "Core benchmark input FIFO snapshots requested only during the existing tail; response and MainActor observation times are retained, not exact CPU-boundary or production/UI queue observations"] as [String: Any]
         report["tailObservation"] = ["seconds": Double(ended - started) / 1e9,
             "startedUptimeNanoseconds": started, "endedUptimeNanoseconds": ended,
             "startedUnixNanoseconds": clock.unix(at: started), "endedUnixNanoseconds": clock.unix(at: ended),
             "observationBudgetSeconds": 5, "sampleIntervalMilliseconds": 50,
             "requiredStableSamples": 10, "stableSamples": stable, "sampleCount": count,
             "sourceComplete": sourceComplete,
+            "firstObservedEnqueueCompleteUnixNanoseconds": enqueueCompleteObservedAt.map { clock.unix(at: $0) as Any } ?? NSNull(),
+            "firstObservedSourceCompleteUnixNanoseconds": sourceCompleteObservedAt.map { clock.unix(at: $0) as Any } ?? NSNull(),
             "firstObservedModelConvergenceUnixNanoseconds": convergenceUptime.map { clock.unix(at: $0) as Any } ?? NSNull(),
             "meaning": "Post-supply model stability observation, not queue drain duration or pixel presentation"] as [String: Any]
         if !sourceComplete || stable < 10 { invalid.insert("Source/final model did not converge within the tail observation budget") }
+        if ended > deadline { invalid.insert("Tail observation exceeded its five-second budget") }
         return ended
     }
 
@@ -606,6 +766,49 @@ private final class OverviewProbe {
                 "messageID": messageID, "itemID": expected.itemID, "textSHA256": hash, "textLength": text.utf8.count,
                 "expectedSeq": expected.seq, "expectedTextSHA256": expected.textSHA256, "valid": valid]
         }
+    }
+
+    private func validateSourceResult(_ data: Data, stage: String) throws {
+        // Decode the source contract as actual JSON types. NSNumber coercion
+        // must not turn booleans or nulls into successful version/count checks.
+        let result = try JSONDecoder().decode(SourceResult.self, from: data)
+        try SourceProtocol.validate(version: result.sourceProtocolVersion, capacity: result.sourceQueueCapacity, stage: stage)
+        sourceProtocolChecks[stage] = true
+        try result.queue.validate()
+        let counts = result.source, queue = result.queue
+        let planned = options.condition == "R0" ? 0 : 1000
+        guard result.condition == options.condition, result.n == 40, result.k == 4, result.seed == options.seed,
+              counts.planned == planned,
+              [counts.enqueued, counts.dequeued, counts.sent, counts.accepted].allSatisfy({ (0...planned).contains($0) }),
+              counts.enqueued >= counts.dequeued, counts.dequeued >= counts.sent, counts.sent >= counts.accepted,
+              queue.pendingIndices.allSatisfy({ $0 < planned }),
+              queue.inFlight == 0 || queue.inFlightIndex < planned else {
+            throw ProbeFailure(description: "Core \(stage) source identity/counts violate the declared R0/S4/A4 workload")
+        }
+        let conserved = counts.enqueued == counts.dequeued + queue.pending
+        let allAccepted = [counts.enqueued, counts.dequeued, counts.sent, counts.accepted].allSatisfy { $0 == planned }
+        let drained = queue.pending == 0 && queue.inFlight == 0 && queue.closed
+        let completed = result.sourceComplete && result.enqueueComplete && result.producerFinished
+        var validations = report["sourceValidation"] as? [String: Any] ?? [:]
+        validations[stage] = ["sourceProtocolVersion": result.sourceProtocolVersion, "sourceQueueCapacity": result.sourceQueueCapacity,
+            "planned": planned, "enqueued": counts.enqueued, "dequeued": counts.dequeued,
+            "sent": counts.sent, "accepted": counts.accepted,
+            "notEnqueued": planned - counts.enqueued, "enqueuedNotAccepted": counts.enqueued - counts.accepted,
+            "dequeuedNotAccepted": counts.dequeued - counts.accepted,
+            "enqueuedEqualsDequeuedPlusPending": conserved, "allPlannedAccepted": allAccepted,
+            "sourceComplete": result.sourceComplete, "enqueueComplete": result.enqueueComplete,
+            "producerFinished": result.producerFinished, "queueEmptyAndClosed": drained,
+            "queue": queue.json,
+            "meaning": "Completed input accounting; FIFO state is not a production or UI queue measurement"] as [String: Any]
+        report["sourceValidation"] = validations
+        if !conserved { invalid.insert("Core source enqueued/dequeued/pending accounting does not conserve inputs") }
+        if !allAccepted { invalid.insert("Core source did not accept every planned input") }
+        if !completed { invalid.insert("Core source/producer/enqueue completion receipts are incomplete") }
+        if !drained { invalid.insert("Core benchmark input FIFO still has pending or in-flight work, or is not closed") }
+        if queue.overflowCount != 0 { invalid.insert("Core benchmark input FIFO overflowed") }
+        if !result.valid { invalid.insert("Core marked the source measurement invalid") }
+        for reason in result.invalidReasons { invalid.insert("Core invalid: \(reason)") }
+        for error in counts.errors { invalid.insert("Core source error: \(error)") }
     }
 
     private func validateDelivery(_ coreResult: [String: Any]) {

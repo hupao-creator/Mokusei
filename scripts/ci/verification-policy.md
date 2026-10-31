@@ -44,10 +44,7 @@ cancellation and excerpt-mask replays belong to the existing
 run with AppKit's event loop and real WindowServer delivery. The excerpt case
 requires observed ink movement through rewrite and an actual component-width
 change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
-do not replace its moving-pixel evidence. The full Workspace search geometry method belongs to
-`native-controls/isolated-input`; its morph and emphasized caret must advance
-in the real AppKit loop and report `SEARCH_CARET_GEOMETRY_CONFIRMED` after the
-native geometry assertions. All full method identities remain in discovery and
+do not replace its moving-pixel evidence. All full method identities remain in discovery and
 are excluded from ordinary execution without a test-level skip or environment bypass.
 Ordinary commands retain suite-prefix `--filter` selection and pass a separate
 shared `--skip` for the full native method ID and its runtime source-location

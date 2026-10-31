@@ -49,3 +49,18 @@ for the baseline, failure classifications, skipped fixtures and validation logs.
 The tag-prefix geometry-only case mounts its filter bar offscreen to exclude
 native glass hover from chip-height measurements. Its optional WindowServer
 capture mode remains on-screen; glyph reference and pixel assertions are unchanged.
+
+## Overview revision timing
+
+The entry-revision fixture observes geometry as it is delivered. A card's first
+polled frame can arrive with only two points of its eight-point entry remaining;
+sleeping another 40ms cannot establish an interruption during that entry.
+The fixture instead injects its second revision synchronously after two actual
+descending samples while at least four points remain and the first revision is
+unconsumed. It records the injection and consumption boundaries and uses actual
+geometry from before the first consumption. The original strict movement of more
+than two points, FIFO, mounted-identity and final-membership assertions remain.
+Failure to observe the prerequisite within the original three seconds is an
+explicit incomplete-observation failure. Diagnostics retain the finite geometry
+history; a theoretical destination or the next revision's exit cannot stand in
+for continued entry motion.

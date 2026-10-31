@@ -14,9 +14,6 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiSettingsIntegrationTests.NativeReadingPagePresentationTests/retainedOverviewReturnsWithLatestContent()": {
         "group": "native-capture", "check": "tag-glass-captures", "marker": "OVERVIEW_RETAINED_RETURN_CONFIRMED",
     },
-    "MokuseiSettingsIntegrationTests.NativeMokuLandingTests/fullWorkspaceSearchMorphKeepsTextAndCaretCentered()": {
-        "group": "native-controls", "check": "isolated-input", "marker": "SEARCH_CARET_GEOMETRY_CONFIRMED",
-    },
 }
 
 

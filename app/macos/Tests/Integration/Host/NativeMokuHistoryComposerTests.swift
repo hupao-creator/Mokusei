@@ -1,5 +1,6 @@
 import AppKit
 import MokuseiCore
+import MokuseiNativeInputSupport
 import MokuseiPluginUI
 import MokuseiPluginAPI
 import Synchronization
@@ -85,14 +86,8 @@ private final class MokuHoldInputClock: Sendable {
             let planned = down + input.delay
             let began = DispatchTime.now().uptimeNanoseconds
             guard began >= planned else { schedule(planned); return nil }
-            let posted = autoreleasepool {
-                guard let event = NSEvent.mouseEvent(with: input.type, location: input.point, modifierFlags: [],
-                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: windowNumber,
-                    context: nil, eventNumber: eventNumber, clickCount: 1,
-                    pressure: input.type == .leftMouseUp ? 0 : 1) else { return false }
-                application.postEvent(event, atStart: false)
-                return true
-            }
+            let posted = MokuseiPostMouseEvent(application, input.type, input.point,
+                ProcessInfo.processInfo.systemUptime, windowNumber, eventNumber)
             let delivery = Delivery(name: input.name, planned: planned, began: began,
                                     ended: DispatchTime.now().uptimeNanoseconds, posted: posted)
             value.deliveries.append(delivery)
