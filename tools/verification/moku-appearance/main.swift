@@ -44,8 +44,9 @@ import MokuseiCore
         precondition(ProcessInfo.processInfo.environment["MOKUSEI_TEST_HEADLESS"] == "1")
         try caret()
         try await surfaces()
+        try await settingsPage()
         precondition(!(NSApp?.windows.contains(where: \.isVisible) ?? false))
-        print("PASS: windowless Moku Dock/history/interaction and Settings isolation; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
+        print("PASS: windowless Moku Dock/history/interaction; Settings slot and page retain dark in a light host; native editor, dark caret/glow/breathing, appearance changes and Reduce Motion")
     }
 
     @MainActor private static func caret() throws {
@@ -130,10 +131,15 @@ import MokuseiCore
         }
         state.openSettings()
         try await settle(host)
-        precondition(probe("settings", in: host) == .light)
+        precondition(probe("settings", in: host) == .dark,
+                     "The Dock's Settings slot must stay dark in a light workspace")
         host.rootView = root(.dark)
         try await settle(host)
         precondition(probe("settings", in: host) == .dark)
+        host.rootView = root(.light)
+        try await settle(host)
+        precondition(probe("settings", in: host) == .dark,
+                     "An appearance change must not lighten the open Settings slot")
         precondition(draft.text == "Preserved draft 光标")
         state.closeSettings()
         host.rootView = root(.light, interaction: true)
@@ -150,5 +156,37 @@ import MokuseiCore
             let data = image.dataProvider!.data! as Data
             if let reference { precondition(data == reference) } else { reference = data }
         }
+    }
+
+    /// The page owns the same dark scope, so it stays dark even when a light
+    /// host mounts it directly, without the Dock slot around it.
+    @MainActor private static func settingsPage() async throws {
+        let settings: JSONValue = .object(["moku": .object([
+            "hostHarnessPreference": .text("codex"), "targetHarnessIds": .array([]),
+            "executionHarnesses": .object([:]), "routingGuidance": .null
+        ]), "harnesses": .object([:]), "pluginSettings": .array([])])
+        let model = NativeSettingsModel(settings: settings, revision: 1,
+            save: { value, revision in .saved(settings: value, revision: revision + 1) },
+            clearHistory: {}, loadInstallations: { .object([:]) }, installHarness: { _ in })
+        model.receive(snapshot: nil, runtimeAvailable: true)
+        let page = NativeSettingsPage(model: model, navigation: NativeSettingsNavigation(section: "probe"),
+            preferences: DesktopPreferences(directory: FileManager.default.temporaryDirectory
+                .appendingPathComponent("moku-appearance-preferences", isDirectory: true)),
+            harnesses: [],
+            applicationSections: [NativeApplicationSettingsSection(id: "probe", owner: "probe", label: "Probe") { _, _ in
+                AnyView(SchemeProbe(name: "settings-page"))
+            }],
+            harnessSettings: { _ in AnyView(EmptyView()) },
+            onSetAppearance: { _ in }, onSetLocale: { _ in }, onClose: { _ in })
+            .environment(\.colorScheme, .light)
+            .transaction { $0.disablesAnimations = true }
+        let host = NSHostingView(rootView: page)
+        host.frame = CGRect(x: 0, y: 0, width: 900, height: 700)
+        host.appearance = NSAppearance(named: .aqua)
+        try await settle(host)
+        precondition(probe("settings-page", in: host) == .dark,
+                     "The Settings page must scope its own dark appearance")
+        precondition(host.window == nil)
+        model.discardForReload()
     }
 }

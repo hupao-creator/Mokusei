@@ -1,11 +1,11 @@
 # Windowless Moku appearance replay
 
-Moku uses the existing dark style on both light and dark systems. Application
-appearance preferences still belong to the workspace; Settings keeps that
-preference even inside the resident Dock. Ordinary threads, Overview, onboarding,
-Browser/Report rendering and Report Agent's generated-content requirements are
-outside this change. No system preference, persisted theme or runtime contract
-changes, and no light-cursor demo is included.
+Moku, the Settings page with its regular-glass shell, and first-run onboarding
+use the existing dark style on both light and dark systems. Application
+appearance preferences still belong to the workspace window and every other
+surface. Ordinary threads, Overview, Browser/Report rendering and Report Agent's
+generated-content requirements are outside this change. No system preference,
+persisted theme or runtime contract changes, and no light-cursor demo is included.
 
 Run on macOS 26 with Xcode 26:
 
@@ -24,7 +24,9 @@ an app, writes preferences, starts a Runtime or opens a microphone.
 
 Coverage includes the actual Dock/history composer under light → dark → light
 inherited environments, native editor appearance and identity, preserved Unicode
-drafts, Settings/ordinary-composer theme isolation, and identical rendered opaque capsule fills.
+drafts, the Dock's Settings slot and the production Settings page staying dark
+inside a light host while an ordinary composer keeps the inherited appearance,
+and identical rendered opaque capsule fills.
 The production caret is exercised under four native appearances: the white
 2.6-point core, rasterized halo, 2.4-second breathing cycle, same-line motion,
 Reduce Motion and removal. This detects accidental reintroduction of a light

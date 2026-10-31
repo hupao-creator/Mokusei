@@ -14,7 +14,11 @@ failures stay visible and retryable. Completion is written only after the last
 settings flush succeeds; ordinary preference writes preserve that state.
 
 The floating panel keeps the existing landing background and uses an opaque
-neutral reading surface with untinted Liquid Glass controls. Discovery presents
+neutral reading surface with untinted Liquid Glass controls. Its surface is
+always dark: the panel scopes `\.colorScheme` to `.dark`, so its own tokens, the
+shared glass shell, hosted AppKit popups/editors and the Tag/Report animations
+stay dark in a light workspace while the window keeps its appearance. Overview
+presentation and native controls remain unchanged outside the panel. Discovery presents
 installed Harness logos or plugin-owned installation guides. Moku reuses the
 Settings coordination map and native Harness execution fields. Tag and Report
 reuse application-owned background configuration, including inheritance and

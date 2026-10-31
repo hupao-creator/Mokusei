@@ -15,6 +15,7 @@ python3 demos/settings-navigation/build.py
 结果写入 `.build/settings-navigation/result.txt`，截图写入其 `screenshots/`。
 覆盖浅色、深色、紧凑、窄窗口英文及多级缩放；验证关闭目标留在视口内、
 IME 阻止关闭、分类键盘导航，以及无效分类回退 General。
+设置面板恒定深色，因此浅色窗口截图同时验证“浅色工作区中的深色设置页”。
 截图使用 ScreenCaptureKit，仅捕获 fixture 窗口。
 完整面板生命周期和背景点击验收见
 [Settings 回放](../../tools/verification/reading-presentation/README.md#settings-capsule-and-return)。
