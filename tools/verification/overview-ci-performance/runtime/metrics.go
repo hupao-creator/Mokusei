@@ -29,12 +29,21 @@ type sourceEvent struct {
 	StoreUpdateStartedElapsedNanoseconds int64  `json:"storeUpdateStartedElapsedNanoseconds"`
 	AcceptedElapsedNanoseconds           int64  `json:"acceptedElapsedNanoseconds"`
 	CompletedElapsedNanoseconds          int64  `json:"completedElapsedNanoseconds"`
+	PlannedUptimeNanoseconds             int64  `json:"plannedUptimeNanoseconds"`
+	EnqueuedUptimeNanoseconds            int64  `json:"enqueuedUptimeNanoseconds"`
+	DequeuedUptimeNanoseconds            int64  `json:"dequeuedUptimeNanoseconds"`
+	SentUptimeNanoseconds                int64  `json:"sentUptimeNanoseconds"`
+	StoreUpdateStartedUptimeNanoseconds  int64  `json:"storeUpdateStartedUptimeNanoseconds"`
+	AcceptedUptimeNanoseconds            int64  `json:"acceptedUptimeNanoseconds"`
+	CompletedUptimeNanoseconds           int64  `json:"completedUptimeNanoseconds"`
+	CommitSucceeded                      bool   `json:"commitSucceeded"`
 	Error                                string `json:"error,omitempty"`
 }
 
 type publication struct {
 	PublishedUnixNano           int64    `json:"publishedUnixNano"`
 	PublishedElapsedNanoseconds int64    `json:"publishedElapsedNanoseconds"`
+	PublishedUptimeNanoseconds  int64    `json:"publishedUptimeNanoseconds"`
 	BaseRevision                int64    `json:"baseRevision"`
 	Revision                    int64    `json:"revision"`
 	DirtyCards                  int      `json:"dirtyCards"`
@@ -45,13 +54,17 @@ type publication struct {
 }
 
 type boundary struct {
-	PlannedUnixNano    int64   `json:"plannedUnixNano"`
-	ActualUnixNano     int64   `json:"actualUnixNano"`
-	ElapsedSeconds     float64 `json:"elapsedSeconds"`
-	ElapsedNanoseconds int64   `json:"elapsedNanoseconds"`
-	UserSeconds        float64 `json:"userSeconds"`
-	SystemSeconds      float64 `json:"systemSeconds"`
-	MaximumRSSBytes    int64   `json:"maximumRSSBytes"`
+	PlannedUnixNano          int64   `json:"plannedUnixNano"`
+	ActualUnixNano           int64   `json:"actualUnixNano"`
+	ElapsedSeconds           float64 `json:"elapsedSeconds"`
+	ElapsedNanoseconds       int64   `json:"elapsedNanoseconds"`
+	PlannedUptimeNanoseconds int64   `json:"plannedUptimeNanoseconds"`
+	ActualUptimeNanoseconds  int64   `json:"actualUptimeNanoseconds"`
+	ReadNanoseconds          int64   `json:"readNanoseconds"`
+	UncertaintyNanoseconds   int64   `json:"uncertaintyNanoseconds"`
+	UserSeconds              float64 `json:"userSeconds"`
+	SystemSeconds            float64 `json:"systemSeconds"`
+	MaximumRSSBytes          int64   `json:"maximumRSSBytes"`
 }
 
 type cpuMeasurement struct {
@@ -61,35 +74,55 @@ type cpuMeasurement struct {
 }
 
 type windowMeasurement struct {
-	StartUnixNano        int64          `json:"startUnixNano"`
-	EndUnixNano          int64          `json:"endUnixNano"`
-	CPU                  cpuMeasurement `json:"cpu"`
-	Planned              int            `json:"planned"`
-	Enqueued             int            `json:"enqueued"`
-	Dequeued             int            `json:"dequeued"`
-	Sent                 int            `json:"sent"`
-	Accepted             int            `json:"accepted"`
-	Publishes            int            `json:"publishes"`
-	ChangedCards         int            `json:"changedCards"`
-	DirtyCardMean        float64        `json:"dirtyCardMean"`
-	DirtyCardHistogram   map[int]int    `json:"dirtyCardHistogram"`
-	MutationBytes        int            `json:"mutationBytes"`
-	EncodedNDJSONBytes   int            `json:"encodedNDJSONBytes"`
-	MaxSourceLatenessMS  float64        `json:"maxSourceLatenessMilliseconds"`
-	MaxEnqueueLatenessMS float64        `json:"maxEnqueueLatenessMilliseconds"`
+	StartUnixNano          int64          `json:"startUnixNano"`
+	EndUnixNano            int64          `json:"endUnixNano"`
+	StartUptimeNanoseconds int64          `json:"startUptimeNanoseconds"`
+	EndUptimeNanoseconds   int64          `json:"endUptimeNanoseconds"`
+	CPU                    cpuMeasurement `json:"cpu"`
+	Planned                int            `json:"planned"`
+	Enqueued               int            `json:"enqueued"`
+	Dequeued               int            `json:"dequeued"`
+	Sent                   int            `json:"sent"`
+	Accepted               int            `json:"accepted"`
+	Publishes              int            `json:"publishes"`
+	ChangedCards           int            `json:"changedCards"`
+	DirtyCardMean          float64        `json:"dirtyCardMean"`
+	DirtyCardHistogram     map[int]int    `json:"dirtyCardHistogram"`
+	MutationBytes          int            `json:"mutationBytes"`
+	EncodedNDJSONBytes     int            `json:"encodedNDJSONBytes"`
+	MaxSourceLatenessMS    float64        `json:"maxSourceLatenessMilliseconds"`
+	MaxEnqueueLatenessMS   float64        `json:"maxEnqueueLatenessMilliseconds"`
 }
 
-func sampleBoundary(origin time.Time, planned int64) (boundary, error) {
+func sampleBoundary(origin clockObservation, planned int64) (boundary, error) {
 	var usage syscall.Rusage
-	before := time.Now()
+	before, err := sourceNow(origin)
+	if err != nil {
+		return boundary{}, err
+	}
 	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err != nil {
 		return boundary{}, err
+	}
+	after, err := rawUptimeNanoseconds()
+	if err != nil {
+		return boundary{}, err
+	}
+	if after < before.UptimeNanoseconds {
+		return boundary{}, fmt.Errorf("CPU sample raw clock moved backwards")
+	}
+	read := after - before.UptimeNanoseconds
+	actual := before.UptimeNanoseconds + read/2
+	plannedUTC := int64(0)
+	if planned != 0 {
+		plannedUTC = origin.diagnosticUnix(planned)
 	}
 	rss := usage.Maxrss
 	if runtime.GOOS != "darwin" {
 		rss *= 1024
 	}
-	return boundary{PlannedUnixNano: planned, ActualUnixNano: before.UnixNano(), ElapsedSeconds: before.Sub(origin).Seconds(), ElapsedNanoseconds: before.Sub(origin).Nanoseconds(),
+	return boundary{PlannedUnixNano: plannedUTC, ActualUnixNano: before.UnixNano + read/2,
+		PlannedUptimeNanoseconds: planned, ActualUptimeNanoseconds: actual, ReadNanoseconds: read, UncertaintyNanoseconds: (read + 1) / 2,
+		ElapsedSeconds: float64(actual-origin.UptimeNanoseconds) / 1e9, ElapsedNanoseconds: actual - origin.UptimeNanoseconds,
 		UserSeconds:   float64(usage.Utime.Sec) + float64(usage.Utime.Usec)/1e6,
 		SystemSeconds: float64(usage.Stime.Sec) + float64(usage.Stime.Usec)/1e6, MaximumRSSBytes: rss}, nil
 }
@@ -97,8 +130,14 @@ func sampleBoundary(origin time.Time, planned int64) (boundary, error) {
 func (b *benchmark) recordPublication(raw json.RawMessage) {
 	// Publication callbacks are counted at the real production boundary. Only
 	// identity/revision fields are decoded; copied session JSON is not retained.
-	mark := sourceNow(b.origin)
-	item := publication{PublishedUnixNano: mark.UnixNano, PublishedElapsedNanoseconds: mark.ElapsedNano, MutationBytes: len(raw),
+	mark, err := sourceNow(b.origin)
+	if err != nil {
+		b.fail("publication clock: " + err.Error())
+		b.cancel()
+		return
+	}
+	item := publication{PublishedUnixNano: mark.UnixNano, PublishedElapsedNanoseconds: mark.ElapsedNano,
+		PublishedUptimeNanoseconds: mark.UptimeNanoseconds, MutationBytes: len(raw),
 		EncodedNDJSONBytes: len(raw) + b.wireOverhead, CardIDs: []string{}, Sequences: []int64{}}
 	var mutation struct {
 		BaseRevision int64 `json:"baseRevision"`
@@ -129,37 +168,38 @@ func (b *benchmark) recordPublication(raw json.RawMessage) {
 
 func measureWindow(start, end boundary, events []sourceEvent, publications []publication) windowMeasurement {
 	result := windowMeasurement{StartUnixNano: start.ActualUnixNano, EndUnixNano: end.ActualUnixNano,
+		StartUptimeNanoseconds: start.ActualUptimeNanoseconds, EndUptimeNanoseconds: end.ActualUptimeNanoseconds,
 		DirtyCardHistogram: map[int]int{}}
-	if start.ActualUnixNano == 0 || end.ActualUnixNano <= start.ActualUnixNano {
+	if start.ActualUptimeNanoseconds == 0 || end.ActualUptimeNanoseconds <= start.ActualUptimeNanoseconds {
 		return result
 	}
 	result.CPU = cpuMeasurement{CPUSeconds: end.UserSeconds + end.SystemSeconds - start.UserSeconds - start.SystemSeconds,
-		WallSeconds: end.ElapsedSeconds - start.ElapsedSeconds}
+		WallSeconds: float64(end.ActualUptimeNanoseconds-start.ActualUptimeNanoseconds) / 1e9}
 	if result.CPU.WallSeconds > 0 {
 		result.CPU.CPUPercent = 100 * result.CPU.CPUSeconds / result.CPU.WallSeconds
 	}
-	inside := func(at int64) bool { return at >= start.ActualUnixNano && at < end.ActualUnixNano }
+	inside := func(at int64) bool { return at >= start.ActualUptimeNanoseconds && at < end.ActualUptimeNanoseconds }
 	for _, event := range events {
-		if inside(event.PlannedUnixNano) {
+		if inside(event.PlannedUptimeNanoseconds) {
 			result.Planned++
 		}
-		if inside(event.EnqueuedUnixNano) {
+		if inside(event.EnqueuedUptimeNanoseconds) {
 			result.Enqueued++
-			result.MaxEnqueueLatenessMS = math.Max(result.MaxEnqueueLatenessMS, float64(event.EnqueuedElapsedNanoseconds-event.PlannedElapsedNanoseconds)/1e6)
+			result.MaxEnqueueLatenessMS = math.Max(result.MaxEnqueueLatenessMS, float64(event.EnqueuedUptimeNanoseconds-event.PlannedUptimeNanoseconds)/1e6)
 		}
-		if inside(event.DequeuedUnixNano) {
+		if inside(event.DequeuedUptimeNanoseconds) {
 			result.Dequeued++
 		}
-		if inside(event.SentUnixNano) {
+		if inside(event.SentUptimeNanoseconds) {
 			result.Sent++
-			result.MaxSourceLatenessMS = math.Max(result.MaxSourceLatenessMS, float64(event.SentUnixNano-event.PlannedUnixNano)/1e6)
+			result.MaxSourceLatenessMS = math.Max(result.MaxSourceLatenessMS, float64(event.SentUptimeNanoseconds-event.PlannedUptimeNanoseconds)/1e6)
 		}
-		if inside(event.AcceptedUnixNano) {
+		if inside(event.AcceptedUptimeNanoseconds) {
 			result.Accepted++
 		}
 	}
 	for _, publication := range publications {
-		if !inside(publication.PublishedUnixNano) {
+		if !inside(publication.PublishedUptimeNanoseconds) {
 			continue
 		}
 		result.Publishes++
@@ -213,19 +253,19 @@ func (b *benchmark) result() map[string]any {
 		planned, rate = 1000, 40
 	}
 	for _, event := range events {
-		if event.EnqueuedUnixNano != 0 {
+		if event.EnqueuedUptimeNanoseconds != 0 {
 			enqueued++
 		}
-		if event.DequeuedUnixNano != 0 {
+		if event.DequeuedUptimeNanoseconds != 0 {
 			dequeued++
 		}
-		if event.SentUnixNano != 0 {
+		if event.SentUptimeNanoseconds != 0 {
 			sent++
 		}
-		if event.AcceptedUnixNano != 0 {
+		if event.CommitSucceeded {
 			accepted++
 		}
-		if event.CompletedUnixNano != 0 && event.AcceptedUnixNano == 0 {
+		if event.CompletedUptimeNanoseconds != 0 && !event.CommitSucceeded {
 			failed++
 		}
 	}
@@ -246,25 +286,32 @@ func (b *benchmark) result() map[string]any {
 		invalid = append(invalid, "planned/enqueued/dequeued/sent/accepted totals do not match")
 	}
 	for _, name := range []string{"warmupStart", "formalStart", "formalEnd"} {
-		if mark, ok := boundaries[name]; ok && math.Abs(float64(mark.ActualUnixNano-mark.PlannedUnixNano)) > float64(50*time.Millisecond) {
+		if mark, ok := boundaries[name]; ok && math.Abs(float64(mark.ActualUptimeNanoseconds-mark.PlannedUptimeNanoseconds)) > float64(50*time.Millisecond) {
 			invalid = append(invalid, name+" sampling missed its schedule by more than 50ms")
 		}
 	}
 	for _, event := range events {
-		if event.EnqueuedUnixNano != 0 && event.EnqueuedElapsedNanoseconds-event.PlannedElapsedNanoseconds > int64(50*time.Millisecond) {
+		if event.EnqueuedUptimeNanoseconds != 0 && event.EnqueuedUptimeNanoseconds-event.PlannedUptimeNanoseconds > int64(50*time.Millisecond) {
 			invalid = append(invalid, fmt.Sprintf("source event %d actual enqueue missed its independent deadline by more than 50ms", event.Index))
 			break
+		}
+		if event.CommitSucceeded && event.AcceptedUptimeNanoseconds == 0 {
+			invalid = append(invalid, fmt.Sprintf("source event %d committed successfully but its accepted raw clock receipt is missing", event.Index))
 		}
 	}
 	queueEvidence := map[string]any{"capacity": sourceQueueCapacity, "pending": 0, "inFlight": 0, "highWater": 0, "overflowCount": 0, "closed": false}
 	if queue != nil {
-		queueEvidence = queue.snapshot()
+		var err error
+		queueEvidence, err = queue.snapshot()
+		if err != nil {
+			invalid = append(invalid, "queue observation clock: "+err.Error())
+		}
 	}
 	queueEvidence["boundaries"] = map[string]any{
-		"warmupStart":    queueAt(events, boundaries["warmupStart"].ElapsedNanoseconds),
-		"formalStart":    queueAt(events, boundaries["formalStart"].ElapsedNanoseconds),
-		"formalEnd":      queueAt(events, boundaries["formalEnd"].ElapsedNanoseconds),
-		"observationEnd": queueAt(events, observation.ElapsedNanoseconds),
+		"warmupStart":    queueAt(events, boundaries["warmupStart"].ActualUptimeNanoseconds, b.origin.UptimeNanoseconds),
+		"formalStart":    queueAt(events, boundaries["formalStart"].ActualUptimeNanoseconds, b.origin.UptimeNanoseconds),
+		"formalEnd":      queueAt(events, boundaries["formalEnd"].ActualUptimeNanoseconds, b.origin.UptimeNanoseconds),
+		"observationEnd": queueAt(events, observation.ActualUptimeNanoseconds, b.origin.UptimeNanoseconds),
 	}
 	queueEvidence["unacceptedIndices"] = unacceptedIndices(events)
 	queueEvidence["outstanding"] = enqueued - accepted
@@ -287,21 +334,25 @@ func (b *benchmark) result() map[string]any {
 		}
 	}
 	lastEnqueued, lastAccepted, lastPublication := int64(0), int64(0), int64(0)
+	lastEnqueuedRaw, lastAcceptedRaw, lastPublicationRaw := int64(0), int64(0), int64(0)
 	for _, event := range events {
-		lastEnqueued = max(lastEnqueued, event.EnqueuedUnixNano)
-		if event.AcceptedUnixNano > lastAccepted {
-			lastAccepted = event.AcceptedUnixNano
+		if event.EnqueuedUptimeNanoseconds > lastEnqueuedRaw {
+			lastEnqueued, lastEnqueuedRaw = event.EnqueuedUnixNano, event.EnqueuedUptimeNanoseconds
+		}
+		if event.AcceptedUptimeNanoseconds > lastAcceptedRaw {
+			lastAccepted, lastAcceptedRaw = event.AcceptedUnixNano, event.AcceptedUptimeNanoseconds
 		}
 	}
 	for _, publication := range publications {
-		if publication.PublishedUnixNano > lastPublication {
-			lastPublication = publication.PublishedUnixNano
+		if publication.PublishedUptimeNanoseconds > lastPublicationRaw {
+			lastPublication, lastPublicationRaw = publication.PublishedUnixNano, publication.PublishedUptimeNanoseconds
 		}
 	}
-	return map[string]any{
+	result := map[string]any{
 		"schemaVersion": 1, "condition": b.options.condition, "seed": b.options.seed, "n": cardCount, "k": activeCount,
 		"sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
-		"state": state, "sourceComplete": done, "enqueueComplete": enqueueDone, "producerFinished": producerDone,
+		"clockStartObservation": b.origin,
+		"state":                 state, "sourceComplete": done, "enqueueComplete": enqueueDone, "producerFinished": producerDone,
 		"valid": len(invalid) == 0, "invalidReasons": invalid,
 		"load": map[string]any{"kind": "synthetic public message content", "nativeEvent": "text-final", "stableItemID": true,
 			"a4Semantics": "strict cumulative prefix; four ASCII source bytes per card event; not provider text-delta",
@@ -324,9 +375,17 @@ func (b *benchmark) result() map[string]any {
 		"schedule": plan, "boundaries": boundaries,
 		"windows": map[string]windowMeasurement{"warmup": warmup, "formal": formal, "tail": tail},
 		"tail": map[string]any{"observationSeconds": tail.CPU.WallSeconds, "lastEnqueuedUnixNano": lastEnqueued, "lastAcceptedUnixNano": lastAccepted,
-			"lastPublicationUnixNano": lastPublication, "meaning": "post-formal observation interval; not a queue drain duration"},
+			"lastPublicationUnixNano": lastPublication, "lastEnqueuedUptimeNanoseconds": lastEnqueuedRaw,
+			"lastAcceptedUptimeNanoseconds": lastAcceptedRaw, "lastPublicationUptimeNanoseconds": lastPublicationRaw,
+			"meaning": "post-formal observation interval; not a queue drain duration"},
 		"expectedCards": b.expected, "finalCards": final, "sourceEvents": events, "publications": publications,
-		"measurementClock": "actual boundary rusage user+system divided by actual monotonic wall seconds; single-core percent",
+		"measurementClock": "actual boundary rusage user+system divided by actual shared OS raw wall seconds; single-core percent; UTC is diagnostic only",
 		"countWindows":     "half-open actual rusage boundary intervals; warmup and tail are never included in formal counts",
 	}
+	if err := b.attachClock(result); err != nil {
+		invalid = append(invalid, "final clock observation: "+err.Error())
+	}
+	result["clockEndObservation"] = result["clockObservation"]
+	result["valid"], result["invalidReasons"] = len(invalid) == 0, invalid
+	return result
 }

@@ -8,6 +8,35 @@ import (
 	"time"
 )
 
+func sourceTestRaw(t *testing.T) int64 {
+	t.Helper()
+	now, err := rawUptimeNanoseconds()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return now
+}
+
+func sourceTestOrigin(t *testing.T) clockObservation {
+	t.Helper()
+	origin, err := observeClock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	origin.UptimeNanoseconds -= int64(time.Second)
+	origin.UnixNanoseconds -= int64(time.Second)
+	return origin
+}
+
+func sourceTestSnapshot(t *testing.T, queue *sourceQueue) map[string]any {
+	t.Helper()
+	snapshot, err := queue.snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
+}
+
 func awaitSource[T any](t *testing.T, values <-chan T) T {
 	t.Helper()
 	select {
@@ -23,13 +52,14 @@ func awaitSource[T any](t *testing.T, values <-chan T) T {
 func taskEvent(task sourceTask) sourceEvent {
 	return sourceEvent{Index: task.Index, EnqueuedUnixNano: task.Enqueued.UnixNano,
 		EnqueuedElapsedNanoseconds: task.Enqueued.ElapsedNano, DequeuedUnixNano: task.Dequeued.UnixNano,
-		DequeuedElapsedNanoseconds: task.Dequeued.ElapsedNano}
+		DequeuedElapsedNanoseconds: task.Dequeued.ElapsedNano,
+		EnqueuedUptimeNanoseconds:  task.Enqueued.UptimeNanoseconds, DequeuedUptimeNanoseconds: task.Dequeued.UptimeNanoseconds}
 }
 
 func TestSourceProducerContinuesWhileWorkerIsBlocked(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	q := newSourceQueue(time.Now().Add(-time.Second), 8)
+	q := newSourceQueue(sourceTestOrigin(t), 8)
 	entered, release := make(chan struct{}), make(chan struct{})
 	workerDone, producerDone := make(chan error, 1), make(chan error, 1)
 	var received []int
@@ -54,12 +84,12 @@ func TestSourceProducerContinuesWhileWorkerIsBlocked(t *testing.T) {
 	}
 	awaitSource(t, entered)
 	go func() {
-		producerDone <- produceSource(ctx, time.Now(), 4, time.Millisecond, q, func(index int, _ sourceTask, err error) {})
+		producerDone <- produceSource(ctx, sourceTestRaw(t), 4, time.Millisecond, q, func(index int, _ sourceTask, err error) {})
 	}()
 	if err := awaitSource(t, producerDone); err != nil {
 		t.Fatal(err)
 	}
-	state := q.snapshot()
+	state := sourceTestSnapshot(t, q)
 	if state["pending"] != 4 || state["inFlight"] != 1 || state["closed"] != true || state["overflowCount"] != 0 {
 		t.Fatalf("producer was coupled to blocked worker: %#v", state)
 	}
@@ -73,14 +103,14 @@ func TestSourceProducerContinuesWhileWorkerIsBlocked(t *testing.T) {
 }
 
 func TestSourceFIFOExactOnceAndBoundedOverflow(t *testing.T) {
-	q := newSourceQueue(time.Now().Add(-time.Second), 2)
+	q := newSourceQueue(sourceTestOrigin(t), 2)
 	var attempted []int
-	err := produceSource(context.Background(), time.Now().Add(-time.Second), 5, time.Millisecond, q,
+	err := produceSource(context.Background(), sourceTestRaw(t)-int64(time.Second), 5, time.Millisecond, q,
 		func(index int, _ sourceTask, _ error) { attempted = append(attempted, index) })
 	if !errors.Is(err, errSourceQueueFull) || !slices.Equal(attempted, []int{0, 1, 2}) {
 		t.Fatalf("overflow was not an explicit stopped producer: attempts=%v err=%v", attempted, err)
 	}
-	state := q.snapshot()
+	state := sourceTestSnapshot(t, q)
 	if state["capacity"] != 2 || state["highWater"] != 2 || state["pending"] != 2 || state["overflowCount"] != 1 || state["closed"] != true {
 		t.Fatalf("unexpected bounded queue receipt: %#v", state)
 	}
@@ -97,17 +127,17 @@ func TestSourceFIFOExactOnceAndBoundedOverflow(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(received, []int{0, 1}) || q.snapshot()["pending"] != 0 || q.snapshot()["inFlight"] != 0 {
-		t.Fatalf("admitted prefix was dropped, duplicated or reordered: %v / %#v", received, q.snapshot())
+	if !slices.Equal(received, []int{0, 1}) || sourceTestSnapshot(t, q)["pending"] != 0 || sourceTestSnapshot(t, q)["inFlight"] != 0 {
+		t.Fatalf("admitted prefix was dropped, duplicated or reordered: %v / %#v", received, sourceTestSnapshot(t, q))
 	}
 }
 
 func TestSourceCancellationUnblocksWaiters(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	q := newSourceQueue(time.Now().Add(-time.Second), 2)
+	q := newSourceQueue(sourceTestOrigin(t), 2)
 	producerDone, workerDone := make(chan error, 1), make(chan error, 1)
 	go func() {
-		producerDone <- produceSource(ctx, time.Now().Add(time.Hour), 1, time.Millisecond, q,
+		producerDone <- produceSource(ctx, sourceTestRaw(t)+int64(time.Hour), 1, time.Millisecond, q,
 			func(_ int, _ sourceTask, _ error) { t.Error("cancelled future source tried to enqueue") })
 	}()
 	go func() {
@@ -120,7 +150,7 @@ func TestSourceCancellationUnblocksWaiters(t *testing.T) {
 	if err := awaitSource(t, workerDone); !errors.Is(err, context.Canceled) {
 		t.Fatalf("consumer: %v", err)
 	}
-	if state := q.snapshot(); state["closed"] != true || state["pending"] != 0 || state["inFlight"] != 0 {
+	if state := sourceTestSnapshot(t, q); state["closed"] != true || state["pending"] != 0 || state["inFlight"] != 0 {
 		t.Fatalf("cancelled source retained unrecorded work: %#v", state)
 	}
 }
@@ -128,21 +158,21 @@ func TestSourceCancellationUnblocksWaiters(t *testing.T) {
 func TestSourceCancelledBeforeWarmupRecordsProducerFinished(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	b := &benchmark{ctx: ctx, origin: time.Now().Add(-time.Second), warmupReady: make(chan struct{}), errors: []string{}}
+	b := &benchmark{ctx: ctx, origin: sourceTestOrigin(t), warmupReady: make(chan struct{}), errors: []string{}}
 	b.inputQueue = newSourceQueue(b.origin, sourceQueueCapacity)
 	b.workers.Add(1)
 	done := make(chan struct{})
-	go func() { b.produce(time.Now().Add(time.Second)); close(done) }()
+	go func() { b.produce(sourceTestRaw(t) + int64(time.Second)); close(done) }()
 	awaitSource(t, done)
 	b.workers.Wait()
-	if !b.producerDone || b.enqueueDone || b.sourceDone || len(b.errors) != 1 || b.inputQueue.snapshot()["closed"] != true {
+	if !b.producerDone || b.enqueueDone || b.sourceDone || len(b.errors) != 1 || sourceTestSnapshot(t, b.inputQueue)["closed"] != true {
 		t.Fatalf("pre-warmup cancellation lost lifecycle receipt: producer=%v enqueued=%v complete=%v errors=%v",
 			b.producerDone, b.enqueueDone, b.sourceDone, b.errors)
 	}
 }
 
 func TestSourceCancelledAfterDequeueKeepsTerminalReceipt(t *testing.T) {
-	origin := time.Now().Add(-time.Second)
+	origin := sourceTestOrigin(t)
 	q := newSourceQueue(origin, 2)
 	if _, err := q.enqueue(0); err != nil {
 		t.Fatal(err)
@@ -163,14 +193,14 @@ func TestSourceCancelledAfterDequeueKeepsTerminalReceipt(t *testing.T) {
 		receipt.SentUnixNano != 0 || receipt.AcceptedUnixNano != 0 || receipt.StoreUpdateStartedUnixNano != 0 {
 		t.Fatalf("cancelled task was lost or falsely sent/accepted: %#v / %v", receipt, err)
 	}
-	state := queueAt([]sourceEvent{receipt}, time.Since(origin).Nanoseconds())
+	state := queueAt([]sourceEvent{receipt}, sourceTestRaw(t), origin.UptimeNanoseconds)
 	if state["enqueued"] != 1 || state["dequeued"] != 1 || state["pending"] != 0 || state["inFlight"] != 0 || state["failed"] != 1 || state["outstanding"] != 1 {
 		t.Fatalf("cancelled dequeued task broke conservation: %#v", state)
 	}
 }
 
 func TestSourceSuccessfulCommitSurvivesConcurrentCancellation(t *testing.T) {
-	origin := time.Now().Add(-time.Second)
+	origin := sourceTestOrigin(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	q := newSourceQueue(origin, 1)
@@ -188,11 +218,11 @@ func TestSourceSuccessfulCommitSurvivesConcurrentCancellation(t *testing.T) {
 		return nil
 	}, func(sourceEvent) {})
 	q.complete(task.Index)
-	if err != nil || event.AcceptedUnixNano == 0 || event.CompletedUnixNano < event.AcceptedUnixNano || event.Error != "" ||
+	if err != nil || !event.CommitSucceeded || event.AcceptedUptimeNanoseconds == 0 || event.CompletedUptimeNanoseconds < event.AcceptedUptimeNanoseconds || event.Error != "" ||
 		event.StoreUpdateStartedElapsedNanoseconds < event.SentElapsedNanoseconds {
 		t.Fatalf("successful committed work was relabelled cancelled: %#v / %v", event, err)
 	}
-	if got := queueAt([]sourceEvent{event}, time.Since(origin).Nanoseconds()); got["accepted"] != 1 || got["outstanding"] != 0 || got["failed"] != 0 {
+	if got := queueAt([]sourceEvent{event}, sourceTestRaw(t), origin.UptimeNanoseconds); got["accepted"] != 1 || got["outstanding"] != 0 || got["failed"] != 0 {
 		t.Fatalf("successful commit did not balance queue receipts: %#v", got)
 	}
 }

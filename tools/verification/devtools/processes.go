@@ -175,15 +175,23 @@ func startCompilerDescendant() {
 	waitFixtureFile(".build/child.pid")
 }
 
+func publishCompilerHeartbeat() {
+	// Production cleanup may kill the writer at any instruction. Publish only a
+	// fully written, closed value so termination cannot truncate the last receipt.
+	const pending = ".build/heartbeat.next"
+	must(os.WriteFile(pending, []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), 0600))
+	must(os.Rename(pending, ".build/heartbeat"))
+}
+
 func compilerDescendant() {
 	signal.Ignore(syscall.SIGTERM)
 	_ = os.Stdin.Close()
 	_ = os.Stdout.Close()
 	_ = os.Stderr.Close()
-	must(os.WriteFile(".build/heartbeat", []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), 0600))
+	publishCompilerHeartbeat()
 	must(os.WriteFile(".build/child.pid", []byte(strconv.Itoa(os.Getpid())), 0600))
 	for {
 		time.Sleep(10 * time.Millisecond)
-		must(os.WriteFile(".build/heartbeat", []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), 0600))
+		publishCompilerHeartbeat()
 	}
 }

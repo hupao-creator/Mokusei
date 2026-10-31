@@ -64,3 +64,31 @@ Failure to observe the prerequisite within the original three seconds is an
 explicit incomplete-observation failure. Diagnostics retain the finite geometry
 history; a theoretical destination or the next revision's exit cannot stand in
 for continued entry motion.
+
+## Execution-link streaming input
+
+The running execution-link replay supplies complete Markdown paragraphs while
+the message remains streaming. Mounted reading timelines publish closed pages;
+a single unclosed paragraph, even with many single line breaks, cannot establish
+the prerequisite of visible page growth. The replay keeps its original height,
+follow, user-scroll, Jump Latest and exact-execution assertions and wait budgets.
+Finite stage receipts include the actual timeline controls and supplied input
+lengths, and the final state is emitted on both success and failure.
+
+## Title reversal timing
+
+The early `A → B → A` replay sends B once, then observes an outgoing A before
+sending A. A requested 50ms sleep can resume after B is already displayed and
+does not establish that prerequisite. The replacement observation has a fixed
+three-second budget: the newest WindowServer frame must follow B's input, have
+10–90% of the settled A ink, and be less than 50ms old. The native AX label/value
+must still contain displayed `Title A` and not `Title B`; the helper does not read
+the outer card's help text. The replay rechecks that displayed value and freshness
+synchronously before A, retaining raw frames, pixel-analysis and AX timings, and
+the actual input receipts. Failure to establish the prerequisite fails the case;
+there is no repeated B input or retrospective use of an older partial frame.
+
+This replaces the assumed 50ms input interval, not the fixed 500ms final check or
+its original pixel-equality assertion. A later return to A cannot certify that
+earlier check. The separate incoming-cancellation oracle retains its 10–60% ink,
+50ms freshness, three-second budget and exact replacement-pixel assertions.

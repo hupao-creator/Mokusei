@@ -184,7 +184,8 @@ extension SwiftUIOverviewInteractionTests {
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains("Title A") }
         // Arm the same WindowServer stream before the initial reversal.
-        // The 50/500ms source schedule below remains unchanged.
+        // Establish an actual outgoing A before reversing; the final 500ms
+        // observation remains fixed even if this prerequisite is unavailable.
         let shareable = try await SCShareableContent.currentProcess
         let target = try #require(shareable.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
         let configuration = SCStreamConfiguration()
@@ -213,17 +214,64 @@ extension SwiftUIOverviewInteractionTests {
                 captures: &windowCaptures, measurements: &measurements) { $0.ink > 0 }
             let original = try textPixels(in: root)
             captures.append(("01-original", original))
+            let originalTitlePixels = try titleWindowPixels(originalWindow.sample.image, region: region)
+            let originalTitleInk = try originalTitlePixels.histogramInk()
+            try #require(originalTitleInk > 0, "The outgoing title requires a nonblank settled reference")
             let titleBSentAt = ProcessInfo.processInfo.systemUptime
             fixture.title = "Title B"
             measurements.append(["kind": "event", "stage": "title-B", "sentAt": "\(titleBSentAt)",
                 "returnedAt": "\(ProcessInfo.processInfo.systemUptime)"])
-            try await Task.sleep(for: .milliseconds(50))
-            let titleBWaitReturnedAt = ProcessInfo.processInfo.systemUptime
+            // A 50ms sleep can resume after B has already replaced A. Observe
+            // the latest partial pixels and the displayed Text instead of
+            // treating that late input as an early outgoing reversal.
+            let outgoingPrerequisiteStartedAt = ProcessInfo.processInfo.systemUptime
+            let outgoingPrerequisiteDeadline = outgoingPrerequisiteStartedAt + 3
+            var outgoingAXObservations: [[String: String]] = []
+            defer { measurements.append(contentsOf: outgoingAXObservations) }
+            let outgoing = try await titleWindowFrame(frames, region: region, stage: "reversal-outgoing",
+                captures: &windowCaptures, measurements: &measurements) { frame in
+                let fraction = frame.ink / originalTitleInk
+                guard frame.sample.presentationTime > titleBSentAt,
+                      fraction > 0.1 && fraction < 0.9,
+                      ProcessInfo.processInfo.systemUptime - frame.sample.receivedAt < 0.05 else { return false }
+                let axStartedAt = ProcessInfo.processInfo.systemUptime
+                let displayed = SwiftUIReplay.text(in: root)
+                let axFinishedAt = ProcessInfo.processInfo.systemUptime
+                let accepted = displayed.contains("Title A") && !displayed.contains("Title B")
+                    && axFinishedAt - frame.sample.receivedAt < 0.05
+                    && axFinishedAt < outgoingPrerequisiteDeadline
+                outgoingAXObservations.append(["kind": "prerequisite", "stage": "reversal-outgoing-AX",
+                    "presentationTime": "\(frame.sample.presentationTime)", "receivedAt": "\(frame.sample.receivedAt)",
+                    "inkFraction": "\(fraction)", "referenceInk": "\(originalTitleInk)",
+                    "axStartedAt": "\(axStartedAt)", "axFinishedAt": "\(axFinishedAt)",
+                    "displayedTexts": "\(displayed.sorted())", "accepted": "\(accepted)",
+                    "deadline": "\(outgoingPrerequisiteDeadline)"])
+                return accepted
+            }
+            // AX traversal also takes time. Recheck both the live displayed
+            // value and sample freshness immediately before the single A input.
+            let finalAXStartedAt = ProcessInfo.processInfo.systemUptime
+            let displayedBeforeA = SwiftUIReplay.text(in: root)
+            let finalAXFinishedAt = ProcessInfo.processInfo.systemUptime
+            measurements.append(["kind": "prerequisite", "stage": "reversal-before-A",
+                "presentationTime": "\(outgoing.sample.presentationTime)", "receivedAt": "\(outgoing.sample.receivedAt)",
+                "inkFraction": "\(outgoing.ink / originalTitleInk)",
+                "axStartedAt": "\(finalAXStartedAt)", "axFinishedAt": "\(finalAXFinishedAt)",
+                "displayedTexts": "\(displayedBeforeA.sorted())", "startedAt": "\(outgoingPrerequisiteStartedAt)",
+                "deadline": "\(outgoingPrerequisiteDeadline)"])
+            try #require(displayedBeforeA.contains("Title A") && !displayedBeforeA.contains("Title B"),
+                         "Observation incomplete: Title B replaced A before the early reversal input")
             let titleASentAt = ProcessInfo.processInfo.systemUptime
+            try #require(titleASentAt - outgoing.sample.receivedAt < 0.05 && titleASentAt < outgoingPrerequisiteDeadline,
+                         "Observation incomplete: the outgoing A prerequisite became stale before reversal")
             fixture.title = "Title A"
             measurements.append(["kind": "event", "stage": "title-A", "sentAt": "\(titleASentAt)",
-                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)", "priorWaitReturnedAt": "\(titleBWaitReturnedAt)",
-                "requestedPriorWaitMilliseconds": "50"])
+                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)",
+                "prerequisitePresentationTime": "\(outgoing.sample.presentationTime)",
+                "prerequisiteReceivedAt": "\(outgoing.sample.receivedAt)",
+                "prerequisiteAgeMilliseconds": "\((titleASentAt - outgoing.sample.receivedAt) * 1000)",
+                "actualBToAMilliseconds": "\((titleASentAt - titleBSentAt) * 1000)",
+                "displayedTextsBeforeInput": "\(displayedBeforeA.sorted())"])
             try await Task.sleep(for: .milliseconds(500))
             let checkedAt = ProcessInfo.processInfo.systemUptime
             let reversalSamples = frames.takeSamples()

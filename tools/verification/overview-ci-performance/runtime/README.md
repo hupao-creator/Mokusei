@@ -39,8 +39,8 @@ intended production 2×1 footprint and are fully visible.
 
 S4/A4 each schedule 1,000 independent events: 200 during the nominal five-second
 warmup and 800 during the nominal twenty-second formal window. Each card receives
-250 events. Source protocol 2 uses an independent producer on absolute Go
-monotonic deadlines and a separate serial mutation worker. The producer enqueues
+250 events. Source protocol 2 uses an independent producer on absolute shared OS
+raw-clock deadlines and a separate serial mutation worker. The producer enqueues
 identity/sequence metadata into a preallocated 256-entry FIFO; it never performs
 session reduction or `Store.Update`, and never waits for the worker. Actual
 enqueue lateness beyond 50ms or queue overflow invalidates the run. The queue is
@@ -88,19 +88,83 @@ throughput claim. Global and Moku settings have a pre-existing fixture profile.
 - `controlURL` and `controlToken`, plus `condition`, `n`, `k`, `seed`;
 - `expectedCards`, the four expected final public projections.
 
+The ready file, `/start`, `/status`, `/result`, and final output file also have
+the same required top-level clock contract:
+
+```text
+measurementClockVersion = 2
+measurementClockID = "darwin.CLOCK_UPTIME_RAW.ns"
+clockOriginUptimeNanoseconds = <fixed process origin in the shared OS clock>
+clockObservation = { uptimeNanoseconds, unixNanoseconds, uncertaintyNanoseconds }
+```
+
+Each response samples `clockObservation` anew. The final file is sampled again
+during shutdown, not copied from an earlier `/result`. The raw readings before
+and after the diagnostic UTC read define its midpoint and half-width uncertainty.
+Swift checks that this interval intersects its own raw-clock launch/request/finish
+bracket and that uncertainty is at most 5 ms. The clock ID alone is not treated
+as evidence that both processes share an epoch. The process origin is constant
+across all responses. The result also retains `clockStartObservation` and
+`clockEndObservation` so both actual endpoints remain inspectable.
+
 Control requests use `Authorization: Bearer <controlToken>` on a separate
 loopback-only HTTP server. This server does not replace any production route.
 
 | Request | Response / action |
 | --- | --- |
-| `POST /start` | Starts once, returning protocol/capacity and future `warmupStartUnixNano`, `formalStartUnixNano`, `formalEndUnixNano`, `warmupSeconds`, `formalSeconds`, and `sourceIntervalNanoseconds`. The first boundary is one second ahead. |
+| `POST /start` | Starts once, returning protocol/capacity/clock identity and future `warmupStartUptimeNanoseconds`, `formalStartUptimeNanoseconds`, `formalEndUptimeNanoseconds`, `warmupSeconds`, `formalSeconds`, and `sourceIntervalNanoseconds`. The first raw boundary is one second ahead. Legacy UTC fields remain diagnostic estimates. |
 | `GET /status` | Protocol/capacity, `state`, `sourceComplete`, `enqueueComplete`, `producerFinished`, `formalComplete`, `currentSeqs`, `errors` and a bounded input-FIFO snapshot. Do not poll it per source event. |
 | `GET /result` | Complete versioned evidence snapshot; HTTP 409 until the actual formal-end sample exists. |
 | `POST /finish` | Acknowledges `{ "ok": true }`, stops the owned runtime, writes the final result, and exits. Wait for exit, then read the final output file. |
 
-UTC nanoseconds are JSON integer tokens. They let Swift schedule against a
-single Date→uptime anchor. Each process reports its actual sampling timestamp
-and lateness; planned timestamps are not substituted for actual CPU intervals.
+All nanosecond fields are JSON integer tokens. The Darwin implementation uses
+a small Cgo bridge to the public `clock_gettime(CLOCK_UPTIME_RAW, ...)` API;
+Swift reads the same OS clock. This clock shares the `mach_absolute_time` epoch
+after conversion to nanoseconds and excludes system sleep. No private Go runtime
+symbol, `linkname`, `time.Time` epoch, or realtime-to-uptime mapping is used for
+measurements. Apple documents the equivalent nanosecond clock in its
+[`mach_absolute_time` documentation](https://developer.apple.com/documentation/driverkit/mach_absolute_time).
+
+On Linux, correctness tests use `clock_gettime(CLOCK_MONOTONIC_RAW, ...)` and
+the explicitly different ID `linux.CLOCK_MONOTONIC_RAW.ns`. The Linux
+[clock manual](https://man7.org/linux/man-pages/man3/clock_gettime.3.html) documents
+its immunity to realtime frequency adjustments. Linux results are not a Darwin
+performance baseline and cannot be paired with Darwin observations. The C code
+is embedded in `clock.go`, so the existing common-harness source/hash inventory
+includes it. The executable already requires Cgo for its production SQLite path;
+there is no new module dependency.
+
+Go timers supply only relative wakeups: `waitUntilRaw` subtracts a fresh raw
+reading from the absolute raw deadline and checks the raw clock again after
+waking. An early relative timer wake cannot advance an event before its raw
+deadline, and no long-lived conversion from the Go timer clock can accumulate
+frequency drift. Actual event-stage receipts use the final raw read after the
+operation; they are never replaced with planned values. CPU boundaries retain
+the raw midpoint bracketing `getrusage`, the read duration and its uncertainty.
+
+Every source stage has `<stage>UptimeNanoseconds`; publications have
+`publishedUptimeNanoseconds`; CPU boundaries have `plannedUptimeNanoseconds` and
+`actualUptimeNanoseconds`; windows have `startUptimeNanoseconds` and
+`endUptimeNanoseconds`. Queue observations and reconstructed queue boundaries
+also expose `uptimeNanoseconds`. Existing elapsed fields are exactly raw uptime
+minus `clockOriginUptimeNanoseconds`. Phase classification, CPU wall time,
+enqueue/sent lateness, queue ages and cross-process delivery latency use this
+shared raw clock exclusively. UTC fields may jump or change rate; they are
+retained only for human-readable diagnostics and do not decide validity.
+
+Clock API errors fail the measurement rather than switching clock domains.
+`sourceEvents.commitSucceeded` records the real successful `Store.Update`
+return separately from timestamp availability: a failed accepted-clock read
+cannot erase an already committed input or fabricate an accepted timestamp.
+Such a run remains invalid with the missing clock receipt and error retained.
+Reconstructed queue boundaries retain a completed successful commit with no
+accepted timestamp in `acceptanceTimingUnavailableIndices`, not `failedIndices`;
+timestamped acceptance counts do not invent its missing time.
+Older UTC-mapped reports lacking this clock contract stay unchanged and cannot
+be retroactively accepted by this version. Source protocol 2, FIFO capacity 256,
+the 50 ms actual enqueue/boundary deadlines, 5+20 second supply, and the original
+tail budget are unchanged.
+
 The Core sampler opens the initial warmup interval before source event zero.
 Subsequent event deadlines remain independent of the UI and of the sampler.
 
@@ -132,7 +196,7 @@ including its trimming, rather than duplicating projection rules in the harness.
 
 The top-level `cpu` is only the formal Core interval:
 `{ cpuSeconds, wallSeconds, cpuPercent }`, with user+system `getrusage` seconds
-divided by actual monotonic wall seconds and multiplied by 100. It is a
+divided by actual shared raw wall seconds and multiplied by 100. It is a
 single-core percentage. Capture, profiling, result encoding, and final text
 hashing do not belong in the formal Swift measurement.
 
@@ -148,7 +212,7 @@ Top-level `source.planned/enqueued/dequeued/sent/accepted` are whole-run totals,
 never formal-only numbers. `sourceEvents` preserves every planned event, including
 unsupplied entries after cancellation, with actual enqueue, dequeue, preparation
 start (`sent`), store-call start and accepted/completed timestamps and errors.
-Their monotonic elapsed values separate enqueue lateness, queue waiting,
+Their shared raw timestamps and derived elapsed values separate enqueue lateness, queue waiting,
 preparation, store-call time and overall acceptance latency. Missing actual
 boundaries stay missing; they are not filled with planned times.
 
@@ -156,7 +220,7 @@ boundaries stay missing; they are not filled with planned times.
 identity/age, high water, oldest waiting age and overflow receipts. Successful
 final evidence requires all planned inputs accepted and no pending/in-flight
 work. The top-level queue snapshot carries its own `observedAt`. Its `boundaries`
-reconstructs historical occupancy from the retained monotonic event-stage
+reconstructs historical occupancy from the retained shared raw event-stage
 timestamps at actual Core CPU sample boundaries; it is not a synchronized
 queue-lock snapshot at each boundary. Swift's first-observed completion timestamps
 are tail polling observations, not actual Core completion instants. This is not

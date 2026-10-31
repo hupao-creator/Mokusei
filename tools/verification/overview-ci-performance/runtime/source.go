@@ -12,13 +12,22 @@ const sourceProtocolVersion = 2
 const sourceQueueCapacity = 256
 
 type sourceInstant struct {
-	UnixNano    int64 `json:"unixNano"`
-	ElapsedNano int64 `json:"elapsedNanoseconds"`
+	UnixNano               int64 `json:"unixNano"`
+	ElapsedNano            int64 `json:"elapsedNanoseconds"`
+	UptimeNanoseconds      int64 `json:"uptimeNanoseconds"`
+	UncertaintyNanoseconds int64 `json:"uncertaintyNanoseconds"`
 }
 
-func sourceNow(origin time.Time) sourceInstant {
-	now := time.Now()
-	return sourceInstant{UnixNano: now.UnixNano(), ElapsedNano: now.Sub(origin).Nanoseconds()}
+func sourceNow(origin clockObservation) (sourceInstant, error) {
+	now, err := observeClock()
+	if err != nil {
+		return sourceInstant{}, err
+	}
+	// Stage receipts use the last raw read, after the recorded operation. Only
+	// cross-process clock observations use the UTC-bracketing midpoint.
+	uptime := now.UptimeNanoseconds + now.UncertaintyNanoseconds
+	return sourceInstant{UnixNano: now.UnixNanoseconds, ElapsedNano: uptime - origin.UptimeNanoseconds,
+		UptimeNanoseconds: uptime, UncertaintyNanoseconds: now.UncertaintyNanoseconds}, nil
 }
 
 type sourceTask struct {
@@ -38,7 +47,7 @@ var errSourceQueueFull = errors.New("bounded source input queue overflow")
 // publication and report encoding never prevent the producer from taking it.
 type sourceQueue struct {
 	mu             sync.Mutex
-	origin         time.Time
+	origin         clockObservation
 	items          []sourceTask
 	head, count    int
 	highWater      int
@@ -49,7 +58,7 @@ type sourceQueue struct {
 	ready          chan struct{}
 }
 
-func newSourceQueue(origin time.Time, capacity int) *sourceQueue {
+func newSourceQueue(origin clockObservation, capacity int) *sourceQueue {
 	return &sourceQueue{origin: origin, items: make([]sourceTask, capacity), ready: make(chan struct{}, 1), overflows: []sourceOverflow{}}
 }
 
@@ -67,16 +76,26 @@ func (q *sourceQueue) enqueue(index int) (sourceTask, error) {
 		return sourceTask{}, errors.New("source input queue is closed")
 	}
 	if q.count == len(q.items) {
-		q.overflows = append(q.overflows, sourceOverflow{Index: index, At: sourceNow(q.origin)})
+		at, err := sourceNow(q.origin)
+		q.overflows = append(q.overflows, sourceOverflow{Index: index, At: at})
 		q.mu.Unlock()
-		return sourceTask{}, errSourceQueueFull
+		return sourceTask{}, errors.Join(errSourceQueueFull, err)
 	}
 	position := (q.head + q.count) % len(q.items)
 	q.items[position] = sourceTask{Index: index}
 	q.count++
 	// This is the actual insertion point, after the preallocated slot is written,
 	// while the consumer is excluded. It is never the planned wakeup timestamp.
-	q.items[position].Enqueued = sourceNow(q.origin)
+	mark, err := sourceNow(q.origin)
+	if err != nil {
+		// The consumer has not observed this slot. Keep failed clock reads from
+		// admitting an unmeasurable task or inventing an insertion timestamp.
+		q.items[position] = sourceTask{}
+		q.count--
+		q.mu.Unlock()
+		return sourceTask{}, err
+	}
+	q.items[position].Enqueued = mark
 	task := q.items[position]
 	q.highWater = max(q.highWater, q.count)
 	q.mu.Unlock()
@@ -91,11 +110,20 @@ func (q *sourceQueue) take(ctx context.Context) (sourceTask, bool, error) {
 		}
 		q.mu.Lock()
 		if q.count > 0 {
+			previousHead := q.head
 			task := q.items[q.head]
 			q.items[q.head] = sourceTask{}
 			q.head = (q.head + 1) % len(q.items)
 			q.count--
-			task.Dequeued = sourceNow(q.origin)
+			mark, err := sourceNow(q.origin)
+			if err != nil {
+				q.head = previousHead
+				q.items[q.head] = task
+				q.count++
+				q.mu.Unlock()
+				return sourceTask{}, false, err
+			}
+			task.Dequeued = mark
 			q.maxPendingWait = max(q.maxPendingWait, task.Dequeued.ElapsedNano-task.Enqueued.ElapsedNano)
 			q.inFlight = &task
 			q.mu.Unlock()
@@ -130,37 +158,39 @@ func (q *sourceQueue) close() {
 	q.notify()
 }
 
-func (q *sourceQueue) snapshot() map[string]any {
+func (q *sourceQueue) snapshot() (map[string]any, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	now := sourceNow(q.origin)
+	now, err := sourceNow(q.origin)
 	indices := make([]int, q.count)
 	for index := range indices {
 		indices[index] = q.items[(q.head+index)%len(q.items)].Index
 	}
 	oldest, inFlightAge, inFlight, inFlightIndex := int64(0), int64(0), 0, -1
-	if q.count > 0 {
+	if q.count > 0 && err == nil {
 		oldest = now.ElapsedNano - q.items[q.head].Enqueued.ElapsedNano
 	}
 	if q.inFlight != nil {
 		inFlight, inFlightIndex = 1, q.inFlight.Index
-		inFlightAge = now.ElapsedNano - q.inFlight.Dequeued.ElapsedNano
+		if err == nil {
+			inFlightAge = now.ElapsedNano - q.inFlight.Dequeued.ElapsedNano
+		}
 	}
 	return map[string]any{"meaning": "bounded benchmark input FIFO, not a production Store/transport/UI queue", "capacity": len(q.items),
 		"observedAt": now, "pending": q.count, "pendingIndices": indices, "inFlight": inFlight, "inFlightIndex": inFlightIndex,
 		"inFlightAgeMilliseconds": float64(inFlightAge) / 1e6, "oldestPendingAgeMilliseconds": float64(oldest) / 1e6,
 		"highWater": q.highWater, "maxOldestPendingAgeMilliseconds": float64(max(q.maxPendingWait, oldest)) / 1e6,
-		"closed": q.closed, "overflowCount": len(q.overflows), "overflows": append([]sourceOverflow{}, q.overflows...)}
+		"closed": q.closed, "overflowCount": len(q.overflows), "overflows": append([]sourceOverflow{}, q.overflows...)}, err
 }
 
 // A full queue invalidates the experiment; it cannot block or silently reshape
 // the independent source. Already admitted tasks remain available to the worker.
-func produceSource(ctx context.Context, start time.Time, count int, interval time.Duration,
+func produceSource(ctx context.Context, start int64, count int, interval time.Duration,
 	queue *sourceQueue, observe func(int, sourceTask, error)) error {
 	defer queue.close()
 	for index := 0; index < count; index++ {
-		if !waitUntil(ctx, start.Add(time.Duration(index)*interval)) {
-			return ctx.Err()
+		if err := waitUntilRaw(ctx, start+int64(time.Duration(index)*interval)); err != nil {
+			return err
 		}
 		if err := ctx.Err(); err != nil {
 			return err
@@ -177,30 +207,52 @@ func produceSource(ctx context.Context, start time.Time, count int, interval tim
 // Receipts follow the operations that actually happened. A cancellation after
 // dequeue is a failed completed task with no sent timestamp. Once commit returns
 // success, a later context cancellation cannot erase the accepted mutation.
-func executeSourceEvent(ctx context.Context, origin time.Time, event sourceEvent, prepare, commit func() error,
+func executeSourceEvent(ctx context.Context, origin clockObservation, event sourceEvent, prepare, commit func() error,
 	observe func(sourceEvent)) (sourceEvent, error) {
+	return executeSourceEventWithClock(ctx, event, prepare, commit, observe,
+		func() (sourceInstant, error) { return sourceNow(origin) })
+}
+
+func executeSourceEventWithClock(ctx context.Context, event sourceEvent, prepare, commit func() error,
+	observe func(sourceEvent), now func() (sourceInstant, error)) (sourceEvent, error) {
 	observe(event)
 	err := ctx.Err()
 	if err == nil {
-		mark := sourceNow(origin)
-		event.SentUnixNano, event.SentElapsedNanoseconds = mark.UnixNano, mark.ElapsedNano
-		observe(event)
-		err = prepare()
+		var mark sourceInstant
+		mark, err = now()
+		if err == nil {
+			event.SentUnixNano, event.SentElapsedNanoseconds, event.SentUptimeNanoseconds = mark.UnixNano, mark.ElapsedNano, mark.UptimeNanoseconds
+			observe(event)
+			err = prepare()
+		}
 	}
 	if err == nil {
-		mark := sourceNow(origin)
-		event.StoreUpdateStartedUnixNano, event.StoreUpdateStartedElapsedNanoseconds = mark.UnixNano, mark.ElapsedNano
-		observe(event)
-		err = commit()
+		var mark sourceInstant
+		mark, err = now()
+		if err == nil {
+			event.StoreUpdateStartedUnixNano, event.StoreUpdateStartedElapsedNanoseconds, event.StoreUpdateStartedUptimeNanoseconds = mark.UnixNano, mark.ElapsedNano, mark.UptimeNanoseconds
+			observe(event)
+			err = commit()
+			event.CommitSucceeded = err == nil
+		}
 	}
 	if err == nil {
-		mark := sourceNow(origin)
-		event.AcceptedUnixNano, event.AcceptedElapsedNanoseconds = mark.UnixNano, mark.ElapsedNano
-	} else {
+		var mark sourceInstant
+		mark, err = now()
+		if err == nil {
+			event.AcceptedUnixNano, event.AcceptedElapsedNanoseconds, event.AcceptedUptimeNanoseconds = mark.UnixNano, mark.ElapsedNano, mark.UptimeNanoseconds
+		} else {
+			err = fmt.Errorf("Store.Update succeeded but its accepted clock read failed: %w", err)
+		}
+	}
+	mark, clockErr := now()
+	if clockErr == nil {
+		event.CompletedUnixNano, event.CompletedElapsedNanoseconds, event.CompletedUptimeNanoseconds = mark.UnixNano, mark.ElapsedNano, mark.UptimeNanoseconds
+	}
+	err = errors.Join(err, clockErr)
+	if err != nil {
 		event.Error = err.Error()
 	}
-	mark := sourceNow(origin)
-	event.CompletedUnixNano, event.CompletedElapsedNanoseconds = mark.UnixNano, mark.ElapsedNano
 	observe(event)
 	return event, err
 }

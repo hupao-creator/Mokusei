@@ -34,21 +34,25 @@ type options struct {
 }
 
 type schedule struct {
-	SourceProtocolVersion     int     `json:"sourceProtocolVersion"`
-	SourceQueueCapacity       int     `json:"sourceQueueCapacity"`
-	WarmupStartUnixNano       int64   `json:"warmupStartUnixNano"`
-	FormalStartUnixNano       int64   `json:"formalStartUnixNano"`
-	FormalEndUnixNano         int64   `json:"formalEndUnixNano"`
-	WarmupSeconds             float64 `json:"warmupSeconds"`
-	FormalSeconds             float64 `json:"formalSeconds"`
-	SourceIntervalNanoseconds int64   `json:"sourceIntervalNanoseconds"`
+	clockEnvelope
+	SourceProtocolVersion        int     `json:"sourceProtocolVersion"`
+	SourceQueueCapacity          int     `json:"sourceQueueCapacity"`
+	WarmupStartUnixNano          int64   `json:"warmupStartUnixNano"`
+	FormalStartUnixNano          int64   `json:"formalStartUnixNano"`
+	FormalEndUnixNano            int64   `json:"formalEndUnixNano"`
+	WarmupStartUptimeNanoseconds int64   `json:"warmupStartUptimeNanoseconds"`
+	FormalStartUptimeNanoseconds int64   `json:"formalStartUptimeNanoseconds"`
+	FormalEndUptimeNanoseconds   int64   `json:"formalEndUptimeNanoseconds"`
+	WarmupSeconds                float64 `json:"warmupSeconds"`
+	FormalSeconds                float64 `json:"formalSeconds"`
+	SourceIntervalNanoseconds    int64   `json:"sourceIntervalNanoseconds"`
 }
 
 type benchmark struct {
 	options      options
 	db           *store.Store
 	adapter      plugin.SessionStateAdapter
-	origin       time.Time
+	origin       clockObservation
 	ctx          context.Context
 	cancel       context.CancelFunc
 	mu           sync.Mutex
@@ -113,7 +117,11 @@ func run() (returned error) {
 	defer cancel()
 	ctx, lifetimeCancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer lifetimeCancel()
-	b := &benchmark{options: o, ctx: ctx, cancel: lifetimeCancel, origin: time.Now(), state: "idle",
+	origin, err := observeClock()
+	if err != nil {
+		return err
+	}
+	b := &benchmark{options: o, ctx: ctx, cancel: lifetimeCancel, origin: origin, state: "idle",
 		boundaries: make(map[string]boundary), errors: []string{}, warmupReady: make(chan struct{}), finish: make(chan struct{})}
 	p, err := profile.Resolve(profile.Options{DataDir: filepath.Join(root, "data"), HomeDir: root})
 	if err != nil {
@@ -192,13 +200,17 @@ func run() (returned error) {
 	if err != nil {
 		return err
 	}
-	if err := writeJSON(o.ready, map[string]any{
+	ready := map[string]any{
 		"schemaVersion": 1, "pid": os.Getpid(), "parentPID": o.parentPID, "executable": executable,
 		"sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
 		"connection": server.Connection, "controlURL": "http://" + listener.Addr().String(),
 		"controlToken": server.Connection.Token, "condition": o.condition, "n": cardCount, "k": activeCount,
 		"seed": o.seed, "expectedCards": b.expected,
-	}); err != nil {
+	}
+	if err := b.attachClock(ready); err != nil {
+		return err
+	}
+	if err := writeJSON(o.ready, ready); err != nil {
 		return err
 	}
 	go b.watchParent()
@@ -262,10 +274,20 @@ func (b *benchmark) control(token string) http.Handler {
 				value = map[string]any{"error": "source already started"}
 				break
 			}
-			start := time.Now().Add(time.Second)
-			plan := schedule{SourceProtocolVersion: sourceProtocolVersion, SourceQueueCapacity: sourceQueueCapacity,
-				WarmupStartUnixNano: start.UnixNano(), FormalStartUnixNano: start.Add(5 * time.Second).UnixNano(),
-				FormalEndUnixNano: start.Add(25 * time.Second).UnixNano(), WarmupSeconds: 5, FormalSeconds: 20,
+			envelope, err := b.observeEnvelope()
+			if err != nil {
+				b.mu.Unlock()
+				b.fail(err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				value = map[string]any{"error": err.Error()}
+				break
+			}
+			start := envelope.ClockObservation.UptimeNanoseconds + envelope.ClockObservation.UncertaintyNanoseconds + int64(time.Second)
+			plan := schedule{clockEnvelope: envelope, SourceProtocolVersion: sourceProtocolVersion, SourceQueueCapacity: sourceQueueCapacity,
+				WarmupStartUptimeNanoseconds: start, FormalStartUptimeNanoseconds: start + int64(5*time.Second),
+				FormalEndUptimeNanoseconds: start + int64(25*time.Second),
+				WarmupStartUnixNano:        b.origin.diagnosticUnix(start), FormalStartUnixNano: b.origin.diagnosticUnix(start + int64(5*time.Second)),
+				FormalEndUnixNano: b.origin.diagnosticUnix(start + int64(25*time.Second)), WarmupSeconds: 5, FormalSeconds: 20,
 				SourceIntervalNanoseconds: int64(sourceInterval)}
 			b.schedule, b.state = &plan, "scheduled"
 			count := 0
@@ -274,9 +296,10 @@ func (b *benchmark) control(token string) http.Handler {
 			}
 			b.events = make([]sourceEvent, count)
 			for index := range b.events {
-				deadline := start.Add(time.Duration(index) * sourceInterval)
+				deadline := start + int64(time.Duration(index)*sourceInterval)
 				b.events[index] = sourceEvent{Index: index, CardID: fmt.Sprintf("card-%d", index%activeCount), Sequence: index / activeCount,
-					PlannedUnixNano: deadline.UnixNano(), PlannedElapsedNanoseconds: deadline.Sub(b.origin).Nanoseconds()}
+					PlannedUnixNano: b.origin.diagnosticUnix(deadline), PlannedElapsedNanoseconds: deadline - b.origin.UptimeNanoseconds,
+					PlannedUptimeNanoseconds: deadline}
 			}
 			b.inputQueue = newSourceQueue(b.origin, sourceQueueCapacity)
 			b.workers.Add(3)
@@ -299,7 +322,18 @@ func (b *benchmark) control(token string) http.Handler {
 				"currentSeqs":    sequences, "errors": append([]string{}, b.errors...)}
 			b.mu.Unlock()
 			if queue != nil {
-				value.(map[string]any)["queue"] = queue.snapshot()
+				snapshot, err := queue.snapshot()
+				value.(map[string]any)["queue"] = snapshot
+				if err != nil {
+					b.fail(err.Error())
+					value.(map[string]any)["errors"] = append(value.(map[string]any)["errors"].([]string), err.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			}
+			if err := b.attachClock(value.(map[string]any)); err != nil {
+				b.fail(err.Error())
+				value.(map[string]any)["errors"] = append(value.(map[string]any)["errors"].([]string), err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 		case "GET /result":
 			b.mu.Lock()
@@ -337,18 +371,7 @@ func (b *benchmark) watchParent() {
 	}
 }
 
-func waitUntil(ctx context.Context, deadline time.Time) bool {
-	timer := time.NewTimer(max(0, time.Until(deadline)))
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func (b *benchmark) measure(start time.Time) {
+func (b *benchmark) measure(start int64) {
 	defer b.workers.Done()
 	for _, mark := range []struct {
 		name, state string
@@ -356,11 +379,13 @@ func (b *benchmark) measure(start time.Time) {
 	}{
 		{"warmupStart", "warmup", 0}, {"formalStart", "formal", 5 * time.Second}, {"formalEnd", "tail", 25 * time.Second},
 	} {
-		deadline := start.Add(mark.offset)
-		if !waitUntil(b.ctx, deadline) {
+		deadline := start + int64(mark.offset)
+		if err := waitUntilRaw(b.ctx, deadline); err != nil {
+			b.fail("CPU boundary wait: " + err.Error())
+			b.cancel()
 			return
 		}
-		measured, err := sampleBoundary(b.origin, deadline.UnixNano())
+		measured, err := sampleBoundary(b.origin, deadline)
 		if err != nil {
 			b.fail(err.Error())
 			b.cancel()
@@ -375,7 +400,7 @@ func (b *benchmark) measure(start time.Time) {
 	}
 }
 
-func (b *benchmark) produce(start time.Time) {
+func (b *benchmark) produce(start int64) {
 	defer b.workers.Done()
 	defer func() {
 		b.inputQueue.close()
@@ -400,6 +425,7 @@ func (b *benchmark) produce(start time.Time) {
 		}
 		b.events[index].EnqueuedUnixNano = task.Enqueued.UnixNano
 		b.events[index].EnqueuedElapsedNanoseconds = task.Enqueued.ElapsedNano
+		b.events[index].EnqueuedUptimeNanoseconds = task.Enqueued.UptimeNanoseconds
 	})
 	b.mu.Lock()
 	b.enqueueDone = err == nil
@@ -420,6 +446,7 @@ func (b *benchmark) consume() {
 		// contain identities/sequences only, never an obsolete session snapshot.
 		event.EnqueuedUnixNano, event.EnqueuedElapsedNanoseconds = task.Enqueued.UnixNano, task.Enqueued.ElapsedNano
 		event.DequeuedUnixNano, event.DequeuedElapsedNanoseconds = task.Dequeued.UnixNano, task.Dequeued.ElapsedNano
+		event.EnqueuedUptimeNanoseconds, event.DequeuedUptimeNanoseconds = task.Enqueued.UptimeNanoseconds, task.Dequeued.UptimeNanoseconds
 		var updated model.ThreadRecord
 		_, err := executeSourceEvent(b.ctx, b.origin, event, func() error {
 			var err error
@@ -431,7 +458,7 @@ func (b *benchmark) consume() {
 		}, func(receipt sourceEvent) {
 			b.mu.Lock()
 			b.events[task.Index] = receipt
-			if receipt.AcceptedUnixNano != 0 {
+			if receipt.CommitSucceeded {
 				b.records[task.Index%activeCount] = updated
 			}
 			b.mu.Unlock()
@@ -441,9 +468,9 @@ func (b *benchmark) consume() {
 	b.mu.Lock()
 	allAccepted := true
 	for _, event := range b.events {
-		allAccepted = allAccepted && event.AcceptedUnixNano != 0
+		allAccepted = allAccepted && event.CommitSucceeded
 	}
-	b.sourceDone = err == nil && allAccepted
+	b.sourceDone = allAccepted
 	b.mu.Unlock()
 	if err != nil {
 		b.fail("source worker: " + err.Error())

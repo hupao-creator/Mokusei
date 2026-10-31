@@ -28,6 +28,8 @@ PRODUCT_PATHS = ["app/macos/Sources", "app/macos/Plugins", "app/macos/Package.sw
 SWIFT_FLAGS = ["-O", "-g", "-enable-testing"]
 SOURCE_PROTOCOL_VERSION = 2
 SOURCE_QUEUE_CAPACITY = 256
+MEASUREMENT_CLOCK_VERSION = 2
+MEASUREMENT_CLOCK_ID = "darwin.CLOCK_UPTIME_RAW.ns"
 
 # Select only modes already offered by the runner's real display. No virtual
 # display or offscreen window may make the four-card visibility check pass.
@@ -361,8 +363,124 @@ def object_value(value):
     return value if isinstance(value, dict) else {}
 
 
-def validate_source_v2(core, condition):
-    """Recompute the input contract; never reinterpret historical v1 runs."""
+def validate_clock_identity(value, label, *, clock_id=MEASUREMENT_CLOCK_ID):
+    if (not isinstance(value, dict) or not integer(value.get("measurementClockVersion")) or
+            value.get("measurementClockVersion") != MEASUREMENT_CLOCK_VERSION or
+            value.get("measurementClockID") != clock_id):
+        return [label + " must identify measurement clock v2 and " + clock_id]
+    return []
+
+
+def validate_measurement_clock(result):
+    """Check saved cross-process/raw-clock evidence without consulting UTC."""
+    reasons = []
+    core = object_value(result.get("core"))
+    clock = object_value(result.get("clock"))
+    schedule = object_value(core.get("schedule"))
+    for label, value in (("UI", result), ("comparison identity", result.get("comparisonIdentity")),
+                         ("Core", core), ("source schedule", schedule)):
+        reasons.extend(validate_clock_identity(value, label))
+    checks = object_value(result.get("measurementClockChecks"))
+    stages = ("ready", "start", "status", "result", "final")
+    if any(checks.get(stage) is not True for stage in stages):
+        reasons.append("Measurement clock was not verified at every ready/start/status/result/final stage")
+    origin = core.get("clockOriginUptimeNanoseconds")
+    observations = result.get("clockObservations")
+    if not isinstance(observations, list) or not observations or not all(isinstance(row, dict) for row in observations):
+        reasons.append("Cross-process raw-clock request brackets are missing")
+    else:
+        if not set(stages).issubset({row.get("stage") for row in observations if isinstance(row.get("stage"), str)}):
+            reasons.append("Cross-process raw-clock request brackets do not cover all five stages")
+        for index, row in enumerate(observations):
+            reasons.extend(validate_clock_identity(row, f"clock observation {index}"))
+            mark = object_value(row.get("clockObservation"))
+            before, after = row.get("startedUptimeNanoseconds"), row.get("finishedUptimeNanoseconds")
+            at, uncertainty = mark.get("uptimeNanoseconds"), mark.get("uncertaintyNanoseconds")
+            if (not all(integer(value) for value in (before, after, at, uncertainty, origin)) or
+                    before <= 0 or after < before or origin <= 0 or at < origin or
+                    not 0 <= uncertainty <= 5_000_000 or row.get("clockOriginUptimeNanoseconds") != origin or
+                    row.get("maximumAllowedUncertaintyNanoseconds") != 5_000_000 or
+                    at + uncertainty < before or at - uncertainty > after or row.get("valid") is not True):
+                reasons.append(f"Cross-process raw-clock observation {index} does not fit its recorded request bracket")
+    raw_checks = clock.get("rawDispatchChecks")
+    if not isinstance(raw_checks, list) or len(raw_checks) < 2 or not all(isinstance(row, dict) for row in raw_checks):
+        reasons.append("Raw/Dispatch clock checks are missing before and after the formal interval")
+    else:
+        for stage, boundary_name, direction in (("beforeSource", "warmupStart", "before"),
+                                                 ("afterCPUWindows", "tailObservationEnd", "after")):
+            matches = [row for row in raw_checks if row.get("stage") == stage]
+            boundary = object_value(clock.get(boundary_name)).get("uptimeNanoseconds")
+            if len(matches) != 1 or not integer(boundary):
+                reasons.append("Raw/Dispatch evidence is missing the unique " + stage + " check")
+            else:
+                at = matches[0].get("rawAfterUptimeNanoseconds" if direction == "before" else "rawBeforeUptimeNanoseconds")
+                if not integer(at) or (at > boundary if direction == "before" else at < boundary):
+                    reasons.append("Raw/Dispatch " + stage + " check does not bracket the CPU windows")
+        for index, row in enumerate(raw_checks):
+            before, after, dispatch = (row.get(key) for key in
+                ("rawBeforeUptimeNanoseconds", "rawAfterUptimeNanoseconds", "dispatchUptimeNanoseconds"))
+            if not all(integer(value) for value in (before, after, dispatch)) or before <= 0 or after < before:
+                reasons.append(f"Raw/Dispatch clock check {index} has invalid samples")
+                continue
+            midpoint = before + (after - before) // 2
+            outside = max(0, before - dispatch, dispatch - after)
+            if (row.get("uncertaintyNanoseconds") != (after - before + 1) // 2 or
+                    row.get("offsetNanoseconds") != dispatch - midpoint or row.get("outsideBracketNanoseconds") != outside or
+                    row.get("maximumAllowedUncertaintyNanoseconds") != 5_000_000 or
+                    (after - before + 1) // 2 > 5_000_000 or outside > 5_000_000 or row.get("valid") is not True):
+                reasons.append(f"Raw/Dispatch clock check {index} exceeds or misreports the 5ms agreement budget")
+    anchors = [object_value(clock.get(key)) for key in ("anchor", "endAnchor")]
+    if (not all(all(integer(anchor.get(key)) for key in
+                ("uptimeNanoseconds", "unixNanoseconds", "uncertaintyNanoseconds")) and
+                anchor["uptimeNanoseconds"] > 0 and 0 <= anchor["uncertaintyNanoseconds"] <= 5_000_000 for anchor in anchors) or
+            anchors[1].get("uptimeNanoseconds", 0) <= anchors[0].get("uptimeNanoseconds", 0)):
+        reasons.append("Start/end diagnostic UTC/raw anchors are missing or malformed")
+    # UTC can step or slew in either direction. It is intentionally absent from
+    # every alignment, duration, source-validity and model-latency calculation.
+    for name in ("warmupStart", "formalStart", "formalEnd", "tailObservationEnd"):
+        sample = object_value(clock.get(name))
+        planned, actual = sample.get("plannedUptimeNanoseconds"), sample.get("uptimeNanoseconds")
+        if not all(integer(value) and value > 0 for value in (planned, actual)):
+            reasons.append(name + " UI raw CPU boundary is missing")
+            continue
+        offset = (actual - planned) / 1e6
+        if (sample.get("status") != "captured" or not -1 <= offset <= 50 or
+                not numeric(sample.get("boundaryOffsetMilliseconds")) or
+                abs(sample["boundaryOffsetMilliseconds"] - offset) > 1e-6):
+            reasons.append(name + " UI CPU boundary violates its unchanged -1...50ms raw-clock budget")
+        dispatch_deadline = sample.get("dispatchDeadlineUptimeNanoseconds")
+        if (not integer(dispatch_deadline) or
+                sample.get("deadlineRoundTripOffsetNanoseconds") != dispatch_deadline - planned or
+                abs(dispatch_deadline - planned) > 5_000_000):
+            reasons.append(name + " Dispatch deadline does not represent the declared raw-clock deadline")
+        if name != "tailObservationEnd" and (schedule.get(name + "UptimeNanoseconds") != planned or
+                object_value(clock.get("schedule")).get(name + "UptimeNanoseconds") != planned):
+            reasons.append(name + " CPU/source schedules do not share the same raw deadline")
+    boundaries = object_value(core.get("boundaries"))
+    for name in ("warmupStart", "formalStart", "formalEnd"):
+        mark = object_value(boundaries.get(name))
+        planned, actual = mark.get("plannedUptimeNanoseconds"), mark.get("actualUptimeNanoseconds")
+        if (not all(integer(value) and value > 0 for value in (planned, actual)) or
+                schedule.get(name + "UptimeNanoseconds") != planned or abs(actual - planned) > 50_000_000):
+            reasons.append(name + " Core CPU boundary violates its raw-clock schedule or unchanged 50ms budget")
+    for label, cpu, start, end in (
+            ("UI formal", object_value(result.get("ui")), clock.get("formalStart"), clock.get("formalEnd")),
+            ("UI full", object_value(object_value(result.get("uiWindows")).get("sourceThroughTailObservation")),
+             clock.get("warmupStart"), clock.get("tailObservationEnd")),
+            ("UI tail", object_value(object_value(result.get("uiWindows")).get("tailObservation")),
+             clock.get("formalEnd"), clock.get("tailObservationEnd")),
+            ("Core formal", object_value(core.get("cpu")), boundaries.get("formalStart"), boundaries.get("formalEnd"))):
+        field = "actualUptimeNanoseconds" if label.startswith("Core") else "uptimeNanoseconds"
+        start, end = object_value(start), object_value(end)
+        first, last = start.get(field), end.get(field)
+        if (not all(integer(value) for value in (first, last)) or last <= first or
+                not numeric(cpu.get("wallSeconds")) or abs(cpu["wallSeconds"] - (last - first) / 1e9) > 1e-6):
+            reasons.append(label + " CPU denominator does not match the actual raw-clock samples")
+    return reasons
+
+
+def validate_source_v2(core, condition, *, clock_id=MEASUREMENT_CLOCK_ID):
+    """Recompute source v2 with clock v2; historical runs keep their own verdicts."""
     reasons = []
     expected = 0 if condition == "R0" else 1000
     if not isinstance(core, dict):
@@ -371,6 +489,7 @@ def validate_source_v2(core, condition):
     if malformed_containers:
         return ["Core source contract has missing/non-object fields: " + ", ".join(malformed_containers)]
     for label, value in (("Core", core), ("schedule", core.get("schedule", {}))):
+        reasons.extend(validate_clock_identity(value, label, clock_id=clock_id))
         if (not integer(value.get("sourceProtocolVersion")) or value.get("sourceProtocolVersion") != SOURCE_PROTOCOL_VERSION or
                 not integer(value.get("sourceQueueCapacity")) or value.get("sourceQueueCapacity") != SOURCE_QUEUE_CAPACITY):
             reasons.append(label + " must identify source protocol v2 and queue capacity 256")
@@ -382,35 +501,55 @@ def validate_source_v2(core, condition):
     if not isinstance(events, list) or len(events) != expected or not all(isinstance(event, dict) for event in events):
         return reasons + ["The complete planned source-event inventory is missing"]
     stage_fields = ("planned", "enqueued", "dequeued", "sent", "storeUpdateStarted", "accepted", "completed")
+    origin = core.get("clockOriginUptimeNanoseconds")
+    if not integer(origin) or origin <= 0:
+        return reasons + ["Core shared-clock origin is missing or invalid"]
+    if core["schedule"].get("clockOriginUptimeNanoseconds") != origin:
+        reasons.append("Source schedule and Core result have different shared-clock origins")
     malformed = []
     for index, event in enumerate(events):
         if (not integer(event.get("index")) or not integer(event.get("seq")) or
                 event.get("index") != index or event.get("cardID") != f"card-{index % 4}" or event.get("seq") != index // 4):
             malformed.append(index)
             continue
-        values = [event.get(stage + suffix) for stage in stage_fields for suffix in ("UnixNano", "ElapsedNanoseconds")]
+        values = [event.get(stage + suffix) for stage in stage_fields for suffix in ("UptimeNanoseconds", "ElapsedNanoseconds")]
         if not all(integer(value) and value >= 0 for value in values):
             malformed.append(index)
             continue
-        if any(bool(event[stage + "UnixNano"]) != bool(event[stage + "ElapsedNanoseconds"]) for stage in stage_fields):
+        if any(not integer(event.get(stage + "UnixNano")) or
+               bool(event[stage + "UptimeNanoseconds"]) != bool(event[stage + "ElapsedNanoseconds"]) or
+               (event[stage + "UptimeNanoseconds"] and
+                event[stage + "UptimeNanoseconds"] - origin != event[stage + "ElapsedNanoseconds"])
+               for stage in stage_fields):
             malformed.append(index)
             continue
-        observed = [event[stage + "ElapsedNanoseconds"] for stage in stage_fields if event[stage + "ElapsedNanoseconds"]]
+        observed = [event[stage + "UptimeNanoseconds"] for stage in stage_fields if event[stage + "UptimeNanoseconds"]]
         # A cancelled task can have dequeued/completed receipts without sent or
         # Store.Update. Accepted work must have every predecessor stage.
-        if observed != sorted(observed) or not event["plannedUnixNano"] or (
-                event["acceptedUnixNano"] and not all(event[stage + "UnixNano"] for stage in stage_fields)):
+        if not isinstance(event.get("commitSucceeded"), bool) or (
+                event["acceptedUptimeNanoseconds"] and event.get("commitSucceeded") is not True) or (
+                event.get("commitSucceeded") is True and not event["acceptedUptimeNanoseconds"]):
+            malformed.append(index)
+        elif observed != sorted(observed) or not event["plannedUptimeNanoseconds"] or (
+                event["acceptedUptimeNanoseconds"] and not all(event[stage + "UptimeNanoseconds"] for stage in stage_fields)):
             malformed.append(index)
     if malformed:
         return reasons + ["Malformed or non-monotonic source receipts at indices " + str(malformed)]
-    totals = {stage: sum(event[stage + "UnixNano"] > 0 for event in events)
+    publications = core.get("publications")
+    if not isinstance(publications, list) or not all(isinstance(row, dict) and
+            integer(row.get("publishedUptimeNanoseconds")) and integer(row.get("publishedElapsedNanoseconds")) and
+            row["publishedUptimeNanoseconds"] >= origin and
+            row["publishedUptimeNanoseconds"] - origin == row["publishedElapsedNanoseconds"]
+            for row in publications):
+        return reasons + ["Publication receipts do not use the declared shared-clock origin"]
+    totals = {stage: sum(event[stage + "UptimeNanoseconds"] > 0 for event in events)
               for stage in ("enqueued", "dequeued", "sent", "accepted", "completed")}
     for stage in ("planned", "enqueued", "dequeued", "sent", "accepted"):
         actual = expected if stage == "planned" else totals[stage]
         if not integer(source.get(stage)) or source.get(stage) != actual or actual != expected:
             reasons.append(f"Source {stage} does not match the prescribed/observed event count")
-    pending = [event["index"] for event in events if event["enqueuedUnixNano"] and not event["dequeuedUnixNano"]]
-    in_flight = [event["index"] for event in events if event["dequeuedUnixNano"] and not event["completedUnixNano"]]
+    pending = [event["index"] for event in events if event["enqueuedUptimeNanoseconds"] and not event["dequeuedUptimeNanoseconds"]]
+    in_flight = [event["index"] for event in events if event["dequeuedUptimeNanoseconds"] and not event["completedUptimeNanoseconds"]]
     if not all(integer(queue.get(key)) for key in ("capacity", "pending", "inFlight", "inFlightIndex", "overflowCount", "highWater")):
         reasons.append("Input FIFO counters must be explicit JSON integers")
     if (queue.get("capacity") != SOURCE_QUEUE_CAPACITY or queue.get("closed") is not True or
@@ -424,8 +563,12 @@ def validate_source_v2(core, condition):
         reasons.append("Final input FIFO and event receipts do not conserve admitted work")
     if not integer(queue.get("highWater")) or not 0 <= queue["highWater"] <= SOURCE_QUEUE_CAPACITY:
         reasons.append("Input FIFO high-water receipt is invalid")
+    observed_at = object_value(queue.get("observedAt"))
+    if (not integer(observed_at.get("uptimeNanoseconds")) or not integer(observed_at.get("elapsedNanoseconds")) or
+            observed_at["uptimeNanoseconds"] - origin != observed_at["elapsedNanoseconds"]):
+        reasons.append("Input FIFO observation is not in the declared shared-clock domain")
     for name, stage, is_gate in (("enqueueDeadline", "enqueued", True), ("legacySentDeadline", "sent", False)):
-        observed = [event for event in events if event[stage + "UnixNano"]]
+        observed = [event for event in events if event[stage + "UptimeNanoseconds"]]
         late = [event["index"] for event in observed if
                 event[stage + "ElapsedNanoseconds"] - event["plannedElapsedNanoseconds"] > 50_000_000]
         maximum = max([0] + [event[stage + "ElapsedNanoseconds"] - event["plannedElapsedNanoseconds"] for event in observed]) / 1e6
@@ -446,11 +589,11 @@ def validate_source_v2(core, condition):
         if is_gate and late:
             reasons.append("Actual source enqueue exceeded the unchanged 50ms deadline at indices " + str(late))
     schedule = core.get("schedule", {})
-    start = schedule.get("warmupStartUnixNano")
-    if (not integer(start) or schedule.get("formalStartUnixNano") != start + 5_000_000_000 or
-            schedule.get("formalEndUnixNano") != start + 25_000_000_000 or schedule.get("warmupSeconds") != 5 or
+    start = schedule.get("warmupStartUptimeNanoseconds")
+    if (not integer(start) or schedule.get("formalStartUptimeNanoseconds") != start + 5_000_000_000 or
+            schedule.get("formalEndUptimeNanoseconds") != start + 25_000_000_000 or schedule.get("warmupSeconds") != 5 or
             schedule.get("formalSeconds") != 20 or schedule.get("sourceIntervalNanoseconds") != 25_000_000 or
-            any(event["plannedUnixNano"] != start + event["index"] * 25_000_000 or
+            any(event["plannedUptimeNanoseconds"] != start + event["index"] * 25_000_000 or
                 event["plannedElapsedNanoseconds"] != events[0]["plannedElapsedNanoseconds"] + event["index"] * 25_000_000
                 for event in events)):
         reasons.append("Independent source schedule differs from the fixed 5+20 seconds and 25ms interval")
@@ -459,16 +602,24 @@ def validate_source_v2(core, condition):
         if not isinstance(window, dict):
             reasons.append(phase + " Core count window is missing or not an object")
             continue
-        before, after = window.get("startUnixNano"), window.get("endUnixNano")
+        before, after = window.get("startUptimeNanoseconds"), window.get("endUptimeNanoseconds")
         if not integer(before) or not integer(after) or after < before:
             reasons.append(phase + " Core count window is missing")
             continue
+        first, last = {"warmup": ("warmupStart", "formalStart"), "formal": ("formalStart", "formalEnd"),
+                       "tail": ("formalEnd", "observationEnd")}[phase]
+        boundaries = object_value(core.get("boundaries"))
+        if (before != object_value(boundaries.get(first)).get("actualUptimeNanoseconds") or
+                after != object_value(boundaries.get(last)).get("actualUptimeNanoseconds")):
+            reasons.append(phase + " Core count window differs from its actual CPU boundaries")
         for stage in ("planned", "enqueued", "dequeued", "sent", "accepted"):
-            actual = sum(before <= event[stage + "UnixNano"] < after for event in events)
+            actual = sum(before <= event[stage + "UptimeNanoseconds"] < after for event in events)
             if not integer(window.get(stage)) or window.get(stage) != actual:
                 reasons.append(f"{phase} {stage} count does not match actual timestamp boundaries")
             if stage in ("enqueued", "dequeued", "sent") and (not integer(source.get(prefix + stage.capitalize())) or source.get(prefix + stage.capitalize()) != actual):
                 reasons.append(f"source.{prefix + stage.capitalize()} does not match actual timestamp boundaries")
+        if window.get("publishes") != sum(before <= row["publishedUptimeNanoseconds"] < after for row in publications):
+            reasons.append(phase + " publication count does not match raw-clock boundaries")
     return reasons
 
 
@@ -510,6 +661,7 @@ def validate_result(result, condition, seconds):
         elif abs(values[2] - 100 * values[0] / values[1]) > 0.02:
             reasons.append(label + " CPU percentage does not match CPU seconds / actual wall seconds")
     reasons.extend(validate_source_v2(core, condition))
+    reasons.extend(validate_measurement_clock(result))
     return list(dict.fromkeys(map(str, reasons)))
 
 
@@ -532,9 +684,10 @@ def source_flow(result):
     """Link exact (card,seq) receipts; skipped intermediate seqs have no latency."""
     result = object_value(result)
     core = object_value(result.get("core"))
-    summary = {"available": integer(core.get("sourceProtocolVersion")) and core.get("sourceProtocolVersion") == SOURCE_PROTOCOL_VERSION,
+    summary = {"available": integer(core.get("sourceProtocolVersion")) and core.get("sourceProtocolVersion") == SOURCE_PROTOCOL_VERSION
+                          and not validate_clock_identity(core, "Core") and not validate_clock_identity(result, "UI"),
                "meaning": "All supplied events, including warmup and tail; exact published seqs only. "
-                          "Core intervals use monotonic receipts; cross-process model time uses the recorded UTC anchor. "
+                          "Core and cross-process model intervals use the same OS raw monotonic nanoseconds; UTC is diagnostic only. "
                           "A coalesced event is covered by a higher published seq, not individually published/installed."}
     if not summary["available"]:
         return summary
@@ -543,20 +696,20 @@ def source_flow(result):
     if (not isinstance(events, list) or not all(isinstance(event, dict) and integer(event.get("index")) and
             integer(event.get("seq")) and isinstance(event.get("cardID"), str) for event in events) or
             not isinstance(publications, list) or not all(isinstance(item, dict) and
-            all(integer(item.get(key)) and item[key] > 0 for key in ("revision", "publishedUnixNano", "publishedElapsedNanoseconds")) and
+            all(integer(item.get(key)) and item[key] > 0 for key in ("revision", "publishedUptimeNanoseconds", "publishedElapsedNanoseconds")) and
             isinstance(item.get("cardIDs"), list) and isinstance(item.get("seqs"), list) and
             len(item["cardIDs"]) == len(item["seqs"]) and all(isinstance(card, str) for card in item["cardIDs"]) and
             all(integer(seq) for seq in item["seqs"]) for item in publications) or
             not isinstance(records, list) or not all(isinstance(record, dict) and
-            all(integer(record.get(key)) for key in ("catalogRevision", "unixNanoseconds", "uptimeNanoseconds")) and
+            all(integer(record.get(key)) for key in ("catalogRevision", "uptimeNanoseconds")) and
             isinstance(record.get("sequences"), list) for record in records)):
         summary.update(available=False, unavailableReason="Incomplete or malformed source/publication/model trace; raw result retained")
         return summary
     by_revision = {}
     for record in records:
-        if record.get("kind") == "mutation" and integer(record.get("catalogRevision")) and numeric(record.get("unixNanoseconds")):
+        if record.get("kind") == "mutation" and integer(record.get("catalogRevision")) and numeric(record.get("uptimeNanoseconds")):
             prior = by_revision.get(record["catalogRevision"])
-            if prior is None or prior["unixNanoseconds"] > record["unixNanoseconds"]:
+            if prior is None or prior["uptimeNanoseconds"] > record["uptimeNanoseconds"]:
                 by_revision[record["catalogRevision"]] = record
     exact, per_card = {}, {}
     for publication in publications:
@@ -575,14 +728,14 @@ def source_flow(result):
         published = exact.get((card, seq), [])
         if published:
             counts["exactPublished"] += 1
-            first = min(published, key=lambda item: item["publishedElapsedNanoseconds"])
-            row["firstExactPublication"] = {"catalogRevision": first["revision"], "unixNanoseconds": first["publishedUnixNano"],
-                                             "elapsedNanoseconds": first["publishedElapsedNanoseconds"]}
-            for metric, field in (("plannedToPublicationMilliseconds", "plannedElapsedNanoseconds"),
-                                  ("enqueueToPublicationMilliseconds", "enqueuedElapsedNanoseconds"),
-                                  ("acceptedToPublicationMilliseconds", "acceptedElapsedNanoseconds")):
+            first = min(published, key=lambda item: item["publishedUptimeNanoseconds"])
+            row["firstExactPublication"] = {"catalogRevision": first["revision"], "diagnosticUnixNanoseconds": first.get("publishedUnixNano"),
+                "uptimeNanoseconds": first["publishedUptimeNanoseconds"], "elapsedNanoseconds": first["publishedElapsedNanoseconds"]}
+            for metric, field in (("plannedToPublicationMilliseconds", "plannedUptimeNanoseconds"),
+                                  ("enqueueToPublicationMilliseconds", "enqueuedUptimeNanoseconds"),
+                                  ("acceptedToPublicationMilliseconds", "acceptedUptimeNanoseconds")):
                 if numeric(event.get(field)) and event[field] > 0:
-                    value = (first["publishedElapsedNanoseconds"] - event[field]) / 1e6
+                    value = (first["publishedUptimeNanoseconds"] - event[field]) / 1e6
                     row[metric] = value
                     metrics[metric].append(value)
             matches = []
@@ -594,29 +747,29 @@ def source_flow(result):
                     matches.append(record)
             if matches:
                 counts["exactInstalled"] += 1
-                installed = min(matches, key=lambda item: item["unixNanoseconds"])
+                installed = min(matches, key=lambda item: item["uptimeNanoseconds"])
                 row["classification"] = "exactPublishedAndInstalled"
                 row["firstExactModelInstallation"] = {"catalogRevision": installed["catalogRevision"],
-                    "unixNanoseconds": installed["unixNanoseconds"], "uptimeNanoseconds": installed["uptimeNanoseconds"]}
-                for metric, field in (("enqueueToModelInstallMilliseconds", "enqueuedUnixNano"),
-                                      ("plannedToModelInstallMilliseconds", "plannedUnixNano")):
+                    "estimatedUnixNanoseconds": installed.get("estimatedUnixNanoseconds"), "uptimeNanoseconds": installed["uptimeNanoseconds"]}
+                for metric, field in (("enqueueToModelInstallMilliseconds", "enqueuedUptimeNanoseconds"),
+                                      ("plannedToModelInstallMilliseconds", "plannedUptimeNanoseconds")):
                     if numeric(event.get(field)) and event[field] > 0:
-                        value = (installed["unixNanoseconds"] - event[field]) / 1e6
+                        value = (installed["uptimeNanoseconds"] - event[field]) / 1e6
                         row[metric] = value
                         metrics[metric].append(value)
             else:
                 row["classification"] = "exactPublishedWithoutMatchingInstallation"
-        elif not event.get("enqueuedUnixNano"):
+        elif not event.get("enqueuedUptimeNanoseconds"):
             counts["notEnqueued"] += 1
             row["classification"] = "notEnqueued"
-        elif not event.get("acceptedUnixNano"):
+        elif event.get("commitSucceeded") is not True:
             counts["enqueuedUnaccepted"] += 1
             row["classification"] = "enqueuedUnaccepted"
         else:
             covering = [(newer, publication) for newer, publication in per_card.get(card, []) if newer > seq]
             if covering:
                 counts["coalescedBeforePublication"] += 1
-                newer, publication = min(covering, key=lambda item: item[1]["publishedElapsedNanoseconds"])
+                newer, publication = min(covering, key=lambda item: item[1]["publishedUptimeNanoseconds"])
                 row.update(classification="coalescedBeforePublication", coveredBySequence=newer,
                            coveredByPublicationRevision=publication["revision"])
             else:
@@ -636,7 +789,10 @@ def model_flow(result):
     records = [record for record in records if isinstance(record, dict)] if isinstance(records, list) else []
     core = object_value(result.get("core"))
     end = object_value(object_value(result.get("clock")).get("formalEnd")).get("uptimeNanoseconds")
-    summary = {"meaning": "Model catalog installation, not queue depth, pixels or frame rate"}
+    summary = {"meaning": "Model catalog installation on shared OS raw clock, not queue depth, pixels or frame rate"}
+    if validate_clock_identity(core, "Core") or validate_clock_identity(result, "UI"):
+        summary["unavailableReason"] = "Requires measurement clock v2; historical UTC-mapped results are not reinterpreted"
+        return summary
     if not numeric(end):
         return summary
     before = [record for record in records if numeric(record.get("uptimeNanoseconds"))
@@ -649,21 +805,21 @@ def model_flow(result):
     expected = [card for card in expected if isinstance(card, dict) and isinstance(card.get("id"), str)] if isinstance(expected, list) else []
     target = [card.get("seq") for card in sorted(expected, key=lambda card: card["id"])]
     completed = [record for record in records if len(target) == 4 and record.get("sequences") == target
-                 and numeric(record.get("unixNanoseconds"))]
+                 and numeric(record.get("uptimeNanoseconds"))]
     events = core.get("sourceEvents", [])
     events = [event for event in events if isinstance(event, dict)] if isinstance(events, list) else []
-    accepted = [event.get("acceptedUnixNano") for event in events]
+    accepted = [event.get("acceptedUptimeNanoseconds") for event in events]
     accepted = [value for value in accepted if numeric(value) and value > 0]
     if completed and accepted:
-        first = min(record["unixNanoseconds"] for record in completed)
+        first = min(record["uptimeNanoseconds"] for record in completed)
         last = max(accepted)
-        summary.update(firstFinalSequenceInstallUnixNanoseconds=first, lastSourceAcceptedUnixNanoseconds=last,
+        summary.update(firstFinalSequenceInstallUptimeNanoseconds=first, lastSourceAcceptedUptimeNanoseconds=last,
                        finalSequenceInstallAfterLastSourceAcceptedMilliseconds=(first - last) / 1e6)
-    enqueued = [event.get("enqueuedUnixNano") for event in events]
+    enqueued = [event.get("enqueuedUptimeNanoseconds") for event in events]
     enqueued = [value for value in enqueued if numeric(value) and value > 0]
     if completed and enqueued:
-        first, last = min(record["unixNanoseconds"] for record in completed), max(enqueued)
-        summary.update(lastSourceEnqueuedUnixNanoseconds=last,
+        first, last = min(record["uptimeNanoseconds"] for record in completed), max(enqueued)
+        summary.update(lastSourceEnqueuedUptimeNanoseconds=last,
                        finalSequenceInstallAfterLastSourceEnqueuedMilliseconds=(first - last) / 1e6)
     return summary
 
@@ -758,6 +914,7 @@ def markdown(report):
              "UI and Core are reported separately. Two opposite-order pairs are an initial screen, not a confidence interval "
              "or an estimate comparable to historical local-Mac percentages.", "", "## Fixed versions and builds", "",
              f"- Source protocol: `{report.get('sourceProtocolVersion', 'unavailable')}`; bounded input FIFO capacity: `{report.get('sourceQueueCapacity', 'unavailable')}`.",
+             f"- Measurement clock: version `{report.get('measurementClockVersion', 'unavailable')}`, `{report.get('measurementClockID', 'unavailable')}`.",
              f"- Baseline A: `{report['baseline']}`", f"- Candidate B: `{report['candidate']}`",
              f"- Harness checkout: `{report.get('harnessRevision', 'unavailable')}`",
              f"- Harness source SHA256: `{report.get('harness', {}).get('sha256', 'unavailable')}`",
@@ -812,6 +969,24 @@ def markdown(report):
               "Store/HTTP/UI queue. Per-event planned/enqueued/dequeued/sent/Store-start/accepted/completed timestamps, failed or "
               "unaccepted indices, and overflow attempts remain in JSON. Historical queue boundaries are reconstructed from "
               "monotonic event receipts; they are not queue.snapshot calls taken atomically with the rusage samples.", "",
+              "## Shared clock validation", "",
+              "CPU/source deadlines, phase membership, and source/publication/model latency use absolute OS raw monotonic nanoseconds "
+              "in both processes. Each Core control receipt must fit its recorded UI request bracket, and raw/Dispatch clocks are checked "
+              "before and after the formal interval. Their agreement/observation budget is 5ms; CPU and actual enqueue lateness limits "
+              "are unchanged. UTC start/end anchors and drift remain diagnostic evidence only. This is clock protocol v2; "
+              "older UTC-mapped experiments keep their original validity and are never retroactively reclassified.", "",
+              "| Run | Valid | Clock handshakes ready/start/status/result/final | UTC drift ms (diagnostic) | Raw/Dispatch max outside bracket ms |",
+              "| --- | --- | --- | ---: | ---: |"]
+    for row in report["runs"]:
+        result = object_value(row.get("result")); clock = object_value(result.get("clock"))
+        checks = object_value(result.get("measurementClockChecks"))
+        statuses = " / ".join(str(checks.get(key, "—")) for key in ("ready", "start", "status", "result", "final"))
+        raw_checks = clock.get("rawDispatchChecks", [])
+        offsets = [item.get("outsideBracketNanoseconds") for item in raw_checks if isinstance(item, dict)] if isinstance(raw_checks, list) else []
+        offsets = [value / 1e6 for value in offsets if numeric(value)]
+        lines.append(f"| {row['id']} | {row.get('valid', False)} | {statuses} | "
+                     f"{number(clock.get('realtimeAnchorDriftMilliseconds'))} | {number(max(offsets) if offsets else None)} |")
+    lines += ["",
               "## Paired changes", "",
               "Every delta is B − A; negative CPU percentage-point deltas mean less CPU. "
               "Relative reductions are positive when B uses less CPU. Invalid or missing runs never enter a pair.", "",
@@ -931,6 +1106,7 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     report = {"schemaVersion": 1, "sourceProtocolVersion": SOURCE_PROTOCOL_VERSION, "sourceQueueCapacity": SOURCE_QUEUE_CAPACITY,
+              "measurementClockVersion": MEASUREMENT_CLOCK_VERSION, "measurementClockID": MEASUREMENT_CLOCK_ID,
               "status": "running", "startedAt": utc(), "baseline": args.baseline,
               "candidate": args.candidate, "runs": [], "builds": {}, "errors": []}
     budget = Budget(args.time_budget_seconds)

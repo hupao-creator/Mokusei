@@ -51,7 +51,21 @@ struct ProbeOptions {
     }
 }
 
-func monotonicNanoseconds() -> UInt64 { DispatchTime.now().uptimeNanoseconds }
+enum MeasurementClock {
+    static let version = 2
+    static let id = "darwin.CLOCK_UPTIME_RAW.ns"
+    static let maximumUncertaintyNanoseconds: UInt64 = 5_000_000
+
+    static func validate(version: Int, id: String, stage: String) throws {
+        guard version == self.version, id == self.id else {
+            throw ProbeFailure(description: "Core \(stage) measurement clock mismatch: version=\(version), id=\(id)")
+        }
+    }
+}
+
+/// Both owned processes read the same boot-relative Darwin clock directly.
+/// UTC never participates in deadlines, elapsed intervals or cross-process latency.
+func monotonicNanoseconds() -> UInt64 { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
 
 func realtimeNanoseconds() -> Int64 {
     var value = timespec()
@@ -59,7 +73,7 @@ func realtimeNanoseconds() -> Int64 {
     return Int64(value.tv_sec) * 1_000_000_000 + Int64(value.tv_nsec)
 }
 
-struct ProbeClock: Sendable {
+struct ProbeClock: Decodable, Sendable {
     let unixNanoseconds: Int64
     let uptimeNanoseconds: UInt64
     let uncertaintyNanoseconds: UInt64
@@ -68,23 +82,78 @@ struct ProbeClock: Sendable {
         let before = monotonicNanoseconds()
         unixNanoseconds = realtimeNanoseconds()
         let after = monotonicNanoseconds()
-        uptimeNanoseconds = before + (after - before) / 2
-        uncertaintyNanoseconds = (after - before) / 2
+        if before > 0, after >= before {
+            uptimeNanoseconds = before + (after - before) / 2
+            uncertaintyNanoseconds = (after - before) / 2 + (after - before) % 2
+        } else {
+            uptimeNanoseconds = 0
+            uncertaintyNanoseconds = .max
+        }
     }
 
-    func unix(at uptime: UInt64) -> Int64 {
+    var isValid: Bool {
+        uptimeNanoseconds > 0 && uptimeNanoseconds <= UInt64(Int64.max)
+            && uncertaintyNanoseconds <= MeasurementClock.maximumUncertaintyNanoseconds
+    }
+
+    /// A human-readable estimate from one retained anchor, not an event clock.
+    func estimatedUnix(at uptime: UInt64) -> Int64 {
         unixNanoseconds + Int64(uptime) - Int64(uptimeNanoseconds)
-    }
-
-    func deadline(unix: Int64) throws -> UInt64 {
-        let value = Int64(uptimeNanoseconds) + unix - unixNanoseconds
-        guard value >= 0 else { throw ProbeFailure(description: "Scheduled boundary predates the monotonic clock") }
-        return UInt64(value)
     }
 
     var json: [String: Any] {
         ["unixNanoseconds": unixNanoseconds, "uptimeNanoseconds": uptimeNanoseconds,
          "uncertaintyNanoseconds": uncertaintyNanoseconds]
+    }
+}
+
+/// Dispatch's uptime initializer uses Mach absolute time converted to ns on
+/// Darwin. Retain a real bracket on this runner as well as that API contract.
+struct RawDispatchClockCheck: Sendable {
+    let stage: String
+    let rawBeforeUptimeNanoseconds: UInt64
+    let dispatchUptimeNanoseconds: UInt64
+    let rawAfterUptimeNanoseconds: UInt64
+
+    init(stage: String) {
+        self.stage = stage
+        rawBeforeUptimeNanoseconds = monotonicNanoseconds()
+        dispatchUptimeNanoseconds = DispatchTime.now().uptimeNanoseconds
+        rawAfterUptimeNanoseconds = monotonicNanoseconds()
+    }
+
+    private var ordered: Bool {
+        rawBeforeUptimeNanoseconds > 0 && rawAfterUptimeNanoseconds >= rawBeforeUptimeNanoseconds
+            && rawAfterUptimeNanoseconds <= UInt64(Int64.max)
+            && dispatchUptimeNanoseconds > 0 && dispatchUptimeNanoseconds <= UInt64(Int64.max)
+    }
+    private var uncertainty: UInt64 {
+        guard ordered else { return .max }
+        let span = rawAfterUptimeNanoseconds - rawBeforeUptimeNanoseconds
+        return span / 2 + span % 2
+    }
+    private var outside: UInt64 {
+        if dispatchUptimeNanoseconds < rawBeforeUptimeNanoseconds {
+            return rawBeforeUptimeNanoseconds - dispatchUptimeNanoseconds
+        }
+        if dispatchUptimeNanoseconds > rawAfterUptimeNanoseconds {
+            return dispatchUptimeNanoseconds - rawAfterUptimeNanoseconds
+        }
+        return 0
+    }
+    var isValid: Bool {
+        ordered && uncertainty <= MeasurementClock.maximumUncertaintyNanoseconds
+            && outside <= MeasurementClock.maximumUncertaintyNanoseconds
+    }
+    var json: [String: Any] {
+        let midpoint = ordered ? rawBeforeUptimeNanoseconds + (rawAfterUptimeNanoseconds - rawBeforeUptimeNanoseconds) / 2 : 0
+        return ["stage": stage, "rawBeforeUptimeNanoseconds": rawBeforeUptimeNanoseconds,
+            "dispatchUptimeNanoseconds": dispatchUptimeNanoseconds, "rawAfterUptimeNanoseconds": rawAfterUptimeNanoseconds,
+            "uncertaintyNanoseconds": uncertainty,
+            "offsetNanoseconds": ordered ? (Int64(dispatchUptimeNanoseconds) - Int64(midpoint)) as Any : NSNull(),
+            "outsideBracketNanoseconds": outside,
+            "maximumAllowedUncertaintyNanoseconds": MeasurementClock.maximumUncertaintyNanoseconds,
+            "valid": isValid]
     }
 }
 
@@ -102,16 +171,19 @@ struct CPUSample: Sendable {
             throw ProbeFailure(description: "getrusage failed with errno \(errno)")
         }
         let after = monotonicNanoseconds()
+        guard before > 0, after >= before, after <= UInt64(Int64.max) else {
+            throw ProbeFailure(description: "CLOCK_UPTIME_RAW returned invalid CPU sample timestamps")
+        }
         return CPUSample(userSeconds: Double(usage.ru_utime.tv_sec) + Double(usage.ru_utime.tv_usec) / 1e6,
             systemSeconds: Double(usage.ru_stime.tv_sec) + Double(usage.ru_stime.tv_usec) / 1e6,
             uptimeNanoseconds: before + (after - before) / 2, readNanoseconds: after - before)
     }
 
-    func json(clock: ProbeClock, expectedUnix: Int64) -> [String: Any] {
+    func json(clock: ProbeClock, plannedUptime: UInt64) -> [String: Any] {
         ["userSeconds": userSeconds, "systemSeconds": systemSeconds,
-         "uptimeNanoseconds": uptimeNanoseconds, "unixNanoseconds": clock.unix(at: uptimeNanoseconds),
+         "uptimeNanoseconds": uptimeNanoseconds, "estimatedUnixNanoseconds": clock.estimatedUnix(at: uptimeNanoseconds),
          "readNanoseconds": readNanoseconds,
-         "boundaryOffsetMilliseconds": Double(clock.unix(at: uptimeNanoseconds) - expectedUnix) / 1e6]
+         "boundaryOffsetMilliseconds": Double(Int64(uptimeNanoseconds) - Int64(plannedUptime)) / 1e6]
     }
 }
 
@@ -130,18 +202,29 @@ final class ScheduledCPUSample: Sendable {
     let name: String
     let plannedUptimeNanoseconds: UInt64
     let requestedUptimeNanoseconds: UInt64
+    let dispatchDeadlineUptimeNanoseconds: UInt64
     private let state = Mutex(State())
     private let timer: any DispatchSourceTimer
 
-    init(name: String, deadline: UInt64, queue: DispatchQueue) {
+    init(name: String, deadline: UInt64, queue: DispatchQueue) throws {
+        guard deadline > 0, deadline <= UInt64(Int64.max) else {
+            throw ProbeFailure(description: "Invalid raw CPU deadline for \(name)")
+        }
+        let dispatchDeadline = DispatchTime(uptimeNanoseconds: deadline)
+        let roundTrip = dispatchDeadline.uptimeNanoseconds
+        guard roundTrip > 0, roundTrip <= UInt64(Int64.max),
+              abs(Int64(roundTrip) - Int64(deadline)) <= Int64(MeasurementClock.maximumUncertaintyNanoseconds) else {
+            throw ProbeFailure(description: "Dispatch CPU deadline does not round-trip in the shared raw clock for \(name)")
+        }
         self.name = name
         plannedUptimeNanoseconds = deadline
+        dispatchDeadlineUptimeNanoseconds = roundTrip
         requestedUptimeNanoseconds = monotonicNanoseconds()
         // asyncAfter has deadline-dependent coalescing. A long pre-scheduled
         // formal interval must not inherit that implicit timing allowance.
         timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
         timer.setEventHandler { [weak self] in self?.capture() }
-        timer.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline), repeating: .never, leeway: .nanoseconds(0))
+        timer.schedule(deadline: dispatchDeadline, repeating: .never, leeway: .nanoseconds(0))
         timer.activate()
     }
 
@@ -214,10 +297,12 @@ final class ScheduledCPUSample: Sendable {
 
     func json(clock: ProbeClock) -> [String: Any] {
         let snapshot = state.withLock { ($0.started, $0.finished, $0.cancelled, $0.result) }
-        let expectedUnix = clock.unix(at: plannedUptimeNanoseconds)
         var value: [String: Any] = ["name": name, "executor": "dedicated-dispatch-queue",
             "timerFlags": "strict", "timerLeewayNanoseconds": 0,
-            "plannedUptimeNanoseconds": plannedUptimeNanoseconds, "plannedUnixNanoseconds": expectedUnix,
+            "plannedUptimeNanoseconds": plannedUptimeNanoseconds,
+            "plannedEstimatedUnixNanoseconds": clock.estimatedUnix(at: plannedUptimeNanoseconds),
+            "dispatchDeadlineUptimeNanoseconds": dispatchDeadlineUptimeNanoseconds,
+            "deadlineRoundTripOffsetNanoseconds": Int64(dispatchDeadlineUptimeNanoseconds) - Int64(plannedUptimeNanoseconds),
             "requestedUptimeNanoseconds": requestedUptimeNanoseconds,
             "callbackStartedUptimeNanoseconds": snapshot.0.map { $0 as Any } ?? NSNull(),
             "callbackFinishedUptimeNanoseconds": snapshot.1.map { $0 as Any } ?? NSNull(),
@@ -227,7 +312,7 @@ final class ScheduledCPUSample: Sendable {
         }
         switch snapshot.3 {
         case let .some(.success(sample)):
-            value.merge(sample.json(clock: clock, expectedUnix: expectedUnix)) { _, sample in sample }
+            value.merge(sample.json(clock: clock, plannedUptime: plannedUptimeNanoseconds)) { _, sample in sample }
             value["status"] = "captured"
         case let .some(.failure(error)):
             value["status"] = snapshot.2 == nil ? "failed" : "cancelled"
@@ -421,7 +506,7 @@ struct InstallReceipt {
     let sequences: [Int]
     let kind: String
     func json(clock: ProbeClock) -> [String: Any] {
-        ["uptimeNanoseconds": uptime, "unixNanoseconds": clock.unix(at: uptime),
+        ["uptimeNanoseconds": uptime, "estimatedUnixNanoseconds": clock.estimatedUnix(at: uptime),
          "catalogRevision": revision, "sequences": sequences, "kind": kind]
     }
 }

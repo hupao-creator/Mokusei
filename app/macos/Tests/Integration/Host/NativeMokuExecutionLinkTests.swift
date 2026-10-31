@@ -331,26 +331,56 @@ struct NativeMokuExecutionLinkTests {
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
         defer { window.close() }
         let root = try #require(window.contentView)
+        var receipts: [JSONValue] = []
+        @MainActor func record(_ phase: String, inputBytes: Int? = nil) {
+            receipts.append(.object([
+                "phase": .text(phase), "at": .number(ProcessInfo.processInfo.systemUptime),
+                "revision": .integer(fixture.revision),
+                "inputUTF8Bytes": inputBytes.map { JSONValue.integer($0) } ?? .null,
+                "scroll": fixture.scroll ?? .null
+            ]))
+        }
+        defer {
+            record("exit")
+            do {
+                let data = try JSONValue.object(["harness": .text(harness), "stages": .array(receipts)]).encodedData()
+                FileHandle.standardOutput.write(Data("MOKU_EXECUTION_LINK_RECEIPTS ".utf8) + data + Data("\n".utf8))
+            } catch {
+                Issue.record(Comment(rawValue: "Could not encode execution-link receipts: \(error)"))
+            }
+        }
         try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
         try click("View result", in: root)
         try await ready(fixture)
         #expect(fixture.scroll?["value"]?["following"] == .bool(true))
         let oldHeight = fixture.scroll?["value"]?["height"]?.numberValue ?? 0
-        try fixture.update(status: .running, text: String(repeating: "STREAMING CONTENT\n", count: 200))
+        record("original")
+        // The reading viewport publishes closed Markdown pages. Complete
+        // paragraphs can fill those pages while the message remains streaming.
+        let firstInput = String(repeating: "STREAMING CONTENT\n\n", count: 200)
+        try fixture.update(status: .running, text: firstInput)
+        record("first-source", inputBytes: firstInput.utf8.count)
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["height"]?.numberValue ?? 0) > oldHeight }
+        record("first-stream", inputBytes: firstInput.utf8.count)
         try await SwiftUIReplay.wait {
             guard let value = fixture.scroll?["value"], let h = value["height"]?.numberValue,
                   let y = value["top"]?.numberValue, let v = value["viewport"]?.numberValue else { return false }
             return h - y - v < 5
         }
+        record("following-bottom")
         try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(false) && fixture.scroll?["pending"] == .bool(false) }
-        try fixture.update(status: .running, text: String(repeating: "NEW STREAMING CONTENT\n", count: 220))
+        record("user-scroll")
+        let secondInput = String(repeating: "NEW STREAMING CONTENT\n\n", count: 220)
+        try fixture.update(status: .running, text: secondInput)
+        record("second-source", inputBytes: secondInput.utf8.count)
         try await Task.sleep(for: .milliseconds(200))
+        record("second-stream", inputBytes: secondInput.utf8.count)
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
         try fixture.perform(jump, "activate")
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(true) }
+        record("jump-latest")
         try fixture.update(status: .completed, successor: true)
         try await Task.sleep(for: .milliseconds(150))
         #expect(fixture.presentation.readingTarget?.executionID == "target")

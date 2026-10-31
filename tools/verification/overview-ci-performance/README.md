@@ -105,6 +105,51 @@ Accepted-to-publish latency can be negative: `Store.Update` commits and notifies
 subscribers before its caller resumes and records acceptance. These signed values
 are retained, not clamped to zero or interpreted as a publication before commit.
 
+### Measurement clock protocol 2
+
+Both macOS processes use the same operating-system `CLOCK_UPTIME_RAW` clock in
+nanoseconds. Ready, start, status, result and final receipts identify
+`measurementClockVersion=2`, `measurementClockID=darwin.CLOCK_UPTIME_RAW.ns` and
+the Core process's fixed raw-clock origin. This clock contract is independent of
+source protocol 2: the FIFO, input rates and workload are unchanged.
+
+Go declares the three absolute raw deadlines directly. Its timer waits only for
+the remaining relative duration and checks the raw clock again on wakeup; it
+does not convert a serialized `time.Time` or Unix timestamp into a deadline.
+Swift reads `clock_gettime_nsec_np(CLOCK_UPTIME_RAW)` and arms the same numeric
+nanosecond deadlines with `DispatchTime(uptimeNanoseconds:)`, whose documented
+timebase is `mach_absolute_time()` converted to nanoseconds. Source event stages,
+publications, CPU samples, queue observations and catalog installations all keep
+their actual raw timestamps. Phase membership, lateness and cross-process model
+latencies use only these raw integers. Core elapsed timestamps are raw time minus
+its retained process origin, not another independently running timebase.
+
+Each Core control response includes a fresh `clockObservation`: raw samples
+bracket a real UTC read and retain their midpoint and uncertainty. Swift retains
+its launch/request/finish brackets and checks that the Core observation fits
+inside the corresponding interval and that the Core origin stays constant.
+Before and after formal measurement it also brackets a Dispatch uptime read with
+raw reads. Clock disagreement or observation uncertainty exceeding 5ms fails the
+experiment. Every Dispatch deadline's numeric round trip is retained. These
+checks detect a wrong epoch, unit or clock implementation even if both processes
+report the same clock name. The original source and CPU lateness tolerances do
+not change.
+
+Both UTC/raw anchors are retained, including UTC drift. UTC and explicitly named
+estimated Unix fields are diagnostic metadata only: wall-clock synchronization
+can step or slew without altering measured intervals. The earlier clock contract
+mapped cross-process UTC through one anchor and rejected drift above 5ms. Those
+experiments retain their original validity; this protocol must not retroactively
+validate or pool them. A new pair must use one common current harness.
+
+The Go clock bridge uses the OS API through Cgo, fails closed on read failure,
+and never falls back to realtime. Linux correctness tests have a distinct
+`linux.CLOCK_MONOTONIC_RAW.ns` identity; they cannot certify a macOS performance
+run. The Python contract tests deliberately perturb UTC while keeping raw events
+fixed, and separately reject epoch, origin, unit, handshake, deadline and CPU
+denominator errors. CI runs the Go and Python contract checks before the matrix;
+their logs remain with the measurement artifact.
+
 ### CPU intervals
 
 UI and Core CPU use their own `getrusage` user+system deltas divided by actual
@@ -127,8 +172,8 @@ share a mutex-protected, exactly-once result; cleanup cancels pending reads, who
 later callbacks do no work, and retains already captured or failed receipts.
 There is no fallback to a late MainActor CPU read.
 
-`clock` retains planned, requested, callback and actual CPU sample uptime,
-corresponding Unix times, read duration and boundary offset. The 1 Hz window,
+`clock` retains planned, requested, callback and actual CPU sample raw uptime,
+diagnostic estimated Unix times, read duration and boundary offset. The 1 Hz window,
 footprint and model/counter checks still run on the MainActor and retain their
 own planned/start/end times and lateness under `mainActorObservations`,
 `windowSamples[].observationTiming` and `counters.observationTiming`. These checks

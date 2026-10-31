@@ -231,8 +231,13 @@ native replay capability; both run without skips in this eight-test launcher.
 ## Overview animation and native decoration evidence
 
 The title cancellation case starts its WindowServer stream before the initial
-`A → B → A` reversal, retaining the original 50ms input interval, 500ms return
-observation and self-rendered equality assertion. Source times, all captured
+`A → B → A` reversal. It sends B once and establishes an outgoing A from the
+latest post-input frame with 10–90% reference ink and less than 50ms age, while
+the native AX label/value still reports displayed A and not B. It rechecks the
+displayed text and freshness synchronously before sending A. This bounded
+three-second prerequisite replaces the assumed 50ms sleep; it does not repeat
+B or change the original 500ms return observation and self-rendered equality
+assertion. Source times, AX/pixel-analysis times, all captured
 frames and the actual observation time distinguish a blank `cacheDisplay`
 snapshot from a blank composed window; a later settled frame cannot certify
 the earlier observation. The incoming-cancellation sensor still requires the

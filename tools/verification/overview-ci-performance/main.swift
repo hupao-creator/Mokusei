@@ -29,6 +29,18 @@ private enum SourceProtocol {
     }
 }
 
+private struct CoreClockEnvelope: Decodable {
+    let measurementClockVersion: Int
+    let measurementClockID: String
+    let clockOriginUptimeNanoseconds: UInt64
+    let clockObservation: ProbeClock
+
+    var json: [String: Any] {
+        ["measurementClockVersion": measurementClockVersion, "measurementClockID": measurementClockID,
+         "clockOriginUptimeNanoseconds": clockOriginUptimeNanoseconds, "clockObservation": clockObservation.json]
+    }
+}
+
 private struct RuntimeReady: Decodable {
     struct Connection: Decodable {
         let port: Int
@@ -52,12 +64,23 @@ private struct RuntimeReady: Decodable {
     let k: Int
     let sourceProtocolVersion: Int
     let sourceQueueCapacity: Int
+    let measurementClockVersion: Int
+    let measurementClockID: String
+    let clockOriginUptimeNanoseconds: UInt64
+    let clockObservation: ProbeClock
     let expectedCards: [ExpectedCard]
 }
 
 private struct SourceSchedule: Decodable {
     let sourceProtocolVersion: Int
     let sourceQueueCapacity: Int
+    let measurementClockVersion: Int
+    let measurementClockID: String
+    let clockOriginUptimeNanoseconds: UInt64
+    let clockObservation: ProbeClock
+    let warmupStartUptimeNanoseconds: UInt64
+    let formalStartUptimeNanoseconds: UInt64
+    let formalEndUptimeNanoseconds: UInt64
     let warmupStartUnixNano: Int64
     let formalStartUnixNano: Int64
     let formalEndUnixNano: Int64
@@ -67,6 +90,11 @@ private struct SourceSchedule: Decodable {
 
     var json: [String: Any] {
         ["sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
+         "measurementClockVersion": measurementClockVersion, "measurementClockID": measurementClockID,
+         "clockOriginUptimeNanoseconds": clockOriginUptimeNanoseconds, "clockObservation": clockObservation.json,
+         "warmupStartUptimeNanoseconds": warmupStartUptimeNanoseconds,
+         "formalStartUptimeNanoseconds": formalStartUptimeNanoseconds,
+         "formalEndUptimeNanoseconds": formalEndUptimeNanoseconds,
          "warmupStartUnixNano": warmupStartUnixNano, "formalStartUnixNano": formalStartUnixNano,
          "formalEndUnixNano": formalEndUnixNano, "warmupSeconds": warmupSeconds,
          "formalSeconds": formalSeconds, "sourceIntervalNanoseconds": sourceIntervalNanoseconds]
@@ -76,6 +104,7 @@ private struct SourceSchedule: Decodable {
 private struct SourceQueueSnapshot: Decodable {
     struct Instant: Decodable {
         let unixNano: Int64
+        let uptimeNanoseconds: UInt64
         let elapsedNanoseconds: Int64
     }
     let observedAt: Instant
@@ -91,14 +120,16 @@ private struct SourceQueueSnapshot: Decodable {
     let closed: Bool
     let overflowCount: Int
 
-    func validate() throws {
+    func validate(clockOrigin: UInt64) throws {
         guard capacity == SourceProtocol.queueCapacity, (0...capacity).contains(pending),
               (0...1).contains(inFlight), (pending...capacity).contains(highWater),
               pendingIndices.count == pending, Set(pendingIndices).count == pending,
               pendingIndices.allSatisfy({ $0 >= 0 }),
               (inFlight == 0 ? inFlightIndex == -1 : inFlightIndex >= 0),
               !pendingIndices.contains(inFlightIndex), overflowCount >= 0,
-              observedAt.unixNano > 0, observedAt.elapsedNanoseconds >= 0,
+              observedAt.uptimeNanoseconds >= clockOrigin, observedAt.uptimeNanoseconds <= UInt64(Int64.max),
+              observedAt.elapsedNanoseconds >= 0,
+              observedAt.uptimeNanoseconds - clockOrigin == UInt64(observedAt.elapsedNanoseconds),
               [inFlightAgeMilliseconds, oldestPendingAgeMilliseconds, maxOldestPendingAgeMilliseconds]
                 .allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             throw ProbeFailure(description: "Core source FIFO snapshot violates its bounded queue contract")
@@ -107,7 +138,8 @@ private struct SourceQueueSnapshot: Decodable {
 
     var json: [String: Any] {
         ["meaning": "Benchmark input FIFO; not a production Store, transport or UI queue",
-         "observedAt": ["unixNano": observedAt.unixNano, "elapsedNanoseconds": observedAt.elapsedNanoseconds],
+         "observedAt": ["unixNano": observedAt.unixNano, "uptimeNanoseconds": observedAt.uptimeNanoseconds,
+                        "elapsedNanoseconds": observedAt.elapsedNanoseconds] as [String: Any],
          "capacity": capacity, "pending": pending, "pendingIndices": pendingIndices,
          "inFlight": inFlight, "inFlightIndex": inFlightIndex, "inFlightAgeMilliseconds": inFlightAgeMilliseconds,
          "oldestPendingAgeMilliseconds": oldestPendingAgeMilliseconds, "highWater": highWater,
@@ -118,6 +150,10 @@ private struct SourceQueueSnapshot: Decodable {
 private struct SourceStatus: Decodable {
     let sourceProtocolVersion: Int
     let sourceQueueCapacity: Int
+    let measurementClockVersion: Int
+    let measurementClockID: String
+    let clockOriginUptimeNanoseconds: UInt64
+    let clockObservation: ProbeClock
     let state: String
     let sourceComplete: Bool
     let enqueueComplete: Bool
@@ -129,6 +165,8 @@ private struct SourceStatus: Decodable {
 
     var json: [String: Any] {
         ["sourceProtocolVersion": sourceProtocolVersion, "sourceQueueCapacity": sourceQueueCapacity,
+         "measurementClockVersion": measurementClockVersion, "measurementClockID": measurementClockID,
+         "clockOriginUptimeNanoseconds": clockOriginUptimeNanoseconds, "clockObservation": clockObservation.json,
          "state": state, "sourceComplete": sourceComplete, "enqueueComplete": enqueueComplete,
          "producerFinished": producerFinished, "formalComplete": formalComplete,
          "currentSeqs": currentSeqs, "errors": errors, "queue": queue.json]
@@ -146,6 +184,10 @@ private struct SourceResult: Decodable {
     }
     let sourceProtocolVersion: Int
     let sourceQueueCapacity: Int
+    let measurementClockVersion: Int
+    let measurementClockID: String
+    let clockOriginUptimeNanoseconds: UInt64
+    let clockObservation: ProbeClock
     let condition: String
     let n: Int
     let k: Int
@@ -157,6 +199,14 @@ private struct SourceResult: Decodable {
     let invalidReasons: [String]
     let source: Counts
     let queue: SourceQueueSnapshot
+}
+
+private struct SourceDeliveryEvidence: Decodable {
+    struct Publication: Decodable {
+        let publishedUptimeNanoseconds: UInt64
+        let revision: Int
+    }
+    let publications: [Publication]
 }
 
 private struct FixtureConnectionSource: RuntimeConnectionSource {
@@ -178,6 +228,10 @@ private final class CoreProcess {
     private let options: ProbeOptions
     private var logs: [FileHandle] = []
     private(set) var ready: RuntimeReady?
+    private(set) var measurementClockChecks = ["ready": false, "start": false, "status": false, "result": false, "final": false]
+    private(set) var clockObservations: [[String: Any]] = []
+    private var clockOrigin: UInt64?
+    private var finalClockBracket: (started: UInt64, finished: UInt64)?
     private let session: URLSession
 
     init(options: ProbeOptions) {
@@ -203,12 +257,16 @@ private final class CoreProcess {
             logs.append(try FileHandle(forWritingTo: url))
         }
         process.standardOutput = logs[0]; process.standardError = logs[1]
+        let launchStarted = monotonicNanoseconds()
         try process.run()
         let deadline = monotonicNanoseconds() + 20_000_000_000
         while monotonicNanoseconds() < deadline {
             guard process.isRunning else { throw ProbeFailure(description: "Core exited before ready; inspect core-stderr.log") }
             if FileManager.default.fileExists(atPath: readyURL.path) {
-                let value = try JSONDecoder().decode(RuntimeReady.self, from: Data(contentsOf: readyURL))
+                let data = try Data(contentsOf: readyURL)
+                let received = monotonicNanoseconds()
+                try validateClock(data, stage: "ready", started: launchStarted, finished: received)
+                let value = try JSONDecoder().decode(RuntimeReady.self, from: data)
                 try SourceProtocol.validate(version: value.sourceProtocolVersion, capacity: value.sourceQueueCapacity, stage: "ready")
                 guard value.pid == Int(process.processIdentifier), value.parentPID == Int(ProcessInfo.processInfo.processIdentifier),
                       value.condition == options.condition, value.n == 40, value.k == 4,
@@ -233,16 +291,64 @@ private final class CoreProcess {
         request.timeoutInterval = timeout
         request.setValue("Bearer \(ready.controlToken)", forHTTPHeaderField: "Authorization")
         if method == "POST" { request.httpBody = Data("{}".utf8) }
+        let started = monotonicNanoseconds()
         let (data, response) = try await session.data(for: request)
+        let finished = monotonicNanoseconds()
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
             throw ProbeFailure(description: "Core control \(path) failed with HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+        }
+        if ["start", "status", "result"].contains(path) {
+            try validateClock(data, stage: path, started: started, finished: finished)
         }
         return data
     }
 
+    private func validateClock(_ data: Data, stage: String, started: UInt64, finished: UInt64) throws {
+        measurementClockChecks[stage] = false
+        var receipt: [String: Any] = ["stage": stage, "startedUptimeNanoseconds": started,
+            "finishedUptimeNanoseconds": finished,
+            "maximumAllowedUncertaintyNanoseconds": MeasurementClock.maximumUncertaintyNanoseconds,
+            "valid": false]
+        do {
+            let value = try JSONDecoder().decode(CoreClockEnvelope.self, from: data)
+            receipt.merge(value.json) { _, decoded in decoded }
+            try MeasurementClock.validate(version: value.measurementClockVersion, id: value.measurementClockID, stage: stage)
+            let observation = value.clockObservation
+            guard started > 0, finished >= started, finished <= UInt64(Int64.max), observation.isValid,
+                  value.clockOriginUptimeNanoseconds > 0,
+                  value.clockOriginUptimeNanoseconds <= observation.uptimeNanoseconds,
+                  clockOrigin == nil || clockOrigin == value.clockOriginUptimeNanoseconds else {
+                throw ProbeFailure(description: "Core \(stage) clock observation/origin is invalid or changed")
+            }
+            let uncertainty = observation.uncertaintyNanoseconds
+            let lower = observation.uptimeNanoseconds > uncertainty ? observation.uptimeNanoseconds - uncertainty : 0
+            let upper = observation.uptimeNanoseconds + uncertainty
+            guard upper >= started, lower <= finished else {
+                throw ProbeFailure(description: "Core \(stage) raw clock observation lies outside the owned Swift request bracket")
+            }
+            clockOrigin = value.clockOriginUptimeNanoseconds
+            measurementClockChecks[stage] = true
+            receipt["valid"] = true
+            clockObservations.append(receipt)
+        } catch {
+            receipt["error"] = String(describing: error)
+            clockObservations.append(receipt)
+            throw error
+        }
+    }
+
+    func validateFinalClock(_ data: Data) throws {
+        guard let bracket = finalClockBracket else {
+            throw ProbeFailure(description: "Core final report has no owned finish-to-exit clock bracket")
+        }
+        try validateClock(data, stage: "final", started: bracket.started, finished: bracket.finished)
+    }
+
     func stop() async -> [String] {
         var failures: [String] = []
+        var finishStarted: UInt64?
         if process.isRunning, ready != nil {
+            finishStarted = monotonicNanoseconds()
             do { _ = try await request("finish", method: "POST") }
             catch { failures.append("Core finish request failed: \(error)") }
         }
@@ -257,6 +363,9 @@ private final class CoreProcess {
         } else if process.processIdentifier > 0, process.terminationStatus != 0 {
             failures.append("Core exited with status \(process.terminationStatus)")
         }
+        if let finishStarted, !process.isRunning {
+            finalClockBracket = (finishStarted, monotonicNanoseconds())
+        }
         session.invalidateAndCancel()
         for log in logs { try? log.close() }
         // The ready file contains ephemeral bearer credentials. Keep only owned
@@ -264,7 +373,10 @@ private final class CoreProcess {
         if !process.isRunning, let ready {
             try? writeJSON(["pid": ready.pid, "executable": ready.executable,
                 "parentPID": ready.parentPID, "sourceProtocolVersion": ready.sourceProtocolVersion,
-                "sourceQueueCapacity": ready.sourceQueueCapacity, "credentialsRemovedAfterExit": true], to: readyURL)
+                "sourceQueueCapacity": ready.sourceQueueCapacity,
+                "measurementClockVersion": ready.measurementClockVersion, "measurementClockID": ready.measurementClockID,
+                "clockOriginUptimeNanoseconds": ready.clockOriginUptimeNanoseconds,
+                "clockObservation": ready.clockObservation.json, "credentialsRemovedAfterExit": true], to: readyURL)
         }
         return failures
     }
@@ -274,6 +386,8 @@ private final class CoreProcess {
 private final class OverviewProbe {
     let options: ProbeOptions
     let clock = ProbeClock()
+    var endClock: ProbeClock?
+    var rawDispatchChecks: [RawDispatchClockCheck] = []
     let tracker = InstallationTracker()
     let core: CoreProcess
     var workspace: NativeWorkspaceModel?
@@ -295,6 +409,7 @@ private final class OverviewProbe {
         self.options = options; core = CoreProcess(options: options)
         report = ["schemaVersion": 1, "condition": options.condition, "n": options.n, "k": 4,
             "sourceProtocolVersion": SourceProtocol.version, "sourceQueueCapacity": SourceProtocol.queueCapacity,
+            "measurementClockVersion": MeasurementClock.version, "measurementClockID": MeasurementClock.id,
             "warmupSeconds": options.warmup, "formalSeconds": options.seconds, "seed": options.seed,
             "valid": false, "invalidReasons": ["run-incomplete"], "stage": "initializing",
             "measurement": "Release product modules, production Overview and transport; process CPU as one-core percent",
@@ -312,6 +427,7 @@ private final class OverviewProbe {
         await sampler?.value
         sampler = nil
         for capture in cpuCaptures.values { capture.cancel() }
+        finishClockEvidence()
         updateCPUClockReport()
         if let model { await model.stop() }
         if let workspace {
@@ -324,8 +440,9 @@ private final class OverviewProbe {
                 let data = try Data(contentsOf: core.outputURL)
                 if let final = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     report["core"] = final
+                    try core.validateFinalClock(data)
                     try validateSourceResult(data, stage: "final")
-                    validateDelivery(final)
+                    validateDelivery(data)
                 } else { invalid.insert("Core final report is not an object") }
             } catch { invalid.insert("Core final report could not be read: \(error)") }
         } else { invalid.insert("Core final report was not written") }
@@ -341,6 +458,8 @@ private final class OverviewProbe {
             "meaning": "Window and footprint state at actual observation times; late checks do not move CPU boundaries or certify the unobserved interval"] as [String: Any]
         report["stage"] = "finished"
         report["sourceProtocolChecks"] = sourceProtocolChecks
+        report["measurementClockChecks"] = core.measurementClockChecks
+        report["clockObservations"] = core.clockObservations
         report["valid"] = invalid.isEmpty
         report["invalidReasons"] = invalid.sorted()
         report["completedUnixNanoseconds"] = realtimeNanoseconds()
@@ -352,6 +471,7 @@ private final class OverviewProbe {
     }
 
     private func measure() async throws {
+        guard clock.isValid else { throw ProbeFailure(description: "Initial shared raw/UTC clock anchor is invalid or exceeds 5 ms uncertainty") }
         let ready = try await core.launch()
         sourceProtocolChecks["ready"] = true
         report["runtimeProcess"] = ["pid": ready.pid, "executable": ready.executable, "parentPID": ready.parentPID] as [String: Any]
@@ -416,29 +536,40 @@ private final class OverviewProbe {
         report["stage"] = "mounted"
         try writeJSON(report, to: options.output)
         guard invalid.isEmpty else { throw ProbeFailure(description: "Foreground prerequisites failed before source start") }
+        let dispatchCheck = RawDispatchClockCheck(stage: "beforeSource")
+        rawDispatchChecks.append(dispatchCheck)
+        guard dispatchCheck.isValid else { throw ProbeFailure(description: "Dispatch and CLOCK_UPTIME_RAW disagree before source start") }
         let schedule = try JSONDecoder().decode(SourceSchedule.self, from: await core.request("start", method: "POST"))
         try SourceProtocol.validate(version: schedule.sourceProtocolVersion, capacity: schedule.sourceQueueCapacity, stage: "start")
         sourceProtocolChecks["start"] = true
         guard schedule.warmupSeconds == options.warmup, schedule.formalSeconds == options.seconds,
-              schedule.formalStartUnixNano - schedule.warmupStartUnixNano == 5_000_000_000,
-              schedule.formalEndUnixNano - schedule.formalStartUnixNano == 20_000_000_000,
+              schedule.warmupStartUptimeNanoseconds >= schedule.clockOriginUptimeNanoseconds,
+              schedule.formalStartUptimeNanoseconds >= schedule.warmupStartUptimeNanoseconds,
+              schedule.formalEndUptimeNanoseconds >= schedule.formalStartUptimeNanoseconds,
+              schedule.formalEndUptimeNanoseconds <= UInt64(Int64.max),
+              schedule.formalStartUptimeNanoseconds - schedule.warmupStartUptimeNanoseconds == 5_000_000_000,
+              schedule.formalEndUptimeNanoseconds - schedule.formalStartUptimeNanoseconds == 20_000_000_000,
               schedule.sourceIntervalNanoseconds == 25_000_000 else {
             throw ProbeFailure(description: "Source schedule violates the fixed benchmark contract")
         }
-        let warmupDeadline = try clock.deadline(unix: schedule.warmupStartUnixNano)
-        let beginDeadline = try clock.deadline(unix: schedule.formalStartUnixNano)
-        let endDeadline = try clock.deadline(unix: schedule.formalEndUnixNano)
+        let warmupDeadline = schedule.warmupStartUptimeNanoseconds
+        let beginDeadline = schedule.formalStartUptimeNanoseconds
+        let endDeadline = schedule.formalEndUptimeNanoseconds
         report["clock"] = ["anchor": clock.json, "schedule": schedule.json,
+            "measurementClockVersion": MeasurementClock.version, "measurementClockID": MeasurementClock.id,
+            "rawDispatchChecks": rawDispatchChecks.map(\.json),
             "maximumAllowedBoundaryOffsetMilliseconds": 50,
+            "maximumAllowedClockUncertaintyNanoseconds": MeasurementClock.maximumUncertaintyNanoseconds,
+            "utcMeaning": "Real UTC anchor reads and named estimates are diagnostic only; all deadlines, intervals and cross-process latency use CLOCK_UPTIME_RAW",
             "samplingExecutor": "Dedicated serial Dispatch queue; no MainActor work inside CPU callbacks"] as [String: Any]
         guard monotonicNanoseconds() < warmupDeadline else {
             throw ProbeFailure(description: "Source warmup boundary passed before independent CPU captures could be armed")
         }
         // Enqueue all three deadlines before awaiting any result. In particular,
         // a delayed MainActor start observation cannot delay the formal end read.
-        let warmupCapture = scheduleCPU("warmupStart", deadline: warmupDeadline)
-        let beginCapture = scheduleCPU("formalStart", deadline: beginDeadline)
-        let endCapture = scheduleCPU("formalEnd", deadline: endDeadline)
+        let warmupCapture = try scheduleCPU("warmupStart", deadline: warmupDeadline)
+        let beginCapture = try scheduleCPU("formalStart", deadline: beginDeadline)
+        let endCapture = try scheduleCPU("formalEnd", deadline: endDeadline)
         let warmup = try await warmupCapture.value()
         validateCPUOffset(warmup, capture: warmupCapture)
         let begin = try await beginCapture.value()
@@ -476,13 +607,7 @@ private final class OverviewProbe {
         formalCPU["footprintMaxSampledBytes"] = footprints.max() ?? 0
         formalCPU["footprintSampling"] = "TASK_VM_INFO at MainActor boundary observations and 1 Hz; timestamps may lag CPU boundaries; maximum is sampled, not continuous"
         report["ui"] = formalCPU
-        let clockEnd = ProbeClock()
-        let clockDrift = Double(clockEnd.unixNanoseconds - clock.unix(at: clockEnd.uptimeNanoseconds)) / 1e6
-        var clockReport = report["clock"] as? [String: Any] ?? [:]
-        clockReport["realtimeAnchorDriftMilliseconds"] = clockDrift
-        report["clock"] = clockReport
         updateCPUClockReport()
-        if abs(clockDrift) > 5 { invalid.insert("Realtime/monotonic clock mapping drifted more than 5 ms") }
         report["counters"] = ["formalStart": countersBefore, "formalEnd": countersAfter,
             "observationTiming": [
                 "formalStart": observationTiming(planned: beginDeadline, started: startObservationBegan, finished: startObservationEnded),
@@ -498,7 +623,7 @@ private final class OverviewProbe {
         report["nativeDecoration"] = ["beforeWarmup": beforeNative, "formalEnd": afterNative]
         if afterNative["nativePathActive"] as? Bool != true { invalid.insert("Native decoration path was not active at formal end") }
         let tailObservationEnded = try await observeTail(model: model, workspace: workspace, expected: ready.expectedCards)
-        let tailCapture = scheduleCPU("tailObservationEnd", deadline: tailObservationEnded)
+        let tailCapture = try scheduleCPU("tailObservationEnd", deadline: tailObservationEnded)
         let tailEnd = try await tailCapture.value()
         validateCPUOffset(tailEnd, capture: tailCapture)
         updateCPUClockReport()
@@ -506,6 +631,7 @@ private final class OverviewProbe {
                 meaning: "Formal CPU end through the existing final-model stability observation; includes pending UI work and observation overhead, not queue drain"),
             "sourceThroughTailObservation": try cpuInterval(from: warmup, to: tailEnd,
                 meaning: "Source warmup start through the same final-model stability observation; includes warmup, formal and post-supply work; not a per-event cost or comparable to Core formal CPU")] as [String: Any]
+        finishClockEvidence()
         // Environment subprocesses, report fetch, hashes and full receipt encoding
         // belong after every CPU interval, including the post-supply interval.
         let resultData = try await core.request("result")
@@ -526,7 +652,7 @@ private final class OverviewProbe {
             "formalCount": formalReceipts.count, "totalCount": tracker.receipts.count,
             "records": tracker.receipts.map { $0.json(clock: clock) },
             "connectionChanges": tracker.connections.map { value -> [String: Any] in
-                ["unixNanoseconds": clock.unix(at: value.uptime), "status": value.status]
+                ["uptimeNanoseconds": value.uptime, "estimatedUnixNanoseconds": clock.estimatedUnix(at: value.uptime), "status": value.status]
             }] as [String: Any]
         for connection in tracker.connections where connection.uptime >= begin.uptimeNanoseconds && connection.uptime <= end.uptimeNanoseconds {
             if connection.status != "connected" { invalid.insert("Runtime connection left connected state during formal measurement") }
@@ -535,8 +661,8 @@ private final class OverviewProbe {
         report["stage"] = "measured"
     }
 
-    private func scheduleCPU(_ name: String, deadline: UInt64) -> ScheduledCPUSample {
-        let capture = ScheduledCPUSample(name: name, deadline: deadline, queue: cpuQueue)
+    private func scheduleCPU(_ name: String, deadline: UInt64) throws -> ScheduledCPUSample {
+        let capture = try ScheduledCPUSample(name: name, deadline: deadline, queue: cpuQueue)
         cpuCaptures[name] = capture
         return capture
     }
@@ -549,16 +675,35 @@ private final class OverviewProbe {
     }
 
     private func updateCPUClockReport() {
-        guard !cpuCaptures.isEmpty else { return }
         var value = report["clock"] as? [String: Any] ?? ["anchor": clock.json]
+        value["measurementClockVersion"] = MeasurementClock.version
+        value["measurementClockID"] = MeasurementClock.id
+        value["rawDispatchChecks"] = rawDispatchChecks.map(\.json)
+        if let endClock {
+            value["endAnchor"] = endClock.json
+            if clock.isValid, endClock.isValid {
+                value["realtimeAnchorDriftMilliseconds"] = Double(endClock.unixNanoseconds - clock.estimatedUnix(at: endClock.uptimeNanoseconds)) / 1e6
+            }
+            value["realtimeAnchorDriftIsValidityGate"] = false
+        }
         for (name, capture) in cpuCaptures { value[name] = capture.json(clock: clock) }
         report["clock"] = value
     }
 
+    private func finishClockEvidence() {
+        guard endClock == nil else { return }
+        endClock = ProbeClock()
+        let check = RawDispatchClockCheck(stage: "afterCPUWindows")
+        rawDispatchChecks.append(check)
+        if endClock?.isValid != true { invalid.insert("Final shared raw/UTC clock anchor is invalid or exceeds 5 ms uncertainty") }
+        if !check.isValid { invalid.insert("Dispatch and CLOCK_UPTIME_RAW disagree after the CPU windows") }
+        updateCPUClockReport()
+    }
+
     private func observationTiming(planned: UInt64, started: UInt64, finished: UInt64) -> [String: Any] {
         ["plannedUptimeNanoseconds": planned, "startedUptimeNanoseconds": started,
-            "finishedUptimeNanoseconds": finished, "startedUnixNanoseconds": clock.unix(at: started),
-            "finishedUnixNanoseconds": clock.unix(at: finished),
+            "finishedUptimeNanoseconds": finished, "startedEstimatedUnixNanoseconds": clock.estimatedUnix(at: started),
+            "finishedEstimatedUnixNanoseconds": clock.estimatedUnix(at: finished),
             "latenessMilliseconds": Double(Int64(started) - Int64(planned)) / 1e6,
             "durationMilliseconds": Double(finished - started) / 1e6,
             "executor": "MainActor"]
@@ -647,7 +792,7 @@ private final class OverviewProbe {
         if ProcessInfo.processInfo.isLowPowerModeEnabled { reasons.append("low-power-mode-enabled") }
         if reject { for reason in reasons { invalid.insert("\(label): \(reason)") } }
         let finished = monotonicNanoseconds()
-        return ["label": label, "unixNanoseconds": clock.unix(at: started),
+        return ["label": label, "uptimeNanoseconds": started, "estimatedUnixNanoseconds": clock.estimatedUnix(at: started),
             "observationTiming": observationTiming(planned: plannedUptime ?? started, started: started, finished: finished),
             "visible": window.isVisible, "key": window.isKeyWindow, "main": window.isMainWindow,
             "active": NSApp.isActive, "occlusionVisible": window.occlusionState.contains(.visible),
@@ -667,6 +812,7 @@ private final class OverviewProbe {
         let transform = model.canvasState.camera.liveTransform
         return ["condition": options.condition, "n": options.n, "k": 4, "seed": options.seed,
             "sourceProtocolVersion": SourceProtocol.version, "sourceQueueCapacity": SourceProtocol.queueCapacity,
+            "measurementClockVersion": MeasurementClock.version, "measurementClockID": MeasurementClock.id,
             "fixtureSHA256": fixtureHash, "contentSize": rectangleJSON(window.contentView?.bounds ?? .zero),
             "camera": ["scale": transform.scale, "x": transform.x, "y": transform.y],
             "activeCards": visibilityJSON(model)["activeCards"]!, "screen": screenJSON(screen),
@@ -691,7 +837,7 @@ private final class OverviewProbe {
                     let responseReceived = monotonicNanoseconds()
                     let status = try JSONDecoder().decode(SourceStatus.self, from: data)
                     try SourceProtocol.validate(version: status.sourceProtocolVersion, capacity: status.sourceQueueCapacity, stage: "status")
-                    try status.queue.validate()
+                    try status.queue.validate(clockOrigin: status.clockOriginUptimeNanoseconds)
                     let maximumSequence = options.condition == "R0" ? -1 : 249
                     guard status.currentSeqs.count == 4, status.currentSeqs.allSatisfy({ (-1...maximumSequence).contains($0) }) else {
                         throw ProbeFailure(description: "Core source status has invalid card sequences")
@@ -702,7 +848,7 @@ private final class OverviewProbe {
                     receipt["requestStartedUptimeNanoseconds"] = requestStarted
                     receipt["responseReceivedUptimeNanoseconds"] = responseReceived
                     receipt["observedUptimeNanoseconds"] = observed
-                    receipt["observedUnixNanoseconds"] = clock.unix(at: observed)
+                    receipt["observedEstimatedUnixNanoseconds"] = clock.estimatedUnix(at: observed)
                     receipt["requestMilliseconds"] = Double(responseReceived - requestStarted) / 1e6
                     sourceObservations.append(receipt)
                     if status.enqueueComplete && enqueueCompleteObservedAt == nil { enqueueCompleteObservedAt = observed }
@@ -737,13 +883,16 @@ private final class OverviewProbe {
             "meaning": "Core benchmark input FIFO snapshots requested only during the existing tail; response and MainActor observation times are retained, not exact CPU-boundary or production/UI queue observations"] as [String: Any]
         report["tailObservation"] = ["seconds": Double(ended - started) / 1e9,
             "startedUptimeNanoseconds": started, "endedUptimeNanoseconds": ended,
-            "startedUnixNanoseconds": clock.unix(at: started), "endedUnixNanoseconds": clock.unix(at: ended),
+            "startedEstimatedUnixNanoseconds": clock.estimatedUnix(at: started), "endedEstimatedUnixNanoseconds": clock.estimatedUnix(at: ended),
             "observationBudgetSeconds": 5, "sampleIntervalMilliseconds": 50,
             "requiredStableSamples": 10, "stableSamples": stable, "sampleCount": count,
             "sourceComplete": sourceComplete,
-            "firstObservedEnqueueCompleteUnixNanoseconds": enqueueCompleteObservedAt.map { clock.unix(at: $0) as Any } ?? NSNull(),
-            "firstObservedSourceCompleteUnixNanoseconds": sourceCompleteObservedAt.map { clock.unix(at: $0) as Any } ?? NSNull(),
-            "firstObservedModelConvergenceUnixNanoseconds": convergenceUptime.map { clock.unix(at: $0) as Any } ?? NSNull(),
+            "firstObservedEnqueueCompleteUptimeNanoseconds": enqueueCompleteObservedAt.map { $0 as Any } ?? NSNull(),
+            "firstObservedSourceCompleteUptimeNanoseconds": sourceCompleteObservedAt.map { $0 as Any } ?? NSNull(),
+            "firstObservedModelConvergenceUptimeNanoseconds": convergenceUptime.map { $0 as Any } ?? NSNull(),
+            "firstObservedEnqueueCompleteEstimatedUnixNanoseconds": enqueueCompleteObservedAt.map { clock.estimatedUnix(at: $0) as Any } ?? NSNull(),
+            "firstObservedSourceCompleteEstimatedUnixNanoseconds": sourceCompleteObservedAt.map { clock.estimatedUnix(at: $0) as Any } ?? NSNull(),
+            "firstObservedModelConvergenceEstimatedUnixNanoseconds": convergenceUptime.map { clock.estimatedUnix(at: $0) as Any } ?? NSNull(),
             "meaning": "Post-supply model stability observation, not queue drain duration or pixel presentation"] as [String: Any]
         if !sourceComplete || stable < 10 { invalid.insert("Source/final model did not converge within the tail observation budget") }
         if ended > deadline { invalid.insert("Tail observation exceeded its five-second budget") }
@@ -773,8 +922,9 @@ private final class OverviewProbe {
         // must not turn booleans or nulls into successful version/count checks.
         let result = try JSONDecoder().decode(SourceResult.self, from: data)
         try SourceProtocol.validate(version: result.sourceProtocolVersion, capacity: result.sourceQueueCapacity, stage: stage)
+        try MeasurementClock.validate(version: result.measurementClockVersion, id: result.measurementClockID, stage: stage)
         sourceProtocolChecks[stage] = true
-        try result.queue.validate()
+        try result.queue.validate(clockOrigin: result.clockOriginUptimeNanoseconds)
         let counts = result.source, queue = result.queue
         let planned = options.condition == "R0" ? 0 : 1000
         guard result.condition == options.condition, result.n == 40, result.k == 4, result.seed == options.seed,
@@ -791,6 +941,7 @@ private final class OverviewProbe {
         let completed = result.sourceComplete && result.enqueueComplete && result.producerFinished
         var validations = report["sourceValidation"] as? [String: Any] ?? [:]
         validations[stage] = ["sourceProtocolVersion": result.sourceProtocolVersion, "sourceQueueCapacity": result.sourceQueueCapacity,
+            "measurementClockVersion": result.measurementClockVersion, "measurementClockID": result.measurementClockID,
             "planned": planned, "enqueued": counts.enqueued, "dequeued": counts.dequeued,
             "sent": counts.sent, "accepted": counts.accepted,
             "notEnqueued": planned - counts.enqueued, "enqueuedNotAccepted": counts.enqueued - counts.accepted,
@@ -811,25 +962,27 @@ private final class OverviewProbe {
         for error in counts.errors { invalid.insert("Core source error: \(error)") }
     }
 
-    private func validateDelivery(_ coreResult: [String: Any]) {
+    private func validateDelivery(_ data: Data) {
         guard let start = formalStart, let end = formalEnd else { return }
-        guard let publications = coreResult["publications"] as? [[String: Any]] else {
-            invalid.insert("Core publication evidence is missing"); return
+        let publications: [SourceDeliveryEvidence.Publication]
+        do { publications = try JSONDecoder().decode(SourceDeliveryEvidence.self, from: data).publications }
+        catch {
+            invalid.insert("Core publication evidence has missing or malformed raw timestamps: \(error)"); return
         }
-        let first = clock.unix(at: start.uptimeNanoseconds), last = clock.unix(at: end.uptimeNanoseconds)
+        let first = start.uptimeNanoseconds, last = end.uptimeNanoseconds
         var installs: [Int: InstallReceipt] = [:]
         for receipt in tracker.receipts where installs[receipt.revision] == nil { installs[receipt.revision] = receipt }
         var missing: [Int] = [], latency: [Double] = []
         var publicationCount = 0
         for publication in publications {
-            guard let at = (publication["publishedUnixNano"] as? NSNumber)?.int64Value,
-                  let revision = (publication["revision"] as? NSNumber)?.intValue else {
-                invalid.insert("A Core publication lacks timestamp/revision"); continue
+            let at = publication.publishedUptimeNanoseconds, revision = publication.revision
+            guard at > 0, at <= UInt64(Int64.max), revision >= 0 else {
+                invalid.insert("A Core publication has an invalid raw timestamp/revision"); continue
             }
             guard at >= first, at < last else { continue }
             publicationCount += 1
             if let install = installs[revision] {
-                latency.append(Double(clock.unix(at: install.uptime) - at) / 1e6)
+                latency.append(Double(Int64(install.uptime) - Int64(at)) / 1e6)
             } else { missing.append(revision) }
         }
         if !missing.isEmpty { invalid.insert("Formal publications were not installed by the model: \(missing)") }
@@ -854,6 +1007,7 @@ private final class OverviewProbe {
             return sorted[min(sorted.count - 1, max(0, Int(ceil(Double(sorted.count) * fraction)) - 1))]
         }
         report["delivery"] = ["publicationWindow": "Published within the actual UI CPU boundaries; installed before tail completion",
+            "measurementClockVersion": MeasurementClock.version, "measurementClockID": MeasurementClock.id,
             "publishedRevisions": publicationCount, "matchedInstalledRevisions": latency.count,
             "missingRevisions": missing, "publishToModelInstallMilliseconds": ["p50": quantile(0.5), "p95": quantile(0.95), "max": sorted.last ?? 0],
             "perCard": cards, "meaning": "Catalog admission, not display updates or pixels"] as [String: Any]

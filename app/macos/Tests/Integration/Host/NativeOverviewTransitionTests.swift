@@ -31,6 +31,7 @@ import MokuseiTestSupport
     @ObservationIgnored var slowMountIDs = Set<String>()
     @ObservationIgnored var delayedMounts = Set<String>()
     @ObservationIgnored var presentationHistory: [String: [String]] = [:]
+    @ObservationIgnored var entrySource1At: TimeInterval?
     @ObservationIgnored var geometryObserver: (@MainActor (String, CGRect, TimeInterval) -> Void)?
     @ObservationIgnored var revisionObserver: (@MainActor (UInt64, TimeInterval) -> Void)?
 }
@@ -553,7 +554,6 @@ struct NativeOverviewTransitionTests {
         var beforeInjection: GeometryReceipt?
         var latestAfterInjection: GeometryReceipt?
         var beforeFirstConsumption: GeometryReceipt?
-        var source1At: TimeInterval?
         var source2At: TimeInterval?
         var source2CommittedAt: TimeInterval?
         var consumed1At: TimeInterval?
@@ -587,7 +587,7 @@ struct NativeOverviewTransitionTests {
         }
         defer {
             fixture.geometryObserver = nil; fixture.revisionObserver = nil
-            let report: [String: Any] = ["source1At": timestamp(source1At), "source2At": timestamp(source2At),
+            let report: [String: Any] = ["source1At": timestamp(fixture.entrySource1At), "source2At": timestamp(source2At),
                 "source2CommittedAt": timestamp(source2CommittedAt), "consumed1At": timestamp(consumed1At),
                 "precedingInjection": describe(precedingInjection), "beforeInjection": describe(beforeInjection),
                 "beforeFirstConsumption": describe(beforeFirstConsumption), "samples": samples,
@@ -618,7 +618,7 @@ struct NativeOverviewTransitionTests {
                 }
                 return
             }
-            guard source2At == nil, let prior, let source1At, prior.at > source1At, now > prior.at,
+            guard source2At == nil, let prior, let source1At = fixture.entrySource1At, prior.at > source1At, now > prior.at,
                   prior.camera == transform, prior.targetY == sample.targetY,
                   frame.minY < prior.frame.minY, frame.minY - sample.targetY >= 4 else { return }
             // Two observed frames prove upward motion. Keeping at least 4pt
@@ -640,7 +640,7 @@ struct NativeOverviewTransitionTests {
             }
         }
         let next = [NativeOverviewItem(id: "a"), .init(id: "temporary")]
-        source1At = ProcessInfo.processInfo.systemUptime
+        fixture.entrySource1At = ProcessInfo.processInfo.systemUptime
         fixture.items = next
         fixture.revisions = [.init(revision: 1, sceneKey: fixture.scene, items: next)]
         try await waitForReceipt({ source2CommittedAt != nil },
