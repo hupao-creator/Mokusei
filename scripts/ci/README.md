@@ -94,12 +94,17 @@ downstream jobs do not depend on an older immutable dependency-cache entry.
 Swift CI omits the editor index store while retaining Debug code and test targets.
 DirectoryTag is also executed once. Four native-CLI/system runners are separate
 `extended=true` workflow dispatches, which do not repeat the normal workflow.
-Default PR/main and extended runs share a repository-wide concurrency queue
-(`queue: max`, no cancellation of another queued run). One workflow cohort is
-admitted at a time; its Linux checks, preparation jobs and native shards still
-run in parallel. The scope job rejects obsolete PR heads/bases and superseded
-main pushes before scheduling native work. Explicit dispatches remain pinned to
-the requested revision. This is a workflow queue, not GitHub Merge Queue.
+Default PR/main and extended runs each get their own workflow cohort: the
+concurrency group is the Git ref, so one pull request never waits behind another
+pull request's native shards. A newer push to the same ref cancels its
+predecessor only for `pull_request` events; main pushes and explicit dispatches
+are never cancelled, so no `main` commit settles with a partial result. Account-
+level hosted macOS concurrency still throttles simultaneous cohorts, which is
+where queue time now comes from. The scope job stops obsolete PR heads/bases and
+superseded main pushes before scheduling native work and publishes a superseded
+cohort instead of a failure, because nothing was verified for that revision.
+Explicit dispatches remain pinned to the requested revision. This is a workflow
+queue, not GitHub Merge Queue.
 CLI installs are cached by exact package/version and architecture, and downloads
 retain their three-minute execution timeout. The removed long-running stability
 check is not replaced with another soak.
@@ -116,7 +121,7 @@ the first trigger. Carried-forward successful jobs on partial retries retain
 old execution timestamps even when GitHub assigns new job IDs; they are labeled
 reused, not counted as new work. Time is diagnostic and does not decide merge
 eligibility. All required jobs and complete observed coverage must still pass.
-The queue only coordinates workflows using this key in this repository; other
+The group key only coordinates workflows in this repository that use it; other
 repositories or older workflow revisions may still consume account capacity.
 
 ## Native coverage evidence
@@ -204,9 +209,11 @@ raw logs and screenshots remain available for diagnosis. Swift failures print
 bounded assertion excerpts directly in the job log and summary; replay errors
 report command status and timeout reason even when their log is empty.
 Missing logs are reported as not run, never as zero failures.
-GitHub [supports `queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency); actionlint 1.7.12 predates that syntax. Local lint
-ignores only its exact unknown-queue-key diagnostic, and actual hosted workflow
-acceptance remains required.
+
+The concurrency block derives its group from `github.ref` and cancels only
+superseded `pull_request` runs, so no per-job suppression is needed to keep an
+obsolete revision from consuming a macOS cohort. Any future change to those keys
+must be checked against hosted workflow acceptance, not local YAML parsing.
 
 Hosted runner execution is established by actual workflow results, not by local
 YAML validation or local tests.
@@ -228,28 +235,45 @@ execute Swift Testing's selection engine or macOS rendering; the current-head
 native CI run must confirm the actual ordinary and native method sets exactly once.
 It runs on Linux alongside the existing Go reporter verifier.
 
-## Pull request protection and advisory CI
+## Pull request merge gates
 
 The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires changes to `main` to go through a pull request. CI is advisory:
-`Go / Linux` and `Complete coverage` are no longer required status checks,
-and the CI requirement to be up to date with `main` has been removed with them.
-The workflow still runs on PRs and main pushes, with manual extended dispatches
-available. Failures remain visible for diagnosis but do not block merging.
-The complete-coverage check still audits every default job and the selected
-verification scope; its internal evidence requirements are unchanged.
+requires changes to `main` to go through a pull request. Before merging, the
+branch must be up to date with `main`, and this GitHub Actions check must pass:
+
+- `Complete coverage`
+
+The aggregate is the only required context because it already fails when any
+default job fails or is skipped, including `Determine verification scope` and
+`Go / Linux`. Requiring the individual jobs as well would add failure surfaces
+whose names follow the shard matrix. Optional extended dispatches use a distinct
+aggregate name (`Extended native CLI coverage`) and cannot satisfy the required
+default check. A superseded cohort reports `Complete coverage` as successful
+with a summary line stating that no verification ran; it is never evidence about
+the revision that replaced it, and the freshness requirement keeps such a
+result from unlocking a merge.
 
 All code-review conversations must be resolved. General PR timeline comments
 have no resolution state and are not covered by this rule. The required number
 of approving reviews is zero; the review gate is resolution of outstanding
 conversations.
 
-There are no bypass actors, including repository administrators. Force pushes
-and deletion of `main` remain blocked. No other protection was disabled.
+There are no bypass actors, including repository administrators, so an
+administrator cannot merge past a failing or missing required check. Force
+pushes and deletion of `main` are blocked. Check results must come from the
+GitHub Actions app (integration ID `15368`).
 
-GitHub stores this ruleset separately from the workflow. Editing or renaming
-workflow jobs does not change remote merge requirements. Inspect the effective
-configuration with the locally authenticated `gh` CLI:
+GitHub stores this ruleset separately from the workflow. When adding or renaming
+required CI jobs, coordinate the required-check contexts with the workflow and
+update this list before merging. A stale context blocks merging indefinitely;
+an omitted context leaves that job outside the merge gate. Keep optional,
+manually dispatched jobs out of the required PR checks.
+
+The freshness requirement makes every concurrent PR re-run after `main` moves.
+Budget for that when merging several branches: land one, let the next update its
+branch and re-run, rather than refreshing every open branch at once.
+
+Inspect the effective configuration with the locally authenticated `gh` CLI:
 
 ```sh
 gh api repos/hupao-creator/Mokusei/rulesets/26004586

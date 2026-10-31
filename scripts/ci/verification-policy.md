@@ -11,16 +11,15 @@ remain useful for iteration and diagnosis; their existence does not make every
 tool mandatory for every change. Historical logs and checks from a different
 revision cannot certify the new revision.
 
-Plan focused local checks first. Hosted CI currently provides advisory feedback;
-its completion is not a merge requirement. Honor any actual remote required
-checks if protection rules change. Do not add a full local `make check` merely
-before or after equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
+Plan focused local checks first and require the actual hosted merge gates for
+the final revision. Do not add a full local `make check` merely before or after
+equivalent CI. Root AGENTS.md defines failure triage, scoped retry and merge
 coordination. Documentation-only diffs proven by the workflow's conservative
 path/mode classifier use an explicit diff-validation scope; unknown/mixed changes
 and manual dispatches run all checks below. Native tests outside a proven
 documentation scope are not claimed as executed.
 
-## Default hosted checks
+## Default hosted gates
 
 | Gate | Independent value | Execution |
 | --- | --- | --- |
@@ -59,12 +58,15 @@ current-head Swift/native run validates Swift Testing's runtime selection semant
 
 ## Runner allocation and execution limits
 
-The workflow serializes PR/main and extended cohorts in a repository-wide queue.
-Each admitted cohort still builds current sources once and runs five disjoint
+The workflow runs one cohort per Git ref and cancels a superseded pull-request
+run, so a merge gate is not delayed behind another branch's native shards. Each
+admitted cohort still builds current sources once and runs five disjoint
 native shards in parallel, with serial GUI work inside each runner. An exact
 run/producer-attempt manifest gates shared artifacts and all discovered method
 IDs must appear exactly once; weights are scheduling hints, never a coverage list.
-Obsolete queued PR heads/bases and main pushes stop before native scheduling.
+Obsolete queued PR heads/bases and main pushes stop before native scheduling and
+report a superseded cohort, which is not a verification result for either the
+obsolete revision or its replacement.
 
 There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
 Queue, attempt and total retry elapsed times are diagnostic metrics. Thirty-minute
@@ -74,10 +76,10 @@ their independent purpose. A timeout still means incomplete verification.
 Preserve each attempt's evidence and select the latest execution of each required
 slot; never fall back from a new failure to an old success. Re-run failed jobs
 only after diagnosis shows a retry is appropriate. A same-commit passing retry
-does not establish that the first failure was harmless. The workflow still
-requires all selected jobs and complete observed method coverage to report success; that result is advisory for merging.
+does not establish that the first failure was harmless. All required checks and
+complete observed method coverage remain merge requirements.
 
-## Extended hosted checks
+## Extended hosted gate
 
 Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.

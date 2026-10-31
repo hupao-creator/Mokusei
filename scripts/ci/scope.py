@@ -1,4 +1,4 @@
-"""Reject obsolete queued work and prove a conservative documentation-only diff."""
+"""Skip obsolete queued work before native scheduling and prove a conservative documentation-only diff."""
 import argparse
 import json
 import os
@@ -9,7 +9,7 @@ import subprocess
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--current", action="store_true", help="Reject superseded PR/main revisions before native scheduling")
+    parser.add_argument("--current", action="store_true", help="Stop superseded PR/main revisions before native scheduling")
     args = parser.parse_args()
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     kind = os.environ["GITHUB_EVENT_NAME"]
@@ -31,10 +31,18 @@ def main():
                 "gh", "api", f"repos/{repository}/git/ref/heads/main"], text=True))
             obsolete = current["object"]["sha"] != os.environ["GITHUB_SHA"]
         if obsolete:
-            message = "Superseded queued revision: use the latest PR head/base or main commit; no native verification started."
+            # Leaving the revision unverified is the correct outcome, so this
+            # cohort ends successfully and reports no verification result. A red
+            # required check here would block a PR that a later run already
+            # covers, and would misreport a skipped queue entry as a defect.
+            message = ("Superseded revision: the pull request head/base or the main commit moved on, "
+                       "so no native verification was attempted for this cohort.")
+            print(message)
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
                 summary.write(message + "\n")
-            raise SystemExit(message)
+            with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                output.write("superseded=true\ndocumentation_only=false\n")
+            return
     paths = []
     if base and head and all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in (base, head)):
         # Disable rename detection: both the old and new path must be documentation.
@@ -57,6 +65,7 @@ def main():
     result = {"documentation_only": docs_only, "base": base, "head": head, "paths": paths}
     print(json.dumps(result, indent=2))
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+        output.write("superseded=false\n")
         output.write(f"documentation_only={str(docs_only).lower()}\n")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
         summary.write("## Verification scope\n\n" + (
