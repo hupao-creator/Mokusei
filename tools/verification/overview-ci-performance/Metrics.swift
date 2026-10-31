@@ -242,11 +242,15 @@ func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
     @MainActor
     func inspectLayer(_ layer: CALayer, cloud: Bool, scan: Bool) {
         if cloud, let metal = layer as? CAMetalLayer {
-            if !metal.isHidden && metal.drawableSize.width > 0 && metal.drawableSize.height > 0 && metal.device != nil {
+            // Keep the layer out of Boolean operators' implicit autoclosures.
+            let hidden = metal.isHidden
+            let drawableSize = metal.drawableSize
+            let hasDevice = metal.device != nil
+            if !hidden, drawableSize.width > 0, drawableSize.height > 0, hasDevice {
                 activeMetal += 1
             }
-            surfaces.append(["hidden": metal.isHidden, "drawableWidth": metal.drawableSize.width,
-                "drawableHeight": metal.drawableSize.height, "device": metal.device?.name ?? "unavailable",
+            surfaces.append(["hidden": hidden, "drawableWidth": drawableSize.width,
+                "drawableHeight": drawableSize.height, "device": metal.device?.name ?? "unavailable",
                 "opaque": metal.isOpaque, "presentsWithTransaction": metal.presentsWithTransaction])
         }
         if scan, layer.animation(forKey: "overview.scan.position") != nil { scanAnimations += 1 }

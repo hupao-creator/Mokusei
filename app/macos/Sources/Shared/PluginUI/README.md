@@ -340,6 +340,10 @@ The 280ms ink reveal uses the built-in offset effect to translate its two
 gradient masks. The mask view itself does not interpolate progress, removing
 that cause of per-frame body evaluation. Buffer advancement, reveal
 ownership, disabled-animation resets and the 800ms hold remain leaf-owned.
+Each new reveal key replaces only its two stateless visual layers, retiring
+the previous offset animation's presentation before the incoming mask starts
+at zero. The excerpt owner, buffer and tasks remain mounted; appends within
+the same window and local width changes retain the current visual identity.
 
 One title transition consumes the latest pending value at each completed beat;
 new titles do not cancel its wait, so sustained updates cannot starve display.

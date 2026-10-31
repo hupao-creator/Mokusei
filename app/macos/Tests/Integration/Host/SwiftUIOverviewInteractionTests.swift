@@ -505,6 +505,10 @@ extension SwiftUIOverviewInteractionTests {
         let target = try #require(shareable.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
         let scale = window.backingScaleFactor
         let titlebar = window.frame.height - root.bounds.height
+        func region(_ top: CGFloat) -> CGRect {
+            CGRect(x: 16 * scale, y: (titlebar + top) * scale,
+                   width: 360 * scale, height: 96 * scale).integral
+        }
         let configuration = SCStreamConfiguration()
         configuration.width = Int(window.frame.width * scale)
         configuration.height = Int(window.frame.height * scale)
@@ -524,12 +528,33 @@ extension SwiftUIOverviewInteractionTests {
             try await SwiftUIReplay.wait { frames.ready }
             captures.append(contentsOf: frames.takeSamples())
             report.baselineIndex = captures.count - 1
+            var rewriteReference: ExcerptInkReference?
+            if scenario == .rewrite {
+                let baseline = try #require(captures.last, "Observation incomplete: no full WindowServer baseline")
+                let blank = try titleWindowPixels(baseline.image, region: region(48))
+                let full = try titleWindowPixels(baseline.image, region: region(174))
+                rewriteReference = ExcerptInkReference(blank: blank, full: full)
+                try #require((rewriteReference?.pointCount ?? 0) > 30,
+                             "Observation incomplete: rewrite motion reference has insufficient glyph pixels")
+            }
             let began = ProcessInfo.processInfo.systemUptime
             report.events.append(.init(name: "rewrite-from-blank", uptime: began, width: 360))
             fixture.message = ExcerptInkFixture.first
             fixture.phase = 1
-            if let delay = scenario.interruptionDelay {
-                try await collectExcerptFrames(frames, until: began + delay, into: &captures)
+            if scenario != .fixed {
+                if scenario == .rewrite {
+                    // Parent input time does not establish when the leaf's
+                    // reveal reached the compositor. Interrupt only after the
+                    // unchanged pixel-motion predicate has actually passed.
+                    let reference = try #require(rewriteReference)
+                    try await collectUntilExcerptRewriteMotion(frames, until: began + 0.45,
+                        reference: reference, region: region(48),
+                        phasePoint: CGPoint(x: 22 * scale, y: (titlebar + 22) * scale),
+                        scale: scale, into: &captures, report: &report)
+                } else {
+                    let delay = try #require(scenario.interruptionDelay)
+                    try await collectExcerptFrames(frames, until: began + delay, into: &captures)
+                }
                 let changed = ProcessInfo.processInfo.systemUptime
                 report.actualInterruptionMilliseconds = (changed - began) * 1000
                 report.events.append(.init(name: scenario == .rewrite ? "rewrite-again" : "change-local-width",
@@ -549,12 +574,9 @@ extension SwiftUIOverviewInteractionTests {
             throw error
         }
 
-        // All pixel work and encoding occur after stop. During motion, draining
-        // every 5 ms keeps TagGlassFrames' 60-frame bound from discarding evidence.
-        func region(_ top: CGFloat) -> CGRect {
-            CGRect(x: 16 * scale, y: (titlebar + top) * scale,
-                   width: 360 * scale, height: 96 * scale).integral
-        }
+        // Only the rewrite prerequisite examines a live crop. All remaining
+        // pixel checks and PNG encoding occur after stop. Draining every 5 ms
+        // keeps TagGlassFrames' 60-frame bound from discarding evidence.
         let baseline = try #require(captures.indices.contains(report.baselineIndex) ? captures[report.baselineIndex] : nil,
                                     "Observation incomplete: no full WindowServer baseline")
         report.capturedPixels = [baseline.image.width, baseline.image.height]
@@ -601,6 +623,10 @@ extension SwiftUIOverviewInteractionTests {
             let actual = report.events[1].uptime - report.events[0].uptime
             try #require(actual >= delay - 0.005 && actual < delay + 0.06,
                          "Observation incomplete: the requested interruption was delivered too late to characterize this short reveal")
+        } else if scenario == .rewrite {
+            let deadline = try #require(report.rewriteSensorDeadlineUptime)
+            try #require(report.events[1].uptime < deadline,
+                         "Observation incomplete: the rewrite input missed the bounded sensor deadline")
         }
         func hasWidth(_ frame: ExcerptInkFrameRecord, _ points: CGFloat) -> Bool {
             abs(frame.composedWidthPixels - Int(points * scale)) <= 1
@@ -619,6 +645,16 @@ extension SwiftUIOverviewInteractionTests {
         case .rewrite:
             let after = report.frames.filter { $0.phase == 2 && hasWidth($0, 360) }
             try #require(!after.isEmpty, "Observation incomplete: no composed frame acknowledged the second rewrite")
+            // Before the leaf observes the rewrite, its old incoming gradient
+            // may still be present. That gradient is soft. After observation,
+            // the previous mask is opaque on the left and fades to the right.
+            // Neither can produce the hard rising edge of a mask translated
+            // to positive x by a retired animation's additive presentation.
+            report.resetHardEdgeFrameIndices = after.filter {
+                excerptHasHardRisingEdge($0.previous, scale: scale)
+            }.map(\.index)
+            try #require(report.resetHardEdgeFrameIndices.isEmpty,
+                Comment(rawValue: "The previous ink has a translated mask edge after rewrite at frames \(report.resetHardEdgeFrameIndices)"))
             let firstTime = try #require(after.first).presentationTime
             // The old display is the complete logical text by contract. A
             // rewrite may restore that ink; its NEW incoming row must restart
@@ -668,6 +704,56 @@ extension SwiftUIOverviewInteractionTests {
         captures.append(contentsOf: frames.takeSamples())
     }
 
+    private func collectUntilExcerptRewriteMotion(_ frames: TagGlassFrames, until deadline: TimeInterval,
+                                                  reference: ExcerptInkReference, region: CGRect,
+                                                  phasePoint: CGPoint, scale: CGFloat,
+                                                  into captures: inout [TagGlassFrames.Sample],
+                                                  report: inout ExcerptInkReport) async throws {
+        report.rewriteSensorDeadlineUptime = deadline
+        while ProcessInfo.processInfo.systemUptime < deadline {
+            let firstIndex = captures.count
+            let samples = frames.takeSamples()
+            captures.append(contentsOf: samples)
+            for (offset, sample) in samples.enumerated() {
+                let index = firstIndex + offset
+                guard try excerptPhase(sample.image, at: phasePoint) == 1 else { continue }
+                let pixels = try titleWindowPixels(sample.image, region: region)
+                report.rewriteSensorSamples.append(.init(index: index,
+                    presentationTime: sample.presentationTime, receivedAt: sample.receivedAt,
+                    exposure: reference.exposure(pixels)))
+            }
+            if let latest = report.rewriteSensorSamples.last {
+                try #require(latest.exposure.fraction < 0.98,
+                    "Observation incomplete: the initial reveal finished before an in-flight rewrite could be observed")
+                if latest.exposure.isPartial, latest.exposure.fraction <= 0.80,
+                   let pair = excerptMotionPair(report.rewriteSensorSamples,
+                                                minimumFrames: 2, minimumGain: 0.06, scale: scale) {
+                    // Check current composed geometry without rescanning old
+                    // frames on the live path. The final oracle validates all
+                    // widths and the full pre-interruption motion sequence.
+                    let marker = try excerptComposedMarker(captures[latest.index].image)
+                    try #require(abs(Int(marker.bounds.width) - Int(360 * scale)) <= 1,
+                                 "Observation incomplete: rewrite prerequisite did not retain the 360-point local width")
+                    let observedAt = ProcessInfo.processInfo.systemUptime
+                    let age = observedAt - latest.receivedAt
+                    report.rewriteSensorLastSampleAgeMilliseconds = age * 1000
+                    // Pixel analysis must not turn a stale partial frame into
+                    // evidence that the reveal is still in flight now.
+                    if age >= 0, age < 0.05, observedAt < deadline {
+                        report.rewriteTriggerFrameIndices = [pair.first.index, pair.last.index, latest.index]
+                        report.rewriteTriggerObservedAt = observedAt
+                        report.rewriteTriggerExposureFraction = latest.exposure.fraction
+                        return
+                    }
+                }
+            }
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            if remaining > 0 { try await Task.sleep(for: .seconds(min(0.005, remaining))) }
+        }
+        try #require(report.rewriteTriggerFrameIndices != nil,
+            "Observation incomplete: the bounded rewrite sensor did not observe two moving intermediate frames")
+    }
+
     private func requireExcerptMotion(_ frames: [ExcerptInkFrameRecord],
                                       key: KeyPath<ExcerptInkFrameRecord, ExcerptInkExposure>,
                                       stage: String, minimumFrames: Int,
@@ -686,22 +772,50 @@ extension SwiftUIOverviewInteractionTests {
             peak = max(peak, fraction)
             reachedFull = reachedFull || fraction >= 0.98
         }
-        let partial = frames.filter {
-            let exposure = $0[keyPath: key]
-            return exposure.fraction > 0.02 && exposure.fraction < 0.98 && exposure.front != nil
+        let samples = frames.map {
+            ExcerptInkMotionSample(index: $0.index, presentationTime: $0.presentationTime,
+                                   receivedAt: $0.receivedAt, exposure: $0[keyPath: key])
         }
+        let partial = samples.filter { $0.exposure.isPartial }
         try #require(partial.count >= minimumFrames,
                      Comment(rawValue: "Observation incomplete: too few intermediate WindowServer ink frames for " + stage))
-        let movesLeft = partial.enumerated().contains { index, first in
-            partial.dropFirst(index + 1).contains { last in
-                guard let start = first[keyPath: key].front, let end = last[keyPath: key].front else { return false }
-                return last.presentationTime > first.presentationTime + 0.012
-                    && first[keyPath: key].fraction + minimumGain <= last[keyPath: key].fraction
-                    && start - end >= Int(4 * scale)
-            }
-        }
+        let movesLeft = excerptMotionPair(samples, minimumFrames: minimumFrames,
+                                          minimumGain: minimumGain, scale: scale) != nil
         try #require(movesLeft,
                      Comment(rawValue: "No observed right-to-left mask boundary motion between intermediate frames for " + stage))
+    }
+
+    private func excerptMotionPair(_ samples: [ExcerptInkMotionSample], minimumFrames: Int,
+                                   minimumGain: Double, scale: CGFloat)
+        -> (first: ExcerptInkMotionSample, last: ExcerptInkMotionSample)? {
+        let partial = samples.filter { $0.exposure.isPartial }
+        guard partial.count >= minimumFrames else { return nil }
+        for (index, first) in partial.enumerated() {
+            for last in partial.dropFirst(index + 1) {
+                guard let start = first.exposure.front, let end = last.exposure.front else { continue }
+                if last.presentationTime > first.presentationTime + 0.012,
+                   first.exposure.fraction + minimumGain <= last.exposure.fraction,
+                   start - end >= Int(4 * scale) {
+                    return (first, last)
+                }
+            }
+        }
+        return nil
+    }
+
+    private func excerptHasHardRisingEdge(_ exposure: ExcerptInkExposure, scale: CGFloat) -> Bool {
+        // Four points span less than 5% of the incoming gradient's 86.4-point
+        // transition at this fixed width. A >50% upward step instead exposes
+        // the gradient frame's clipped leading edge. Glyph-free columns are
+        // skipped, but a wider gap cannot establish this spatial discontinuity.
+        var previous: (column: Int, value: Double)?
+        for (column, value) in exposure.columns.enumerated() {
+            guard let value else { continue }
+            if let previous, column - previous.column <= Int(4 * scale),
+               value - previous.value > 0.5 { return true }
+            previous = (column, value)
+        }
+        return false
     }
 
     private func excerptPhase(_ image: CGImage, at point: CGPoint) throws -> Int {
@@ -831,8 +945,7 @@ private enum ExcerptInkScenario: String, CaseIterable {
     case fixed, rewrite, resize
     var interruptionDelay: TimeInterval? {
         switch self {
-        case .fixed: nil
-        case .rewrite: 0.100
+        case .fixed, .rewrite: nil
         case .resize: 0.140
         }
     }
@@ -912,6 +1025,13 @@ private struct ExcerptInkReport: Encodable {
     var widths: [ExcerptInkWidth] = []
     var frames: [ExcerptInkFrameRecord] = []
     var actualInterruptionMilliseconds: Double?
+    var rewriteSensorDeadlineUptime: TimeInterval?
+    var rewriteSensorLastSampleAgeMilliseconds: Double?
+    var rewriteSensorSamples: [ExcerptInkMotionSample] = []
+    var rewriteTriggerFrameIndices: [Int]?
+    var rewriteTriggerObservedAt: TimeInterval?
+    var rewriteTriggerExposureFraction: Double?
+    var resetHardEdgeFrameIndices: [Int] = []
     var resetFrameIndex: Int?
     var finalRelativeError: Double?
 }
@@ -937,6 +1057,14 @@ private struct ExcerptInkExposure: Encodable {
     /// Uniform opacity can change fraction without moving this boundary.
     let front: Int?
     let columns: [Double?]
+    var isPartial: Bool { fraction > 0.02 && fraction < 0.98 && front != nil }
+}
+
+private struct ExcerptInkMotionSample: Encodable {
+    let index: Int
+    let presentationTime: Double
+    let receivedAt: TimeInterval
+    let exposure: ExcerptInkExposure
 }
 
 private struct ExcerptInkReference {

@@ -232,6 +232,17 @@ observations are required; a completed 280ms task or matching final text is
 insufficient. Reference frames use the same production text renderer. The moving
 cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
 
+The rewrite input waits for two observed partial frames with the same minimum
+0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
+latest frame must still be partial, at most 80% exposed, and less than 50ms old
+after sensor work; the 450ms sensor deadline fails if this prerequisite is unavailable. Sensor
+samples, input times, presentation timestamps and accepted frame indices are
+retained. Only this prerequisite examines a live crop; PNG encoding and all
+remaining assertions run after capture stops. The local resize still occurs
+140ms after input. Rewrite frames must have no hard rising mask edge and must
+still show an early reset within 65ms, new incoming motion and the exact settled
+production reference within the existing pixel-error tolerance.
+
 The method has one explicit `native-capture/tag-glass-captures` owner, so ordinary
 Swift shards exclude it while complete coverage requires its passing native
 outcome and `EXCERPT_INK_MOTION_CONFIRMED` marker. Screenshots, capture timestamps

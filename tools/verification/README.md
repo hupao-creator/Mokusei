@@ -39,6 +39,10 @@ For Note viewport evidence and authenticated Swift/Runtime/context round trips,
 see the [Note replay](moku-note/README.md). Its native launcher, Talk dismissal
 and reading-presentation stage inputs, build artifacts and resources in temporary
 workspaces, retain path/PID diagnostics and clean up the owned app on timeout.
+Before timeout cleanup, native replays attempt a two-second sample of the startup
+PID only after confirming its staged executable, with an eight-second sampler
+limit. Evidence retains `timeout-sample.txt` when available and
+`timeout-sample.log` for the attempt; the original replay timeout remains a failure.
 Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
@@ -111,6 +115,12 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/settings-shell` | Schema, normalization, CAS, diagnostic bounds and redaction |
 | `./tools/verification/artificialanalysis` | [Intelligence Index v5](artificialanalysis/README.md) version/metric contracts, cache isolation, cold/warm cache, detail/provenance matching and output bounds; opt-in live website check |
 | `./tools/verification/artificialanalysis/lifecycle` | Independent Context host registration/enablement, runtime catalog/settings/history reset, shared acquisition, cancellation, drain, fallback and bounds |
+
+The Settings replay waits for the current mounted onboarding control to be both
+settled and enabled within its existing 12-second bound. A timeout reports the
+step, model readiness and matching control state. Its `-artifacts` directory also
+retains any `onboarding-failure.json` and `onboarding-failure.png` captured by the
+native flow, alongside the Swift/Runtime logs and Settings summary.
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
 

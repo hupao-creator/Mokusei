@@ -304,6 +304,20 @@ func run() (failure error) {
 			data, _ := json.MarshalIndent(map[string]any{"calls": calls, "unexpected": unexpected, "passed": failure == nil}, "", "  ")
 			mu.Unlock()
 			_ = os.WriteFile(filepath.Join(*artifacts, "settings-native.json"), data, 0600)
+			if failure != nil {
+				for _, name := range []string{"onboarding-failure.json", "onboarding-failure.png"} {
+					data, err := os.ReadFile(filepath.Join(p.DataDir, "onboarding-client", name))
+					if errors.Is(err, os.ErrNotExist) {
+						continue
+					}
+					if err == nil {
+						err = os.WriteFile(filepath.Join(*artifacts, name), data, 0600)
+					}
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Could not export %s: %v\n", name, err)
+					}
+				}
+			}
 		}
 		if failure == nil {
 			_ = os.RemoveAll(filepath.Dir(p.WorkspaceRoot))
