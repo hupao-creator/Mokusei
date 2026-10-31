@@ -93,6 +93,10 @@ enum NativeSettingsHeaderLayout {
             }
         }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
+            // Settings is the dark Moku expanded into a page. The scope keeps
+            // SwiftUI tokens and hosted AppKit controls dark at every window
+            // appearance without recoloring the surrounding workspace.
+            .environment(\.colorScheme, .dark)
             .environment(\.locale, Locale(identifier: locale.rawValue))
             .environment(\.nativeSettingsInteractions, navigation.interactions)
             .environment(\.nativeSettingsInteractionContext, navigation.interactionContext(section: activeSection))

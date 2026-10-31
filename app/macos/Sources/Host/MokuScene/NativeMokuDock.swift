@@ -94,7 +94,6 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeMokuSettingsContent) private var settingsContent
     @Environment(\.locale) private var locale
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
-    @Environment(\.colorScheme) private var workspaceColorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var hovered = false
@@ -209,11 +208,6 @@ public struct NativeMokuDock: View {
     private var rowExpanded: Bool { (!voiceModeActive && state.inputOpen) || displayedMessage != nil }
     private var expanded: Bool { state.settingsExpanded || state.notePanelOpen || rowExpanded }
     private var surfaceAnimation: Animation? { reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0) }
-    /// The appearance Settings renders with. The page, not the capsule, owns it,
-    /// so the face's ink in the header corner follows it too.
-    private var settingsColorScheme: ColorScheme { workspaceColorScheme }
-    private var settingsFaceInk: NativePlatformColor { settingsColorScheme == .dark ? .white : .black }
-
     /// Centre of the resident face seat in shell-local points. The composer row
     /// carries the face with the editor; a retired composer keeps it on the row
     /// the shell's own layout reserves.
@@ -234,10 +228,10 @@ public struct NativeMokuDock: View {
 
     /// Moku's face keeps its layout seat for its whole lifetime. While Settings
     /// owns the shell the same view is shifted into the page's header slot, and
-    /// the shift returns to zero as the shell contracts.
+    /// the shift returns to zero as the shell contracts. The panel is dark like
+    /// the capsule, so the face keeps its existing ink there.
     private func face(_ input: NativeMokuCharacterInput, shift: CGSize) -> some View {
-        NativeMokuFaceSurface(controller: character, input: input,
-                              inkAmount: state.settingsExpanded ? 1 : 0, hostInk: settingsFaceInk)
+        NativeMokuCharacterSurface(controller: character, input: input, seat: .face)
             // The panel corner shows the eyes at their ordinary size, so the
             // landing scale retires inside the same transaction.
             .scaleEffect(landing && expanded && !state.settingsExpanded ? NativeMokuCapsuleLayout.landingScale : 1)
@@ -694,7 +688,6 @@ public struct NativeMokuDock: View {
         .overlay(alignment: .top) {
             if state.settingsOpen {
                 settingsContent
-                    .environment(\.colorScheme, settingsColorScheme)
                     .frame(width: settingsSize.width, height: settingsSize.height)
                     // Settle the page layout during the capsule morph without
                     // suppressing animations initiated later by its children.
@@ -771,7 +764,6 @@ public struct NativeMokuDock: View {
                 NativeMokuCapsuleGlass().opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
                     NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
-                        .environment(\.colorScheme, workspaceColorScheme)
                 }
                 voiceBackground.opacity(state.settingsOpen ? 0 : 1)
             }

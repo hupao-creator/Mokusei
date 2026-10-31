@@ -73,6 +73,13 @@ Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.
 
+The expanded surface is always dark. The page scopes `\.colorScheme` to `.dark`,
+so its SwiftUI tokens, hosted AppKit editors and selects, native scrollers and
+popovers all resolve the dark settings palette, and the Dock's regular-glass
+shell no longer takes the workspace appearance. A light workspace therefore
+neither lightens the page nor shows a light shell around it. The appearance
+preference still governs the window and every surface outside Settings.
+
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
 same capsule grows toward a centered 780×680-point target, bounded by 24-point
 horizontal and 56-point vertical viewport margins. Its expanded surface uses
@@ -107,8 +114,8 @@ header face follows the same 420 ms `smooth` curve: it leaves the composer row
 after the page mounts, lands in `NativeSettingsHeaderLayout.faceCenter`, and
 rides the contraction back to Moku's own row. The shift is measured against the
 settled shell instead of reporting animated geometry back, so the destination
-is exact, its ink blends from the capsule's white to the panel's ink over the
-same transaction, and Reduce Motion snaps both.
+is exact and the face never reads its own animated geometry. Reduce Motion snaps
+the shift with the rest of the transition.
 `python3 tools/verification/reading-presentation/run.py --settings-transition`
 mounts the production Dock and Settings page for viewport/zoom/landing, backdrop
 blur and click-through, restoration, interruption and lifecycle regression checks.

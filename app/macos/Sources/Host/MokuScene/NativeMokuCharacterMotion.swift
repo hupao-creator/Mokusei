@@ -1,5 +1,4 @@
 import AppKit
-import MokuseiPluginUI
 import QuartzCore
 import SwiftUI
 
@@ -230,14 +229,12 @@ struct NativeMokuCharacterPose {
         return result
     }
 
-    /// `ink` overrides the capsule's own white/black choice for the one seat that
-    /// can leave the capsule: Settings' header, which follows the page's ink.
-    func paintFace(in context: CGContext, bounds: CGRect, ink: NativePlatformColor? = nil) {
+    func paintFace(in context: CGContext, bounds: CGRect) {
         guard let input else { return }
         context.saveGState(); defer { context.restoreGState() }
         let blink = visible ? NativeMokuCapsuleBlinkTiming.factor(at: Date()) : 1
         let shape = NativeMokuCapsuleEyes(left: pose.eye("l"), right: pose.eye("r"), blink: blink)
-        context.setFillColor((ink ?? (input.dark ? NSColor.white : NSColor.black)).cgColor)
+        context.setFillColor((input.dark ? NSColor.white : NSColor.black).cgColor)
         context.addPath(shape.path(in: bounds).cgPath); context.fillPath()
     }
 
@@ -275,19 +272,10 @@ struct NativeMokuCharacterSurface: NSViewRepresentable {
     let controller: NativeMokuCharacterMotion
     let input: NativeMokuCharacterInput
     let seat: NativeMokuCharacterSeat
-    /// Resolved face ink; nil keeps the capsule's white/black default.
-    var ink: NativePlatformColor?
     func makeNSView(context: Context) -> NativeMokuCharacterCanvas {
-        let view = NativeMokuCharacterCanvas(controller: controller, seat: seat)
-        view.ink = ink
-        return view
+        NativeMokuCharacterCanvas(controller: controller, seat: seat)
     }
-    func updateNSView(_ view: NativeMokuCharacterCanvas, context: Context) {
-        controller.configure(input)
-        guard view.ink != ink else { return }
-        view.ink = ink
-        view.needsDisplay = true
-    }
+    func updateNSView(_ view: NativeMokuCharacterCanvas, context: Context) { controller.configure(input) }
     static func dismantleNSView(_ view: NativeMokuCharacterCanvas, coordinator: ()) { view.detach() }
 }
 
@@ -296,9 +284,6 @@ struct NativeMokuCharacterSurface: NSViewRepresentable {
 @MainActor final class NativeMokuCharacterCanvas: NSView {
     let controller: NativeMokuCharacterMotion
     let seat: NativeMokuCharacterSeat
-    /// Owned by the seat, not the shared clock: one seat can render the same
-    /// eyes over a different surface (Settings' header) than the capsule.
-    var ink: NativePlatformColor?
     private var observers: [NSObjectProtocol] = []
     override var isFlipped: Bool { true }
     override var isOpaque: Bool { false }
@@ -336,7 +321,7 @@ struct NativeMokuCharacterSurface: NSViewRepresentable {
     override func setFrameSize(_ newSize: NSSize) { super.setFrameSize(newSize); controller.visibilityChanged(); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        if seat == .face { controller.paintFace(in: context, bounds: bounds, ink: ink) }
+        if seat == .face { controller.paintFace(in: context, bounds: bounds) }
         else { controller.paintDecorations(in: context, bounds: bounds) }
     }
 }
