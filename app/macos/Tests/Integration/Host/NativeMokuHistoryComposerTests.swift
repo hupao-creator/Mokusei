@@ -12,6 +12,20 @@ import MokuseiTestSupport
 @MainActor
 @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuHistoryComposerTests {
+    @MainActor private final class HoldReceipt {
+        var downDispatchedAt: TimeInterval?
+        var releasePostedAt: TimeInterval?
+        var dragPostedAt: TimeInterval?
+        var upDispatchedAt: TimeInterval?
+        var releaseTimer: Timer?
+        var dragTimer: Timer?
+
+        var summary: String {
+            "downDispatchedAt=\(String(describing: downDispatchedAt)) releasePostedAt=\(String(describing: releasePostedAt)) "
+                + "dragPostedAt=\(String(describing: dragPostedAt)) upDispatchedAt=\(String(describing: upDispatchedAt))"
+        }
+    }
+
     private static func inputPhase(_ phase: String) {
         // Write directly so a blocked AppKit tracking loop cannot strand buffered diagnostics.
         FileHandle.standardOutput.write(Data("MOKU_COMPOSER_INPUT \(phase) uptime=\(ProcessInfo.processInfo.systemUptime)\n".utf8))
@@ -157,50 +171,80 @@ struct NativeMokuHistoryComposerTests {
         let view = try #require(monitor(in: window.contentView!))
         let recognizer = try #require(window.contentView?.gestureRecognizers.first { $0.target === view })
         Self.inputPhase("hold.monitor.ready")
-        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint) -> NSEvent = { type, point in
+        let event: @MainActor @Sendable (NSEvent.EventType, CGPoint, Int) -> NSEvent = { type, point, eventNumber in
             NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
+                context: nil, eventNumber: eventNumber, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
         }
+        var nextEventNumber = 100
         @MainActor func hold(_ phase: String, duration: TimeInterval, drag: Bool = false) async throws {
             Self.inputPhase("hold.\(phase).begin")
             window.makeKeyAndOrderFront(nil)
             try await SwiftUIReplay.wait { window.isKeyWindow && NSApp.isActive && recognizer.state == .possible }
             Self.inputPhase("hold.\(phase).ready")
             let point = view.convert(CGPoint(x: view.bounds.midX, y: view.bounds.midY), to: nil)
-            // Create each event when delivered: pre-creating the release gives
-            // AppKit a zero-duration gesture even though the timer waited.
-            let sendUp: @MainActor @Sendable () -> Void = {
-                Self.inputPhase("hold.\(phase).releaseTimer.begin")
-                NSApp.postEvent(event(.leftMouseUp, point), atStart: true)
-                Self.inputPhase("hold.\(phase).releaseTimer.posted")
-            }
-            let sendDrag: @MainActor @Sendable () -> Void = {
-                Self.inputPhase("hold.\(phase).dragTimer.begin")
-                NSApp.postEvent(event(.leftMouseDragged, CGPoint(x: point.x + 20, y: point.y)), atStart: true)
-                Self.inputPhase("hold.\(phase).dragTimer.posted")
-            }
-            let release = Timer(timeInterval: duration, repeats: false) { _ in
-                MainActor.assumeIsolated { sendUp() }
-            }
-            RunLoop.main.add(release, forMode: .common)
-            RunLoop.main.add(release, forMode: .eventTracking)
-            var movement: Timer?
-            if drag {
-                let timer = Timer(timeInterval: 0.1, repeats: false) { _ in
-                    MainActor.assumeIsolated { sendDrag() }
+            let eventNumber = nextEventNumber
+            nextEventNumber += 1
+            let receipt = HoldReceipt()
+            let observer = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { incoming in
+                MainActor.assumeIsolated {
+                    guard incoming.window === window, incoming.eventNumber == eventNumber else { return }
+                    if incoming.type == .leftMouseUp {
+                        receipt.upDispatchedAt = ProcessInfo.processInfo.systemUptime
+                        Self.inputPhase("hold.\(phase).mouseUp.dispatch")
+                        return
+                    }
+                    guard receipt.downDispatchedAt == nil else { return }
+                    receipt.downDispatchedAt = ProcessInfo.processInfo.systemUptime
+                    Self.inputPhase("hold.\(phase).mouseDown.dispatch")
+                    // Start the fixed press duration when AppKit dispatches down,
+                    // and create each later event at delivery to preserve its timestamp.
+                    let release = Timer(timeInterval: duration, repeats: false) { _ in
+                        MainActor.assumeIsolated {
+                            Self.inputPhase("hold.\(phase).releaseTimer.begin")
+                            NSApp.postEvent(event(.leftMouseUp, point, eventNumber), atStart: false)
+                            receipt.releasePostedAt = ProcessInfo.processInfo.systemUptime
+                            Self.inputPhase("hold.\(phase).releaseTimer.posted")
+                        }
+                    }
+                    receipt.releaseTimer = release
+                    RunLoop.main.add(release, forMode: .common)
+                    RunLoop.main.add(release, forMode: .eventTracking)
+                    if drag {
+                        let movement = Timer(timeInterval: 0.1, repeats: false) { _ in
+                            MainActor.assumeIsolated {
+                                Self.inputPhase("hold.\(phase).dragTimer.begin")
+                                NSApp.postEvent(event(.leftMouseDragged, CGPoint(x: point.x + 20, y: point.y), eventNumber), atStart: false)
+                                receipt.dragPostedAt = ProcessInfo.processInfo.systemUptime
+                                Self.inputPhase("hold.\(phase).dragTimer.posted")
+                            }
+                        }
+                        receipt.dragTimer = movement
+                        RunLoop.main.add(movement, forMode: .common)
+                        RunLoop.main.add(movement, forMode: .eventTracking)
+                    }
                 }
-                RunLoop.main.add(timer, forMode: .common)
-                RunLoop.main.add(timer, forMode: .eventTracking)
-                movement = timer
+                return incoming
             }
-            Self.inputPhase("hold.\(phase).mouseDown.send.begin")
-            NSApp.sendEvent(event(.leftMouseDown, point))
-            Self.inputPhase("hold.\(phase).mouseDown.send.returned")
-            try await Task.sleep(for: .seconds(duration + 0.1))
-            try await SwiftUIReplay.wait { recognizer.state == .possible }
-            release.invalidate(); movement?.invalidate()
-            Self.inputPhase("hold.\(phase).settled")
+            let monitor = try #require(observer)
+            defer {
+                NSEvent.removeMonitor(monitor)
+                receipt.releaseTimer?.invalidate(); receipt.dragTimer?.invalidate()
+                receipt.releaseTimer = nil; receipt.dragTimer = nil
+                Self.inputPhase("hold.\(phase).cleanup \(receipt.summary) recognizer=\(recognizer.state)")
+            }
+            // Queue the whole gesture in order. A synchronous down from this
+            // Swift task can overtake the preceding queued up and reenter tracking.
+            NSApp.postEvent(event(.leftMouseDown, point, eventNumber), atStart: false)
+            Self.inputPhase("hold.\(phase).mouseDown.queued eventNumber=\(eventNumber)")
+            try await SwiftUIReplay.wait {
+                // .possible is also the initial state, so it cannot certify release.
+                // Nested text tracking may consume up without calling the local monitor.
+                guard receipt.downDispatchedAt != nil, receipt.releasePostedAt != nil else { return false }
+                if drag, receipt.dragPostedAt == nil { return false }
+                return recognizer.state == .possible
+            }
+            Self.inputPhase("hold.\(phase).settled \(receipt.summary)")
         }
         #expect(view.hitTest(.zero) == nil)
         try await hold("short", duration: 0.1)

@@ -96,6 +96,16 @@ The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
 must complete all seven tests without skips to certify it.
 
+The composer hold replay queues each down/drag/up through AppKit in order. A
+window- and gesture-scoped local monitor starts the unchanged 0.1/0.8-second
+release timer when down is dispatched. Each stage must post its actual release
+(and the drag event for the drag case), then observe the recognizer back at
+`.possible` before advancing; a fixed sleep or the initial `.possible` state
+cannot certify completion. Phase timestamps retain these receipts. A local
+monitor may not see mouse-up consumed by nested text tracking, so that optional
+observation is diagnostic rather than a completion requirement. The existing
+90-second replay timeout and owned-process stack capture remain unchanged.
+
 CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
 exactly the ten input/responder, pointer, search-geometry and native-panel methods
@@ -235,10 +245,17 @@ cases keep Reduce Motion disabled and do not substitute self-rendered snapshots.
 The rewrite input waits for two observed partial frames with the same minimum
 0.06 ink gain and 4pt leftward boundary movement used by the final oracle. The
 latest frame must still be partial, at most 80% exposed, and less than 50ms old
-after sensor work; the 450ms sensor deadline fails if this prerequisite is unavailable. Sensor
-samples, input times, presentation timestamps and accepted frame indices are
-retained. Only this prerequisite examines a live crop; PNG encoding and all
-remaining assertions run after capture stops. The local resize still occurs
+after sensor work; the 450ms sensor deadline fails if this prerequisite is
+unavailable. Every raw frame is retained, while the live sensor examines only
+the latest frame in each received batch. It validates sRGB premultiplied BGRA
+format and row stride, reads precomputed glyph offsets and a narrow width-marker
+region, and records per-stage processing times and sample age. Before input,
+its exposure and boundary values must match the existing crop oracle on the
+settled blank and full reference; after capture, every live sample is checked
+against the unchanged offline oracle. Sensor samples, input times, presentation
+timestamps and accepted frame indices are retained. PNG encoding and complete
+frame, geometry and motion assertions run after capture stops. The local resize
+still occurs
 140ms after input. Rewrite frames must have no hard rising mask edge and must
 still show an early reset within 65ms, new incoming motion and the exact settled
 production reference within the existing pixel-error tolerance.

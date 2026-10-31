@@ -44,6 +44,48 @@ and tail counters are separate. Final model sequence/hash convergence is not
 proof of presented pixels; a tail stability observation is not queue drain time.
 Publication wire bytes count NDJSON encoding, not confirmed socket delivery.
 
+The UI process schedules its `warmupStart`, `formalStart` and `formalEnd` CPU
+reads together, before the source warmup starts, on a dedicated serial Dispatch
+queue with one-shot strict dispatch timers and zero requested leeway, avoiding
+`asyncAfter`'s deadline-dependent coalescing allowance. Strict timers are still
+best effort: the actual readings must satisfy the unchanged tolerance. Each
+callback only captures process `getrusage` and monotonic timestamps;
+it never awaits or dispatches through the MainActor. MainActor resumption reads
+the saved values, so a busy Overview cannot move the next CPU boundary. The
+original boundary tolerance remains −1 to +50 milliseconds. A missed boundary,
+failed CPU read or cancellation invalidates the run. Completion and cancellation
+share a mutex-protected, exactly-once result; cleanup cancels pending reads, whose
+later callbacks do no work, and retains already captured or failed receipts.
+There is no fallback to a late MainActor CPU read.
+
+`clock` retains planned, requested, callback and actual CPU sample uptime,
+corresponding Unix times, read duration and boundary offset. The 1 Hz window,
+footprint and model/counter checks still run on the MainActor and retain their
+own planned/start/end times and lateness under `mainActorObservations`,
+`windowSamples[].observationTiming` and `counters.observationTiming`. These checks
+describe the state at their actual observation times; a delayed check does not
+prove the intervening window state or make its footprint an exact CPU-boundary
+measurement. MainActor observation lateness is distinct from CPU sampling error.
+
+`ui` remains the formal CPU window. `uiWindows.tailObservation` measures from the
+independent formal-end sample to a new independent read immediately requested
+when the existing final-model stability observation finishes.
+`uiWindows.sourceThroughTailObservation` measures from the independent source
+warmup-start sample through that same tail-end read. The tail request and read
+times are retained, and the same 50 ms lateness limit applies. No source events
+or observation periods are extended: the tail still requires ten stable 50 ms
+observations within its five-second budget. Pending installations, actual
+formal-end sequences and post-formal receipts remain visible; saturating one
+core while consuming fewer publications is not evidence of equal work.
+
+The two additional windows include observation overhead and, when present,
+post-supply backlog. They are not queue drain durations or isolated per-event
+costs, and must not be added to Core's formal-only CPU. Source-through-tail
+comparisons require identical accepted inputs and final sequence/hash state.
+Environment subprocesses, fetching the complete Core report, final hashes and
+full JSON receipt encoding happen after the tail-end CPU sample. Source supply
+remains five seconds of warmup plus twenty seconds of formal input in every run.
+
 ## Display and environment validity
 
 Four 2×1 cards at the production minimum camera scale cannot fit a 1024-point-wide
@@ -108,6 +150,13 @@ The artifact `overview-release-performance-<run>-attempt-<attempt>` retains:
 Temporary runtime authentication data is not part of the report. Ready receipts
 retain only process identity and the loopback control endpoint after shutdown.
 The fixed synthetic text is harness-owned; no developer conversation is needed.
+
+Core identity keeps the PID and parent-PID checks. On the runner, reported and
+staged executable paths must strictly resolve to regular files with the same
+device and inode, so `/var` and `/private/var` aliases identify the same staged
+binary without relaxing ownership. `runtimeIdentity` retains raw/resolved paths
+and file identity. Cleanup checks both the launch receipt and the current `ps`
+executable against that same staged file before signaling an owned process.
 
 Product-input hashes include tracked files under macOS Sources/Plugins, Package
 files, `internal/`, `cmd/` and Go module files. The inventory stores every file's

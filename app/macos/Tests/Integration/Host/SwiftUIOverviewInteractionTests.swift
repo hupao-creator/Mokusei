@@ -528,15 +528,37 @@ extension SwiftUIOverviewInteractionTests {
             try await SwiftUIReplay.wait { frames.ready }
             captures.append(contentsOf: frames.takeSamples())
             report.baselineIndex = captures.count - 1
-            var rewriteReference: ExcerptInkReference?
+            var rewriteSensor: ExcerptInkReference.LiveSensor?
             if scenario == .rewrite {
                 let baseline = try #require(captures.last, "Observation incomplete: no full WindowServer baseline")
                 let blank = try titleWindowPixels(baseline.image, region: region(48))
                 let full = try titleWindowPixels(baseline.image, region: region(174))
-                rewriteReference = ExcerptInkReference(blank: blank, full: full)
-                try #require((rewriteReference?.pointCount ?? 0) > 30,
+                let reference = ExcerptInkReference(blank: blank, full: full)
+                try #require(reference.pointCount > 30,
                              "Observation incomplete: rewrite motion reference has insufficient glyph pixels")
+                let raw = try ExcerptInkBGRAImage(baseline.image)
+                let marker = try excerptComposedMarker(baseline.image)
+                try #require(abs(Int(marker.bounds.width) - Int(360 * scale)) <= 1,
+                             "Observation incomplete: baseline local width is not 360 points")
+                let phasePoint = CGPoint(x: 22 * scale, y: (titlebar + 22) * scale)
+                let sensor = try ExcerptInkReference.LiveSensor(reference: reference, image: raw,
+                    region: region(48), phasePoint: phasePoint, marker: marker.bounds)
+                let fullSensor = try ExcerptInkReference.LiveSensor(reference: reference, image: raw,
+                    region: region(174), phasePoint: phasePoint, marker: marker.bounds)
+                let fastBlank = sensor.exposure(raw), fastFull = fullSensor.exposure(raw)
+                let slowBlank = reference.exposure(blank), slowFull = reference.exposure(full)
+                report.rewriteSensorPreflight = .init(width: raw.width, height: raw.height,
+                    bytesPerRow: raw.bytesPerRow, glyphPoints: reference.pointCount,
+                    markerBoundsPixels: [marker.bounds.minX, marker.bounds.minY,
+                                         marker.bounds.width, marker.bounds.height].map(Double.init),
+                    fastBlank: fastBlank, slowBlank: slowBlank, fastFull: fastFull, slowFull: slowFull)
+                try #require(excerptExposuresMatch(fastBlank, slowBlank)
+                             && excerptExposuresMatch(fastFull, slowFull),
+                             "Observation incomplete: direct BGRA sampling differs from the established crop oracle")
+                try #require(sensor.markerMatches(raw), "Observation incomplete: baseline width marker is not a solid rectangle")
+                rewriteSensor = sensor
             }
+            captures.append(contentsOf: frames.takeSamples())
             let began = ProcessInfo.processInfo.systemUptime
             report.events.append(.init(name: "rewrite-from-blank", uptime: began, width: 360))
             fixture.message = ExcerptInkFixture.first
@@ -546,11 +568,9 @@ extension SwiftUIOverviewInteractionTests {
                     // Parent input time does not establish when the leaf's
                     // reveal reached the compositor. Interrupt only after the
                     // unchanged pixel-motion predicate has actually passed.
-                    let reference = try #require(rewriteReference)
+                    let sensor = try #require(rewriteSensor)
                     try await collectUntilExcerptRewriteMotion(frames, until: began + 0.45,
-                        reference: reference, region: region(48),
-                        phasePoint: CGPoint(x: 22 * scale, y: (titlebar + 22) * scale),
-                        scale: scale, into: &captures, report: &report)
+                        sensor: sensor, scale: scale, into: &captures, report: &report)
                 } else {
                     let delay = try #require(scenario.interruptionDelay)
                     try await collectExcerptFrames(frames, until: began + delay, into: &captures)
@@ -574,7 +594,7 @@ extension SwiftUIOverviewInteractionTests {
             throw error
         }
 
-        // Only the rewrite prerequisite examines a live crop. All remaining
+        // Only the rewrite prerequisite samples live BGRA pixels. All remaining
         // pixel checks and PNG encoding occur after stop. Draining every 5 ms
         // keeps TagGlassFrames' 60-frame bound from discarding evidence.
         let baseline = try #require(captures.indices.contains(report.baselineIndex) ? captures[report.baselineIndex] : nil,
@@ -607,6 +627,10 @@ extension SwiftUIOverviewInteractionTests {
                 receivedAt: sample.receivedAt, presentationTime: sample.presentationTime,
                 wide: wideMask.exposure(pixels), replacement: replacementMask.exposure(pixels),
                 previous: previousMask.exposure(pixels), narrow: narrowMask.exposure(pixels)))
+        }
+        for sample in report.rewriteSensorSamples {
+            try #require(excerptExposuresMatch(sample.exposure, report.frames[sample.index].wide),
+                         "The live sensor differs from the complete offline ink oracle")
         }
         try #require(report.frames.allSatisfy { $0.phase >= 0 },
                      "Observation incomplete: a WindowServer frame does not contain the fixture's phase marker")
@@ -705,45 +729,60 @@ extension SwiftUIOverviewInteractionTests {
     }
 
     private func collectUntilExcerptRewriteMotion(_ frames: TagGlassFrames, until deadline: TimeInterval,
-                                                  reference: ExcerptInkReference, region: CGRect,
-                                                  phasePoint: CGPoint, scale: CGFloat,
+                                                  sensor: ExcerptInkReference.LiveSensor, scale: CGFloat,
                                                   into captures: inout [TagGlassFrames.Sample],
                                                   report: inout ExcerptInkReport) async throws {
         report.rewriteSensorDeadlineUptime = deadline
         while ProcessInfo.processInfo.systemUptime < deadline {
-            let firstIndex = captures.count
             let samples = frames.takeSamples()
             captures.append(contentsOf: samples)
-            for (offset, sample) in samples.enumerated() {
-                let index = firstIndex + offset
-                guard try excerptPhase(sample.image, at: phasePoint) == 1 else { continue }
-                let pixels = try titleWindowPixels(sample.image, region: region)
-                report.rewriteSensorSamples.append(.init(index: index,
-                    presentationTime: sample.presentationTime, receivedAt: sample.receivedAt,
-                    exposure: reference.exposure(pixels)))
-            }
-            if let latest = report.rewriteSensorSamples.last {
-                try #require(latest.exposure.fraction < 0.98,
-                    "Observation incomplete: the initial reveal finished before an in-flight rewrite could be observed")
-                if latest.exposure.isPartial, latest.exposure.fraction <= 0.80,
-                   let pair = excerptMotionPair(report.rewriteSensorSamples,
-                                                minimumFrames: 2, minimumGain: 0.06, scale: scale) {
-                    // Check current composed geometry without rescanning old
-                    // frames on the live path. The final oracle validates all
-                    // widths and the full pre-interruption motion sequence.
-                    let marker = try excerptComposedMarker(captures[latest.index].image)
-                    try #require(abs(Int(marker.bounds.width) - Int(360 * scale)) <= 1,
-                                 "Observation incomplete: rewrite prerequisite did not retain the 360-point local width")
-                    let observedAt = ProcessInfo.processInfo.systemUptime
-                    let age = observedAt - latest.receivedAt
-                    report.rewriteSensorLastSampleAgeMilliseconds = age * 1000
-                    // Pixel analysis must not turn a stale partial frame into
-                    // evidence that the reveal is still in flight now.
-                    if age >= 0, age < 0.05, observedAt < deadline {
-                        report.rewriteTriggerFrameIndices = [pair.first.index, pair.last.index, latest.index]
-                        report.rewriteTriggerObservedAt = observedAt
-                        report.rewriteTriggerExposureFraction = latest.exposure.fraction
-                        return
+            // Retain every frame for the full offline oracle, but never spend
+            // a short reveal processing a backlog on the main actor.
+            if let sample = samples.last {
+                let index = captures.count - 1
+                var timing = ExcerptInkSensorTiming(index: index, batchCount: samples.count,
+                    receivedAt: sample.receivedAt, startedAt: ProcessInfo.processInfo.systemUptime)
+                defer {
+                    timing.finishedAt = ProcessInfo.processInfo.systemUptime
+                    timing.ageAtFinishMilliseconds = (timing.finishedAt - sample.receivedAt) * 1000
+                    report.rewriteSensorTimings.append(timing)
+                }
+                let raw = try ExcerptInkBGRAImage(sample.image)
+                try #require(sensor.accepts(raw), "Observation incomplete: live image dimensions or row stride changed")
+                let openedAt = ProcessInfo.processInfo.systemUptime
+                timing.formatMilliseconds = (openedAt - timing.startedAt) * 1000
+                let phase = sensor.phase(raw)
+                let phaseAt = ProcessInfo.processInfo.systemUptime
+                timing.phaseMilliseconds = (phaseAt - openedAt) * 1000
+                if phase == 1 {
+                    let exposure = sensor.exposure(raw)
+                    let profiledAt = ProcessInfo.processInfo.systemUptime
+                    timing.exposureMilliseconds = (profiledAt - phaseAt) * 1000
+                    let latest = ExcerptInkMotionSample(index: index,
+                        presentationTime: sample.presentationTime, receivedAt: sample.receivedAt, exposure: exposure)
+                    report.rewriteSensorSamples.append(latest)
+                    try #require(exposure.fraction < 0.98,
+                        "Observation incomplete: the initial reveal finished before an in-flight rewrite could be observed")
+                    let pair = excerptMotionPair(report.rewriteSensorSamples,
+                                                 minimumFrames: 2, minimumGain: 0.06, scale: scale)
+                    let matchedAt = ProcessInfo.processInfo.systemUptime
+                    timing.predicateMilliseconds = (matchedAt - profiledAt) * 1000
+                    if exposure.isPartial, exposure.fraction <= 0.80, let pair {
+                        // The settled baseline located this narrow stripe.
+                        // Full-frame blue bounds remain an offline assertion.
+                        let markerMatches = sensor.markerMatches(raw)
+                        let observedAt = ProcessInfo.processInfo.systemUptime
+                        timing.markerMilliseconds = (observedAt - matchedAt) * 1000
+                        try #require(markerMatches,
+                            "Observation incomplete: rewrite prerequisite did not retain its composed width marker")
+                        let age = observedAt - latest.receivedAt
+                        report.rewriteSensorLastSampleAgeMilliseconds = age * 1000
+                        if age >= 0, age < 0.05, observedAt < deadline {
+                            report.rewriteTriggerFrameIndices = [pair.first.index, pair.last.index, latest.index]
+                            report.rewriteTriggerObservedAt = observedAt
+                            report.rewriteTriggerExposureFraction = exposure.fraction
+                            return
+                        }
                     }
                 }
             }
@@ -752,6 +791,18 @@ extension SwiftUIOverviewInteractionTests {
         }
         try #require(report.rewriteTriggerFrameIndices != nil,
             "Observation incomplete: the bounded rewrite sensor did not observe two moving intermediate frames")
+    }
+
+    private func excerptExposuresMatch(_ lhs: ExcerptInkExposure, _ rhs: ExcerptInkExposure) -> Bool {
+        guard abs(lhs.fraction - rhs.fraction) < 1e-12, lhs.front == rhs.front,
+              lhs.columns.count == rhs.columns.count else { return false }
+        return zip(lhs.columns, rhs.columns).allSatisfy { first, second in
+            switch (first, second) {
+            case (nil, nil): true
+            case let (first?, second?): abs(first - second) < 1e-12
+            default: false
+            }
+        }
     }
 
     private func requireExcerptMotion(_ frames: [ExcerptInkFrameRecord],
@@ -1027,6 +1078,8 @@ private struct ExcerptInkReport: Encodable {
     var actualInterruptionMilliseconds: Double?
     var rewriteSensorDeadlineUptime: TimeInterval?
     var rewriteSensorLastSampleAgeMilliseconds: Double?
+    var rewriteSensorPreflight: ExcerptInkSensorPreflight?
+    var rewriteSensorTimings: [ExcerptInkSensorTiming] = []
     var rewriteSensorSamples: [ExcerptInkMotionSample] = []
     var rewriteTriggerFrameIndices: [Int]?
     var rewriteTriggerObservedAt: TimeInterval?
@@ -1065,6 +1118,65 @@ private struct ExcerptInkMotionSample: Encodable {
     let presentationTime: Double
     let receivedAt: TimeInterval
     let exposure: ExcerptInkExposure
+}
+
+private struct ExcerptInkSensorPreflight: Encodable {
+    let width: Int
+    let height: Int
+    let bytesPerRow: Int
+    let glyphPoints: Int
+    let markerBoundsPixels: [Double]
+    let fastBlank: ExcerptInkExposure
+    let slowBlank: ExcerptInkExposure
+    let fastFull: ExcerptInkExposure
+    let slowFull: ExcerptInkExposure
+}
+
+private struct ExcerptInkSensorTiming: Encodable {
+    let index: Int
+    let batchCount: Int
+    let receivedAt: TimeInterval
+    let startedAt: TimeInterval
+    var formatMilliseconds = 0.0
+    var phaseMilliseconds = 0.0
+    var exposureMilliseconds = 0.0
+    var predicateMilliseconds = 0.0
+    var markerMilliseconds = 0.0
+    var finishedAt = 0.0
+    var ageAtFinishMilliseconds = 0.0
+}
+
+/// The SCStream copies use native sRGB premultiplied BGRA. Validate that
+/// boundary explicitly before direct indexing, without a crop or Array copy.
+private struct ExcerptInkBGRAImage {
+    let width: Int
+    let height: Int
+    let bytesPerRow: Int
+    private let data: CFData
+    private let base: UnsafePointer<UInt8>
+
+    init(_ image: CGImage) throws {
+        let width = image.width, height = image.height, stride = image.bytesPerRow
+        try #require(width > 0 && height > 0 && stride >= width * 4 && stride % 4 == 0)
+        try #require(image.bitsPerPixel == 32 && image.bitsPerComponent == 8)
+        try #require(image.alphaInfo == .premultipliedFirst)
+        let bitmap = image.bitmapInfo
+        try #require(bitmap.intersection(.byteOrderMask) == .byteOrder32Little)
+        try #require(!bitmap.contains(.floatComponents))
+        let colorSpace = try #require(image.colorSpace)
+        try #require(colorSpace.model == .rgb)
+        let colorSpaceName = try #require(colorSpace.name)
+        try #require(CFEqual(colorSpaceName, CGColorSpace.sRGB))
+        try #require(image.decode == nil)
+        let data = try #require(image.dataProvider?.data)
+        try #require(CFDataGetLength(data) >= stride * height)
+        self.width = width; self.height = height; bytesPerRow = stride
+        self.data = data; base = try #require(CFDataGetBytePtr(data))
+    }
+
+    func withBytes<Result>(_ body: (UnsafePointer<UInt8>) -> Result) -> Result {
+        withExtendedLifetime(data) { body(base) }
+    }
 }
 
 private struct ExcerptInkReference {
@@ -1116,6 +1228,92 @@ private struct ExcerptInkReference {
         return .init(fraction: sums.reduce(0, +) / max(1, totalWeight),
                      front: columns.indices.first { (columns[$0] ?? 0) >= 0.30 },
                      columns: columns)
+    }
+
+    /// Prepare absolute offsets once while the reference is settled. The
+    /// live path reads only reference glyph pixels and the small marker ROI;
+    /// the original full-frame/crop oracle remains unchanged below and above.
+    struct LiveSensor {
+        private struct MarkerPoint { let offset: Int; let blue: Bool }
+        private let reference: ExcerptInkReference
+        private let sourceOffsets: [Int]
+        private let width: Int
+        private let height: Int
+        private let bytesPerRow: Int
+        private let phaseOffset: Int
+        private let markerPoints: [MarkerPoint]
+
+        init(reference: ExcerptInkReference, image: ExcerptInkBGRAImage,
+             region: CGRect, phasePoint: CGPoint, marker: CGRect) throws {
+            try #require(region == region.integral && region.width == CGFloat(reference.weights.count)
+                         && region.width > 0 && region.height > 0)
+            try #require(Int(region.width) * Int(region.height) * 4 == reference.blank.count)
+            try #require(region.minX >= 0 && region.minY >= 0
+                         && region.maxX <= CGFloat(image.width) && region.maxY <= CGFloat(image.height))
+            try #require(phasePoint.x >= 0 && phasePoint.y >= 0
+                         && phasePoint.x < CGFloat(image.width) && phasePoint.y < CGFloat(image.height))
+            try #require(marker == marker.integral && marker.width > 0 && marker.height > 0
+                         && marker.minX >= 1 && marker.minY >= 1
+                         && marker.maxX < CGFloat(image.width) && marker.maxY < CGFloat(image.height))
+            self.reference = reference
+            width = image.width; height = image.height; bytesPerRow = image.bytesPerRow
+            let origin = Int(region.minY) * image.bytesPerRow + Int(region.minX) * 4
+            sourceOffsets = reference.points.map { point in
+                origin + (point.offset / (reference.weights.count * 4)) * image.bytesPerRow + point.column * 4
+            }
+            phaseOffset = Int(phasePoint.y) * image.bytesPerRow + Int(phasePoint.x) * 4
+            var markerPoints: [MarkerPoint] = []
+            for y in (Int(marker.minY) - 1)...Int(marker.maxY) {
+                for x in (Int(marker.minX) - 1)...Int(marker.maxX) {
+                    markerPoints.append(.init(offset: y * image.bytesPerRow + x * 4,
+                        blue: x >= Int(marker.minX) && x < Int(marker.maxX)
+                            && y >= Int(marker.minY) && y < Int(marker.maxY)))
+                }
+            }
+            self.markerPoints = markerPoints
+        }
+
+        func accepts(_ image: ExcerptInkBGRAImage) -> Bool {
+            image.width == width && image.height == height && image.bytesPerRow == bytesPerRow
+        }
+
+        func phase(_ image: ExcerptInkBGRAImage) -> Int {
+            image.withBytes { bytes in
+                let blue = Int(bytes[phaseOffset]), green = Int(bytes[phaseOffset + 1]), red = Int(bytes[phaseOffset + 2])
+                if max(red, max(green, blue)) < 48 { return 0 }
+                if red > 200 && blue > 200 && green < 64 { return 1 }
+                if green > 200 && blue > 200 && red < 64 { return 2 }
+                return -1
+            }
+        }
+
+        func markerMatches(_ image: ExcerptInkBGRAImage) -> Bool {
+            image.withBytes { bytes in
+                for point in markerPoints {
+                    let offset = point.offset
+                    let blue = bytes[offset] > 200 && bytes[offset + 1] < 64 && bytes[offset + 2] < 64
+                    if blue != point.blue { return false }
+                }
+                return true
+            }
+        }
+
+        func exposure(_ image: ExcerptInkBGRAImage) -> ExcerptInkExposure {
+            image.withBytes { bytes in
+                var sums = [Double](repeating: 0, count: reference.weights.count)
+                for index in reference.points.indices {
+                    let point = reference.points[index], source = sourceOffsets[index], blank = point.offset
+                    sums[point.column] += Double(Int(reference.blank[blank]) - Int(bytes[source])) * point.blue
+                        + Double(Int(reference.blank[blank + 1]) - Int(bytes[source + 1])) * point.green
+                        + Double(Int(reference.blank[blank + 2]) - Int(bytes[source + 2])) * point.red
+                }
+                let columns: [Double?] = sums.indices.map {
+                    reference.weights[$0] > 400 ? sums[$0] / reference.weights[$0] : nil
+                }
+                return .init(fraction: sums.reduce(0, +) / max(1, reference.totalWeight),
+                             front: columns.indices.first { (columns[$0] ?? 0) >= 0.30 }, columns: columns)
+            }
+        }
     }
 
     static func relativeError(_ pixels: TitleWindowPixels, expected: TitleWindowPixels,

@@ -181,6 +181,8 @@ private final class OverviewProbe {
     var formalStart: CPUSample?
     var formalEnd: CPUSample?
     var sampler: Task<Void, Never>?
+    let cpuQueue = DispatchQueue(label: "com.mokusei.overview-ci.process-cpu", qos: .userInitiated)
+    var cpuCaptures: [String: ScheduledCPUSample] = [:]
     var requestedCamera: NativeOverviewTransform?
 
     init(options: ProbeOptions) {
@@ -202,6 +204,8 @@ private final class OverviewProbe {
         sampler?.cancel()
         await sampler?.value
         sampler = nil
+        for capture in cpuCaptures.values { capture.cancel() }
+        updateCPUClockReport()
         if let model { await model.stop() }
         if let workspace {
             do { try await workspace.stop() }
@@ -218,6 +222,15 @@ private final class OverviewProbe {
             } catch { invalid.insert("Core final report could not be read: \(error)") }
         } else { invalid.insert("Core final report was not written") }
         report["windowSamples"] = samples
+        let observations = samples.compactMap { sample -> [String: Any]? in
+            guard let label = sample["label"] as? String, label.hasPrefix("formal"),
+                  var timing = sample["observationTiming"] as? [String: Any] else { return nil }
+            timing["label"] = label
+            return timing
+        }
+        report["mainActorObservations"] = ["records": observations,
+            "maximumLatenessMilliseconds": observations.compactMap { $0["latenessMilliseconds"] as? Double }.max() ?? 0,
+            "meaning": "Window and footprint state at actual observation times; late checks do not move CPU boundaries or certify the unobserved interval"] as [String: Any]
         report["stage"] = "finished"
         report["valid"] = invalid.isEmpty
         report["invalidReasons"] = invalid.sorted()
@@ -300,49 +313,69 @@ private final class OverviewProbe {
               schedule.sourceIntervalNanoseconds == 25_000_000 else {
             throw ProbeFailure(description: "Source schedule violates the fixed benchmark contract")
         }
+        let warmupDeadline = try clock.deadline(unix: schedule.warmupStartUnixNano)
         let beginDeadline = try clock.deadline(unix: schedule.formalStartUnixNano)
         let endDeadline = try clock.deadline(unix: schedule.formalEndUnixNano)
-        try await sleepUntil(beginDeadline)
-        let begin = try CPUSample.capture()
+        report["clock"] = ["anchor": clock.json, "schedule": schedule.json,
+            "maximumAllowedBoundaryOffsetMilliseconds": 50,
+            "samplingExecutor": "Dedicated serial Dispatch queue; no MainActor work inside CPU callbacks"] as [String: Any]
+        guard monotonicNanoseconds() < warmupDeadline else {
+            throw ProbeFailure(description: "Source warmup boundary passed before independent CPU captures could be armed")
+        }
+        // Enqueue all three deadlines before awaiting any result. In particular,
+        // a delayed MainActor start observation cannot delay the formal end read.
+        let warmupCapture = scheduleCPU("warmupStart", deadline: warmupDeadline)
+        let beginCapture = scheduleCPU("formalStart", deadline: beginDeadline)
+        let endCapture = scheduleCPU("formalEnd", deadline: endDeadline)
+        let warmup = try await warmupCapture.value()
+        validateCPUOffset(warmup, capture: warmupCapture)
+        let begin = try await beginCapture.value()
         formalStart = begin
+        validateCPUOffset(begin, capture: beginCapture)
+        let startObservationBegan = monotonicNanoseconds()
         let countersBefore = countersJSON(model)
-        samples.append(try windowSample(label: "formalStart", model: model, window: window, reject: true))
+        samples.append(try windowSample(label: "formalStart", model: model, window: window, reject: true, plannedUptime: beginDeadline))
+        let startObservationEnded = monotonicNanoseconds()
         sampler = Task { @MainActor [weak self, weak model, weak window] in
             guard let self, let model, let window else { return }
             for second in 1..<20 {
                 do {
-                    try await self.sleepUntil(beginDeadline + UInt64(second) * 1_000_000_000)
+                    let planned = beginDeadline + UInt64(second) * 1_000_000_000
+                    try await self.sleepUntil(planned)
                     guard !Task.isCancelled else { return }
-                    self.samples.append(try self.windowSample(label: "formal-\(second)", model: model, window: window, reject: true))
+                    self.samples.append(try self.windowSample(label: "formal-\(second)", model: model, window: window,
+                        reject: true, plannedUptime: planned))
                 } catch is CancellationError { return }
                 catch { self.invalid.insert("Formal observation failed: \(error)"); return }
             }
         }
-        try await sleepUntil(endDeadline)
-        let end = try CPUSample.capture()
+        let end = try await endCapture.value()
         formalEnd = end
+        validateCPUOffset(end, capture: endCapture)
         sampler?.cancel(); await sampler?.value; sampler = nil
+        let endObservationBegan = monotonicNanoseconds()
         let countersAfter = countersJSON(model)
-        samples.append(try windowSample(label: "formalEnd", model: model, window: window, reject: true))
-        let elapsed = Double(end.uptimeNanoseconds - begin.uptimeNanoseconds) / 1e9
-        report["ui"] = ["cpuSeconds": end.cpuSeconds - begin.cpuSeconds,
-            "userSeconds": end.userSeconds - begin.userSeconds, "systemSeconds": end.systemSeconds - begin.systemSeconds,
-            "wallSeconds": elapsed, "cpuPercent": 100 * (end.cpuSeconds - begin.cpuSeconds) / elapsed,
-            "footprintStartBytes": footprints.first ?? 0, "footprintEndBytes": footprints.last ?? 0,
-            "footprintMaxSampledBytes": footprints.max() ?? 0,
-            "footprintSampling": "TASK_VM_INFO at formal boundaries and 1 Hz; maximum is sampled, not a continuous peak"] as [String: Any]
+        samples.append(try windowSample(label: "formalEnd", model: model, window: window, reject: true, plannedUptime: endDeadline))
+        let endObservationEnded = monotonicNanoseconds()
+        var formalCPU = try cpuInterval(from: begin, to: end,
+            meaning: "Fixed source formal interval; actual independent process-CPU sample boundaries")
+        formalCPU["footprintStartBytes"] = footprints.first ?? 0
+        formalCPU["footprintEndBytes"] = footprints.last ?? 0
+        formalCPU["footprintMaxSampledBytes"] = footprints.max() ?? 0
+        formalCPU["footprintSampling"] = "TASK_VM_INFO at MainActor boundary observations and 1 Hz; timestamps may lag CPU boundaries; maximum is sampled, not continuous"
+        report["ui"] = formalCPU
         let clockEnd = ProbeClock()
         let clockDrift = Double(clockEnd.unixNanoseconds - clock.unix(at: clockEnd.uptimeNanoseconds)) / 1e6
-        report["clock"] = ["anchor": clock.json, "schedule": schedule.json,
-            "formalStart": begin.json(clock: clock, expectedUnix: schedule.formalStartUnixNano),
-            "formalEnd": end.json(clock: clock, expectedUnix: schedule.formalEndUnixNano),
-            "maximumAllowedBoundaryOffsetMilliseconds": 50, "realtimeAnchorDriftMilliseconds": clockDrift] as [String: Any]
-        for (name, sample, expected) in [("start", begin, schedule.formalStartUnixNano), ("end", end, schedule.formalEndUnixNano)] {
-            let offset = Double(clock.unix(at: sample.uptimeNanoseconds) - expected) / 1e6
-            if offset < -1 || offset > 50 { invalid.insert("Formal \(name) CPU boundary missed its declared time: \(offset) ms") }
-        }
+        var clockReport = report["clock"] as? [String: Any] ?? [:]
+        clockReport["realtimeAnchorDriftMilliseconds"] = clockDrift
+        report["clock"] = clockReport
+        updateCPUClockReport()
         if abs(clockDrift) > 5 { invalid.insert("Realtime/monotonic clock mapping drifted more than 5 ms") }
-        report["counters"] = ["formalStart": countersBefore, "formalEnd": countersAfter]
+        report["counters"] = ["formalStart": countersBefore, "formalEnd": countersAfter,
+            "observationTiming": [
+                "formalStart": observationTiming(planned: beginDeadline, started: startObservationBegan, finished: startObservationEnded),
+                "formalEnd": observationTiming(planned: endDeadline, started: endObservationBegan, finished: endObservationEnded)],
+            "meaning": "MainActor observations at their recorded times; not exact CPU-boundary snapshots"] as [String: Any]
         for name in ["layoutSolveCount", "repackCount", "structureRevision", "recoveryEpoch"] {
             if String(describing: countersBefore[name]!) != String(describing: countersAfter[name]!) {
                 invalid.insert("\(name) changed inside the content-only formal window")
@@ -352,13 +385,25 @@ private final class OverviewProbe {
         let afterNative = nativeDecorationJSON(hosting)
         report["nativeDecoration"] = ["beforeWarmup": beforeNative, "formalEnd": afterNative]
         if afterNative["nativePathActive"] as? Bool != true { invalid.insert("Native decoration path was not active at formal end") }
+        let tailObservationEnded = try await observeTail(model: model, workspace: workspace, expected: ready.expectedCards)
+        let tailCapture = scheduleCPU("tailObservationEnd", deadline: tailObservationEnded)
+        let tailEnd = try await tailCapture.value()
+        validateCPUOffset(tailEnd, capture: tailCapture)
+        updateCPUClockReport()
+        report["uiWindows"] = ["tailObservation": try cpuInterval(from: end, to: tailEnd,
+                meaning: "Formal CPU end through the existing final-model stability observation; includes pending UI work and observation overhead, not queue drain"),
+            "sourceThroughTailObservation": try cpuInterval(from: warmup, to: tailEnd,
+                meaning: "Source warmup start through the same final-model stability observation; includes warmup, formal and post-supply work; not a per-event cost or comparable to Core formal CPU")] as [String: Any]
+        // Environment subprocesses, report fetch, hashes and full receipt encoding
+        // belong after every CPU interval, including the post-supply interval.
+        let result = try JSONSerialization.jsonObject(with: await core.request("result")) as? [String: Any]
+        if let result { report["core"] = result }
         let afterEnvironment = environmentJSON()
         report["environment"] = ["start": beforeEnvironment, "end": afterEnvironment]
         if beforeEnvironment["powerSource"] as? String != afterEnvironment["powerSource"] as? String {
             invalid.insert("Power source changed during this run")
         }
         if beforeEnvironment["powerSource"] as? String == "unknown" { invalid.insert("Runner power source could not be identified") }
-        try await observeTail(model: model, workspace: workspace, expected: ready.expectedCards)
         report["perCard"] = finalCards(workspace: workspace, expected: ready.expectedCards)
         let formalReceipts = tracker.receipts.filter { $0.uptime >= begin.uptimeNanoseconds && $0.uptime <= end.uptimeNanoseconds }
         report["installations"] = ["observationBoundary": "After production catalog install and Overview.receive; not pixels",
@@ -372,6 +417,35 @@ private final class OverviewProbe {
         }
         try validateCardShapes(model, workspace: workspace)
         report["stage"] = "measured"
+    }
+
+    private func scheduleCPU(_ name: String, deadline: UInt64) -> ScheduledCPUSample {
+        let capture = ScheduledCPUSample(name: name, deadline: deadline, queue: cpuQueue)
+        cpuCaptures[name] = capture
+        return capture
+    }
+
+    private func validateCPUOffset(_ sample: CPUSample, capture: ScheduledCPUSample) {
+        let offset = Double(Int64(sample.uptimeNanoseconds) - Int64(capture.plannedUptimeNanoseconds)) / 1e6
+        if offset < -1 || offset > 50 {
+            invalid.insert("\(capture.name) CPU boundary missed its declared time: \(offset) ms")
+        }
+    }
+
+    private func updateCPUClockReport() {
+        guard !cpuCaptures.isEmpty else { return }
+        var value = report["clock"] as? [String: Any] ?? ["anchor": clock.json]
+        for (name, capture) in cpuCaptures { value[name] = capture.json(clock: clock) }
+        report["clock"] = value
+    }
+
+    private func observationTiming(planned: UInt64, started: UInt64, finished: UInt64) -> [String: Any] {
+        ["plannedUptimeNanoseconds": planned, "startedUptimeNanoseconds": started,
+            "finishedUptimeNanoseconds": finished, "startedUnixNanoseconds": clock.unix(at: started),
+            "finishedUnixNanoseconds": clock.unix(at: finished),
+            "latenessMilliseconds": Double(Int64(started) - Int64(planned)) / 1e6,
+            "durationMilliseconds": Double(finished - started) / 1e6,
+            "executor": "MainActor"]
     }
 
     private func sleepUntil(_ deadline: UInt64) async throws {
@@ -432,7 +506,9 @@ private final class OverviewProbe {
         }
     }
 
-    private func windowSample(label: String, model: NativeOverviewWorkspaceModel, window: NSWindow, reject: Bool) throws -> [String: Any] {
+    private func windowSample(label: String, model: NativeOverviewWorkspaceModel, window: NSWindow, reject: Bool,
+                              plannedUptime: UInt64? = nil) throws -> [String: Any] {
+        let started = monotonicNanoseconds()
         let footprint = try physicalFootprint()
         if label != "beforeWarmup" { footprints.append(footprint) }
         let visibility = visibilityJSON(model)
@@ -454,7 +530,9 @@ private final class OverviewProbe {
         if ProcessInfo.processInfo.thermalState.rawValue != 0 { reasons.append("thermal-state-not-nominal") }
         if ProcessInfo.processInfo.isLowPowerModeEnabled { reasons.append("low-power-mode-enabled") }
         if reject { for reason in reasons { invalid.insert("\(label): \(reason)") } }
-        return ["label": label, "unixNanoseconds": clock.unix(at: monotonicNanoseconds()),
+        let finished = monotonicNanoseconds()
+        return ["label": label, "unixNanoseconds": clock.unix(at: started),
+            "observationTiming": observationTiming(planned: plannedUptime ?? started, started: started, finished: finished),
             "visible": window.isVisible, "key": window.isKeyWindow, "main": window.isMainWindow,
             "active": NSApp.isActive, "occlusionVisible": window.occlusionState.contains(.visible),
             "insideVisibleScreen": insideScreen, "windowFrame": rectangleJSON(window.frame),
@@ -480,7 +558,7 @@ private final class OverviewProbe {
             "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]
     }
 
-    private func observeTail(model: NativeOverviewWorkspaceModel, workspace: NativeWorkspaceModel, expected: [ExpectedCard]) async throws {
+    private func observeTail(model: NativeOverviewWorkspaceModel, workspace: NativeWorkspaceModel, expected: [ExpectedCard]) async throws -> UInt64 {
         let started = monotonicNanoseconds(), deadline = started + 5_000_000_000
         var stable = 0, count = 0, previousRevision = -1
         var sourceComplete = false
@@ -499,15 +577,17 @@ private final class OverviewProbe {
             if stable == 10 { break }
             try await Task.sleep(nanoseconds: 50_000_000)
         }
-        report["tailObservation"] = ["seconds": Double(monotonicNanoseconds() - started) / 1e9,
+        let ended = monotonicNanoseconds()
+        report["tailObservation"] = ["seconds": Double(ended - started) / 1e9,
+            "startedUptimeNanoseconds": started, "endedUptimeNanoseconds": ended,
+            "startedUnixNanoseconds": clock.unix(at: started), "endedUnixNanoseconds": clock.unix(at: ended),
             "observationBudgetSeconds": 5, "sampleIntervalMilliseconds": 50,
             "requiredStableSamples": 10, "stableSamples": stable, "sampleCount": count,
             "sourceComplete": sourceComplete,
             "firstObservedModelConvergenceUnixNanoseconds": convergenceUptime.map { clock.unix(at: $0) as Any } ?? NSNull(),
             "meaning": "Post-supply model stability observation, not queue drain duration or pixel presentation"] as [String: Any]
         if !sourceComplete || stable < 10 { invalid.insert("Source/final model did not converge within the tail observation budget") }
-        let result = try JSONSerialization.jsonObject(with: await core.request("result")) as? [String: Any]
-        if let result { report["core"] = result }
+        return ended
     }
 
     private func finalCards(workspace: NativeWorkspaceModel, expected: [ExpectedCard]) -> [[String: Any]] {

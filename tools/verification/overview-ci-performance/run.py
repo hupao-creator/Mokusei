@@ -11,6 +11,7 @@ import platform
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -267,6 +268,48 @@ def power_source(snapshot):
     return match.group(1) if match else None
 
 
+def file_identity(path):
+    """Identify an existing file, retaining both its reported and resolved path."""
+    if not isinstance(path, (str, Path)) or not str(path):
+        raise ValueError("Executable path is missing")
+    value = Path(path)
+    resolved = value.resolve(strict=True)
+    details = resolved.stat()
+    if not stat.S_ISREG(details.st_mode):
+        raise ValueError("Executable path is not a regular file: " + str(path))
+    return {"reportedPath": str(path), "resolvedPath": str(resolved),
+            "device": details.st_dev, "inode": details.st_ino}
+
+
+def same_existing_file(actual, expected):
+    try:
+        left, right = file_identity(actual), file_identity(expected)
+        return (left["device"], left["inode"]) == (right["device"], right["inode"])
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def validate_runtime_identity(process, startup, expected_executable):
+    evidence = {"pid": process.get("pid"), "parentPID": process.get("parentPID"),
+                "expectedParentPID": startup.get("pid")}
+    reasons = []
+    pid, parent = process.get("pid"), startup.get("pid")
+    if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 1 or
+            not isinstance(parent, int) or isinstance(parent, bool) or parent <= 1 or
+            process.get("parentPID") != parent):
+        reasons.append("Core process identity does not belong to this fresh native application")
+    try:
+        actual, expected = file_identity(process.get("executable")), file_identity(expected_executable)
+        evidence.update(reportedExecutable=actual, expectedExecutable=expected)
+        evidence["samePhysicalFile"] = (actual["device"], actual["inode"]) == (expected["device"], expected["inode"])
+        if not evidence["samePhysicalFile"]:
+            reasons.append("Core executable is not the staged runtime file")
+    except (OSError, ValueError, RuntimeError) as error:
+        evidence["fileIdentityError"] = str(error)
+        reasons.append("Core executable identity could not be verified: " + str(error))
+    return evidence, reasons
+
+
 def cleanup_runtime(replay, output):
     receipts = []
     for path in (replay.workspace / "evidence").rglob("*ready*.json"):
@@ -276,9 +319,9 @@ def cleanup_runtime(replay, output):
             continue
         pid, executable = value.get("pid"), value.get("executable")
         receipt = {"file": str(path.relative_to(replay.workspace)), "pid": pid, "executable": executable}
-        if isinstance(pid, int) and pid > 1 and executable == str(replay.workspace / "runtime"):
+        if isinstance(pid, int) and pid > 1 and same_existing_file(executable, replay.workspace / "runtime"):
             actual = observation(["/bin/ps", "-p", str(pid), "-o", "comm="])
-            if actual.get("exitCode") == 0 and actual.get("stdout") == executable:
+            if actual.get("exitCode") == 0 and same_existing_file(actual.get("stdout"), replay.workspace / "runtime"):
                 try:
                     os.kill(pid, signal.SIGTERM)
                     receipt["terminatedOwnedRuntime"] = True
@@ -291,7 +334,7 @@ def cleanup_runtime(replay, output):
                 else:
                     # Recheck identity before escalating an owned process only.
                     actual = observation(["/bin/ps", "-p", str(pid), "-o", "comm="])
-                    if actual.get("stdout") == executable:
+                    if actual.get("exitCode") == 0 and same_existing_file(actual.get("stdout"), replay.workspace / "runtime"):
                         try:
                             os.kill(pid, signal.SIGKILL)
                             receipt["killedOwnedRuntime"] = True
@@ -348,6 +391,33 @@ def cpu_values(record):
     ui = result.get("ui", {}).get("cpuPercent")
     core = result.get("core", {}).get("cpu", {}).get("cpuPercent")
     return (ui, core, ui + core) if numeric(ui) and numeric(core) else (None, None, None)
+
+
+def model_flow(result):
+    """Summarize completed model work separately from fixed-window CPU."""
+    records = result.get("installations", {}).get("records", [])
+    end = result.get("clock", {}).get("formalEnd", {}).get("uptimeNanoseconds")
+    summary = {"meaning": "Model catalog installation, not queue depth, pixels or frame rate"}
+    if not numeric(end):
+        return summary
+    before = [record for record in records if numeric(record.get("uptimeNanoseconds"))
+              and record["uptimeNanoseconds"] <= end]
+    if before:
+        summary["formalEndSequences"] = max(before, key=lambda record: record["uptimeNanoseconds"]).get("sequences")
+    summary["postFormalInstallCount"] = sum(
+        numeric(record.get("uptimeNanoseconds")) and record["uptimeNanoseconds"] > end for record in records)
+    expected = result.get("core", {}).get("expectedCards", [])
+    target = [card.get("seq") for card in sorted(expected, key=lambda card: card["id"])]
+    completed = [record for record in records if len(target) == 4 and record.get("sequences") == target
+                 and numeric(record.get("unixNanoseconds"))]
+    accepted = [event.get("acceptedUnixNano") for event in result.get("core", {}).get("sourceEvents", [])]
+    accepted = [value for value in accepted if numeric(value)]
+    if completed and accepted:
+        first = min(record["unixNanoseconds"] for record in completed)
+        last = max(accepted)
+        summary.update(firstFinalSequenceInstallUnixNanoseconds=first, lastSourceAcceptedUnixNanoseconds=last,
+                       finalSequenceInstallAfterLastSourceAcceptedMilliseconds=(first - last) / 1e6)
+    return summary
 
 
 def paired_results(records):
@@ -475,6 +545,28 @@ def markdown(report):
     for pair in paired_results(report["runs"]):
         if pair["invalidReasons"]:
             lines += ["", f"{pair['condition']} {pair['order']}: " + "; ".join(pair["invalidReasons"]) + "."]
+    lines += ["", "## Model consumption and additional UI cost windows", "",
+              "Fixed-window CPU can conceal different amounts of completed work when a consumer falls behind. "
+              "The sequence/installation columns below are reconstructed from timestamped catalog receipts, "
+              "and publish-to-install latency includes installations completed during the observation tail. "
+              "These are model observations, not rendered pixels or direct queue-depth measurements.", "",
+              "| Run | Valid | Formal installs | Sequences at formal CPU end | Later installs | Publish→install p50 / p95 ms | Final sequence install after last source accepted ms | Tail UI CPU s / wall s | Source start→tail end UI CPU s / wall s |",
+              "| --- | --- | ---: | --- | ---: | --- | ---: | --- | --- |"]
+    for row in report["runs"]:
+        result = row.get("result", {}); flow = model_flow(result)
+        latency = result.get("delivery", {}).get("publishToModelInstallMilliseconds", {})
+        windows = result.get("uiWindows", {})
+        tail, whole = windows.get("tailObservation", {}), windows.get("sourceThroughTailObservation", {})
+        lines.append(f"| {row['id']} | {row.get('valid', False)} | {result.get('installations', {}).get('formalCount', '—')} | "
+                     f"{flow.get('formalEndSequences', '—')} | {flow.get('postFormalInstallCount', '—')} | "
+                     f"{number(latency.get('p50'))} / {number(latency.get('p95'))} | "
+                     f"{number(flow.get('finalSequenceInstallAfterLastSourceAcceptedMilliseconds'))} | "
+                     f"{number(tail.get('cpuSeconds'))} / {number(tail.get('wallSeconds'))} | "
+                     f"{number(whole.get('cpuSeconds'))} / {number(whole.get('wallSeconds'))} |")
+    lines += ["", "The tail CPU interval begins at the independent formal-end sample and ends after the existing "
+              "model-stability observation. The whole UI interval also includes the five-second warmup. "
+              "They include observation and any remaining model work, are not queue-drain or per-event costs, "
+              "and must not be added to Core CPU measured over only the formal interval. A missing interval is unavailable, not zero.", ""]
     lines += ["", "## Validity, source convergence, memory and environment", ""]
     for row in report["runs"]:
         result = row.get("result", {}); source = result.get("core", {}).get("source", {}); ui = result.get("ui", {})
@@ -488,7 +580,10 @@ def markdown(report):
                   f"- UI sampled physical footprint start/end/max: {ui.get('footprintStartBytes', '—')} / {ui.get('footprintEndBytes', '—')} / {ui.get('footprintMaxSampledBytes', '—')} bytes.",
                   f"- Core process maximum RSS across recorded boundaries: {max(core_rss) if core_rss else '—'} bytes; this is not UI physical footprint.",
                   f"- Formal window observations: {len(result.get('windowSamples', []))}; all validity failures remain in the run's invalid reasons.",
+                  "- Core executable identity (reported/resolved paths and filesystem identity): `" + json.dumps(row.get("runtimeIdentity", {}), ensure_ascii=False) + "`.",
                   "- Formal CPU clock boundaries: `" + json.dumps(result.get("clock", {}), ensure_ascii=False) + "`.",
+                  "- Additional UI CPU windows: `" + json.dumps(result.get("uiWindows", {}), ensure_ascii=False) + "`.",
+                  "- Main-actor observation timing: `" + json.dumps(result.get("mainActorObservations", {}), ensure_ascii=False) + "`.",
                   "- Native decorations before/after: `" + json.dumps(result.get("nativeDecoration", {}), ensure_ascii=False) + "`.",
                   "- Window/visibility: `" + json.dumps(result.get("visibility", {}), ensure_ascii=False) + "`.",
                   "- Final per-card model state: `" + json.dumps(result.get("perCard", {}), ensure_ascii=False) + "`.",
@@ -519,6 +614,7 @@ def markdown(report):
 
 def save_report(output, report):
     report["pairs"] = paired_results(report["runs"])
+    report["modelFlow"] = {row["id"]: model_flow(row.get("result", {})) for row in report["runs"]}
     write_json(output / "report.json", report)
     (output / "report.md").write_text(markdown(report))
 
@@ -667,9 +763,10 @@ def main():
                     row["result"] = json.loads(result_path.read_text())
                     row["invalidReasons"].extend(validate_result(row["result"], condition, 20))
                     runtime_process = row["result"].get("runtimeProcess", {})
-                    if (runtime_process.get("parentPID") != row.get("startupIdentity", {}).get("pid") or
-                            runtime_process.get("executable") != str(replay.workspace / "runtime")):
-                        row["invalidReasons"].append("Core process identity does not belong to this fresh native application")
+                    identity, identity_errors = validate_runtime_identity(
+                        runtime_process, row.get("startupIdentity", {}), replay.workspace / "runtime")
+                    row["runtimeIdentity"] = identity
+                    row["invalidReasons"].extend(identity_errors)
                 else:
                     row["invalidReasons"].append("Missing UI result; an exit code alone cannot certify measurement")
                 if row["exitCode"] != 0:

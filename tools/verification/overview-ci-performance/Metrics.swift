@@ -6,6 +6,7 @@ import Metal
 import MokuseiCore
 import MokuseiPluginAPI
 import QuartzCore
+import Synchronization
 @testable import MokuseiUI
 
 struct ProbeFailure: Error, CustomStringConvertible {
@@ -58,7 +59,7 @@ func realtimeNanoseconds() -> Int64 {
     return Int64(value.tv_sec) * 1_000_000_000 + Int64(value.tv_nsec)
 }
 
-struct ProbeClock {
+struct ProbeClock: Sendable {
     let unixNanoseconds: Int64
     let uptimeNanoseconds: UInt64
     let uncertaintyNanoseconds: UInt64
@@ -87,7 +88,7 @@ struct ProbeClock {
     }
 }
 
-struct CPUSample {
+struct CPUSample: Sendable {
     let userSeconds: Double
     let systemSeconds: Double
     let uptimeNanoseconds: UInt64
@@ -97,7 +98,9 @@ struct CPUSample {
     static func capture() throws -> CPUSample {
         let before = monotonicNanoseconds()
         var usage = rusage()
-        guard getrusage(RUSAGE_SELF, &usage) == 0 else { throw ProbeFailure(description: "getrusage failed") }
+        guard getrusage(RUSAGE_SELF, &usage) == 0 else {
+            throw ProbeFailure(description: "getrusage failed with errno \(errno)")
+        }
         let after = monotonicNanoseconds()
         return CPUSample(userSeconds: Double(usage.ru_utime.tv_sec) + Double(usage.ru_utime.tv_usec) / 1e6,
             systemSeconds: Double(usage.ru_stime.tv_sec) + Double(usage.ru_stime.tv_usec) / 1e6,
@@ -110,6 +113,143 @@ struct CPUSample {
          "readNanoseconds": readNanoseconds,
          "boundaryOffsetMilliseconds": Double(clock.unix(at: uptimeNanoseconds) - expectedUnix) / 1e6]
     }
+}
+
+/// A scheduled read owns its completion independently of the MainActor waiter.
+/// All fixed boundaries are enqueued before source warmup; UI stalls can delay
+/// consuming the result, but cannot move the next process-CPU boundary.
+final class ScheduledCPUSample: Sendable {
+    private struct State: Sendable {
+        var started: UInt64?
+        var finished: UInt64?
+        var cancelled: UInt64?
+        var result: Result<CPUSample, ProbeFailure>?
+        var waiters: [CheckedContinuation<CPUSample, any Error>] = []
+    }
+
+    let name: String
+    let plannedUptimeNanoseconds: UInt64
+    let requestedUptimeNanoseconds: UInt64
+    private let state = Mutex(State())
+    private let timer: any DispatchSourceTimer
+
+    init(name: String, deadline: UInt64, queue: DispatchQueue) {
+        self.name = name
+        plannedUptimeNanoseconds = deadline
+        requestedUptimeNanoseconds = monotonicNanoseconds()
+        // asyncAfter has deadline-dependent coalescing. A long pre-scheduled
+        // formal interval must not inherit that implicit timing allowance.
+        timer = DispatchSource.makeTimerSource(flags: .strict, queue: queue)
+        timer.setEventHandler { [weak self] in self?.capture() }
+        timer.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline), repeating: .never, leeway: .nanoseconds(0))
+        timer.activate()
+    }
+
+    deinit { timer.cancel() }
+
+    func value() async throws -> CPUSample {
+        try Task.checkCancellation()
+        let sample = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CPUSample, any Error>) in
+                let completed = state.withLock { value -> Result<CPUSample, ProbeFailure>? in
+                    if let result = value.result { return result }
+                    value.waiters.append(continuation)
+                    return nil
+                }
+                if let completed {
+                    switch completed {
+                    case let .success(sample): continuation.resume(returning: sample)
+                    case let .failure(error): continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } onCancel: { cancel() }
+        try Task.checkCancellation()
+        return sample
+    }
+
+    func cancel() {
+        timer.cancel()
+        let result: Result<CPUSample, ProbeFailure> = .failure(.init(description: "CPU capture \(name) cancelled"))
+        let waiters = state.withLock { value -> [CheckedContinuation<CPUSample, any Error>] in
+            guard value.result == nil else { return [] }
+            value.cancelled = monotonicNanoseconds()
+            value.result = result
+            let waiters = value.waiters
+            value.waiters.removeAll()
+            return waiters
+        }
+        for waiter in waiters { waiter.resume(throwing: ProbeFailure(description: "CPU capture \(name) cancelled")) }
+    }
+
+    private func capture() {
+        defer { timer.cancel() }
+        let shouldCapture = state.withLock { value in
+            guard value.result == nil, value.started == nil else { return false }
+            value.started = monotonicNanoseconds()
+            return true
+        }
+        guard shouldCapture else { return }
+        let result: Result<CPUSample, ProbeFailure>
+        do { result = .success(try CPUSample.capture()) }
+        catch { result = .failure(.init(description: "CPU capture \(name) failed: \(error)")) }
+        let finished = monotonicNanoseconds()
+        let waiters = state.withLock { value -> [CheckedContinuation<CPUSample, any Error>] in
+            // Cancellation may win while getrusage is in progress. It resolves
+            // each waiter once and prevents the late read replacing a failure.
+            guard value.result == nil else { return [] }
+            value.finished = finished
+            value.result = result
+            let waiters = value.waiters
+            value.waiters.removeAll()
+            return waiters
+        }
+        for waiter in waiters {
+            switch result {
+            case let .success(sample): waiter.resume(returning: sample)
+            case let .failure(error): waiter.resume(throwing: error)
+            }
+        }
+    }
+
+    func json(clock: ProbeClock) -> [String: Any] {
+        let snapshot = state.withLock { ($0.started, $0.finished, $0.cancelled, $0.result) }
+        let expectedUnix = clock.unix(at: plannedUptimeNanoseconds)
+        var value: [String: Any] = ["name": name, "executor": "dedicated-dispatch-queue",
+            "timerFlags": "strict", "timerLeewayNanoseconds": 0,
+            "plannedUptimeNanoseconds": plannedUptimeNanoseconds, "plannedUnixNanoseconds": expectedUnix,
+            "requestedUptimeNanoseconds": requestedUptimeNanoseconds,
+            "callbackStartedUptimeNanoseconds": snapshot.0.map { $0 as Any } ?? NSNull(),
+            "callbackFinishedUptimeNanoseconds": snapshot.1.map { $0 as Any } ?? NSNull(),
+            "cancelledUptimeNanoseconds": snapshot.2.map { $0 as Any } ?? NSNull()]
+        if let started = snapshot.0 {
+            value["callbackLatenessMilliseconds"] = Double(Int64(started) - Int64(plannedUptimeNanoseconds)) / 1e6
+        }
+        switch snapshot.3 {
+        case let .some(.success(sample)):
+            value.merge(sample.json(clock: clock, expectedUnix: expectedUnix)) { _, sample in sample }
+            value["status"] = "captured"
+        case let .some(.failure(error)):
+            value["status"] = snapshot.2 == nil ? "failed" : "cancelled"
+            value["error"] = error.description
+        case nil:
+            value["status"] = snapshot.0 == nil ? "scheduled" : "capturing"
+        }
+        return value
+    }
+}
+
+func cpuInterval(from start: CPUSample, to end: CPUSample, meaning: String) throws -> [String: Any] {
+    guard end.uptimeNanoseconds > start.uptimeNanoseconds,
+          end.userSeconds >= start.userSeconds, end.systemSeconds >= start.systemSeconds else {
+        throw ProbeFailure(description: "Process CPU samples are not monotonic")
+    }
+    let elapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1e9
+    return ["cpuSeconds": end.cpuSeconds - start.cpuSeconds,
+        "userSeconds": end.userSeconds - start.userSeconds, "systemSeconds": end.systemSeconds - start.systemSeconds,
+        "wallSeconds": elapsed, "cpuPercent": 100 * (end.cpuSeconds - start.cpuSeconds) / elapsed,
+        "startUptimeNanoseconds": start.uptimeNanoseconds, "endUptimeNanoseconds": end.uptimeNanoseconds,
+        "meaning": meaning]
 }
 
 func physicalFootprint() throws -> UInt64 {
