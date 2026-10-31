@@ -217,61 +217,78 @@ extension SwiftUIOverviewInteractionTests {
             let originalTitlePixels = try titleWindowPixels(originalWindow.sample.image, region: region)
             let originalTitleInk = try originalTitlePixels.histogramInk()
             try #require(originalTitleInk > 0, "The outgoing title requires a nonblank settled reference")
+            let referenceAXStartedAt = ProcessInfo.processInfo.systemUptime
+            let referenceAX = SwiftUIReplay.text(in: root)
+            measurements.append(["kind": "diagnostic", "stage": "reversal-reference-AX",
+                "startedAt": "\(referenceAXStartedAt)", "finishedAt": "\(ProcessInfo.processInfo.systemUptime)",
+                "displayedTexts": "\(referenceAX.sorted())"])
             let titleBSentAt = ProcessInfo.processInfo.systemUptime
+            let titleBContinuousStart = ContinuousClock.now
             fixture.title = "Title B"
+            let titleBContinuousReturn = ContinuousClock.now
+            let titleBReturnedAt = ProcessInfo.processInfo.systemUptime
+            let earliestReplacement = titleBContinuousStart + .milliseconds(150)
             measurements.append(["kind": "event", "stage": "title-B", "sentAt": "\(titleBSentAt)",
-                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)"])
-            // A 50ms sleep can resume after B has already replaced A. Observe
-            // the latest partial pixels and the displayed Text instead of
-            // treating that late input as an early outgoing reversal.
-            let outgoingPrerequisiteStartedAt = ProcessInfo.processInfo.systemUptime
-            let outgoingPrerequisiteDeadline = outgoingPrerequisiteStartedAt + 3
-            var outgoingAXObservations: [[String: String]] = []
-            defer { measurements.append(contentsOf: outgoingAXObservations) }
+                "returnedAt": "\(titleBReturnedAt)", "clock": "ContinuousClock",
+                "continuousStartMilliseconds": "0",
+                "continuousReturnedMilliseconds": "\(titleElapsedMilliseconds(from: titleBContinuousStart, to: titleBContinuousReturn))",
+                "earliestReplacementMilliseconds": "150"])
+            // The production owner cannot replace A before its 150ms outgoing
+            // sleep, which starts after this B input. Require the single A
+            // setter to finish before that conservative ContinuousClock bound.
+            // AX can omit a fading Text whose model opacity is already zero;
+            // it is diagnostic only and does not run on this live input path.
+            var outgoingObservations: [[String: String]] = []
+            defer { measurements.append(contentsOf: outgoingObservations) }
             let outgoing = try await titleWindowFrame(frames, region: region, stage: "reversal-outgoing",
                 captures: &windowCaptures, measurements: &measurements) { frame in
                 let fraction = frame.ink / originalTitleInk
+                let observedAt = ProcessInfo.processInfo.systemUptime
                 guard frame.sample.presentationTime > titleBSentAt,
                       fraction > 0.1 && fraction < 0.9,
-                      ProcessInfo.processInfo.systemUptime - frame.sample.receivedAt < 0.05 else { return false }
-                let axStartedAt = ProcessInfo.processInfo.systemUptime
-                let displayed = SwiftUIReplay.text(in: root)
-                let axFinishedAt = ProcessInfo.processInfo.systemUptime
-                let accepted = displayed.contains("Title A") && !displayed.contains("Title B")
-                    && axFinishedAt - frame.sample.receivedAt < 0.05
-                    && axFinishedAt < outgoingPrerequisiteDeadline
-                outgoingAXObservations.append(["kind": "prerequisite", "stage": "reversal-outgoing-AX",
+                      observedAt >= frame.sample.receivedAt,
+                      observedAt - frame.sample.receivedAt < 0.05 else { return false }
+                let observedContinuous = ContinuousClock.now
+                let accepted = observedContinuous < earliestReplacement
+                outgoingObservations.append(["kind": "prerequisite", "stage": "reversal-outgoing-clock",
                     "presentationTime": "\(frame.sample.presentationTime)", "receivedAt": "\(frame.sample.receivedAt)",
                     "inkFraction": "\(fraction)", "referenceInk": "\(originalTitleInk)",
-                    "axStartedAt": "\(axStartedAt)", "axFinishedAt": "\(axFinishedAt)",
-                    "displayedTexts": "\(displayed.sorted())", "accepted": "\(accepted)",
-                    "deadline": "\(outgoingPrerequisiteDeadline)"])
+                    "observedAt": "\(observedAt)", "sampleAgeMilliseconds": "\((observedAt - frame.sample.receivedAt) * 1000)",
+                    "continuousElapsedMilliseconds": "\(titleElapsedMilliseconds(from: titleBContinuousStart, to: observedContinuous))",
+                    "earliestReplacementMilliseconds": "150", "accepted": "\(accepted)"])
                 return accepted
             }
-            // AX traversal also takes time. Recheck both the live displayed
-            // value and sample freshness immediately before the single A input.
-            let finalAXStartedAt = ProcessInfo.processInfo.systemUptime
-            let displayedBeforeA = SwiftUIReplay.text(in: root)
-            let finalAXFinishedAt = ProcessInfo.processInfo.systemUptime
-            measurements.append(["kind": "prerequisite", "stage": "reversal-before-A",
-                "presentationTime": "\(outgoing.sample.presentationTime)", "receivedAt": "\(outgoing.sample.receivedAt)",
-                "inkFraction": "\(outgoing.ink / originalTitleInk)",
-                "axStartedAt": "\(finalAXStartedAt)", "axFinishedAt": "\(finalAXFinishedAt)",
-                "displayedTexts": "\(displayedBeforeA.sorted())", "startedAt": "\(outgoingPrerequisiteStartedAt)",
-                "deadline": "\(outgoingPrerequisiteDeadline)"])
-            try #require(displayedBeforeA.contains("Title A") && !displayedBeforeA.contains("Title B"),
-                         "Observation incomplete: Title B replaced A before the early reversal input")
             let titleASentAt = ProcessInfo.processInfo.systemUptime
-            try #require(titleASentAt - outgoing.sample.receivedAt < 0.05 && titleASentAt < outgoingPrerequisiteDeadline,
-                         "Observation incomplete: the outgoing A prerequisite became stale before reversal")
+            let titleAContinuousStart = ContinuousClock.now
+            let canSendA = titleAContinuousStart < earliestReplacement
+                && titleASentAt >= outgoing.sample.receivedAt && titleASentAt - outgoing.sample.receivedAt < 0.05
+            if !canSendA {
+                measurements.append(["kind": "prerequisite", "stage": "reversal-before-A", "accepted": "false",
+                    "observedAt": "\(titleASentAt)", "receivedAt": "\(outgoing.sample.receivedAt)",
+                    "continuousElapsedMilliseconds": "\(titleElapsedMilliseconds(from: titleBContinuousStart, to: titleAContinuousStart))",
+                    "earliestReplacementMilliseconds": "150"])
+            }
+            try #require(canSendA,
+                         "Observation incomplete: no fresh outgoing frame remained before the earliest title replacement")
             fixture.title = "Title A"
+            let titleAContinuousReturn = ContinuousClock.now
+            let titleAReturnedAt = ProcessInfo.processInfo.systemUptime
+            // Save the actual input before rejecting any preemption across the
+            // bound. These receipts certify source submission, not onChange
+            // consumption, which is still tested by the fixed pixel check.
             measurements.append(["kind": "event", "stage": "title-A", "sentAt": "\(titleASentAt)",
-                "returnedAt": "\(ProcessInfo.processInfo.systemUptime)",
+                "returnedAt": "\(titleAReturnedAt)", "clock": "ContinuousClock",
+                "continuousStartMilliseconds": "\(titleElapsedMilliseconds(from: titleBContinuousStart, to: titleAContinuousStart))",
+                "continuousReturnedMilliseconds": "\(titleElapsedMilliseconds(from: titleBContinuousStart, to: titleAContinuousReturn))",
+                "earliestReplacementMilliseconds": "150", "returnedBeforeEarliestReplacement": "\(titleAContinuousReturn < earliestReplacement)",
                 "prerequisitePresentationTime": "\(outgoing.sample.presentationTime)",
                 "prerequisiteReceivedAt": "\(outgoing.sample.receivedAt)",
+                "prerequisiteInkFraction": "\(outgoing.ink / originalTitleInk)",
                 "prerequisiteAgeMilliseconds": "\((titleASentAt - outgoing.sample.receivedAt) * 1000)",
-                "actualBToAMilliseconds": "\((titleASentAt - titleBSentAt) * 1000)",
-                "displayedTextsBeforeInput": "\(displayedBeforeA.sorted())"])
+                "prerequisiteAgeAtReturnMilliseconds": "\((titleAReturnedAt - outgoing.sample.receivedAt) * 1000)",
+                "actualBToAMilliseconds": "\((titleASentAt - titleBSentAt) * 1000)"])
+            try #require(titleAContinuousReturn < earliestReplacement && titleAReturnedAt - outgoing.sample.receivedAt < 0.05,
+                         "Observation incomplete: the single A input returned after its outgoing prerequisite expired")
             try await Task.sleep(for: .milliseconds(500))
             let checkedAt = ProcessInfo.processInfo.systemUptime
             let reversalSamples = frames.takeSamples()
@@ -287,6 +304,8 @@ extension SwiftUIOverviewInteractionTests {
                 "cacheCheckReturnedAt": "\(cacheCheckReturnedAt)",
                 "baselinePresentationTime": "\(originalWindow.sample.presentationTime)",
                 "baselineInk": "\(originalWindow.ink)", "frameAvailable": "false"]
+            var hasPostInputFrame = false
+            var composedPixelsEqual = false
             // Do not wait until pixels match and do not use a frame presented
             // after the original 500ms check. Keep causality visible even if
             // this stream did not supply a post-input composed frame.
@@ -298,10 +317,21 @@ extension SwiftUIOverviewInteractionTests {
                 reversalEvidence["presentationTime"] = "\(observed.presentationTime)"
                 reversalEvidence["receivedAt"] = "\(observed.receivedAt)"
                 reversalEvidence["afterTitleAInput"] = "\(observed.presentationTime > titleASentAt)"
-                reversalEvidence["contentPixelsEqual"] = "\(pixels.data == originalWindow.pixels.data)"
+                hasPostInputFrame = observed.presentationTime > titleAReturnedAt
+                composedPixelsEqual = pixels.data == originalWindow.pixels.data
+                reversalEvidence["afterTitleAReturn"] = "\(hasPostInputFrame)"
+                reversalEvidence["contentPixelsEqual"] = "\(composedPixelsEqual)"
                 reversalEvidence["observedInk"] = "\(try pixels.histogramInk())"
             }
             measurements.append(reversalEvidence)
+            try #require(hasPostInputFrame,
+                         "Observation incomplete: no post-A WindowServer frame was available at the fixed reversal check")
+            #expect(composedPixelsEqual, "The fixed reversal check must match the original composed window content")
+            let checkAXStartedAt = ProcessInfo.processInfo.systemUptime
+            let checkAX = SwiftUIReplay.text(in: root)
+            measurements.append(["kind": "diagnostic", "stage": "reversal-screen-check-AX",
+                "startedAt": "\(checkAXStartedAt)", "finishedAt": "\(ProcessInfo.processInfo.systemUptime)",
+                "displayedTexts": "\(checkAX.sorted())"])
 
             fixture.title = "Cancelled title"
             try await Task.sleep(for: .milliseconds(40))
@@ -1008,6 +1038,11 @@ extension SwiftUIOverviewInteractionTests {
         let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
         root.cacheDisplay(in: root.bounds, to: image)
         return try #require(image.representation(using: .png, properties: [:]))
+    }
+
+    private func titleElapsedMilliseconds(from start: ContinuousClock.Instant, to end: ContinuousClock.Instant) -> Double {
+        let duration = start.duration(to: end).components
+        return Double(duration.seconds) * 1000 + Double(duration.attoseconds) / 1e15
     }
 
     private func retainTitleSamples(_ samples: [TagGlassFrames.Sample], stage: String,

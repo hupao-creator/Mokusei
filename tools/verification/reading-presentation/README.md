@@ -232,15 +232,21 @@ native replay capability; both run without skips in this eight-test launcher.
 
 The title cancellation case starts its WindowServer stream before the initial
 `A → B → A` reversal. It sends B once and establishes an outgoing A from the
-latest post-input frame with 10–90% reference ink and less than 50ms age, while
-the native AX label/value still reports displayed A and not B. It rechecks the
-displayed text and freshness synchronously before sending A. This bounded
-three-second prerequisite replaces the assumed 50ms sleep; it does not repeat
-B or change the original 500ms return observation and self-rendered equality
-assertion. Source times, AX/pixel-analysis times, all captured
-frames and the actual observation time distinguish a blank `cacheDisplay`
-snapshot from a blank composed window; a later settled frame cannot certify
-the earlier observation. The incoming-cancellation sensor still requires the
+latest post-input frame with 10–90% reference ink and less than 50ms age. The
+actual A setter must begin and return before B's `ContinuousClock` instant plus
+the production owner's 150ms outgoing sleep, with freshness rechecked. This
+earliest-replacement bound excludes B's incoming frames; the saved before/after
+receipts reject preemption across it. It proves early source submission, not
+SwiftUI consumption. AX label/value is diagnostic outside that live path because
+model opacity zero can hide a still-visible fading Text from AX. The bounded
+three-second prerequisite replaces the assumed 50ms sleep; it does not repeat B
+or change the original 500ms return observation and self-rendered equality
+assertion. The last available WindowServer frame at that same check must follow
+A's setter return and exactly match the original content pixels, without waiting
+for a match or using a later frame. Continuous/raw source times, pixel-analysis
+times, all captured frames and the actual observation time distinguish a blank
+`cacheDisplay` snapshot from a blank composed window; a later settled frame cannot
+certify the earlier observation. The incoming-cancellation sensor still requires the
 latest frame, 10–60% ink, less than 50ms sample age and the original three-second
 deadline. It caches each frame's exact ink total using Accelerate's integer
 histogram over the same BGRA pixels, with static references computed before

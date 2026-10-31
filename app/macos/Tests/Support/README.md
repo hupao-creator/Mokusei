@@ -81,14 +81,22 @@ The early `A → B → A` replay sends B once, then observes an outgoing A befor
 sending A. A requested 50ms sleep can resume after B is already displayed and
 does not establish that prerequisite. The replacement observation has a fixed
 three-second budget: the newest WindowServer frame must follow B's input, have
-10–90% of the settled A ink, and be less than 50ms old. The native AX label/value
-must still contain displayed `Title A` and not `Title B`; the helper does not read
-the outer card's help text. The replay rechecks that displayed value and freshness
-synchronously before A, retaining raw frames, pixel-analysis and AX timings, and
-the actual input receipts. Failure to establish the prerequisite fails the case;
-there is no repeated B input or retrospective use of an older partial frame.
+10–90% of the settled A ink, and be less than 50ms old. Both the final check before
+A and its actual setter return must precede B's `ContinuousClock` instant plus
+150ms. That is the earliest possible replacement allowed by the production
+owner's outgoing sleep, not an extra observation allowance. The same clock
+brackets the single A setter; a preemption across the bound explicitly fails
+after saving its receipt. This establishes early source submission, not when
+SwiftUI consumes it. AX label/value is diagnostic outside the live input path:
+a still-visible fading A can have model opacity zero and disappear from AX.
+Raw frames, pixel-analysis timings, sample age, and continuous/raw input receipts
+remain evidence. Failure to establish the prerequisite fails the case; there
+is no repeated B input or retrospective use of an older partial frame.
 
 This replaces the assumed 50ms input interval, not the fixed 500ms final check or
-its original pixel-equality assertion. A later return to A cannot certify that
-earlier check. The separate incoming-cancellation oracle retains its 10–60% ink,
-50ms freshness, three-second budget and exact replacement-pixel assertions.
+its original self-rendered equality assertion. The last available WindowServer
+frame at that same check must also follow A's setter return and exactly match
+the original content pixels. The replay does not wait for a match or accept a
+frame presented after the check. A later return to A cannot certify that earlier
+check. The separate incoming-cancellation oracle retains its 10–60% ink, 50ms
+freshness, three-second budget and exact replacement-pixel assertions.
