@@ -1,258 +1,189 @@
 # Continuous integration
 
-[The workflow](../../.github/workflows/ci.yml) runs portable Go checks on Linux
-and native Go plus graphical Swift checks on macOS 26 arm64. `scripts/go.sh` is
-the local Apple Silicon bootstrap; Actions installs the `go.mod` toolchain
-with setup-go so Linux does not invoke a Darwin-only wrapper. CGO and system
-SQLite remain enabled. The Darwin profile-rotation tests run on macOS, and
-the native Moku clipboard bridge test uses synthetic NSData, not user data.
+[The workflow](../../.github/workflows/ci.yml) runs portable Go checks and
+protocol replays on Linux alongside one native verification job on macOS 26
+arm64. The native job builds once and runs the complete ordinary Swift suite,
+Go/Swift interop and graphical replays serially in the same session. There are
+no test shards, placement weights or cross-runner build/fixture transfers.
+
+CGO and system SQLite remain enabled. Actions installs the toolchain from
+`go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
+profile-rotation and clipboard-bridge tests run in the native job.
+
+## Scope and scheduling
 
 `scope.py` compares the complete PR or push diff before scheduling builds. Only
 ordinary non-executable root AGENTS.md/CONTEXT.md/README.md, README entry points
 in `internal`, `app/macos`, `tools/verification` and `demos`, and Markdown directly
-under `.agents`/`scripts/ci` qualify for documentation-only validation. Other
-README paths are not inferred to be documentation: they may be bundled resources.
-Both sides of a rename and both Git file modes are checked. Mixed/unknown paths,
-empty diffs and manual dispatches retain full verification. Documentation-only
-runs still execute the scope, `Go / Linux` and aggregate checks: they validate the
-diff and explicitly report that native/build tests are outside this scope. Local
-link review remains required. No workflow-level path filter leaves required
-checks pending. This avoids native runner work for documentation-only PRs and
-their main pushes without omitting coverage for code changes.
+under `.agents`/`scripts/ci` qualify for documentation-only validation. Both sides
+of renames and both Git file modes are checked. Other README paths can be runtime
+resources and do not qualify. Unknown/mixed paths, empty diffs and manual
+runs retain full verification. Documentation-only runs execute scope, `Go / Linux`
+and the aggregate; they validate the diff and explicitly state that native/build
+tests were outside the scope. Local link review remains required.
 
-Every Go test invocation captures `go test -json`, stderr and the actual exit
-code. An always-run report includes failed commands and absent/interrupted
-captures. Its four primary statistics have these definitions:
+PR and main push runs have separate per-ref concurrency groups. A newer revision
+cancels that ref's older work using GitHub's cancelled state; it is never reported
+as a successful `Complete coverage` check. Other PRs do not share a repository-wide
+lock. Explicit dispatches have run-specific groups and cannot cancel PR/main work.
+There is no custom API-based obsolete-head/base rejection: the required check
+belongs to its actual checked-out revision and the remote strict ruleset controls
+whether a PR is up to date. This is not GitHub Merge Queue.
 
-- **tests**: distinct `(package, Test)` nodes observed, including parent tests,
-  subtests and examples. Incomplete nodes remain counted and fail the gate.
-- **suites**: packages reported by the command, including no-test packages.
-- **failures**: terminal failed test nodes plus failed packages that have no
-  failed test node. Go does not expose an assertion-level issue count. A failed
-  parent and failed subtest are two nodes, not two inferred independent bugs.
-- **skipped**: terminal skipped test nodes. Skipped packages and packages with
-  no test files are separately listed; neither is silently counted as passing.
+Linux Go checks and the `runtime`/`adapters` protocol groups remain independent
+jobs. Those groups represent different production boundaries, not slices of the
+Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
+Hosted runner capacity can still queue jobs; removing the repository-wide lock
+does not create additional account capacity.
 
-The JSON report also names failed tests/packages/builds and incomplete work.
-Nonzero/missing process status, malformed events, missing completion events,
-empty execution and all-skipped runs fail the reporting step. Use `-count=1`;
-the report rejects repeated terminal events. Unit, race, property and platform
-runs overlap, so their counts are not unique coverage totals.
+## One native session
 
-## Parallel execution and queueing
+The native job performs these stages:
 
-The normal workflow runs Linux checks/replays alongside two macOS preparation
-jobs. One macOS job warms Go binaries and runs five real Go fixture producers,
-exporting six fixture files (Moku exports both status and Timer snapshots);
-the other **always builds** current Swift sources and all test targets. It lists
-methods from that binary, records explicit native method owners, then partitions
-the remaining methods by suite into five balanced groups, accounting for the
-replays assigned to each runner. `--filter` retains the existing suite prefixes,
-and a shared `--skip` excludes each native-owned method at its complete identity
-boundary. The exclusion accepts the runtime `/file:line:column` suffix that Swift
-Testing omits when listing a uniquely named method. Keeping exclusion separate
-also prevents an included ancestor suite from restoring that method through
-Swift Testing's recursive selection. Parameterized method selection is preserved.
-Historical
-suite weights affect placement only: new suites are
-automatically included, never silently omitted.
+1. Prepare Xcode and Metal, restore the Swift compilation cache, and always build
+   current sources and every test target with the resolved dependency versions.
+2. Discover the complete inventory from the resulting binary and record current
+   commit, workspace, architecture, configuration, toolchain, run and attempt.
+3. Verify the graphical environment, run native Go checks and generate the five
+   real Go fixture producers' six output files in the same evidence directory.
+4. Execute every ordinary Swift method once with `--skip-build --no-parallel`.
+5. Run all ten `interop` checks and all ten `native` checks serially.
+6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
+   and the coverage summary together.
 
-The successful build is shared through a unique run/attempt cache key. Cache
-transport preserves executable permissions and framework symlinks. Each consumer
-checks the same revision, canonical checkout path, architecture, Debug configuration,
-Xcode/Swift/SDK/compiler fingerprint and producer run/attempt before using
-`--skip-build`. There is no cache-miss fallback to an old binary. Ordinary local
-Go/Swift replay commands still build unless explicitly given the verified-build
-option. Re-running failed jobs can reuse the successful producer's recorded attempt.
+The Go and Swift compiler caches accelerate future runs, but cannot certify test
+results. Even an exact Swift cache hit is followed by a current-source build and
+new inventory. `MOKUSEI_SWIFT_SKIP_BUILD` is set only after that build and manifest
+verification succeed. Replays reuse that same local build; no other runner's
+binary or prior attempt's evidence is needed. Swift omits the editor index store
+while retaining Debug code and test targets. DirectoryTag executes once.
 
-Five macOS runners then execute concurrently. Each runs its Swift shard and
-assigned Go/Swift or isolated AppKit replays serially; scheduling weights balance
-the combined workload. Tests within one graphical session remain serial.
-The two capture-dependent tag-glass methods use the standalone host; its other
-five methods already execute in the Swift shards. The same mandatory
-`native-capture/tag-glass-captures` check exclusively owns
-`SwiftUIOverviewInteractionTests.titleReversalAndVisibilityCancellationSettlePixels`:
-its incoming-title proof needs complete WindowServer frames while the native
-AppKit loop runs. `swift_ownership.py` records this method before partitioning;
-it stays in the discovered inventory but is never selected by an ordinary shard.
-The method has no environment-based bypass or test-level skip. Missing, failed,
-skipped, duplicated or incorrectly routed native outcomes fail coverage.
-The three Settings capsule methods likewise run in the required native-capture
-lane, because their production Dock/form mouse actions and WindowServer blur
-assertions need an activated AppKit host. The coverage aggregator requires each
-observed passing method; SwiftPM deferral alone cannot satisfy coverage.
-The nine input/responder, pointer-tracking and native-panel methods deferred by
-the browser, history composer, Report, Thread TOC and Landing suites share one
-isolated AppKit host, without repeating their other methods. The TOC pointer
-case needs a running event loop and a foreground visible window. Landing's
-three mouse/key methods also require that loop: native NSTextView tracking can
-otherwise exit a plain SwiftPM process with status zero before its completion
-summary. All nine must produce observed passing native-controls outcomes; the
-aggregate continues to reject incomplete processes even when their exit is zero.
-The Go producer also exports this attempt's warmed race and ordinary build caches;
-downstream jobs do not depend on an older immutable dependency-cache entry.
-Swift CI omits the editor index store while retaining Debug code and test targets.
-DirectoryTag is also executed once. Four native-CLI/system runners are separate
-`extended=true` workflow dispatches, which do not repeat the normal workflow.
-Default PR/main and extended runs share a repository-wide concurrency queue
-(`queue: max`, no cancellation of another queued run). One workflow cohort is
-admitted at a time; its Linux checks, preparation jobs and native shards still
-run in parallel. The scope job rejects obsolete PR heads/bases and superseded
-main pushes before scheduling native work. Explicit dispatches remain pinned to
-the requested revision. This is a workflow queue, not GitHub Merge Queue.
-CLI installs are cached by exact package/version and architecture, and downloads
-retain their three-minute execution timeout. The removed long-running stability
-check is not replaced with another soak.
+The ordinary command has no positive suite filter. Its explicit `--skip` excludes
+only full identities recorded in `swift_ownership.py`, including Swift Testing's
+runtime source-location suffix. This is selection, not a passing skip result:
+each excluded method must produce its actual passing outcome, marker and zero
+exit receipt in the declared `native/tag-glass-captures` check. The title-reversal
+pixel proof needs that host's AppKit loop and WindowServer delivery.
 
-There is **no whole-run fifteen-minute merge gate** and no shared 840-second
-command deadline. Queueing cannot consume a later command's execution allowance.
-Each owned command has an independent thirty-minute default timeout and each
-build/test job has a thirty-minute timeout to stop hung work; narrower existing
-CLI/test limits remain in force. Timeout is incomplete execution and still fails
-coverage. These execution guards are not a wall-clock acceptance requirement.
-
-The aggregate reports each job's queue time, attempt time and elapsed time since
-the first trigger. Carried-forward successful jobs on partial retries retain
-old execution timestamps even when GitHub assigns new job IDs; they are labeled
-reused, not counted as new work. Time is diagnostic and does not decide merge
-eligibility. All required jobs and complete observed coverage must still pass.
-The queue only coordinates workflows using this key in this repository; other
-repositories or older workflow revisions may still consume account capacity.
-
-## Native coverage evidence
-
-Swift reports XCTest and Swift Testing separately. XCTest failures and Swift
-Testing issues are framework counts, not interchangeable assertion counts.
-The builder and all five consumers must supply identical manifests. Actual
-terminal method identities, counts and receipts must match the discovered
-inventory exactly once across shards and explicit native owners. Every explicit
-owner needs one successful process receipt, one passing method outcome and its
-required execution marker from its declared group/check; a passing result
-elsewhere does not substitute for it. Partial reports created with `--check`
-cannot satisfy a complete CI replay group.
-The summary includes these native receipts/outcomes separately from ordinary
-framework totals. Each ordinary receipt must also match the manifest's exact
-`--filter` and `--skip` arguments. Same-count omissions/substitutions fail.
-Named fixture/isolated-host skips additionally need observed passing outcomes in
-the required replay logs; a new skip is not admitted just because most tests ran.
-
-The fixture runner sets `MOKU_TIMER_NATIVE_FIXTURE` for the existing Moku replay
-and requires its nonempty `moku-timer.json` export. The preparation artifact
-already transports the entire `ci-fixtures` directory. Every Swift consumer
-downloads that exact producer artifact and exports the Timer path from its own
-`RUNNER_TEMP/preparation/ci-fixtures` before running its assigned shard. Thus
-`NativeMokuTimerTests.productionGoCatalogFeedsQueueWithoutRealAudio` executes in
-the ordinary discovered shard; it is not deferred or allowed to skip. Its Go
-producer and Swift consumer use fake Harnesses/audio and need no window.
+Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
+only when their mandatory replay supplies the observed passing result. Settings
+capsule transitions, native input/responder/pointer cases and model-selector flows
+keep their existing native launchers and assertions. No new skip is admitted
+merely because the rest of the suite passed. The generated Moku Timer fixture is
+available before the full suite, so its ordinary consumer must execute normally.
 
 CI enables motion and transparency only in the disposable runner account: the
 [stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
-Local commands never alter developer accessibility preferences. Rendered geometry
-uses the actual backing scale for one-physical-pixel precision; pure camera math
-keeps its numerical tolerance. Real-window resize fixtures fit the current
-screen, while fixed component fixtures retain their specified logical viewport.
+Local commands do not alter developer accessibility preferences. Rendered geometry
+uses actual backing scale, while pure camera math keeps its numerical tolerance.
+Real-window fixtures fit the current display and retain their specified logical
+component sizes. All GUI work within this session remains serial.
 
-`replays.py` runs existing production-boundary commands, retaining commands,
-exit status, logs and interrupted work. Reproduce a group locally with
-`python3 scripts/ci/replays.py GROUP --go ./scripts/go.sh --output /tmp/new-evidence`.
-Native groups require the current Swift build. The
-[verification policy](verification-policy.md) records each gate's independent
-value, triggers and the limited hardware/signed-package acceptance that remains.
-The `native-controls` group also runs the [windowless scrollbar replay](../../tools/verification/scrollbars/README.md),
-which compiles the production viewport policy and checks native control state
-without creating a window. It does not count as rendered scrollbar coverage.
+## Evidence and failure semantics
 
-Local `make check-swift` runs `python3 scripts/ci/swift-tests.py --run` with
-`.build/check-swift` as its output directory. Its ordinary `xcrun swift test`
-uses the same explicit `--skip` exclusion as CI, without a positive filter that
-could select the excluded method's ancestor suite. It then invokes the existing
-`replays.py` producer for each declared owner check; currently this is
-`native-capture --check tag-glass-captures`. Both hosts run serially. This path
-needs the native display/capture capability and cannot pass by skipping it.
-The ordinary stream, command and actual exit code remain in `swift-tests.log`
-and `swift-status.json`; native reports/logs are retained in a new `native-*`
-subdirectory per invocation. `swift-summary.json` includes both forms of evidence.
-Success requires both frameworks' completion summaries and matching ordinary
-counts, plus each native owner's zero process status, exactly one passing
-outcome and required execution marker. An early zero exit, missing marker,
-duplicate or wrong-host native execution fails. Other named fixture/native skips
-still require their separate launchers before those flows can be certified.
+`swift-native.py` owns build identity, discovery and ordinary execution.
+`build-manifest.json`, `swift.json` and `swift.log` live at the native evidence
+root; `ci-fixtures`, `ci-interop` and `ci-native` contain the required replay reports.
+`swift-tests.py` audits that directory before the native job can pass. Its actual
+method identities and framework totals must match the discovered inventory, with
+exactly one ordinary outcome or the declared native owner. Same-count omissions,
+substitutions, duplicate methods, unexpected skips and missing terminal summaries
+fail. An early exit with status zero cannot certify incomplete tests.
 
-To inspect an existing ordinary capture without starting Swift, supply its actual
-process status explicitly. This log-only mode does not certify native owners:
+Every mandatory native owner needs one successful process receipt, one passing
+method outcome and its execution marker at the declared group/check. A pass at
+another check does not substitute. Reports limited with `--check` are useful for
+local diagnosis but cannot satisfy a complete CI replay group. Display-capability
+skips fail CI. The audit checks the current revision and the complete ordinary
+selection rather than inferring execution from a command or cache hit.
+
+Each native attempt uploads one `macos-native-evidence-attempt-N` artifact. A
+failed-job-only retry reruns the entire native job when that job failed; successful
+Linux jobs can be carried forward. There is no merging of seven native slots or
+selection of old passing artifacts. Prior attempts remain available for diagnosis.
+Failure summaries include bounded assertion excerpts and process/timeout details.
+Missing logs are reported as not run, never as zero failures.
+
+Every Go test invocation captures `go test -json`, stderr and the actual exit
+code. Its always-run report distinguishes:
+
+- **tests**: distinct package/test nodes, including parents, subtests and examples;
+- **suites**: reported packages, including packages with no tests;
+- **failures**: failed test nodes plus failed packages without a failed test node;
+- **skipped**: explicitly skipped nodes, with skipped/no-test packages listed.
+
+Nonzero/missing exit status, malformed or incomplete events, empty execution and
+all-skipped commands fail. Partial skips remain visible; Go does not have Swift's
+pre-discovered method audit. Unit, race, property and platform commands overlap,
+so their counts are not unique coverage totals. `-count=1` prevents test-result
+cache hits from replacing execution.
+
+## Time and resource tradeoff
+
+One native job lowers simultaneous macOS runner demand and eliminates repeated
+checkout/setup/cache restore/fixture download and evidence transport. It may take
+longer end to end than parallel shards. Report both wall time and summed runner
+execution time; runner minutes are not a billing estimate.
+
+The native job has a sixty-minute hang guard; Linux and extended jobs retain
+thirty-minute guards. Each owned command retains an independent thirty-minute
+default timeout and narrower existing CLI/test limits. There is no whole-run
+fifteen-minute merge deadline. Timeouts still mean incomplete verification.
+
+`run-summary.py` reports queueing, current attempt time and time since the first
+trigger. Failure to fetch/upload these timing diagnostics does not override the
+required-job gate. Successful jobs carried forward on a partial retry are marked reused,
+not counted as new work. Diagnose a failure before retrying; a passing retry alone
+does not establish that the first failure was harmless.
+
+## Local verification
+
+Run one production-boundary group with:
+
+```sh
+python3 scripts/ci/replays.py GROUP --go ./scripts/go.sh --output /tmp/new-evidence
+```
+
+`runtime`, `adapters`, `fixtures`, `interop` and `native` are the supported groups.
+Native groups need the current Swift build and graphical capabilities. The
+[verification policy](verification-policy.md) records independent defect coverage
+and the limited device/signed-package acceptance requirements.
+
+`make check-swift` invokes `swift-tests.py --run`, preserving the ordinary log,
+actual process receipt and native-owner evidence under `.build/check-swift`.
+It uses the same explicit ordinary exclusion, then invokes the existing producer
+for each declared owner check serially. The complete CI path additionally runs
+all fixtures/interop/native groups and audits the discovered method inventory.
+To inspect an existing ordinary log without claiming native owner execution:
 
 ```sh
 python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
   --exit-code 0 --output-dir /tmp/swift-log-review
 ```
 
-The no-argument CI mode audits collected shard/replay artifacts and writes
-`swift-summary.json` under `RUNNER_TEMP`. Local capture and distributed CI share
-`swift_reporting.py`; CI adds manifest and observed-identity checks.
+`verify-ci-control.py` exercises the real scope, build discovery, ordinary command,
+coverage and local capture entry points with temporary Git histories and controlled
+external executables. It rejects omissions, duplicate/substituted methods, wrong
+commits, incomplete zero exits, unexpected skips, missing receipts/markers and
+partial or misrouted native evidence; real subprocesses check deadline termination.
+These fixtures establish control behavior, not Swift/macOS rendering. The current
+commit's hosted run must establish actual native execution.
 
-Artifacts have an `-attempt-N` suffix and are never overwritten by a retry.
-Each consumer downloads the fixture producer's exact artifact name. The
-aggregate selects the newest numeric execution attempt for each of the seven
-native slots from API metadata before downloading only those archives into a
-separate audit directory. Earlier captures stay available without repeated
-downloads on each retry. It never selects by passing status;
-a newer failed/incomplete receipt cannot be replaced by an older success. Failed
-or missing required jobs prevent certification even if older artifacts exist.
-Successful prior producers/shards can be reused by `gh run rerun RUN --failed`;
-the unchanged build and method-identity audit still applies. Selection mappings,
-raw logs and screenshots remain available for diagnosis. Swift failures print
-bounded assertion excerpts directly in the job log and summary; replay errors
-report command status and timeout reason even when their log is empty.
-Missing logs are reported as not run, never as zero failures.
-GitHub [supports `queue: max`](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency); actionlint 1.7.12 predates that syntax. Local lint
-ignores only its exact unknown-queue-key diagnostic, and actual hosted workflow
-acceptance remains required.
+`verify-go-reporting.py` checks the real reporter against temporary Go pass,
+failure, skip, panic, build-error and empty-test packages, plus malformed/truncated
+captures. Both control verifiers run in Linux CI.
 
-Hosted runner execution is established by actual workflow results, not by local
-YAML validation or local tests.
-
-`python3 scripts/ci/verify-go-reporting.py --go ./scripts/go.sh` exercises the
-actual reporter with temporary Go packages: pass, parent/subtest failure, skips,
-panic, package failure before tests, build failure and no tests. It also rejects
-truncated, malformed and absent captures. CI runs the same verifier on Linux.
-
-`python3 scripts/ci/verify-ci-control.py` exercises the real scope and evidence
-entry points with temporary Git histories and retained artifact directories,
-and runs real subprocess success, nonzero exit and command-timeout termination cases.
-It also exercises native ownership through the actual prepare, coverage, local
-capture and replay CLIs with controlled external executables: suite filters,
-declared/runtime ID boundaries, exclusion arguments/receipts, omissions/duplicates,
-failed/skipped outcomes, missing markers, wrong owners and partial reports.
-These checks validate command construction and evidence reporting. They do not
-execute Swift Testing's selection engine or macOS rendering; the current-head
-native CI run must confirm the actual ordinary and native method sets exactly once.
-It runs on Linux alongside the existing Go reporter verifier.
-
-## Pull request protection and advisory CI
+## Pull request merge gates
 
 The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires changes to `main` to go through a pull request. CI is advisory:
-`Go / Linux` and `Complete coverage` are no longer required status checks,
-and the CI requirement to be up to date with `main` has been removed with them.
-The workflow still runs on PRs and main pushes, with manual extended dispatches
-available. Failures remain visible for diagnosis but do not block merging.
-The complete-coverage check still audits every default job and the selected
-verification scope; its internal evidence requirements are unchanged.
+requires a PR up to date with main and successful **Complete coverage** from
+GitHub Actions. The aggregate requires scope and every job applicable to that
+scope. It cannot turn a failed, cancelled, missing or unexpectedly skipped native
+job green. Extended dispatches use the distinct `Extended native CLI coverage`
+name and do not satisfy the ordinary gate.
 
-All code-review conversations must be resolved. General PR timeline comments
-have no resolution state and are not covered by this rule. The required number
-of approving reviews is zero; the review gate is resolution of outstanding
-conversations.
-
-There are no bypass actors, including repository administrators. Force pushes
-and deletion of `main` remain blocked. No other protection was disabled.
-
-GitHub stores this ruleset separately from the workflow. Editing or renaming
-workflow jobs does not change remote merge requirements. Inspect the effective
-configuration with the locally authenticated `gh` CLI:
-
-```sh
-gh api repos/hupao-creator/Mokusei/rulesets/26004586
-gh api repos/hupao-creator/Mokusei/rules/branches/main
-gh pr checks <number> --repo hupao-creator/Mokusei --required
-```
+Review conversations must be resolved; the required approving review count is
+zero. There are no bypass actors, and force pushes/deletion of main remain blocked.
+The remote ruleset is separate from workflow code; inspect its actual requirements
+before planning a merge. Local checks and historical green runs cannot replace
+the final revision's required check.
