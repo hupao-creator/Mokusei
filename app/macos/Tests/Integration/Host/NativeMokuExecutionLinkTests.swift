@@ -336,7 +336,13 @@ struct NativeMokuExecutionLinkTests {
         try await ready(fixture)
         #expect(fixture.scroll?["value"]?["following"] == .bool(true))
         let oldHeight = fixture.scroll?["value"]?["height"]?.numberValue ?? 0
-        try fixture.update(status: .running, text: String(repeating: "STREAMING CONTENT\n", count: 200))
+        // Paged streaming publishes only closed top-level Markdown blocks, so a
+        // reply that never ends a block (one long paragraph) presents nothing
+        // until it completes. Stream blank-line-separated blocks so the reply
+        // grows the way a real streamed answer does, and assert that the text it
+        // flushed is actually on screen.
+        try fixture.update(status: .running, text: String(repeating: "STREAMING CONTENT\n\n", count: 200))
+        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("STREAMING CONTENT") } }
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["height"]?.numberValue ?? 0) > oldHeight }
         try await SwiftUIReplay.wait {
             guard let value = fixture.scroll?["value"], let h = value["height"]?.numberValue,
@@ -345,7 +351,7 @@ struct NativeMokuExecutionLinkTests {
         }
         try fixture.perform(#require(fixture.scroll), "scrollTo", .number(0))
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(false) && fixture.scroll?["pending"] == .bool(false) }
-        try fixture.update(status: .running, text: String(repeating: "NEW STREAMING CONTENT\n", count: 220))
+        try fixture.update(status: .running, text: String(repeating: "NEW STREAMING CONTENT\n\n", count: 220))
         try await Task.sleep(for: .milliseconds(200))
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
