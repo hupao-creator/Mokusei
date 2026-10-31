@@ -355,11 +355,15 @@ struct NativeMokuExecutionLinkTests {
         #expect(fixture.scroll?["value"]?["following"] == .bool(true))
         let oldHeight = fixture.scroll?["value"]?["height"]?.numberValue ?? 0
         record("original")
-        // The reading viewport publishes closed Markdown pages. Complete
-        // paragraphs can fill those pages while the message remains streaming.
+        // Paged streaming publishes only closed top-level Markdown blocks, so a
+        // reply that never ends a block (one long paragraph) presents nothing
+        // until it completes. Stream blank-line-separated blocks so the reply
+        // grows at page flushes, and assert that the mounted text view contains
+        // the flushed content before checking follow position.
         let firstInput = String(repeating: "STREAMING CONTENT\n\n", count: 200)
         try fixture.update(status: .running, text: firstInput)
         record("first-source", inputBytes: firstInput.utf8.count)
+        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("STREAMING CONTENT") } }
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["height"]?.numberValue ?? 0) > oldHeight }
         record("first-stream", inputBytes: firstInput.utf8.count)
         try await SwiftUIReplay.wait {

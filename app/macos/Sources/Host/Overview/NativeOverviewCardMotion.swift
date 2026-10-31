@@ -21,10 +21,6 @@ struct OverviewCardPose: Equatable {
 }
 
 struct OverviewCardMotion: Equatable {
-    // Timeline dates are shared by SwiftUI's display tick. Convert them to the
-    // monotonic time used for interruption sampling, so both planes sample the
-    // exact same frame instead of reading uptime separately while rendering.
-    static let clockEpoch = Date.timeIntervalSinceReferenceDate - ProcessInfo.processInfo.systemUptime
     enum Curve: Equatable {
         case filter, layout, entry
         var controls: (Double, Double, Double, Double) {
@@ -66,6 +62,31 @@ struct OverviewCardMotion: Equatable {
     }
 }
 
+/// Shares one monotonic sample across glass and semantic frames for a display
+/// tick. Dates identify ticks only: wall-clock adjustments must not advance or
+/// rewind a motion whose start and interruption samples use system uptime.
+@MainActor
+private final class OverviewCardTickClock {
+    static let shared = OverviewCardTickClock()
+
+    // Keep 64 recent tick identities so interleaved contexts share their sample
+    // without growing state for the process lifetime. Evicted dates are sampled
+    // afresh if SwiftUI supplies them again.
+    private var samples: [Date: TimeInterval] = [:]
+    private var ticks: [Date] = []
+
+    func time(for tick: Date) -> TimeInterval {
+        if let sample = samples[tick] { return sample }
+        let sample = ProcessInfo.processInfo.systemUptime
+        if ticks.count == 64 {
+            samples.removeValue(forKey: ticks.removeFirst())
+        }
+        ticks.append(tick)
+        samples[tick] = sample
+        return sample
+    }
+}
+
 /// Only the spatial wrapper ticks. Its semantic content remains a stable input;
 /// glass and content sample the same monotonic clock and motion description.
 struct OverviewCardFrame<Content: View>: View {
@@ -84,7 +105,7 @@ struct OverviewCardFrame<Content: View>: View {
 
     var body: some View {
         TimelineView(.animation(paused: motion == nil || !visible)) { context in
-            let current = motion?.sample(at: context.date.timeIntervalSinceReferenceDate - OverviewCardMotion.clockEpoch) ?? pose
+            let current = motion?.sample(at: OverviewCardTickClock.shared.time(for: context.date)) ?? pose
             let size = motion?.layoutSize ?? current.frame.size
             content
                 .frame(width: max(1, size.width), height: max(1, size.height))

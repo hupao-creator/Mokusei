@@ -1,4 +1,4 @@
-"""Capture a full local run or audit the complete distributed CI run."""
+"""Capture a full local run or audit the complete native CI run."""
 import argparse
 import json
 from pathlib import Path
