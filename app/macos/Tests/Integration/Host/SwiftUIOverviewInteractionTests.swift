@@ -576,16 +576,27 @@ extension SwiftUIOverviewInteractionTests {
             crops.append(pixels)
             let phase = try excerptPhase(sample.image,
                                          at: CGPoint(x: 22 * scale, y: (titlebar + 22) * scale))
-            let widthPixels = try excerptComposedWidth(sample.image,
-                at: CGPoint(x: 16 * scale, y: (titlebar + 148) * scale), maximum: Int(362 * scale))
+            let marker = try excerptComposedMarker(sample.image)
+            let widthPixels = Int(marker.bounds.width)
             report.frames.append(.init(index: index, phase: phase,
                 composedWidth: Double(widthPixels) / Double(scale), composedWidthPixels: widthPixels,
+                markerBoundsPixels: [marker.bounds.minX, marker.bounds.minY, marker.bounds.width, marker.bounds.height].map(Double.init),
+                markerPixelCount: marker.pixelCount,
                 receivedAt: sample.receivedAt, presentationTime: sample.presentationTime,
                 wide: wideMask.exposure(pixels), replacement: replacementMask.exposure(pixels),
                 previous: previousMask.exposure(pixels), narrow: narrowMask.exposure(pixels)))
         }
         try #require(report.frames.allSatisfy { $0.phase >= 0 },
                      "Observation incomplete: a WindowServer frame does not contain the fixture's phase marker")
+        for frame in report.frames {
+            let marker = frame.markerBoundsPixels
+            try #require(marker[2] > 0 && marker[3] == Double(3 * scale)
+                         && frame.markerPixelCount == Int(marker[2] * marker[3])
+                         && abs(marker[0] - Double(16 * scale)) <= 1
+                         && marker[1] >= Double(region(48).maxY)
+                         && marker[1] + marker[3] <= Double(region(174).minY),
+                Comment(rawValue: "Observation incomplete: width marker must be one solid rectangle outside every ink crop; frame \(frame.index), bounds \(marker)"))
+        }
         if let delay = scenario.interruptionDelay {
             let actual = report.events[1].uptime - report.events[0].uptime
             try #require(actual >= delay - 0.005 && actual < delay + 0.06,
@@ -703,19 +714,25 @@ extension SwiftUIOverviewInteractionTests {
         return -1
     }
 
-    private func excerptComposedWidth(_ image: CGImage, at point: CGPoint, maximum: Int) throws -> Int {
-        let pixels = try titleWindowPixels(image,
-            region: CGRect(origin: point, size: CGSize(width: CGFloat(maximum), height: 1)))
-        let bytes = [UInt8](pixels.data)
-        func blue(_ column: Int) -> Bool {
-            let offset = column * 4
-            return bytes[offset] > 200 && bytes[offset + 1] < 64 && bytes[offset + 2] < 64
+    private func excerptComposedMarker(_ image: CGImage) throws -> (bounds: CGRect, pixelCount: Int) {
+        try #require(image.bitsPerPixel == 32 && image.bitsPerComponent == 8)
+        let provider = try #require(image.dataProvider?.data)
+        let bytes = try #require(CFDataGetBytePtr(provider))
+        var left = image.width, right = -1, top = image.height, bottom = -1, count = 0
+        for y in 0..<image.height {
+            for x in 0..<image.width {
+                let offset = y * image.bytesPerRow + x * 4
+                if bytes[offset] > 200 && bytes[offset + 1] < 64 && bytes[offset + 2] < 64 {
+                    left = min(left, x); right = max(right, x)
+                    top = min(top, y); bottom = max(bottom, y); count += 1
+                }
+            }
         }
-        let width = (0..<maximum).prefix(while: blue).count
-        // A contiguous bar must end in this crop; disconnected pixels are not
-        // accepted as the local layout width.
-        guard width < maximum, !(width..<maximum).contains(where: blue) else { return -1 }
-        return width
+        guard count > 0 else { return (.zero, 0) }
+        // The measured rectangle is retained even if it is misplaced. Its
+        // solidity and exclusion from text crops are checked before any motion
+        // assertions, so a wrong guessed sampling row cannot hide the cause.
+        return (CGRect(x: left, y: top, width: right - left + 1, height: bottom - top + 1), count)
     }
 
     private func saveExcerptInk(_ captures: [TagGlassFrames.Sample], report: ExcerptInkReport) throws {
@@ -852,7 +869,7 @@ private struct ExcerptInkReplay: View {
                     fixture.widths.append(.init(uptime: ProcessInfo.processInfo.systemUptime, width: Double(width)))
                 }
                 .frame(width: fixture.width, height: 96, alignment: .topLeading)
-                .overlay {
+                .overlay(alignment: .topLeading) {
                     // Use the actual frame's geometry. A bottom alignment can
                     // inherit the excerpt's text guide, which moves as lines
                     // change and can put the marker inside the ink crop.
@@ -904,6 +921,8 @@ private struct ExcerptInkFrameRecord: Encodable {
     let phase: Int
     let composedWidth: Double
     let composedWidthPixels: Int
+    let markerBoundsPixels: [Double]
+    let markerPixelCount: Int
     let receivedAt: TimeInterval
     let presentationTime: Double
     let wide: ExcerptInkExposure

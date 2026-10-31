@@ -42,6 +42,12 @@ workspaces, retain path/PID diagnostics and clean up the owned app on timeout.
 Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
+For the foreground Overview performance baseline, see the
+[Release CI comparison](overview-ci-performance/README.md). It uses one hosted
+macOS runner for serial, balanced A/B pairs with a separate production Core
+producer, real transport/catalog consumption and four fully visible running
+cards. Its retained Markdown report and raw measurements are the continuing
+baseline; historical target-Mac measurements are not pooled with CI results.
 For empty-workspace Moku centering, global catalog membership and first-dispatch
 admission, run `python3 tools/verification/reading-presentation/run.py --moku-landing`;
 see the [production landing replay](reading-presentation/README.md#empty-workspace-and-first-dispatch).

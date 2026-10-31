@@ -85,6 +85,29 @@ requires all selected jobs and complete observed method coverage to report succe
 
 ## Extended hosted checks
 
+### Foreground Overview performance
+
+The separate `Overview performance` workflow owns the continuing foreground
+Overview performance baseline. Its production-linked Release probe measures N40
+with four fully visible running cards for idle animation, short message rewrite
+and cumulative message append. A separate Core process supplies events through
+the production store, publisher, HTTP/NDJSON transport and Swift workspace.
+Both fixed revisions use identical harness sources and run serial A/B and B/A
+pairs on the same hosted Mac after both builds finish. The runner retains exact
+source/build identities, environment and visibility observations, actual CPU/wall
+intervals, source/publication counts, raw JSON and a complete Markdown report.
+
+Formal CPU runs exclude capture, sampling profilers and temporary product probes.
+Missing foreground/display capability, source delivery or final convergence is
+an invalid measurement, not a passing comparison. Keep invalid and failed raw
+runs and explain any subsequent replacement. Native animation correctness stays
+in its separate WindowServer capture owner; CPU and display-link callbacks do
+not establish optical FPS, GPU time or energy. CI percentages form their own
+baseline and are not pooled with historical target-Mac percentages. No local
+measurement agent is required to advance this Overview optimization work.
+
+### Native CLI and system matrices
+
 Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.
 No account, paid model, microphone or self-hosted Mac is involved. Extended

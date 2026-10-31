@@ -13,7 +13,9 @@ import time
 
 
 class NativeReplay:
-    def __init__(self, repo, name, bundle_id):
+    def __init__(self, repo, name, bundle_id, configuration="debug"):
+        if configuration not in {"debug", "release"}:
+            raise ValueError("Native replay configuration must be debug or release")
         self.temporary = tempfile.TemporaryDirectory(prefix="mokusei-native-replay-")
         self.root = Path(self.temporary.name).resolve()
         self.workspace = self.root / "workspace"
@@ -30,7 +32,7 @@ class NativeReplay:
         self.manifest = {"root": str(self.root), "workspace": str(self.workspace)}
         self.isolation_source = repo / "tools/verification/NativeReplayIsolation.swift"
         package = repo / "app/macos"
-        production = package / f".build/{platform.machine()}-apple-macosx/debug"
+        production = package / f".build/{platform.machine()}-apple-macosx/{configuration}"
         link_list = production / "Mokusei.product/Objects.LinkFileList"
         if not link_list.is_file():
             raise RuntimeError("Build current production modules first: make check")
