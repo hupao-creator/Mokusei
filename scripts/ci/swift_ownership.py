@@ -15,4 +15,3 @@ def native_filter():
     # misses that ID. Run the whole ordinary suite with this exclusion and no
     # positive ancestor filter that could restore the native-owned method.
     return "^(?:" + "|".join(re.escape(name) for name in NATIVE_METHOD_OWNERS) + ")(?:/|$)"
-

@@ -17,4 +17,3 @@ Use the [verification policy](../scripts/ci/verification-policy.md) to select de
 Pure documentation changes require diff and local-link review plus confirmation of the workflow's documentation scope. Wait for hosted checks only when actual protection rules require them. Native tests outside that scope are not reported as executed. Document checks actually run, the source revision, unexpected skips and platform/toolchain limitations. Follow the root AGENTS.md for failure diagnosis, failed-job-only retries and final merge coordination. A local-only requirement needs concrete independent defect coverage and a triggering change; replace it with equivalent CI coverage when available, and remove it as a mandatory gate when it has no specific high value.
 
 Work-item conventions are in [issue-tracker.md](issue-tracker.md).
-

@@ -196,4 +196,3 @@ def main():
     for error in errors:
         print(f"::error::{error}")
     return 1 if errors else 0
-
