@@ -10,11 +10,10 @@ static float cloudFalloff(float radius) {
     return mix(0.08f, 0.0f, (radius - 0.80f) / 0.20f);
 }
 
-// Each light: center.xy, radius.xy, energy. CPU-side motion retains
-// the original Double-precision, seeded timeline; the GPU shades the light field.
-[[ stitchable ]] half4 cloudLoading(float2 position,
-                                   device const float *lights, int count,
-                                   device const half4 *colors, int colorCount) {
+// Both presentation paths use the same linear, premultiplied field. Each light
+// is center.xy, radius.xy, energy; seeded motion remains on the CPU in Double.
+static half4 cloudField(float2 position, device const float *lights, int count,
+                        device const half4 *colors, int colorCount) {
     float4 field = 0.0f;
     for (int index = 0; index < colorCount && index * 5 + 4 < count; ++index) {
         int offset = index * 5;
@@ -28,7 +27,33 @@ static float cloudFalloff(float radius) {
         field += float4(color.rgb / color.a * alpha, alpha);
     }
     field = clamp(field, 0.0f, 1.0f);
-    // colorArray supplies premultiplied colors in the destination's working
-    // space, including the linear Canvas. No manual sRGB conversion is needed.
     return half4(field);
+}
+
+[[ stitchable ]] half4 cloudLoading(float2 position,
+                                   device const float *lights, int count,
+                                   device const half4 *colors, int colorCount) {
+    // colorArray supplies premultiplied colors in the linear Canvas's space.
+    return cloudField(position, lights, count, colors, colorCount);
+}
+
+// The Overview native path supplies the same premultiplied linear half colors
+// and converts drawable pixel centers back into the field's logical points.
+struct NativeCloudUniforms {
+    float2 pointsPerPixel;
+    uint geometryCount;
+    uint colorCount;
+};
+
+vertex float4 nativeCloudVertex(uint vertexID [[vertex_id]]) {
+    const float2 positions[] = {float2(-1.0, -1.0), float2(3.0, -1.0), float2(-1.0, 3.0)};
+    return float4(positions[vertexID], 0.0, 1.0);
+}
+
+fragment half4 nativeCloudFragment(float4 position [[position]],
+                                   constant NativeCloudUniforms &uniforms [[buffer(0)]],
+                                   device const float *lights [[buffer(1)]],
+                                   device const half4 *colors [[buffer(2)]]) {
+    return cloudField(position.xy * uniforms.pointsPerPixel, lights,
+                      int(uniforms.geometryCount), colors, int(uniforms.colorCount));
 }

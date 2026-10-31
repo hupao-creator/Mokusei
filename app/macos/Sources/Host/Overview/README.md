@@ -68,6 +68,17 @@ camera memory, and the last visible snapshot surviving model pruning during
 exit. The body counter is an observation-boundary diagnostic, not a CPU/FPS
 measurement.
 
+The production card closure alone enables `threadCardNativeDecorationsEnabled`.
+Clouds use a display-linked native Metal view with the existing seeded field;
+derived scans use a compositor-owned gradient animation. Neither decoration
+publishes a SwiftUI frame value. Card semantics, duration, spatial wrappers and
+glass remain with their existing owners. The native views fill the supplied
+bounds, preserve pause/visibility behavior, and cannot own input or accessibility.
+See the shared [native decoration contract](../../Shared/PluginUI/README.md#native-overview-decorations)
+for color, lifetime and native-composition acceptance. Standalone card fixtures
+default to the shared renderer, so Overview performance verification must mount
+this production workspace path and confirm that its native renderer is active.
+
 ## Layout, motion and input
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves every surviving top-left position, accepts nonconflicting footprint changes and fills existing vacancies before extending the envelope for entrants. This path must fit at the readable floor and occupy at least 75% of its bounding grid. Necessary vacancies, including enclosed ones, are allowed; if production packing proves the collection can lose an entire row or column without enlarging the other axis, the existing bounded compact planner repairs the avoidable envelope. This catches deletion/shrink histories that strand a wide card below a fitting vacancy even at exactly 75% occupancy. An area lower bound avoids searching already irreducible envelopes. If that proof exhausts the shared search budget, the legal preserved candidate returns with incomplete search; once a smaller readable witness exists, subsequent optimization retains it as a geometric fallback. Conflicting growth, excessive fragmentation and insufficient capacity also use the compact planner and its collision-certified move order. Calls without a fitting region retain the compact-planning contract.
