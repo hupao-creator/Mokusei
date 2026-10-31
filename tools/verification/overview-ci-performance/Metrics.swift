@@ -239,6 +239,7 @@ func visibilityJSON(_ model: NativeOverviewWorkspaceModel) -> [String: Any] {
 func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
     var clouds = 0, scans = 0, legacy = 0, activeMetal = 0, scanAnimations = 0
     var surfaces: [[String: Any]] = []
+    @MainActor
     func inspectLayer(_ layer: CALayer, cloud: Bool, scan: Bool) {
         if cloud, let metal = layer as? CAMetalLayer {
             if !metal.isHidden && metal.drawableSize.width > 0 && metal.drawableSize.height > 0 && metal.device != nil {
@@ -251,6 +252,7 @@ func nativeDecorationJSON(_ root: NSView) -> [String: Any] {
         if scan, layer.animation(forKey: "overview.scan.position") != nil { scanAnimations += 1 }
         for child in layer.sublayers ?? [] { inspectLayer(child, cloud: cloud, scan: scan) }
     }
+    @MainActor
     func visit(_ view: NSView) {
         let name = String(describing: type(of: view))
         let cloud = name.contains("NativeOverviewCloudSurface")

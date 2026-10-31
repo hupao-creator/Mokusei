@@ -221,7 +221,7 @@ portal geometry, render layers and navigation cases. The real annotation mouse
 input and focused document responder-chain tests explicitly skip without this
 native replay capability; both run without skips in this eight-test launcher.
 
-## Overview tag bar
+## Overview animation and native decoration evidence
 
 The existing `--tag-glass-captures` host also executes
 `SwiftUIOverviewInteractionTests.excerptRevealKeepsMovingThroughRewriteAndWidthChanges`.
@@ -238,9 +238,37 @@ outcome and `EXCERPT_INK_MOTION_CONFIRMED` marker. Screenshots, capture timestam
 and measurements are retained in `excerpt/` under this host's evidence directory,
 including failed runs. `provenance.json` records the actual checkout and product
 Git tree, worktree-diff digest, input-file and signed replay binary SHA256 values,
-run/attempt identifiers, and capture-file hashes. This Debug replay validates
-component behavior; it does not measure Release CPU, optical FPS or #198 cloud/glass
-composition.
+run/attempt identifiers, and capture-file hashes. The width stripe uses the
+component frame's top-leading geometry; its measured pixel bounds must stay
+outside all ink regions. This Debug replay validates component behavior; the
+separate [Release CI comparison](../overview-ci-performance/README.md) owns CPU.
+
+`NativeOverviewDecorationCaptureTests.nativeCloudAndScanMoveInComposedOverview`
+mounts the production Overview workspace with one public Codex running thread
+and a running subagent. It requires the actual 2×1 projection, native cloud and
+scan views, a live Metal layer and CA scan animation. Two disjoint later capture
+intervals must show cloud pixel changes in a quiet region that excludes duration,
+text and scan pixels. Narrow-row contrast must show the scan moving through the
+composed image. A legal 0.90→1.0 camera change must preserve the native objects.
+Complete fixed/zoom PNGs, pixel measurements, geometry and provenance are retained
+under `native-decoration/`. Transparency, glass colors, rounded corners and zoom
+alignment require review of those real images; neither callbacks nor these
+capture samples certify optical FPS or GPU time. The required success marker is
+`NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED`.
+
+The same running AppKit host owns
+`NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
+This test requires an actual `NSApplication.run` loop before observing an opening
+midpoint, reversing the page and checking latest Overview content with no remount.
+Its original geometry and return assertions remain intact. Ordinary Swift shards
+exclude this exact method; complete coverage requires its native passing outcome
+and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
+These are AppKit geometry/content observations, not WindowServer pixel assertions.
+
+The capture launcher requires all six assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations and retained Overview return.
+
+## Overview tag bar
 
 The same isolated AppKit runner can exercise the production Overview tag bar:
 

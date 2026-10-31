@@ -52,13 +52,13 @@ def main():
              "NativeOverviewTagGlassTests" if tag_glass else "NativeReadingPagePresentationTests")
     thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
-              if isolated_input else [suite, "SwiftUIOverviewInteractionTests"] if glass_captures else [suite])
+              if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeReadingPagePresentationTests"] if glass_captures else [suite])
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
     evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     provenance = None
-    excerpt_evidence = replay.workspace / "evidence/excerpt"
+    capture_evidence = [replay.workspace / "evidence" / name for name in ("excerpt", "native-decoration")]
     try:
         replay.acquire()
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
@@ -89,8 +89,9 @@ def main():
                 "inputSHA256": {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in inputs},
                 "signedReplayExecutableSHA256": hashlib.sha256(replay.executable.read_bytes()).hexdigest(),
             }
-            excerpt_evidence.mkdir(parents=True, exist_ok=True)
-            (excerpt_evidence / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+            for directory in capture_evidence:
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
         environment = {**os.environ, "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY": "1", "NSUnbufferedIO": "YES",
                        "MOKUSEI_READING_MOTION_ARTIFACTS": str(replay.workspace / "evidence")}
         if "--settings-transition" in sys.argv:
@@ -126,7 +127,7 @@ def main():
         selected = ("reportNativeDialogsAndDownloadsPreserveTheDocument|reportDoesNotRetainAnErrorOwnedByTheRecoverableSurface"
                     if "--report-controls" in sys.argv else
                     "|".join(isolated_methods) if isolated_input else
-                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges"
+                    "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|retainedOverviewReturnsWithLatestContent"
                     if glass_captures else
                     "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
@@ -143,11 +144,12 @@ def main():
     finally:
         try:
             if provenance is not None:
-                provenance["captureSHA256"] = {
-                    str(path.relative_to(excerpt_evidence)): hashlib.sha256(path.read_bytes()).hexdigest()
-                    for path in sorted(excerpt_evidence.rglob("*")) if path.is_file() and path.name != "provenance.json"
-                }
-                (excerpt_evidence / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+                for directory in capture_evidence:
+                    recorded = {**provenance, "captureSHA256": {
+                        str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+                        for path in sorted(directory.rglob("*")) if path.is_file() and path.name != "provenance.json"
+                    }}
+                    (directory / "provenance.json").write_text(json.dumps(recorded, indent=2) + "\n")
         finally:
             replay.export(evidence)
             replay.close()
@@ -167,7 +169,7 @@ def main():
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
              8 if "--markdown" in sys.argv else
-             4 if glass_captures else
+             6 if glass_captures else
              7 if tag_glass or "--moku-composer" in sys.argv else
              11 if "--moku-note-tests" in sys.argv else 6)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
@@ -177,13 +179,18 @@ def main():
     if glass_captures:
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",
-                     "excerptRevealKeepsMovingThroughRewriteAndWidthChanges"]:
+                     "excerptRevealKeepsMovingThroughRewriteAndWidthChanges", "nativeCloudAndScanMoveInComposedOverview",
+                     "retainedOverviewReturnsWithLatestContent"]:
             if f"Test {name}() passed" not in result.stdout:
                 raise SystemExit("FAIL: incomplete native capture replay: " + name)
         if "TITLE_INCOMING_MOTION_CONFIRMED" not in result.stdout:
             raise SystemExit("FAIL: title replay did not observe and cancel a live incoming frame")
         if "EXCERPT_INK_MOTION_CONFIRMED" not in result.stdout:
             raise SystemExit("FAIL: excerpt replay did not observe mask movement through rewrite and local width changes")
+        if "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED" not in result.stdout:
+            raise SystemExit("FAIL: native Overview replay did not observe cloud and scan pixels in composed frames")
+        if "OVERVIEW_RETAINED_RETURN_CONFIRMED" not in result.stdout:
+            raise SystemExit("FAIL: retained Overview replay did not complete the mid-opening return in the AppKit event loop")
     if isolated_input:
         for name in isolated_methods:
             if f"Test {name}() passed" not in result.stdout:

@@ -225,7 +225,7 @@ def command(arguments, log, *, cwd=ROOT, timeout=120, environment=None):
             receipt["exitCode"] = process.wait(timeout=timeout)
         if receipt["exitCode"]:
             raise RuntimeError(f"Command failed ({receipt['exitCode']}): {arguments[0]}; see {log}")
-    except BaseException:
+    except BaseException as error:
         if process is not None and process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)
             try:
@@ -233,6 +233,9 @@ def command(arguments, log, *, cwd=ROOT, timeout=120, environment=None):
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=3)
+        error.overview_log = log
+        error.overview_command = receipt["command"]
+        error.overview_exit_code = process.returncode if process is not None else None
         raise
     finally:
         receipt["finishedAt"] = utc()
@@ -376,10 +379,58 @@ def number(value, digits=3):
     return f"{value:.{digits}f}" if numeric(value) else "—"
 
 
+def record_failure(output, report, error):
+    """Keep full exception/argv in JSON; show the actual tool diagnostic in prose."""
+    command = getattr(error, "overview_command", getattr(error, "cmd", None))
+    exit_code = getattr(error, "overview_exit_code", getattr(error, "returncode", None))
+    if isinstance(error, subprocess.CalledProcessError):
+        summary = f"Command exited with status {error.returncode}"
+    elif isinstance(error, subprocess.TimeoutExpired):
+        summary = f"Command exceeded its {error.timeout}s timeout"
+    else:
+        summary = str(error)
+    if len(summary) > 1200:
+        summary = summary[:1200] + "… (full exception in failure.json)"
+    log = getattr(error, "overview_log", None)
+    relative_log, stage, tail, truncated = None, "orchestration", "", False
+    if log is not None:
+        relative_log = str(log.relative_to(output))
+        stage = str(Path(relative_log).with_suffix(""))
+        if log.is_file():
+            with log.open("rb") as stream:
+                size = stream.seek(0, os.SEEK_END)
+                stream.seek(max(0, size - 12000))
+                raw = stream.read().decode("utf-8", errors="replace")
+            lines = raw.splitlines()
+            truncated = size > 12000 or len(lines) > 80
+            tail = "\n".join(lines[-80:])
+    failure = {"stage": stage, "exceptionType": type(error).__name__, "summary": summary,
+               "exitCode": exit_code, "log": relative_log, "diagnosticTail": tail,
+               "diagnosticTailTruncated": truncated, "fullExceptionFile": "failure.json"}
+    write_json(output / "failure.json", {**failure, "command": command,
+               "fullException": str(error), "fullTraceback": traceback.format_exc()})
+    report["failure"] = failure
+    report["errors"].append(f"{stage}: {type(error).__name__}: {summary}")
+    text = [f"Stage: {stage}", f"Exception: {type(error).__name__}", f"Exit code: {exit_code}",
+            f"Summary: {summary}", f"Full log: {relative_log or 'not available'}",
+            "Complete command and exception: failure.json", "", "Tool output (bounded tail):", tail or "No tool output recorded.", "",
+            "Python stack (full exception retained in failure.json):", *traceback.format_tb(error.__traceback__)]
+    (output / "failure.txt").write_text("\n".join(text))
+
+
 def markdown(report):
     lines = ["# Foreground Overview Release A/B performance", "",
-             "## Result and scope", "", f"Execution status: **{report['status']}**. Started: {report['startedAt']}.", "",
-             "This is a same-runner comparison of fixed product revisions, using the same verification source. "
+             "## Result and scope", "", f"Execution status: **{report['status']}**. Started: {report['startedAt']}.", ""]
+    if failure := report.get("failure"):
+        lines += ["### Execution failure", "", f"- Stage: `{failure['stage']}`.",
+                  f"- Exit code: `{failure['exitCode']}`; exception: `{failure['exceptionType']}`.",
+                  f"- {failure['summary']}", f"- Full tool log: `{failure['log'] or 'unavailable'}`; complete command/exception: `failure.json`.", ""]
+        if failure["diagnosticTail"]:
+            lines += ["Tool diagnostic tail (at most 80 lines / 12 KB; full log retained):", "", "````text",
+                      failure["diagnosticTail"], "````", ""]
+            if failure["diagnosticTailTruncated"]:
+                lines += ["Earlier tool output is omitted here and remains in the full log.", ""]
+    lines += ["This is a same-runner comparison of fixed product revisions, using the same verification source. "
              "A passing execution means all prescribed measurements are valid; it does not mean the candidate is faster.", "",
              "N=40; four running 2×1 cards must be fully visible. R0 keeps them running without source updates. "
              "S4 replaces a bounded text window at 10 events/s/card (40/s, staggered). "
@@ -557,6 +608,11 @@ def main():
                 with native_build_log(build_dir / "probe-build.log"), time_limit(budget.remaining(120)):
                     replay.compile(sources, extra_args=SWIFT_FLAGS)
                 probe_build["succeeded"] = True
+            except BaseException as error:
+                error.overview_log = build_dir / "probe-build.log"
+                probe_build["command"] = getattr(error, "cmd", None)
+                probe_build["exitCode"] = getattr(error, "returncode", None)
+                raise
             finally:
                 probe_build["finishedAt"] = utc()
                 write_json(build_dir / "probe-build.json", probe_build)
@@ -648,8 +704,7 @@ def main():
             report["errors"].append("At least one prescribed run or paired condition was invalid; its raw result is retained and no automatic retry was substituted.")
     except BaseException as error:
         report["status"] = "failed"
-        report["errors"].append(f"{type(error).__name__}: {error}")
-        (output / "failure.txt").write_text(traceback.format_exc())
+        record_failure(output, report, error)
     finally:
         if display_record.is_file():
             try:
