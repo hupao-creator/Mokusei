@@ -88,15 +88,15 @@ to unlink occupied paths. Restart checks keep the same data profile and require
 the new app PID, then compare persisted settings and preferences. Launch identities
 and endpoint paths are retained in the trace.
 
-For a bounded `glass world` preference check without editing model settings:
+For a bounded local-preference check without editing model settings:
 
 ```sh
-python3 tools/verification/native-interaction/settings.py --glass-world-only --seeds 1 --steps 1
+python3 tools/verification/native-interaction/settings.py --preferences-only --seeds 1 --steps 1
 ```
 
 This uses the same exclusively owned production-app profile and mounted General
-Toggle, compares the live `settings.glassWorld` snapshot with
-`desktop-preferences.json`, alternates language/appearance writes, then restarts
-the app and Runtime with the preference off and on. The Runtime settings object
+selects, compares the live `settings.appearance` and `settings.locale` snapshots
+with `desktop-preferences.json`, alternates language/appearance writes, then
+restarts the app and Runtime with both light and dark appearance persisted. The Runtime settings object
 must remain unchanged. Before taking that baseline, the runner waits up to 90 seconds for the isolated Runtime diagnostics to complete startup settings-discovery commands; their legitimate profile initialization is outside the preference comparison. The independent read oracle retries startup HTTP 503 responses for at most 45 seconds; control operations and persistence assertions are not retried or suppressed. It does not send model tasks. Offline save and failed-write
 rollback are covered by the native Settings integration flow.

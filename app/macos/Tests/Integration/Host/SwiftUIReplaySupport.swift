@@ -15,6 +15,12 @@ import Testing
         sharedApp.setActivationPolicy(.regular)
         sharedApp.unhide(nil)
         sharedApp.activate(ignoringOtherApps: true)
+        // Materialize this test process's otherwise lazy SwiftUI AX tree before
+        // self-inspection, without relying on another suite or external client.
+        let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+        if sharedApp.responds(to: enableAX) {
+            _ = sharedApp.perform(enableAX, with: true, with: "AXEnhancedUserInterface")
+        }
         let window = ReplayWindow(contentRect: .init(x: 0, y: 0, width: width, height: height),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false

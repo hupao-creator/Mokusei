@@ -23,7 +23,6 @@ public enum DesktopLocale: String, Codable, CaseIterable, Sendable {
 public final class DesktopPreferences {
     public private(set) var appearance: DesktopAppearance
     public private(set) var locale: DesktopLocale
-    public private(set) var glassWorld: Bool
     public private(set) var selectedThreadID: String?
     public private(set) var onboardingCompleted: Bool
     public private(set) var onboardingPending: Bool
@@ -34,20 +33,6 @@ public final class DesktopPreferences {
     private struct Preferences: Codable {
         var locale: DesktopLocale
         var appearance: DesktopAppearance
-        var glassWorld: Bool
-
-        private enum CodingKeys: String, CodingKey { case locale, appearance, glassWorld }
-
-        init(locale: DesktopLocale, appearance: DesktopAppearance, glassWorld: Bool) {
-            self.locale = locale; self.appearance = appearance; self.glassWorld = glassWorld
-        }
-
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            locale = try container.decode(DesktopLocale.self, forKey: .locale)
-            appearance = try container.decode(DesktopAppearance.self, forKey: .appearance)
-            glassWorld = try container.decodeIfPresent(Bool.self, forKey: .glassWorld) ?? true
-        }
     }
 
     private struct SavedState: Codable {
@@ -61,7 +46,6 @@ public final class DesktopPreferences {
         fileURL = directory.appendingPathComponent("desktop-preferences.json")
         appearance = .system
         locale = .chinese
-        glassWorld = true
         selectedThreadID = nil
         onboardingCompleted = false
         onboardingPending = false
@@ -69,7 +53,6 @@ public final class DesktopPreferences {
             let state = try JSONDecoder().decode(SavedState.self, from: Data(contentsOf: fileURL))
             appearance = state.preferences.appearance
             locale = state.preferences.locale
-            glassWorld = state.preferences.glassWorld
             selectedThreadID = state.selectedThreadId
             // A valid preexisting desktop file establishes prior use. Explicit
             // pending state must survive preference writes and interrupted setup.
@@ -81,43 +64,38 @@ public final class DesktopPreferences {
             readError = error.localizedDescription
         }
         diagnostics.record(.preferences, readError == nil ? .completed : .failed,
-                           durationMs: Date().timeIntervalSince(started) * 1000, fields: [.appearance, .locale, .glassWorld])
+                           durationMs: Date().timeIntervalSince(started) * 1000, fields: [.appearance, .locale])
     }
 
     public func setAppearance(_ value: DesktopAppearance) throws {
-        try savePreference(.appearance) { try persist(appearance: value, locale: locale, glassWorld: glassWorld, selectedThreadID: selectedThreadID) }
+        try savePreference(.appearance) { try persist(appearance: value, locale: locale, selectedThreadID: selectedThreadID) }
         appearance = value
     }
 
     public func setLocale(_ value: DesktopLocale) throws {
-        try savePreference(.locale) { try persist(appearance: appearance, locale: value, glassWorld: glassWorld, selectedThreadID: selectedThreadID) }
+        try savePreference(.locale) { try persist(appearance: appearance, locale: value, selectedThreadID: selectedThreadID) }
         locale = value
-    }
-
-    public func setGlassWorld(_ value: Bool) throws {
-        try savePreference(.glassWorld) { try persist(appearance: appearance, locale: locale, glassWorld: value, selectedThreadID: selectedThreadID) }
-        glassWorld = value
     }
 
     public func selectThread(_ value: String?) throws {
         if let value, value.isEmpty || value.utf16.count > 128 {
             throw CocoaError(.validationMissingMandatoryProperty)
         }
-        try persist(appearance: appearance, locale: locale, glassWorld: glassWorld, selectedThreadID: value)
+        try persist(appearance: appearance, locale: locale, selectedThreadID: value)
         selectedThreadID = value
     }
 
     public func setOnboardingCompleted(_ completed: Bool) throws {
-        try persist(appearance: appearance, locale: locale, glassWorld: glassWorld,
+        try persist(appearance: appearance, locale: locale,
                     selectedThreadID: selectedThreadID, onboardingCompleted: completed)
         onboardingCompleted = completed
         onboardingPending = !completed
     }
 
-    private func persist(appearance: DesktopAppearance, locale: DesktopLocale, glassWorld: Bool,
+    private func persist(appearance: DesktopAppearance, locale: DesktopLocale,
                          selectedThreadID: String?, onboardingCompleted: Bool? = nil) throws {
         let data = try JSONEncoder().encode(SavedState(
-            preferences: Preferences(locale: locale, appearance: appearance, glassWorld: glassWorld), selectedThreadId: selectedThreadID,
+            preferences: Preferences(locale: locale, appearance: appearance), selectedThreadId: selectedThreadID,
             onboardingCompleted: onboardingCompleted ?? self.onboardingCompleted
         ))
         let directory = fileURL.deletingLastPathComponent()

@@ -480,7 +480,6 @@ private final class OverviewProbe {
         let preferences = DesktopPreferences(directory: directory)
         try preferences.setAppearance(.dark)
         try preferences.setLocale(.chinese)
-        try preferences.setGlassWorld(true)
         let client = RuntimeClient(storageDirectory: directory, connectionSource: FixtureConnectionSource(connection: ready.connection.runtime))
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences,
             plugins: try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
@@ -816,7 +815,7 @@ private final class OverviewProbe {
             "fixtureSHA256": fixtureHash, "contentSize": rectangleJSON(window.contentView?.bounds ?? .zero),
             "camera": ["scale": transform.scale, "x": transform.x, "y": transform.y],
             "activeCards": visibilityJSON(model)["activeCards"]!, "screen": screenJSON(screen),
-            "appearance": "dark", "glass": true, "locale": "zh-CN",
+            "appearance": "dark", "cardMaterials": "production-default", "locale": "zh-CN",
             "reduceMotion": NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
             "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]
     }

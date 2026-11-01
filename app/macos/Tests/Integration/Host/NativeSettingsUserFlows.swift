@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import ScreenCaptureKit
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -105,7 +104,7 @@ struct NativeSettingsUserFlows {
         let path = try #require(ProcessInfo.processInfo.environment["MOKUSEI_SETTINGS_TEST_PROFILE"])
         let directory = URL(fileURLWithPath: path)
         try await NativeSettingsLoadingReplay.verify(directory: directory.appendingPathComponent("settings-loading-client"))
-        try await localGlassWorldFlow(directory: directory.appendingPathComponent("glass-world-client"))
+        try await localPreferencesFlow(directory: directory.appendingPathComponent("preferences-client"))
         let profile = try RuntimeProfile(dataDirectory: directory)
         let prefetchURL = try #require(ProcessInfo.processInfo.environment["MOKUSEI_SETTINGS_PREFETCH_URL"].flatMap(URL.init(string:)))
         let client = RuntimeClient(storageDirectory: directory,
@@ -336,35 +335,39 @@ struct NativeSettingsUserFlows {
     }
 
     /// Mount the production General page without starting the Runtime. The
-    /// interaction registry invokes the toggle's real binding and error path.
-    private func localGlassWorldFlow(directory: URL) async throws {
+    /// interaction registry invokes the selects' real bindings and error paths.
+    private func localPreferencesFlow(directory: URL) async throws {
         let file = directory.appendingPathComponent("desktop-preferences.json")
         let manager = FileManager.default
         try manager.createDirectory(at: directory, withIntermediateDirectories: true)
-        #expect(DesktopPreferences(directory: directory).glassWorld)
-        try Data(#"{"preferences":{"locale":"en-US","appearance":"dark"}}"#.utf8).write(to: file)
+        let initial = DesktopPreferences(directory: directory)
+        #expect(initial.readError == nil && initial.appearance == .system && initial.locale == .chinese)
+        #expect(initial.selectedThreadID == nil && !initial.onboardingCompleted)
+        try Data(#"{"preferences":{"locale":"en-US","appearance":"dark"},"selectedThreadId":"preferences-selection","onboardingCompleted":false}"#.utf8).write(to: file)
         let preferences = DesktopPreferences(directory: directory)
-        #expect(preferences.glassWorld)
         #expect(preferences.readError == nil)
-        #expect(preferences.appearance == .dark)
-        #expect(preferences.locale == .english)
+        #expect(preferences.appearance == .dark && preferences.locale == .english)
+        #expect(preferences.selectedThreadID == "preferences-selection" && preferences.onboardingPending)
 
         func saved() throws -> JSONValue { try JSONValue(data: Data(contentsOf: file)) }
-        for value in [true, false] {
-            try preferences.setGlassWorld(value)
-            #expect(DesktopPreferences(directory: directory).glassWorld == value)
-            #expect(try saved()["preferences"]?["glassWorld"] == .bool(value))
-            try preferences.setAppearance(.light)
-            #expect(DesktopPreferences(directory: directory).glassWorld == value)
-            try preferences.setLocale(.chinese)
-            #expect(DesktopPreferences(directory: directory).glassWorld == value)
-            try preferences.selectThread("glass-world-selection")
-            #expect(DesktopPreferences(directory: directory).glassWorld == value)
-            #expect(try saved()["preferences"]?["glassWorld"] == .bool(value))
+        func verifySaved(appearance: DesktopAppearance, locale: DesktopLocale, selected: String?, onboarding: Bool) throws {
+            let loaded = DesktopPreferences(directory: directory)
+            #expect(loaded.readError == nil && loaded.appearance == appearance && loaded.locale == locale)
+            #expect(loaded.selectedThreadID == selected && loaded.onboardingCompleted == onboarding)
+            #expect(try saved()["preferences"] == .object(["appearance": .text(appearance.rawValue), "locale": .text(locale.rawValue)]))
+        }
+        for (appearance, locale) in [(DesktopAppearance.light, DesktopLocale.chinese), (.dark, .english)] {
+            let previousLocale = preferences.locale
+            try preferences.setAppearance(appearance)
+            try verifySaved(appearance: appearance, locale: previousLocale, selected: "preferences-selection", onboarding: false)
+            try preferences.setLocale(locale)
+            try verifySaved(appearance: appearance, locale: locale, selected: "preferences-selection", onboarding: false)
         }
         try preferences.selectThread(nil)
-        try preferences.setGlassWorld(true)
-        try preferences.setLocale(.english)
+        try verifySaved(appearance: .dark, locale: .english, selected: nil, onboarding: false)
+        try preferences.setOnboardingCompleted(true)
+        try verifySaved(appearance: .dark, locale: .english, selected: nil, onboarding: true)
+        try preferences.setAppearance(.light)
         let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences,
             plugins: try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
@@ -377,7 +380,6 @@ struct NativeSettingsUserFlows {
             "defaultCwd": .text(directory.path), "settings": .object([:]), "threads": .array([moku.json]),
             "executions": .array([]), "applicationThreads": .array([])])
         await workspace.installPrepared(snapshot, event: .snapshot(snapshot, authority: UUID()))
-        try workspace.preferences.setOnboardingCompleted(true)
         let presentation = NativeWorkspacePresentation(workspace: workspace)
         presentation.start()
         try presentation.performInteraction(.openSettings)
@@ -389,53 +391,31 @@ struct NativeSettingsUserFlows {
             onSetLocale: { try preferences.setLocale($0) }, onClose: { _ in }))
         defer { window.orderOut(nil); window.contentView = nil }
         func controls() -> [JSONValue] { presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? [] }
-        func toggle() -> JSONValue? { controls().first { $0["id"] == .text("general.glassWorld") } }
-        func operate(_ value: Bool) async throws {
-            try await SwiftUIReplay.wait { toggle()?["pending"] == .bool(false) }
-            let handle = try #require(toggle()?["handle"]?.stringValue)
-            try presentation.performInteraction(.settingsControl(id: "general.glassWorld", handle: handle, operation: "set", value: .bool(value)))
-            try await SwiftUIReplay.wait { toggle()?["pending"] == .bool(false) }
+        func control(_ field: String) -> JSONValue? { controls().first { $0["id"] == .text("general.\(field)") } }
+        func select(_ field: String, _ value: String) async throws {
+            try await SwiftUIReplay.wait { control(field)?["pending"] == .bool(false) }
+            let handle = try #require(control(field)?["handle"]?.stringValue)
+            try presentation.performInteraction(.settingsControl(id: "general.\(field)", handle: handle, operation: "select", value: .text(value)))
+            try await SwiftUIReplay.wait { control(field)?["pending"] == .bool(false) }
         }
-        try await SwiftUIReplay.wait { toggle()?["value"] == .bool(true) }
+        try await SwiftUIReplay.wait { control("appearance")?["value"] == .text("1") }
         #expect(presentation.interactionSnapshot()["runtimeAvailable"] == .bool(false))
-        #expect(toggle()?["label"] == .text("glass world"))
-        #expect(toggle()?["enabled"] == .bool(true))
-        for value in [false, true, false] {
-            try await operate(value)
-            #expect(toggle()?["value"] == .bool(value))
-            #expect(presentation.interactionSnapshot()["settings"]?["glassWorld"] == .bool(value))
-            #expect(try saved()["preferences"]?["glassWorld"] == .bool(value))
-            #expect(DesktopPreferences(directory: directory).glassWorld == value)
+        #expect(control("appearance")?["enabled"] == .bool(true))
+        #expect(control("locale")?["enabled"] == .bool(true))
+        for (value, appearance) in [("2", DesktopAppearance.dark), ("1", .light), ("2", .dark)] {
+            try await select("appearance", value)
+            #expect(control("appearance")?["value"] == .text(value))
+            #expect(presentation.interactionSnapshot()["settings"]?["appearance"] == .text(appearance.rawValue))
+            try verifySaved(appearance: appearance, locale: .english, selected: nil, onboarding: true)
         }
-        try preferences.setLocale(.chinese)
-        try await SwiftUIReplay.wait { controls().first { $0["id"] == .text("general.locale") }?["label"] == .text("界面语言") }
-        #expect(toggle()?["label"] == .text("glass world"))
-        if let path = ProcessInfo.processInfo.environment["MOKUSEI_GLASS_WORLD_ARTIFACTS"], let view = window.contentView {
-            // The binding and registry settle before the switch's visual spring.
-            // Let that finish so the artifact shows the saved off state.
-            try await Task.sleep(for: .milliseconds(350))
-            view.layoutSubtreeIfNeeded()
-            window.displayIfNeeded()
-            #expect(!preferences.glassWorld)
-            #expect(toggle()?["value"] == .bool(false))
-            #expect(presentation.interactionSnapshot()["settings"]?["glassWorld"] == .bool(false))
-            // Layer-backed SwiftUI controls can leave cacheDisplay showing an
-            // earlier animation frame. Capture this process's actual window.
-            let content = try await SCShareableContent.currentProcess
-            let target = try #require(content.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
-            let configuration = SCStreamConfiguration()
-            configuration.width = Int(target.frame.width * window.backingScaleFactor)
-            configuration.height = Int(target.frame.height * window.backingScaleFactor)
-            configuration.ignoreShadowsSingleWindow = true
-            configuration.showsCursor = false
-            configuration.colorSpaceName = CGColorSpace.sRGB
-            let image = try await SCScreenshotManager.captureImage(
-                contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration)
-            let bitmap = NSBitmapImageRep(cgImage: image)
-            let artifacts = URL(fileURLWithPath: path)
-            try manager.createDirectory(at: artifacts, withIntermediateDirectories: true)
-            try #require(bitmap.representation(using: .png, properties: [:])).write(to: artifacts.appendingPathComponent("settings-glass-world-off.png"))
-        }
+        try await select("locale", "0")
+        try await SwiftUIReplay.wait { control("locale")?["label"] == .text("界面语言") }
+        #expect(presentation.interactionSnapshot()["settings"]?["locale"] == .text("zh-CN"))
+        try verifySaved(appearance: .dark, locale: .chinese, selected: nil, onboarding: true)
+        try await select("locale", "1")
+        try await SwiftUIReplay.wait { control("locale")?["label"] == .text("Interface language") }
+        #expect(presentation.interactionSnapshot()["settings"]?["locale"] == .text("en-US"))
+        try verifySaved(appearance: .dark, locale: .english, selected: nil, onboarding: true)
 
         // A directory at the destination forces atomic rename to fail even for
         // privileged runners; retain the original bytes for the reopen oracle.
@@ -448,19 +428,19 @@ struct NativeSettingsUserFlows {
                 try? manager.moveItem(at: retained, to: file)
             }
         }
-        #expect(throws: (any Error).self) { try preferences.setGlassWorld(true) }
-        #expect(!preferences.glassWorld)
-        try await operate(true)
+        #expect(throws: (any Error).self) { try preferences.setAppearance(.light) }
+        #expect(preferences.appearance == .dark)
+        try await select("appearance", "1")
         try await SwiftUIReplay.wait { controls().contains { $0["kind"] == .text("notice") && $0["severity"] == .text("error") } }
-        #expect(toggle()?["value"] == .bool(false))
-        #expect(presentation.interactionSnapshot()["settings"]?["glassWorld"] == .bool(false))
-        #expect(try JSONValue(data: Data(contentsOf: retained))["preferences"]?["glassWorld"] == .bool(false))
+        #expect(control("appearance")?["value"] == .text("2"))
+        #expect(presentation.interactionSnapshot()["settings"]?["appearance"] == .text("dark"))
+        #expect(try JSONValue(data: Data(contentsOf: retained))["preferences"]?["appearance"] == .text("dark"))
         try manager.removeItem(at: file)
         try manager.moveItem(at: retained, to: file)
-        #expect(!DesktopPreferences(directory: directory).glassWorld)
-        try await operate(true)
+        try verifySaved(appearance: .dark, locale: .english, selected: nil, onboarding: true)
+        try await select("appearance", "1")
         try await SwiftUIReplay.wait { !controls().contains { $0["severity"] == .text("error") } }
-        #expect(DesktopPreferences(directory: directory).glassWorld)
+        try verifySaved(appearance: .light, locale: .english, selected: nil, onboarding: true)
         await presentation.release()
         await client.close()
     }

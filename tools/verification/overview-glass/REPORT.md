@@ -1,6 +1,8 @@
 # Overview Thread 卡片 Liquid Glass 性能调查
 
 日期：2026-10-27。产品源码基线：`e8df447ea32923cc4e7b63cfdb958154ebddb527`。
+本报告保留当日研究的原结论与限制；文中的“当前”均指上述历史基线。
+当前产品已统一为平面卡片，实时三条件入口已退役，未追溯改写这里的测量结果。
 本研究只修改当前 worktree 的研究工具；运行时复制 `app/macos` 到 `.build/overview-glass/package` 注入实验开关，不写用户偏好、Runtime 数据，也不触碰正在运行的应用。
 
 ## 结论

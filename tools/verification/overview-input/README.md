@@ -22,8 +22,8 @@ fixture-local cwd and rejects non-system images loaded from outside the bundle.
 For a Computer Use launch, compile with `--build-only` and open the resulting
 app path printed by the runner (or stored in `app-path.txt`). Add `--interactive` to leave the
 fixture open for manual input and rendering checks. The fixture includes the
-production canvas, camera, glass, cloud shader, reading stack and multiline editor.
-Its card includes the production emoji glass badge, completion mark and Send
+production canvas, camera, flat card surfaces, cloud shader, reading stack and multiline editor.
+Its card includes the production emoji badge, completion mark and Send
 action. Check that the circle is visible above the card material and remains
 visible when hovering reveals Send; click Send to open detail. In interactive
 mode, Command-Shift-D toggles light/dark appearance without system changes.
@@ -119,7 +119,7 @@ python3 tools/verification/overview-input/run.py \
   --capture-transitions .build/overview-transition-capture
 ```
 
-This alternate replay hosts the production `HarnessThreadCard` (text, emoji glass
+This alternate replay hosts the production `HarnessThreadCard` (text, emoji
 badge and completion mark) in the production canvas with synthetic conversation
 data. It records only its own full-size native WindowServer window using
 ScreenCaptureKit; it does not start a runtime or change the installed app.
@@ -129,10 +129,10 @@ and an ordinary empty result. Retained cards must keep their semantic identity.
 A successful run requires recording completion, MP4 decoding and pixel checks,
 not just a build. The output contains `real-cards.mp4`, `events.json`, lossless
 reference/intermediate screenshots, decoded contact sheets and `inspection.json`.
-Glass, badge and text regions of an outgoing card must match the empty background
+Surface, badge and text regions of an outgoing card must match the empty background
 after its 140ms exit, while survivor motion is still running. The same checks run
 on an intermediate decoded video frame; video references use matching encoding
-to avoid treating H.264/color conversion as a glass remnant. A missing/late
+to avoid treating H.264/color conversion as a surface remnant. A missing/late
 screenshot or invalid/short recording fails the replay.
 
 Recording is a separate ScreenCaptureKit mode and may require Screen Recording
@@ -154,59 +154,67 @@ xcrun swiftc -parse-as-library -swift-version 6 -warnings-as-errors \
 .build/InspectTransitionCapture .build/overview-transition-capture
 ```
 
-## Glass world live changes and fixed production captures
+## Flat card materials and native lifetime
 
 ```sh
 python3 tools/verification/reading-presentation/run.py --overview-mounting
-python3 tools/verification/overview-input/run.py --glass-world .build/glass-world
+python3 tools/verification/overview-input/run.py --card-materials .build/card-materials
 ```
 
-The mounting suite includes a live material regression using the production
-Canvas: repeated on/off changes preserve native and SwiftUI card identities,
-placements, manual camera, selected filter, first responder, text selection and
-draft. It then adds a card, filters while changing material during retirement,
-clears the scene and reenters. Material-only changes must not generate a new
-structural scene snapshot. The isolated AppKit runner runs all six mounting
-cases with the application event loop.
+The mounting suite changes light/dark appearance on the production Canvas while
+a native editor retains focus, selection and draft. It asserts the flat material
+policy on every mounted card, preserves native/SwiftUI identities, placements,
+manual camera, selected filter and structural snapshot count, then adds a card,
+filters during retirement, removes everything and reenters. No material
+preference is created or simulated.
 
-The separate capture mode creates four lossless light/dark × on/off screenshots
-at one fixed readable camera in a 1200×760 own-process WindowServer window. It
-uses production `HarnessThreadCard` for Codex, Claude, Pi and OpenCode with the
-actual plugin logos; production `NativeReportCard`, plan ladder, completion
-marks, emoji controls, external Chrome tags/actions and the production
-`NativeMokuDock` (idle 168×44-point capsule in its own bottom-center seat) are also
-present. Conversations and Report data are deterministic fixtures; the Report
-capability returns an empty related-thread list, and no runtime starts. Cloud
-motion is disabled and the Dock's scene phase is inactive to freeze blinking
-for stable comparisons. This mode does not
-read or change user preferences or exercise the Settings save flow.
+The capture mode takes four full, lossless WindowServer PNGs:
+light/dark appearance × two deliberately different fixed backdrops. Its 1200×760
+own-process window includes production Codex, Claude, Pi and OpenCode
+`HarnessThreadCard` content/logos, Report, plan, completion marks, emoji/Follow-up
+controls, Chrome and the actual bottom-centered `NativeMokuDock`. Fixture data
+is deterministic and no Runtime starts. Cloud motion is paused and the Dock's
+scene phase is inactive; their rendering remains present.
 
-Success requires unchanged mounted identity/layout/camera, four correctly sized
-captures and independent PNG decoding. `inspection.json` records on/off pixel
-differences in all five cards' nonsemantic shell interiors and an unchanged
-exterior backdrop control. Bottom-card sample strips exclude the overlaid Dock
-and a 12-point shadow margin. `captures.json` records the fixed camera, frames and
-production components, including the measured Dock frame, which must remain
-unchanged through all four captures. ScreenCaptureKit may need Screen Recording consent.
-Review the four screenshots for text/control legibility and the running cards'
-backgrounds; these images do not measure optical frame pacing, physical hover,
-or the installed application's current data. Files are captured and inspected
-in the isolated private fixture directory, then copied to the output directory
-only after both replay and inspection succeed.
+The independent PNG inspector requires every card's nonsemantic interior strip
+to stay unchanged across the two backdrops. Completed Codex/Pi cards and Report,
+whose strips have no running cloud overlay, must also match their resolved opaque
+production palette colors. Running cards retain their cloud field and still
+satisfy backdrop independence. The sample strips retain the existing 12-point
+Dock shadow exclusion. An exterior control must visibly change, proving that
+the pair did not accidentally capture one backdrop twice.
 
-The previous fixture mounted the round `MokuCharacterView` at bottom right.
-That character still belongs to the production Settings illustration, but is
-not the current Overview Dock. Keep past screenshots as historical evidence;
-regenerate current comparisons with this runner. Circular Thread emoji/follow-up
-badges are separate production controls and remain unchanged. See the
-[cleanup audit and refreshed captures](evidence/moku-dock-refresh/README.md).
+A separate quiet strip inside the production Dock, outside all cards, must
+respond to the changed backdrop. This pixel check proves background response;
+the untouched production material implementation establishes that the response
+still comes from the existing glass. Chrome remains in the full images for
+visual review. Reduce Transparency must be off for this observation; the runner
+fails with an incomplete-observation message when the system selects the valid
+opaque fallback, and never changes that preference.
 
-## Paired glass performance
+Every capture retains the same mounted identities, appearances, placements,
+manual camera, snapshot count and measured Dock frame. `captures.json` records
+those facts and resolved palette references; `inspection.json` retains all
+pixel regions and measurements. Files are copied to the requested output only
+after replay and independent inspection succeed. ScreenCaptureKit may require
+Screen Recording consent. Review all four images for text/control legibility,
+flat badge/plan appearance, rounded corners and cloud color.
 
-The [performance replay](PERFORMANCE.md) shares the current fixed five production
-cards and Moku Dock with the screenshot mode, builds optimized Release objects,
-and compares light/dark static and deterministic camera motion with alternating
-on/off pairs. It retains raw process CPU, resident/physical memory, host load and
-scheduling-delay samples, validity oracles, summaries and reproducible plots. GPU
-and actual rendered-frame timing remain explicitly unavailable; neither capture
-cadence nor the scheduling probe is reported as rendering FPS.
+These static captures do not prove moving native decorations. The existing
+`reading-presentation/run.py --tag-glass-captures` owner includes
+`NativeOverviewDecorationCaptureTests.nativeCloudAndScanMoveInComposedOverview`,
+which requires live native objects and actual cloud/scan pixel motion. Neither
+entry point claims optical FPS or GPU duration.
+
+The old circular-Moku and glass on/off images remain historical evidence in
+[evidence/moku-dock-refresh](evidence/moku-dock-refresh/README.md); they do not
+define current card materials.
+
+## Historical glass performance
+
+The on/off performance launcher is retired because Overview cards have one
+fixed flat presentation. Running two identical conditions would not be a valid
+material comparison. Historical raw evidence, analysis and plotting remain
+documented in [PERFORMANCE.md](PERFORMANCE.md). Current independent product
+comparisons use the [Overview Release CI runner](../overview-ci-performance/README.md);
+this change adds no new performance measurement protocol.

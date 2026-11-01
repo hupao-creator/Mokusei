@@ -9,10 +9,10 @@ commands or independent copy of page state.
 
 `interactionSnapshot()` reports the semantic route, mounted reading/settings
 surface, navigation animation activity, settings save state, search, filter and
-thread identities, available action names and errors. `settings.glassWorld`
-reports the current client preference even when Settings is closed or the Runtime
-is unavailable; mounted General controls expose `general.glassWorld`. Thread targets are the
-current Overview projection; stale or filtered-out targets are rejected.
+thread identities, available action names and errors. `settings.appearance` and
+`settings.locale` report the saved client preferences even when Settings is closed
+or the Runtime is unavailable. Thread targets are the current Overview projection;
+stale or filtered-out targets are rejected.
 Available actions are advisory: dispatch checks current state again. A successful
 call means the intent was applied; it does not mean SwiftUI has rendered a frame,
 an animation has ended, or settings persistence has completed. Settings opening

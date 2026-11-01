@@ -17,7 +17,7 @@ import client as api
 import settings_chaos as settings
 
 
-def run_seed(bundle, run, seed, steps, smoke, harnesses, glass_world_only=False):
+def run_seed(bundle, run, seed, steps, smoke, harnesses, preferences_only=False):
     run.mkdir(mode=0o700)
     profile = run / "profile"
     launch = 0
@@ -73,7 +73,7 @@ def run_seed(bundle, run, seed, steps, smoke, harnesses, glass_world_only=False)
     try:
         start()
         runtime = settings.Runtime(profile)
-        if glass_world_only:
+        if preferences_only:
             driver = settings.Driver(client, trace, runtime, harnesses=harnesses)
             preferences_file = profile / "desktop-preferences.json"
             def runtime_settings():
@@ -92,10 +92,10 @@ def run_seed(bundle, run, seed, steps, smoke, harnesses, glass_world_only=False)
                         time.sleep(.2)
 
             def verify_preferences(expected):
-                state = driver.settle(lambda s: s["settings"]["glassWorld"] is expected)
+                state = driver.settle(lambda s: all(s["settings"][key] == value for key, value in expected.items()))
                 persisted = json.loads(preferences_file.read_text())["preferences"]
-                assert persisted["glassWorld"] is expected, persisted
-                trace.write({"kind": "glass-world-persisted", "launch": launch,
+                assert persisted == expected, persisted
+                trace.write({"kind": "preferences-persisted", "launch": launch,
                              "snapshot": state["settings"], "preferences": persisted})
 
             driver.section("general")
@@ -122,29 +122,29 @@ def run_seed(bundle, run, seed, steps, smoke, harnesses, glass_world_only=False)
                 time.sleep(.1)
             initial_runtime_settings = runtime_settings()
             trace.write({"kind": "runtime-settings-baseline", "settings": initial_runtime_settings})
-            assert client.snapshot()["settings"]["glassWorld"] is True
-            for enabled in (False, True, False):
-                state = driver.control("general.glassWorld", "set", enabled)
-                assert settings.controls(state)["general.glassWorld"]["label"] == "glass world"
-                verify_preferences(enabled)
-                for field, value in (("locale", "0"), ("appearance", "2"), ("locale", "1"), ("appearance", "1")):
-                    driver.control("general." + field, "select", value)
-                    verify_preferences(enabled)
+            expected = {key: client.snapshot()["settings"][key] for key in ("appearance", "locale")}
+            for field, option, value in (("appearance", "2", "dark"), ("locale", "0", "zh-CN"),
+                                         ("appearance", "1", "light"), ("locale", "1", "en-US")):
+                state = driver.control("general." + field, "select", option)
+                assert settings.controls(state)["general." + field]["value"] == option
+                expected[field] = value
+                verify_preferences(expected)
             assert runtime_settings() == initial_runtime_settings, "Client preference changed Runtime settings"
             # Each restart owns a new app PID/socket and reloads the same private profile.
-            for expected in (False, True):
+            for appearance, option in (("light", "1"), ("dark", "2")):
+                driver.control("general.appearance", "select", option)
+                expected["appearance"] = appearance
+                verify_preferences(expected)
                 stop()
                 start()
                 driver = settings.Driver(client, trace, runtime, harnesses=harnesses)
                 verify_preferences(expected)
                 driver.section("general")
-                state = driver.settle(lambda s: "general.glassWorld" in settings.controls(s))
-                assert settings.controls(state)["general.glassWorld"]["value"] is expected
-                trace.write({"kind": "glass-world-restart-verified", "launch": launch, "enabled": expected})
-                if not expected:
-                    driver.control("general.glassWorld", "set", True)
-                    verify_preferences(True)
-            print(f"PASS glass world real Toggle, JSON, language/appearance and off/on app+Runtime restart: {run}", flush=True)
+                state = driver.settle(lambda s: "general.appearance" in settings.controls(s))
+                assert settings.controls(state)["general.appearance"]["value"] == option
+                assert settings.controls(state)["general.locale"]["value"] == "1"
+                trace.write({"kind": "preferences-restart-verified", "launch": launch, "preferences": expected.copy()})
+            print(f"PASS local preference controls, JSON, unrelated writes and app+Runtime restart: {run}", flush=True)
             return
         # Settings presentation is the production initialization boundary. A
         # cancelled startup discovery must not leave model cases editing an
@@ -184,7 +184,7 @@ def main():
     parser.add_argument("--seeds", type=int, nargs="+", default=[1, 42, 2026])
     parser.add_argument("--harnesses", nargs="+", choices=["codex", "claude", "pi", "opencode"],
                         help="Explicit Harness matrix for isolated profiles; default: all")
-    parser.add_argument("--glass-world-only", action="store_true", help="Run only local glass world preferences and off/on restart assertions; no model edits")
+    parser.add_argument("--preferences-only", action="store_true", help="Run only local appearance/language preferences and restart assertions; no model edits")
     args = parser.parse_args()
     if args.harnesses and ("codex" not in args.harnesses or len(args.harnesses) < 2 or len(set(args.harnesses)) != len(args.harnesses)):
         parser.error("Harness matrix must include Codex and at least two distinct Harnesses for the CAS target-order case")
@@ -203,7 +203,7 @@ def main():
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(bundle)], check=True)
     (run / "application.json").write_text(json.dumps({"app": str(bundle), "provenance": provenance, "harnesses": args.harnesses or ["codex", "claude", "pi", "opencode"]}, indent=2))
     for index, seed in enumerate(args.seeds):
-        run_seed(bundle, run / f"seed-{index}-{seed}", seed, args.steps, smoke=index == 0, harnesses=args.harnesses, glass_world_only=args.glass_world_only)
+        run_seed(bundle, run / f"seed-{index}-{seed}", seed, args.steps, smoke=index == 0, harnesses=args.harnesses, preferences_only=args.preferences_only)
 
 
 if __name__ == "__main__":

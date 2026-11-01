@@ -37,7 +37,7 @@ The material does not change layout, clipping, voice ownership or motion clocks.
 The historical [material demo](../../../../../demos/moku-gradient-material/README.md)
 compiles this production material; its old light/dark comparison is no longer a
 product contract. No light-cursor demo is part of this implementation.
-Material validation includes [glass-world captures](../../../../../tools/verification/overview-input/README.md#glass-world-live-changes-and-fixed-production-captures)
+Material validation includes [card-material captures](../../../../../tools/verification/overview-input/README.md#flat-card-materials-and-native-lifetime)
 for both appearances, the mounted history composer/note suites, and the native
 Talk, character-transition and voice-cloud replays described below.
 

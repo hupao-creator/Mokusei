@@ -1,4 +1,17 @@
-# Glass world paired performance replay
+# Historical glass on/off performance evidence
+
+The live `--glass-performance` launcher was retired when all Overview cards
+adopted fixed flat surfaces. There is no longer an independent on/off variable.
+The dedicated Swift driver and launch path are removed; the raw evidence,
+analyzer, plotting and analysis-regression entry point remain readable.
+Current appearance verification is `run.py --card-materials`; independent
+product performance comparisons remain in [overview-ci-performance](../overview-ci-performance/README.md).
+
+The protocol and commands below are historical, for the frozen pre-removal
+checkout `a4e94b3f72f8f16d7adf2911621725b2ae552b7e`, not launch instructions for
+the current tree. Old invalid runs remain invalid and are not reinterpreted.
+
+## Frozen protocol
 
 This benchmark compares only the production Thread outer shell controlled by
 `glassWorld`. It shares `glass-fixture.swift` with the four-way screenshot replay:

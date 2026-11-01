@@ -18,7 +18,14 @@ checks this distinction against real catalog transactions.
 
 The same rebuild also normalizes each distinct tag/label once and supplies those keys to the existing selection rules. This memo is local to the synchronous rebuild, bounded by its distinct labels, and discarded before another locale/catalog revision can use it. Standalone selection calls retain the ordinary normalization path.
 
-The `glassWorld` preference controls only the outer shells of Thread cards. Enabled shells use regular glass with the existing success tint for completed Threads; disabled shells use the opaque overview surface with a soft border. Both styles stay inside the same animated card frame, so geometry, opacity and exit behavior remain shared. Semantic badges retain their own glass composition, and Follow-up, plan, tag and Moku surfaces are unaffected.
+All Overview cards, including Agent Threads and Report, use opaque palette
+surfaces and a soft border. Completed cards retain a static completion tint.
+Shell and semantic planes contain no Liquid Glass containers. The card boundary
+supplies the shared flat-material policy to emoji/Follow-up badges, terminal
+marks and plan highlights, removing their glass and backdrop Material nodes.
+The former `glass world` preference is removed. Chrome, directory menus, Moku,
+Settings and shared controls outside a card keep their own materials. Cloud,
+scan, hover, focus, input and spatial-animation ownership are unchanged.
 
 ## Card update isolation
 
@@ -33,7 +40,7 @@ current collection; this boundary does not claim constant-time model projection.
 Array-based fixture hosts feed the same store and layout state machine.
 
 Each card retains separate Equatable shell and semantic boundaries outside its
-spatial frame and glass container. The shell observes only its slot's completed
+spatial frame. The shell observes only its slot's completed
 tint; the semantic wrapper observes its current item. Geometry, motion,
 visibility, viewport, locale, decorative policy, activation and explicit
 renderer/state identities still invalidate the appropriate wrappers. Completion
@@ -72,7 +79,7 @@ The production card closure alone enables `threadCardNativeDecorationsEnabled`.
 Clouds use a display-linked native Metal view with the existing seeded field;
 derived scans use a compositor-owned gradient animation. Neither decoration
 publishes a SwiftUI frame value. Card semantics, duration, spatial wrappers and
-glass remain with their existing owners. The native views fill the supplied
+surfaces remain with their existing owners. The native views fill the supplied
 bounds, preserve pause/visibility behavior, and cannot own input or accessibility.
 See the shared [native decoration contract](../../Shared/PluginUI/README.md#native-overview-decorations)
 for color, lifetime and native-composition acceptance. Standalone card fixtures
@@ -91,11 +98,11 @@ Fresh/filter framing centers the collection horizontally and vertically between 
 
 Geometry and straight-move optimization have separate outcomes. If the search budget expires after finding legal geometry but before certifying a move plan, the solver returns that geometry with `requiresRepack` rather than requiring a retry. A verified fitting candidate remains the fallback even if aspect enumeration is unfinished. The canvas keeps card identities mounted, fades the old presentation out, relocates while transparent, then reveals the result; new cards stay transparent during retirement. It never treats an uncertified straight path as collision-free. If capacity cannot be decided within the budget and there is no legal witness, the error remains visible and the last valid layout stays in place. Cancelled or replaced owners cannot overwrite the current scene with a stale layout error.
 
-[NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions serialize exit, shrink, ordered moves, grow and entry. Outgoing content survives until its exit finishes; glass and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
+[NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions serialize exit, shrink, ordered moves, grow and entry. Outgoing content survives until its exit finishes; shell and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
 
 Card motion starts, interruption samples and display samples all use
 `ProcessInfo.systemUptime`. A MainActor clock shares one uptime sample for each
-exact SwiftUI timeline date across the glass and semantic planes. Dates are only
+exact SwiftUI timeline date across the shell and semantic planes. Dates are only
 tick identifiers, so wall-clock drift or adjustments cannot accumulate into the
 motion's elapsed time. The clock retains the 64 most recent distinct ticks in
 insertion order to share interleaved contexts while bounding process-lifetime
@@ -103,7 +110,7 @@ state; an evicted date receives a fresh uptime sample if it appears again.
 
 The spatial frame builds its content when receiving new inputs and reuses that
 view value across animation ticks. Ticks only sample the pose and apply its
-geometry, opacity and accessibility state; they do not rerun the glass/semantic
+geometry, opacity and accessibility state; they do not rerun the shell/semantic
 content builder. New card inputs still replace the value without changing its
 mounted identity, and child state, Observation and environment updates remain
 live. The native resize replay changes presentation and locale during motion and

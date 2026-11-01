@@ -4,7 +4,7 @@
 `Sources/App/NativeContentHost.swift` and compiles a subset of the old Host
 sources. The setup and controls below describe the original experiment; its
 build command is no longer a supported current replay. Use the
-[production Overview / glass-world fixture](../../tools/verification/overview-input/README.md)
+[production Overview / card-materials fixture](../../tools/verification/overview-input/README.md)
 for current card/material screenshots, and the [cloud motion replay](../../tools/verification/cloud-motion/README.md)
 for the shared renderer. The original sources and visual parameters are retained
 for historical review; see the [demo inventory](../README.md).

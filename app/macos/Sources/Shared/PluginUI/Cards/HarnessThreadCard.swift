@@ -78,6 +78,7 @@ public struct HarnessThreadCard: View {
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled && !(identity.initialResponse != nil && reduceMotion))
         }
         .environment(\.threadCardHovered, hovered)
+        .environment(\.threadCardUsesFlatMaterials, true)
         .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.22), value: presentation.key)
     }

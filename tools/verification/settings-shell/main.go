@@ -109,10 +109,10 @@ func main() {
 	_, err = r.Invoke(context.Background(), "settings:diagnostics", []json.RawMessage{raw})
 	must(err)
 	// Client-only preferences contribute field names, never their values or CAS state.
-	raw, _ = json.Marshal([]any{model.Object{"event": "preferences", "outcome": "saved", "flowId": flow, "fields": []string{"glassWorld"}}})
+	raw, _ = json.Marshal([]any{model.Object{"event": "preferences", "outcome": "saved", "flowId": flow, "fields": []string{"appearance"}}})
 	_, err = r.Invoke(context.Background(), "settings:diagnostics", []json.RawMessage{raw})
 	must(err)
-	raw, _ = json.Marshal([]any{model.Object{"event": "preferences", "outcome": "saved", "flowId": flow, "fields": []string{"glassWorld"}, "glassWorld": false}})
+	raw, _ = json.Marshal([]any{model.Object{"event": "preferences", "outcome": "saved", "flowId": flow, "fields": []string{"appearance"}, "appearance": "dark"}})
 	_, err = r.Invoke(context.Background(), "settings:diagnostics", []json.RawMessage{raw})
 	check(err != nil, "preference value accepted in diagnostics")
 	bad := []any{model.Object{"event": "edit", "outcome": "pending", "flowId": flow, "text": sensitive}}
@@ -130,11 +130,11 @@ func main() {
 	defer mu.Unlock()
 	seen := map[string]bool{}
 	client := false
-	glassWorld := false
+	localPreference := false
 	for _, event := range events {
 		if event["event"] == "client.preferences" {
 			fields, _ := event["fields"].([]string)
-			glassWorld = len(fields) == 1 && fields[0] == "glassWorld"
+			localPreference = len(fields) == 1 && fields[0] == "appearance"
 		}
 		seen[event["event"].(string)] = true
 		if event["event"] == "client.conflict" && event["flowId"] == flow && event["traceId"] == "settings_fixture_command_123" {
@@ -145,7 +145,7 @@ func main() {
 		check(seen[name], "missing "+name)
 	}
 	check(client, "native client trace missing")
-	check(glassWorld, "glass world preference diagnostic missing")
+	check(localPreference, "client preference diagnostic missing")
 	data, _ := json.Marshal(events)
 	check(!strings.Contains(string(data), "private-settings-canary"), "settings value leaked to diagnostics")
 	fmt.Println("PASS settings shell normalize/null/UTF16, conflict/no partial save, strict required/unknown fields, bounded client diagnostics, stage traces and canary redaction")

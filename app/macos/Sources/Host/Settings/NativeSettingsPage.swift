@@ -305,7 +305,7 @@ enum NativeSettingsHeaderLayout {
     private var general: some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsGroup(title: locale.text("界面偏好", "Interface preferences")) {
-                ForEach(["appearance", "locale", "glassWorld"], id: \.self) { field in
+                ForEach(["appearance", "locale"], id: \.self) { field in
                     if let error = preferencesErrors[field] { SettingsNotice(error, error: true) }
                 }
                 SettingsRow(label: locale.text("外观", "Appearance")) {
@@ -324,12 +324,6 @@ enum NativeSettingsHeaderLayout {
                         .init(value: .chinese, title: locale.text("简体中文", "Simplified Chinese")),
                         .init(value: .english, title: locale.text("英语", "English"))
                     ]).nativeSettingsControl("locale")
-                }
-                SettingsRow(label: "glass world") {
-                    NativeSettingsToggle(value: Binding(get: { preferences.glassWorld }, set: { value in
-                        do { try preferences.setGlassWorld(value); preferencesErrors.removeValue(forKey: "glassWorld") }
-                        catch { preferencesErrors["glassWorld"] = error.localizedDescription }
-                    })).nativeSettingsControl("glassWorld")
                 }
             }
             SettingsGroup(title: locale.text("本地 Agent", "Local Agents")) {

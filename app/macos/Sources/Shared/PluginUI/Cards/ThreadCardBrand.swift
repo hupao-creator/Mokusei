@@ -77,7 +77,7 @@ private struct ThreadCardProviderStatusBody: View {
             }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .glassEffect(.regular.interactive(action != nil), in: Circle())
+        .modifier(ThreadCardBadgeMaterial(interactive: action != nil))
         .contentShape(Circle()).onHover { hovered = $0 }
         .focusable(action == nil).focused($focused)
         .overlay(Circle().stroke(focused ? NativePalette.overview.ink.swiftUI : .clear, lineWidth: 1).padding(-3))
@@ -93,6 +93,22 @@ private struct ThreadCardProviderStatusBody: View {
         }
     }
 }
+private struct ThreadCardBadgeMaterial: ViewModifier {
+    let interactive: Bool
+    @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if flatMaterials {
+            content
+                .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+                .overlay(Circle().stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
+                    .allowsHitTesting(false).accessibilityHidden(true))
+        } else {
+            content.glassEffect(.regular.interactive(interactive), in: Circle())
+        }
+    }
+}
+
 private struct TerminalBadge: View {
     let terminal: ThreadCardTerminalStatus
     let tone: Color
@@ -108,11 +124,20 @@ private struct TerminalBadge: View {
     }
 }
 
-/// The source badge uses a specific backdrop filter and translucent color mix,
-/// independent of the system's material tint and vibrancy preferences.
 private struct TerminalBadgeSurface: View {
     let tone: Color
-    var body: some View { Circle().fill(tone.opacity(0.15)).background(.ultraThinMaterial, in: Circle()).overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.55)) }
+    @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
+    var body: some View {
+        if flatMaterials {
+            Circle().fill(tone.opacity(0.15))
+                .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+                .overlay(Circle().stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 0.55)
+                    .allowsHitTesting(false).accessibilityHidden(true))
+        } else {
+            Circle().fill(tone.opacity(0.15)).background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 0.55))
+        }
+    }
 }
 private struct TerminalSymbol: Shape {
     let terminal: ThreadCardTerminalStatus

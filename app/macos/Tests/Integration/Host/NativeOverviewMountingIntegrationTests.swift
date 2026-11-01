@@ -16,7 +16,7 @@ import MokuseiTestSupport
         set { content.install(newValue) }
     }
     var attached = true
-    var glassWorld = true
+    var dark = false
     var visible = true
     var cloudAnimationsEnabled = false
     var selection = "all"
@@ -30,6 +30,7 @@ import MokuseiTestSupport
     @ObservationIgnored var viewport = CGSize.zero
     @ObservationIgnored var animationVisibility: [String: Bool] = [:]
     @ObservationIgnored var cloudAnimations: [String: Bool] = [:]
+    @ObservationIgnored var flatMaterials: [String: Bool] = [:]
 
     init(items: [NativeOverviewItem], inputIDs: Set<String> = []) {
         self.inputIDs = inputIDs
@@ -56,6 +57,7 @@ private struct OverviewMountingCard: View {
     @State private var visualID = UUID()
     @Environment(\.threadCardAnimationVisibility) private var animationVisibility
     @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
+    @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
     var body: some View {
         fixture.contentBuilds[id, default: 0] += 1
         return VStack {
@@ -79,6 +81,9 @@ private struct OverviewMountingCard: View {
         .onChange(of: cloudAnimationsEnabled, initial: true) { _, value in
             fixture.cloudAnimations[id] = value
         }
+        .onChange(of: flatMaterials, initial: true) { _, value in
+            fixture.flatMaterials[id] = value
+        }
     }
 }
 
@@ -88,11 +93,11 @@ private struct OverviewMountingReplay: View {
         if fixture.attached {
             NativeOverviewCanvas(contentSource: fixture.content, sceneKey: "mounting", state: fixture.state,
                                  selectionID: fixture.selection, visible: fixture.visible,
-                                 cloudAnimationsEnabled: fixture.cloudAnimationsEnabled,
-                                 glassWorld: fixture.glassWorld) { item in
+                                 cloudAnimationsEnabled: fixture.cloudAnimationsEnabled) { item in
                 OverviewMountingCard(item: item, fixture: fixture)
             }
             .onGeometryChange(for: CGSize.self) { $0.size } action: { fixture.viewport = $0 }
+            .preferredColorScheme(fixture.dark ? .dark : .light)
         } else {
             Color.clear
         }
@@ -229,7 +234,7 @@ struct NativeOverviewMountingIntegrationTests {
         #expect(field.stringValue == "保留草稿")
     }
 
-    @Test func glassWorldChangesRetainMountedEditingAndSpatialState() async throws {
+    @Test func flatCardsRetainMountedEditingAndSpatialStateAcrossAppearanceChanges() async throws {
         let id = "card-000"
         let fixture = OverviewMountingFixture(items: Array(cards().prefix(4)), inputIDs: [id])
         let window = SwiftUIReplay.window(OverviewMountingReplay(fixture: fixture))
@@ -248,12 +253,13 @@ struct NativeOverviewMountingIntegrationTests {
         let snapshots = fixture.state.sceneSnapshotCount
         let identities = fixture.markerIDs, visualIDs = fixture.visualIDs
         let appearances = fixture.appearances
-        for glassWorld in [false, true, false, true] {
-            fixture.glassWorld = glassWorld
+        for dark in [true, false, true, false] {
+            fixture.dark = dark
             // A settled geometry predicate alone could succeed before SwiftUI
-            // applies the material change; allow the update and glass animation.
+            // applies the new appearance to its retained native controls.
             try await Task.sleep(for: .milliseconds(350))
             #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
+            #expect(fixture.items.allSatisfy { fixture.flatMaterials[$0.id] == true })
             #expect(fixture.markerIDs == identities && fixture.visualIDs == visualIDs)
             #expect(fixture.appearances == appearances)
             #expect(fixture.state.presentedPlacements == placements)
@@ -265,9 +271,9 @@ struct NativeOverviewMountingIntegrationTests {
             #expect(editor.selectedRange() == NSRange(location: 2, length: 3))
             #expect(field.stringValue == "玻璃切换保留草稿")
         }
-        // New membership and filter transitions must use the current material
+        // New membership and filter transitions must use the current appearance
         // without replacing surviving native inputs or disturbing a manual view.
-        fixture.glassWorld = false
+        fixture.dark = true
         fixture.items.append(.init(id: "added", completed: true))
         try await settled(fixture)
         #expect(fixture.state.mountedCardIDs.contains("added"))
@@ -276,8 +282,8 @@ struct NativeOverviewMountingIntegrationTests {
         fixture.items = [fixture.items[0], fixture.items[1]]
         fixture.selection = "filtered"
         try await SwiftUIReplay.wait { fixture.state.isLayingOut }
-        // Retiring cards remain mounted while the same modifier changes.
-        fixture.glassWorld = true
+        // Retiring cards remain mounted while appearance changes.
+        fixture.dark = false
         #expect(fixture.state.mountedCardIDs.contains("added"))
         try await settled(fixture)
         #expect(fixture.state.mountedCardIDs == ["card-000", "card-001"])
@@ -286,7 +292,7 @@ struct NativeOverviewMountingIntegrationTests {
         #expect(window.firstResponder === editor)
         #expect(editor.selectedRange() == NSRange(location: 2, length: 3))
         #expect(field.stringValue == "玻璃切换保留草稿")
-        fixture.glassWorld = false
+        fixture.dark = true
         fixture.items = []
         try await settled(fixture)
         #expect(fixture.state.mountedCardIDs.isEmpty)

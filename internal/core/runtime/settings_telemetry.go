@@ -299,7 +299,7 @@ func changedSettingsFields(before, after model.Settings) []string {
 
 var clientDiagnosticEvents = stringSet("page", "edit", "composition", "close", "retry", "conflict", "validation", "save", "command", "receive", "availability", "discard", "preferences", "presentation")
 var clientDiagnosticOutcomes = stringSet("started", "completed", "failed", "pending", "blocked", "saved", "conflict", "keep", "discard", "available", "unavailable", "opened", "closed")
-var diagnosticFields = stringSet("moku.hostHarnessPreference", "moku.executionHarnesses", "moku.targetHarnessIds", "moku.routingGuidance", "harnesses", "pluginSettings", "pluginEnabled", "appearance", "locale", "glassWorld")
+var diagnosticFields = stringSet("moku.hostHarnessPreference", "moku.executionHarnesses", "moku.targetHarnessIds", "moku.routingGuidance", "harnesses", "pluginSettings", "pluginEnabled", "appearance", "locale")
 var diagnosticUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 var diagnosticCommandID = regexp.MustCompile(`^[a-zA-Z0-9_-]{16,128}$`)
 

@@ -115,10 +115,10 @@ to verify the bridge with a repeatable seeded fixture without user data.
 
 ## Mounted Settings controls
 
-`snapshot.settings.glassWorld` reports the saved, live client preference. The
-General Toggle is `general.glassWorld` and accepts `set` with a Boolean. It saves
-locally even without a connected Runtime; a failed write retains its old value
-and surfaces the page notice.
+`snapshot.settings.appearance` and `snapshot.settings.locale` report the saved
+client preferences. General exposes `general.appearance` and `general.locale`
+selects. They save locally even without a connected Runtime; a failed write
+retains its old value and surfaces the page notice.
 
 `snapshot.settings.controls` lists the controls actually mounted in the current
 Settings visit and section. Each has a stable `id`, ephemeral `handle`, `kind`,

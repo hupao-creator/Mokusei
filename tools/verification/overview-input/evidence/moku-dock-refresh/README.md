@@ -5,7 +5,7 @@ The supplied `pasted-image.png` (attachment
 `58858831-f098-4047-b20c-6f4b4330275e`) shows the fixed glass-world fixture:
 “Codex · Canvas material”, “Report · Glass review”, and a round Moku at bottom right.
 These titles and the 95-point character mount identify
-[`glass.swift`](../../glass.swift) as the source.
+[historical glass.swift](https://github.com/hupao-creator/Mokusei/blob/a4e94b3f72f8f16d7adf2911621725b2ae552b7e/tools/verification/overview-input/glass.swift) as the source.
 
 ## Resolved drift
 
