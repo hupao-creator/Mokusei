@@ -82,17 +82,15 @@ struct OfflineClientReplay {
                                 preferences: DesktopPreferences, drafts: RuntimeDraftStore) throws {
         let appearance: DesktopAppearance = sequence.isMultiple(of: 2) ? .light : .dark
         let locale: DesktopLocale = sequence.isMultiple(of: 2) ? .english : .chinese
-        let glassWorld = sequence.isMultiple(of: 2)
         let thread = "\(identity)-thread-\(sequence)"
         let draft: JSONValue = .object(["text": .text("\(identity)-draft-\(sequence)"), "revision": .integer(sequence)])
         try preferences.setAppearance(appearance)
         try preferences.setLocale(locale)
-        try preferences.setGlassWorld(glassWorld)
         try preferences.selectThread(thread)
         try drafts.save(draft)
         let loaded = DesktopPreferences(directory: directory)
         guard loaded.readError == nil, loaded.appearance == appearance, loaded.locale == locale,
-              loaded.glassWorld == glassWorld, loaded.selectedThreadID == thread, try drafts.load() == draft else {
+              loaded.selectedThreadID == thread, try drafts.load() == draft else {
             throw RuntimeError("FIXTURE_PERSISTENCE", "Production preferences or draft failed their disk round trip")
         }
     }

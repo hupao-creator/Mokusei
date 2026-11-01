@@ -32,6 +32,12 @@ the selected tests. Their conditional `SWIFT_PACKAGE` import lets SwiftPM share
 one support module across targets while standalone native apps use the identical
 gate. Native replays reject skipped cases as incomplete verification.
 
+`SwiftUIReplay.window` requests the test application's enhanced accessibility
+interface before mounting. Self-inspection must not depend on another suite or
+an external accessibility client having materialized SwiftUI's lazy semantic
+children. This affects only the test process; text assertions still read the
+actual accessibility elements.
+
 Keep all behavioral assertions active when their required environment exists.
 Native mouse-tracking cases also require the isolated AppKit application loop.
 An ordinary SwiftPM host can exit during NSTextView tracking before producing

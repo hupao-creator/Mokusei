@@ -257,7 +257,7 @@ func (l *Logger) SettingsEvent(event string, fields map[string]any) {
 
 var settingsUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 var settingsOperation = regexp.MustCompile(`^[a-zA-Z0-9_-]{16,128}$`)
-var settingsFields = strings.Fields("moku.hostHarnessPreference moku.executionHarnesses moku.targetHarnessIds moku.routingGuidance harnesses pluginSettings pluginEnabled appearance locale glassWorld")
+var settingsFields = strings.Fields("moku.hostHarnessPreference moku.executionHarnesses moku.targetHarnessIds moku.routingGuidance harnesses pluginSettings pluginEnabled appearance locale")
 
 func settingsIn(value, words string) bool {
 	for _, word := range strings.Fields(words) {

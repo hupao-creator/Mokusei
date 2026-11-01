@@ -1,4 +1,4 @@
-// Shared production glass fixture; current Dock retained during tool integration.
+// Production card materials and the surrounding Chrome/Dock composition.
 import AppKit
 import Observation
 import ScreenCaptureKit
@@ -13,11 +13,11 @@ import MokuseiHarnessOpenCode
 @testable import MokuseiApplications
 @testable import MokuseiUI
 
-@MainActor @Observable final class GlassFixture {
+@MainActor @Observable final class CardMaterialsFixture {
     let state = NativeOverviewCanvasState()
     let moku = NativeMokuSceneState()
     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
-    var glassWorld = true
+    var alternateBackdrop = false
     var dark = false
     @ObservationIgnored var frames: [String: CGRect] = [:]
     @ObservationIgnored var appearances: [String: Int] = [:]
@@ -59,19 +59,23 @@ import MokuseiHarnessOpenCode
     }
 }
 
-struct GlassSurface: View {
-    let fixture: GlassFixture
+struct CardMaterialsSurface: View {
+    let fixture: CardMaterialsFixture
     var body: some View {
         ZStack {
-            // A fixed backdrop makes the material difference reviewable in each
-            // screenshot without depending on the user's desktop wallpaper.
-            LinearGradient(colors: [Color(red: 0.72, green: 0.80, blue: 0.87),
-                                    Color(red: 0.68, green: 0.71, blue: 0.82),
-                                    Color(red: 0.85, green: 0.77, blue: 0.69)],
+            // Changing only this backdrop distinguishes an opaque card surface
+            // from live background sampling without a second renderer.
+            LinearGradient(colors: fixture.alternateBackdrop
+                           ? [Color(red: 0.18, green: 0.48, blue: 0.30),
+                              Color(red: 0.74, green: 0.38, blue: 0.25),
+                              Color(red: 0.28, green: 0.46, blue: 0.84)]
+                           : [Color(red: 0.72, green: 0.80, blue: 0.87),
+                              Color(red: 0.68, green: 0.71, blue: 0.82),
+                              Color(red: 0.85, green: 0.77, blue: 0.69)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .overlay(fixture.dark ? Color.black.opacity(0.65) : Color.clear)
             NativeOverviewCanvas(items: fixture.items, sceneKey: "glass-fixed", state: fixture.state,
-                                 selectionID: "all", cloudAnimationsEnabled: false, glassWorld: fixture.glassWorld) { item in
+                                 selectionID: "all", cloudAnimationsEnabled: false) { item in
                 card(item.id)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("glass-capture")) } action: { fixture.frames[item.id] = $0 }
                     .onAppear { fixture.appearances[item.id, default: 0] += 1 }
@@ -100,32 +104,33 @@ struct GlassSurface: View {
             NativeReportCard(props: fixture.report,
                 projection: .init(previewText: fixture.report.entry.view.previewText, relatedThreadCount: 0), openThread: {})
         case "codex":
-            harness("Codex · Canvas material", brand: .init(brandKey: "codex", label: "Codex", logoSource: CodexHarnessPlugin().logoSource),
+            harness("Codex · Flat card material", brand: .init(brandKey: "codex", label: "Codex", logoSource: CodexHarnessPlugin().logoSource),
                 model: "GPT-6", emoji: "🔬", completed: true, plan: true,
-                logo: AnyView(CodexHarnessPlugin().logo(size: 12)))
+                logo: AnyView(CodexHarnessPlugin().logo(size: 12)), cloudPalette: CodexLogo.threadCardCloudPalette)
         case "claude":
             harness("Claude · Running review", brand: .init(brandKey: "claude", label: "Claude", logoSource: ClaudeHarnessPlugin().logoSource),
                 model: "Claude Sonnet", emoji: "🧭", completed: false,
-                logo: AnyView(ClaudeHarnessPlugin().logo(size: 12)))
+                logo: AnyView(ClaudeHarnessPlugin().logo(size: 12)), cloudPalette: ClaudeLogo.threadCardCloudPalette)
         case "pi":
             harness("Pi · Completed inspection", brand: .init(brandKey: "pi", label: "Pi Agent", logoSource: PiHarnessPlugin().logoSource),
                 model: "Gemini Pro", emoji: "🧩", completed: true,
-                logo: AnyView(PiHarnessPlugin().logo(size: 12)))
+                logo: AnyView(PiHarnessPlugin().logo(size: 12)), cloudPalette: PiLogo.threadCardCloudPalette)
         default:
             harness("OpenCode · Running checks", brand: .init(brandKey: "opencode", label: "OpenCode", logoSource: OpenCodeHarnessPlugin().logoSource),
                 model: "GPT-6", emoji: "🛠️", completed: false,
-                logo: AnyView(OpenCodeHarnessPlugin().logo(size: 12)))
+                logo: AnyView(OpenCodeHarnessPlugin().logo(size: 12)), cloudPalette: OpenCodeLogo.threadCardCloudPalette)
         }
     }
     private func harness(_ title: String, brand: ThreadCardHarnessBrand, model: String, emoji: String,
-                         completed: Bool, plan: Bool = false, logo: AnyView) -> some View {
+                         completed: Bool, plan: Bool = false, logo: AnyView, cloudPalette: NativeCloudPalette) -> some View {
         HarnessThreadCard(identity: .init(title: title, harness: brand, model: model, effort: "High",
             runtime: .init(startedAt: 0, endedAt: 362_000),
             excerpt: completed ? "Completed work stays visible. Emoji, completion mark and follow-up remain production controls."
-                               : "Running work keeps its semantic content and controls while the outer card material changes."),
+                               : "Running work keeps its semantic content, cloud and controls on a static card surface."),
             presentation: plan ? fixture.plan : fixture.standard, onFollowUp: {},
             status: completed ? .init(kind: .completed, label: "Completed", terminal: .completed)
                               : .init(kind: .running, label: "Running"),
             emoji: emoji, harnessLogo: logo)
+            .environment(\.threadCardCloudPalette, cloudPalette)
     }
 }

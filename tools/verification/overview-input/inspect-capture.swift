@@ -3,17 +3,24 @@ import AppKit
 import AVFoundation
 
 struct Failure: Error { let message: String }
-func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame: CGRect) -> Double {
+func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame: CGRect) throws -> (mean: Double, samples: Int) {
+    let image = CGRect(x: 0, y: 0, width: lhs.pixelsWide, height: lhs.pixelsHigh)
+    guard lhs.pixelsWide == rhs.pixelsWide, lhs.pixelsHigh == rhs.pixelsHigh,
+          [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite),
+          frame.width > 0, frame.height > 0, image.contains(frame) else {
+        throw Failure(message: "Pixel comparison ROI must be completely inside both images: \(frame)")
+    }
     var sum = 0.0, count = 0.0
-    for y in stride(from: max(0, Int(frame.minY)), to: min(lhs.pixelsHigh, Int(frame.maxY)), by: 2) {
-        for x in stride(from: max(0, Int(frame.minX)), to: min(lhs.pixelsWide, Int(frame.maxX)), by: 2) {
+    for y in stride(from: Int(frame.minY), to: Int(frame.maxY), by: 2) {
+        for x in stride(from: Int(frame.minX), to: Int(frame.maxX), by: 2) {
             let a = lhs.colorAt(x: x, y: y)!.usingColorSpace(.sRGB)!
             let b = rhs.colorAt(x: x, y: y)!.usingColorSpace(.sRGB)!
             sum += abs(a.redComponent - b.redComponent) + abs(a.greenComponent - b.greenComponent) + abs(a.blueComponent - b.blueComponent)
             count += 3
         }
     }
-    return sum / max(1, count)
+    guard count > 0 else { throw Failure(message: "Pixel comparison ROI contains no samples: \(frame)") }
+    return (sum / count, Int(count / 3))
 }
 
 @main struct Inspect {
@@ -75,7 +82,20 @@ func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame:
     var checks: [[String: Any]] = [], passed = true
     for theme in ["light", "dark"] {
         let event = events.first { $0["name"] as? String == "\(theme): exit snapshot" }!
-        let old = NSRectFromString((event["oldFrames"] as! [String: String])["card-0"]!)
+        guard let witnessID = event["witnessID"] as? String,
+              let witnessFrame = event["witnessFrame"] as? String,
+              let oldFrames = event["oldFrames"] as? [String: String], oldFrames[witnessID] == witnessFrame,
+              let viewportText = event["viewport"] as? String,
+              let survivors = event["survivorGeometry"] as? [[String: Any]], survivors.count == 3,
+              let witnessSelectedAt = event["witnessSelectedAt"] as? Double,
+              let observationStartedAt = event["observationStartedAt"] as? Double,
+              let capturedAt = event["capturedAt"] as? Double,
+              let settledAt = event["settledAt"] as? Double else {
+            throw Failure(message: "Missing predetermined exit witness or survivor geometry")
+        }
+        let old = NSRectFromString(witnessFrame), viewport = NSRectFromString(viewportText)
+        guard old.width > 0, old.height > 0, viewport == CGRect(x: 0, y: 0, width: 1180, height: 780),
+              viewport.contains(old) else { throw Failure(message: "The outgoing witness is not completely visible") }
         let elapsed = event["elapsed"] as! Double
         guard elapsed > 0.14 && elapsed < 0.39, event["layingOut"] as? Bool == true else { throw Failure(message: "Exit evidence missed animation window") }
         let background = NSBitmapImageRep(data: try Data(contentsOf: directory.appendingPathComponent("\(theme)-background.png")))!
@@ -85,6 +105,10 @@ func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame:
             throw Failure(message: "Missing recorded filter intermediate frame")
         }
         let filterAt = events.first { $0["name"] as? String == "\(theme): filter 16 → 3" }!["at"] as! Double
+        guard witnessSelectedAt.isFinite, witnessSelectedAt < filterAt,
+              filterAt <= observationStartedAt, observationStartedAt < capturedAt, capturedAt <= settledAt else {
+            throw Failure(message: "The witness was not fixed before filtering or its observation times are invalid")
+        }
         guard recorded.at >= filterAt + 0.23, recorded.at < filterAt + 0.37 else {
             throw Failure(message: "Video skipped the pre-cleanup exit interval")
         }
@@ -95,9 +119,40 @@ func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame:
         }
         let videoBackground = NSBitmapImageRep(cgImage: reference.image)
         let videoGrid = NSBitmapImageRep(cgImage: occupied.image)
+        var survivorIDs = Set<String>(), movingSurvivors = 0
+        for survivor in survivors {
+            guard let id = survivor["id"] as? String, id != witnessID,
+                  survivorIDs.insert(id).inserted,
+                  let initialText = survivor["initialFrame"] as? String, oldFrames[id] == initialText,
+                  let finalText = survivor["settledFrame"] as? String,
+                  let samples = survivor["samples"] as? [[String: Any]] else {
+                throw Failure(message: "Invalid survivor evidence for the outgoing witness")
+            }
+            let initial = NSRectFromString(initialText), final = NSRectFromString(finalText)
+            var sweep = initial.union(final), during: [CGRect] = []
+            for sample in samples {
+                guard let at = sample["at"] as? Double, at.isFinite, at >= filterAt, at <= settledAt,
+                      let frameText = sample["frame"] as? String else {
+                    throw Failure(message: "Invalid actual survivor geometry sample")
+                }
+                let frame = NSRectFromString(frameText)
+                guard frame.width > 0, frame.height > 0 else { throw Failure(message: "Empty survivor geometry") }
+                sweep = sweep.union(frame)
+                if at >= observationStartedAt && at <= capturedAt { during.append(frame) }
+            }
+            // Audit the whole observed route, not just its final column. A
+            // survivor crossing the witness would contaminate an empty-area oracle.
+            guard !old.intersects(sweep) else {
+                throw Failure(message: "Survivor \(id) crosses exit witness \(witnessID): \(sweep)")
+            }
+            if let first = during.first, during.dropFirst().contains(where: {
+                abs($0.minX - first.minX) + abs($0.minY - first.minY) > 0.5
+            }) { movingSurvivors += 1 }
+        }
+        guard movingSurvivors > 0 else { throw Failure(message: "No actual survivor movement during the exit observation") }
         // Broad regions include each part's shrunken screen-space location.
-        // card-0 is outside the survivor column in both appearances.
-        for (part, region) in [("glass", CGRect(x: 0.15, y: 0.77, width: 0.5, height: 0.12)),
+        // The predetermined fully visible witness is outside the survivor routes.
+        for (part, region) in [("surface", CGRect(x: 0.15, y: 0.77, width: 0.5, height: 0.12)),
                                ("badge", CGRect(x: 0.72, y: 0.05, width: 0.23, height: 0.32)),
                                ("text", CGRect(x: 0.12, y: 0.18, width: 0.48, height: 0.45))] {
             let rect = CGRect(x: (old.minX + region.minX * old.width) * 2, y: (old.minY + region.minY * old.height) * 2,
@@ -106,11 +161,15 @@ func regionDifference(_ lhs: NSBitmapImageRep, _ rhs: NSBitmapImageRep, _ frame:
             // from lossless screenshots even when both show an empty background.
             for (source, image, empty, occupied) in [("screenshot", exit, background, grid),
                                                     ("decoded-video", decoded, videoBackground, videoGrid)] {
-                let before = regionDifference(occupied, empty, rect)
-                let after = regionDifference(image, empty, rect)
+                let beforeSample = try regionDifference(occupied, empty, rect)
+                let afterSample = try regionDifference(image, empty, rect)
+                let before = beforeSample.mean, after = afterSample.mean
                 let ok = before > 0.01 && after < max(0.008, before * 0.12)
                 passed = passed && ok
-                checks.append(["theme": theme, "part": part, "source": source, "before": before, "after": after,
+                checks.append(["theme": theme, "part": part, "source": source, "witnessID": witnessID,
+                               "witnessFrame": witnessFrame, "region": NSStringFromRect(rect),
+                               "samples": beforeSample.samples, "afterSamples": afterSample.samples,
+                               "movingSurvivors": movingSurvivors, "before": before, "after": after,
                                "ratio": after / max(before, 0.001), "passed": ok])
             }
         }

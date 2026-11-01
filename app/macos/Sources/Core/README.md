@@ -51,7 +51,7 @@ Downloads retain the validated host basename, including `.partial`.
 Directory-list entries use their own host, target and entry name for UI identity,
 so distinct symlinks to the same target retain stable labels after redraws.
 
-Client appearance/language and the Thread-shell `glass world` preference live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
+Client appearance and language preferences live in [DesktopPreferences](../Host/Shell/DesktopPreferences.swift); navigation and drafts belong to their native workspace. They remain separate from Runtime execution settings. Host-facing generated-output locale synchronization is also separate from those settings.
 
 Verification: Core Swift tests, `./scripts/go.sh run -race ./tools/verification/transport -swift-deltas`,
 `transport -swift-files`, `runtime-helpers --swift-shutdown` and `runtime -swift-voice`

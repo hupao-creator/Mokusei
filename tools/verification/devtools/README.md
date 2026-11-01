@@ -60,6 +60,7 @@ implementation or open a GUI. Two executables named `Mokusei` live in temporary
 paths representing different checkouts and fast generations. Their native
 `--data-dir` arguments contain spaces. Initial records and later edits all use
 the production setters and `RuntimeDraftStore.save`, followed by production reads.
+Each write batch checks appearance, language, selected Thread and draft round trips.
 The writer first acquires `RuntimeProfileClientLease`, uses its canonical profile
 and retains the shared lease until process exit. No preference or draft object
 is initialized if admission fails.

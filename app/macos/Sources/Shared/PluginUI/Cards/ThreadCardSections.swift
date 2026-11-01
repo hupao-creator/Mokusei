@@ -10,6 +10,7 @@ public struct CardPlanLadder: View {
     public let steps: [ThreadCardPlanStep]
     public let variant: ThreadCardVariantId
     @Environment(\.locale) private var locale
+    @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
     @Namespace private var lens
 
     public init(steps: [ThreadCardPlanStep], variant: ThreadCardVariantId) {
@@ -41,18 +42,26 @@ public struct CardPlanLadder: View {
                     .lineLimit(1)
                     .frame(height: CardPlanGeometry.headerHeight)
                     .padding(.horizontal, CardPlanGeometry.rowInset)
-                    GlassEffectContainer(spacing: CardPlanGeometry.rowGap) {
-                        VStack(alignment: .leading, spacing: CardPlanGeometry.rowGap) {
-                            ForEach(start..<end, id: \.self) { index in
-                                CardPlanRow(step: steps[index], number: index + 1,
-                                            connectsAfter: index < end - 1, lens: lens,
-                                            lensID: index == current ? "current-step" : "step-\(index)")
-                            }
+                    if flatMaterials {
+                        planRows(start: start, end: end, current: current)
+                    } else {
+                        GlassEffectContainer(spacing: CardPlanGeometry.rowGap) {
+                            planRows(start: start, end: end, current: current)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .animation(.smooth(duration: 0.4), value: steps.map(\.status))
+            }
+        }
+    }
+
+    private func planRows(start: Int, end: Int, current: Int) -> some View {
+        VStack(alignment: .leading, spacing: CardPlanGeometry.rowGap) {
+            ForEach(start..<end, id: \.self) { index in
+                CardPlanRow(step: steps[index], number: index + 1,
+                            connectsAfter: index < end - 1, lens: lens,
+                            lensID: index == current ? "current-step" : "step-\(index)")
             }
         }
     }
@@ -76,6 +85,7 @@ private struct CardPlanRow: View {
     let lensID: String
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
     private let palette = NativePalette.overview
 
     private var textOpacity: Double {
@@ -100,7 +110,9 @@ private struct CardPlanRow: View {
 
     @ViewBuilder private var surface: some View {
         if step.status == .inProgress {
-            if reduceTransparency {
+            if flatMaterials {
+                content.background(palette.accentSoft.swiftUI, in: .rect(cornerRadius: CardPlanGeometry.cornerRadius))
+            } else if reduceTransparency {
                 content.background(palette.surfaceStrong.swiftUI, in: .rect(cornerRadius: CardPlanGeometry.cornerRadius))
             } else {
                 content

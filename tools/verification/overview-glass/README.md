@@ -1,5 +1,13 @@
 # Overview 卡片 Liquid Glass 研究
 
+**历史研究，实时入口已退役。** 当前 Overview 的 Agent Thread 与 Report 卡片均使用
+固定平面材质，原 all-on/shell-off/all-off 已没有三个独立的产品条件。
+`run.py` 现在拒绝构建或启动试验；报告、原始证据和 `analyze.py` 保留。
+下面的注入、准备对象及命令属于冻结版本
+`a4e94b3f72f8f16d7adf2911621725b2ae552b7e`，不适用于当前源码。
+当前外观验证使用 [card-materials](../overview-input/README.md#flat-card-materials-and-native-lifetime)，
+产品版本性能对照使用独立的 [Overview CI runner](../overview-ci-performance/README.md)。
+
 本工具只在 `.build/overview-glass` 复制的 Swift package 中注入研究开关，
 不修改产品源码、偏好、Runtime 或用户数据。源码不匹配时拒绝补丁。
 复用生产 Canvas、Harness/Report 卡片、Chrome、Dock 及现有测量器，

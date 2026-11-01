@@ -65,7 +65,6 @@ public struct NativeOverviewWorkspaceView: View {
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
-                    glassWorld: model.workspace.preferences.glassWorld,
                     interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },
                     onRetainedPresentationIDsChanged: { model.retainPresentations($0) },

@@ -25,8 +25,11 @@ mutation worker are separate; neither is paced by the UI consumer. Updates trave
 through the production store, publication, HTTP/NDJSON and Overview model.
 
 All conditions use N=40, four running 2×1 cards fully visible in the foreground,
-fixed camera, dark appearance, glass, and enabled motion/transparency. Each run
+fixed camera, dark appearance, each product's default card materials, and enabled motion/transparency. Each run
 has five seconds of load-bearing warmup and twenty seconds of formal supply.
+The probe does not override a card-material preference: current cards are flat,
+while a historical product may use glass. The product commits define that
+difference, and receipts label the policy `production-default`.
 
 | Condition | Content input | Source rate |
 | --- | --- | --- |

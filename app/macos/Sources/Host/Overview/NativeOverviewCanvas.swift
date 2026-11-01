@@ -148,7 +148,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     public var bottomReservedHeight: Double
     public var visible: Bool
     public var cloudAnimationsEnabled: Bool
-    public var glassWorld: Bool
     public var interactionPaused: Bool
     public var resetEpoch: UInt64
     public var revisions: [NativeOverviewLayoutRevision]
@@ -198,7 +197,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     public init(items: [NativeOverviewItem] = [], contentSource: NativeOverviewContentStore? = nil,
                 sceneKey: String, state: NativeOverviewCanvasState,
                 selectionID: String? = nil, toolbarBottom: Double = 58, bottomReservedHeight: Double = 0, visible: Bool = true,
-                cloudAnimationsEnabled: Bool = true, glassWorld: Bool = true,
+                cloudAnimationsEnabled: Bool = true,
                 interactionPaused: Bool = false, resetEpoch: UInt64 = 0,
                 revisions: [NativeOverviewLayoutRevision] = [], onRevisionsConsumed: ((UInt64) -> Void)? = nil,
                 onRetainedPresentationIDsChanged: ((Set<String>) -> Void)? = nil,
@@ -211,7 +210,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
         self.sceneKey = sceneKey; self.state = state; self.selectionID = selectionID
         self.toolbarBottom = toolbarBottom; self.visible = visible; self.cloudAnimationsEnabled = cloudAnimationsEnabled
         self.bottomReservedHeight = bottomReservedHeight
-        self.glassWorld = glassWorld
         self.interactionPaused = interactionPaused; self.resetEpoch = resetEpoch; self.revisions = revisions
         self.onRevisionsConsumed = onRevisionsConsumed
         self.onRetainedPresentationIDsChanged = onRetainedPresentationIDsChanged
@@ -309,8 +307,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
 
     private func cardShell(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState) -> some View {
-        return OverviewCardShell(slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible,
-                                 glassWorld: glassWorld).equatable()
+        return OverviewCardShell(slot: slot, pose: pose(placement), motion: cardMotions[placement.id], visible: visible).equatable()
     }
     private func semanticCard(_ placement: NativeOverviewPlacement, slot: OverviewCardContentState, size: CGSize) -> some View {
         return OverviewCardSemantic(
@@ -771,45 +768,31 @@ private struct OverviewCameraPlane<Content: View>: View {
     }
 }
 
-/// The outer shell only depends on geometry, visibility and the glass inputs.
-/// Keeping it Equatable stops a content-only update from invalidating every
-/// GlassEffectContainer. Only structural/environment updates rebuild the parent.
+/// The static shell observes completion tint independently of semantic content.
+/// Structural/environment updates retain the same spatial frame and identity.
 private struct OverviewCardShell: View, Equatable {
     let slot: OverviewCardContentState
     let pose: OverviewCardPose
     let motion: OverviewCardMotion?
     let visible: Bool
-    let glassWorld: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.slot === rhs.slot && lhs.pose == rhs.pose && lhs.motion == rhs.motion && lhs.visible == rhs.visible
-            && lhs.glassWorld == rhs.glassWorld
     }
 
     var body: some View {
         OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
-            if glassWorld {
-                // Glass is composited at its container boundary. An opacity inside
-                // a canvas-wide container fades text but leaves extracted surfaces
-                // visible. Keep the motion wrapper outside each card's container.
-                GlassEffectContainer(spacing: 0) {
-                    Color.clear
-                        .glassEffect(.regular.tint(slot.completed ? NativePalette.overview.success.swiftUI.opacity(0.12) : nil),
-                                     in: .rect(cornerRadius: 22))
+            RoundedRectangle(cornerRadius: 22)
+                .fill(slot.completed ? NativePalette.overview.accentSoft.swiftUI : NativePalette.overview.surface.swiftUI)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
                 }
-            } else {
-                RoundedRectangle(cornerRadius: 22)
-                    .fill(NativePalette.overview.surface.swiftUI)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22)
-                            .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
-                    }
-            }
         }
     }
 }
 
-/// The semantic wrapper owns the spatial clock, glass boundary, visibility,
+/// The semantic wrapper owns the spatial clock, card material policy, visibility,
 /// accessibility and hit-testing state around the plugin card. `content` is a
 /// rendering function: its observable inputs are read inside the child, and
 /// its captured model/callback store is stable for the canvas lifetime.
@@ -845,22 +828,19 @@ private struct OverviewCardSemantic<Content: View>: View, Equatable {
     var body: some View {
         let item = slot.item
         return OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
-            // Isolate the badge's glass from both other cards and this card's
-            // backdrop so it fades with its content without fusing into the body.
-            GlassEffectContainer(spacing: 0) {
-                // Visibility also owns semantic clocks; disabling decorative
-                // effects must not freeze the duration of a visible card.
-                OverviewSwiftUICard(item: item, visible: visible,
-                    viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
-                    .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
-                    .onAppear { onAppear(item.id) }
-                    .onDisappear { onDisappear(item.id) }
-                    .clipShape(.rect(cornerRadius: 22))
-                    .allowsHitTesting(!isLayingOut)
-                    .focusedValue(\.overviewFocusedCard, item.id)
-                    .accessibilityHidden(!isActive)
-                    .accessibilityIdentifier("overview-card-\(item.id)")
-            }
+            // Visibility also owns semantic clocks; disabling decorative
+            // effects must not freeze the duration of a visible card.
+            OverviewSwiftUICard(item: item, visible: visible,
+                viewport: viewport, coordinateSpace: coordinateSpace, contentIdentity: contentIdentity, content: content).equatable()
+                .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled)
+                .environment(\.threadCardUsesFlatMaterials, true)
+                .onAppear { onAppear(item.id) }
+                .onDisappear { onDisappear(item.id) }
+                .clipShape(.rect(cornerRadius: 22))
+                .allowsHitTesting(!isLayingOut)
+                .focusedValue(\.overviewFocusedCard, item.id)
+                .accessibilityHidden(!isActive)
+                .accessibilityIdentifier("overview-card-\(item.id)")
         }
     }
 }

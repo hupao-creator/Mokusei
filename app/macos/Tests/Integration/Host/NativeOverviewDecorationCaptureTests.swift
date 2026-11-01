@@ -38,7 +38,6 @@ private struct DecorationNoService: RuntimeConnectionSource {
         let preferences = DesktopPreferences(directory: directory)
         try preferences.setAppearance(.dark)
         try preferences.setLocale(.english)
-        try preferences.setGlassWorld(true)
         let client = RuntimeClient(storageDirectory: directory, connectionSource: DecorationNoService())
         let workspace = NativeWorkspaceModel(client: client, preferences: preferences,
             plugins: try NativePluginComposition(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
@@ -70,7 +69,7 @@ private struct DecorationNoService: RuntimeConnectionSource {
                 executionID: "decoration-execution", status: .running, startedAt: at)),
             cwd: "/overview-workspace", settings: .object([:]), createdAt: at, updatedAt: at + 2,
             title: "Native Overview decorations", tags: [], archived: false)
-        // Admission, Codex projection, shared card, canvas and glass are production.
+        // Admission, Codex projection, shared card, canvas and materials are production.
         try workspace.catalog.install(.object([
             "revision": .integer(0), "settingsRevision": .integer(0), "settings": .object([:]),
             "defaultCwd": .text("/overview-workspace"), "threads": .array([thread.json]),
@@ -139,9 +138,9 @@ struct NativeOverviewDecorationCaptureTests {
         var report: [String: Any] = [
             "assertionsPassed": false, "captureKind": "WindowServer/ScreenCaptureKit complete BGRA frames",
             "fixture": "One static public Codex thread; production workspace/projector/card/canvas; one running subagent",
-            "appearance": "dark", "glass": true, "formalCPU": "not measured by this capture test",
+            "appearance": "dark", "cardMaterials": "flat", "formalCPU": "not measured by this capture test",
             "limitations": [
-                "Transparency, glass colors and rounded corners require manual review of retained real PNGs.",
+                "Cloud color, static card surfaces and rounded corners require review of retained real PNGs.",
                 "A single retained surface preserves its private seed; different processes need not have the same random seed.",
                 "WindowServer samples and pixel displacement do not measure physical-display FPS or GPU duration."
             ]

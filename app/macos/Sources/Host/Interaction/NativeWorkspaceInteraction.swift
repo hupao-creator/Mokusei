@@ -78,8 +78,7 @@ public extension NativeWorkspacePresentation {
                 "error": draft.error.map(JSONValue.text) ?? .null,
                 "composing": .bool(draft.composing), "conflicted": .bool(draft.conflicted),
                 "invalidField": draft.firstInvalidField.map(JSONValue.text) ?? .null,
-                "appearance": .text(workspace.preferences.appearance.rawValue), "locale": .text(workspace.preferences.locale.rawValue),
-                "glassWorld": .bool(workspace.preferences.glassWorld)
+                "appearance": .text(workspace.preferences.appearance.rawValue), "locale": .text(workspace.preferences.locale.rawValue)
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),

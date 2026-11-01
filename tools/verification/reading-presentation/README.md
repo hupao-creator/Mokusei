@@ -506,20 +506,20 @@ Set `MOKUSEI_LOCAL_IMAGES_SOURCE` to an existing absolute image path to also
 capture that file through the production message component as `reported-orbit.png`.
 This optional input never changes or deletes the selected source file.
 
-## Overview mounted material changes
+## Overview card appearance and retained native controls
 
 ```sh
 python3 tools/verification/reading-presentation/run.py --overview-mounting
 ```
 
-Runs all six `NativeOverviewMountingIntegrationTests`, including repeated live
-Glass world changes on the production Canvas while a native editor owns focus,
+Runs `NativeOverviewMountingIntegrationTests`, including repeated light/dark
+appearance changes on the flat production Canvas while a native editor owns focus,
 a selected text range and a draft. It checks retained native/SwiftUI identities,
 placements, structural snapshot count, camera and filter selection, then new
 membership, filtering during exit, empty removal and reentry. The dedicated
-[Glass world capture fixture](../overview-input/README.md#glass-world-live-changes-and-fixed-production-captures)
-provides four fixed semantic production screenshots and independent on/off
-shell pixel comparisons; this mounting suite checks state and lifecycle.
+[Card material capture fixture](../overview-input/README.md#flat-card-materials-and-native-lifetime)
+provides four production screenshots with independent backdrop/opacity/palette
+checks; this mounting suite checks state and lifecycle.
 
 ## Thread-card usage numbers
 

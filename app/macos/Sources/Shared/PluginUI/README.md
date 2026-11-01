@@ -220,7 +220,15 @@ Remote Markdown images use URLSession HTTP caching and revalidation, with no pro
 
 ## Cards, composer and forms
 
-Shared Harness card components keep task identity, usage, plan and extension layout consistent. Plan rows have a native glass highlight only for an actual in-progress step; empty plans render no section. The emoji/follow-up control keeps a stable circular glass surface and native focus/action semantics. Loading-cloud palette is supplied by the Harness rather than selected by identity inside the renderer.
+Shared Harness card components keep task identity, usage, plan and extension layout consistent.
+`HarnessThreadCard` and the Overview semantic boundary supply
+`threadCardUsesFlatMaterials`: emoji/Follow-up and terminal badges use static
+palette fills, and the in-progress plan row uses the accent-soft surface without
+a glass container or effect. Empty plans render no section. The shared controls
+keep their original materials outside a card; this internal renderer policy is
+not a preference and does not identify plugins by name. Native focus, hover,
+actions, completion drawing and plan geometry remain unchanged. Loading-cloud
+palette is supplied by the Harness rather than selected by identity inside the renderer.
 
 The Git extension renders signed numeric line counts only when both totals are
 known. A single neutral label explains unknown, limit, timeout or unavailable
@@ -423,7 +431,7 @@ in the card, while native views exclude themselves from input and accessibility.
 Acceptance compares the complete enabled Overview scene on a fixed target Mac.
 The native path's submit counts and scan presentation positions replace the old
 Timeline counters; neither establishes display FPS. Native WindowServer frames
-must cover color, glass sampling, rounded clipping, camera transforms, exit
+must cover cloud color, static card surfaces, rounded clipping, camera transforms, exit
 opacity and interrupted intensity fades. AppKit self-rendering and model values
 alone cannot certify that composition. The native path is a performance
 candidate until that evidence and a repeatable process-CPU benefit are recorded.

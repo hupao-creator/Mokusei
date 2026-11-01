@@ -55,7 +55,7 @@ baseline; historical target-Mac measurements are not pooled with CI results.
 For empty-workspace Moku centering, global catalog membership and first-dispatch
 admission, run `python3 tools/verification/reading-presentation/run.py --moku-landing`;
 see the [production landing replay](reading-presentation/README.md#empty-workspace-and-first-dispatch).
-For the research-only comparison removing all Thread-card Liquid Glass, see the [isolated glass benchmark and Chinese report](overview-glass/README.md).
+For historical card-glass investigation evidence and its read-only analyzer, see the [retired glass benchmark and Chinese report](overview-glass/README.md). Current fixed card materials use the [four-capture appearance check](overview-input/README.md#flat-card-materials-and-native-lifetime); the old on/off live trial is retired.
 `python3 tools/verification/overview-centering/verify-geometry.py` checks the current
 production camera's framing anchor through AppKit without requiring Git history.
 Its 90 cases assert the midpoint between fixed toolbar/Dock boundaries, including
