@@ -628,7 +628,10 @@ These run in the default Swift suite; the mounted source test requires a display
 
 The `--moku-composer`, `--composer-paste` and `--moku-note-tests` modes run the existing production Moku/composer suites in this same isolated event loop. They cover ordinary-click editing and exact Unicode persistence, immediate Return during 20/200-file paste preparation, accessible execution Stop and first-page interaction Cancel, and selectable Markdown in a 64-point note panel. Run each mode serially with all other native replays and SwiftPM builds.
 
-The note suite also activates the expanded production Dock's
+The twelve-method note suite checks Talk-bubble note entry in both Natural
+Scrolling directions, retaining the message and preserving native overflow
+scrolling and Stop-control exclusion at narrow and wide widths. It also
+activates the expanded production Dock's
 history button through accessibility, with and without a note, checking real
 scene navigation and draft preservation. Wide and narrow mounted layouts assert
 history's position before voice or Stop, its shared action row, and separation
