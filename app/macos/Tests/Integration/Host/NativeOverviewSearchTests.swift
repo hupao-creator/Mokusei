@@ -232,7 +232,7 @@ struct NativeOverviewSearchTests {
         #expect(OverviewSearchMorphGeometry.carrier(in: []) == nil)
     }
 
-    @Test func activeKeywordSearchRefreshesAfterAutomaticPreparation() async throws {
+    @Test func activeKeywordSearchRefreshesAfterBodyIndexing() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let workspace = try workspace(directory)
@@ -241,18 +241,18 @@ struct NativeOverviewSearchTests {
         let model = model(workspace, searchRequest: { _ in
             calls += 1
             if calls == 1 {
-                return .object(["mode": .text("keyword"), "reason": .text("model-missing"), "hits": .array([])])
+                return .object(["mode": .text("keyword"), "indexing": .bool(true), "hits": .array([])])
             }
-            return .object(["mode": .text("hybrid"), "hits": .array([.object([
+            return .object(["mode": .text("keyword"), "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json
             ])])])
         })
         defer { model.endSearch() }
         model.refresh(); model.beginSearch(); model.updateSearch("maintenance")
-        try await wait { calls == 1 && model.searchReason == "model-missing" }
+        try await wait { calls == 1 && model.searchIndexing }
         #expect(model.items.isEmpty)
         try await Task.sleep(for: .seconds(3))
-        try await wait { model.searchMode == "hybrid" && model.items.map(\.id) == ["a"] }
+        try await wait { model.searchMode == "keyword" && model.items.map(\.id) == ["a"] }
         #expect(calls == 2)
     }
 
@@ -292,7 +292,7 @@ struct NativeOverviewSearchTests {
     }
 
 
-    @Test func hybridQueriesKeepTagScopeAndRejectCancelledOrLateResponses() async throws {
+    @Test func bodyQueriesKeepTagScopeAndRejectCancelledOrLateResponses() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let workspace = try workspace(directory)
@@ -302,7 +302,7 @@ struct NativeOverviewSearchTests {
             try await withCheckedThrowingContinuation { continuation in pending.append((request, continuation)) }
         })
         func response(_ id: String) -> JSONValue {
-            .object(["mode": .text("hybrid"), "hits": .array([.object([
+            .object(["mode": .text("keyword"), "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: JSONText(id), typeID: "agent").json, "score": .number(0.9)
             ])])])
         }
@@ -316,7 +316,7 @@ struct NativeOverviewSearchTests {
         try await wait { model.items.map(\.id) == ["b"] }
         pending[0].1.resume(returning: response("a"))
         try await Task.sleep(for: .milliseconds(30))
-        #expect(model.items.map(\.id) == ["b"] && model.searchMode == "hybrid" && model.searchRank(for: "b") == 0)
+        #expect(model.items.map(\.id) == ["b"] && model.searchMode == "keyword" && model.searchRank(for: "b") == 0)
         model.updateSearch("gamma")
         try await wait { pending.count == 3 }
         model.endSearch()
@@ -336,7 +336,7 @@ struct NativeOverviewSearchTests {
         })
         defer { model.endSearch() }
         func response(_ id: String) -> JSONValue {
-            .object(["mode": .text("hybrid"), "hits": .array([.object([
+            .object(["mode": .text("keyword"), "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: JSONText(id), typeID: "agent").json
             ])])])
         }
@@ -351,16 +351,16 @@ struct NativeOverviewSearchTests {
         }
         model.beginSearch() // Focusing an existing query must preserve results too.
         try await Task.sleep(for: .milliseconds(400))
-        #expect(pending.count == 1 && model.searchMode == "hybrid")
+        #expect(pending.count == 1 && model.searchMode == "keyword")
         // A keyword membership change needs a new request, but keeps the
-        // committed semantic result visible until the replacement arrives.
+        // committed body result visible until the replacement arrives.
         try install([thread("a", title: "First", revision: 5), thread("b", title: "maintenance")], in: workspace)
         model.refresh()
         #expect(model.items.map(\.id) == ["a", "b"] && model.searchRank(for: "a") == 0)
         try await wait { pending.count == 2 }
         pending[1].resume(throwing: RuntimeError("UNAVAILABLE", "Fixture unavailable"))
         try await wait { model.searchReason == "local-unavailable" }
-        #expect(model.items.map(\.id) == ["a", "b"] && model.searchMode == "hybrid")
+        #expect(model.items.map(\.id) == ["a", "b"] && model.searchMode == "keyword")
         // Deleted members must disappear immediately despite retained ranks.
         try install([thread("b", title: "maintenance")], in: workspace)
         model.refresh()
@@ -369,7 +369,7 @@ struct NativeOverviewSearchTests {
         #expect(model.items.isEmpty && model.searchRank(for: "a") == nil)
     }
 
-    @Test func activeHybridSearchRefreshesAfterIndexUpdatesWithoutCatalogChanges() async throws {
+    @Test func activeBodySearchRefreshesAfterIndexUpdatesWithoutCatalogChanges() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let workspace = try workspace(directory)
@@ -377,7 +377,7 @@ struct NativeOverviewSearchTests {
         var calls = 0
         let model = model(workspace, searchRequest: { _ in
             calls += 1
-            return .object(["mode": .text("hybrid"), "indexing": .bool(false), "hits": .array([.object([
+            return .object(["mode": .text("keyword"), "indexing": .bool(false), "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: calls == 1 ? "a" : "b", typeID: "agent").json, "score": .number(0.9)
             ])])])
         })
@@ -494,7 +494,7 @@ struct NativeOverviewSearchTests {
     }
 
     @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY"] == "1", "Requires the native search replay: python3 tools/verification/reading-presentation/run.py --overview-search"))
-    func nativeChineseHybridSearchWithoutManualSetup() async throws {
+    func nativeChineseBodySearchWithoutManualSetup() async throws {
         _ = NSApplication.shared
         NSApp.activate(ignoringOtherApps: true)
         NativeTypography.registerFonts()
@@ -507,7 +507,7 @@ struct NativeOverviewSearchTests {
         try install([thread("a", title: "Maintenance", tags: ["Storage"]), thread("b", title: "Interface", tags: ["Glass"])], in: workspace)
         let model = model(workspace, searchRequest: { request in
             #expect(request["query"] == .text("清空历史"))
-            return .object(["mode": .text("hybrid"), "hits": .array([.object([
+            return .object(["mode": .text("keyword"), "hits": .array([.object([
                 "ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json, "score": .number(0.9)
             ])])])
         })
@@ -517,9 +517,9 @@ struct NativeOverviewSearchTests {
             callbacks: .init(openThread: { _, _ in }, openApplication: { _, _ in }, onSettings: {})).preferredColorScheme(.dark))
         window.makeKeyAndOrderFront(nil); window.makeKey()
         model.beginSearch(); model.updateSearch("清空历史")
-        try await wait { model.searchMode == "hybrid" && model.items.map(\.id) == ["a"] && !model.canvasState.isLayingOut }
+        try await wait { model.searchMode == "keyword" && model.items.map(\.id) == ["a"] && !model.canvasState.isLayingOut }
         try await Task.sleep(for: .milliseconds(450))
-        try await capture(window, name: "semantic-chinese-hybrid")
+        try await capture(window, name: "keyword-chinese-body")
         model.endSearch()
     }
 

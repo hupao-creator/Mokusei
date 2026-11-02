@@ -47,7 +47,6 @@ type AttachmentStore interface {
 	RetainOwners(context.Context, []string) error
 }
 type Config struct {
-	Embeddings         plugin.EmbeddingProvider
 	Store              *store.Store
 	Harnesses          map[string]plugin.Harness
 	DataDir            string
@@ -211,7 +210,7 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			_ = r.compute.Close(context.Background())
 		}
 	}()
-	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Provider: config.Embeddings, Sources: r.searchSources, Trace: config.SearchTrace})
+	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, Trace: config.SearchTrace})
 	if err != nil {
 		cancel()
 		return nil, err
@@ -460,11 +459,6 @@ func (r *Runtime) Close(ctx context.Context) error {
 		if r.search != nil {
 			if err := r.search.Close(); err != nil {
 				errs = append(errs, err)
-			}
-			if local, ok := r.config.Embeddings.(plugin.ManagedEmbeddings); ok {
-				if err := local.Close(); err != nil {
-					errs = append(errs, err)
-				}
 			}
 		}
 		if err := r.closeVoice(ctx); err != nil {

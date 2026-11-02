@@ -12,7 +12,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 	"github.com/hupao-creator/Mokusei/internal/hosts/applicationhost"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/report"
-	"github.com/hupao-creator/Mokusei/internal/services/localembedding"
 )
 
 const appCollection = "fixture-app.documents"
@@ -77,11 +76,11 @@ func (extension) Change(r model.ApplicationThreadRecord, archived bool) (plugin.
 func (extension) RelatedLatestExecutions(model.ApplicationThreadRecord, bool) ([]model.ExecutionRef, error) {
 	return nil, nil
 }
-func verifyApplications(ctx context.Context, directory string, provider *localembedding.Provider, s *service) {
+func verifyApplications(ctx context.Context, directory string) {
 	db, e := store.Open(filepath.Join(directory, "applications.sqlite"))
 	must(e)
 	defer db.Close()
-	r, e := core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{}, DataDir: filepath.Join(directory, "app-runtime"), DefaultCwd: directory, Embeddings: provider})
+	r, e := core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{}, DataDir: filepath.Join(directory, "app-runtime"), DefaultCwd: directory})
 	must(e)
 	defer r.Close(ctx)
 	host, e := applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{application{}, reportDomain{}}, RuntimeCapabilities: r.RuntimeCapabilities, SnapshotCapabilities: r.SnapshotCapabilities})
@@ -96,21 +95,20 @@ func verifyApplications(ctx context.Context, directory string, provider *localem
 		return tx.Put("application:"+report.CollectionID+":report", model.VersionedRecord{ID: "report", Revision: 1, CreatedAt: 1, UpdatedAt: 1, Value: raw(report.Data{Scope: "inbox", Title: "正文报告", HTML: "<html><head><script>NEVER_UPLOAD_SCRIPT</script></head><body><h1>正文报告</h1><p>离线删除与本机数据清理</p><style>NEVER_UPLOAD_STYLE</style></body></html>", ContentRevision: "fixture-v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]report.TagSource{}})})
 	})
 	must(e)
-	configure(r, true, false)
 	start(r)
-	result := query(r, "清空历史", model.ThreadRef{ThreadID: "doc", TypeID: appType})
-	assert(result.Mode == "hybrid" && len(result.Hits) == 1, "real application evidence indexed and queried")
-	reportResult := query(r, "清空历史", model.ThreadRef{ThreadID: "report", TypeID: report.ThreadTypeID})
-	assert(reportResult.Mode == "hybrid" && len(reportResult.Hits) == 1, "real Report reader text indexed, with script/style excluded")
+	result := query(r, "离线删除", model.ThreadRef{ThreadID: "doc", TypeID: appType})
+	assert(result.Mode == "keyword" && len(result.Hits) == 1, "real application evidence indexed and queried")
+	reportResult := query(r, "离线删除", model.ThreadRef{ThreadID: "report", TypeID: report.ThreadTypeID})
+	assert(reportResult.Mode == "keyword" && len(reportResult.Hits) == 1, "real Report reader text indexed, with script/style excluded")
 	must(host.Archive(ctx, model.ThreadRef{ThreadID: "doc", TypeID: appType}, true))
-	assert(len(db.Snapshot().Keys("search-document:")) == 1, "application archive removes derived vectors in same transaction")
+	assert(len(db.Snapshot().Keys("search-document:")) == 1, "application archive removes derived text in same transaction")
 	must(host.Archive(ctx, model.ThreadRef{ThreadID: "doc", TypeID: appType}, false))
 	start(r)
 	invoke(r, "application:command", plugin.OperationRequest{PluginID: "fixture-app", OperationID: "fixture-app.delete", Input: raw(map[string]any{}), RequestID: "delete-fixture-application"})
-	assert(!db.Snapshot().Has(owner) && len(db.Snapshot().Keys("search-document:")) == 1, "real application reducer deletes source and vector/text atomically")
+	assert(!db.Snapshot().Has(owner) && len(db.Snapshot().Keys("search-document:")) == 1, "real application reducer deletes source and search text atomically")
 	must(r.ClearHistory(ctx))
 	assert(!db.Snapshot().Has("application:"+report.CollectionID+":report") && len(db.Snapshot().Keys("search-document:")) == 0, "application history and report index clear atomically")
-	fmt.Println("PASS automatic incremental indexing, cancelled HTTP, stale query discard, disable purge, application evidence, archive and reducer deletion")
+	fmt.Println("PASS application and Report body keywords, archive and reducer deletion")
 }
 
 // Keep the production Report domain and text projection, without a background

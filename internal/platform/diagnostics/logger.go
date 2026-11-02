@@ -357,10 +357,8 @@ func settingsIssues(value any) []map[string]any {
 // SearchEvent writes bounded, typed metadata through the existing rotation owner.
 func (l *Logger) SearchEvent(event plugin.SearchDiagnostic) {
 	switch event.Event {
-	case "search.query.started", "search.query.completed", "search.request.completed",
-		"search.index.started", "search.index.completed",
-		"embedding.download.started", "embedding.download.completed", "embedding.process.start.completed",
-		"embedding.process.stopped", "embedding.inference.completed":
+	case "search.query.started", "search.query.completed",
+		"search.index.started", "search.index.completed":
 	default:
 		return
 	}
@@ -374,13 +372,13 @@ func (l *Logger) SearchEvent(event plugin.SearchDiagnostic) {
 	if !settingsIn(event.Outcome, "completed failed fallback") {
 		event.Outcome = ""
 	}
-	if !settingsIn(event.Mode, "keyword hybrid") {
+	if !settingsIn(event.Mode, "keyword") {
 		event.Mode = ""
 	}
 	if !settingsIn(event.Cache, "none hit miss") {
 		event.Cache = ""
 	}
-	if event.Reason != "" && !settingsIn(event.Reason, "cancelled timeout local-unavailable cleanup unsupported model-missing input-limit response batch-limit download-failed internal query-limit paused disabled index-empty stale") {
+	if event.Reason != "" && !settingsIn(event.Reason, "cancelled timeout local-unavailable internal query-limit paused disabled stale") {
 		event.Reason = "internal"
 	}
 	data, err := json.Marshal(struct {

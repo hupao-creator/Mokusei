@@ -32,7 +32,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
-	"github.com/hupao-creator/Mokusei/internal/services/localembedding"
 	"github.com/hupao-creator/Mokusei/internal/services/moku"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 )
@@ -276,7 +275,6 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	b.attachments = attachments.New(filepath.Join(stateRoot, "attachments"))
 	manager := workspaces.New(workspaces.Paths{DefaultCwd: defaultCwd, MokuCwd: mokuCwd, TemporaryRoot: temporary, RegistryPath: filepath.Join(stateRoot, "managed-worktrees.json")})
 	runtimeConfig := core.Config{Store: b.store, Harnesses: b.harnesses, DataDir: stateRoot, DefaultCwd: defaultCwd, Attachments: b.attachments, Contexts: b.contexts, Plugins: catalog, Log: b.log, Workspaces: manager, DisabledHarnesses: b.disabled, RefreshEnvironment: b.resolver.Refresh, ExtraCapabilities: map[string]any{plugin.OverviewControlCapabilityKey.ID: overviewControl{broker: b.options.Overview}}}
-	runtimeConfig.Embeddings = localembedding.New(localembedding.Options{Directory: filepath.Join(stateRoot, "search-models"), Trace: b.options.SearchTrace})
 	runtimeConfig.TelemetryLedger = b.ledger
 	runtimeConfig.SettingsTrace = b.options.SettingsTrace
 	runtimeConfig.SearchTrace = b.options.SearchTrace

@@ -1,21 +1,43 @@
 # Thread search
 
-This module owns derived search documents, scheduling and ranking. Harness and Application adapters supply public text; search does not open native conversations or discover model credentials. The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the visible thread scope and immediate keyword matches.
-
-[manager.go](manager.go), [automatic.go](automatic.go) and [preparation.go](preparation.go) enable local model preparation and incremental content indexing automatically. While assets are unavailable, keyword search remains usable. Preparation failures retain retry state; successful setup resumes indexing without requiring a new thread event. Production inference uses [localembedding](../localembedding/README.md).
+This module owns derived keyword-search text, background indexing and ranking.
+Harness and Application adapters supply public text; search does not open native
+conversations, discover credentials, download models or perform inference.
+The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
+visible thread scope and immediate folded metadata matches.
 
 ## Documents and queries
 
-[documents.go](documents.go) uses versioned source fingerprints and 768-dimensional vectors. Content chunks contain up to 1200 runes with 150-rune overlap, metadata is bounded to 512 runes and titles to 128; a thread has at most 128 chunks. Compatible unchanged chunk hashes reuse vectors. Model-space/text-policy changes invalidate incompatible derived data.
+[documents.go](documents.go) stores a bounded continuous text projection under
+`keyword-text-v1`. Metadata is bounded to 512 runes and body content to 134550
+runes, retaining the former indexed-body coverage. Busy sources wait until their
+owner settles. Unchanged source hashes reuse current documents without extracting
+history again. The decoded document cache has a 64 MiB budget; the result cache
+holds at most eight queries.
 
-[query.go](query.go) restricts results to the requested scope and current eligible owners. Keyword terms match as substring AND across the continuous indexed text (including metadata), independent of vector chunk boundaries. The literal text retains the same 128-chunk content bound and participates in the decoded-cache byte budget; the versioned index rebuilds older documents. Upgrading the index discards the old derived text and vectors. If the model is unavailable during that rebuild, metadata keyword matches remain available but body keyword matches resume only after indexing succeeds; already rebuilt documents retain body fallback without the model. Exact matches rank first, and semantic-only matches require cosine similarity of at least 0.70. A thread's best chunk supplies its semantic score. The implementation uses local exact vector comparison, not a remote search service. Busy sources and completed public content follow the owning adapter's eligibility rules.
+[query.go](query.go) matches whitespace-separated terms as substring AND across
+metadata and indexed body text. Native case/diacritic/width-folded metadata
+matches qualify independently. Exact title substrings rank ahead of other
+literal matches. Results are restricted to the requested live scope and current
+eligible owners. Cancellation and final owner/epoch validation prevent stale
+results from escaping after changes, archive, deletion or history clearing.
+There are no vector scores or paraphrase-only matches.
 
-[cache.go](cache.go) retains bounded decoded documents and query results; cache identities include source/configuration ownership. Query vectors are memory-only. Request cancellation and a final current-snapshot check prevent a stale result from escaping under a new scope or epoch.
+## Compatibility and lifecycle
 
-## Deletion and lifecycle
+Opening an old search configuration migrates only `search-config`, derived
+`search-document:*` and retired `search-usage` records. Old disabled/paused model
+settings do not disable keyword search. Source conversations, reports,
+preferences and other settings are preserved. Old model files remain on disk
+unused; this version neither reads nor deletes them. Background indexing rebuilds
+body text without network access, while metadata search is immediately usable.
 
-Archive/delete/hidden-state changes invalidate the owner's derived document and explicit scope in the same authoritative transaction. Workers recheck source identity before inference and commit. History clear cancels requests, joins indexing and stops the helper before deleting the derived index and advancing the epoch. Verified public model assets remain cached. A failed process drain keeps the generation fenced.
+Archive/delete/hidden-state changes remove derived text in the owner's transaction.
+History clear cancels queries and joins indexing before clearing derived text and
+advancing the epoch. Remaining `search:status` and `search:query` operations are
+cancellable reads. Retired model/configure/index management commands are rejected.
+The UI periodically refreshes active queries as body indexing completes.
 
-`search:status` and `search:query` are cancellable reads; `search:configure`, `search:index` and `search:model` use validated explicit commands. Configuration revision is separate from routine index writes. The UI periodically refreshes the same search while preserving its last successful ranking.
-
-Verification: [thread-search replay](../../../tools/verification/thread-search/README.md), plus `./scripts/go.sh test -race ./internal/services/threadsearch`. Synthetic assets/vectors exercise lifecycle and retrieval boundaries; actual model quality requires real-weight evaluation.
+Verification: [thread-search replay](../../../tools/verification/thread-search/README.md)
+and `./scripts/go.sh test -race ./internal/services/threadsearch` cover real
+SQLite indexing, cache invalidation, migration, bounds, cancellation and lifecycle.
