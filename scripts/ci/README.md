@@ -1,25 +1,21 @@
 # Continuous integration
 
-[The workflow](../../.github/workflows/ci.yml) runs portable Go checks and
-protocol replays on Linux alongside one native verification job on macOS 26
-arm64. The native job builds once and runs the complete ordinary Swift suite,
-Go/Swift interop and graphical replays serially in the same session. There are
-no test shards, placement weights or cross-runner build/fixture transfers.
+[The workflow](../../.github/workflows/ci.yml) keeps portable Go checks and
+protocol replays on GitHub-hosted Linux. [Local macOS CI](local-macos.md) executes
+the complete macOS 26 arm64 build, fixtures, ordinary Swift suite and native
+replays and publishes an exact-commit gh-signoff status. The Actions macOS jobs
+are now lightweight Linux metadata gates; they fail if their matching local
+verification is missing, pending or unsuccessful. Existing workflow events and
+`Complete coverage` aggregation remain in place. No runner service is required.
 
-CGO and system SQLite remain enabled. Actions installs the toolchain from
-`go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
-profile-rotation and clipboard-bridge tests run in the native job.
+CGO and system SQLite remain enabled. Actions installs Go from `go.mod`; local
+execution uses the pinned `scripts/go.sh` bootstrap. Darwin-only profile-rotation
+and clipboard-bridge tests still execute in the native local mode.
 
-## Runner deployment
-
-[Self-hosted deployment](self-hosted.md) defines the optional macOS
-26 arm64 route, exact labels, public-PR isolation, provisioning, acceptance and
-rollback. The default remains GitHub-hosted until isolated single-job capacity is
-available and the macOS repository variable is explicitly enabled. Fork
-PRs retain GitHub runners; workflow routing alone is not a security boundary.
-Each macOS job verifies its actual OS/architecture before product execution.
-Existing checks, required aggregation and evidence contracts apply to both deployments.
-All Linux jobs, including scope and aggregation, retain `ubuntu-latest`.
+The [operator guide](local-macos.md) covers setup, authentication, manual triggers,
+PR merge commit identity, evidence, retry and all extended/performance modes.
+The [superseded runner preparation record](self-hosted.md) records the actual
+installation attempts; that deployment is not active and must not be registered.
 
 ## Scope and scheduling
 
@@ -44,15 +40,15 @@ whether a PR is up to date. This is not GitHub Merge Queue.
 Linux Go checks and the `runtime`/`adapters` protocol groups remain independent
 jobs. Those groups represent different production boundaries, not slices of the
 Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
-Runner capacity can still queue jobs; removing the repository-wide lock
-does not create additional capacity. A self-hosted provisioner must replenish
-single-job guests and serialize native work across workflows on each physical Mac.
+GitHub capacity can still queue Linux jobs. Local execution is explicit; an
+account-wide lock serializes native, extended and performance modes across
+worktrees. A missing signoff does not automatically run PR code on the Mac.
 
 ## One native session
 
-The native job performs these stages:
+The local native mode performs these stages:
 
-1. Prepare Xcode and Metal, restore the Swift compilation cache, and always build
+1. Check Xcode, Metal and the graphical session, reuse compilation caches, and always build
    current sources and every test target with the resolved dependency versions.
 2. Discover the complete inventory from the resulting binary and record current
    commit, workspace, architecture, configuration, toolchain, run and attempt.
@@ -113,20 +109,16 @@ keep their existing native launchers and assertions. No new skip is admitted
 merely because the rest of the suite passed. The generated Moku Timer fixture is
 available before the full suite, so its ordinary consumer must execute normally.
 
-On GitHub-owned images CI enables motion and transparency in the disposable
-runner account: the [stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
-Self-hosted images must already satisfy that policy; CI validates it without
-rewriting their accessibility preferences. Local commands do not alter developer
-accessibility preferences. Rendered geometry uses actual backing scale, while pure camera math keeps its numerical tolerance.
-Real-window fixtures fit the current display and retain their specified logical
-component sizes. All GUI work within this session remains serial.
+Local CI validates enabled motion and transparency without changing personal
+accessibility preferences or display modes. Rendered geometry uses actual backing
+scale; pure camera math keeps its numerical tolerance. All GUI work is serial.
 
 ## Evidence and failure semantics
 
 `swift-native.py` owns build identity, discovery and ordinary execution.
 `build-manifest.json`, `swift.json` and `swift.log` live at the native evidence
 root; `ci-fixtures`, `ci-interop` and `ci-native` contain the required replay reports.
-`swift-tests.py` audits that directory before the native job can pass. Its actual
+`swift-tests.py` audits that directory before local native execution can pass. Its actual
 method identities and framework totals must match the discovered inventory, with
 exactly one ordinary outcome or the declared native owner. Same-count omissions,
 substitutions, duplicate methods, unexpected skips and missing terminal summaries
@@ -139,12 +131,12 @@ local diagnosis but cannot satisfy a complete CI replay group. Display-capabilit
 skips fail CI. The audit checks the current revision and the complete ordinary
 selection rather than inferring execution from a command or cache hit.
 
-Each native attempt uploads one `macos-native-evidence-attempt-N` artifact. A
-failed-job-only retry reruns the entire native job when that job failed; successful
-Linux jobs can be carried forward. There is no merging of seven native slots or
-selection of old passing artifacts. Prior attempts remain available for diagnosis.
-Failure summaries include bounded assertion excerpts and process/timeout details.
-Missing logs are reported as not run, never as zero failures.
+Each local attempt retains its complete native evidence and command logs in a
+fresh ignored directory before publishing success. Evidence is not silently
+uploaded to GitHub; operators may supply a published evidence URL. Failed local
+attempts retain their status and evidence. Rerun the complete native mode when it
+fails, then rerun only the failed Actions metadata/aggregate jobs at that same
+commit; completed Linux jobs can be reused. No old artifact replaces execution.
 
 Every Go test invocation captures `go test -json`, stderr and the actual exit
 code. Its always-run report distinguishes:
@@ -162,12 +154,12 @@ cache hits from replacing execution.
 
 ## Time and resource tradeoff
 
-One native job lowers simultaneous macOS runner demand and eliminates repeated
+One local native session avoids simultaneous native work and eliminates repeated
 checkout/setup/cache restore/fixture download and evidence transport. It may take
 longer end to end than parallel shards. Report both wall time and summed runner
 execution time; runner minutes are not a billing estimate.
 
-The native job has a sixty-minute hang guard; Linux and extended jobs retain
+Local native mode has a sixty-minute hang guard; Linux jobs and each extended lane retain
 thirty-minute guards. Each owned command retains an independent thirty-minute
 default timeout and narrower existing CLI/test limits. There is no whole-run
 fifteen-minute merge deadline. Timeouts still mean incomplete verification.
@@ -214,11 +206,12 @@ external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
-commit's hosted run must establish actual native execution.
+commit's local native run must establish actual native execution before signoff.
 
 `verify-go-reporting.py` checks the real reporter against temporary Go pass,
 failure, skip, panic, build-error and empty-test packages, plus malformed/truncated
-captures. Both control verifiers run in Linux CI.
+captures. Both control verifiers run in Linux CI; local signoff metadata/admission and
+failure publication are also exercised with controlled external gh processes.
 
 ## Pull request merge gates
 
@@ -226,7 +219,7 @@ The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rule
 requires a PR up to date with main and successful **Complete coverage** from
 GitHub Actions. The aggregate requires scope and every job applicable to that
 scope. It cannot turn a failed, cancelled, missing or unexpectedly skipped native
-job green. Extended dispatches use the distinct `Extended native CLI coverage`
+status green. Extended dispatches use the distinct `Extended native CLI coverage`
 name and do not satisfy the ordinary gate.
 
 Review conversations must be resolved; the required approving review count is

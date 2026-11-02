@@ -227,6 +227,72 @@ def verify_swift_ownership(root, repo, environment):
     print("PASS local Swift CLI: ordinary exclusion plus real replay producer, required outcome/marker, duplicate and wrong-host rejection")
 
 
+def verify_local_signoff(root):
+    """Exercise actual metadata and local execution CLIs, without remote writes."""
+    sandbox = root / "local-signoff"
+    sandbox.mkdir()
+    bin_dir = sandbox / "bin"
+    bin_dir.mkdir()
+    calls = sandbox / "calls.jsonl"
+    peer = bin_dir / "gh"
+    peer.write_text("#!/usr/bin/env python3\nimport json,os,sys\n"
+                    "from pathlib import Path\n"
+                    "with Path(os.environ['SIGNOFF_CALLS']).open('a') as f: f.write(json.dumps(sys.argv[1:])+'\\n')\n"
+                    "if sys.argv[1:3] == ['extension','list']: print('gh signoff\\tbasecamp/gh-signoff\\t02e0cf9c')\n"
+                    "elif sys.argv[1] == 'api':\n"
+                    "    if any('/statuses?' in a for a in sys.argv): print(os.environ['SIGNOFF_STATUSES'])\n"
+                    "    elif '-X' in sys.argv: print('{}')\n"
+                    "    else: print(json.dumps({'sha':os.environ['GITHUB_SHA']}))\n")
+    peer.chmod(0o755)
+    xcode = bin_dir / "xcodebuild"
+    xcode.write_text("#!/bin/sh\nexit 13\n")
+    xcode.chmod(0o755)
+    sha = "a" * 40
+    environment = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
+                       GITHUB_SHA=sha, GITHUB_REPOSITORY="fixture/repo", SIGNOFF_CALLS=str(calls),
+                       GITHUB_STEP_SUMMARY=str(sandbox / "summary"))
+    gate = [sys.executable, str(SCRIPTS / "macos-signoff-gate.py"), "native"]
+    for statuses, success in [([], False), ([{"context": "signoff/macos-native", "state": "pending"}], False),
+                              ([{"context": "signoff/macos-native", "state": "failure"},
+                                {"context": "signoff/macos-native", "state": "success"}], False),
+                              ([{"context": "signoff/macos-cli", "state": "success"}], False),
+                              ([{"context": "signoff/macos-native", "state": "success"}], True)]:
+        command(gate, cwd=sandbox, env=dict(environment, SIGNOFF_STATUSES=json.dumps(statuses)), success=success)
+    if any('/commits/' + sha + '/statuses?' not in json.loads(line)[1]
+           for line in calls.read_text().splitlines()):
+        raise AssertionError("Gate must query only the exact requested commit")
+    repo = sandbox / "repo"
+    scripts = repo / "scripts/ci"
+    scripts.mkdir(parents=True)
+    for name in ("local-macos.py", "macos_signoff.py", "macos-preflight.py", "deadline.py"):
+        shutil.copyfile(SCRIPTS / name, scripts / name)
+    (repo / ".gitignore").write_text(".scratch/\n__pycache__/\n")
+    for args in (["init", "-q"], ["config", "user.name", "CI fixture"],
+                 ["config", "user.email", "fixture@example.invalid"],
+                 ["remote", "add", "origin", "https://github.com/fixture/repo"],
+                 ["add", "."], ["commit", "-qm", "Local CI fixture"]):
+        command(["git", *args], cwd=repo)
+    sha = command(["git", "rev-parse", "HEAD"], cwd=repo).strip()
+    environment.update(GITHUB_SHA=sha, HOME=str(sandbox / "home"), SIGNOFF_STATUSES="[]")
+    local = [sys.executable, str(scripts / "local-macos.py"), "native", "--commit", sha]
+    calls.unlink()
+    command(local, cwd=repo, env=environment, success=False)  # Missing review admission.
+    if calls.exists():
+        raise AssertionError("Unreviewed code must never publish a status")
+    command(local + ["--reviewed"], cwd=repo, env=environment, success=False)
+    observed = [json.loads(line) for line in calls.read_text().splitlines()]
+    if not any('state=pending' in row for row in observed) or not any(row[:2] == ['signoff', 'fail'] for row in observed):
+        raise AssertionError("A real prerequisite failure must leave pending/failure, never success")
+    if any(row[:2] == ['signoff', '-f'] for row in observed):
+        raise AssertionError("Failed execution cannot publish success")
+    calls.unlink()
+    (scripts / "local-macos.py").write_text((scripts / "local-macos.py").read_text() + "\n")
+    command(local + ["--reviewed"], cwd=repo, env=environment, success=False)
+    if calls.exists():
+        raise AssertionError("Dirty execution must fail before publication")
+    print("PASS local signoff: exact-SHA queries, missing/pending/failure/wrong-context rejection, latest-status precedence, review/clean admission and real failure publication")
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="mokusei-ci-control-") as directory:
         root = Path(directory)
@@ -292,6 +358,7 @@ def main():
                 env=dict(os.environ, MOKUSEI_CI_STARTED_AT="0"))
         print("PASS real subprocess completion, nonzero status and deadline termination")
         verify_swift_ownership(root, repo, environment)
+        verify_local_signoff(root)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """Reject mislabeled hosts before executing native macOS CI commands.
 
-This checks capabilities, not isolation. The runner administrator must enforce
-the single-job disposable-machine contract in self-hosted.md outside the job.
+This checks platform identity, not trust or graphical execution. Review the
+exact source before invoking the local CI entry point; see local-macos.md.
 """
 import json
 import platform
