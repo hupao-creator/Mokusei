@@ -685,3 +685,10 @@ SwiftPM defers these four methods to this launcher because transient popovers
 need a running AppKit application. The default CI `native` replay group
 runs them and the coverage auditor requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.
+
+Title-motion capture waits on copied-frame arrival with the existing absolute
+three-second deadline; it does not poll an empty capture queue. Every retained
+frame and the newest-live-frame/freshness rules remain authoritative. Frame-wake
+receipts accompany the existing pixel/input timing evidence. The production
+Canvas revision replay separately waits for actual final mounted membership,
+not only the logical FIFO/layout completion flag.

@@ -152,8 +152,9 @@ CI optimization PR #225 recorded adjacent opening samples at x=740 and x=459,
 analyzed newest title frames at zero and 68.6% ink, missing its 10–60% interval.
 Those failures remain failures; a later passing run does not classify them as
 harmless. `Task.sleep` with unspecified tolerance permits clock-chosen leeway.
-Passive `SwiftUIReplay.wait` and the title-frame loop now specify zero tolerance
-for their existing 10ms sleeps. The isolated reading app holds a bounded
+Passive `SwiftUIReplay.wait` specifies zero tolerance for its existing 10ms
+sleeps. Title inspection instead waits for complete-frame arrival as described
+below, avoiding an empty-queue polling timer. The isolated reading app holds a bounded
 user-initiated/latency-critical activity and starts Testing at user-initiated
 priority. This requests timely observation without forced layout, widening
 bands, changing production animation duration, extending deadlines or retrying
@@ -175,3 +176,18 @@ actual input/capture times and pairwise comparisons under `MOKUSEI_CI_EVIDENCE`
 The production 260ms animation, input sequence and pixel predicate are unchanged;
 missing intermediate evidence still fails rather than retrying or accepting a
 later settled frame.
+
+## Title frame arrival
+
+The title capture observer waits for a copied complete WindowServer frame to
+arrive instead of polling an empty queue on a timer. Queue inspection, waiter
+registration and frame publication share one lock, preventing a lost wakeup;
+arrival, cancellation and the unchanged three-second deadline retire each waiter
+exactly once. The losing deadline/arrival task is cancelled and joined.
+
+This changes observation scheduling only. Incoming/reversal qualification still
+inspects the newest complete frame, and cancellation still checks the first
+replacement and every later frame in its batch. All raw frames, original ink
+bands, 50ms freshness, single input, fixed 500ms check and offline pixel audits
+remain. A late or missing live prerequisite still fails; retained historical
+intermediate frames cannot substitute for a current one.
