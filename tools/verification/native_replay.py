@@ -26,7 +26,7 @@ class NativeReplay:
         self.executable.parent.mkdir(parents=True)
         self.build = self.root / "build"
         self.build.mkdir()
-        # CI owns one toolchain/session and discards this SDK cache with the job.
+        # CI owns one toolchain/session and discards this compiler cache with the job.
         # Sources and app instances remain staged separately for every replay.
         cache = os.environ.get("MOKUSEI_NATIVE_MODULE_CACHE")
         self.module_cache = Path(cache).resolve() if cache else self.root / "ModuleCache"

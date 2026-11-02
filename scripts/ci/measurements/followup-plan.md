@@ -29,10 +29,12 @@ tolerance，也未为独立 AppKit runner 请求延迟敏感活动。Swift 的
 构建 305、fixtures 159、ordinary suite 645、interop 162、native 428 秒。
 Go 不在关键路径，恢复 Go 专用缓存不能解释整轮加速。
 
-`NativeReplay` 过去为每个 launcher 创建全新的 SDK module cache。
+`NativeReplay` 过去为每个 launcher 创建全新的 compiler module cache。
 本轮仅在同一 CI job 内通过 `MOKUSEI_NATIVE_MODULE_CACHE` 复用它，
 每个 launcher 仍编译当前 staged sources、链接/签名新 app、启动独立进程，
 没有编译对象/可执行程序或测试结果的复用。编译器负责标准依赖验证。
+后续检查发现缓存也包含 staged `cmark` 和 `CAtomic` 模块，并非仅含 SDK；
+见 [本地几何与缓存记录](local-geometry/README.md)。
 缓存不上传、不跨 runner，不引入额外 macOS runner；本地未设置该变量时
 仍使用私有缓存。`launch.json` 新增 staging/compiler 时间以区分真实收益。
 
@@ -43,7 +45,7 @@ Go 不在关键路径，恢复 Go 专用缓存不能解释整轮加速。
 [原始命令、源码、工具链及结果](compiler-module-cache-probe.json)保留了该探针。
 它不是整轮 CI 收益。真实完整七项捕获 launcher 的两次本地观察为：
 
-| SDK cache 状态 | 编译（秒） | 七项测试（秒） | 展开观察次数 | 最大展开采样间隔（ms） |
+| compiler cache 状态 | 编译（秒） | 七项测试（秒） | 展开观察次数 | 最大展开采样间隔（ms） |
 | --- | ---: | ---: | ---: | ---: |
 | 首次 | 26.626 | 63.565 | 57 | 13.915 |
 | 复用 | 18.334 | 64.010 | 58 | 12.137 |

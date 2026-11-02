@@ -265,16 +265,18 @@ the final revision's required check.
 ### Native replay compilation and live observation
 
 CI gives all serial native launchers a job-local `MOKUSEI_NATIVE_MODULE_CACHE`
-under `RUNNER_TEMP`. It only reuses validated SDK compilation modules: every
-replay still stages its current sources, compiles its executable, signs a fresh
-app and runs its own isolated process. Nothing is uploaded or reused across
-jobs. `launch.json` records staging seconds, compiler seconds and the cache path.
+under `RUNNER_TEMP`. This compiler cache can contain SDK and staged C dependency
+modules; the compiler owns their dependency validation. Every replay still
+stages its current sources, compiles its executable, signs a fresh app and runs
+its own isolated process. Nothing is uploaded or reused across jobs.
+`launch.json` records staging seconds, compiler seconds and the cache path.
 Local invocations without the variable retain their private temporary cache.
 
 The reading-presentation app requests a user-initiated, latency-critical activity
-for its bounded lifetime. Passive geometry and title-frame observations retain
-their original 10ms, zero-tolerance sleeps and their original three-second
-deadlines, 40–60% geometry / 10–60% ink bands and live-frame age checks. A
+for its bounded lifetime. Passive waits and title-frame polls retain their 10ms,
+zero-tolerance sleeps; the retained-return midpoint is prompted by actual
+geometry-change callbacks. The original three-second deadlines, 40–60% geometry /
+10–60% ink bands and live-frame age checks remain mandatory. A
 [hosted A/B/B/A diagnostic](measurements/hosted-ab-41398629007/README.md)
 found that moving those sleeps to a main-queue timer still missed required live
 observations. That candidate is not used; these scheduling requests do not

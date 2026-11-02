@@ -1,0 +1,14 @@
+{
+  "scope": "Local shared compiler cache after three serial native launches; filenames are not a complete cache inventory",
+  "modules": [
+    "CAtomic-1OF5LPXTTD5AD.pcm",
+    "CAtomic-2DA617K24224F.pcm",
+    "CAtomic-3OR80IO4NDK10.pcm",
+    "cmark_gfm-2OI7G8QR1NZG3.pcm",
+    "cmark_gfm-AKPG0Q7C17ZM.pcm",
+    "cmark_gfm-PVO1KKL1BUBV.pcm",
+    "cmark_gfm_extensions-1DYMQEZC41AMN.pcm",
+    "cmark_gfm_extensions-1R4IQHQQYIUYT.pcm",
+    "cmark_gfm_extensions-6X50008BJC2X.pcm"
+  ]
+}

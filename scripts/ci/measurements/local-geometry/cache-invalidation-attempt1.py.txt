@@ -1,0 +1,42 @@
+"""Exercise the production replay staging/compiler cache with changed C headers."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+
+repo = Path('/private/tmp/mokusei-ci-integration')
+root = Path('/private/tmp/mokusei-ci-geometry-local/cache-invalidation')
+root.mkdir(exist_ok=True)
+os.environ['MOKUSEI_NATIVE_MODULE_CACHE'] = str(root / 'modules')
+sys.path.insert(0, str(repo / 'tools/verification'))
+from native_replay import NativeReplay
+
+source = root / 'probe.swift'
+source.write_text('import CAtomic\n@main struct Probe { static func main() { print(MOKUSEI_CACHE_PROBE_VALUE) } }\n')
+records = []
+for value in (11, 22):
+    replay = NativeReplay(repo, 'CacheDependencyProbe', 'com.mokusei.cache-dependency-probe')
+    try:
+        header = replay.includes[2] / 'CAtomic.h'
+        with header.open('a') as output:
+            output.write(f'\n#define MOKUSEI_CACHE_PROBE_VALUE {value}\n')
+        start = time.monotonic()
+        replay.compile([source])
+        process = subprocess.run([str(replay.executable)], text=True, capture_output=True, timeout=20)
+        record = {'expected': value, 'actual': process.stdout.strip(), 'exitCode': process.returncode,
+                  'stderr': process.stderr, 'headerSHA256': hashlib.sha256(header.read_bytes()).hexdigest(),
+                  'sourceSHA256': hashlib.sha256(source.read_bytes()).hexdigest(),
+                  'moduleMap': str(replay.includes[2] / 'module.modulemap'),
+                  'compileSeconds': replay.manifest['compilation']['seconds'],
+                  'elapsedSeconds': round(time.monotonic() - start, 3)}
+        records.append(record)
+        (root / 'results.json').write_text(json.dumps(records, indent=2) + '\n')
+        print(json.dumps(record), flush=True)
+        if process.returncode != 0 or process.stdout.strip() != str(value):
+            raise SystemExit('FAIL: staged C header change was not reflected in the executable')
+    finally:
+        replay.close()
+print('PASS: current staged C header values survived sequential shared-cache compilations')

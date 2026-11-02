@@ -79,3 +79,32 @@ job 排队各为 2–3 秒，不能把这一 attempt 的耗时当成重试总等
 最终分支的托管结果和第二轮数值将追加至 PR 说明；本文件记录第二轮推送前证据，
 不声称尚未执行的第二轮通过。实验固定产品源码以便比较；期间 main 已继续前进，
 本分支的实验结果不认证更新后的 main，也不用于绕过 up-to-date 合并门禁。
+
+## 同产品源码的后续成功运行
+
+[41387058958](https://github.com/hupao-creator/Mokusei/actions/runs/41387058958)
+是第二轮候选 `f0db5ba` 的成功完整 dispatch；相对上述 main `1593e63`，
+差异仅在 CI workflow、脚本和记录，没有产品源码变更。
+两次都只有 attempt 1，均没有重试，也没有以失败或文档快路径替代完整执行。
+
+| 指标（秒） | main 41380174891 | 候选 41387058958 |
+| --- | ---: | ---: |
+| 首次触发到结束 | 1578 | 1834 |
+| 本 attempt runner 执行总和 | 2135 | 2402 |
+| macOS 排队 / 执行 | 3 / 1553 | 3 / 1811 |
+| macOS Swift 构建 | 206 | 305 |
+| macOS 验证命令 | 1279 | 1422 |
+| Go / Linux 执行 | 91 | 111 |
+
+两台均为 `macos-26-arm64` image `20261026.0455.2`、macOS 26.6.2、
+Xcode 26.6。两次恢复相同的 setup-go macOS 缓存，但 Swift 构建缓存不同：
+main 恢复 `native-2972115`（407,693,778 字节），候选恢复
+`native-9465c37`（417,478,728 字节）。恢复键是前缀匹配，不能把这两次
+视为相同缓存、相同机器的严格 A/B；每边一个成功样本也不能单独归因差距。
+此对比的实际结果是端到端增加 256 秒，不能宣称整体加速。它早于后续的
+job 内模块缓存尝试，也不能认证更新后的 PR 合成提交。
+
+原始候选 job/step/attempt 元数据见 [round2-success.json](round2-success.json)，
+main 原始数据见 [paired-baseline.json](paired-baseline.json)。完整 macOS
+作业日志保存在本地 `/private/tmp/mokusei-ci-performance-prior-comparison/`
+并可从对应 run 获取；最终 PR 必须再与最新 main 比较实际缓存、排队和耗时。

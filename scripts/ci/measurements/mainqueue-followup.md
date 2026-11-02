@@ -21,7 +21,7 @@ PR `41393168410` 仍失败，不能把零 sleep tolerance/进程活动请求宣�
 为减少盲目完整 CI 循环，独立诊断分支只通过现有 CI workflow 的手动 dispatch
 执行同机 A/B/B/A。生产模块只构建一次：A 使用 `916fd32` 的原 Task.sleep
 观察源码，B 使用主队列观察源码；两边都运行相同七项实际原生测试和全部原断言。
-旧 A 仍保留上一轮 user-initiated/latency-critical runner 和 SDK cache，
+旧 A 仍保留上一轮 user-initiated/latency-critical runner 和 compiler module cache，
 因此只隔离观察等待差异。每轮都有独立 app、完整截图、源码哈希和实际进程状态，
 失败不挑掉；任一条件失败，诊断 job 即失败。诊断无 Complete coverage check，
 不能满足 PR 门禁。诊断文件不合入 main；最终 PR 合成提交仍完整构建、普通 suite、

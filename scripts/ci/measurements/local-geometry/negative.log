@@ -1,0 +1,49 @@
+/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-5ne30oqy/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite NativeOnboardingTagSurfaceTests started.
+◇ Test productionAnimationMountsWithoutAnOpaqueFirstFrame() started.
+NATIVE ENVIRONMENT systemReduceMotion=false backingScale=2.0 screens=[(0.0, 0.0, 2560.0, 1440.0), (427.0, -982.0, 1512.0, 982.0)]
+TAG_ONBOARDING_FIRST_FRAME_CONFIRMED
+✔ Test productionAnimationMountsWithoutAnOpaqueFirstFrame() passed after 4.797 seconds.
+✔ Suite NativeOnboardingTagSurfaceTests passed after 4.797 seconds.
+◇ Suite NativeOverviewDecorationCaptureTests started.
+◇ Test nativeCloudAndScanMoveInComposedOverview() started.
+NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED native=true cloudPixels=true scanPixels=true retained=true appearanceReviewPending=true
+✔ Test nativeCloudAndScanMoveInComposedOverview() passed after 24.986 seconds.
+✔ Suite NativeOverviewDecorationCaptureTests passed after 24.986 seconds.
+◇ Suite NativeOverviewTagGlassTests started.
+◇ Test directorySelectionResizeKeepsRoundedGlass() started.
+✔ Test directorySelectionResizeKeepsRoundedGlass() passed after 5.692 seconds.
+◇ Test shortChildMorphKeepsBothCapsuleEnds() started.
+✔ Test shortChildMorphKeepsBothCapsuleEnds() passed after 3.772 seconds.
+✔ Suite NativeOverviewTagGlassTests passed after 9.466 seconds.
+◇ Suite NativeReadingPagePresentationTests started.
+◇ Test retainedOverviewReturnsWithLatestContent() started.
+✘ Test retainedOverviewReturnsWithLatestContent() recorded an issue at NativeReadingPagePresentationTests.swift:233:37: Expectation failed: settled
+↳ SwiftUI presentation did not settle within 3.0 seconds; AppKit running: true, visible windows: 1
+OVERVIEW_RETAINED_RETURN_DIAGNOSTICS {"beforeReturn":{},"clock":"ProcessInfo.systemUptime","closeGeometry":{},"closeSet":{},"diagnosticStartUptime":1317967.6915907084,"driveLayout":false,"duringReturn":{},"finalState":{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":3019.0450416412205,"frontAppearances":1,"motionActive":false,"open":true,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":true,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317970.7106357501,"windowKey":true,"windowVisible":true,"x":0},"latestOpeningSample":{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":58.088874910026789,"frontAppearances":1,"motionActive":true,"open":true,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":true,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.7496795834,"windowKey":true,"windowVisible":true,"x":903},"openingChecks":3,"openingSamples":[{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":13.260833220556378,"frontAppearances":0,"motionActive":true,"open":true,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":false,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.7048515417,"windowKey":true,"windowVisible":true,"x":0},{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":49.538916675373912,"frontAppearances":1,"motionActive":true,"open":true,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":true,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.7411296251,"windowKey":true,"windowVisible":true,"x":1180},{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":58.088874910026789,"frontAppearances":1,"motionActive":true,"open":true,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":true,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.7496795834,"windowKey":true,"windowVisible":true,"x":903}],"openSet":{"afterUptime":1317967.7028128335,"beforeUptime":1317967.7027967083},"requestedHeight":780,"requestedWidth":1180,"returnChecks":0,"returnSamples":[],"setupChecks":2,"setupSamples":[{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":0.038833357393741608,"frontAppearances":0,"motionActive":false,"open":false,"parentAppearances":0,"pixelTolerance":0.5,"probeInWindow":false,"renderedText":"","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.6916295418,"windowKey":true,"windowVisible":true,"x":null},{"AppKitRunning":true,"applicationActive":true,"currentRoot":true,"elapsedMilliseconds":11.192666599527001,"frontAppearances":0,"motionActive":false,"open":false,"parentAppearances":1,"pixelTolerance":0.5,"probeInWindow":false,"renderedText":"Initial overview","rootHeight":780,"rootInWindow":true,"rootWidth":1180,"uptime":1317967.702783375,"windowKey":true,"windowVisible":true,"x":null}]}
+✘ Test retainedOverviewReturnsWithLatestContent() failed after 3.036 seconds with 1 issue.
+✘ Suite NativeReadingPagePresentationTests failed after 3.036 seconds with 1 issue.
+◇ Suite SwiftUIOverviewInteractionTests started.
+◇ Test titleReversalAndVisibilityCancellationSettlePixels() started.
+TITLE_INCOMING_MOTION_CONFIRMED received=1317973.224349875 cancelled=1317973.2300618335
+✔ Test titleReversalAndVisibilityCancellationSettlePixels() passed after 5.231 seconds.
+◇ Test excerptRevealKeepsMovingThroughRewriteAndWidthChanges() started.
+EXCERPT_INK_MOTION_CONFIRMED fixed=true rewrite=true localResize=true WindowServer=true
+✔ Test excerptRevealKeepsMovingThroughRewriteAndWidthChanges() passed after 17.338 seconds.
+✔ Suite SwiftUIOverviewInteractionTests passed after 22.570 seconds.
+✘ Test run with 7 tests in 5 suites failed after 64.857 seconds with 1 issue.
+Traceback (most recent call last):
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 263, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 183, in main
+    result.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/subprocess.py", line 508, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '[]' returned non-zero exit status 1.

@@ -45,9 +45,9 @@ requires observed ink movement through rewrite and an actual component-width
 change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
 do not replace its moving-pixel evidence. The native cloud/scan composition,
 retained Overview return and Tag Settings first-frame cases share this owner
-with their own required markers. Tag entry and retained return must supply
-complete intermediate WindowServer frames before their unchanged pixel oracle
-can pass; the real AppKit event loop owns that capture.
+with their own required markers. Tag entry must supply complete intermediate
+WindowServer frames for its pixel oracle; retained return requires actual native
+midpoint geometry and the original return checks in a real AppKit event loop.
 All full method identities remain in discovery and are excluded from ordinary
 execution without a test-level skip or environment bypass.
 The complete ordinary command has no positive `--filter` and passes the shared

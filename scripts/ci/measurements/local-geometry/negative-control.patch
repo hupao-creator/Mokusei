@@ -1,0 +1,199 @@
+diff --git a/app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift b/app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift
+index fa3ffe6..f5f2fd7 100644
+--- a/app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift
++++ b/app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift
+@@ -25,6 +25,7 @@ import MokuseiUI
+     @ObservationIgnored var historyContentTop: CGFloat?
+     @ObservationIgnored weak var frontProbe: NSView?
+     @ObservationIgnored weak var parentProbe: NSView?
++    @ObservationIgnored var frontGeometryChanged: (@MainActor () -> Void)?
+     @ObservationIgnored var parentEnabled = true
+ }
+ private struct ReadingFrontProbe: NSViewRepresentable {
+@@ -55,7 +56,10 @@ private struct ReadingReplay: View {
+                 .onAppear { fixture.parentAppearances += 1 }
+                 .onChange(of: fixture.text, initial: true) { _, text in fixture.renderedText = text }
+         } front: { Text("Conversation detail").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 0, green: 0, blue: 1))
+-                .background(ReadingFrontProbe(fixture: fixture)).onAppear { fixture.frontAppearances += 1 } }
++                .background(ReadingFrontProbe(fixture: fixture)).onAppear { fixture.frontAppearances += 1 }
++                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minX } action: { _ in
++                    fixture.frontGeometryChanged?()
++                } }
+     }
+ }
+ @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
+@@ -90,7 +94,7 @@ struct NativeReadingPagePresentationTests {
+         try #require(NSApp?.isRunning == true,
+             "Run this method through native-capture/tag-glass-captures; a real NSApplication event loop is required")
+         let fixture = ReadingFixture()
+-        fixture.duration = 1.2
++        fixture.duration = 0.000001
+         let requestedSize = CGSize(width: 1180, height: 780)
+         let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture), width: requestedSize.width, height: requestedSize.height)
+         defer { window.close() }
+@@ -136,75 +140,100 @@ struct NativeReadingPagePresentationTests {
+                 && abs(sample.size.height - requestedSize.height) <= sample.tolerance
+         }
+         let count = fixture.parentAppearances
+-        let openSetBefore = ProcessInfo.processInfo.systemUptime
+-        fixture.open = true
+-        let openSetAfter = ProcessInfo.processInfo.systemUptime
+-        openSet = ["beforeUptime": openSetBefore, "afterUptime": openSetAfter]
+-        try await SwiftUIReplay.wait(driveLayout: false) {
++        @MainActor func closeAtOpeningMidpoint() throws -> (NSView, CGFloat, ContinuousClock.Instant)? {
+             let sample = observe()
+             openingSamples.append(sample.record)
+-            guard let x = sample.x else { return false }
+-            return x > sample.size.width * 0.4 && x < sample.size.width * 0.6
+-        }
+-        let probe = try #require(fixture.frontProbe)
+-        let beforeReturn = probe.convert(probe.bounds, to: root).minX
+-        let returnWidth = root.bounds.width
+-        let motionActive = fixture.motion.active
+-        let currentRoot = window.contentView === root
+-        let rootInWindow = root.window === window
+-        let probeInWindow = probe.window === window
+-        let currentProbe = fixture.frontProbe === probe
+-        beforeReturnSample = observe().record
+-        beforeReturnSample["x"] = beforeReturn
+-        beforeReturnSample["qualifiedWidth"] = returnWidth
+-        beforeReturnSample["qualifiedMotionActive"] = motionActive
+-        beforeReturnSample["currentProbe"] = currentProbe
+-        try #require(currentRoot && rootInWindow && probeInWindow && currentProbe && motionActive
+-            && beforeReturn > returnWidth * 0.4 && beforeReturn < returnWidth * 0.6,
+-            "The current front must still be in the original opening midpoint before returning")
+-        let textSetBefore = ProcessInfo.processInfo.systemUptime
+-        fixture.text = "Latest overview"
+-        // Establish that this return has a usable production geometry pair;
+-        // a passing direction assertion alone could also use the model fallback.
+-        let geometryReadStart = ProcessInfo.processInfo.systemUptime
+-        var pendingViews = [root], anchors: [NativeReadingPageAnchorView] = []
+-        while let view = pendingViews.popLast() {
+-            if let anchor = view as? NativeReadingPageAnchorView { anchors.append(anchor) }
+-            pendingViews.append(contentsOf: view.subviews)
++            guard let x = sample.x, x > sample.size.width * 0.4, x < sample.size.width * 0.6 else { return nil }
++            let probe = try #require(fixture.frontProbe)
++            let beforeReturn = probe.convert(probe.bounds, to: root).minX
++            let returnWidth = root.bounds.width
++            let motionActive = fixture.motion.active
++            let currentRoot = window.contentView === root
++            let rootInWindow = root.window === window
++            let probeInWindow = probe.window === window
++            let currentProbe = fixture.frontProbe === probe
++            beforeReturnSample = observe().record
++            beforeReturnSample["x"] = beforeReturn
++            beforeReturnSample["qualifiedWidth"] = returnWidth
++            beforeReturnSample["qualifiedMotionActive"] = motionActive
++            beforeReturnSample["currentProbe"] = currentProbe
++            try #require(currentRoot && rootInWindow && probeInWindow && currentProbe && motionActive
++                && beforeReturn > returnWidth * 0.4 && beforeReturn < returnWidth * 0.6,
++                "The current front must still be in the original opening midpoint before returning")
++            let textSetBefore = ProcessInfo.processInfo.systemUptime
++            fixture.text = "Latest overview"
++            // Establish that this return has a usable production geometry pair;
++            // a passing direction assertion alone could also use the model fallback.
++            let geometryReadStart = ProcessInfo.processInfo.systemUptime
++            var pendingViews = [root], anchors: [NativeReadingPageAnchorView] = []
++            while let view = pendingViews.popLast() {
++                if let anchor = view as? NativeReadingPageAnchorView { anchors.append(anchor) }
++                pendingViews.append(contentsOf: view.subviews)
++            }
++            closeGeometry = ["sampleStartUptime": geometryReadStart, "textSetBeforeUptime": textSetBefore, "anchorCount": anchors.count,
++                "identity": fixture.identity.string, "axis": fixture.axis == .horizontal ? "horizontal" : "vertical",
++                "direction": Double(fixture.direction)]
++            let owner = try #require(anchors.first?.owner)
++            var rootAnchors: [NativeReadingPageAnchorView] = [], frontAnchors: [NativeReadingPageAnchorView] = []
++            var sameOwner = true
++            for anchor in anchors {
++                if anchor.owner !== owner { sameOwner = false }
++                if owner.owns(anchor, role: .root) { rootAnchors.append(anchor) }
++                if owner.owns(anchor, role: .front) { frontAnchors.append(anchor) }
++            }
++            closeGeometry["sameOwner"] = sameOwner
++            closeGeometry["rootCount"] = rootAnchors.count
++            closeGeometry["frontCount"] = frontAnchors.count
++            try #require(anchors.count == 2 && sameOwner && rootAnchors.count == 1 && frontAnchors.count == 1,
++                "The current stack must own one root and one front geometry anchor")
++            let nativeRoot = rootAnchors[0], nativeFront = frontAnchors[0]
++            let nativeRootFrame = nativeRoot.convert(nativeRoot.bounds, to: root)
++            let nativeFrontFrame = nativeFront.convert(nativeFront.bounds, to: root)
++            let sampledProgress = owner.progress(identity: fixture.identity, direction: fixture.direction)
++            closeGeometry["rootFrame"] = ["x": Double(nativeRootFrame.minX), "y": Double(nativeRootFrame.minY),
++                "width": Double(nativeRootFrame.width), "height": Double(nativeRootFrame.height)]
++            closeGeometry["frontFrame"] = ["x": Double(nativeFrontFrame.minX), "y": Double(nativeFrontFrame.minY),
++                "width": Double(nativeFrontFrame.width), "height": Double(nativeFrontFrame.height)]
++            closeGeometry["progress"] = sampledProgress.map { $0 as Any } ?? NSNull()
++            closeGeometry["sampleEndUptime"] = ProcessInfo.processInfo.systemUptime
++            try #require(sampledProgress != nil && abs(nativeFrontFrame.minX - beforeReturn) <= 1,
++                "The production return sample must match the currently qualified front, without driving layout")
++            let closeSetBefore = ProcessInfo.processInfo.systemUptime
++            fixture.motion.close()
++            let closeSetAfter = ProcessInfo.processInfo.systemUptime
++            closeSet = ["textSetBeforeUptime": textSetBefore, "beforeUptime": closeSetBefore, "afterUptime": closeSetAfter]
++            // Preserve the original 100ms return observation relative to the
++            // actual close, even if the awaiting test resumes later.
++            return (probe, beforeReturn, ContinuousClock.now + .milliseconds(100))
+         }
+-        closeGeometry = ["sampleStartUptime": geometryReadStart, "textSetBeforeUptime": textSetBefore, "anchorCount": anchors.count,
+-            "identity": fixture.identity.string, "axis": fixture.axis == .horizontal ? "horizontal" : "vertical",
+-            "direction": Double(fixture.direction)]
+-        let owner = try #require(anchors.first?.owner)
+-        var rootAnchors: [NativeReadingPageAnchorView] = [], frontAnchors: [NativeReadingPageAnchorView] = []
+-        var sameOwner = true
+-        for anchor in anchors {
+-            if anchor.owner !== owner { sameOwner = false }
+-            if owner.owns(anchor, role: .root) { rootAnchors.append(anchor) }
+-            if owner.owns(anchor, role: .front) { frontAnchors.append(anchor) }
++        var openingResult: Result<(NSView, CGFloat, ContinuousClock.Instant), any Error>?
++        var openingTriggered = false
++        var openingInProgress = false
++        // Act on the committed native geometry during its own change callback;
++        // an extra timer wake can arrive after the short midpoint has passed.
++        fixture.frontGeometryChanged = {
++            guard !openingTriggered && !openingInProgress else { return }
++            openingInProgress = true
++            defer { openingInProgress = false }
++            do {
++                if let result = try closeAtOpeningMidpoint() {
++                    openingTriggered = true
++                    openingResult = .success(result)
++                }
++            } catch {
++                openingTriggered = true
++                openingResult = .failure(error)
++            }
+         }
+-        closeGeometry["sameOwner"] = sameOwner
+-        closeGeometry["rootCount"] = rootAnchors.count
+-        closeGeometry["frontCount"] = frontAnchors.count
+-        try #require(anchors.count == 2 && sameOwner && rootAnchors.count == 1 && frontAnchors.count == 1,
+-            "The current stack must own one root and one front geometry anchor")
+-        let nativeRoot = rootAnchors[0], nativeFront = frontAnchors[0]
+-        let nativeRootFrame = nativeRoot.convert(nativeRoot.bounds, to: root)
+-        let nativeFrontFrame = nativeFront.convert(nativeFront.bounds, to: root)
+-        let sampledProgress = owner.progress(identity: fixture.identity, direction: fixture.direction)
+-        closeGeometry["rootFrame"] = ["x": Double(nativeRootFrame.minX), "y": Double(nativeRootFrame.minY),
+-            "width": Double(nativeRootFrame.width), "height": Double(nativeRootFrame.height)]
+-        closeGeometry["frontFrame"] = ["x": Double(nativeFrontFrame.minX), "y": Double(nativeFrontFrame.minY),
+-            "width": Double(nativeFrontFrame.width), "height": Double(nativeFrontFrame.height)]
+-        closeGeometry["progress"] = sampledProgress.map { $0 as Any } ?? NSNull()
+-        closeGeometry["sampleEndUptime"] = ProcessInfo.processInfo.systemUptime
+-        try #require(sampledProgress != nil && abs(nativeFrontFrame.minX - beforeReturn) <= 1,
+-            "The production return sample must match the currently qualified front, without driving layout")
+-        let closeSetBefore = ProcessInfo.processInfo.systemUptime
+-        fixture.motion.close()
+-        let closeSetAfter = ProcessInfo.processInfo.systemUptime
+-        closeSet = ["textSetBeforeUptime": textSetBefore, "beforeUptime": closeSetBefore, "afterUptime": closeSetAfter]
+-        try await Task.sleep(for: .milliseconds(100))
++        defer { fixture.frontGeometryChanged = nil }
++        let openSetBefore = ProcessInfo.processInfo.systemUptime
++        fixture.open = true
++        let openSetAfter = ProcessInfo.processInfo.systemUptime
++        openSet = ["beforeUptime": openSetBefore, "afterUptime": openSetAfter]
++        try await SwiftUIReplay.wait(driveLayout: false) { openingResult != nil }
++        let (probe, beforeReturn, returnCheckAt) = try #require(openingResult).get()
++        fixture.frontGeometryChanged = nil
++        try await Task.sleep(until: returnCheckAt, clock: .continuous)
+         let duringReturn = probe.convert(probe.bounds, to: root).minX
+         duringReturnSample = observe().record
+         duringReturnSample["x"] = duringReturn

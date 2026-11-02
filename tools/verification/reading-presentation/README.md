@@ -321,7 +321,10 @@ The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
 This test requires an actual `NSApplication.run` loop before observing an opening
 midpoint, reversing the page and checking latest Overview content with no remount.
-Its original geometry and return assertions remain intact. Ordinary Swift execution
+An actual geometry-change callback prompts a synchronous AppKit reread and
+return only inside the original midpoint and three-second deadline. The 100ms
+return observation is anchored to that close, even if the waiting task resumes
+later. Its original geometry and return assertions remain intact. Ordinary Swift execution
 excludes this exact method; complete coverage requires its native passing outcome
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
 These are AppKit geometry/content observations, not WindowServer pixel assertions.
@@ -686,20 +689,21 @@ need a running AppKit application. The default CI `native` replay group
 runs them and the coverage auditor requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.
 
-## Replay timing and SDK compilation cache
+## Replay timing and compiler module cache
 
 The staged app holds a user-initiated, latency-critical activity only while its
 AppKit loop runs, and releases it when the loop returns. It logs
 `NATIVE_REPLAY_TIMING` and does not change desktop accessibility preferences or
-production animation timing. Passive geometry/title polls use 10ms sleeps with
+production animation timing. Passive waits and title polls use 10ms sleeps with
 zero tolerance; all actual-frame, freshness, midpoint and cancellation assertions
 remain mandatory. This is a scheduling request, not a timing guarantee. A hosted
 [A/B/B/A diagnostic](../../../scripts/ci/measurements/hosted-ab-41398629007/README.md)
 did not establish that a main-queue timer fixed missing observations.
 
 CI sets `MOKUSEI_NATIVE_MODULE_CACHE` to one temporary directory for the native
-job. The launcher and native-input compiler share their SDK caches there, while
-sources, includes, object copies, resources and app processes remain isolated.
+job. The launcher and native-input compiler share compiler module caches there,
+which may contain SDK and staged C dependency modules, while sources, includes,
+object copies, resources and app processes remain isolated.
 No executable or test outcome is cached. Each exported `launch.json` records
 `stagingSeconds` and `compilation.seconds/moduleCache` for hosted comparisons.
 Without the variable, local replays keep their own private module cache.
