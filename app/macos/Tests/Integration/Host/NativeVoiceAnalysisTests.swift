@@ -239,7 +239,7 @@ struct NativeVoiceAnalysisTests {
         analyser.audioProcessingRelease()
     }
 
-    @MainActor @Test func normalThreadHidesIdleDockAnalysisButAdmitsExplicitInput() {
+    @MainActor @Test func agentReaderKeepsDockAnalysisWhileApplicationRoutesHideIt() {
         let scene = NativeMokuSceneState()
         scene.setWindowVisible(true)
         #expect(scene.dockContentVisible)
@@ -251,7 +251,12 @@ struct NativeVoiceAnalysisTests {
         #expect(!scene.dockContentVisible)
         scene.setDockInteractionVisible(true, question: false)
         #expect(scene.dockContentVisible)
+        scene.agentReadingVisible = true
+        scene.setDockInteractionVisible(false, question: false)
+        #expect(scene.dockContentVisible)
         scene.setSearchActive(true)
+        #expect(scene.dockContentVisible)
+        scene.overviewVisible = true
         #expect(!scene.dockContentVisible)
         scene.setSearchActive(false)
         scene.setWindowVisible(false)

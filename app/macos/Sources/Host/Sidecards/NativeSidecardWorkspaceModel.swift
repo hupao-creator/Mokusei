@@ -108,6 +108,8 @@ final class NativeSidecardWorkspaceModel {
         }
     }
 
+    func closeThread() { onBack() }
+
     func activate(_ id: JSONText) {
         dispatchDepth += 1
         _ = choose(selected == id ? nil : id)

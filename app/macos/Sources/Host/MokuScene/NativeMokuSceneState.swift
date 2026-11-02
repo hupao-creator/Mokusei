@@ -34,15 +34,20 @@ import MokuseiPluginUI
     public private(set) var readReplies: Set<JSONText> = []
     public private(set) var notePanelOpen = false
     public private(set) var noteOpenGeneration = 0
+    public var agentReadingVisible = false {
+        didSet {
+            if !dockRouteVisible { setInputOpen(false); dockHitRects = []; dockMentionHitRect = nil }
+        }
+    }
+    public var dockRouteVisible: Bool { overviewVisible || agentReadingVisible }
     public var overviewVisible = true {
         didSet {
             guard overviewVisible != oldValue, !overviewVisible else { return }
             talkPresentation.setPresented(false)
             closeNotePanel()
             setInputOpen(false)
-            dockHitRects = []
-            dockMentionHitRect = nil
-            if dockInteractionVisible { setDockInteractionVisible(false, question: false) }
+            if !dockRouteVisible { dockHitRects = []; dockMentionHitRect = nil }
+            if !dockRouteVisible, dockInteractionVisible { setDockInteractionVisible(false, question: false) }
         }
     }
     public var disabled = false
@@ -92,12 +97,11 @@ import MokuseiPluginUI
         }.suffix(256))
         readReplies = Set(replyReadOrder)
     }
-    public var dockCovered: Bool { mokuOpen || cameraActive || settingsOpen || flightActive || searchActive }
-    /// Voice-cloud admission only. Idle analysis stays off a normal thread, and
-    /// explicit input or an intervention can still admit the cloud. The capsule
-    /// view is mounted only while Overview is the current route.
+    public var dockCovered: Bool { mokuOpen || cameraActive || settingsOpen || flightActive || (searchActive && overviewVisible) }
+    /// The resident Dock is available in Overview and ordinary Agent reading.
+    /// Covering Moku history, camera, Settings and flights own their own surfaces.
     public var dockContentVisible: Bool {
-        windowVisible && !dockCovered && (overviewVisible || inputOpen || dockInteractionVisible)
+        windowVisible && !dockCovered && (dockRouteVisible || inputOpen || dockInteractionVisible)
     }
     public var interactionPaused: Bool { cameraActive || settingsOpen || flightActive || inputOpen }
     public var canOpenSettings: Bool { overviewVisible && !mokuOpen && !cameraActive && !flightActive }
@@ -130,9 +134,9 @@ import MokuseiPluginUI
         return true
     }
     public func toggleInput() {
-        // Compose belongs to the Overview capsule. Off that route the shortcut
-        // must not reopen a hidden field or leave it first responder.
-        guard overviewVisible else { return }
+        // Only routes with a resident capsule may focus its editor. Application
+        // documents still omit the Dock and cannot acquire hidden input.
+        guard dockRouteVisible else { return }
         if mokuOpen || cameraActive { setMokuOpen(false); setInputOpen(true) }
         else { setInputOpen(!inputOpen) }
     }
@@ -163,7 +167,7 @@ import MokuseiPluginUI
     /// also run its automatic framing transition for the same press.
     @discardableResult
     public func dismissInputForOutsideClick() -> Bool {
-        guard inputOpen, !landingActive, overviewVisible, !dockCovered, !disabled else { return false }
+        guard inputOpen, !landingActive, dockRouteVisible, !dockCovered, !disabled else { return false }
         setInputOpen(false)
         overviewState.suppressAutoFocusForThisClick()
         return true

@@ -721,3 +721,16 @@ foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.
 Bounded foreground admission precedes the original 100/90/300ms sampling timeline;
 the foreground requirement is checked again at input and still fails if absent.
+
+
+## Agent reading panel admission
+
+`--moku-landing` also mounts the production workspace with a real catalog Agent
+record. It checks source-card geometry, the measured native panel frame, resident
+Moku identity and input, Settings exclusion, same-thread result retargeting,
+resize/return and direct-result Back. A window capture is exported under
+`agent-panel/root.png`; its Harness is deliberately on the fixture loading path,
+so this image certifies shell/Dock geometry rather than live transcript delivery.
+The standalone thread-panel demo exercises real Sidecard content and shared
+production split geometry with mock capabilities, including retained widths,
+rapid switching and narrow vertical splits.

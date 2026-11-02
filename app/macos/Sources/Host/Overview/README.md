@@ -205,3 +205,15 @@ Validation uses existing Overview layout/camera/search/tag/directory tests and t
 The [Overview chaos guide](../../../../../tools/native-interaction/OVERVIEW.md) describes the actions and coverage limits. The [real app runner](../../../../../tools/verification/overview-interaction/README.md) creates actual directories, a symlink and a Git linked worktree, seeds an exclusively owned profile before launch, then drives the signed production Release app. Runtime `state:load` supplies the independent scope/membership oracle; mounted card identities, placement cells and camera bounds supply rendering invariants. No tag CRUD or multi-selection actions are invented: those controls do not exist in the current Overview.
 
 The [layout comparison](../../../../../tools/verification/overview-layout/README.md) compiles baseline/current production geometry and reports screen displacement, visible fill, complete cards and solver work. Native capacity tests additionally assert same-footprint solver avoidance, deletion/refill screen anchors, automatic insertion framing without a background click and manual-pan retention in both motion settings. Insertion checks use actual rendered frames for one-to-two and six-to-seven cards, including footprint growth before the refit and coalesced Runtime revision history, wait through delayed refits, and verify that explicit return to automatic framing has no further correction to make.
+
+## Agent reading panels
+
+Opening an Agent Thread captures its displayed card frame from the stable layout
+and live camera transform. The shared reading stack expands that shell into an
+opaque panel with equal horizontal margins, while retaining the Overview camera
+and cards beneath it. Filters and Settings collapse out of the background.
+The production conversation content fades in unchanged; title, emoji and author
+have no separate morph. Closing refreshes the source position after viewport
+changes when available. Direct/restored entries without an eligible card use a
+small centered expansion instead. Route identity, cancellation and reduced-motion
+settling remain owned by the shared reading stack.
