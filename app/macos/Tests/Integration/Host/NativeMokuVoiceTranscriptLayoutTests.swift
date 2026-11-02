@@ -29,6 +29,7 @@ import MokuseiPluginUI
             await settle(host)
             let scroll = try #require(findScroll(host))
             let textWidth = min(560, width - 48) - NativeMokuTalkTypography.leading - 48
+            - NativeMokuTalkTypography.scrollbarGutter(for: NSScroller.preferredScrollerStyle)
             let source = String(repeating: "实时转写 English words keep growing. ", count: 30)
             var previousHeight: CGFloat = 0
             for count in 1...source.count {
@@ -80,6 +81,7 @@ import MokuseiPluginUI
         defer { window.close() }
         await settle(host)
         let textWidth = min(560, width - 48) - NativeMokuTalkTypography.leading - 48
+            - NativeMokuTalkTypography.scrollbarGutter(for: NSScroller.preferredScrollerStyle)
         let text = String(repeating: "实时转写的内容需要在气泡里完整换行显示，而不是只露出最后一行。", count: 5)
         let expected = NativeMokuTalkTypography.height(text, width: textWidth)
         #expect(expected > NativeMokuTalkTypography.maximumHeight,

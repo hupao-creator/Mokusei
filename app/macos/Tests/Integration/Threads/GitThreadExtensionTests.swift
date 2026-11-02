@@ -198,6 +198,10 @@ struct GitThreadExtensionTests {
         #expect(overview.filters == filters)
     }
     @Test(.requiresDisplay) func sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() async throws {
+        let activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+            reason: "Sample the rolling-number animation at its existing intermediate deadline")
+        defer { ProcessInfo.processInfo.endActivity(activity) }
         let numbers = GitSummaryNumbers()
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 90), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.appearance = NSAppearance(named: .aqua)
@@ -210,13 +214,36 @@ struct GitThreadExtensionTests {
             root.cacheDisplay(in: root.bounds, to: image)
             return try #require(image.representation(using: .png, properties: [:]))
         }
-        try await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(for: .milliseconds(100), tolerance: .zero)
         let initial = try pixels()
+        let inputAt = ProcessInfo.processInfo.systemUptime
         numbers.added = "957"; numbers.deleted = "26"
-        try await Task.sleep(for: .milliseconds(90))
+        // Clock-selected leeway can consume the 260ms production transition
+        // before this intermediate sample; request no extra timer coalescing.
+        try await Task.sleep(for: .milliseconds(90), tolerance: .zero)
+        let duringStartedAt = ProcessInfo.processInfo.systemUptime
         let during = try pixels()
-        try await Task.sleep(for: .milliseconds(300))
+        let duringFinishedAt = ProcessInfo.processInfo.systemUptime
+        try await Task.sleep(for: .milliseconds(300), tolerance: .zero)
         let settled = try pixels()
+        let settledAt = ProcessInfo.processInfo.systemUptime
+        let evidenceRoot = ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"]
+            ?? ProcessInfo.processInfo.environment["MOKUSEI_GIT_ARTIFACTS"] ?? "/tmp/mokusei-git-visual"
+        let evidence = URL(fileURLWithPath: evidenceRoot)
+            .appendingPathComponent("git-number-flip-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
+        for (name, data) in [("initial", initial), ("during", during), ("settled", settled)] {
+            try data.write(to: evidence.appendingPathComponent(name + ".png"))
+        }
+        let receipt: [String: Any] = ["inputAt": inputAt, "duringStartedAt": duringStartedAt,
+            "duringFinishedAt": duringFinishedAt, "settledAt": settledAt,
+            "duringDelayMilliseconds": (duringStartedAt - inputAt) * 1000,
+            "duringCaptureMilliseconds": (duringFinishedAt - duringStartedAt) * 1000,
+            "initialDiffersFromDuring": initial != during, "duringDiffersFromSettled": during != settled,
+            "initialDiffersFromSettled": initial != settled]
+        try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
+            .write(to: evidence.appendingPathComponent("measurements.json"))
+        print("GIT_NUMBER_FLIP_EVIDENCE \(evidence.path)")
         #expect(initial != during && during != settled && initial != settled)
         #expect(root.bounds.size == CGSize(width: 400, height: 90))
     }

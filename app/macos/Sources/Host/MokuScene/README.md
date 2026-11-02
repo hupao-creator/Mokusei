@@ -193,6 +193,20 @@ settled eye-path and native message-clip separation. This headless check does
 not certify animation frames, rendered pixels or native scrolling behavior;
 those remain in the display-gated transcript and transition replays.
 
+Talk and voice transcript prose wrap within the native clip width, including
+AppKit's mini-scroller gutter when the system uses persistent scrollbars. The
+capsule height uses the same width; changing the scrollbar preference updates
+both without replacing the scroll view. `NativeMokuTalkClippingTests` mounts the
+production selectable content with overlay and persistent scrollers at six
+widths, including the reported Chinese/Overview sentence, mixed Unicode, long
+Chinese/Latin text and explicit overflow. It checks the rendered label's text
+seat against the actual native clip and scrolls overflow to both ends.
+The native viewport also stays inside its promised host bounds: the prose width
+is a maximum inside a flexible, leading-aligned document, so persistent scrollers
+cannot expand it into the note's history/voice actions.
+Set `MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
+these are AppKit display-cache images, not WindowServer glass captures.
+
 Text shorter than the Talk viewport is vertically centered beside the eyes.
 Overflow keeps its bottom anchor and follows new text only while the reader is
 at the tail; the same layout applies to the voice transcript. The Dock's Stop
