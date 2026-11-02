@@ -18,7 +18,7 @@ struct ClaudeTimelineEntry: View {
         case "user-message": userMessage
         case "assistant": VStack(alignment:.leading,spacing:8) {
             if turn == nil { Text("Mokusei").font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
-            markdown(item["content"]?.stringValue ?? "", streaming: active && item["status"]?.stringValue == "streaming")
+            markdown(item["content"]?.stringValue ?? "")
             if turn == nil, let status = item["status"]?.stringValue, ["failed","cancelled"].contains(status) { Text(t(claudeStatus(status))).font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
         }
         case "reasoning": ThreadSurfaceDisclosure(label: t("推理过程"), live: active && turn?.timeline.last == item) { markdown(item["content"]?.stringValue ?? "", streaming: active && turn?.timeline.last == item) }

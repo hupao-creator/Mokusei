@@ -172,7 +172,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
     for message in messages {
         if let native = message.nativeSessionID, let sessionID, native != sessionID { continue }
         if splitTurns && message.role == "user" { if let reply { replies.insert(reply) }; reply = nil }
-        else if message.role == "assistant", !ocTrim(message.text).isEmpty || presence.contains(message.id, "text") { reply = message.id }
+        else if message.role == "assistant", message.status != "streaming", !ocTrim(message.text).isEmpty || presence.contains(message.id, "text") { reply = message.id }
     }
     if let reply { replies.insert(reply) }; return replies
 }
@@ -219,6 +219,9 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
         }
         for part in parts {
             let type = part["type"]?.stringValue ?? ""
+            // Text, reasoning and tools share a native message. Withhold only
+            // its reply parts, preserving live execution records and requests.
+            if type == "text" && message.status == "streaming" { continue }
             if type == "tool" {
                 if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])] { result.append(ocToolRow(tool, locale: locale)) }; continue
             }
@@ -232,7 +235,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
                 body = AnyView(ThreadSurfaceDisclosure(label: ocLocalized("思考过程", locale: locale), live: message.status == "streaming") {
                     NativeMarkdownView(text: text, streaming: message.status == "streaming", openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)
                 })
-            } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text, streaming: message.status == "streaming",
+            } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text,
                 openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)) }
             result.append(.init(id: id, kind: reply ? .content : .work, node: body,
                 execution: reply ? nil : .member, executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))

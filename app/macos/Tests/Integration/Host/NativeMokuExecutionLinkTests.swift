@@ -47,15 +47,18 @@ import MokuseiHarnessOpenCode
     }
 
     func update(status: PublicExecution.Status = .completed, text: String? = nil, successor: Bool = false,
-                archived: Bool = false, empty: Bool = false) throws {
+                archived: Bool = false, empty: Bool = false, messageStatus: String? = nil,
+                pendingText: String? = nil, mixedParts: Bool = false) throws {
         revision += 1
         let executions = try [("prior", PublicExecution.Status.completed), ("target", status)]
             .enumerated().map { index, entry in
                 try PublicExecution(executionID: JSONText(entry.0), status: entry.1, startedAt: Double(index * 10 + 1),
-                    finishedAt: [.running, .waitingForUser].contains(entry.1) ? nil : Double(index * 10 + 5))
+                    finishedAt: [.running, .waitingForUser].contains(entry.1) ? nil : Double(index * 10 + 5),
+                    interactions: entry.1 == .waitingForUser ? [.init(id: "approval", kind: .permission,
+                        title: "Waiting fixture approval", actions: [.init(id: "allow", intent: .allow, label: "Allow")], questions: [])] : [])
             } + (successor ? [try PublicExecution(executionID: "successor", status: .running, startedAt: 21)] : [])
         let answer = text ?? "TARGET RESULT\n\n" + String(repeating: "A long result paragraph with enough detail to scroll.\n\n", count: 65)
-        let raw = state(executions, answer: answer, empty: empty)
+        let raw = state(executions, answer: answer, empty: empty, messageStatus: messageStatus, pendingText: pendingText, mixedParts: mixedParts)
         thread = try HarnessThread(id: "ordinary", harnessID: JSONText(harness), revision: revision, sessionState: raw,
             observation: .init(latestExecution: executions.last), cwd: JSONText(directory.path), settings: .object([:]),
             createdAt: 1, updatedAt: Double(revision + 30), title: "Execution link replay", tags: [], archived: archived)
@@ -91,21 +94,30 @@ import MokuseiHarnessOpenCode
     }
 
     // Native-shaped fixtures enter the real Harness decoders and renderers.
-    private func state(_ executions: [PublicExecution], answer: String, empty: Bool) -> JSONValue {
+    private func state(_ executions: [PublicExecution], answer: String, empty: Bool,
+                       messageStatus: String?, pendingText: String?, mixedParts: Bool) -> JSONValue {
         let turns: [JSONValue] = executions.map { execution in
             let id = execution.executionID.string
             let body = id == "target" ? answer : "OTHER EXECUTION \(id)"
             let running = [.running, .waitingForUser].contains(execution.status)
-            let messageStatus = running ? "streaming" : "complete"
+            let status = id == "target" ? messageStatus ?? (running ? "streaming" : "complete") : "complete"
             if harness == "pi" || harness == "opencode" { return execution.json }
             var turn: [JSONText: JSONValue] = ["executionId": .text(id), "createdAt": .number(execution.startedAt),
                 "updatedAt": .number(execution.startedAt + 4), "status": .text(running ? "running" : execution.status.rawValue),
                 "reasoning": .text(""), "plan": .array([]), "activities": .array([]), "interactions": .array([]), "notices": .array([])]
             if let finished = execution.finishedAt { turn["finishedAt"] = .number(finished) }
             var item: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "kind": .text("assistant"), "content": .text(body),
-                "status": .text(messageStatus), "createdAt": .number(execution.startedAt + 1)]
+                "status": .text(status), "createdAt": .number(execution.startedAt + 1)]
             if harness == "codex" { item["itemId"] = .text(id + "-native") }
-            let items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
+            var items: [JSONValue] = empty && id == "target" ? [] : [.object(item)]
+            if id == "target", let pendingText {
+                var pending = item
+                pending["id"] = .text(id + "-pending")
+                if harness == "codex" { pending["itemId"] = .text(id + "-pending-native") }
+                pending["content"] = .text(pendingText)
+                pending["status"] = .text(running ? "streaming" : "complete")
+                items.append(.object(pending))
+            }
             var reviewItem: [JSONText: JSONValue] = ["id": .text(id + "-review"), "kind": .text("review"),
                 "createdAt": .number(execution.startedAt + 2)]
             if harness == "codex" { turn["review"] = .text("LATE REVIEW") }
@@ -126,18 +138,38 @@ import MokuseiHarnessOpenCode
                                        "turns": .array(turns), "backgroundTerminals": .array([])])
         case "claude": return .object(["version": .integer(1), "turns": .array(turns), "nativeNotifications": .array([])])
         default:
-            let messages: [JSONValue] = executions.compactMap { execution in
+            let messages: [JSONValue] = executions.flatMap { execution -> [JSONValue] in
                 let id = execution.executionID.string
-                if empty && id == "target" { return nil }
+                if empty && id == "target" { return [] }
                 let text = id == "target" ? answer : "OTHER EXECUTION \(id)"
                 var message: [JSONText: JSONValue] = ["id": .text(id + "-answer"), "executionId": .text(id), "role": .text("assistant"),
-                    "text": .text(text), "status": .text([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete")]
+                    "text": .text(text), "status": .text(id == "target" ? messageStatus ?? ([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete") : "complete")]
                 if harness == "opencode" {
                     message["parts"] = .array([
                         .object(["type": .text("text"), "ordinal": .integer(0), "text": .text(text)]),
                         .object(["type": .text("text"), "ordinal": .integer(1), "text": .text("Final reply second part")])])
+                    if id == "target", mixedParts {
+                        message["parts"] = .array([
+                            .object(["type": .text("text"), "ordinal": .integer(0), "text": .text(text)]),
+                            .object(["type": .text("reasoning"), "ordinal": .integer(1), "text": .text("REASONING RECORD")]),
+                            .object(["type": .text("tool"), "toolCallId": .text("fixture-tool")])])
+                        let tool: JSONValue = .object(["id": .text(id + "-answer:tool:fixture-tool"),
+                            "executionId": .text(id), "role": .text("tool"), "text": .text("TOOL RECORD"),
+                            "status": .text("complete"), "toolCallId": .text("fixture-tool"), "toolName": .text("Fixture tool")])
+                        return [.object(message), tool]
+                    }
                 }
-                return .object(message)
+                if id == "target", let pendingText {
+                    var pending = message
+                    pending["id"] = .text(id + "-pending")
+                    pending["text"] = .text(pendingText)
+                    pending["status"] = .text([.running, .waitingForUser].contains(execution.status) ? "streaming" : "complete")
+                    if harness == "opencode" {
+                        pending["parts"] = .array([.object(["type": .text("text"), "ordinal": .integer(0), "text": .text(pendingText)])])
+                    }
+                    return [.object(message), .object(pending)]
+                }
+                return [.object(message)]
             }
             var raw: [JSONText: JSONValue] = ["version": .integer(1), "messages": .array(messages), "executions": .array(turns),
                                               "latestExecutionId": .string(executions.last!.executionID)]
@@ -225,6 +257,13 @@ struct NativeMokuExecutionLinkTests {
     }
     private func textViews(_ root: NSView) -> [NSTextView] {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
+    }
+    private func replyCopies(_ phrase: String, in root: NSView) throws -> [Int] {
+        let views = textViews(root).filter { $0.string.contains(phrase) }
+        // Current and history documents can retain the same reply at once.
+        // Require a complete copy in each owning viewport, never an aggregate.
+        let pages = try Dictionary(grouping: views) { ObjectIdentifier(try #require($0.enclosingScrollView)) }
+        return pages.values.map { $0.reduce(0) { $0 + $1.string.components(separatedBy: phrase).count - 1 } }
     }
     private func click(_ label: String, in root: NSView) throws {
         if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
@@ -566,7 +605,7 @@ struct NativeMokuExecutionLinkTests {
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
-        try fixture.update(status: .running)
+        try fixture.update(status: .running, mixedParts: true)
         fixture.load()
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
         defer { window.close() }
@@ -593,19 +632,33 @@ struct NativeMokuExecutionLinkTests {
         try click("View result", in: root)
         try await ready(fixture)
         #expect(fixture.scroll?["value"]?["following"] == .bool(true))
+        if harness == "opencode" {
+            // Withholding text in a mixed native message must preserve both
+            // execution rows rather than dropping the whole message.
+            #expect(fixture.controls.snapshot(visit: fixture.visit).contains {
+                $0["role"] == .text("turn") && $0["value"]?["executionId"] == .text("target") && $0["value"]?["rowCount"] == .integer(2)
+            })
+        }
         let oldHeight = fixture.scroll?["value"]?["height"]?.numberValue ?? 0
         record("original")
-        // Paged streaming publishes only closed top-level Markdown blocks, so a
-        // reply that never ends a block (one long paragraph) presents nothing
-        // until it completes. Stream blank-line-separated blocks so the reply
-        // grows at page flushes, and assert that the mounted text view contains
-        // the flushed content before checking follow position.
+        // Even enough closed blocks to fill several pages must stay withheld
+        // until this message settles, independently of the execution status.
         let firstInput = String(repeating: "STREAMING CONTENT\n\n", count: 200)
-        try fixture.update(status: .running, text: firstInput)
+        try fixture.update(status: .running, text: firstInput, mixedParts: true)
         record("first-source", inputBytes: firstInput.utf8.count)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect((fixture.scroll?["value"]?["height"]?.numberValue ?? 0) == oldHeight)
+        #expect(fixture.thread.observation.latestExecution?.status == .running)
+        try fixture.update(status: .waitingForUser, text: firstInput, mixedParts: true)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect(fixture.thread.observation.latestExecution?.status == .waitingForUser)
+        try fixture.update(status: .running, text: firstInput, messageStatus: "complete")
         try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("STREAMING CONTENT") } }
+        #expect(try replyCopies("STREAMING CONTENT", in: root).allSatisfy { $0 == 200 })
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["height"]?.numberValue ?? 0) > oldHeight }
-        record("first-stream", inputBytes: firstInput.utf8.count)
+        record("first-message-complete", inputBytes: firstInput.utf8.count)
         try await SwiftUIReplay.wait {
             guard let value = fixture.scroll?["value"], let h = value["height"]?.numberValue,
                   let y = value["top"]?.numberValue, let v = value["viewport"]?.numberValue else { return false }
@@ -616,16 +669,21 @@ struct NativeMokuExecutionLinkTests {
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(false) && fixture.scroll?["pending"] == .bool(false) }
         record("user-scroll")
         let secondInput = String(repeating: "NEW STREAMING CONTENT\n\n", count: 220)
-        try fixture.update(status: .running, text: secondInput)
+        try fixture.update(status: .running, text: firstInput, messageStatus: "complete", pendingText: secondInput)
         record("second-source", inputBytes: secondInput.utf8.count)
         try await Task.sleep(for: .milliseconds(200))
         record("second-stream", inputBytes: secondInput.utf8.count)
+        #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
+        #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect(fixture.thread.observation.latestExecution?.status == .running)
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
         try fixture.perform(jump, "activate")
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(true) }
         record("jump-latest")
-        try fixture.update(status: .completed, successor: true)
+        try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput)
+        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
+        #expect(try replyCopies("NEW STREAMING CONTENT", in: root).allSatisfy { $0 == 220 })
         try await Task.sleep(for: .milliseconds(150))
         #expect(fixture.presentation.readingTarget?.executionID == "target")
         window.close(); await fixture.close()
@@ -644,6 +702,10 @@ struct NativeMokuExecutionLinkTests {
         #expect(fixture.presentation.selected?.threadID == "ordinary")
         try await ready(fixture)
         #expect(fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("turn") && $0["value"]?["executionId"] == .text("target") && $0["value"]?["state"] == .text("ready") })
+        // Pi can retain a streaming marker after execution settlement. Other
+        // Harnesses settle their message status along with failure/cancellation.
+        try fixture.update(status: status, text: "RETAINED TERMINAL REPLY", messageStatus: harness == "pi" ? "streaming" : status == .failed ? "failed" : "cancelled")
+        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("RETAINED TERMINAL REPLY") } }
         fixture.presentation.openNoteExecution(.init(thread: .init(threadID: "ordinary", typeID: "agent"), executionID: "missing"))
         try await SwiftUIReplay.wait {
             fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("conversation") && $0["value"]?["destination"] == .text("unavailable") }

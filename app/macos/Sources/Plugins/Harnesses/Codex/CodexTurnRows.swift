@@ -58,7 +58,7 @@ struct CodexTurnRows: View {
         let activities = firstByID(turn.activities)
         var notices: [JSONText: JSONValue] = [:]
         for notice in turn.notices where notices[notice.codexIdentity("id")] == nil { notices[notice.codexIdentity("id")] = notice }
-        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
+        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
         var result: [ThreadDetailRow] = []
         var index = 0
         while index < timeline.count {
@@ -101,8 +101,10 @@ struct CodexTurnRows: View {
             guard let message = messages[item.raw.codexIdentity("messageId")], !message.isInternal else { return nil }
             return AnyView(CodexUserMessage(message: message, actions: actions, context: context))
         case "assistant":
-            guard !codexTrim(item.raw["content"]).codeUnits.isEmpty else { return nil }
-            return AnyView(ThreadMessage(id: item.id, author: .assistant, content: item.content, streaming: item.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia))
+            // A message can settle before its execution; keep completed replies
+            // readable while the Harness continues with tools or another reply.
+            guard item.status != "streaming", !codexTrim(item.raw["content"]).codeUnits.isEmpty else { return nil }
+            return AnyView(ThreadMessage(id: item.id, author: .assistant, content: item.content, openExternal: openExternal, resolveMedia: context.resolveMedia))
         case "reasoning":
             return AnyView(ThreadSurfaceDisclosure(label: codexLocalized("思考过程", locale: locale)) {
                 NativeMarkdownView(text: item.content, streaming: active && turn.timeline.last?.id == item.id,

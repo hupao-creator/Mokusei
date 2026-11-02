@@ -118,6 +118,18 @@ reference remains unperformed when only headless execution is allowed.
 
 ## Reading and execution disclosure
 
+Ordinary Agent Thread detail withholds assistant reply bodies while their native
+message status is `streaming`. Each settled message renders its complete Markdown
+even if the execution continues; a later streaming reply does not replace the
+last settled reply. Failed/cancelled messages retain their available text. Pi
+also releases retained text when its owning execution terminates, because that
+Harness can leave a message marked streaming after settlement. OpenCode applies
+the gate to reply text parts, including child sessions, without hiding reasoning
+or tools in the same native message. Execution status, pending interactions,
+reasoning/tool records, composer and backend event delivery retain their own
+lifecycles. This policy lives in the four Harness readers, not the shared
+Markdown renderer or other conversation surfaces.
+
 [Reading/NativeMarkdownView.swift](Reading/NativeMarkdownView.swift) renders message-level streaming content as literal selectable text only when no reading viewport is known. Mounted Thread timelines supply `nativeReadingPageCapacity`, so [Reading/NativeStreamingPage.swift](Reading/NativeStreamingPage.swift) instead holds the open page back until it closes. Streaming revisions do not enter the ordinary Markdown parser; a settled prefix is parsed at top-level block boundaries and published one page at a time. On settlement, rich rendering resumes; obsolete parsing results cannot replace a newer streaming revision. Completed messages remain rich even while another message in the turn is active.
 
 A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance and honor Reduce Motion. A message that is one unsplittable block (for example a single long list or an unfinished paragraph) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush. Because only closed blocks render, a following timeline's content height and follow scroll change at page flushes, not once per streamed token; the follow, pause-on-user-scroll and jump-to-latest contract is unchanged and settles after each flush.

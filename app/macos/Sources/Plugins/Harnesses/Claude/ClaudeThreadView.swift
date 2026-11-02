@@ -138,10 +138,11 @@ struct ClaudeTurnView: View {
     }
     private var rows: [ThreadDetailRow] {
         let timeline = claudeProjectTimeline(turn).filter { $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)
-        let final = waiting ? nil : timeline.last(where: { $0.claudeKind == "assistant" && !claudeTrim($0["content"]).isEmpty })?.claudeID("id")
+        let final = waiting ? nil : timeline.last(where: { $0.claudeKind == "assistant" && $0["status"]?.stringValue != "streaming" && !claudeTrim($0["content"]).isEmpty })?.claudeID("id")
         var rows: [ThreadDetailRow] = [], index = 0
         while index < timeline.count {
             let item = timeline[index]; index += 1
+            if item.claudeKind == "assistant" && item["status"]?.stringValue == "streaming" { continue }
             if item.claudeKind == "usage" || item.claudeKind == "assistant" && claudeTrim(item["content"]).isEmpty { continue }
             if item.claudeKind == "user-message", turn.internalIndexes.contains(item["promptIndex"]?.intValue ?? -1) { continue }
             if item.claudeKind == "activity" {
@@ -159,6 +160,7 @@ struct ClaudeTurnView: View {
         }
         func appendFallback(_ fallbackKinds: [String]) {
         for kind in fallbackKinds where !kinds.contains(kind) {
+            if kind == "assistant" && turn.status == "running" { continue }
             let field = kind == "assistant" ? "text" : kind
             var fields: [String: JSONValue] = [:]
             if kind == "context-compaction" { guard turn.raw["compacted"] == .bool(true) else { continue } }

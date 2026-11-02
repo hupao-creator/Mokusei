@@ -654,8 +654,16 @@ Markdown cases explicitly skip; this run does not certify those cases.
 `python3 tools/verification/reading-presentation/run.py --moku-execution-links`
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
-streaming follow/stop/resume, successor isolation, archived/failed and missing
+message-completion follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
+The running-link case sends enough streaming blocks to fill multiple pages and
+requires that none appear before message completion, including while waiting
+for input. OpenCode's mixed text/reasoning/tool fixture must retain both execution
+rows while withholding reply text. It then settles a message
+while execution remains running, retains that reply while a successor message
+streams, and checks full successor text after completion. Terminal cases retain
+failed/cancelled reply text, including Pi's stale streaming marker after execution
+settlement. The generic Markdown streaming path remains available to other readers.
 The eleven tests include mounted `ThreadDetailFrame` and window Back controls:
 application execution callbacks and explicit start-position reading requests to
 old, current and missing executions return to Overview in one action, including

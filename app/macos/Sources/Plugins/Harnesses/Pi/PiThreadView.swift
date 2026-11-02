@@ -163,7 +163,8 @@ private struct PiTurn: View {
     }
     private var rows: [ThreadDetailRow] {
         let waiting = current && input.thread.observation.latestExecution?.status == .waitingForUser
-        let finalID = waiting ? nil : messages.last { $0.role == "assistant" && !piTrim($0.text).codeUnits.isEmpty }?.id
+        let withholdingReplies = [.running, .waitingForUser].contains(execution.status)
+        let finalID = waiting ? nil : messages.last { $0.role == "assistant" && (!withholdingReplies || $0.status != "streaming") && !piTrim($0.text).codeUnits.isEmpty }?.id
         var rows: [ThreadDetailRow] = []
         for message in messages {
             let final = message.role == "assistant" && message.id == finalID
@@ -174,6 +175,9 @@ private struct PiTurn: View {
                         NativeMarkdownView(text: thinking.string, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
                     }), execution: .member, executionSummary: ThreadExecutionSummary(reasoningSegments: 1)))
             }
+            // Pi may terminate an execution without settling its last message.
+            // Release that retained text once the execution is no longer active.
+            if message.role == "assistant" && withholdingReplies && message.status == "streaming" { continue }
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
             rows.append(ThreadDetailRow(id: message.id, kind: message.role == "user" ? .user : message.role == "tool" || !final ? .work : .content,
                 node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final) ? .member : nil,
@@ -204,7 +208,6 @@ private struct PiTurn: View {
             }
         } else {
             ThreadMessage(id: message.id, author: message.role == "user" ? .user : .assistant, content: message.text.string,
-                streaming: message.status == "streaming",
                 annotations: message.annotations.compactMap { value in
                     guard let id = piText(value["id"]) else { return nil }
                     return ThreadMessageAnnotation(id: id, url: value["url"]?.stringValue ?? "", title: value["title"]?.stringValue,
