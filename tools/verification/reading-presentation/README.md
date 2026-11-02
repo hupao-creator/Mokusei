@@ -683,23 +683,13 @@ a loopback binary response that must preserve the loaded report. The production
 Report detail is also mounted with a recovering HTML capability to ensure it
 does not retain a duplicate failure overlay at the same content revision.
 
-## Model and reasoning selector
+## Retired selector fixture
 
-`python3 tools/verification/reading-presentation/run.py --model-selector` runs
-four mounted production-selector cases in the isolated AppKit application loop.
-They cover exact IDs, disabled choices, keyboard commit/cancellation/type-ahead,
-slider actions and reset, the model-list subpage, capability refresh, and a single
-fixed choice. The Settings Escape monitor case dispatches through NSApplication
-to verify model/reasoning cancellation before page return, unchanged values,
-restored anchor focus, reopening and the second Escape. Light/dark model lists
-and the reasoning panel are rendered under
-`.scratch/reading-presentation/NativeModelSelectorReplayTests`. These component
-renders do not certify WindowServer compositing or physical input delivery.
-
-SwiftPM defers these four methods to this launcher because transient popovers
-need a running AppKit application. The default CI `native` replay group
-runs them and the coverage auditor requires their observed passing outcomes;
-a skipped or incomplete replay is a failure.
+The direct embedded model/reasoning popover and headless slider suites were
+removed. Current Settings and compact configuration select through the system
+control; their Settings/Harness-form replays remain. The retired
+`--model-selector` command fails explicitly rather than silently running another
+suite. No native method may still defer to that removed launcher.
 
 Title-motion capture waits on copied-frame arrival with the existing absolute
 three-second deadline; it does not poll an empty capture queue. Every retained

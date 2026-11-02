@@ -3,12 +3,25 @@ import os
 import signal
 import subprocess
 import sys
+import time
 
 
-def run(command, *, timeout=1800, termination_grace=5, **kwargs):
+def run(command, *, timeout=1800, termination_grace=5, cancel_event=None, **kwargs):
     process = subprocess.Popen(command, start_new_session=True, **kwargs)
     try:
-        return process.wait(timeout=timeout)
+        if cancel_event is None:
+            return process.wait(timeout=timeout)
+        expires = time.monotonic() + timeout
+        while True:
+            if cancel_event.is_set():
+                raise InterruptedError("CI command cancelled by its owner")
+            remaining = expires - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, timeout)
+            try:
+                return process.wait(timeout=min(0.2, remaining))
+            except subprocess.TimeoutExpired:
+                continue
     except subprocess.TimeoutExpired as error:
         raise TimeoutError(
             f"CI command exhausted its {timeout:.1f}s execution allowance. "

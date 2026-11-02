@@ -71,7 +71,7 @@ windowing in the same production app, see the [reading interaction replay](threa
 CI builds Swift once and verifies its exact manifest before replay launchers use
 `MOKUSEI_SWIFT_SKIP_BUILD=1`; see [the shared command helper](swiftfixture/README.md).
 Local commands keep their default build behavior. The complete ordinary Swift
-suite and all interop/native replays execute serially in one macOS job, reusing
+suite and all interop/native replays execute serially in one macOS session, reusing
 that job's verified build and graphical session.
 
 Run from the repository root with `./scripts/go.sh`. These executable integration drivers complement the package tests. They exercise production boundaries against fixed protocol fixtures, temporary databases/profiles or loopback model services. Failures return nonzero. Build the runtime with `make runtime` before the native settings launcher.
@@ -147,3 +147,12 @@ settings-save conflicts without batch retry consumption, validation of matching
 idle-session reuse, unchanged admitted steering and next-batch profile adoption.
 It also checks cold Open settlement of an orphan and background work that needs
 Close after Interrupt, including native state flushes during cleanup.
+
+The fixture group runs up to two independent Go producers concurrently; native
+and interop commands remain serial. Windowless local feedback is available with
+`local-macos.py headless` (see its operator guide); it cannot replace full native
+signoff. The obsolete `moku-talk` scroll-view/dispatch driver and its private
+exports were removed; current Talk/dispatch checks remain. The old direct
+model-selector popover/slider suites were removed in favor of current Settings
+and Harness-form coverage. No skips, pixel thresholds or current production
+contracts were relaxed by these removals.

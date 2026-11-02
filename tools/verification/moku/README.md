@@ -204,3 +204,8 @@ the runtime parser. Missing, null and non-boolean values fail; false remains
 valid without cwd; true requires cwd. The runtime replay creates a committed Git
 fixture, uses the returned `workspace.worktreeCwd`, verifies edit isolation and
 rejects a non-Git cwd for true.
+
+The old `MOKU_TALK_NATIVE_FIXTURE` Talk/dispatch export and its consumers were
+removed with the deleted scroll-view fixture. The regular backend Talk schema,
+Coordinator, audit and create-thread checks remain in this command; note and
+status fixture exports remain active.

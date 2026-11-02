@@ -9,10 +9,9 @@ import MokuseiTestSupport
 
 /// Exercises the packaged Metal function through SwiftUI's actual shader path.
 @MainActor
-@Suite(.serializedNative, .requiresDisplay)
+@Suite(.serializedNative)
 struct NativeCloudMetalTests {
     private func pixels<V: View>(_ content: V, size: CGSize = CGSize(width: 64, height: 48), colorMode: ColorRenderingMode = .nonLinear) throws -> [UInt8] {
-        _ = NSApplication.shared
         let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
         renderer.scale = 1
         renderer.colorMode = colorMode
@@ -93,7 +92,6 @@ struct NativeCloudMetalTests {
 
     @Test(arguments: [0.0, -0.25])
     func dormantLoadingRemainsTransparentAndFillsItsProposal(intensity: Double) throws {
-        _ = NSApplication.shared
         let palette = NativeCloudPalette(channels: [.init(color: .cyan, seed: 7, energy: 0.42)])
         let loading = NativeCloudLoading(palette: palette, intensity: intensity)
         let renderer = ImageRenderer(content: loading.background(Color.red))
@@ -110,7 +108,6 @@ struct NativeCloudMetalTests {
     }
 
     @Test func positiveInterpolatedLoadingValuesRenderBeforeAndAfterZero() throws {
-        _ = NSApplication.shared
         // Broad lobes keep this lifecycle assertion independent of the random
         // motion seed; paused motion must still render every positive intensity.
         let palette = NativeCloudPalette(channels: [.init(color: .cyan, seed: 7, energy: 0.42)],

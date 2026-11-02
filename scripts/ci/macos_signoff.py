@@ -18,7 +18,7 @@ def context_for(mode, baseline=None, candidate=None):
         import hashlib
         pair = commit_sha(baseline or "") + commit_sha(candidate or "")
         return "signoff/macos-overview-" + hashlib.sha256(pair.encode()).hexdigest()[:24]
-    return {"native": "signoff/macos-native", "extended": "signoff/macos-cli"}[mode]
+    return {"native": "signoff/macos-native", "headless": "signoff/macos-headless", "extended": "signoff/macos-cli"}[mode]
 
 
 def gh_json(*arguments):
