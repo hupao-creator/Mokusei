@@ -308,7 +308,8 @@ struct NativeMokuNoteTests {
             if withMessage {
                 let message = try #require(element(id: "moku-voice-transcript", in: root))
                 let messageBounds = try frame(message)
-                #expect(messageBounds.minY >= bounds.maxY || messageBounds.maxX <= bounds.minX)
+                #expect(messageBounds.minY >= bounds.maxY || messageBounds.maxX <= bounds.minX,
+                        "Transcript \(messageBounds) overlaps history \(bounds); node \(type(of: message))")
             }
             if withVoice || mode == "running" {
                 let control = try #require(element(id: withVoice ? "history-test-voice" : "moku-stop", in: root))

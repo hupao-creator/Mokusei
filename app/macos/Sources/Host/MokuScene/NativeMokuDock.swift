@@ -113,6 +113,7 @@ public struct NativeMokuDock: View {
     @State private var voiceActionWidth: CGFloat = 34
     @State private var voiceControlsFrame = CGRect.zero
     @State private var voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
+    @State private var talkScrollbarStyle = NSScroller.preferredScrollerStyle
     @State private var dispatchDetail: NativeMokuTalkMessage?
     @State private var character = NativeMokuCharacterMotion()
     @State private var reasoningRequested = false
@@ -249,7 +250,7 @@ public struct NativeMokuDock: View {
             }
             .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing(width: width)), height: 28)
         } else {
-            NativeMokuTalkContent(message: message)
+            NativeMokuTalkContent(message: message, scrollbarStyle: talkScrollbarStyle)
                 .accessibilityIdentifier(visibleVoiceTranscript == nil ? "moku-talk-content" : "moku-voice-transcript")
                 .frame(width: max(1, width - NativeMokuTalkTypography.leading - talkTrailing(width: width)),
                        height: max(0, surfaceHeight(width: width) - NativeMokuTalkTypography.verticalPadding * 2))
@@ -298,7 +299,7 @@ public struct NativeMokuDock: View {
         let maximumHeight = visibleVoiceTranscript == nil
             ? NativeMokuTalkTypography.maximumHeight : NativeMokuTalkTypography.transcriptMaximumHeight
         return max(landing ? 76 : 58, NativeMokuTalkTypography.capsuleHeight(message.text, width: width,
-            trailingInset: talkTrailing(width: width), maximumHeight: maximumHeight))
+            trailingInset: talkTrailing(width: width), maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
     }
     private var residentPresenting: Bool {
         !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
@@ -480,6 +481,9 @@ public struct NativeMokuDock: View {
                     state.setInputOpen(false)
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
+            talkScrollbarStyle = NSScroller.preferredScrollerStyle
         }
         .onChange(of: incomingTalk, initial: true) { _, message in state.receiveTalk(message) }
         .onAppear {

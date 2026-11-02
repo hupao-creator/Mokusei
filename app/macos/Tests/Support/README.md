@@ -166,6 +166,17 @@ The scheduling contract is documented by Swift's
 and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
 Neither promises immunity to executor/OS preemption.
 
+The ordinary `GitThreadExtensionTests.sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes`
+fixture uses the same bounded activity and zero tolerance for its existing
+100/90/300ms sampling sequence. Run 41395692467 failed its unchanged three-frame
+inequality, but retained neither those frames nor individual delays, so the
+failed interval cannot be classified. The fixture now saves all three PNGs,
+actual input/capture times and pairwise comparisons under `MOKUSEI_CI_EVIDENCE`
+(or `MOKUSEI_GIT_ARTIFACTS`, default `/tmp/mokusei-git-visual`) before asserting.
+The production 260ms animation, input sequence and pixel predicate are unchanged;
+missing intermediate evidence still fails rather than retrying or accepting a
+later settled frame.
+
 ## Title frame arrival
 
 The title capture observer waits for a copied complete WindowServer frame to
