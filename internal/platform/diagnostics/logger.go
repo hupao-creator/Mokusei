@@ -378,7 +378,7 @@ func (l *Logger) SearchEvent(event plugin.SearchDiagnostic) {
 	if !settingsIn(event.Cache, "none hit miss") {
 		event.Cache = ""
 	}
-	if event.Reason != "" && !settingsIn(event.Reason, "cancelled timeout local-unavailable internal query-limit paused disabled stale") {
+	if event.Reason != "" && !settingsIn(event.Reason, "cancelled timeout internal query-limit paused disabled stale") {
 		event.Reason = "internal"
 	}
 	data, err := json.Marshal(struct {
