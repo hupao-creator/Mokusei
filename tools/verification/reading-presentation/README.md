@@ -646,19 +646,26 @@ runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 streaming follow/stop/resume, successor isolation, archived/failed and missing
 execution targets. These cases also run in the complete hosted Swift suite.
-The eight tests include mounted `ThreadDetailFrame` and window Back controls:
-note links to current, older and missing executions return to Overview in one
-action and can be reopened; ordinary TOC history still returns to the loaded
-current document before leaving the thread. A production Harness-surface
-resource case checks that closing one of two equal-scope consumers cannot
-revoke the survivor, and that surface retirement releases both remaining
+The eleven tests include mounted `ThreadDetailFrame` and window Back controls:
+application execution callbacks and explicit start-position reading requests to
+old, current and missing executions return to Overview in one action, including
+archived threads. Note deep links establish a successor before entry and reopen
+the same old/missing result. Window Back, native Escape and the document close
+callback all exit directly. Native sibling controls outside the viewport and a
+real editor first consume their own Escape; a subsequent unfocused document
+Escape still exits the route. Explicitly reselecting the entry's TOC row resumes
+internal Back,
+including when a successor arrives afterward; ordinary TOC history still returns
+to the loaded current document before leaving the thread. A production
+Harness-surface resource case checks that closing one of two equal-scope
+consumers cannot revoke the survivor, and that surface retirement releases both remaining
 consumers. The fixture supplies content, without opening a user Runtime/profile.
 For window-free Host routing and content-handle lifetime verification, run
 `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos --filter NativeMokuExecutionLinkRoutingTests`.
 These two tests cover 12 route cases and three content scopes. They do not
 certify the mounted window Back control, Escape delivery or return animation;
-the other six tests require a graphical session and explicitly skip headless.
-The nine-method replay also mounts the production clear-glass execution capsules
+the other nine tests require a graphical session and explicitly skip headless.
+The eleven-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
 brands without changing the note incarnation or revision. That capsule method

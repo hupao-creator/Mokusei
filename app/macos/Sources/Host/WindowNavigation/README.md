@@ -57,16 +57,32 @@ suppression, resize, activation notifications, 0.25×–5× workspace safe areas
 editable/dialog key ownership, non-GET new-window rejection and remote-page
 navigation resets with production views.
 
-Moku note execution links enter through `openNoteExecution`, which admits public
-ordinary threads, including archived and failed/interrupted threads hidden from
-Overview. The result reading request is exact and does not start execution. A
-missing or ineligible thread shows an unavailable notice; a missing execution
-uses the reader's unavailable page. Each click receives a fresh reading request.
-The result is the route's entry document: Back (including Escape) returns through
-the host's Overview action, even for a missing execution. It does not synthesize
-a previous visit to the thread's current document. Selecting the thread's TOC
-explicitly resumes ordinary internal navigation, whose Back restores the current
-document before leaving the route.
+Direct execution requests enter through Report/application `openExecution`,
+explicit `openThread` reading targets, or Moku note `openNoteExecution`. All four
+Harnesses forward these requests to the shared conversation reader. The requested
+document owns the route's entry Back action, independently of start/result scroll
+position, current/history mode, or whether a newer execution already exists.
+Back (including Escape and the unavailable page's close action) exits through
+the Host's return action without inventing a visit to the current document.
+Explicit TOC navigation relinquishes that entry ownership, even when reselecting
+the same historical row; Back then restores the current document before leaving.
+A new request, including a repeated link, starts a fresh entry visit.
+The mounted active history document handles Escape in its own window even if
+result positioning leaves no SwiftUI focus target. Focus outside its viewport,
+editing, IME composition and native menu/popup cancellation retain priority;
+hidden/transitioning documents
+cannot consume another page's Escape.
+
+Moku note execution URLs are parsed by the shared Markdown link boundary and
+enter through `openNoteExecution`; there is no OS-level execution URL handler.
+This entry admits public ordinary threads, including archived and
+failed/interrupted threads hidden from Overview. The result reading request is
+exact and does not start execution. A missing or ineligible thread shows an
+unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
+Report relation buttons and the Note are Overview entry points, so their Host
+return action restores Overview. Admission rules remain entry-specific; archived
+ordinary threads are valid for both, while the Note additionally admits ordinary
+failed/interrupted threads hidden from Overview.
 
 Retained current/result/history documents may mount the same row simultaneously.
 The Harness host gives each content-resource acquisition its own subscription
