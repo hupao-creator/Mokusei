@@ -79,7 +79,10 @@ without skips; plain headless Swift runs explicitly skip this display-dependent 
 
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
-must complete all seven tests without skips to certify it.
+must complete all eight tests without skips to certify it.
+The session-picker case mounts the production Moku reader and window navigation
+at 0.25×, 1× and 5× workspace zoom. It checks native accessibility geometry below
+Back, activates Back, retains the draft and exports `history-session-*.png`.
 
 The composer hold replay queues each down/drag/up through AppKit in order. A
 window- and gesture-scoped local monitor anchors a private serial Dispatch timer
