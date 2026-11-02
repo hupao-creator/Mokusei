@@ -1,0 +1,340 @@
+[0/1] Planning build
+[1/1] Compiling plugin CloudMetalCompiler
+Building for debugging...
+[1/10] Write sources
+[3/10] Copying PaletteResources-macosx.bundle
+[4/10] Write swift-version--58304C5D6DBC2206.txt
+[6/10] Emitting module MokuseiPluginUI
+[7/10] Compiling MokuseiPluginUI ThreadConversation.swift
+[8/11] Compiling MokuseiPluginUI ThreadHistorySidebar.swift
+[9/184] Compiling MokuseiSidecardConversation ConversationExecutionState.swift
+[10/184] Compiling MokuseiSidecardVoice NativeVoiceSidecard.swift
+[11/184] Compiling MokuseiApplications NativeTagApplication.swift
+[12/184] Emitting module MokuseiSidecardVoice
+[13/184] Compiling MokuseiApplications ReportContract.swift
+[14/184] Compiling MokuseiHarnessOpenCode OpenCodeLogo.swift
+[15/184] Compiling MokuseiSidecardBrowser BrowserAnnotationFiles.swift
+[16/184] Emitting module MokuseiHarnessCodex
+[17/185] Emitting module MokuseiApplications
+[18/185] Compiling MokuseiSidecardVoice VoiceStyles.swift
+[19/185] Compiling MokuseiHarnessPi PiHarnessPlugin.swift
+[20/185] Compiling MokuseiHarnessOpenCode OpenCodeJSONDisplay.swift
+[21/185] Emitting module MokuseiHarnessPi
+[22/185] Emitting module MokuseiHarnessOpenCode
+[23/185] Compiling MokuseiUI MokuGeometry.swift
+[24/185] Compiling MokuseiUI MokuMessageLayout.swift
+[25/186] Emitting module MokuseiHarnessClaude
+[26/186] Emitting module MokuseiSidecardConversation
+[27/186] Compiling MokuseiSidecardBrowser BrowserAnnotation.swift
+[28/186] Compiling MokuseiSidecardConversation NativeConversationSidecard.swift
+[29/186] Compiling MokuseiSidecardBrowser BrowserProgressRing.swift
+[30/186] Compiling MokuseiSidecardVoice VoiceSidecardPresentation.swift
+[31/186] Compiling MokuseiSidecardConversation ConversationSidecardPresentation.swift
+[32/186] Compiling MokuseiHarnessCodex CodexUserMessage.swift
+[33/186] Compiling MokuseiSidecardConversation ConversationExecutionPane.swift
+[34/186] Compiling MokuseiHarnessPi PiProjection.swift
+[35/186] Compiling MokuseiHarnessPi PiLogo.swift
+[36/186] Compiling MokuseiHarnessClaude ClaudeValidation.swift
+[37/186] Compiling MokuseiApplications NativeReportCard.swift
+[38/186] Compiling MokuseiApplications ApplicationSupport.swift
+[39/186] Compiling MokuseiApplications NativeReportApplication.swift
+[40/186] Compiling MokuseiHarnessCodex CodexTimelinePrimitives.swift
+[41/186] Compiling MokuseiHarnessCodex CodexThreadView.swift
+[42/186] Compiling MokuseiHarnessCodex CodexStateValidation.swift
+[43/186] Compiling MokuseiHarnessCodex CodexTurnRows.swift
+[44/186] Compiling MokuseiHarnessPi PiThreadView.swift
+[45/186] Compiling MokuseiHarnessPi PiState.swift
+[46/186] Compiling MokuseiHarnessClaude ClaudeTimeline.swift
+[47/186] Compiling MokuseiHarnessClaude ClaudeThreadView.swift
+[48/186] Compiling MokuseiHarnessClaude ClaudeState.swift
+[49/186] Compiling MokuseiHarnessPi PiSettings.swift
+[50/186] Compiling MokuseiHarnessOpenCode OpenCodeOverview.swift
+[51/186] Compiling MokuseiHarnessOpenCode OpenCodeSettings.swift
+[52/186] Compiling MokuseiHarnessClaude ClaudeSchemaPrefix.swift
+[53/186] Compiling MokuseiUI MokuReasoningText.swift
+[54/186] Compiling MokuseiUI MokuResidentAnimation.swift
+[55/186] Compiling MokuseiHarnessClaude ClaudeSettings.swift
+[56/186] Emitting module MokuseiSidecardBrowser
+[57/186] Compiling MokuseiHarnessOpenCode OpenCodeThreadView.swift
+[58/186] Compiling MokuseiHarnessOpenCode OpenCodeState.swift
+[61/186] Compiling MokuseiSidecardVoice VoiceMessageBubble.swift
+[62/186] Compiling MokuseiSidecardVoice VoiceSidecardContent.swift
+[63/186] Compiling MokuseiHarnessOpenCode OpenCodeInteractions.swift
+[64/186] Compiling MokuseiHarnessOpenCode OpenCodeHarnessPlugin.swift
+[65/186] Compiling MokuseiUI MokuPaintedPose.swift
+[66/186] Compiling MokuseiUI MokuReasoningContent.swift
+[67/186] Compiling MokuseiHarnessClaude ClaudeOverview.swift
+[68/186] Compiling MokuseiSidecardBrowser NativeBrowserSidecard.swift
+[69/186] Compiling MokuseiUI MokuResidentTransition.swift
+[70/186] Compiling MokuseiUI MokuRunningStory.swift
+[71/186] Compiling MokuseiUI MokuResidentPainter.swift
+[72/186] Compiling MokuseiUI MokuResidentPose.swift
+[73/186] Compiling MokuseiSidecardBrowser BrowserViewport.swift
+[74/186] Compiling MokuseiSidecardBrowser BrowserWebSession.swift
+[79/186] Compiling MokuseiSidecardBrowser BrowserSidecardPane.swift
+[80/186] Compiling MokuseiUI NativeMokuReasoningPlacement.swift
+[81/186] Compiling MokuseiUI NativeMokuRunningEyes.swift
+[82/186] Compiling MokuseiUI NativeMokuScene.swift
+[83/186] Compiling MokuseiUI NativeMokuSceneState.swift
+[84/186] Compiling MokuseiUI NativeMokuSwipe.swift
+[85/186] Compiling MokuseiUI NativeMokuTalk.swift
+[86/186] Compiling MokuseiUI NativeMokuTalkContent.swift
+[87/186] Compiling MokuseiUI NativeMokuThreadView.swift
+[88/186] Compiling MokuseiUI NativeMokuTimer.swift
+[89/186] Compiling MokuseiUI NativeMokuTimerBar.swift
+[90/186] Compiling MokuseiUI NativeMokuWorkspacePresentation.swift
+[91/186] Emitting module MokuseiUI
+[102/197] Compiling MokuseiUI MokuTextDrawing.swift
+[103/197] Compiling MokuseiUI NativeMokuCapsule.swift
+[104/197] Compiling MokuseiUI NativeApplicationBackgroundEditor.swift
+[105/197] Compiling MokuseiUI NativeApplicationCapabilities.swift
+[106/197] Compiling MokuseiUI NativeApplicationHTMLSurface.swift
+[107/197] Compiling MokuseiUI NativeApplicationHost.swift
+[108/197] Compiling MokuseiUI NativeApplicationViews.swift
+[109/197] Compiling MokuseiUI GitContracts.swift
+[110/197] Compiling MokuseiUI NativeGitDetail.swift
+[111/197] Compiling MokuseiUI NativeGitDetailModel.swift
+[112/197] Compiling MokuseiUI NativeGitDiff.swift
+[113/197] Compiling MokuseiUI NativeGitReadingPage.swift
+[114/197] Compiling MokuseiUI NativeGitSyntax.swift
+[115/197] Compiling MokuseiUI NativeGitWorkspaceModel.swift
+[116/197] Compiling MokuseiUI NativeWorkspaceView.swift
+[117/197] Compiling MokuseiUI NativeAgentThreadWorkspace.swift
+[118/197] Compiling MokuseiUI NativeSidecardControls.swift
+[119/197] Compiling MokuseiUI NativeSidecardWorkspaceModel.swift
+[120/197] Compiling MokuseiUI NativeSidecardWorkspaceServices.swift
+[121/197] Compiling MokuseiUI NativeMokuLongPressVoiceMonitor.swift
+[122/197] Compiling MokuseiUI NativeMokuVoiceCloud.swift
+[123/197] Compiling MokuseiUI NativeMokuVoiceControls.swift
+[124/197] Compiling MokuseiUI NativeThemeTransition.swift
+[125/197] Compiling MokuseiUI NativeWindowControlPlacement.swift
+[126/197] Compiling MokuseiUI NativeWindowNavigationView.swift
+[127/197] Compiling MokuseiUI NativeOnboardingReportAnimation.swift
+[128/197] Compiling MokuseiUI NativeOnboardingState.swift
+[129/197] Compiling MokuseiUI NativeOnboardingSurface.swift
+[130/197] Compiling MokuseiUI NativeOnboardingTagAnimation.swift
+[131/197] Compiling MokuseiUI NativeOverviewCamera.swift
+[132/197] Compiling MokuseiUI NativeOverviewCanvas.swift
+[133/197] Compiling MokuseiUI NativeOverviewCardMotion.swift
+[134/197] Compiling MokuseiUI NativeOverviewChrome.swift
+[135/197] Compiling MokuseiUI NativeOverviewLayout.swift
+[136/197] Compiling MokuseiUI NativeOverviewMembership.swift
+[137/197] Compiling MokuseiUI NativeOverviewMokuOperations.swift
+[138/197] Compiling MokuseiUI NativeOverviewOperationDecoration.swift
+[139/197] Compiling MokuseiUI NativeOverviewScrollInput.swift
+[140/197] Compiling MokuseiUI NativeOverviewSearch.swift
+[141/197] Compiling MokuseiUI NativeOverviewSearchMorph.swift
+[142/197] Compiling MokuseiUI NativeOverviewSelection.swift
+[143/197] Compiling MokuseiUI NativeOverviewStageCoordinator.swift
+[144/197] Compiling MokuseiUI NativeOverviewWorkspaceModel.swift
+[145/197] Compiling MokuseiUI NativeOverviewWorkspaceView.swift
+[146/197] Compiling MokuseiUI NativeMokuSettings.swift
+[147/197] Compiling MokuseiUI NativeMokuSettingsAnimationState.swift
+[148/197] Compiling MokuseiUI NativeMokuSettingsMotion.swift
+[149/197] Compiling MokuseiUI NativeSettingsTransition.swift
+[150/197] Compiling MokuseiUI DesktopPreferences.swift
+[151/197] Compiling MokuseiUI NativeHostFilePreview.swift
+[152/197] Compiling MokuseiUI NativeLoadingMark.swift
+[153/197] Compiling MokuseiUI NativeOperationNotice.swift
+[154/197] Compiling MokuseiUI NativeRuntimeSurface.swift
+[155/197] Compiling MokuseiUI NativeThreadVisibility.swift
+[156/197] Compiling MokuseiUI NativeWorkspaceCatalog.swift
+[157/197] Compiling MokuseiUI NativeWorkspaceModel.swift
+[158/197] Compiling MokuseiUI NativeWorkspaceServices.swift
+[159/197] Compiling MokuseiUI NativeWorkspaceSettingsPrefetch.swift
+[160/197] Compiling MokuseiUI NativeRoleConfigurationPanel.swift
+[161/197] Compiling MokuseiUI NativeSettingsAccessibility.swift
+[162/197] Compiling MokuseiUI NativeSettingsControls.swift
+[163/197] Compiling MokuseiUI NativeSettingsDetailRegion.swift
+[164/197] Compiling MokuseiUI NativeSettingsDraft.swift
+[165/197] Compiling MokuseiUI NativeSettingsEscapeHandler.swift
+[166/197] Compiling MokuseiUI NativeSettingsModel.swift
+[167/197] Compiling MokuseiUI NativeSettingsNavigation.swift
+[168/197] Compiling MokuseiUI NativeSettingsNavigationInput.swift
+[169/197] Compiling MokuseiUI NativeSettingsPage.swift
+[170/197] Compiling MokuseiUI NativeSettingsSelect.swift
+[171/197] Compiling MokuseiUI NativeHarnessActions.swift
+[172/197] Compiling MokuseiUI NativeHarnessHost.swift
+[173/197] Compiling MokuseiUI NativeHarnessSettings.swift
+[174/197] Compiling MokuseiUI NativeHarnessThreadSurface.swift
+[175/197] Compiling MokuseiUI NativeHarnessViews.swift
+[176/197] Compiling MokuseiUI NativeOverviewInteraction.swift
+[177/197] Compiling MokuseiUI NativeReadingInteraction.swift
+[178/197] Compiling MokuseiUI NativeWorkspaceAction.swift
+[179/197] Compiling MokuseiUI NativeWorkspaceInteraction.swift
+[180/197] Compiling MokuseiUI MokuBodyMaterial.swift
+[181/197] Compiling MokuseiUI MokuCharacterModel.swift
+[182/197] Compiling MokuseiUI MokuCharacterView.swift
+[183/197] Compiling MokuseiUI NativeMokuCapsuleBlink.swift
+[184/197] Compiling MokuseiUI NativeMokuCharacterMotion.swift
+[185/197] Compiling MokuseiUI NativeMokuComposer.swift
+[186/197] Compiling MokuseiUI NativeMokuDirectoryMentions.swift
+[187/197] Compiling MokuseiUI NativeMokuDispatch.swift
+[188/197] Compiling MokuseiUI NativeMokuDispatchContent.swift
+[189/197] Compiling MokuseiUI NativeMokuDock.swift
+[190/197] Compiling MokuseiUI NativeMokuDockActions.swift
+[191/197] Compiling MokuseiUI NativeMokuNote.swift
+[192/197] Compiling MokuseiUI NativeMokuOutsideClick.swift
+[193/197] Compiling MokuseiUI NativeMokuReasoningArc.swift
+[194/286] Emitting module MokuseiComposition
+[195/286] Compiling MokuseiComposition NativePlugins.swift
+[196/290] Compiling Mokusei NativeRuntimeExitCleanup.swift
+[197/290] Compiling MokuseiGitIntegrationTests ThreadCardExtensionLayoutTests.swift
+[198/291] Emitting module Mokusei
+[199/291] Compiling Mokusei NativeInteractionServer.swift
+[200/291] Compiling MokuseiGitIntegrationTests RollingNumberCellTests.swift
+[201/291] Compiling MokuseiGitIntegrationTests ThreadCardStatusTests.swift
+[202/291] Compiling Mokusei Mokusei.swift
+[202/291] Write Objects.LinkFileList
+[204/291] Compiling MokuseiGitIntegrationTests ThreadCardInitialResponseTests.swift
+[205/291] Compiling MokuseiGitIntegrationTests PiTokenUsageTests.swift
+[206/291] Compiling MokuseiGitIntegrationTests NativeModelSelectorReplayTests.swift
+[207/291] Compiling MokuseiGitIntegrationTests NativeOpenCodeSettingsStatusTests.swift
+[207/291] Linking Mokusei
+[208/291] Applying Mokusei
+[210/291] Compiling MokuseiSettingsIntegrationTests MarkdownTableRewriteTests.swift
+[211/291] Compiling MokuseiSettingsIntegrationTests NativeApplicationNavigationTests.swift
+[212/291] Compiling MokuseiSettingsIntegrationTests MarkdownSourceIdentityTests.swift
+[213/291] Compiling MokuseiSettingsIntegrationTests MarkdownSourceRangeTests.swift
+[214/291] Emitting module MokuseiGitIntegrationTests
+[215/291] Compiling MokuseiSettingsIntegrationTests MarkdownFallbackSourceTests.swift
+[216/291] Compiling MokuseiSettingsIntegrationTests MarkdownRawSourceRenderingTests.swift
+[217/292] Compiling MokuseiSettingsIntegrationTests NativeMokuReturnKeyTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[218/292] Compiling MokuseiSettingsIntegrationTests NativeMokuTalkClippingTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[219/292] Compiling MokuseiSettingsIntegrationTests NativeMokuTalkShiftTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[220/292] Compiling MokuseiSettingsIntegrationTests NativeMokuTalkTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[221/292] Compiling MokuseiSettingsIntegrationTests NativeMokuTimerTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[222/292] Compiling MokuseiSettingsIntegrationTests NativeMokuVoiceTranscriptLayoutTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[223/292] Compiling MokuseiSettingsIntegrationTests NativeOnboardingTagSurfaceTests.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[224/292] Compiling MokuseiSettingsIntegrationTests NativeOnboardingUserFlow.swift
+/private/tmp/mokusei-ci-integration/app/macos/Tests/Integration/Host/NativeOnboardingUserFlow.swift:46:13: warning: no calls to throwing functions occur within 'try' expression
+ 44 |             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
+ 45 |             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
+ 46 |             try await setup.advance()
+    |             `- warning: no calls to throwing functions occur within 'try' expression
+ 47 |             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
+ 48 |             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
+[225/300] Emitting module MokuseiSettingsIntegrationTests
+[232/300] Compiling MokuseiSettingsIntegrationTests NativeArchivedThreadsTests.swift
+[233/300] Compiling MokuseiSettingsIntegrationTests NativeBrowserAnnotationTests.swift
+[234/300] Compiling MokuseiSettingsIntegrationTests NativeBrowserDialogTests.swift
+[235/300] Compiling MokuseiSettingsIntegrationTests NativeBrowserViewportTests.swift
+[236/300] Compiling MokuseiSettingsIntegrationTests NativeCloudMetalTests.swift
+[237/300] Compiling MokuseiSettingsIntegrationTests NativeComposerAdmissionReplay.swift
+[238/300] Compiling MokuseiSettingsIntegrationTests NativeComposerAttachmentChipTests.swift
+[239/300] Compiling MokuseiSettingsIntegrationTests NativeComposerCompositionTests.swift
+[240/300] Compiling MokuseiSettingsIntegrationTests NativeComposerContrastTests.swift
+[241/300] Compiling MokuseiSettingsIntegrationTests NativeComposerPasteTests.swift
+[242/300] Compiling MokuseiSettingsIntegrationTests NativeComposerScrollTests.swift
+[243/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewAutoReturnTests.swift
+[244/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewCameraReadabilityTests.swift
+[245/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewCapacityTests.swift
+[246/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewCenteringTests.swift
+[247/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewDecorationCaptureTests.swift
+[248/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewDirectoryTagTests.swift
+[249/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewEntryTests.swift
+[250/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewGestureTests.swift
+[251/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewTransitionTests.swift
+[252/300] Compiling MokuseiSettingsIntegrationTests NativePerformanceCacheTests.swift
+[253/300] Compiling MokuseiSettingsIntegrationTests NativePerformanceDeliveryReviewTests.swift
+[254/300] Compiling MokuseiSettingsIntegrationTests NativeReadingPagePresentationTests.swift
+[255/300] Compiling MokuseiSettingsIntegrationTests NativeReportNavigationTests.swift
+[256/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsAnimationVisitTests.swift
+[257/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsControlsReplayTests.swift
+[258/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsLoadingReplay.swift
+[259/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsPrefetchReplay.swift
+[260/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsTransitionTests.swift
+[261/300] Compiling MokuseiSettingsIntegrationTests NativeSettingsUserFlows.swift
+[262/300] Compiling MokuseiSettingsIntegrationTests NativeSidecardAttachmentPasteTests.swift
+[263/300] Compiling MokuseiSettingsIntegrationTests NativeSidecardNavigationTests.swift
+[264/300] Compiling MokuseiSettingsIntegrationTests NativeStartupPerformanceTests.swift
+[265/300] Compiling MokuseiSettingsIntegrationTests NativeThreadHistorySidebarTests.swift
+[266/300] Compiling MokuseiSettingsIntegrationTests NativeThreadVisibilityTests.swift
+[267/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewMembershipTests.swift
+[268/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewMountingIntegrationTests.swift
+[269/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewNormalResizeTests.swift
+[270/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewPackingTests.swift
+[271/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewScopeFilterTests.swift
+[272/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewSearchTests.swift
+[273/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewTagEmojiTests.swift
+[274/300] Compiling MokuseiSettingsIntegrationTests NativeOverviewTagGlassTests.swift
+[275/300] Compiling MokuseiSettingsIntegrationTests NativeHTMLGeometryTests.swift
+[276/300] Compiling MokuseiSettingsIntegrationTests NativeLoadingMarkTests.swift
+[277/300] Compiling MokuseiSettingsIntegrationTests NativeMarkdownLocalImageTests.swift
+[278/300] Compiling MokuseiSettingsIntegrationTests NativeMarkdownRegressionTests.swift
+[279/300] Compiling MokuseiSettingsIntegrationTests NativeMokuBlinkTests.swift
+[280/300] Compiling MokuseiSettingsIntegrationTests NativeMokuCompletionMotionTests.swift
+[281/300] Compiling MokuseiSettingsIntegrationTests NativeMokuComposerSelectionTests.swift
+[282/300] Compiling MokuseiSettingsIntegrationTests NativeMokuDirectoryMentionsTests.swift
+[283/300] Compiling MokuseiSettingsIntegrationTests NativeMokuDispatchTests.swift
+[284/300] Compiling MokuseiSettingsIntegrationTests NativeMokuExecutionLinkTests.swift
+[285/300] Compiling MokuseiSettingsIntegrationTests NativeMokuHistoryComposerTests.swift
+[286/300] Compiling MokuseiSettingsIntegrationTests NativeMokuLandingTests.swift
+[287/300] Compiling MokuseiSettingsIntegrationTests NativeMokuLongPressVoiceTests.swift
+[288/300] Compiling MokuseiSettingsIntegrationTests NativeMokuNoteTests.swift
+[289/300] Compiling MokuseiSettingsIntegrationTests NativeMokuOperationTests.swift
+[290/300] Compiling MokuseiSettingsIntegrationTests NativeMokuOutsideClickTests.swift
+[291/300] Compiling MokuseiSettingsIntegrationTests NativeVoiceAnalysisTests.swift
+[292/300] Compiling MokuseiSettingsIntegrationTests NativeVoiceCaptureWiringTests.swift
+[293/300] Compiling MokuseiSettingsIntegrationTests NativeVoiceInputTranscriptTests.swift
+[294/300] Compiling MokuseiSettingsIntegrationTests NativeVoiceOwnershipTests.swift
+[295/300] Compiling MokuseiSettingsIntegrationTests NativeWindowControlPlacementTests.swift
+[296/300] Compiling MokuseiSettingsIntegrationTests NativeWindowNavigationTransitionTests.swift
+[297/300] Compiling MokuseiSettingsIntegrationTests SwiftUIOverviewInteractionTests.swift
+[298/300] Compiling MokuseiSettingsIntegrationTests SwiftUIReplaySupport.swift
+[299/301] Emitting module MokuseiNativePackageTests
+[299/301] Write Objects.LinkFileList
+[300/301] Linking MokuseiNativePackageTests
+Build complete! (76.14s)
+real 78.03
+user 216.63
+sys 31.14
