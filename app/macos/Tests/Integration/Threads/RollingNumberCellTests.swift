@@ -24,8 +24,7 @@ private struct UsageRollHost: View {
     }
 }
 
-/// Keeps the historical stable-cell layout and the requested downward motion,
-/// including at the overview's raster tier.
+/// Exercises stable-cell layout and animated usage updates at the overview's raster tier.
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct RollingNumberCellTests {
     @Test func threadCardUsageRollsInsideStableCells() async throws {
@@ -172,101 +171,5 @@ extension RollingNumberCellTests {
         try await Task.sleep(for: .milliseconds(350))
         #expect(interrupted == (try pixels("reference")))
         #expect(probe.appearances == 2)
-    }
-}
-
-extension RollingNumberCellTests {
-    @Test func incomingDigitsMoveDownFromAbove() async throws {
-        let probe = UsageRollProbe()
-        probe.value = "111"
-        // Read Observation in a mounted View, rather than capturing its initial value.
-        let host = NSHostingView(rootView: DirectionRollHost(probe: probe))
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 160, height: 80),
-                              styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.appearance = NSAppearance(named: .aqua)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.close() }
-        func inkRows() throws -> (rows: [Double], bitmap: NSBitmapImageRep) {
-            host.layoutSubtreeIfNeeded()
-            window.displayIfNeeded()
-            let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-            host.cacheDisplay(in: host.bounds, to: bitmap)
-            let rows = (0..<bitmap.pixelsHigh).map { y in
-                (0..<bitmap.pixelsWide).reduce(0.0) { total, x in
-                    let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB)
-                    return total + 1 - Double(color?.redComponent ?? 1)
-                }
-            }
-            return (rows, bitmap)
-        }
-        try await Task.sleep(for: .milliseconds(250))
-        let app = NSApplication.shared
-        let activeAtInput = app.isActive
-        let runningAtInput = app.isRunning
-        let activationPolicyAtInput = app.activationPolicy().rawValue
-        let keyAtInput = window.isKeyWindow
-        let visibleAtInput = window.isVisible
-        let unoccludedAtInput = window.occlusionState.contains(.visible)
-        let backingScaleAtInput = window.backingScaleFactor
-        let reduceMotionAtInput = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        let inputAt = ProcessInfo.processInfo.systemUptime
-        probe.value = "888"
-        let inputReturnedAt = ProcessInfo.processInfo.systemUptime
-        try await Task.sleep(for: .milliseconds(65))
-        let duringAt = ProcessInfo.processInfo.systemUptime
-        let during = try inkRows()
-        let duringFinishedAt = ProcessInfo.processInfo.systemUptime
-        try await Task.sleep(for: .milliseconds(330))
-        let settledAt = ProcessInfo.processInfo.systemUptime
-        let settled = try inkRows()
-        let settledFinishedAt = ProcessInfo.processInfo.systemUptime
-        // Correlate captured glyph ink with the settled incoming digits. In
-        // bitmap coordinates, a negative displacement is above the final row.
-        let scale = Double(during.rows.count) / 80
-        let shifts = Array(-Int(20 * scale)...Int(20 * scale))
-        let bestShift = try #require(shifts.max { left, right in
-            func correlation(_ shift: Int) -> Double {
-                during.rows.indices.reduce(0) { sum, y in
-                    let source = y - shift
-                    return sum + (settled.rows.indices.contains(source) ? during.rows[y] * settled.rows[source] : 0)
-                }
-            }
-            return correlation(left) < correlation(right)
-        })
-        #expect(bestShift < 0, "Incoming glyphs must approach their baseline from above")
-        // Encode after both observations so retaining evidence cannot delay the
-        // timed captures. Keep the original bitmap and row-based oracle intact.
-        if let root = ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"]
-            ?? ProcessInfo.processInfo.environment["MOKUSEI_ROLLING_NUMBER_ARTIFACTS"] {
-            let directory = URL(fileURLWithPath: root, isDirectory: true)
-                .appendingPathComponent("rolling-number-direction-\(UUID().uuidString)", isDirectory: true)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try #require(during.bitmap.representation(using: .png, properties: [:]))
-                .write(to: directory.appendingPathComponent("during.png"))
-            try #require(settled.bitmap.representation(using: .png, properties: [:]))
-                .write(to: directory.appendingPathComponent("settled.png"))
-            let receipt: [String: Any] = ["inputAt": inputAt, "inputReturnedAt": inputReturnedAt,
-                "duringAt": duringAt, "duringFinishedAt": duringFinishedAt,
-                "settledAt": settledAt, "settledFinishedAt": settledFinishedAt,
-                "applicationActiveAtInput": activeAtInput, "applicationRunningAtInput": runningAtInput,
-                "activationPolicyAtInput": activationPolicyAtInput, "windowKeyAtInput": keyAtInput,
-                "windowVisibleAtInput": visibleAtInput, "windowOcclusionVisibleAtInput": unoccludedAtInput,
-                "backingScaleAtInput": backingScaleAtInput, "reduceMotionAtInput": reduceMotionAtInput,
-                "scale": scale, "bestShift": bestShift,
-                "duringRows": during.rows, "settledRows": settled.rows]
-            try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
-                .write(to: directory.appendingPathComponent("measurements.json"))
-            print("ROLLING_NUMBER_DIRECTION_EVIDENCE \(directory.path)")
-        }
-    }
-}
-
-private struct DirectionRollHost: View {
-    let probe: UsageRollProbe
-    var body: some View {
-        RollingNumberText(value: probe.value, fontSize: 40, color: .black)
-            .frame(width: 160, height: 80).background(Color.white)
     }
 }

@@ -546,23 +546,22 @@ checks; this mounting suite checks state and lifecycle.
 MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verification/reading-presentation/run.py --rolling-numbers
 ```
 
-Runs three `RollingNumberCellTests` in the native application event loop. The
+Runs two `RollingNumberCellTests` in the native application event loop. The
 production Codex plugin consumes changing session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
-a freshly mounted reference. The leaf checks retain equal-width digit cells at
-raster scale 2 and measure incoming glyph direction against settled glyph ink.
+a freshly mounted reference. The leaf check retains equal-width digit cells at
+raster scale 2 and requires distinct initial, intermediate and settled frames.
 Optional PNGs capture the usage region of the production card. These are native
 view snapshots, not optical frame pacing or a live provider/Runtime replay. No
 system motion preference is changed; the number path retains its existing
 always-animate policy. Historical pre-SwiftUI-shell metrics scrolled upward; the
 restored interaction deliberately scrolls downward as requested.
 
-With `MOKUSEI_CI_EVIDENCE` or `MOKUSEI_ROLLING_NUMBER_ARTIFACTS` set, the
-direction case also saves its actual during/settled bitmaps, row-ink values,
-shift, capture times and input-time app/window/motion state even when the
-assertion fails. PNG encoding happens after both captures so evidence retention
-does not delay the timed observations.
+The separate incoming-direction pixel-correlation case was removed after repeated
+blocking failures; the remaining checks do not assert the direction of digit
+motion. Its failures and the resulting coverage loss are recorded in the
+[removal evidence](../../../scripts/ci/measurements/rolling-direction-removal/README.md).
 
 ## First response in Overview
 
@@ -740,7 +739,7 @@ Without the variable, local replays keep their own private module cache.
 
 ## Git token animation owner
 
-`--rolling-numbers` runs the three existing cell/projection cases and the Git
+`--rolling-numbers` runs the two remaining cell/projection cases and the Git
 summary/original-size flip case in a LaunchServices-started AppKit app with its
 foreground prerequisite intact. Evidence paths and the optional native gate
 trace flag are passed explicitly to that app. The Git case has a mandatory

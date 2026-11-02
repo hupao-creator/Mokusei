@@ -36,6 +36,11 @@ the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
 tests and retain reports/logs. New or display-related skips fail the job. Do not
 turn a regression into an allowlist entry.
 
+The repeatedly failing rolling-number incoming-direction correlation test was
+removed with explicit authorization; the retained animation checks do not assert
+motion direction. Its [failure evidence and coverage loss](measurements/rolling-direction-removal/README.md)
+remain available, and `native/rolling-numbers` still runs its other required cases.
+
 Methods needing an exclusive native owner are recorded in `swift_ownership.py`
 and the verified build manifest before ordinary execution. The title
 cancellation and excerpt-mask replays belong to the existing

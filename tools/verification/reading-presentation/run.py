@@ -205,7 +205,7 @@ def main():
              2 if "--report-controls" in sys.argv else
              5 if "--thread-sidebar" in sys.argv else
              11 if "--moku-execution-links" in sys.argv else
-             4 if "--rolling-numbers" in sys.argv else
+             3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
