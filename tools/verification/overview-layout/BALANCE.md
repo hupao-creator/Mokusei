@@ -1,7 +1,6 @@
 # Default Overview vertical balance
 
-This change starts from the integrated carousel fix, `0a64d7d07`, not its
-original detached commit. It addresses the supplied 2026-10-27 screenshot.
+This investigation addresses the supplied 2026-10-27 screenshot.
 
 ## Measurements and cause
 
@@ -50,12 +49,12 @@ horizontal margins remain 32/64pt. The Dock consumes the existing vertical
 padding budget, leaving equal preferred gaps above and below; it is not added
 on top of two full vertical margins. On ordinary wide windows this preserves
 the fitting extent and readable scale. Collection fits, retained filter fits,
-automatic restoration and attention targets share the available region's center.
+and automatic restoration share the available region's center.
 
-Carousel capacity uses actual control-free space, not preferred margins or
+Collection capacity uses actual control-free space, not preferred margins or
 current camera visibility. The planner first retains its ordinary inset policy.
 If that result exceeds actual capacity, it tries the full control-free extent
-before admitting a carousel. In the prior recording's five-card case, a 3×4
+before accepting readable overflow. In the prior recording's five-card case, a 3×4
 envelope would exceed the Dock boundary by 2.8pt; the 4×3 alternative fits at
 0.85, with measured top/bottom gaps of 90.5/90.3pt (native pixel rounding).
 The fallback is a second bounded solve only when the preferred result does not
@@ -70,21 +69,21 @@ execution footprints; extension growth/shrinkage; native window resize; manual
 pan and return; visibility/interaction-deferred return; and camera bookmarks.
 The mixed-card case verifies equal clearances and unchanged mounted identities.
 The prior five-card case verifies the wider fitting alternative, true overflow
-in a small window, and recovery without a stale carousel target.
+in a small window, and recovery to ordinary collection framing.
 
 The tests use production layout/camera components with geometric card fixtures;
 they do not assert report text rendering or replay physical trackpad input.
 Transient composer/note/notification expansion retains its overlay and interaction
 ownership: opening it does not repack cards. Ordinary stationary-survivor revisions
 still preserve reading position where possible; explicit return restores balanced
-default framing. True oversized scenes retain readable overflow/carousel behavior.
+default framing. True oversized scenes retain readable overflow with manual navigation.
 No running user application, Note replay, or other worktree is operated on.
 
 ## Local validation (2026-10-27)
 
 - `make check ARGS=` passed (clear the caller's inherited `--fresh` argument).
-- 63 tests passed across `NativeOverviewCenteringTests`,
-  `NativeOverviewCapacityTests`, `NativeOverviewCarouselCenteringTests`,
+- The then-current tests passed across `NativeOverviewCenteringTests`,
+  `NativeOverviewCapacityTests`,
   `NativeOverviewCameraReadabilityTests`, `NativeOverviewAutoReturnTests` and
   `NativeOverviewTransitionTests`, with `--no-parallel`.
 - `python3 tools/verification/overview-input/run.py` reported

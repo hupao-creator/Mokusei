@@ -172,7 +172,7 @@ extension NativeWorkspacePresentation {
             "animating": .bool(camera.isAnimating), "returning": .bool(camera.returning),
             "scale": .number(transform.scale), "x": .number(transform.x), "y": .number(transform.y),
             "minimumScale": .number(camera.minimumScale), "maximumScale": .number(camera.maximumScale),
-            "viewport": viewport, "carouselTarget": camera.carouselTargetID.map(JSONValue.text) ?? .null,
+            "viewport": viewport,
             "motionPending": .bool(camera.hasScheduledMotion), "automaticFitPending": .bool(camera.hasPendingAutomaticFit),
             "automaticFitBlocked": camera.automaticFitBlockReason.map(JSONValue.text) ?? .null,
             "interactionPauseReasons": .array(canvas.interactionPauseReasons.map(JSONValue.text)),

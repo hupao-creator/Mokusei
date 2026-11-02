@@ -121,8 +121,8 @@ struct NativeOverviewCameraReadabilityTests {
         }
         // A filter switch that lands with a resized viewport must also follow
         // the new usable region rather than the previous window's center. This
-        // window's fresh fit (the 0.85 floor) differs from the retained scale,
-        // so the assertion distinguishes retention from a plain refit.
+        // viewport cannot hold the previous scale, so ordinary readable fitting
+        // must win over retention even though the collection still overflows.
         let wide = NativeOverviewContentRect(left: 0, top: 0, width: 1107, height: 625)
         let small = NativeOverviewViewport(width: 860, height: 600, toolbarBottom: 58)
         camera.cutTo(content: wide, viewport: viewport)
@@ -130,7 +130,7 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(abs(wideScale - 0.9503) < 0.001)
         #expect(abs(NativeOverviewCameraGeometry.fit(wide, viewport: small).scale - wideScale) > 0.05)
         camera.retainFraming(content: wide, viewport: small)
-        #expect(camera.liveTransform.scale == wideScale)
+        #expect(camera.liveTransform.scale == camera.minimumScale)
         expectCameraAnchored(wide, in: camera.liveTransform, viewport: small)
     }
 
@@ -226,22 +226,6 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, target))
     }
 
-    @Test func readableFloorDoesNotDisableAutomaticAttention() async throws {
-        let camera = NativeOverviewCamera()
-        camera.cutTo(content: largeContent, viewport: viewport)
-        #expect(camera.minimumScale > 0.7)
-        let target = NativeOverviewContentRect(left: 376 * 4, top: 216 * 4, width: 736, height: 848)
-        camera.setCarouselCards([.init(id: "attention", rect: target, eligible: true)])
-        #expect(camera.carouselTargetID == "attention")
-        for _ in 0..<100 where !NativeOverviewCameraGeometry.isVisible(target, transform: camera.liveTransform, viewport: viewport) {
-            try await Task.sleep(for: .milliseconds(1))
-        }
-        #expect(camera.transform.scale >= camera.minimumScale)
-        #expect(NativeOverviewCameraGeometry.isVisible(target, transform: camera.liveTransform, viewport: viewport))
-        camera.setInteractionPaused(true)
-        #expect(camera.carouselPaused)
-        camera.dispose()
-    }
 
     private func viewportCenter(_ viewport: NativeOverviewViewport) -> CGPoint {
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)

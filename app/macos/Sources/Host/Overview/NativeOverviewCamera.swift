@@ -53,18 +53,6 @@ public struct NativeOverviewCameraState: Equatable, Sendable {
     }
 }
 
-public struct NativeOverviewCarouselCard: Equatable, Sendable {
-    public var id: String
-    public var rect: NativeOverviewContentRect
-    public var eligible: Bool
-
-    public init(id: String, rect: NativeOverviewContentRect, eligible: Bool) {
-        self.id = id
-        self.rect = rect
-        self.eligible = eligible
-    }
-}
-
 /// One runtime bookmark belongs to the host; switching collections replaces it.
 @MainActor
 public final class NativeOverviewCameraMemory {
@@ -161,19 +149,7 @@ public enum NativeOverviewCameraGeometry {
         wholeSceneFitScale(content, viewport: viewport) + 1e-6 >= minimumScale(in: viewport)
     }
 
-    /// Framing margins are preferred breathing room, not occlusion. Carousel
-    /// admission asks whether a translation can show the whole collection
-    /// between persistent controls at readable scale, independent of the camera.
-    static func fitsInViewportAtReadingScale(_ content: NativeOverviewContentRect,
-                                            viewport: NativeOverviewViewport) -> Bool {
-        guard hasGeometry(content, viewport: viewport) else { return false }
-        let scale = minimumScale(in: viewport)
-        let region = contentRegion(viewport)
-        return content.width * scale <= region.width + 1e-6
-            && content.height * scale <= region.height + 1e-6
-    }
-
-    /// Collection fitting, retained filters and attention share the center of
+    /// Collection fitting and retained filters share the center of
     /// the region between persistent controls. Overflow stays symmetric.
     static func framingTransform(_ content: NativeOverviewContentRect,
                                  viewport: NativeOverviewViewport,
@@ -186,8 +162,8 @@ public enum NativeOverviewCameraGeometry {
                      y: region.top + remainingHeight / 2 - content.top * scale)
     }
 
-    /// Keep the retained reading scale, clamped to the destination viewport's
-    /// readable range, and move a repacked collection to the shared framing
+    /// Keep the retained reading scale when the collection fits between the
+    /// controls, and move a repacked collection to the shared framing
     /// anchor. A tag filter can change the packed footprint; a frozen
     /// translation would leave the narrower result anchored to the old scene's
     /// edge instead of the usable viewport.
@@ -200,6 +176,13 @@ public enum NativeOverviewCameraGeometry {
                                 scale: Double) -> NativeOverviewTransform? {
         guard hasGeometry(content, viewport: viewport), scale.isFinite, scale > 0 else { return nil }
         let clamped = clampScale(scale, minimumScale: minimumScale(in: viewport))
+        let region = contentRegion(viewport)
+        // Retained filter framing suppresses later refits. A larger result must
+        // resolve capacity here rather than stay clipped until a background click.
+        // Preferred margins may yield to the old scale; persistent controls may not.
+        if content.width * clamped > region.width + 1e-6 || content.height * clamped > region.height + 1e-6 {
+            return fit(content, viewport: viewport)
+        }
         return framingTransform(content, viewport: viewport, scale: clamped)
     }
 
@@ -207,8 +190,7 @@ public enum NativeOverviewCameraGeometry {
                            minimumScale: Double = scaleFloor) -> NativeOverviewTransform {
         guard hasGeometry(content, viewport: viewport) else { return .identity }
         let minimum = max(minimumScale, self.minimumScale(in: viewport))
-        // Preferred margins can yield to readability; the controls' actual
-        // region remains the hard capacity boundary used by the carousel.
+        // Preferred margins can yield to the minimum readable scale.
         let naturalScale = min(wholeSceneFitScale(content, viewport: viewport), max(1, minimum))
         let scale = clampScale(naturalScale, minimumScale: minimum)
         return framingTransform(content, viewport: viewport, scale: scale)
@@ -249,20 +231,6 @@ public enum NativeOverviewCameraGeometry {
 
     public static func pan(_ transform: NativeOverviewTransform, deltaX: Double, deltaY: Double) -> NativeOverviewTransform {
         .init(scale: transform.scale, x: transform.x + deltaX, y: transform.y + deltaY)
-    }
-
-    /// Center a card at an existing reading scale without resizing it. The
-    /// carousel steps with translation only; keeping the scale stable avoids a
-    /// zoom pulse on every card. Cards near the content edge may therefore
-    /// leave blank space beyond the scene: exact centering is the contract, so
-    /// this deliberately does not clamp to the content bounds.
-    public static func centeredTransform(for rect: NativeOverviewContentRect,
-                                         viewport: NativeOverviewViewport,
-                                         scale: Double) -> NativeOverviewTransform? {
-        let region = framingRegion(viewport)
-        guard region.width > 0, region.height > 0,
-              hasGeometry(rect, viewport: viewport), scale.isFinite, scale > 0 else { return nil }
-        return framingTransform(rect, viewport: viewport, scale: scale)
     }
 
     public static func isVisible(_ rect: NativeOverviewContentRect, transform: NativeOverviewTransform,
@@ -332,8 +300,6 @@ public enum NativeOverviewCameraGeometry {
 public final class NativeOverviewCamera {
     public private(set) var manual = false
     public private(set) var returning = false
-    public private(set) var carouselTargetID: String?
-    public private(set) var carouselPaused = false
     public private(set) var isInitialized = false
 
     /// Target transform. Geometry and gestures must use `liveTransform` during motion.
@@ -352,32 +318,20 @@ public final class NativeOverviewCamera {
     public var reduceMotion = false
     @ObservationIgnored private var readingFit: NativeOverviewTransform?
     @ObservationIgnored private var refitTask: Task<Void, Never>?
-    @ObservationIgnored private var carouselTask: Task<Void, Never>?
     @ObservationIgnored private var animationGeneration = 0
     @ObservationIgnored private var returnEpoch = 0
-    @ObservationIgnored private var carouselEpoch = 0
     @ObservationIgnored private var visible = true
     @ObservationIgnored private var lastRefitAt = -Double.infinity
     @ObservationIgnored private var bounds: (content: NativeOverviewContentRect, viewport: NativeOverviewViewport)?
     @ObservationIgnored private var framingRevision = 0
     @ObservationIgnored private var framedRevision = 0
-    @ObservationIgnored private var carouselCards: [NativeOverviewCarouselCard] = []
-    @ObservationIgnored private var carouselActive = false
-    @ObservationIgnored private var carouselIndex = 0
-    @ObservationIgnored private var carouselDeadline: TimeInterval?
-    @ObservationIgnored private var carouselMoving = false
     @ObservationIgnored private var interactionPaused = false
     @ObservationIgnored private var environmentDeferred = false
     @ObservationIgnored private var framingRetained = false
     @ObservationIgnored private var pendingAutoFit = false
-    /// Time each attention card stays centered before the carousel advances.
-    /// Internal so tests can exercise several steps without waiting full beats.
-    @ObservationIgnored var carouselDwell: TimeInterval = 5
-
     private enum Owner: String {
         case returning = "restore-auto"
         case refit = "throttled-refit"
-        case carousel
         case returnAuto = "return-auto"
     }
     private struct Track {
@@ -436,13 +390,13 @@ public final class NativeOverviewCamera {
     ///
     /// Changed content or viewport bounds are recentered in the framing region
     /// at the retained scale, clamped to the destination viewport's readable
-    /// range. A manual pan or zoom is explicit user framing and is never moved
+    /// range, falling back to ordinary fitting if that scale exceeds actual
+    /// capacity. A manual pan or zoom is explicit user framing and is never moved
     /// automatically.
     public func retainFraming(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         guard let view = live else { cutTo(content: content, viewport: viewport); return }
         let framingChanged = bounds.map { $0.content != content || $0.viewport != viewport } ?? true
         pendingAutoFit = false
-        stopCarousel()
         cancelReturn()
         cancelMotion()
         clearRefit()
@@ -470,7 +424,6 @@ public final class NativeOverviewCamera {
         guard visible != value else { return }
         visible = value
         if !value {
-            suspendCarousel(resetDwell: true)
             let wasReturning = returning
             cancelReturn()
             returning = wasReturning
@@ -484,7 +437,6 @@ public final class NativeOverviewCamera {
     public func setManualTransform(_ value: NativeOverviewTransform, anchor: CGPoint? = nil) {
         framingRetained = false
         pendingAutoFit = false
-        stopCarousel()
         cancelReturn()
         cancelMotion()
         clearRefit()
@@ -514,7 +466,6 @@ public final class NativeOverviewCamera {
     public func returnToAuto(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         readingFit = nil
         framingRetained = false
-        stopCarousel()
         clearRefit()
         cancelReturn()
         cancelMotion()
@@ -527,16 +478,9 @@ public final class NativeOverviewCamera {
         updateAuto()
     }
 
-    public func setCarouselCards(_ cards: [NativeOverviewCarouselCard]) {
-        if let index = carouselCards.firstIndex(where: { $0.id == carouselTargetID }) { carouselIndex = index }
-        carouselCards = cards
-        updateAuto()
-    }
-
     public func setInteractionPaused(_ paused: Bool) {
         guard interactionPaused != paused else { return }
         interactionPaused = paused
-        suspendCarousel(resetDwell: true)
         if paused {
             cancelReturn()
             clearRefit()
@@ -557,7 +501,7 @@ public final class NativeOverviewCamera {
             // even when the preceding translation has not finished playing.
             let readingPosition = readingFit ?? (framedRevision == framingRevision ? live?.transform : nil)
             readingFit = preserveReadingPosition && live?.manual == false && !returning
-                && !pendingAutoFit && !carouselActive ? readingPosition.map {
+                && !pendingAutoFit ? readingPosition.map {
                 NativeOverviewCameraGeometry.preservingReadingPosition($0, content: content, viewport: viewport)
             } : nil
         }
@@ -573,14 +517,12 @@ public final class NativeOverviewCamera {
 
     public func deferRefit() {
         environmentDeferred = true
-        suspendCarousel(resetDwell: false)
         clearRefit()
         if animationOwner == .refit { cancelMotion() }
     }
 
     public func dispose() {
         resetActivity()
-        carouselCards = []
         commit(nil)
     }
 
@@ -588,7 +530,6 @@ public final class NativeOverviewCamera {
         readingFit = nil
         framingRetained = false
         pendingAutoFit = false
-        stopCarousel()
         interactionPaused = false
         environmentDeferred = false
         cancelReturn()
@@ -627,20 +568,9 @@ public final class NativeOverviewCamera {
         guard visible, returning else { return }
         let epoch = returnEpoch
         let due = ProcessInfo.processInfo.systemUptime + 0.6
-        // Target preparation follows stage acquisition, after the mounting transaction
-        // supplies its cards. Waiting for another owner consumes the absolute hold.
-        animate(to: {
-            // Entering attention keeps the scene's reading scale and only
-            // translates, matching every later carousel step.
-            if let first = self.carouselCards.first(where: \.eligible), let bounds = self.bounds,
-               self.state != nil,
-               !NativeOverviewCameraGeometry.fitsInViewportAtReadingScale(bounds.content, viewport: bounds.viewport) {
-                let fitted = NativeOverviewCameraGeometry.fit(bounds.content, viewport: bounds.viewport)
-                return NativeOverviewCameraGeometry.centeredTransform(
-                    for: first.rect, viewport: bounds.viewport, scale: fitted.scale) ?? fitted
-            }
-            return self.fit()
-        }, owner: .returning, due: due) { [weak self] completed in
+        // Resolve the latest collection fit after stage acquisition. Waiting
+        // for another owner consumes the absolute hold.
+        animate(to: { self.fit() }, owner: .returning, due: due) { [weak self] completed in
             guard let self, self.returnEpoch == epoch else { return }
             self.returning = false
             self.publish()
@@ -655,10 +585,9 @@ public final class NativeOverviewCamera {
 
     private func updateAuto() {
         guard let bounds, let live, !live.manual, !returning, visible, !interactionPaused, !environmentDeferred, !framingRetained else { return }
-        if let owner = animationOwner, owner != .refit && owner != .carousel { return }
+        if let owner = animationOwner, owner != .refit { return }
         if pendingAutoFit {
-            // Explicit return restores the browsing origin even if a carousel
-            // card is already visible at the manually displaced position.
+            // Explicit return restores the collection's ordinary fit.
             // Keep the request until completion so temporary pauses can retry it.
             animate(to: { self.fit() }, owner: .returnAuto) { [weak self] completed in
                 guard let self, completed else { return }
@@ -667,7 +596,6 @@ public final class NativeOverviewCamera {
             }
             return
         }
-        if reconcileCarousel() { return }
         let framingChanged = framingRevision != framedRevision
         if readingFit != nil && NativeOverviewCameraGeometry.approximatelyEqual(live.transform, fit()) {
             clearRefit()
@@ -681,7 +609,7 @@ public final class NativeOverviewCamera {
             if animationOwner == .refit { cancelMotion() }
             return
         }
-        // Content/carousel facts can arrive faster than the refit delay. Keep
+        // Bounds revisions can arrive faster than the refit delay. Keep
         // admitted work on its deadline instead of debouncing it indefinitely.
         // The queued move resolves the latest bounds after stage acquisition;
         // a playing move reconciles newer framing revisions on completion.
@@ -696,91 +624,6 @@ public final class NativeOverviewCamera {
             self.lastRefitAt = ProcessInfo.processInfo.systemUptime
             self.animate(to: { self.fit() }, owner: .refit)
         }
-    }
-
-    private func reconcileCarousel() -> Bool {
-        guard let bounds, state != nil else { return false }
-        let eligible = carouselCards.filter(\.eligible)
-        let fitsWholeScene = NativeOverviewCameraGeometry.fitsInViewportAtReadingScale(bounds.content, viewport: bounds.viewport)
-        if carouselActive && fitsWholeScene { stopCarousel() }
-        if !carouselActive {
-            guard !fitsWholeScene, !eligible.isEmpty else { return false }
-            carouselActive = true
-        }
-        clearRefit()
-        if animationOwner == .refit { cancelMotion() }
-        var current = carouselCards.first { $0.id == carouselTargetID }
-        let expired = carouselDeadline.map { ProcessInfo.processInfo.systemUptime >= $0 } ?? false
-        if current == nil || (expired && (current?.eligible == false || eligible.count > 1)) {
-            let index = current.flatMap { card in carouselCards.firstIndex { $0.id == card.id }.map { $0 + 1 } } ?? carouselIndex
-            let pivot = min(index, carouselCards.count)
-            let ordered = Array(carouselCards.dropFirst(pivot)) + Array(carouselCards.prefix(pivot))
-            current = ordered.first(where: \.eligible)
-            guard let current else { stopCarousel(); return false }
-            suspendCarousel(resetDwell: true)
-            carouselTargetID = current.id
-            carouselIndex = carouselCards.firstIndex { $0.id == current.id } ?? 0
-            publish()
-        }
-        guard let current else { return false }
-        if carouselMoving { return true }
-        // Steps translate the current reading scale; the card center goes to
-        // the usable viewport center even when the card is wider or taller
-        // than that region.
-        let target = NativeOverviewCameraGeometry.centeredTransform(
-            for: current.rect, viewport: bounds.viewport, scale: liveTransform.scale) ?? liveTransform
-        if NativeOverviewCameraGeometry.approximatelyEqual(liveTransform, target) {
-            framedRevision = framingRevision
-            scheduleCarouselDwell()
-            return true
-        }
-        suspendCarousel(resetDwell: false)
-        carouselMoving = true
-        let epoch = carouselEpoch
-        let id = current.id
-        animate(to: {
-            guard let card = self.carouselCards.first(where: { $0.id == id }), let bounds = self.bounds else { return target }
-            return NativeOverviewCameraGeometry.centeredTransform(
-                for: card.rect, viewport: bounds.viewport, scale: self.liveTransform.scale) ?? target
-        }, owner: .carousel) { [weak self] completed in
-            guard let self, self.carouselEpoch == epoch else { return }
-            self.carouselMoving = false
-            if completed {
-                self.scheduleCarouselDwell()
-                self.updateAuto()
-            }
-        }
-        return true
-    }
-
-    private func scheduleCarouselDwell() {
-        guard carouselActive, !manual, !interactionPaused, visible, !environmentDeferred else { return }
-        if carouselDeadline == nil { carouselDeadline = ProcessInfo.processInfo.systemUptime + carouselDwell }
-        guard carouselTask == nil, let deadline = carouselDeadline, deadline > ProcessInfo.processInfo.systemUptime else { return }
-        carouselTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(max(0.001, deadline - ProcessInfo.processInfo.systemUptime))) } catch { return }
-            guard !Task.isCancelled, let self else { return }
-            self.carouselTask = nil
-            self.updateAuto()
-        }
-    }
-
-    private func suspendCarousel(resetDwell: Bool) {
-        carouselEpoch += 1
-        carouselMoving = false
-        carouselTask?.cancel()
-        carouselTask = nil
-        if resetDwell { carouselDeadline = nil }
-        if animationOwner == .carousel { cancelMotion() }
-    }
-
-    private func stopCarousel() {
-        guard carouselActive || carouselMoving || carouselTask != nil || carouselTargetID != nil else { return }
-        suspendCarousel(resetDwell: true)
-        carouselActive = false
-        carouselTargetID = nil
-        carouselIndex = 0
-        publish()
     }
 
     private func animate(to targetForBounds: @escaping @MainActor () -> NativeOverviewTransform,
@@ -893,7 +736,6 @@ public final class NativeOverviewCamera {
     }
 
     private func publish() {
-        carouselPaused = carouselActive && interactionPaused
         onChange?()
     }
 }

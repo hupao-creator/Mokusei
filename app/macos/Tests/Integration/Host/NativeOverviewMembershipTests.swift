@@ -77,7 +77,7 @@ struct NativeOverviewMembershipTests {
         #expect(model.membershipBuildCount == builds && model.filterContextFacts == facts)
         let item = try #require(model.items.first { $0.id == "a" })
         guard case .harness(let snapshot) = model.snapshot(for: item) else { Issue.record("Missing card"); return }
-        #expect(snapshot.input.thread.title == "Updated 10" && item.completed && !item.carouselEligible)
+        #expect(snapshot.input.thread.title == "Updated 10" && item.completed)
         model.beginSearch(); model.updateSearch("Updated 10")
         #expect(model.items.map(\.id) == ["a"])
         model.endSearch()

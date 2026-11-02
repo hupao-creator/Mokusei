@@ -18,10 +18,8 @@ footprint/position reconstruction is `ABC / DEE / F.. / G.H`, a 3×4 envelope at
 A–H are fixture identifiers, not recovered Runtime identities. E visibly shows
 `00:06:44`, `1.7M`, four files, `+16 −7` and `fix/thread-loading-center`.
 Elapsed time is also shown for ended executions, so its running/completed and
-attention states remain unknown. Reports do not participate in attention
-carousel eligibility; E's eligibility is unknown. The solver consumes only
-identity and outer footprint, so neither eligibility nor execution state is
-invented for this replay. Report age, preview text and relation counts do not
+attention states remain unknown. The solver consumes only identity and outer
+footprint, so no execution state is invented for this replay. Report age, preview text and relation counts do not
 change the production report's fixed 1×1 footprint. No user database or profile
 is read.
 

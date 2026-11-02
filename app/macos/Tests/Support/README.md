@@ -71,6 +71,14 @@ explicit incomplete-observation failure. Diagnostics retain the finite geometry
 history; a theoretical destination or the next revision's exit cannot stand in
 for continued entry motion.
 
+Revision consumption and `isLayingOut == false` certify completion of the
+canvas's geometry work, before SwiftUI necessarily delivers the retired card's
+`onDisappear`. CI run 41389322565 observed both FIFO consumptions and the full
+entry travel, then read the old mounted set before that callback. The final
+three-second wait now also requires the exact mounted set; the FIFO, movement,
+appearance and membership assertions and their budgets remain unchanged. The
+receipt retains the final mounted IDs, so an actually stranded card still fails.
+
 ## Retained Overview return observation
 
 Post-merge CI #261 failed to observe the retained-page opening midpoint. Its
@@ -136,3 +144,39 @@ the original content pixels. The replay does not wait for a match or accept a
 frame presented after the check. A later return to A cannot certify that earlier
 check. The separate incoming-cancellation oracle retains its 10–60% ink, 50ms
 freshness, three-second budget and exact replacement-pixel assertions.
+
+## Real-time observer scheduling
+
+CI optimization PR #225 recorded adjacent opening samples at x=740 and x=459,
+67.186ms apart, missing the unchanged 472–708 midpoint interval. Another attempt
+analyzed newest title frames at zero and 68.6% ink, missing its 10–60% interval.
+Those failures remain failures; a later passing run does not classify them as
+harmless. `Task.sleep` with unspecified tolerance permits clock-chosen leeway.
+Passive `SwiftUIReplay.wait` specifies zero tolerance for its existing 10ms
+sleeps. Title inspection instead waits for complete-frame arrival as described
+below, avoiding an empty-queue polling timer. The isolated reading app holds a bounded
+user-initiated/latency-critical activity and starts Testing at user-initiated
+priority. This requests timely observation without forced layout, widening
+bands, changing production animation duration, extending deadlines or retrying
+input. OS preemption can still make the original assertions fail; retain actual
+sample times and frame ages when diagnosing that outcome.
+
+The scheduling contract is documented by Swift's
+[ContinuousClock implementation](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift)
+and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
+Neither promises immunity to executor/OS preemption.
+
+## Title frame arrival
+
+The title capture observer waits for a copied complete WindowServer frame to
+arrive instead of polling an empty queue on a timer. Queue inspection, waiter
+registration and frame publication share one lock, preventing a lost wakeup;
+arrival, cancellation and the unchanged three-second deadline retire each waiter
+exactly once. The losing deadline/arrival task is cancelled and joined.
+
+This changes observation scheduling only. Incoming/reversal qualification still
+inspects the newest complete frame, and cancellation still checks the first
+replacement and every later frame in its batch. All raw frames, original ink
+bands, 50ms freshness, single input, fixed 500ms check and offline pixel audits
+remain. A late or missing live prerequisite still fails; retained historical
+intermediate frames cannot substitute for a current one.
