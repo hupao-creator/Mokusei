@@ -104,6 +104,7 @@ public struct NativeMokuThreadView: View {
                         .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
                 }
             }.background(NativePalette.thread.canvas.swiftUI)
+            .environment(\.threadHistorySidebarVisible, false)
         }
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
         .environment(\.colorScheme, .dark)

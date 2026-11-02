@@ -143,7 +143,9 @@ for production rendering, selection, copying and navigation fixtures.
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the
-conversation's turn index as a left-hand TOC. The selected mark is longer and
+conversation's turn index as a left-hand TOC. Hosts can set
+`threadHistorySidebarVisible` to `false` to omit the index without changing
+reading targets or Back navigation; Moku uses this for current and archived readers. The selected mark is longer and
 brighter; hover or explicit keyboard navigation reveals a bounded prompt/answer preview.
 Restoring focus after Back does not reopen the preview. The mark and preview share
 a cancellable 100ms pointer handoff, including the gap between them; leaving both,

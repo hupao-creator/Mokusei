@@ -39,6 +39,18 @@ public struct ThreadConversationReadingTarget: Hashable, Sendable {
     }
 }
 
+private struct ThreadHistorySidebarVisibleKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// Hosts may omit the turn index while retaining reading targets and Back.
+    public var threadHistorySidebarVisible: Bool {
+        get { self[ThreadHistorySidebarVisibleKey.self] }
+        set { self[ThreadHistorySidebarVisibleKey.self] = newValue }
+    }
+}
+
 private enum ConversationDestination: Equatable {
     case document(inline: JSONText?)
     case history(JSONText)
@@ -64,6 +76,7 @@ public struct ThreadConversation: View {
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
     @Environment(\.locale) private var locale
+    @Environment(\.threadHistorySidebarVisible) private var showsHistorySidebar
     @Environment(\.threadDetailNavigation) private var navigation
     @Environment(\.threadDetailRootNavigation) private var rootNavigation
     @State private var authors: [JSONText: JSONValue] = [:]
@@ -185,7 +198,7 @@ public struct ThreadConversation: View {
     private var readingLayout: some View {
         GeometryReader { bounds in
             HStack(spacing: 0) {
-                if !executionCard && (tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
+                if showsHistorySidebar && !executionCard && (tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
                     ThreadHistorySidebar(rows: tocRows, selected: selectedRowID, current: currentRow?.id,
                         availableWidth: bounds.size.width, focusRevision: sidebarFocusRevision, select: selectRow)
                         .padding(.leading, 4).padding(.vertical, 64)
