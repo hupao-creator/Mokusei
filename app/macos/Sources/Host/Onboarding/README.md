@@ -52,9 +52,13 @@ the scene. This keeps tab entry transparent before SpriteKit's first drawable;
 a clear scene background alone does not configure the native host. Ordinary
 updates retain scene identity, and unmounting pauses and detaches it.
 `NativeOnboardingTagSurfaceTests` mounts the production animation and captures
-continuous WindowServer frames across entry and return, rejecting a broad light
+continuous WindowServer frames across entry and return in the isolated AppKit
+capture host (`--tag-glass-captures`), rejecting a broad light
 rectangle in the dark animation area. CI retains those frames alongside its
-native evidence. The same suite checks pause/resume, scene replacement and
+native evidence. The capture method has an explicit mandatory native owner;
+ordinary SwiftPM execution cannot certify its frame delivery. A small clock
+outside the sampled area keeps complete frames arriving for a paused final scene;
+pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
 unmount/remount ownership.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.

@@ -6,7 +6,9 @@ import MokuseiPluginAPI
 import SpriteKit
 import SwiftUI
 import Testing
+#if SWIFT_PACKAGE
 import MokuseiTestSupport
+#endif
 @testable import MokuseiUI
 
 @MainActor @Suite(.serializedNative, .requiresDisplay)
@@ -60,6 +62,7 @@ struct NativeOnboardingTagSurfaceTests {
     }
 
     @Test func productionAnimationMountsWithoutAnOpaqueFirstFrame() async throws {
+        try #require(NSApp?.isRunning == true, "Tag entry capture requires the native AppKit replay owner")
         let fixture = TagAnimationFixture()
         let window = SwiftUIReplay.window(TagAnimationReplay(fixture: fixture), width: 620, height: 300)
         defer { window.orderOut(nil); window.contentView = nil }
@@ -77,37 +80,17 @@ struct NativeOnboardingTagSurfaceTests {
         let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: target), configuration: config, delegate: nil)
         try stream.addStreamOutput(frames, type: .screen, sampleHandlerQueue: DispatchQueue(label: "tag-onboarding-first-frame"))
         try await stream.startCapture()
+        var visits: [[TagGlassFrames.Sample]] = []
+        var captureFailure: (any Error)?
         do {
             try await SwiftUIReplay.wait { frames.ready }
             _ = frames.take()
-            for visit in 0..<3 {
+            for _ in 0..<3 {
                 fixture.mounted = true
                 try await Task.sleep(for: .milliseconds(400))
-                let images = frames.take()
-                try #require(images.count >= 2, "Missing intermediate WindowServer frames during Tag entry")
-                for (index, image) in images.enumerated() {
-                    // Inspect the central animation area, not view properties or a
-                    // settled screenshot. The original SpriteView fills this region
-                    // with a light rectangle for one frame before its first drawable.
-                    let data = try #require(image.dataProvider?.data)
-                    let bytes = try #require(CFDataGetBytePtr(data))
-                    var bright = 0, sampled = 0
-                    for y in (image.height / 4)..<(image.height * 3 / 4) {
-                        for x in (image.width / 5)..<(image.width * 4 / 5) {
-                            let offset = y * image.bytesPerRow + x * 4
-                            if min(bytes[offset], bytes[offset + 1], bytes[offset + 2]) > 153 { bright += 1 }
-                            sampled += 1
-                        }
-                    }
-                    if let root = ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"] {
-                        let directory = URL(fileURLWithPath: root).appendingPathComponent("tag-first-frame")
-                        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                        let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
-                        try png.write(to: directory.appendingPathComponent("visit-\(visit)-frame-\(index).png"))
-                    }
-                    #expect(Double(bright) / Double(sampled) < 0.5,
-                            "Tag entry exposed an opaque light surface before its first frame")
-                }
+                let samples = frames.takeSamples()
+                visits.append(samples)
+                try #require(samples.count >= 2, "Missing intermediate WindowServer frames during Tag entry")
                 fixture.mounted = false
                 try await Task.sleep(for: .milliseconds(100))
                 _ = frames.take()
@@ -115,8 +98,43 @@ struct NativeOnboardingTagSurfaceTests {
             try await stream.stopCapture()
         } catch {
             try? await stream.stopCapture()
-            throw error
+            captureFailure = error
         }
+        let root = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"]
+            ?? ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"]
+        let directory = root.map { URL(fileURLWithPath: $0).appendingPathComponent("tag-first-frame") }
+        if let directory { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+        for (visit, samples) in visits.enumerated() {
+            for (index, sample) in samples.enumerated() {
+                let image = sample.image
+                // Inspect the central animation area, not view properties or a
+                // settled screenshot. The original SpriteView fills this region
+                // with a light rectangle for one frame before its first drawable.
+                let data = try #require(image.dataProvider?.data)
+                let bytes = try #require(CFDataGetBytePtr(data))
+                var bright = 0, sampled = 0
+                for y in (image.height / 4)..<(image.height * 3 / 4) {
+                    for x in (image.width / 5)..<(image.width * 4 / 5) {
+                        let offset = y * image.bytesPerRow + x * 4
+                        if min(bytes[offset], bytes[offset + 1], bytes[offset + 2]) > 153 { bright += 1 }
+                        sampled += 1
+                    }
+                }
+                if let directory {
+                    let png = try #require(NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]))
+                    try png.write(to: directory.appendingPathComponent("visit-\(visit)-frame-\(index).png"))
+                }
+                #expect(Double(bright) / Double(sampled) < 0.5,
+                        "Tag entry exposed an opaque light surface before its first frame")
+            }
+            if let directory {
+                let times = samples.map { ["receivedAt": $0.receivedAt, "presentationTime": $0.presentationTime] }
+                try JSONSerialization.data(withJSONObject: times, options: .prettyPrinted)
+                    .write(to: directory.appendingPathComponent("visit-\(visit)-times.json"))
+            }
+        }
+        if let captureFailure { throw captureFailure }
+        print("TAG_ONBOARDING_FIRST_FRAME_CONFIRMED")
     }
 
     private func surface(in view: NSView) -> SKView? {
@@ -179,6 +197,14 @@ private struct TagAnimationReplay: View {
                                              visitPlaybackStarted: $fixture.started)
                     .frame(width: 560, height: 250)
             }
+        }
+        .overlay(alignment: .bottomLeading) {
+            // A clock outside the sampled animation region keeps WindowServer
+            // delivering complete frames even when Tag's final scene is paused.
+            TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
+                Color(white: context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1))
+                    .frame(width: 8, height: 8)
+            }.allowsHitTesting(false).accessibilityHidden(true)
         }
         .environment(\.colorScheme, .dark)
         .environment(\.scenePhase, .active)
