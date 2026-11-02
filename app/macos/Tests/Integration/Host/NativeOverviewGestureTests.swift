@@ -49,7 +49,8 @@ struct NativeOverviewGestureTests {
         camera.onChange = {}
         camera.cutTo(content: .init(left: 0, top: 0, width: 4000, height: 3000),
                      viewport: .init(width: 1180, height: 780, toolbarBottom: 58))
-        camera.setCarouselCards([.init(id: "far", rect: .init(left: 0, top: 0, width: 360, height: 200), eligible: true)])
+        camera.setManualTransform(.init(scale: 1, x: 500, y: 300))
+        camera.returnToAuto()
         for _ in 0..<100 {
             if camera.isAnimating { break }
             try await Task.sleep(for: .milliseconds(5))
@@ -64,7 +65,7 @@ struct NativeOverviewGestureTests {
         #expect(abs(destination.x - visible.x) > 100)
         #expect(abs(taken.x - visible.x - 3) < 2)
         #expect(abs(taken.y - visible.y + 4) < 2)
-        #expect(camera.manual && !camera.isAnimating && camera.carouselTargetID == nil)
+        #expect(camera.manual && !camera.isAnimating)
         try await Task.sleep(for: .milliseconds(100))
         #expect(camera.liveTransform == taken)
     }

@@ -71,6 +71,14 @@ explicit incomplete-observation failure. Diagnostics retain the finite geometry
 history; a theoretical destination or the next revision's exit cannot stand in
 for continued entry motion.
 
+Revision consumption and `isLayingOut == false` certify completion of the
+canvas's geometry work, before SwiftUI necessarily delivers the retired card's
+`onDisappear`. CI run 41389322565 observed both FIFO consumptions and the full
+entry travel, then read the old mounted set before that callback. The final
+three-second wait now also requires the exact mounted set; the FIFO, movement,
+appearance and membership assertions and their budgets remain unchanged. The
+receipt retains the final mounted IDs, so an actually stranded card still fails.
+
 ## Retained Overview return observation
 
 Post-merge CI #261 failed to observe the retained-page opening midpoint. Its
@@ -157,22 +165,6 @@ The scheduling contract is documented by Swift's
 and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
 Neither promises immunity to executor/OS preemption.
 
-
-### Hosted follow-up: main-queue wake-up
-
-PR run 41393168410 still had a 76ms opening-sample gap after requesting zero
-Task.sleep tolerance and a latency-critical process. Its title observer found
-a valid outgoing frame only at 151.017ms, after the unchanged 150ms input bound.
-The candidate therefore failed correctly; the earlier mitigation was insufficient.
-The passive waits now use a one-shot Dispatch timer on AppKit's main queue,
-with the same 10ms interval and zero leeway. Each receipt separates scheduled,
-fired and resumed uptime to distinguish queue delay from actor resumption. This
-does not promise that OS or main-thread contention disappears.
-
-The wait checks cancellation before registration and after waking. Cancellation
-and firing serialize their one terminal continuation on the main queue; both
-disarm the source before resuming. A queued cancellation before registration and
-a cancellation racing a fire cannot double-resume or submit a subsequent poll
-after cancellation is observed. Ordinary layout-driven waits keep their original
-sleep. No original predicate, animation, deadline, early-source bound or
-exact-frame assertion is changed.
+The later [hosted A/B/B/A diagnostic](../../../../scripts/ci/measurements/hosted-ab-41398629007/README.md)
+also missed live observations with a one-shot main-queue timer. That candidate
+is not used; its local pass does not explain or invalidate the hosted failures.

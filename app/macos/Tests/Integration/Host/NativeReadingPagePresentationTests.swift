@@ -105,7 +105,7 @@ struct NativeReadingPagePresentationTests {
             let tolerance = 1 / max(1, window.backingScaleFactor)
             let active = fixture.motion.active
             let now = ProcessInfo.processInfo.systemUptime
-            var record: [String: Any] = ["uptime": now, "elapsedMilliseconds": (now - diagnosticStart) * 1000,
+            let record: [String: Any] = ["uptime": now, "elapsedMilliseconds": (now - diagnosticStart) * 1000,
                 "x": x.map { $0 as Any } ?? NSNull(), "rootWidth": size.width, "rootHeight": size.height,
                 "pixelTolerance": tolerance, "motionActive": active, "open": fixture.open,
                 "renderedText": fixture.renderedText, "parentAppearances": fixture.parentAppearances,
@@ -113,11 +113,6 @@ struct NativeReadingPagePresentationTests {
                 "applicationActive": NSApp.isActive, "windowVisible": window.isVisible, "windowKey": window.isKeyWindow,
                 "currentRoot": window.contentView === root, "rootInWindow": root.window === window,
                 "probeInWindow": fixture.frontProbe?.window === window]
-            if let wakeup = SwiftUIReplay.lastObservationWakeup {
-                record["lastObservationScheduledAt"] = wakeup.scheduledAt
-                record["lastObservationFiredAt"] = wakeup.firedAt
-                record["lastObservationResumedAt"] = wakeup.resumedAt
-            }
             return (x, size, tolerance, active, record)
         }
         defer {

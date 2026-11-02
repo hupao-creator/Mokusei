@@ -14,7 +14,7 @@ import MokuseiTestSupport
     var revisions: [NativeOverviewLayoutRevision] = []
     var size = CGSize(width: 1420, height: 900)
     var items: [NativeOverviewItem] = [
-        .init(id: "large", columns: 2, rows: 2, carouselEligible: true),
+        .init(id: "large", columns: 2, rows: 2),
         .init(id: "small-a"), .init(id: "small-b"),
         .init(id: "wide-a", columns: 2), .init(id: "wide-b", columns: 2)
     ]
@@ -49,21 +49,21 @@ struct NativeOverviewCapacityTests {
         let fixture = CapacityFixture()
         fixture.size = .init(width: 1292, height: 858)
         fixture.items = [
-            .init(id: "git", columns: 2, rows: 2, carouselEligible: true),
-            .init(id: "note", columns: 2, rows: 2, carouselEligible: true),
-            .init(id: "layout", carouselEligible: true), .init(id: "done"), .init(id: "report")
+            .init(id: "git", columns: 2, rows: 2),
+            .init(id: "note", columns: 2, rows: 2),
+            .init(id: "layout"), .init(id: "done"), .init(id: "report")
         ]
         let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1400, height: 950)
         defer { window.close() }
         try await settle(fixture, in: window)
         try expectWholeCollection(fixture, in: window, requireMargins: false)
         let appearances = fixture.appearances
-        // A real extension footprint change must still admit attention when
-        // the complete scene no longer fits, then retire it after shrinkage.
+        // Extension growth may overflow at readable scale; shrinkage restores
+        // whole-collection framing without remounting the cards.
         fixture.items[0].rows = 4
         fixture.items[1].rows = 4
         try await settle(fixture, in: window)
-        #expect(fixture.state.camera.carouselTargetID != nil)
+        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
         fixture.items[0].rows = 2
         fixture.items[1].rows = 2
         try await settle(fixture, in: window)
@@ -73,11 +73,9 @@ struct NativeOverviewCapacityTests {
         fixture.state.camera.pan(deltaX: 500, deltaY: 400)
         let manual = fixture.state.camera.liveTransform
         fixture.items[0].needsAttention = true
-        fixture.items[2].carouselEligible = false
         try await settle(fixture, in: window)
         #expect(fixture.state.camera.manual)
         #expect(fixture.state.camera.liveTransform == manual)
-        #expect(fixture.state.camera.carouselTargetID == nil)
         fixture.state.camera.returnToAuto()
         try await settle(fixture, in: window)
         try expectWholeCollection(fixture, in: window, requireMargins: false)
@@ -92,7 +90,7 @@ struct NativeOverviewCapacityTests {
         let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
         try await settle(fixture, in: window)
-        #expect(fixture.state.camera.carouselTargetID != nil)
+        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
         let all = fixture.items
         for index in 0..<6 {
             fixture.size = index.isMultiple(of: 2) ? .init(width: 1500, height: 960) : .init(width: 860, height: 600)
@@ -101,11 +99,10 @@ struct NativeOverviewCapacityTests {
             try await Task.sleep(for: .milliseconds(25))
         }
         fixture.size = .init(width: 1420, height: 900)
-        fixture.items = all + [.init(id: "sixth", carouselEligible: true)]
+        fixture.items = all + [.init(id: "sixth")]
         fixture.scene = "final"
         try await settle(fixture, in: window)
         #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
-        #expect(fixture.state.camera.carouselTargetID == nil)
         // Surviving filters intentionally retain their browsing scale. Explicit
         // automatic framing must use the final capacity, never a queued viewport.
         fixture.state.camera.returnToAuto()
@@ -158,7 +155,7 @@ struct NativeOverviewCapacityTests {
         try expectWholeCollection(fixture, in: window)
     }
 
-    @Test func screenshotCardsFitWithoutCarouselAndKeepReadableFootprints() async throws {
+    @Test func screenshotCardsFitAndKeepReadableFootprints() async throws {
         let fixture = CapacityFixture()
         let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
@@ -167,15 +164,14 @@ struct NativeOverviewCapacityTests {
         let placements = fixture.state.presentedPlacements
         #expect(placements.map { $0.column + $0.columns }.max() == 4)
         #expect(placements.map { $0.row + $0.rows }.max() == 3)
-        // Attention and execution changes are eligibility, never a capacity weight.
+        // Attention changes update the indicator, never the geometry or camera.
         for index in fixture.items.indices {
-            fixture.items[index].carouselEligible = true
             fixture.items[index].needsAttention = true
         }
         try await Task.sleep(for: .milliseconds(300))
         #expect(fixture.state.presentedPlacements == placements)
         try expectWholeCollection(fixture, in: window)
-        fixture.items.append(.init(id: "sixth", carouselEligible: true))
+        fixture.items.append(.init(id: "sixth"))
         try await settle(fixture, in: window)
         try expectWholeCollection(fixture, in: window)
         fixture.items.removeLast()
@@ -183,13 +179,13 @@ struct NativeOverviewCapacityTests {
         try expectWholeCollection(fixture, in: window)
     }
 
-    @Test func resizeExitsCarouselAndRetainsAReadableShapeAcrossAspectThreshold() async throws {
+    @Test func resizeRecoversFromOverflowAndRetainsAReadableShapeAcrossAspectThreshold() async throws {
         let fixture = CapacityFixture()
         fixture.size = .init(width: 860, height: 600)
         let window = SwiftUIReplay.window(CapacityCanvas(fixture: fixture), width: 1600, height: 1100)
         defer { window.close() }
         try await settle(fixture, in: window)
-        #expect(fixture.state.camera.carouselTargetID != nil)
+        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
         let appearances = fixture.appearances
         fixture.size = .init(width: 1420, height: 900)
         try await settle(fixture, in: window)
@@ -211,7 +207,7 @@ struct NativeOverviewCapacityTests {
         try expectWholeCollection(fixture, in: window, requireMargins: false)
         fixture.size = .init(width: 860, height: 600)
         try await settle(fixture, in: window)
-        #expect(fixture.state.camera.carouselTargetID != nil)
+        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
         fixture.size = .init(width: 1420, height: 900)
         try await settle(fixture, in: window)
         try expectWholeCollection(fixture, in: window)
@@ -331,7 +327,7 @@ struct NativeOverviewCapacityTests {
             fixture.state.presentedPlacements.count == 2 && !fixture.state.isLayingOut
         }
         let solves = fixture.state.layoutSolveCount
-        // Content-only projections update carousel facts too. Keep them arriving
+        // Keep content-only projections arriving
         // faster than the refit delay, as a running Harness does after insertion.
         for revision in 0..<40 {
             fixture.items[1].presentationID = "content-\(revision)"
@@ -495,7 +491,6 @@ struct NativeOverviewCapacityTests {
 
     private func expectWholeCollection(_ fixture: CapacityFixture, in window: NSWindow, requireMargins: Bool = true) throws {
         let camera = fixture.state.camera
-        #expect(camera.carouselTargetID == nil)
         #expect(camera.liveTransform.scale >= camera.minimumScale)
         let viewport = try #require(camera.viewport)
         let region = requireMargins ? NativeOverviewCameraGeometry.framingRegion(viewport)
