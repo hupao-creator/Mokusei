@@ -179,7 +179,8 @@ def main():
                             env=environment,
                             launch_environment={key: environment[key] for key in (
                                 "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO",
-                                "MOKUSEI_CI_EVIDENCE", "MOKUSEI_ROLLING_NUMBER_ARTIFACTS", "MOKUSEI_GIT_ARTIFACTS")
+                                "MOKUSEI_CI_EVIDENCE", "MOKUSEI_ROLLING_NUMBER_ARTIFACTS", "MOKUSEI_GIT_ARTIFACTS",
+                                "MOKUSEI_NATIVE_TEST_GATE_TRACE")
                                 if key in environment})
         output = (replay.root / "stdout.log").read_text()
         if (replay.root / "stderr.log").is_file():

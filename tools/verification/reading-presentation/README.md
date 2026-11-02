@@ -731,8 +731,9 @@ Without the variable, local replays keep their own private module cache.
 
 `--rolling-numbers` runs the three existing cell/projection cases and the Git
 summary/original-size flip case in a LaunchServices-started AppKit app with its
-foreground prerequisite intact. Evidence paths are passed explicitly to that
-app. The Git case has a mandatory `native/rolling-numbers` CI owner:
+foreground prerequisite intact. Evidence paths and the optional native gate
+trace flag are passed explicitly to that app. The Git case has a mandatory
+`native/rolling-numbers` CI owner:
 foreground/key-window admission, the original three sampling intervals, three
 distinct frames and fixed 400×90 geometry remain required.
 `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
