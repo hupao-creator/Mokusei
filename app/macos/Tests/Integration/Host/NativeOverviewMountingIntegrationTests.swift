@@ -157,7 +157,7 @@ struct NativeOverviewMountingIntegrationTests {
 
     @Test func allCardsStayMountedAcrossPanZoomAndAutomaticFraming() async throws {
         let fixture = OverviewMountingFixture(items: cards() + [
-            .init(id: "running", carouselEligible: true),
+            .init(id: "running"),
             .init(id: "attention", needsAttention: true),
             .init(id: "application"),
         ])
@@ -170,6 +170,7 @@ struct NativeOverviewMountingIntegrationTests {
         try await settled(fixture)
         #expect(fixture.markerIDs == identities)
         #expect(fixture.appearances == appearances)
+        #expect(fixture.state.overflowAttentionCount == 1)
         fixture.state.camera.returnToAuto()
         try await SwiftUIReplay.wait { fixture.state.camera.isAnimating }
         #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))
@@ -178,21 +179,15 @@ struct NativeOverviewMountingIntegrationTests {
         #expect(fixture.appearances == appearances)
     }
 
-    @Test func explicitReturnCorrectsVisibleAttentionCardInMountedCanvas() async throws {
-        let fixture = OverviewMountingFixture(items: [.init(id: "running", carouselEligible: true)] + cards())
+    @Test func explicitReturnRestoresCollectionInMountedCanvas() async throws {
+        let fixture = OverviewMountingFixture(items: [.init(id: "running")] + cards())
         let window = SwiftUIReplay.window(OverviewMountingReplay(fixture: fixture))
         defer { window.close(); fixture.state.camera.dispose() }
         try await settled(fixture)
         let camera = fixture.state.camera
-        // Wait for the first attention step to finish translating, not merely
-        // for its target id: a pre-motion gap still has the fitted composition.
-        try await SwiftUIReplay.wait(timeout: .seconds(10)) {
-            camera.carouselTargetID == "running" && !camera.isAnimating
-                && fixture.state.motionStages.activeOwner == nil
-                && attentionCenterError(id: "running", fixture: fixture) <= 1
-        }
+        try await SwiftUIReplay.wait { !camera.hasScheduledMotion }
         let automatic = camera.transform
-        // Leave the first attention card completely visible, shifted right/down.
+        // Leave the first card completely visible, shifted right/down.
         let placement = try #require(fixture.state.presentedPlacements.first { $0.id == "running" })
         let manual = NativeOverviewTransform(scale: 1, x: 500 - Double(placement.column) * 376,
                                              y: 300 - Double(placement.row) * 216)
@@ -201,10 +196,12 @@ struct NativeOverviewMountingIntegrationTests {
         let identities = fixture.markerIDs
         camera.returnToAuto()
         try await SwiftUIReplay.wait(timeout: .seconds(10)) {
-            !camera.isAnimating && camera.carouselTargetID == "running" && camera.transform == automatic
+            !camera.hasScheduledMotion && camera.transform == automatic
         }
         #expect(!camera.manual && camera.transform != manual)
         #expect(fixture.markerIDs == identities)
+        try await Task.sleep(for: .seconds(5.2))
+        #expect(!camera.hasScheduledMotion && camera.liveTransform == automatic)
     }
 
     @Test func completedCardKeepsDraftAndNativeIdentityOffscreenAfterBlur() async throws {
@@ -303,17 +300,16 @@ struct NativeOverviewMountingIntegrationTests {
     }
 
     @Test func nestedInteractionsRemainBalancedAcrossHostDetach() async throws {
-        let fixture = OverviewMountingFixture(items: cards() + [.init(id: "running", carouselEligible: true)])
+        let fixture = OverviewMountingFixture(items: cards() + [.init(id: "running")])
         let window = SwiftUIReplay.window(OverviewMountingReplay(fixture: fixture))
         defer { window.close(); fixture.state.camera.dispose() }
         try await settled(fixture)
-        try await SwiftUIReplay.wait { fixture.state.camera.carouselTargetID != nil }
         let id = "card-000"
         fixture.state.beginInteraction(cardID: id)
         fixture.state.beginInteraction(cardID: id)
-        #expect(fixture.state.camera.carouselPaused)
+        #expect(fixture.state.interactionPauseReasons.contains("responding"))
         fixture.state.endInteraction(cardID: id)
-        #expect(fixture.state.camera.carouselPaused)
+        #expect(fixture.state.interactionPauseReasons.contains("responding"))
         fixture.attached = false
         try await SwiftUIReplay.wait { fixture.state.mountedCardIDs.isEmpty }
         fixture.state.beginInteraction(cardID: id)
@@ -338,22 +334,6 @@ struct NativeOverviewMountingIntegrationTests {
         fixture.items = []
         try await settled(fixture)
         #expect(fixture.state.mountedCardIDs.isEmpty)
-    }
-
-    private func attentionCenterError(id: String, fixture: OverviewMountingFixture) -> Double {
-        guard fixture.viewport.width > 0, fixture.viewport.height > 0,
-              let placement = fixture.state.presentedPlacements.first(where: { $0.id == id }) else {
-            return .infinity
-        }
-        let viewport = NativeOverviewViewport(width: fixture.viewport.width, height: fixture.viewport.height,
-                                              toolbarBottom: 58)
-        let region = NativeOverviewCameraGeometry.framingRegion(viewport)
-        let transform = fixture.state.camera.liveTransform
-        let frame = placement.cardFrame
-        let centerX = transform.x + (frame.midX) * transform.scale
-        let centerY = transform.y + (frame.midY) * transform.scale
-        return max(abs(centerX - (region.left + region.width / 2)),
-                   abs(centerY - (region.top + region.height / 2)))
     }
 
     private func cards() -> [NativeOverviewItem] {

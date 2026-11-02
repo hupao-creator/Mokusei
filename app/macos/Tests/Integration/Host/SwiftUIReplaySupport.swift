@@ -52,7 +52,9 @@ import Testing
             }
             settled = predicate()
             if settled { return }
-            try await Task.sleep(for: .milliseconds(10))
+            // Passive observations have bounded live-frame prerequisites. Do
+            // not grant the clock extra coalescing leeway beyond this interval.
+            try await Task.sleep(for: .milliseconds(10), tolerance: driveLayout ? nil : .zero)
         }
         // A timeout is one failed expectation, not a second cancellation issue.
         try #require(settled, "SwiftUI presentation did not settle within \(timeout); AppKit running: \(NSApp?.isRunning == true), visible windows: \(NSApp?.windows.filter(\.isVisible).count ?? 0)", sourceLocation: sourceLocation)
