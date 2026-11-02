@@ -186,8 +186,8 @@ public enum NativeOverviewCameraGeometry {
                      y: region.top + remainingHeight / 2 - content.top * scale)
     }
 
-    /// Keep the retained reading scale, clamped to the destination viewport's
-    /// readable range, and move a repacked collection to the shared framing
+    /// Keep the retained reading scale when the collection fits between the
+    /// controls, and move a repacked collection to the shared framing
     /// anchor. A tag filter can change the packed footprint; a frozen
     /// translation would leave the narrower result anchored to the old scene's
     /// edge instead of the usable viewport.
@@ -200,6 +200,13 @@ public enum NativeOverviewCameraGeometry {
                                 scale: Double) -> NativeOverviewTransform? {
         guard hasGeometry(content, viewport: viewport), scale.isFinite, scale > 0 else { return nil }
         let clamped = clampScale(scale, minimumScale: minimumScale(in: viewport))
+        let region = contentRegion(viewport)
+        // Retained filter framing suppresses later refits. A larger result must
+        // resolve capacity here rather than stay clipped until a background click.
+        // Preferred margins may yield to the old scale; persistent controls may not.
+        if content.width * clamped > region.width + 1e-6 || content.height * clamped > region.height + 1e-6 {
+            return fit(content, viewport: viewport)
+        }
         return framingTransform(content, viewport: viewport, scale: clamped)
     }
 
@@ -436,7 +443,8 @@ public final class NativeOverviewCamera {
     ///
     /// Changed content or viewport bounds are recentered in the framing region
     /// at the retained scale, clamped to the destination viewport's readable
-    /// range. A manual pan or zoom is explicit user framing and is never moved
+    /// range, falling back to ordinary fitting if that scale exceeds actual
+    /// capacity. A manual pan or zoom is explicit user framing and is never moved
     /// automatically.
     public func retainFraming(content: NativeOverviewContentRect, viewport: NativeOverviewViewport) {
         guard let view = live else { cutTo(content: content, viewport: viewport); return }
