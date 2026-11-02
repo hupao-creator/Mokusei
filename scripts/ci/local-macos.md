@@ -51,7 +51,8 @@ head or an old passing revision. The entry point never pushes, switches branches
 fetches shared refs, or modifies another checkout. If the PR merge revision moves,
 check out and verify the new revision.
 
-The wrapper requires a clean worktree and matching HEAD before and after checks,
+The wrapper requires a clean worktree (including untracked source even when Git
+status configuration hides it) and matching HEAD before and after checks,
 proves the SHA is known to GitHub before publishing, pins the extension, serializes
 runs across worktrees with a local process lock, and retains each fresh attempt.
 Stage owners inherit the lock, so a killed parent does not allow a second run

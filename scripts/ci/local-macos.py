@@ -23,7 +23,7 @@ def git(*args):
 
 
 def unchanged(sha):
-    if git("rev-parse", "HEAD") != sha or git("status", "--porcelain"):
+    if git("rev-parse", "HEAD") != sha or git("status", "--porcelain", "--untracked-files=all"):
         raise RuntimeError("HEAD or working tree changed; no success may be published")
 
 

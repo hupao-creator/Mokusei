@@ -327,6 +327,13 @@ def verify_local_signoff(root):
     command(local + ["--reviewed"], cwd=repo, env=environment, success=False)
     if calls.exists():
         raise AssertionError("Dirty execution must fail before publication")
+    command(["git", "restore", "scripts/ci/local-macos.py"], cwd=repo)
+    command(["git", "config", "status.showUntrackedFiles", "no"], cwd=repo)
+    (repo / "untracked-source.go").write_text("package fixture\n")
+    command(local + ["--reviewed"], cwd=repo, env=environment, success=False)
+    if calls.exists():
+        raise AssertionError("Hidden untracked source must be rejected before publication")
+    print("PASS actual Git identity guard: user status configuration cannot hide uncommitted source")
     # A hard-killed parent cannot run finally blocks. The real stage owner must
     # retain the account lock until it exits, so a resumed run cannot overlap it.
     lock_path = sandbox / "inherited.lock"
