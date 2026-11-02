@@ -2,6 +2,9 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeOnboardingTagSurfaceTests/productionAnimationMountsWithoutAnOpaqueFirstFrame()": {
+        "group": "native", "check": "tag-glass-captures", "marker": "TAG_ONBOARDING_FIRST_FRAME_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/titleReversalAndVisibilityCancellationSettlePixels()": {
         "group": "native", "check": "tag-glass-captures", "marker": "TITLE_INCOMING_MOTION_CONFIRMED",
     },

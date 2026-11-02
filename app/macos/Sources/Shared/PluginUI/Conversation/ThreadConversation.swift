@@ -209,6 +209,7 @@ public struct ThreadConversation: View {
                                    onClose: finishClosingHistory) {
                 HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
+                    contentTopInset: executionCard ? 12 : nil,
                     suspended: readingPage, followOutput: true, followKey: effectiveRunningID,
                     followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
                     onJumpToLatest: {
@@ -254,7 +255,7 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            heading(title, emoji: icon ?? "📝")
+            if !executionCard { heading(title, emoji: icon ?? "📝") }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID
@@ -262,7 +263,7 @@ public struct ThreadConversation: View {
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
                     showsFilters: !executionCard, users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
-                    .padding(.top, 12).padding(.bottom, 16)
+                    .padding(.top, executionCard ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
     }

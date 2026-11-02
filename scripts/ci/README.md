@@ -134,6 +134,10 @@ The native cloud/scan composition and retained Overview return cases use that
 same `native/tag-glass-captures` owner, with
 `NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED` and
 `OVERVIEW_RETAINED_RETURN_CONFIRMED` respectively.
+The Tag Settings first-frame case uses that owner too, requiring
+`TAG_ONBOARDING_FIRST_FRAME_CONFIRMED` and retaining every entry/return frame.
+It needs the real AppKit event loop; ordinary SwiftPM sleeps do not guarantee
+that a newly mounted SpriteKit surface reaches WindowServer.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings

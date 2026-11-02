@@ -176,7 +176,10 @@ stacks retain their default horizontal direction. Reduce Motion settles transiti
 without travel, including a return already in progress. New turns do not replace
 an open historical execution;
 removed destinations show the unavailable document and retain return navigation.
-Execution sidecards keep their single-execution presentation.
+Execution sidecards keep their single-execution presentation. They omit the
+decorative emoji and visible document title, use a compact 12pt timeline top inset,
+and retain the resolved author, messages and execution actions. Full reading and
+history pages retain their headings and standard insets.
 
 A horizontal return requested during opening starts from the current AppKit
 viewport geometry when matching native anchors are available. The anchors belong

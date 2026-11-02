@@ -14,7 +14,9 @@ A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
 locates an old turn outside the current window. This is a resource-demand check,
 not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
 author accessibility and save settled dark/light screenshots under
-`.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
+`.scratch/reading-presentation/NativeThreadHistorySidebarTests`. The same mounted
+fixtures verify title-free execution cards keep their author, user messages and
+work content at those widths while full reading pages retain headings.
 
 The ordinary Swift suite runs the four state/layout cases. The pointer case
 requires the isolated application's running AppKit loop and a foreground visible
@@ -77,7 +79,10 @@ without skips; plain headless Swift runs explicitly skip this display-dependent 
 
 The Moku composer's native click/NFD-persistence case uses the isolated AppKit
 loop. Plain SwiftPM explicitly skips that mouse-tracking case; `--moku-composer`
-must complete all seven tests without skips to certify it.
+must complete all eight tests without skips to certify it.
+The session-picker case mounts the production Moku reader and window navigation
+at 0.25×, 1× and 5× workspace zoom. It checks native accessibility geometry below
+Back, activates Back, retains the draft and exports `history-session-*.png`.
 
 The composer hold replay queues each down/drag/up through AppKit in order. A
 window- and gesture-scoped local monitor anchors a private serial Dispatch timer
@@ -321,8 +326,16 @@ excludes this exact method; complete coverage requires its native passing outcom
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
 These are AppKit geometry/content observations, not WindowServer pixel assertions.
 
-The capture launcher requires all six assigned methods: two tag-glass captures,
-title reversal, excerpt reveal, native decorations and retained Overview return.
+The capture launcher requires all seven assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations, retained Overview return and
+Tag Settings first-frame capture. The last case mounts the production onboarding
+animation across initial entry and retained returns, asserting at least two
+complete WindowServer frames per entry and rejecting a broad light rectangle.
+It runs with the real AppKit loop and emits `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED`;
+ordinary SwiftPM timing cannot certify capture delivery. A clock outside the
+sampled area supplies compositor updates during paused final scenes. Frame times,
+all PNGs and source/binary provenance are retained under `tag-first-frame`, and
+pixel scans/encoding run only after capture stops.
 
 ## Overview tag bar
 
