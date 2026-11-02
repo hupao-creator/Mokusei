@@ -663,6 +663,8 @@ struct NativeOverviewTransitionTests {
         var consumed1At: TimeInterval?
         var samples: [[String: Any]] = []
         var consumed: [[String: Any]] = []
+        var logicalCompletionAt: TimeInterval?
+        var mountedCompletionAt: TimeInterval?
         var droppedSamples = 0
         let camera = fixture.state.camera.liveTransform
         let final = [NativeOverviewItem(id: "a"), .init(id: "instant")]
@@ -695,7 +697,9 @@ struct NativeOverviewTransitionTests {
                 "source2CommittedAt": timestamp(source2CommittedAt), "consumed1At": timestamp(consumed1At),
                 "precedingInjection": describe(precedingInjection), "beforeInjection": describe(beforeInjection),
                 "beforeFirstConsumption": describe(beforeFirstConsumption), "samples": samples,
-                "droppedSamples": droppedSamples, "consumptions": consumed]
+                "droppedSamples": droppedSamples, "consumptions": consumed,
+                "logicalCompletionAt": timestamp(logicalCompletionAt), "mountedCompletionAt": timestamp(mountedCompletionAt),
+                "finalMountedCardIDs": fixture.state.mountedCardIDs.sorted(), "finalIsLayingOut": fixture.state.isLayingOut]
             do {
                 let data = try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys])
                 FileHandle.standardOutput.write(Data("OVERVIEW_ENTRY_REVISION_RECEIPTS ".utf8) + data + Data("\n".utf8))
@@ -760,8 +764,15 @@ struct NativeOverviewTransitionTests {
         let after = afterSample.frame
         #expect(after.minY < before.minY - 2)
         #expect(fixture.consumed.first == 1)
-        try await waitForReceipt({ fixture.consumed == [1, 2] && !fixture.state.isLayingOut },
-            "The queued revisions did not complete in FIFO order")
+        // Reconcile can finish before SwiftUI delivers onDisappear for the
+        // retired leaf. Require both boundaries within the same bounded wait.
+        try await waitForReceipt({
+            let logicalCompletion = fixture.consumed == [1, 2] && !fixture.state.isLayingOut
+            if logicalCompletion && logicalCompletionAt == nil { logicalCompletionAt = ProcessInfo.processInfo.systemUptime }
+            let mountedCompletion = fixture.state.mountedCardIDs == ["a", "instant"]
+            if logicalCompletion && mountedCompletion { mountedCompletionAt = ProcessInfo.processInfo.systemUptime }
+            return logicalCompletion && mountedCompletion
+        }, "The queued revisions did not complete in FIFO order with their final mounted membership")
         #expect(fixture.appearances["a"] == 1)
         #expect(fixture.state.mountedCardIDs == ["a", "instant"])
     }

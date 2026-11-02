@@ -70,6 +70,11 @@ Failure to observe the prerequisite within the original three seconds is an
 explicit incomplete-observation failure. Diagnostics retain the finite geometry
 history; a theoretical destination or the next revision's exit cannot stand in
 for continued entry motion.
+The final three-second wait requires both FIFO/layout completion and actual
+`mountedCardIDs` equality. SwiftUI's `onDisappear` can follow the logical layout
+completion; that earlier state cannot certify detachment. The exact membership,
+identity and movement assertions remain, and receipts retain both observed
+completion times and the final mounted set. A permanently retained leaf still times out.
 
 ## Retained Overview return observation
 
