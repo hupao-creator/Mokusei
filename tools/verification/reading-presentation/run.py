@@ -175,9 +175,11 @@ def main():
                     "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
                     if "--rolling-numbers" in sys.argv else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
-                            launch_services=suite == "NativeSettingsTransitionTests", env=environment,
+                            launch_services=suite == "NativeSettingsTransitionTests" or "--rolling-numbers" in sys.argv,
+                            env=environment,
                             launch_environment={key: environment[key] for key in (
-                                "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO")
+                                "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO",
+                                "MOKUSEI_CI_EVIDENCE", "MOKUSEI_ROLLING_NUMBER_ARTIFACTS", "MOKUSEI_GIT_ARTIFACTS")
                                 if key in environment})
         output = (replay.root / "stdout.log").read_text()
         if (replay.root / "stderr.log").is_file():
