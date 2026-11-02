@@ -54,7 +54,14 @@ def summarize(samples):
                 groups[run["name"], scope, job["name"]].append(job)
         completed = [timestamp(job["completed_at"]) for job in sample["jobs"]
                      if job.get("completed_at") and job.get("conclusion") != "skipped"]
+        created = [timestamp(job["created_at"]) for job in sample["jobs"] if job.get("created_at")]
+        trigger = timestamp(run["created_at"])
+        # This includes GitHub event/concurrency scheduling before the first job
+        # exists; it is separate from runner queue time and is not itself a cause.
+        first_created = min(created, default=None)
+        first_job_delay = first_created - trigger if first_created is not None and first_created >= trigger else None
         runs.append({**run, "verificationScope": scope, "jobs": jobs,
+                     "triggerToFirstJobCreationSeconds": first_job_delay,
                      "elapsedSeconds": max(completed) - timestamp(run["created_at"])
                      if run["status"] == "completed" and completed else None,
                      "runnerSecondsThisAttempt": sum(job["executionSeconds"] for job in current)

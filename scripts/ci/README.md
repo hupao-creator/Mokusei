@@ -87,6 +87,9 @@ evidence and unclassified time. Verification commands can include compilation an
 fixture generation; they are not pure test CPU time. Only completed successful
 runs and newly executed jobs in the latest attempt enter timing aggregates;
 failed/cancelled/in-progress runs and reused jobs remain visible in raw evidence.
+The per-run JSON also records time from the first trigger to creation of the
+first observed job. This can include event processing or concurrency scheduling;
+it is separate from each job's runner queue and does not identify its cause.
 Compare matched code scope, workflow revision, runner image and cache state;
 never count a skipped documentation run as a faster full run.
 

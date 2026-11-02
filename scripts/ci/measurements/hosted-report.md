@@ -93,6 +93,7 @@ job 排队各为 2–3 秒，不能把这一 attempt 的耗时当成重试总等
 | 指标（秒） | main 41380174891 | 候选 41387058958 |
 | --- | ---: | ---: |
 | 首次触发到结束 | 1578 | 1834 |
+| 首次触发到首个 job 创建 | 1 | 2 |
 | 本 attempt runner 执行总和 | 2135 | 2402 |
 | macOS 排队 / 执行 | 3 / 1553 | 3 / 1811 |
 | macOS Swift 构建 | 206 | 305 |
@@ -131,6 +132,7 @@ main `2a54a3b` 具有完全相同的 Git tree
 | 指标（秒） | 成功对照 |
 | --- | ---: |
 | 首次触发到结束 | 1797 |
+| 首次触发到首个 job 创建 | 39 |
 | 本 attempt runner 执行总和 | 2302 |
 | macOS 排队 / 执行 | 4 / 1724 |
 | macOS Swift 构建 / 验证命令 | 279 / 1370 |
@@ -143,7 +145,8 @@ macOS image 为 `20261026.0455.2`，恢复的 Swift 缓存键以
 
 随后 [main push 41403426162](https://github.com/hupao-creator/Mokusei/actions/runs/41403426162)
 直接构建 `2a54a3b` 并在 attempt 1 完整通过。它从触发到结束为 1814 秒，
-本 attempt runner 总和 2373 秒；macOS 排队 4 秒、执行 1793 秒，其中构建
+本次触发到首个 job 创建 1 秒，本 attempt runner 总和 2373 秒；macOS 排队
+4 秒、执行 1793 秒，其中构建
 297 秒、验证命令 1406 秒。相同 image 恢复了以 `native-fe4af9a` 结尾的
 Swift 缓存（428,236,992 字节），与上方 #239 的缓存键不同。
 [原始 job/step 数据](baseline-2a54-main-push.json)保留该直接 main 对照；
