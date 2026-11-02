@@ -10,6 +10,9 @@ clipping the glass itself would cut off that shadow.
 ## Conversation
 
 [Conversation](Conversation/) owns its draft and active-execution presentation. Its history qualification comes from the Harness's complete public turn index, not whichever lazy body is loaded. A first running/waiting turn remains in the main reading area. With earlier/inherited history, the active process can be shown in the execution card. Send intents and receipts coordinate with other cards through the host; plugins do not import siblings.
+The execution card uses a compact, title-free conversation: no decorative emoji,
+with the resolved author above the execution content. The host card label and
+message/action accessibility remain available; full detail pages retain titles.
 
 ## Browser
 
