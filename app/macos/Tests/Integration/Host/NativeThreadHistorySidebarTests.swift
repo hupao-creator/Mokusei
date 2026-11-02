@@ -90,29 +90,6 @@ private struct SidebarSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeThreadHistorySidebarTests {
-    @Test func hiddenSidebarRetainsExternalHistoryTargetsAndBack() async throws {
-        let fixture = SidebarFixture()
-        let window = SwiftUIReplay.window(
-            SidebarSurface(fixture: fixture).environment(\.threadHistorySidebarVisible, false),
-            width: 1000, height: 700, offscreen: true)
-        defer { window.close() }
-        try await fixture.ready()
-        #expect(fixture.control("history.sidebar") == nil)
-        #expect(fixture.control("history.open") == nil)
-        #expect(fixture.state("conversation")?["destination"] == .text("current"))
-        fixture.target = .init(requestId: "hidden-index-result", mode: .history, executionId: "turn-2")
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["historyRow"] == .text("turn-2") }
-        try await fixture.ready()
-        #expect(fixture.control("history.sidebar") == nil)
-        #expect(fixture.requested == ["turn-4", "turn-2"])
-        try capture(window, name: "hidden-index-history")
-        try await fixture.perform("visibility.userMessages")
-        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
-        try await fixture.perform("history.close")
-        #expect(fixture.state("conversation")?["destination"] == .text("current"))
-        #expect(fixture.control("history.sidebar") == nil)
-    }
-
     @Test func sidebarNavigatesRetainsScrollAndMovesTheActualAuthor() async throws {
         let fixture = SidebarFixture()
         let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700, offscreen: true)

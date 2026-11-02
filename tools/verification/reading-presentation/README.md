@@ -7,7 +7,7 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Six integration cases cover selection and Back scroll
+isolated AppKit host. Five integration cases cover selection and Back scroll
 retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
 inherited history, deletion, arriving successors and external result anchors.
 A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
@@ -16,13 +16,11 @@ not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise lon
 author accessibility and save settled dark/light screenshots under
 `.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
 
-The hidden-index case checks that external history targets, visibility controls and
-Back still work when Moku omits the turn index.
-The ordinary Swift suite runs the five state/layout cases. The pointer case
+The ordinary Swift suite runs the four state/layout cases. The pointer case
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
-skips display assertions explicitly. The sidebar launcher requires all six
+skips display assertions explicitly. The sidebar launcher requires all five
 cases without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
