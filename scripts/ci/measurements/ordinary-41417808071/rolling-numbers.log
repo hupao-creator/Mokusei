@@ -1,0 +1,21 @@
+/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/mokusei-native-replay-n7gjmd95/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+GIT_NUMBER_FLIP_EVIDENCE /Users/runner/work/_temp/direction-evidence/git-number-flip-21500303-E415-4468-9D7E-878470084A8C
+GIT_TOKEN_FLIP_FRAMES_CONFIRMED
+ROLLING_NUMBER_DIRECTION_EVIDENCE /Users/runner/work/_temp/direction-evidence/rolling-number-direction-1EF06B42-960C-4435-90BB-A61F61A8F7A0
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite GitThreadExtensionTests started.
+◇ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() started.
+✔ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() passed after 0.711 seconds.
+✔ Suite GitThreadExtensionTests passed after 0.711 seconds.
+◇ Suite RollingNumberCellTests started.
+◇ Test threadCardUsageRollsInsideStableCells() started.
+✔ Test threadCardUsageRollsInsideStableCells() passed after 0.693 seconds.
+◇ Test projectedUsageUpdatesKeepTheirAnimation() started.
+✔ Test projectedUsageUpdatesKeepTheirAnimation() passed after 4.602 seconds.
+◇ Test incomingDigitsMoveDownFromAbove() started.
+✔ Test incomingDigitsMoveDownFromAbove() passed after 0.834 seconds.
+✔ Suite RollingNumberCellTests passed after 6.131 seconds.
+✔ Test run with 4 tests in 2 suites passed after 6.844 seconds.

@@ -321,7 +321,10 @@ The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
 This test requires an actual `NSApplication.run` loop before observing an opening
 midpoint, reversing the page and checking latest Overview content with no remount.
-Its original geometry and return assertions remain intact. Ordinary Swift execution
+An actual geometry-change callback prompts a synchronous AppKit reread and
+return only inside the original midpoint and three-second deadline. The 100ms
+return observation is anchored to that close, even if the waiting task resumes
+later. Its original geometry and return assertions remain intact. Ordinary Swift execution
 excludes this exact method; complete coverage requires its native passing outcome
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
 These are AppKit geometry/content observations, not WindowServer pixel assertions.
@@ -334,8 +337,11 @@ complete WindowServer frames per entry and rejecting a broad light rectangle.
 It runs with the real AppKit loop and emits `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED`;
 ordinary SwiftPM timing cannot certify capture delivery. A clock outside the
 sampled area supplies compositor updates during paused final scenes. Frame times,
-all PNGs and source/binary provenance are retained under `tag-first-frame`, and
-pixel scans/encoding run only after capture stops.
+all PNGs and source/binary provenance are retained under `tag-first-frame`.
+`visit-events.json` records mount, view appearance and drain times plus window
+state, including a visit that fails the frame-count requirement. Appearance is
+diagnostic only; it does not replace a captured frame. Pixel scans and PNG
+encoding run only after capture stops.
 
 ## Overview tag bar
 
@@ -540,18 +546,23 @@ checks; this mounting suite checks state and lifecycle.
 MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verification/reading-presentation/run.py --rolling-numbers
 ```
 
-Runs two `RollingNumberCellTests` and the Git summary/original-size case in the native application event loop. The
-production Codex plugin consumes changing session-state token totals and replaces
+Runs two `RollingNumberCellTests` and the Git summary/original-size case in the
+native application event loop. The production Codex plugin consumes changing
+session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
-a freshly mounted reference. The leaf checks retain equal-width digit cells at
-raster scale 2. Incoming glyph direction is no longer automatically checked after
-the unstable direction-correlation test was removed under explicit user authorization.
+a freshly mounted reference. The leaf check retains equal-width digit cells at
+raster scale 2 and requires distinct initial, intermediate and settled frames.
 Optional PNGs capture the usage region of the production card. These are native
 view snapshots, not optical frame pacing or a live provider/Runtime replay. No
 system motion preference is changed; the number path retains its existing
 always-animate policy. Historical pre-SwiftUI-shell metrics scrolled upward; the
 restored interaction deliberately scrolls downward as requested.
+
+The separate incoming-direction pixel-correlation case was removed after repeated
+blocking failures; the remaining checks do not assert the direction of digit
+motion. Its failures and the resulting coverage loss are recorded in the
+[removal evidence](../../../scripts/ci/measurements/rolling-direction-removal/README.md).
 
 ## First response in Overview
 
@@ -708,17 +719,36 @@ receipts accompany the existing pixel/input timing evidence. The production
 Canvas revision replay separately waits for actual final mounted membership,
 not only the logical FIFO/layout completion flag.
 
-### Git token animation owner
+## Replay timing and compiler module cache
+
+The staged app holds a user-initiated, latency-critical activity only while its
+AppKit loop runs, and releases it when the loop returns. It logs
+`NATIVE_REPLAY_TIMING` and does not change desktop accessibility preferences or
+production animation timing. Passive waits use 10ms sleeps with zero tolerance;
+all actual-frame, freshness, midpoint and cancellation assertions
+remain mandatory. This is a scheduling request, not a timing guarantee. A hosted
+[A/B/B/A diagnostic](../../../scripts/ci/measurements/hosted-ab-41398629007/README.md)
+did not establish that a main-queue timer fixed missing observations.
+
+CI sets `MOKUSEI_NATIVE_MODULE_CACHE` to one temporary directory for the native
+job. The launcher and native-input compiler share compiler module caches there,
+which may contain SDK and staged C dependency modules, while sources, includes,
+object copies, resources and app processes remain isolated.
+No executable or test outcome is cached. Each exported `launch.json` records
+`stagingSeconds` and `compilation.seconds/moduleCache` for hosted comparisons.
+Without the variable, local replays keep their own private module cache.
+
+## Git token animation owner
 
 `--rolling-numbers` runs the two remaining cell/projection cases and the Git
-summary/original-size flip case in the real AppKit loop. The latter has an explicit
-mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, the
-original three sampling intervals, three distinct frames and fixed 400×90 geometry
-remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
+summary/original-size flip case in a LaunchServices-started AppKit app with its
+foreground prerequisite intact. Evidence paths and the optional native gate
+trace flag are passed explicitly to that app. The Git case has a mandatory
+`native/rolling-numbers` CI owner:
+foreground/key-window admission, the original three sampling intervals, three
+distinct frames and fixed 400×90 geometry remain required.
+`GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
-The rolling producer starts through LaunchServices so macOS admits it as a
-foreground application before the existing window and pixel checks. Its scoped
-artifact paths are forwarded so the original frames and receipts remain retained.
 Bounded foreground admission precedes the original 100/90/300ms sampling timeline;
 the foreground requirement is checked again at input and still fails if absent.
 

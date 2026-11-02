@@ -1,0 +1,6 @@
+{
+  "summary": "\u2714 Test run with 7 tests in 5 suites passed after 63.987 seconds.",
+  "openingSamples": 55,
+  "maxOpeningGapMilliseconds": 13.769499957561493,
+  "scope": "Local current-product seven-case native capture; final hosted PR CI remains required."
+}

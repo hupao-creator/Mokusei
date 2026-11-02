@@ -1,0 +1,24 @@
+[
+  {
+    "expected": 11,
+    "actual": "11",
+    "exitCode": 0,
+    "stderr": "",
+    "headerSHA256": "4d70b5a6bbebbfdf54136fbf9b376fe87aec6b5e404c7bb289b67c5e4bdcf46b",
+    "sourceSHA256": "7fc5d83e7715e88760c7c7601bbe69007968a8798323a50547facd6287a78a12",
+    "moduleMap": "/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-lls9kqk6/build/include-2/module.modulemap",
+    "compileSeconds": 2.583,
+    "elapsedSeconds": 4.174
+  },
+  {
+    "expected": 22,
+    "actual": "22",
+    "exitCode": 0,
+    "stderr": "",
+    "headerSHA256": "ef04966e0cfb6b739636cceb84751cab6382578f96c6c873f959e2ebfe6ba31c",
+    "sourceSHA256": "7fc5d83e7715e88760c7c7601bbe69007968a8798323a50547facd6287a78a12",
+    "moduleMap": "/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-tjgdgkgs/build/include-2/module.modulemap",
+    "compileSeconds": 0.797,
+    "elapsedSeconds": 2.171
+  }
+]

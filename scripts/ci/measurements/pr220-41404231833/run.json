@@ -1,0 +1,815 @@
+[
+  {
+    "run": {
+      "id": 41404231833,
+      "name": "CI",
+      "event": "pull_request",
+      "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+      "head_branch": "fix/routing-label-remove-embedding",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-02T07:07:21Z",
+      "run_started_at": "2026-11-02T07:07:21Z",
+      "updated_at": "2026-11-02T07:38:10Z",
+      "run_attempt": 1,
+      "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833"
+    },
+    "jobs": [
+      {
+        "id": 125142528294,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxNxJg",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142528294",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142528294",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-02T07:07:22Z",
+        "started_at": "2026-11-02T07:07:25Z",
+        "completed_at": "2026-11-02T07:07:30Z",
+        "name": "Determine verification scope",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:07:26Z",
+            "completed_at": "2026-11-02T07:07:27Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:07:27Z",
+            "completed_at": "2026-11-02T07:07:29Z"
+          },
+          {
+            "name": "Classify the complete changed-path set",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:07:29Z",
+            "completed_at": "2026-11-02T07:07:29Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-02T07:07:29Z",
+            "completed_at": "2026-11-02T07:07:29Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-02T07:07:29Z",
+            "completed_at": "2026-11-02T07:07:29Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142528294",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002840,
+        "runner_name": "GitHub Actions 1000002840",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 125142529724,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxN2vA",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142529724",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142529724",
+        "status": "completed",
+        "conclusion": "skipped",
+        "created_at": "2026-11-02T07:07:22Z",
+        "started_at": "2026-11-02T07:07:22Z",
+        "completed_at": "2026-11-02T07:07:22Z",
+        "name": "Native CLI / ${{ matrix.kind }}",
+        "steps": [],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142529724",
+        "labels": [
+          "macos-26"
+        ],
+        "runner_id": null,
+        "runner_name": null,
+        "runner_group_id": null,
+        "runner_group_name": null
+      },
+      {
+        "id": 125142575097,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxQn-Q",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142575097",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142575097",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-02T07:07:31Z",
+        "started_at": "2026-11-02T07:07:33Z",
+        "completed_at": "2026-11-02T07:12:21Z",
+        "name": "Integration / adapters",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:07:34Z",
+            "completed_at": "2026-11-02T07:07:35Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:07:35Z",
+            "completed_at": "2026-11-02T07:07:36Z"
+          },
+          {
+            "name": "Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:07:36Z",
+            "completed_at": "2026-11-02T07:07:45Z"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-02T07:07:45Z",
+            "completed_at": "2026-11-02T07:07:46Z"
+          },
+          {
+            "name": "Run python3 scripts/ci/replays.py \"adapters\" --output \"$RUNNER_TEMP/replays\"",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-02T07:07:46Z",
+            "completed_at": "2026-11-02T07:12:18Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-02T07:12:18Z",
+            "completed_at": "2026-11-02T07:12:19Z"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-02T07:12:19Z",
+            "completed_at": "2026-11-02T07:12:19Z"
+          },
+          {
+            "name": "Post Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11,
+            "started_at": "2026-11-02T07:12:19Z",
+            "completed_at": "2026-11-02T07:12:19Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12,
+            "started_at": "2026-11-02T07:12:19Z",
+            "completed_at": "2026-11-02T07:12:19Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-02T07:12:19Z",
+            "completed_at": "2026-11-02T07:12:19Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142575097",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002845,
+        "runner_name": "GitHub Actions 1000002845",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 125142575129,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxQoGQ",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142575129",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142575129",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-02T07:07:31Z",
+        "started_at": "2026-11-02T07:07:33Z",
+        "completed_at": "2026-11-02T07:10:36Z",
+        "name": "Integration / runtime",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:07:34Z",
+            "completed_at": "2026-11-02T07:07:35Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:07:35Z",
+            "completed_at": "2026-11-02T07:07:36Z"
+          },
+          {
+            "name": "Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:07:36Z",
+            "completed_at": "2026-11-02T07:07:45Z"
+          },
+          {
+            "name": "Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-02T07:07:45Z",
+            "completed_at": "2026-11-02T07:07:46Z"
+          },
+          {
+            "name": "Run python3 scripts/ci/replays.py \"runtime\" --output \"$RUNNER_TEMP/replays\"",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-02T07:07:46Z",
+            "completed_at": "2026-11-02T07:10:32Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-02T07:10:32Z",
+            "completed_at": "2026-11-02T07:10:33Z"
+          },
+          {
+            "name": "Post Run actions/setup-node@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-02T07:10:33Z",
+            "completed_at": "2026-11-02T07:10:33Z"
+          },
+          {
+            "name": "Post Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11,
+            "started_at": "2026-11-02T07:10:33Z",
+            "completed_at": "2026-11-02T07:10:34Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12,
+            "started_at": "2026-11-02T07:10:34Z",
+            "completed_at": "2026-11-02T07:10:34Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-02T07:10:34Z",
+            "completed_at": "2026-11-02T07:10:34Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142575129",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002846,
+        "runner_name": "GitHub Actions 1000002846",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 125142575167,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxQoPw",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142575167",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142575167",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-11-02T07:07:31Z",
+        "started_at": "2026-11-02T07:07:35Z",
+        "completed_at": "2026-11-02T07:37:47Z",
+        "name": "macOS / Native verification",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:07:36Z",
+            "completed_at": "2026-11-02T07:07:38Z"
+          },
+          {
+            "name": "Prepare native evidence directory",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:07:38Z",
+            "completed_at": "2026-11-02T07:07:38Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:07:38Z",
+            "completed_at": "2026-11-02T07:07:41Z"
+          },
+          {
+            "name": "Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-02T07:07:41Z",
+            "completed_at": "2026-11-02T07:08:09Z"
+          },
+          {
+            "name": "Prepare the native toolchain",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-02T07:08:09Z",
+            "completed_at": "2026-11-02T07:08:22Z"
+          },
+          {
+            "name": "Run actions/cache/restore@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-02T07:08:22Z",
+            "completed_at": "2026-11-02T07:08:36Z"
+          },
+          {
+            "name": "Build current Swift sources and discover every test",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-02T07:08:36Z",
+            "completed_at": "2026-11-02T07:13:14Z"
+          },
+          {
+            "name": "Run actions/cache/save@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-02T07:13:14Z",
+            "completed_at": "2026-11-02T07:13:31Z"
+          },
+          {
+            "name": "Verify the graphical session",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-02T07:13:31Z",
+            "completed_at": "2026-11-02T07:13:32Z"
+          },
+          {
+            "name": "Native Go module and development-tool tests",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-02T07:13:32Z",
+            "completed_at": "2026-11-02T07:13:59Z"
+          },
+          {
+            "name": "Enforce native Go execution",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11,
+            "started_at": "2026-11-02T07:13:59Z",
+            "completed_at": "2026-11-02T07:13:59Z"
+          },
+          {
+            "name": "Generate actual Go projections for Swift consumers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12,
+            "started_at": "2026-11-02T07:13:59Z",
+            "completed_at": "2026-11-02T07:16:42Z"
+          },
+          {
+            "name": "Run the complete ordinary Swift suite once",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-02T07:16:42Z",
+            "completed_at": "2026-11-02T07:27:28Z"
+          },
+          {
+            "name": "Run Go and Swift boundary replays",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14,
+            "started_at": "2026-11-02T07:27:28Z",
+            "completed_at": "2026-11-02T07:30:17Z"
+          },
+          {
+            "name": "Run native interaction and capture replays serially",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 15,
+            "started_at": "2026-11-02T07:30:17Z",
+            "completed_at": "2026-11-02T07:37:30Z"
+          },
+          {
+            "name": "Enforce complete Swift and replay execution",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 16,
+            "started_at": "2026-11-02T07:37:30Z",
+            "completed_at": "2026-11-02T07:37:30Z"
+          },
+          {
+            "name": "Collect native captures and summary",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-02T07:37:30Z",
+            "completed_at": "2026-11-02T07:37:31Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-02T07:37:31Z",
+            "completed_at": "2026-11-02T07:37:35Z"
+          },
+          {
+            "name": "Post Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 35,
+            "started_at": "2026-11-02T07:37:35Z",
+            "completed_at": "2026-11-02T07:37:35Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 36,
+            "started_at": "2026-11-02T07:37:35Z",
+            "completed_at": "2026-11-02T07:37:36Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 37,
+            "started_at": "2026-11-02T07:37:36Z",
+            "completed_at": "2026-11-02T07:37:44Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142575167",
+        "labels": [
+          "macos-26"
+        ],
+        "runner_id": 1000002848,
+        "runner_name": "GitHub Actions 1000002848",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 125142575180,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdIxQoTA",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125142575180",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125142575180",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-02T07:07:31Z",
+        "started_at": "2026-11-02T07:07:34Z",
+        "completed_at": "2026-11-02T07:09:36Z",
+        "name": "Go / Linux",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:07:35Z",
+            "completed_at": "2026-11-02T07:07:36Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:07:36Z",
+            "completed_at": "2026-11-02T07:07:38Z"
+          },
+          {
+            "name": "Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:07:38Z",
+            "completed_at": "2026-11-02T07:07:46Z"
+          },
+          {
+            "name": "Locate Go caches",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-02T07:07:46Z",
+            "completed_at": "2026-11-02T07:07:46Z"
+          },
+          {
+            "name": "Run actions/cache@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-02T07:07:46Z",
+            "completed_at": "2026-11-02T07:07:49Z"
+          },
+          {
+            "name": "Check SQLite C toolchain",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-02T07:07:49Z",
+            "completed_at": "2026-11-02T07:07:49Z"
+          },
+          {
+            "name": "Go formatting",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-02T07:07:49Z",
+            "completed_at": "2026-11-02T07:07:49Z"
+          },
+          {
+            "name": "Architecture, registration and source boundaries",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-02T07:07:49Z",
+            "completed_at": "2026-11-02T07:07:50Z"
+          },
+          {
+            "name": "Go vet",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-02T07:07:50Z",
+            "completed_at": "2026-11-02T07:07:58Z"
+          },
+          {
+            "name": "Go build",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-02T07:07:58Z",
+            "completed_at": "2026-11-02T07:08:16Z"
+          },
+          {
+            "name": "Verify CI scope, native execution audit and deadline controls",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11,
+            "started_at": "2026-11-02T07:08:16Z",
+            "completed_at": "2026-11-02T07:08:25Z"
+          },
+          {
+            "name": "Verify Go reporting against real failure and skip fixtures",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12,
+            "started_at": "2026-11-02T07:08:25Z",
+            "completed_at": "2026-11-02T07:08:27Z"
+          },
+          {
+            "name": "Go unit tests (including directory tags)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-02T07:08:27Z",
+            "completed_at": "2026-11-02T07:08:43Z"
+          },
+          {
+            "name": "Go module race tests (check-modules)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14,
+            "started_at": "2026-11-02T07:08:43Z",
+            "completed_at": "2026-11-02T07:09:19Z"
+          },
+          {
+            "name": "Runtime and Codex integration properties (pbt)",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15,
+            "started_at": "2026-11-02T07:09:19Z",
+            "completed_at": "2026-11-02T07:09:32Z"
+          },
+          {
+            "name": "Summarize Go tests and enforce execution",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 16,
+            "started_at": "2026-11-02T07:09:32Z",
+            "completed_at": "2026-11-02T07:09:32Z"
+          },
+          {
+            "name": "Retain Go test evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-02T07:09:32Z",
+            "completed_at": "2026-11-02T07:09:33Z"
+          },
+          {
+            "name": "Confirm documentation-only validation",
+            "status": "completed",
+            "conclusion": "skipped",
+            "number": 18,
+            "started_at": "2026-11-02T07:09:33Z",
+            "completed_at": "2026-11-02T07:09:33Z"
+          },
+          {
+            "name": "Post Run actions/cache@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 34,
+            "started_at": "2026-11-02T07:09:33Z",
+            "completed_at": "2026-11-02T07:09:33Z"
+          },
+          {
+            "name": "Post Run actions/setup-go@v6",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 35,
+            "started_at": "2026-11-02T07:09:33Z",
+            "completed_at": "2026-11-02T07:09:33Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 36,
+            "started_at": "2026-11-02T07:09:33Z",
+            "completed_at": "2026-11-02T07:09:34Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 37,
+            "started_at": "2026-11-02T07:09:34Z",
+            "completed_at": "2026-11-02T07:09:34Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125142575180",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002847,
+        "runner_name": "GitHub Actions 1000002847",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 125152854573,
+        "run_id": 41404231833,
+        "workflow_name": "CI",
+        "head_branch": "fix/routing-label-remove-embedding",
+        "run_url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/runs/41404231833",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOVZN6ds8AAAAdI7ECLQ",
+        "head_sha": "ff5441cb4e3050b29b933946bc942c0f4e4e95b3",
+        "url": "https://api.github.com/repos/hupao-creator/Mokusei/actions/jobs/125152854573",
+        "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41404231833/job/125152854573",
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-11-02T07:37:48Z",
+        "started_at": "2026-11-02T07:38:00Z",
+        "completed_at": "2026-11-02T07:38:10Z",
+        "name": "Complete coverage",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-02T07:38:01Z",
+            "completed_at": "2026-11-02T07:38:02Z"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-02T07:38:02Z",
+            "completed_at": "2026-11-02T07:38:04Z"
+          },
+          {
+            "name": "Report queueing and retries",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-02T07:38:04Z",
+            "completed_at": "2026-11-02T07:38:05Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-02T07:38:05Z",
+            "completed_at": "2026-11-02T07:38:07Z"
+          },
+          {
+            "name": "Enforce every required job",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 5,
+            "started_at": "2026-11-02T07:38:07Z",
+            "completed_at": "2026-11-02T07:38:07Z"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 10,
+            "started_at": "2026-11-02T07:38:07Z",
+            "completed_at": "2026-11-02T07:38:07Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 11,
+            "started_at": "2026-11-02T07:38:07Z",
+            "completed_at": "2026-11-02T07:38:07Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/hupao-creator/Mokusei/check-runs/125152854573",
+        "labels": [
+          "ubuntu-latest"
+        ],
+        "runner_id": 1000002868,
+        "runner_name": "GitHub Actions 1000002868",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      }
+    ]
+  }
+]

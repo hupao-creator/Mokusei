@@ -1,0 +1,22 @@
+{
+  "applicationActive" : true,
+  "applicationActiveAtInput" : true,
+  "backingScale" : 2,
+  "duringCaptureMilliseconds" : 2.6850416325032711,
+  "duringDelayMilliseconds" : 91.207208344712853,
+  "duringDiffersFromSettled" : true,
+  "duringFinishedAt" : 1325671.0719968751,
+  "duringStartedAt" : 1325671.0693118335,
+  "foregroundAtInput" : true,
+  "height" : 90,
+  "initialDiffersFromDuring" : true,
+  "initialDiffersFromSettled" : true,
+  "inputAt" : 1325670.9781046251,
+  "settledAt" : 1325671.3780944585,
+  "width" : 400,
+  "windowKey" : true,
+  "windowKeyAtInput" : true,
+  "windowOccluded" : false,
+  "windowOcclusionVisibleAtInput" : true,
+  "windowVisible" : true
+}

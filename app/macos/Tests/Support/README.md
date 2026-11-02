@@ -89,7 +89,7 @@ do not establish whether a qualifying intermediate frame was committed or only
 missed by polling, so the failure is not classified as a product regression or
 discarded as flaky.
 
-This method now uses `SwiftUIReplay.wait(driveLayout: false)`, which requires an
+This method uses `SwiftUIReplay.wait(driveLayout: false)`, which requires an
 actual running `NSApplication` event loop. Other callers retain the default
 layout/display driving behavior. Repeated synchronous all-window layout and
 display share the main actor with the production animation task and can disturb
@@ -101,8 +101,12 @@ actual root to reach the explicitly requested 1180×780 points within one physic
 pixel and motion to be idle. The original 1.2-second duration and strict
 `0.4W < x < 0.6W` qualification are unchanged. After observing that band, the test
 synchronously rereads the current front, root, window ownership and active motion
-and requires the same band before updating the text and closing. There is no
-intervening await or forced layout. Setup, every opening/return predicate,
+and requires the same band before updating the text and closing. A SwiftUI
+geometry-change callback prompts that synchronous native reread and return;
+the callback's reported coordinate is only a signal, never a substitute for the
+current `NSView` geometry. Its original three-second deadline is checked before
+input, and the 100ms return observation is timed from the actual close. There is
+no intervening await or forced layout. Setup, opening/return observations,
 open/close source times, the 100ms return observation and the final state are
 retained with their uptime clock; no 50ms diagnostic subsampling omits checks.
 The original return direction, latest content and parent appearance assertions
@@ -166,7 +170,11 @@ The scheduling contract is documented by Swift's
 and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
 Neither promises immunity to executor/OS preemption.
 
-The ordinary `GitThreadExtensionTests.sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes`
+The later [hosted A/B/B/A diagnostic](../../../../scripts/ci/measurements/hosted-ab-41398629007/README.md)
+also missed live observations with a one-shot main-queue timer. That candidate
+is not used; its local pass does not explain or invalidate the hosted failures.
+
+The `GitThreadExtensionTests.sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes`
 fixture uses the same bounded activity and zero tolerance for its existing
 100/90/300ms sampling sequence. Run 41395692467 failed its unchanged three-frame
 inequality, but retained neither those frames nor individual delays, so the

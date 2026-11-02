@@ -12,7 +12,8 @@ profile-rotation and clipboard-bridge tests run in the native job.
 
 ## Scope and scheduling
 
-`scope.py` compares the complete PR or push diff before scheduling builds. Only
+`scope.py` compares the complete PR or push diff before scheduling builds. Only PRs
+can use the documentation fast path; every main push runs complete verification. Only
 ordinary non-executable root AGENTS.md/CONTEXT.md/README.md, README entry points
 in `internal`, `app/macos`, `tools/verification` and `demos`, and Markdown directly
 under `.agents`/`scripts/ci` qualify for documentation-only validation. Both sides
@@ -22,10 +23,11 @@ runs retain full verification. Documentation-only runs execute scope, `Go / Linu
 and the aggregate; they validate the diff and explicitly state that native/build
 tests were outside the scope. Local link review remains required.
 
-PR and main push runs have separate per-ref concurrency groups. A newer revision
-cancels that ref's older work using GitHub's cancelled state; it is never reported
-as a successful `Complete coverage` check. Other PRs do not share a repository-wide
-lock. Explicit dispatches have run-specific groups and cannot cancel PR/main work.
+PR runs have per-PR concurrency groups and main pushes use their ref's group.
+A newer revision cancels older work only for the same event/ref, using GitHub's
+cancelled state; it is never reported as a successful `Complete coverage` check.
+Other PRs do not share a repository-wide lock. Explicit dispatches have
+run-specific groups and cannot cancel PR/main work.
 There is no custom API-based obsolete-head/base rejection: the required check
 belongs to its actual checked-out revision and the remote strict ruleset controls
 whether a PR is up to date. This is not GitHub Merge Queue.
@@ -35,6 +37,67 @@ jobs. Those groups represent different production boundaries, not slices of the
 Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
 Hosted runner capacity can still queue jobs; removing the repository-wide lock
 does not create additional account capacity.
+
+## Cache budget
+
+The Go checks lane retains its dedicated module/build cache; protocol replay and
+macOS lanes use setup-go's built-in cache. The hosted same-source comparison
+observed 139 seconds for the shared-cache Go checks lane versus 91 seconds with
+the dedicated cache. Restoring the dedicated cache is the second-round candidate;
+its new hosted measurement decides whether that difference persists. These stable
+dependency/toolchain keys do not create one archive per revision. Tests still use
+`-count=1`. Setup-node supplies Node without an npm cache because
+these replay jobs do not install npm dependencies or have a lockfile. Extended
+CLI lanes retain their pinned, precompiled platform packages and existing cache.
+There is no Cargo manifest or Rust source, so a Rust cache would have no consumer.
+
+Swift restores compatible compilation state on every code run. Only a main push
+can publish a seed, with one immutable key per toolchain/dependency version and
+explicit cache generation, instead of one ~400 MB archive per PR revision.
+The current-source build, test discovery and all evidence audits remain mandatory.
+A seed is a compilation starting point; older sources in an immutable seed may
+need more rebuilding than a per-commit snapshot. Bump the generation only after
+measuring that tradeoff and checking repository usage.
+
+Before publishing, the workflow caps the uncompressed seed at 2 GiB and requires
+reported repository usage plus that conservative size to fit within 9 GiB,
+reserving 1 GiB below the 10 GiB target for other cache writers. The usage query
+has a 15-second timeout. Missing usage or
+an exceeded budget skips caching, never verification. The GitHub usage API is
+[refreshed about every five minutes](https://docs.github.com/en/rest/actions/cache#get-github-actions-cache-usage-for-a-repository),
+so this is a best-effort save budget, not a real-time global lock or a guarantee
+against concurrent Go/CLI writes. Existing
+historical entries are not deleted by this workflow; GitHub expiration/eviction
+still applies. Inspect `gh api repos/OWNER/REPO/actions/cache/usage` before rotating
+seeds. Do not purge another in-flight task's entries to make room.
+
+## Measuring changes
+
+Collect the latest 50 runs and every job/attempt page with the authenticated `gh`:
+
+```sh
+python3 scripts/ci/profile.py --output /tmp/ci-baseline
+python3 scripts/ci/profile.py --run RUN_ID --output /tmp/ci-candidate
+python3 scripts/ci/profile.py --input /tmp/ci-baseline/raw.json --output /tmp/ci-review
+```
+
+Raw JSON retains source SHA, workflow, run, attempt, result and every step's wall
+time. The report separates queue, preparation/cache, build, verification commands,
+evidence and unclassified time. Verification commands can include compilation and
+fixture generation; they are not pure test CPU time. Only completed successful
+runs and newly executed jobs in the latest attempt enter timing aggregates;
+failed/cancelled/in-progress runs and reused jobs remain visible in raw evidence.
+The per-run JSON also records time from the first trigger to creation of the
+first observed job. This can include event processing or concurrency scheduling;
+it is separate from each job's runner queue and does not identify its cause.
+An attempt with no observed jobs has unknown runner work, not zero seconds.
+Compare matched code scope, workflow revision, runner image and cache state;
+never count a skipped documentation run as a faster full run.
+
+The per-run summary uses the same timing classifier. The aggregate is still
+running when it collects its own metadata, so its final execution time is unknown
+there; the later profile includes completed job times. See the retained
+[baseline and limitations](measurements/report.md) for this optimization.
 
 ## One native session
 
@@ -216,3 +279,23 @@ zero. There are no bypass actors, and force pushes/deletion of main remain block
 The remote ruleset is separate from workflow code; inspect its actual requirements
 before planning a merge. Local checks and historical green runs cannot replace
 the final revision's required check.
+
+### Native replay compilation and live observation
+
+CI gives all serial native launchers a job-local `MOKUSEI_NATIVE_MODULE_CACHE`
+under `RUNNER_TEMP`. This compiler cache can contain SDK and staged C dependency
+modules; the compiler owns their dependency validation. Every replay still
+stages its current sources, compiles its executable, signs a fresh app and runs
+its own isolated process. Nothing is uploaded or reused across jobs.
+`launch.json` records staging seconds, compiler seconds and the cache path.
+Local invocations without the variable retain their private temporary cache.
+
+The reading-presentation app requests a user-initiated, latency-critical activity
+for its bounded lifetime. Passive waits retain 10ms zero-tolerance sleeps;
+title inspection wakes on complete frame arrival, and the retained-return midpoint
+is prompted by actual geometry-change callbacks. The original three-second deadlines, 40–60% geometry /
+10–60% ink bands and live-frame age checks remain mandatory. A
+[hosted A/B/B/A diagnostic](measurements/hosted-ab-41398629007/README.md)
+found that moving those sleeps to a main-queue timer still missed required live
+observations. That candidate is not used; these scheduling requests do not
+guarantee that a qualifying observation will be delivered.

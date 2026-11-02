@@ -21,7 +21,10 @@ def main():
         paths = subprocess.check_output(
             ["git", "diff", "--name-only", "--no-renames", "-z", base, head], text=True).split("\0")[:-1]
         subprocess.run(["git", "diff", "--check", base, head], check=True)
-    docs_only = bool(paths)
+    # Every main push executes the full suite, including documentation commits.
+    # The PR fast path still emits the required aggregate instead of filtering
+    # the workflow trigger, which would leave required checks pending.
+    docs_only = kind == "pull_request" and bool(paths)
     for name in paths:
         path = PurePosixPath(name)
         # README files inside a packaged Resources tree can be runtime inputs.

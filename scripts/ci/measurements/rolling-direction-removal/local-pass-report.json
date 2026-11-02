@@ -1,0 +1,22 @@
+{
+  "revision": "b8b5771849263a5003be4b647d2b76b6115f87aa",
+  "dirty": false,
+  "group": "native",
+  "checks": [
+    {
+      "name": "rolling-numbers",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--rolling-numbers"
+      ],
+      "status": "passed",
+      "log": "rolling-numbers.log",
+      "exit_code": 0,
+      "seconds": 27.374
+    }
+  ],
+  "selectedChecks": [
+    "rolling-numbers"
+  ]
+}

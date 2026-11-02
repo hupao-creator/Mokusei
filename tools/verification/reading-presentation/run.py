@@ -32,7 +32,7 @@ def compile_native_input_support(replay, repo):
     object_file = staged / "NativeInputSupport.o"
     command = ["/usr/bin/xcrun", "--sdk", "macosx", "clang", "-fobjc-arc", "-Wall", "-Wextra", "-Werror",
                "-isysroot", sdk, "-target", target, "-fmodules",
-               "-fmodules-cache-path=" + str(replay.root / "ClangModuleCache"),
+               "-fmodules-cache-path=" + str(replay.module_cache / "Clang"),
                "-I", str(include), "-fmodule-map-file=" + str(module_map),
                "-c", str(staged / "NativeInputSupport.m"), "-o", str(object_file)]
     receipt = {"inputSHA256": inputs, "stagedInputs": staged_inputs, "compileCommand": command,
@@ -179,7 +179,8 @@ def main():
                             env=environment,
                             launch_environment={key: environment[key] for key in (
                                 "MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY", "MOKUSEI_SETTINGS_ARTIFACTS", "NSUnbufferedIO",
-                                "MOKUSEI_CI_EVIDENCE", "MOKUSEI_ROLLING_NUMBER_ARTIFACTS", "MOKUSEI_GIT_ARTIFACTS")
+                                "MOKUSEI_CI_EVIDENCE", "MOKUSEI_ROLLING_NUMBER_ARTIFACTS", "MOKUSEI_GIT_ARTIFACTS",
+                                "MOKUSEI_NATIVE_TEST_GATE_TRACE")
                                 if key in environment})
         output = (replay.root / "stdout.log").read_text()
         if (replay.root / "stderr.log").is_file():

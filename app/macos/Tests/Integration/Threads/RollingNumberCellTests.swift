@@ -24,8 +24,7 @@ private struct UsageRollHost: View {
     }
 }
 
-/// Keeps the historical stable-cell layout and the requested downward motion,
-/// including at the overview's raster tier.
+/// Exercises stable-cell layout and animated usage updates at the overview's raster tier.
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct RollingNumberCellTests {
     @Test func threadCardUsageRollsInsideStableCells() async throws {

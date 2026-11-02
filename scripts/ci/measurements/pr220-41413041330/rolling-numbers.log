@@ -1,0 +1,34 @@
+/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/mokusei-native-replay-8izvlvrf/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite GitThreadExtensionTests started.
+◇ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() started.
+✘ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() recorded an issue at GitThreadExtensionTests.swift:225:9: Expectation failed: foreground
+↳ // Keep sampling after failed admission so its actual frames and timing
+↳ // survive too; a missing foreground owner still fails this native check.
+↳ Token animation requires an active, visible key window
+GIT_NUMBER_FLIP_EVIDENCE /Users/runner/work/_temp/native-evidence/git-number-flip-738F4211-CE71-4C51-8A67-18434E8A2C2B
+✘ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() failed after 0.897 seconds with 1 issue.
+✘ Suite GitThreadExtensionTests failed after 0.897 seconds with 1 issue.
+◇ Suite RollingNumberCellTests started.
+◇ Test threadCardUsageRollsInsideStableCells() started.
+✔ Test threadCardUsageRollsInsideStableCells() passed after 0.712 seconds.
+◇ Test projectedUsageUpdatesKeepTheirAnimation() started.
+✔ Test projectedUsageUpdatesKeepTheirAnimation() passed after 4.567 seconds.
+◇ Test incomingDigitsMoveDownFromAbove() started.
+✔ Test incomingDigitsMoveDownFromAbove() passed after 0.776 seconds.
+✔ Suite RollingNumberCellTests passed after 6.056 seconds.
+✘ Test run with 4 tests in 2 suites failed after 6.955 seconds with 1 issue.
+Traceback (most recent call last):
+  File "/Users/runner/work/Mokusei/Mokusei/tools/verification/reading-presentation/run.py", line 271, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/Mokusei/Mokusei/tools/verification/reading-presentation/run.py", line 187, in main
+    result.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.1/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 623, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command [] returned non-zero exit status 1.

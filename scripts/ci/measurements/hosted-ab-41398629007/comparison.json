@@ -1,0 +1,57 @@
+{
+  "revision": "579dbc22b8f098277d157aaf2f93c8bcbf9262c5",
+  "controlSourceRef": "916fd3299a76cb6a60c7bc8779e8c40e8cdeb38d",
+  "purpose": "Diagnostic only; no Complete coverage or full-suite claim",
+  "sourceSHA256": {
+    "A": {
+      "app/macos/Tests/Support/NativeTestEnvironment.swift": "f57e1bc53f297ee84a21cc8b16285d8f5bb976a9dafa43717749883cf833f85d",
+      "app/macos/Tests/Integration/Host/SwiftUIReplaySupport.swift": "7573b5a6468696a8496ac601a34479fd50d467e036f7afa67c01739c99a1b4f7",
+      "app/macos/Tests/Integration/Host/SwiftUIOverviewInteractionTests.swift": "566e6bc3ba34fd74db8b2124100b030088f17111f0bc558ff88bef8d3509dfd8",
+      "app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift": "c8210e6ebe1dde12762780c9b6dfc8a4ab61023e2ce9912f344bb8701a1f2cd6"
+    },
+    "B": {
+      "app/macos/Tests/Support/NativeTestEnvironment.swift": "66b6c0291a291a3a939c9802ee0b276f32ed962d967c70ec8d40686bbba71f94",
+      "app/macos/Tests/Integration/Host/SwiftUIReplaySupport.swift": "91204162c46947832032398c26d636143501edb042f9b078b37dcf4576f7a4d7",
+      "app/macos/Tests/Integration/Host/SwiftUIOverviewInteractionTests.swift": "8a1f3b0d5ef7a85b2b319877bf9a78ceafb0a2b2f7c7842182137b1ec76d9d45",
+      "app/macos/Tests/Integration/Host/NativeReadingPagePresentationTests.swift": "d7adf580a253b805c26f3f3e057b0b6da18f67ced4fa00ee48113ce0ea5a0686"
+    }
+  },
+  "records": [
+    {
+      "condition": "A",
+      "status": "failed",
+      "startedAt": "2026-11-02T06:20:32.747147+00:00",
+      "exitCode": 1,
+      "seconds": 112.286,
+      "finishedAt": "2026-11-02T06:22:25.035159+00:00",
+      "capturePresent": true
+    },
+    {
+      "condition": "B",
+      "status": "failed",
+      "startedAt": "2026-11-02T06:22:25.442028+00:00",
+      "exitCode": 1,
+      "seconds": 71.065,
+      "finishedAt": "2026-11-02T06:23:36.507611+00:00",
+      "capturePresent": true
+    },
+    {
+      "condition": "B",
+      "status": "failed",
+      "startedAt": "2026-11-02T06:23:36.981581+00:00",
+      "exitCode": 1,
+      "seconds": 76.193,
+      "finishedAt": "2026-11-02T06:24:53.174999+00:00",
+      "capturePresent": true
+    },
+    {
+      "condition": "A",
+      "status": "failed",
+      "startedAt": "2026-11-02T06:24:53.682358+00:00",
+      "exitCode": 1,
+      "seconds": 72.945,
+      "finishedAt": "2026-11-02T06:26:06.628515+00:00",
+      "capturePresent": true
+    }
+  ]
+}

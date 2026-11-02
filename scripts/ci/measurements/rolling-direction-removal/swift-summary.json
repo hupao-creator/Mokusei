@@ -1,0 +1,178 @@
+{
+  "runs": [
+    {
+      "run": "Ordinary Swift suite",
+      "framework": "XCTest",
+      "tests": 17,
+      "suites": 8,
+      "failures": 0,
+      "skipped": 8,
+      "executed": 9,
+      "status": "passed"
+    },
+    {
+      "run": "Ordinary Swift suite",
+      "framework": "Swift Testing",
+      "tests": 504,
+      "suites": 94,
+      "issues": 0,
+      "skipped": 24,
+      "executed": 480,
+      "status": "passed"
+    }
+  ],
+  "errors": [
+    "native: required replays failed or did not complete.",
+    "Native method requires one successful owner receipt: MokuseiGitIntegrationTests.GitThreadExtensionTests/sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes(): [('failed', 1)]"
+  ],
+  "nativeMethods": [
+    {
+      "id": "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkTests/noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness:)",
+      "owner": {
+        "group": "native",
+        "check": "moku-execution-links",
+        "marker": "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "moku-execution-links",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiGitIntegrationTests.GitThreadExtensionTests/sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes()",
+      "owner": {
+        "group": "native",
+        "check": "rolling-numbers",
+        "marker": "GIT_TOKEN_FLIP_FRAMES_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "failed",
+          1
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "rolling-numbers",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiSettingsIntegrationTests.NativeOnboardingTagSurfaceTests/productionAnimationMountsWithoutAnOpaqueFirstFrame()",
+      "owner": {
+        "group": "native",
+        "check": "tag-glass-captures",
+        "marker": "TAG_ONBOARDING_FIRST_FRAME_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "tag-glass-captures",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/titleReversalAndVisibilityCancellationSettlePixels()",
+      "owner": {
+        "group": "native",
+        "check": "tag-glass-captures",
+        "marker": "TITLE_INCOMING_MOTION_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "tag-glass-captures",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiSettingsIntegrationTests.SwiftUIOverviewInteractionTests/excerptRevealKeepsMovingThroughRewriteAndWidthChanges()",
+      "owner": {
+        "group": "native",
+        "check": "tag-glass-captures",
+        "marker": "EXCERPT_INK_MOTION_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "tag-glass-captures",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiSettingsIntegrationTests.NativeOverviewDecorationCaptureTests/nativeCloudAndScanMoveInComposedOverview()",
+      "owner": {
+        "group": "native",
+        "check": "tag-glass-captures",
+        "marker": "NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "tag-glass-captures",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "MokuseiSettingsIntegrationTests.NativeReadingPagePresentationTests/retainedOverviewReturnsWithLatestContent()",
+      "owner": {
+        "group": "native",
+        "check": "tag-glass-captures",
+        "marker": "OVERVIEW_RETAINED_RETURN_CONFIRMED"
+      },
+      "receipts": [
+        [
+          "passed",
+          0
+        ]
+      ],
+      "outcomes": [
+        [
+          "native",
+          "tag-glass-captures",
+          "passed"
+        ]
+      ]
+    }
+  ],
+  "discoveredMethods": 528
+}

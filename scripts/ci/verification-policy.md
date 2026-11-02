@@ -36,6 +36,11 @@ the isolated AppKit launcher. Their replay steps are mandatory, reject skipped
 tests and retain reports/logs. New or display-related skips fail the job. Do not
 turn a regression into an allowlist entry.
 
+The repeatedly failing rolling-number incoming-direction correlation test was
+removed with explicit authorization; the retained animation checks do not assert
+motion direction. Its [failure evidence and coverage loss](measurements/rolling-direction-removal/README.md)
+remain available, and `native/rolling-numbers` still runs its other required cases.
+
 Methods needing an exclusive native owner are recorded in `swift_ownership.py`
 and the verified build manifest before ordinary execution. The title
 cancellation and excerpt-mask replays belong to the existing
@@ -45,9 +50,9 @@ requires observed ink movement through rewrite and an actual component-width
 change, and emits `EXCERPT_INK_MOTION_CONFIRMED`; timer completion and final text
 do not replace its moving-pixel evidence. The native cloud/scan composition,
 retained Overview return and Tag Settings first-frame cases share this owner
-with their own required markers. Tag entry and retained return must supply
-complete intermediate WindowServer frames before their unchanged pixel oracle
-can pass; the real AppKit event loop owns that capture.
+with their own required markers. Tag entry must supply complete intermediate
+WindowServer frames for its pixel oracle; retained return requires actual native
+midpoint geometry and the original return checks in a real AppKit event loop.
 All full method identities remain in discovery and are excluded from ordinary
 execution without a test-level skip or environment bypass.
 The complete ordinary command has no positive `--filter` and passes the shared
@@ -71,10 +76,11 @@ session. One current-build manifest and the observed method IDs establish comple
 execution; no weights, cross-runner build transport or artifact-slot aggregation
 are involved. Compiler caches never replace the current-source build or tests.
 
-New PR/main revisions cancel older work only in the same event/ref group; explicit
-dispatches have independent run-specific groups. Obsolete work retains GitHub's
-cancelled status instead of becoming a green required check. Remote strict branch
-rules control freshness; scope only determines the conservative documentation path.
+New PR and main revisions cancel older work only in the same event/ref group.
+Explicit dispatches have independent run-specific groups. Obsolete work retains
+GitHub's cancelled status instead of becoming a green required check. Remote
+strict branch rules control freshness;
+only PRs can use the conservative documentation path. Main always runs the full suite.
 
 There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
 Queue, attempt and total retry elapsed times are diagnostic. The single native job

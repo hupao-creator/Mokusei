@@ -1,0 +1,81 @@
+/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-xsn_swmh/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite NativeBrowserViewportTests started.
+◇ Test annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets() started.
+✔ Test annotationCaptureRefreshesMutatedTextAndRejectsRemovedTargets() passed after 1.063 seconds.
+◇ Test focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom() started.
+✔ Test focusedDocumentCommandsUseTheResponderChainWithoutChangingHostZoom() passed after 0.182 seconds.
+✔ Suite NativeBrowserViewportTests passed after 1.247 seconds.
+◇ Suite NativeMokuHistoryComposerTests started.
+◇ Test ordinaryClickFocusesAndPersistsExactUnicodeReplacement() started.
+MOKU_COMPOSER_INPUT click.mount.begin uptime=1323929.35066225
+NATIVE ENVIRONMENT systemReduceMotion=false backingScale=2.0 screens=[(0.0, 0.0, 2560.0, 1440.0), (427.0, -982.0, 1512.0, 982.0)]
+MOKU_COMPOSER_INPUT click.mount.returned uptime=1323929.3920962918
+MOKU_COMPOSER_INPUT click.editor.ready uptime=1323929.4041281668
+MOKU_COMPOSER_INPUT click.mouseUp.post.begin uptime=1323929.40446575
+MOKU_COMPOSER_INPUT click.mouseUp.post.returned uptime=1323929.4045107085
+MOKU_COMPOSER_INPUT click.mouseDown.send.begin uptime=1323929.404518625
+MOKU_COMPOSER_INPUT click.mouseDown.send.returned uptime=1323929.4180366667
+MOKU_COMPOSER_INPUT unicode.persistence.begin uptime=1323929.5182102502
+MOKU_COMPOSER_INPUT unicode.persistence.checked uptime=1323929.5267395417
+MOKU_COMPOSER_INPUT hold.mount.begin uptime=1323929.5267775834
+MOKU_COMPOSER_INPUT hold.mount.returned uptime=1323929.5579398335
+MOKU_COMPOSER_INPUT hold.monitor.ready uptime=1323929.5677517918
+MOKU_COMPOSER_INPUT hold.short.begin uptime=1323929.5678056667
+MOKU_COMPOSER_INPUT hold.short.ready uptime=1323929.568175875
+MOKU_COMPOSER_INPUT hold.short.mouseDown.queued eventNumber=100 uptime=1323929.5682700418
+MOKU_COMPOSER_INPUT hold.short.mouseDown.dispatch monotonicNanoseconds=1323929574230083 minimumPressDuration=0.5 releaseDelay=0.1 drag=false uptime=1323929.574249625
+MOKU_COMPOSER_INPUT hold.short.clock.release plannedNanoseconds=1323929674230083 beganNanoseconds=1323929674271291 endedNanoseconds=1323929674285000 posted=true latenessMilliseconds=0.054917
+MOKU_COMPOSER_INPUT hold.short.mouseUp.dispatch uptime=1323929.6744176669
+MOKU_COMPOSER_INPUT hold.short.settled downDispatchedNanoseconds=Optional(1323929574230083) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=Optional(1323929674414458) uptime=1323929.6809456667
+MOKU_COMPOSER_INPUT hold.short.cleanup downDispatchedNanoseconds=Optional(1323929574230083) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=Optional(1323929674414458) recognizer=NSGestureRecognizerState(rawValue: 0) uptime=1323929.6811291669
+MOKU_COMPOSER_INPUT hold.drag.begin uptime=1323929.681152625
+MOKU_COMPOSER_INPUT hold.drag.ready uptime=1323929.681482
+MOKU_COMPOSER_INPUT hold.drag.mouseDown.queued eventNumber=101 uptime=1323929.6815408333
+MOKU_COMPOSER_INPUT hold.drag.mouseDown.dispatch monotonicNanoseconds=1323929690367125 minimumPressDuration=0.5 releaseDelay=0.8 drag=true uptime=1323929.6903844168
+MOKU_COMPOSER_INPUT hold.drag.clock.drag plannedNanoseconds=1323929790367125 beganNanoseconds=1323929790410708 endedNanoseconds=1323929790427000 posted=true latenessMilliseconds=0.059875
+MOKU_COMPOSER_INPUT hold.drag.mouseDragged.dispatch uptime=1323929.7905519584
+MOKU_COMPOSER_INPUT hold.drag.clock.release plannedNanoseconds=1323930490367125 beganNanoseconds=1323930490416625 endedNanoseconds=1323930490431333 posted=true latenessMilliseconds=0.064208
+MOKU_COMPOSER_INPUT hold.drag.settled downDispatchedNanoseconds=Optional(1323929690367125) dragDispatchedNanoseconds=Optional(1323929790548708) upDispatchedNanoseconds=nil uptime=1323930.4956518752
+MOKU_COMPOSER_INPUT hold.drag.cleanup downDispatchedNanoseconds=Optional(1323929690367125) dragDispatchedNanoseconds=Optional(1323929790548708) upDispatchedNanoseconds=nil recognizer=NSGestureRecognizerState(rawValue: 0) uptime=1323930.4957242918
+MOKU_COMPOSER_INPUT hold.long.begin uptime=1323930.4957405
+MOKU_COMPOSER_INPUT hold.long.ready uptime=1323930.4960586668
+MOKU_COMPOSER_INPUT hold.long.mouseDown.queued eventNumber=102 uptime=1323930.4961588334
+MOKU_COMPOSER_INPUT hold.long.mouseDown.dispatch monotonicNanoseconds=1323930503825375 minimumPressDuration=0.5 releaseDelay=0.8 drag=false uptime=1323930.5038402916
+MOKU_COMPOSER_INPUT hold.long.startVoice starts=1 monotonicNanoseconds=1323931005207958 uptime=1323931.005213625
+MOKU_COMPOSER_INPUT hold.long.clock.release plannedNanoseconds=1323931303825375 beganNanoseconds=1323931303872875 endedNanoseconds=1323931303884166 posted=true latenessMilliseconds=0.058791
+MOKU_COMPOSER_INPUT hold.long.mouseUp.dispatch uptime=1323931.304053625
+MOKU_COMPOSER_INPUT hold.long.settled downDispatchedNanoseconds=Optional(1323930503825375) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=Optional(1323931304049875) uptime=1323931.3095147917
+MOKU_COMPOSER_INPUT hold.long.cleanup downDispatchedNanoseconds=Optional(1323930503825375) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=Optional(1323931304049875) recognizer=NSGestureRecognizerState(rawValue: 0) uptime=1323931.3095940833
+MOKU_COMPOSER_INPUT hold.unavailable.begin uptime=1323931.3096156667
+MOKU_COMPOSER_INPUT hold.unavailable.ready uptime=1323931.3101427085
+MOKU_COMPOSER_INPUT hold.unavailable.mouseDown.queued eventNumber=103 uptime=1323931.3102103334
+MOKU_COMPOSER_INPUT hold.unavailable.mouseDown.dispatch monotonicNanoseconds=1323931320576791 minimumPressDuration=0.5 releaseDelay=0.8 drag=false uptime=1323931.3205972917
+MOKU_COMPOSER_INPUT hold.unavailable.clock.release plannedNanoseconds=1323932120576791 beganNanoseconds=1323932120757250 endedNanoseconds=1323932120784458 posted=true latenessMilliseconds=0.207667
+MOKU_COMPOSER_INPUT hold.unavailable.settled downDispatchedNanoseconds=Optional(1323931320576791) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=nil uptime=1323932.1278635834
+MOKU_COMPOSER_INPUT hold.unavailable.cleanup downDispatchedNanoseconds=Optional(1323931320576791) dragDispatchedNanoseconds=nil upDispatchedNanoseconds=nil recognizer=NSGestureRecognizerState(rawValue: 0) uptime=1323932.1280549169
+MOKU_COMPOSER_INPUT click-and-hold.completed uptime=1323932.1500030002
+✔ Test ordinaryClickFocusesAndPersistsExactUnicodeReplacement() passed after 2.807 seconds.
+✔ Suite NativeMokuHistoryComposerTests passed after 2.807 seconds.
+◇ Suite NativeMokuLandingTests started.
+◇ Test realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() started.
+✔ Test realWorkspaceWaitsForHydrationAndCentersItsEmptyComposer() passed after 0.793 seconds.
+◇ Test oneResidentOwnsSubmissionRunningTalkDispatchAndStop() started.
+✔ Test oneResidentOwnsSubmissionRunningTalkDispatchAndStop() passed after 1.153 seconds.
+◇ Test centerSurvivesEscapeResizeCoveringRoutesAndRemount() started.
+✔ Test centerSurvivesEscapeResizeCoveringRoutesAndRemount() passed after 0.716 seconds.
+✔ Suite NativeMokuLandingTests passed after 2.663 seconds.
+◇ Suite NativeReportNavigationTests started.
+◇ Test reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() started.
+✔ Test reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() passed after 4.512 seconds.
+◇ Test reportNativeDialogsAndDownloadsPreserveTheDocument() started.
+✔ Test reportNativeDialogsAndDownloadsPreserveTheDocument() passed after 3.421 seconds.
+✔ Suite NativeReportNavigationTests passed after 7.934 seconds.
+◇ Suite NativeThreadHistorySidebarTests started.
+◇ Test pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation() started.
+✔ Test pointerPreviewHandsOffAndDismissesWithoutLosingKeyboardNavigation() passed after 3.717 seconds.
+✔ Suite NativeThreadHistorySidebarTests passed after 3.717 seconds.
+✔ Test run with 9 tests in 5 suites passed after 18.371 seconds.

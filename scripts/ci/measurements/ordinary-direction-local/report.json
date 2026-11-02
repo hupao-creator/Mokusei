@@ -1,0 +1,16 @@
+{
+  "command": [
+    "xcrun",
+    "swift",
+    "test",
+    "--skip-build",
+    "--no-parallel",
+    "--package-path",
+    "app/macos",
+    "--filter",
+    "RollingNumberCellTests/incomingDigitsMoveDownFromAbove"
+  ],
+  "exit_code": 0,
+  "seconds": 9.81,
+  "purpose": "Capture one original direction case in the ordinary SwiftPM host; not complete CI"
+}

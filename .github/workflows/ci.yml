@@ -219,6 +219,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/native-evidence"
           printf 'MOKUSEI_CI_EVIDENCE=%s/native-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'MOKUSEI_NATIVE_MODULE_CACHE=%s/native-module-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -240,7 +241,7 @@ jobs:
         id: swift-cache
         with:
           path: app/macos/.build
-          key: ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-native-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-native-seed-v2
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-native-
             ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-
@@ -255,8 +256,34 @@ jobs:
           printf 'MOKUSEI_SWIFT_SKIP_BUILD=1\n' >> "$GITHUB_ENV"
       # Reuse compilation only. The current sources are always built, and every
       # test/replay executes again in this job even after an exact cache hit.
+      # Only main publishes an immutable seed per dependency/toolchain version;
+      # PR revisions must not consume ~400 MB each in the shared 10 GiB cache.
+      - name: Check Swift cache size before publishing
+        id: cache-budget
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.swift-cache.outputs.cache-hit != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bytes=$(du -sk app/macos/.build | awk '{printf "%.0f", $1 * 1024}')
+          echo "Swift cache uncompressed bytes: $bytes" >> "$GITHUB_STEP_SUMMARY"
+          # Reserve 1 GiB for concurrent setup-go/CLI saves. This check never
+          # deletes another task's cache and cannot certify a global hard cap.
+          usage=
+          if usage=$(python3 -c '
+          import os, subprocess
+          print(subprocess.check_output([
+              "gh", "api", "repos/" + os.environ["GITHUB_REPOSITORY"] + "/actions/cache/usage",
+              "--jq", ".active_caches_size_in_bytes"], text=True, timeout=15).strip())
+          '); then
+            echo "Repository cache bytes before save: $usage" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ "$usage" =~ ^[0-9]+$ ]] && (( bytes <= 2147483648 && usage + bytes <= 9663676416 )); then
+            echo 'save=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Cache size/usage exceeds the 2 GiB seed or 9 GiB repository budget, or usage is unavailable; build remains valid, cache not saved.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/cache/save@v4
-        if: ${{ steps.swift-cache.outputs.cache-hit != 'true' }}
+        if: ${{ steps.cache-budget.outputs.save == 'true' }}
         with:
           path: app/macos/.build
           key: ${{ steps.swift-cache.outputs.cache-primary-key }}

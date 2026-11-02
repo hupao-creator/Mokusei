@@ -1,0 +1,208 @@
+{
+  "inflightCancellationsPassed": 25,
+  "observations": [
+    {
+      "resumeMilliseconds": 0.04224991425871849,
+      "timerMilliseconds": 11.176083236932755
+    },
+    {
+      "resumeMilliseconds": 0.02658320590853691,
+      "timerMilliseconds": 10.789999971166253
+    },
+    {
+      "resumeMilliseconds": 0.019208528101444244,
+      "timerMilliseconds": 12.463791528716683
+    },
+    {
+      "resumeMilliseconds": 0.02141646109521389,
+      "timerMilliseconds": 12.496250215917826
+    },
+    {
+      "resumeMilliseconds": 0.024458393454551697,
+      "timerMilliseconds": 12.460583355277777
+    },
+    {
+      "resumeMilliseconds": 0.026291701942682266,
+      "timerMilliseconds": 12.468166649341583
+    },
+    {
+      "resumeMilliseconds": 0.034958356991410255,
+      "timerMilliseconds": 12.474499875679612
+    },
+    {
+      "resumeMilliseconds": 0.01754169352352619,
+      "timerMilliseconds": 12.455750023946166
+    },
+    {
+      "resumeMilliseconds": 0.02933340147137642,
+      "timerMilliseconds": 12.44979165494442
+    },
+    {
+      "resumeMilliseconds": 0.017249956727027893,
+      "timerMilliseconds": 12.459208257496357
+    },
+    {
+      "resumeMilliseconds": 0.025541754439473152,
+      "timerMilliseconds": 12.456416618078947
+    },
+    {
+      "resumeMilliseconds": 0.06404169835150242,
+      "timerMilliseconds": 12.520916759967804
+    },
+    {
+      "resumeMilliseconds": 0.02570822834968567,
+      "timerMilliseconds": 12.378083309158683
+    },
+    {
+      "resumeMilliseconds": 0.07841666229069233,
+      "timerMilliseconds": 12.530541745945811
+    },
+    {
+      "resumeMilliseconds": 0.04712515510618687,
+      "timerMilliseconds": 12.369625037536025
+    },
+    {
+      "resumeMilliseconds": 0.3084999043494463,
+      "timerMilliseconds": 12.687750160694122
+    },
+    {
+      "resumeMilliseconds": 0.03604148514568806,
+      "timerMilliseconds": 12.13266677223146
+    },
+    {
+      "resumeMilliseconds": 0.06387499161064625,
+      "timerMilliseconds": 11.961083393543959
+    },
+    {
+      "resumeMilliseconds": 0.17866678535938263,
+      "timerMilliseconds": 12.422583298757672
+    },
+    {
+      "resumeMilliseconds": 0.05187513306736946,
+      "timerMilliseconds": 12.354624923318624
+    },
+    {
+      "resumeMilliseconds": 0.06400002166628838,
+      "timerMilliseconds": 12.34812499023974
+    },
+    {
+      "resumeMilliseconds": 0.06654183380305767,
+      "timerMilliseconds": 12.625541538000107
+    },
+    {
+      "resumeMilliseconds": 0.016583362594246864,
+      "timerMilliseconds": 12.147125089541078
+    },
+    {
+      "resumeMilliseconds": 0.06854161620140076,
+      "timerMilliseconds": 12.601583497598767
+    },
+    {
+      "resumeMilliseconds": 0.03216671757400036,
+      "timerMilliseconds": 12.29529152624309
+    },
+    {
+      "resumeMilliseconds": 0.06137508898973465,
+      "timerMilliseconds": 12.876458233222365
+    },
+    {
+      "resumeMilliseconds": 0.03366661258041859,
+      "timerMilliseconds": 12.486499967053533
+    },
+    {
+      "resumeMilliseconds": 0.23016659542918205,
+      "timerMilliseconds": 11.94875012151897
+    },
+    {
+      "resumeMilliseconds": 0.03829179331660271,
+      "timerMilliseconds": 12.235916452482343
+    },
+    {
+      "resumeMilliseconds": 0.12433342635631561,
+      "timerMilliseconds": 12.44820817373693
+    },
+    {
+      "resumeMilliseconds": 0.18508336506783962,
+      "timerMilliseconds": 13.409208273515105
+    },
+    {
+      "resumeMilliseconds": 0.05379156209528446,
+      "timerMilliseconds": 11.20316656306386
+    },
+    {
+      "resumeMilliseconds": 0.04479149356484413,
+      "timerMilliseconds": 12.434041826054454
+    },
+    {
+      "resumeMilliseconds": 0.07187481969594955,
+      "timerMilliseconds": 12.45533348992467
+    },
+    {
+      "resumeMilliseconds": 0.08312496356666088,
+      "timerMilliseconds": 12.855458306148648
+    },
+    {
+      "resumeMilliseconds": 0.06695836782455444,
+      "timerMilliseconds": 11.996583314612508
+    },
+    {
+      "resumeMilliseconds": 0.03258325159549713,
+      "timerMilliseconds": 12.295583263039589
+    },
+    {
+      "resumeMilliseconds": 0.03904174081981182,
+      "timerMilliseconds": 12.514958390966058
+    },
+    {
+      "resumeMilliseconds": 0.332958297803998,
+      "timerMilliseconds": 14.410374918952584
+    },
+    {
+      "resumeMilliseconds": 0.0791249331086874,
+      "timerMilliseconds": 10.128958383575082
+    },
+    {
+      "resumeMilliseconds": 0.21195854060351849,
+      "timerMilliseconds": 12.492583133280277
+    },
+    {
+      "resumeMilliseconds": 0.08733314462006092,
+      "timerMilliseconds": 11.974750086665154
+    },
+    {
+      "resumeMilliseconds": 0.031000003218650818,
+      "timerMilliseconds": 13.144166674464941
+    },
+    {
+      "resumeMilliseconds": 0.06066681817173958,
+      "timerMilliseconds": 11.643583187833428
+    },
+    {
+      "resumeMilliseconds": 0.050916802138090134,
+      "timerMilliseconds": 12.371416669338942
+    },
+    {
+      "resumeMilliseconds": 0.04312512464821339,
+      "timerMilliseconds": 12.418875005096197
+    },
+    {
+      "resumeMilliseconds": 0.05474989302456379,
+      "timerMilliseconds": 13.02287494763732
+    },
+    {
+      "resumeMilliseconds": 0.03429176285862923,
+      "timerMilliseconds": 11.807499919086695
+    },
+    {
+      "resumeMilliseconds": 0.062000006437301636,
+      "timerMilliseconds": 12.440416729077697
+    },
+    {
+      "resumeMilliseconds": 0.10724994353950024,
+      "timerMilliseconds": 12.662000022828579
+    }
+  ],
+  "preCancellationPassed": true,
+  "sourceSHA256": "66b6c0291a291a3a939c9802ee0b276f32ed962d967c70ec8d40686bbba71f94",
+  "scope": "Actual current test-support source, 50 waits and 26 cancellation checks; local only."
+}

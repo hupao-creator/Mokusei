@@ -1,0 +1,32 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-11-02 17:23:17.408.
+Test Suite 'MokuseiNativePackageTests.xctest' started at 2026-11-02 17:23:17.410.
+Test Suite 'MokuseiNativePackageTests.xctest' passed at 2026-11-02 17:23:17.410.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-11-02 17:23:17.410.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite NativeMokuExecutionLinkRoutingTests started.
+◇ Test noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "codex", execution → "prior" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "codex", execution → "target" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "codex", execution → "missing" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "claude", execution → "prior" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "claude", execution → "target" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "claude", execution → "missing" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "pi", execution → "prior" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "pi", execution → "target" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "pi", execution → "missing" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "opencode", execution → "prior" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "opencode", execution → "target" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+◇ Test case passing 2 arguments harness → "opencode", execution → "missing" to noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) started.
+✔ Test noteRoutesStayExactAndDoNotLeakIntoOrdinaryVisits(harness:execution:) with 12 test cases passed after 0.143 seconds.
+◇ Test concurrentConsumersKeepIndependentProductionResources(scope:) started.
+◇ Test case passing 1 argument scope → .thread to concurrentConsumersKeepIndependentProductionResources(scope:) started.
+◇ Test case passing 1 argument scope → .row(MokuseiCore.JSONText(codeUnits: [116, 97, 114, 103, 101, 116])) to concurrentConsumersKeepIndependentProductionResources(scope:) started.
+◇ Test case passing 1 argument scope → .execution(MokuseiCore.JSONText(codeUnits: [116, 97, 114, 103, 101, 116])) to concurrentConsumersKeepIndependentProductionResources(scope:) started.
+✔ Test concurrentConsumersKeepIndependentProductionResources(scope:) with 3 test cases passed after 0.007 seconds.
+✔ Suite NativeMokuExecutionLinkRoutingTests passed after 0.151 seconds.
+✔ Test run with 2 tests in 1 suite passed after 0.151 seconds.

@@ -1,0 +1,2 @@
+fatal error: malformed or corrupted precompiled file: 'could not find file '/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-gaiqkfjb/build/include-2/module.modulemap' referenced by AST file '/private/tmp/mokusei-ci-geometry-local/module-cache/21HQWXUC6Z1T/CAtomic-1OF5LPXTTD5AD.pcm''
+1 error generated.

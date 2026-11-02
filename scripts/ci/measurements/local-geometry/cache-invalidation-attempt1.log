@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/private/tmp/mokusei-ci-geometry-local/cache-invalidation-probe.py", line 24, in <module>
+    with header.open('a') as output:
+         ~~~~~~~~~~~^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-veldf_qz/build/include-2/CAtomic.h'

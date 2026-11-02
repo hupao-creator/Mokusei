@@ -1,0 +1,253 @@
+{
+  "actions_caches": [
+    {
+      "created_at": "2026-11-02T02:43:35.892549Z",
+      "id": 9853400731,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-855001b92ad36680d4e1317b0ac3a821cdd6746f",
+      "last_accessed_at": "2026-11-02T02:43:35.892549Z",
+      "ref": "refs/pull/224/merge",
+      "size_in_bytes": 410604813
+    },
+    {
+      "created_at": "2026-11-01T16:48:55.372366Z",
+      "id": 9837427621,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-2972115af0094f875b9674fe7672c23302443925",
+      "last_accessed_at": "2026-11-02T02:40:26.962348Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 407693778
+    },
+    {
+      "created_at": "2026-10-28T19:06:16.968876Z",
+      "id": 9661560138,
+      "key": "setup-go-macOS-arm64-go-1.27.0-c3ddd80adccb3bbf31a9dda20e898fdd78601b6bf4b55e3245994f253cbfdd1d",
+      "last_accessed_at": "2026-11-02T02:40:10.162671Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 145814381
+    },
+    {
+      "created_at": "2026-10-28T19:03:24.300389Z",
+      "id": 9661420805,
+      "key": "Linux-X64-go-1.27.0-511fd3dcd33d4d78ff37728e88ec00d987586c6bfa9f83f6bb209bcb3707bece",
+      "last_accessed_at": "2026-11-02T02:40:06.110911Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 197030062
+    },
+    {
+      "created_at": "2026-10-28T19:05:09.972230Z",
+      "id": 9661504303,
+      "key": "setup-go-Linux-x64-ubuntu26-go-1.27.0-c3ddd80adccb3bbf31a9dda20e898fdd78601b6bf4b55e3245994f253cbfdd1d",
+      "last_accessed_at": "2026-11-02T02:40:05.901910Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 101491451
+    },
+    {
+      "created_at": "2026-11-02T02:28:54.948526Z",
+      "id": 9852992409,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-5874dbd56cb595c095c38f147776b5692bf84d2c",
+      "last_accessed_at": "2026-11-02T02:28:54.948526Z",
+      "ref": "refs/pull/222/merge",
+      "size_in_bytes": 410819858
+    },
+    {
+      "created_at": "2026-11-02T02:20:03.383066Z",
+      "id": 9852741576,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-cc8fc2a095a3c1ef2e1f390b4af5f79895cee3c6",
+      "last_accessed_at": "2026-11-02T02:20:03.383066Z",
+      "ref": "refs/pull/220/merge",
+      "size_in_bytes": 410977491
+    },
+    {
+      "created_at": "2026-11-02T02:16:02.965472Z",
+      "id": 9852618164,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-f165ab1490597dd3b1e520f247975255f2a0f3ce",
+      "last_accessed_at": "2026-11-02T02:16:02.965472Z",
+      "ref": "refs/pull/219/merge",
+      "size_in_bytes": 410786416
+    },
+    {
+      "created_at": "2026-10-31T14:32:10.212086Z",
+      "id": 9801411032,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-a4e94b3f72f8f16d7adf2911621725b2ae552b7e",
+      "last_accessed_at": "2026-11-01T16:42:44.343539Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 404575059
+    },
+    {
+      "created_at": "2026-11-01T16:16:09.207343Z",
+      "id": 9836515195,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-47e105dc415efc94177165015321ab0c1dc6c517",
+      "last_accessed_at": "2026-11-01T16:16:09.207343Z",
+      "ref": "refs/pull/217/merge",
+      "size_in_bytes": 407669598
+    },
+    {
+      "created_at": "2026-10-31T15:02:31.385596Z",
+      "id": 9802105272,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-7bfd2971285110d7145ba84f21aa291e7b97f6a6",
+      "last_accessed_at": "2026-10-31T15:02:31.385596Z",
+      "ref": "refs/pull/215/merge",
+      "size_in_bytes": 407966820
+    },
+    {
+      "created_at": "2026-10-31T13:59:25.482753Z",
+      "id": 9800674936,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-9c958cf7a8790b993e4297dca1d2a5ab1c0d4ffc",
+      "last_accessed_at": "2026-10-31T14:55:29.871322Z",
+      "ref": "refs/pull/215/merge",
+      "size_in_bytes": 404409417
+    },
+    {
+      "created_at": "2026-10-31T12:23:31.902464Z",
+      "id": 9798604764,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-180d91b4fa8eb35793886816b2e8492fc59da8d1",
+      "last_accessed_at": "2026-10-31T14:26:05.472959Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 401399233
+    },
+    {
+      "created_at": "2026-10-31T13:53:23.300853Z",
+      "id": 9800542046,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-f93e3b3863f2f46f707669982d69b6b5ab0abfaf",
+      "last_accessed_at": "2026-10-31T13:53:23.300853Z",
+      "ref": "refs/pull/214/merge",
+      "size_in_bytes": 407707971
+    },
+    {
+      "created_at": "2026-10-31T13:05:04.823635Z",
+      "id": 9799482638,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-485096eaa55505ff39058770b75ca566b01284ca",
+      "last_accessed_at": "2026-10-31T13:49:34.613226Z",
+      "ref": "refs/pull/214/merge",
+      "size_in_bytes": 404056096
+    },
+    {
+      "created_at": "2026-10-31T11:29:23.842304Z",
+      "id": 9797445493,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-13a96c7403226371cef4e59cf52715766662ad44",
+      "last_accessed_at": "2026-10-31T12:19:13.043296Z",
+      "ref": "refs/heads/main",
+      "size_in_bytes": 397248887
+    },
+    {
+      "created_at": "2026-10-31T12:13:31.445059Z",
+      "id": 9798391442,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-b2e9a3940b7b91f4dc95ab1c698bde4cab5e501d",
+      "last_accessed_at": "2026-10-31T12:13:31.445059Z",
+      "ref": "refs/pull/213/merge",
+      "size_in_bytes": 400402815
+    },
+    {
+      "created_at": "2026-10-31T11:50:01.204820Z",
+      "id": 9797880562,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-62e2915bf70f04bd2711af9bf2ca60dc838aed1e",
+      "last_accessed_at": "2026-10-31T11:50:01.204820Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 410642078
+    },
+    {
+      "created_at": "2026-10-31T11:32:40.686030Z",
+      "id": 9797515491,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-41196775616-1",
+      "last_accessed_at": "2026-10-31T11:44:35.891544Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 407413349
+    },
+    {
+      "created_at": "2026-10-31T11:31:59.823416Z",
+      "id": 9797501106,
+      "key": "native-go-ARM64-41196775616-1",
+      "last_accessed_at": "2026-10-31T11:38:10.594013Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 189149668
+    },
+    {
+      "created_at": "2026-10-31T10:45:08.705869Z",
+      "id": 9796508926,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-41192536243-1",
+      "last_accessed_at": "2026-10-31T11:28:03.368790Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 404495231
+    },
+    {
+      "created_at": "2026-10-31T11:16:27.275365Z",
+      "id": 9797174599,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-90193535fade3c39746098f3647e3154c5b074789a2616fda741babf7ad4ff4e-41195942774-1",
+      "last_accessed_at": "2026-10-31T11:21:49.241628Z",
+      "ref": "refs/pull/210/merge",
+      "size_in_bytes": 444916664
+    },
+    {
+      "created_at": "2026-10-31T11:17:19.521305Z",
+      "id": 9797191901,
+      "key": "native-go-ARM64-41195942774-1",
+      "last_accessed_at": "2026-10-31T11:21:43.806236Z",
+      "ref": "refs/pull/210/merge",
+      "size_in_bytes": 189032735
+    },
+    {
+      "created_at": "2026-10-31T10:59:43.674609Z",
+      "id": 9796816283,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-90193535fade3c39746098f3647e3154c5b074789a2616fda741babf7ad4ff4e-41193676911-1",
+      "last_accessed_at": "2026-10-31T11:13:36.833187Z",
+      "ref": "refs/pull/210/merge",
+      "size_in_bytes": 441888811
+    },
+    {
+      "created_at": "2026-10-31T10:59:13.190064Z",
+      "id": 9796806012,
+      "key": "native-go-ARM64-41193676911-1",
+      "last_accessed_at": "2026-10-31T11:05:42.472677Z",
+      "ref": "refs/pull/210/merge",
+      "size_in_bytes": 188945039
+    },
+    {
+      "created_at": "2026-10-31T10:59:19.738115Z",
+      "id": 9796807328,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-d9be25584cea2c5e0946bf9ddf4595bc283fd73d",
+      "last_accessed_at": "2026-10-31T10:59:19.738115Z",
+      "ref": "refs/pull/212/merge",
+      "size_in_bytes": 400491408
+    },
+    {
+      "created_at": "2026-10-31T10:23:59.213239Z",
+      "id": 9796047739,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-90193535fade3c39746098f3647e3154c5b074789a2616fda741babf7ad4ff4e-41191394913-1",
+      "last_accessed_at": "2026-10-31T10:55:59.653550Z",
+      "ref": "refs/pull/210/merge",
+      "size_in_bytes": 438933725
+    },
+    {
+      "created_at": "2026-10-31T10:46:46.516242Z",
+      "id": 9796544584,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-native-9b6e8b8a164e726b982ef766bf0a9bd268d25ba3",
+      "last_accessed_at": "2026-10-31T10:54:46.041505Z",
+      "ref": "refs/pull/212/merge",
+      "size_in_bytes": 397312921
+    },
+    {
+      "created_at": "2026-10-31T10:44:57.827496Z",
+      "id": 9796504942,
+      "key": "native-go-ARM64-41192536243-1",
+      "last_accessed_at": "2026-10-31T10:49:49.345234Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 189301360
+    },
+    {
+      "created_at": "2026-10-31T10:08:13.299189Z",
+      "id": 9795709828,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-d7aa8e13ef5cba53fa560be7dfa1f7802ea80aec5c620e3f1fd0ca4205d18e4c-41191058589-1",
+      "last_accessed_at": "2026-10-31T10:41:46.276541Z",
+      "ref": "refs/pull/200/merge",
+      "size_in_bytes": 401347212
+    },
+    {
+      "created_at": "2026-10-31T09:54:40.327712Z",
+      "id": 9795415346,
+      "key": "macOS-ARM64-swift-d9fee6df1c4e2efd29c47d4f4c5f81c3c754f50051ce362ee9cad76204cb3bbe-90193535fade3c39746098f3647e3154c5b074789a2616fda741babf7ad4ff4e-41189296729-1",
+      "last_accessed_at": "2026-10-31T10:35:52.667619Z",
+      "ref": "refs/pull/209/merge",
+      "size_in_bytes": 438682762
+    }
+  ],
+  "total_count": 31
+}

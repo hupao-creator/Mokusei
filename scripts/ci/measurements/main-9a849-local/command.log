@@ -1,0 +1,45 @@
+RUN moku-execution-links
+PASSED moku-execution-links
+RUN rolling-numbers
+FAILED rolling-numbers
+rolling-numbers: exit=1, seconds=15.884, error=command failed
+/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-fiekxuce/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite GitThreadExtensionTests started.
+◇ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() started.
+GIT_NUMBER_FLIP_EVIDENCE /private/tmp/mokusei-ci-geometry-local/main-9a849-evidence/git-number-flip-135B6790-38C3-441E-B407-33CEC0E8C168
+GIT_TOKEN_FLIP_FRAMES_CONFIRMED
+✔ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() passed after 0.593 seconds.
+✔ Suite GitThreadExtensionTests passed after 0.593 seconds.
+◇ Suite RollingNumberCellTests started.
+◇ Test threadCardUsageRollsInsideStableCells() started.
+✔ Test threadCardUsageRollsInsideStableCells() passed after 0.664 seconds.
+◇ Test projectedUsageUpdatesKeepTheirAnimation() started.
+✔ Test projectedUsageUpdatesKeepTheirAnimation() passed after 4.154 seconds.
+◇ Test incomingDigitsMoveDownFromAbove() started.
+✘ Test incomingDigitsMoveDownFromAbove() recorded an issue at RollingNumberCellTests.swift:222:9: Expectation failed: (bestShift → 23) < 0
+↳ Incoming glyphs must approach their baseline from above
+✘ Test incomingDigitsMoveDownFromAbove() failed after 0.913 seconds with 1 issue.
+✘ Suite RollingNumberCellTests failed after 5.734 seconds with 1 issue.
+↳ /// Keeps the historical stable-cell layout and the requested downward motion,
+↳ /// including at the overview's raster tier.
+✘ Test run with 4 tests in 2 suites failed after 6.328 seconds with 1 issue.
+Traceback (most recent call last):
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 271, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 187, in main
+    result.check_returncode()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/subprocess.py", line 508, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+                             self.stderr)
+subprocess.CalledProcessError: Command '[]' returned non-zero exit status 1.
+
+RUN tag-glass-captures
+PASSED tag-glass-captures
+RUN isolated-input
+PASSED isolated-input

@@ -14,6 +14,7 @@ import time
 
 class NativeReplay:
     def __init__(self, repo, name, bundle_id, configuration="debug"):
+        staging_started = time.monotonic()
         if configuration not in {"debug", "release"}:
             raise ValueError("Native replay configuration must be debug or release")
         self.temporary = tempfile.TemporaryDirectory(prefix="mokusei-native-replay-")
@@ -25,6 +26,11 @@ class NativeReplay:
         self.executable.parent.mkdir(parents=True)
         self.build = self.root / "build"
         self.build.mkdir()
+        # CI owns one toolchain/session and discards this compiler cache with the job.
+        # Sources and app instances remain staged separately for every replay.
+        cache = os.environ.get("MOKUSEI_NATIVE_MODULE_CACHE")
+        self.module_cache = Path(cache).resolve() if cache else self.root / "ModuleCache"
+        self.module_cache.mkdir(parents=True, exist_ok=True)
         self.lock = None
         self.process = None
         self.termination_handler = None
@@ -72,6 +78,7 @@ class NativeReplay:
             plistlib.dump({"CFBundleIdentifier": bundle_id, "CFBundleName": name,
                           "CFBundleExecutable": name, "CFBundlePackageType": "APPL",
                           "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "26.0"}, output)
+        self.manifest["stagingSeconds"] = round(time.monotonic() - staging_started, 3)
 
     def compile(self, sources, extra_args=()):
         staged = []
@@ -84,11 +91,17 @@ class NativeReplay:
                 "-parse-as-library", "-target", f"{platform.machine()}-apple-macosx26.0",
                 "-I", str(self.build / "Modules"), "-F", str(self.application / "Contents/Frameworks"),
                 "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker",
-                "@executable_path/../Frameworks", "-module-cache-path", str(self.root / "ModuleCache")]
+                "@executable_path/../Frameworks", "-module-cache-path", str(self.module_cache)]
         for include in self.includes:
             args += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]
-        subprocess.run([*args, *extra_args, *staged, *self.objects, "-o", str(self.executable)],
-                       cwd=self.workspace, check=True)
+        started = time.monotonic()
+        try:
+            subprocess.run([*args, *extra_args, *staged, *self.objects, "-o", str(self.executable)],
+                           cwd=self.workspace, check=True)
+        finally:
+            self.manifest["compilation"] = {"seconds": round(time.monotonic() - started, 3),
+                                            "moduleCache": str(self.module_cache)}
+            (self.root / "launch.json").write_text(json.dumps(self.manifest, indent=2) + "\n")
         subprocess.run(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", str(self.application)], check=True)
         libraries = subprocess.check_output(["/usr/bin/otool", "-L", str(self.executable)], text=True)
         for line in libraries.splitlines()[1:]:

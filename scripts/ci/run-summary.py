@@ -1,14 +1,11 @@
 """Expose runner queues and total retry latency without imposing a whole-run time gate."""
-from datetime import datetime
 import json
 import os
 from pathlib import Path
 import subprocess
 import time
 
-
-def timestamp(value):
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+from timings import job_timing, timestamp
 
 
 def main():
@@ -20,16 +17,9 @@ def main():
     jobs = []
     for page in pages:
         for job in page["jobs"]:
-            if job["conclusion"] == "skipped" or not job["started_at"]:
-                continue
-            started, created = timestamp(job["started_at"]), timestamp(job["created_at"])
-            # GitHub creates new job IDs for carried-forward successful jobs on a
-            # partial rerun, but keeps their earlier start/completion timestamps.
-            carried = started < created
-            jobs.append({"name": job["name"], "conclusion": job["conclusion"],
-                         "reused": carried, "queueSeconds": None if carried else round(started - created, 1),
-                         "executionSeconds": round(timestamp(job["completed_at"]) - started, 1)
-                         if job["completed_at"] else None})
+            timing = job_timing(job)
+            if timing:
+                jobs.append(timing)
     now = time.time()
     report = {"run": run["id"], "attempt": attempt,
               "elapsedSinceFirstTriggerSeconds": round(now - timestamp(run["created_at"]), 1),
@@ -39,10 +29,13 @@ def main():
     rows = ["## Queue and retry latency", "",
             f"Attempt **{attempt}**; since first trigger: **{report['elapsedSinceFirstTriggerSeconds']}s**; "
             f"this attempt: **{report['elapsedThisAttemptSeconds']}s** (measured before cleanup).",
-            "", "| Job | Queue seconds | Execution seconds | Result |", "| --- | ---: | ---: | --- |"]
+            "", "| Job | Queue seconds | Execution seconds | Preparation | Build | Verification commands | Result |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | --- |"]
     for job in jobs:
         queue = "prior execution" if job["reused"] else job["queueSeconds"]
-        rows.append(f"| {job['name']} | {queue} | {job['executionSeconds']} | {job['conclusion'] or 'running'} |")
+        steps = job["stepSeconds"]
+        rows.append(f"| {job['name']} | {queue} | {job['executionSeconds']} | {steps['preparation']} | "
+                    f"{steps['build']} | {steps['verification']} | {job['conclusion'] or 'running'} |")
     rows += ["", "Reused jobs are not new runner work. Elapsed time is diagnostic and does not decide merge eligibility."]
     text = "\n".join(rows) + "\n"
     print(text)
