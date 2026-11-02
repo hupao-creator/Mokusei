@@ -7,6 +7,8 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import signal
+import sys
 import subprocess
 import time
 
@@ -94,6 +96,9 @@ def main():
         receipt["status"] = "passed" if receipt["exit_code"] == 0 else "failed"
     except (OSError, TimeoutError) as error:
         receipt.update(status="failed", error=str(error))
+    except BaseException as error:
+        receipt.update(status="failed", error=str(error))
+        raise
     finally:
         receipt["finishedAt"] = time.time()
         path.write_text(json.dumps(receipt, indent=2) + "\n")
@@ -113,4 +118,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # Let deadline.run unwind and terminate the separate Swift process group.
+    # Default SIGTERM would kill only this launcher and orphan its test process.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit("Native Swift execution terminated"))
     main()

@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 
-def run(command, *, timeout=1800, **kwargs):
+def run(command, *, timeout=1800, termination_grace=5, **kwargs):
     process = subprocess.Popen(command, start_new_session=True, **kwargs)
     try:
         return process.wait(timeout=timeout)
@@ -17,7 +17,7 @@ def run(command, *, timeout=1800, **kwargs):
         if process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)
             try:
-                process.wait(timeout=5)
+                process.wait(timeout=termination_grace)
             except subprocess.TimeoutExpired:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait()

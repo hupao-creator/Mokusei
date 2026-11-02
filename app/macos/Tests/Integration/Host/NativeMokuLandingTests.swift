@@ -18,6 +18,7 @@ import MokuseiSidecardConversation
 // on disconnect, even when a retained snapshot says its execution is running.
 extension RuntimeClient {
     fileprivate func connectLandingFixture() { setStatus(.connected) }
+    fileprivate func disconnectLandingFixture() { setStatus(.disconnected) }
 }
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
@@ -326,7 +327,7 @@ struct NativeMokuLandingTests {
             fixture.window?.setContentSize(CGSize(width: 980, height: 700))
             try await SwiftUIReplay.wait { root.bounds.width == 980 && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
             let returnOrigin = fixture.presentation.canvas.displayedFrame(for: "child")
-            fixture.presentation.showOverview()
+            try closeAgentPanel(in: try #require(fixture.window))
             #expect(fixture.presentation.readingPanelSource == returnOrigin)
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             #expect(fixture.scene.overviewVisible && fixture.scene.dockRouteVisible)
@@ -335,9 +336,59 @@ struct NativeMokuLandingTests {
             // the same close route while their Harness loads the target.
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
                 executionID: "run-child", requestID: "panel-result", mode: .history, position: .result))
-            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil }
-            fixture.presentation.navigation?.onBack()
+            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil && !fixture.presentation.messageMotion.active }
+            try closeAgentPanel(in: try #require(fixture.window))
+            try #require(fixture.presentation.messageMotion.active, "The icon-center click must start the real return")
+            fixture.window?.setContentSize(CGSize(width: 940, height: 680))
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
+            try await Task.sleep(for: .milliseconds(450))
+            #expect(fixture.presentation.selected == nil, "Layout updates must not restore the closed route")
+            for interruption in ["mutation", "same-snapshot", "reconnect", "disconnect", "appearance"] {
+                fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
+                try await SwiftUIReplay.wait {
+                    fixture.presentation.mountedReadingThread?.threadID == "child" && !fixture.presentation.messageMotion.active
+                        && readingPanel(in: root) != nil
+                }
+                let panel = try #require(readingPanel(in: root))
+                let settledFrame = panel.convert(panel.bounds, to: root)
+                try await Task.sleep(for: .milliseconds(100))
+                try #require(panel.convert(panel.bounds, to: root) == settledFrame, "Close target must be settled before input")
+                try closeAgentPanel(in: try #require(fixture.window))
+                try #require(fixture.presentation.messageMotion.active, "The settled icon click must be accepted before recovery")
+                var interruptedReturn = false
+                if interruption == "disconnect" {
+                    let callback = fixture.workspace.onConnectionChange
+                    fixture.workspace.onConnectionChange = { status in
+                        if status == .disconnected { interruptedReturn = interruptedReturn || fixture.presentation.messageMotion.active }
+                        callback?(status)
+                    }
+                    await fixture.workspace.client.disconnectLandingFixture()
+                    try await SwiftUIReplay.wait { fixture.workspace.connection == .disconnected }
+                    fixture.workspace.onConnectionChange = callback
+                } else if interruption == "appearance" {
+                    interruptedReturn = fixture.presentation.messageMotion.active
+                    try fixture.workspace.preferences.setAppearance(.dark)
+                } else {
+                    let snapshot = try #require(fixture.workspace.state)
+                    let authority = try #require(fixture.workspace.snapshotAuthority)
+                    let callback = fixture.workspace.onCatalogChange
+                    fixture.workspace.onCatalogChange = { event in
+                        interruptedReturn = interruptedReturn || fixture.presentation.messageMotion.active
+                        callback?(event)
+                    }
+                    let event: RuntimeClientEvent = interruption == "mutation"
+                        ? .mutation(.object([:]), state: snapshot, authority: authority)
+                        : .snapshot(snapshot, authority: interruption == "reconnect" ? UUID() : authority)
+                    await fixture.workspace.installPrepared(snapshot, event: event)
+                    fixture.workspace.onCatalogChange = callback
+                }
+                try #require(interruptedReturn, "The event must arrive before the accepted return finishes")
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+                if interruption == "disconnect" {
+                    await fixture.workspace.client.connectLandingFixture()
+                    try await SwiftUIReplay.wait { fixture.workspace.connection == .connected }
+                }
+            }
         }
     }
 
@@ -387,6 +438,16 @@ struct NativeMokuLandingTests {
             try await fixture.install()
             try await SwiftUIReplay.wait { fixture.moku.landing && fixture.scene.inputOpen }
         }
+    }
+
+    private func closeAgentPanel(in window: NSWindow) throws {
+        let root = try #require(window.contentView)
+        let panel = try #require(readingPanel(in: root))
+        // The production Close circle has 14pt inset and 16pt radius. Measure
+        // its mounted panel, including any outer panel animation/transform.
+        let point = panel.convert(CGPoint(x: panel.bounds.maxX - 30,
+            y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
+        try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
     }
 
     private func faces(in view: NSView) -> [NativeMokuCharacterCanvas] {

@@ -10,11 +10,13 @@ public final class NativeReadingPageMotion {
     public fileprivate(set) var active = false
     fileprivate var replacementDirection: CGFloat = 1
     @ObservationIgnored fileprivate var closeAction: (() -> Void)?
-    @ObservationIgnored fileprivate var cancelAction: (() -> Void)?
+    @ObservationIgnored fileprivate var cancelAction: ((Bool) -> Void)?
     public init() { Self.registry.removeAll { $0.value == nil }; Self.registry.append(WeakMotion(self)) }
     public func close() { closeAction?() }
-    public func cancel() { cancelAction?() }
-    public static func cancelAll() { registry.forEach { $0.value?.cancel() } }
+    public func cancel(finishingClose: Bool = false) { cancelAction?(finishingClose) }
+    public static func cancelAll(finishingClose: Bool = false) {
+        registry.forEach { $0.value?.cancel(finishingClose: finishingClose) }
+    }
 }
 
 public struct NativeReadingPageStack<Parent: View, Front: View>: View {
@@ -116,7 +118,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         .accessibilityHidden(true)
                 }
             }
-            .onChange(of: bounds.size) { _, _ in settle() }
+            .onChange(of: bounds.size) { _, _ in settle(finishingClose: true) }
         }
         .clipped()
         .disabled(!enabled)
@@ -139,7 +141,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             }
             mountedIdentity = identity
         }
-        .onChange(of: scenePhase) { _, value in if value != .active { settle() } }
+        .onChange(of: scenePhase) { _, value in if value != .active { settle(finishingClose: true) } }
         .onChange(of: direction, initial: true) { _, value in
             motion.replacementDirection = value
             bindActions()
@@ -147,9 +149,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         .onChange(of: reduceMotion) { _, value in
             bindActions()
             if value {
-                let finishClose = closing
-                settle()
-                if finishClose { onClose() }
+                settle(finishingClose: true)
             }
         }
         .onChange(of: enabled) { _, value in
@@ -168,10 +168,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             if enabled { animate(closing: true) }
             else { onClose() }
         }
-        motion.cancelAction = { settle() }
+        motion.cancelAction = { settle(finishingClose: $0) }
     }
 
-    private func settle() {
+    private func settle(finishingClose: Bool = false) {
+        // Layout/activation can interrupt the animation after Close was accepted.
+        // Complete that visit's intent, but never close a replacement route or
+        // turn an explicit cancellation into navigation.
+        let finishClose = finishingClose && closing && open && mountedIdentity == identity
         animationTask?.cancel(); animationTask = nil
         generation += 1
         var transaction = Transaction(animation: nil)
@@ -182,6 +186,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             replacing = false
             motion.active = false
         }
+        if finishClose { onClose() }
     }
 
     private var curve: Animation { .timingCurve(0.42, 0, 0.58, 1, duration: duration) }

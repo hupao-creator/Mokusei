@@ -48,7 +48,7 @@ action; unmounting clears it and a new mount owns a new identity.
 Run `python3 tools/verification/reading-presentation/run.py --application-navigation`
 for the mounted production-page regression.
 
-[NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition; identity changes, resize, inactive scene and disabled presentation settle/cancel the current generation.
+[NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition. Resize or an inactive scene completes an accepted Close for that same route visit; otherwise the animation simply settles. Identity replacement, explicit cancellation and disabled presentation still cancel the current generation without closing a replacement route.
 
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
@@ -95,3 +95,14 @@ Agent reading uses a panel-owned Close rather than a Back control beside the
 traffic lights. Its nested history Back remains inside the main panel and keeps
 the existing route-visit fence. Moku history and application/Report navigation
 retain their own window-navigation behavior.
+The Close button's label owns its 32pt circular background and hit shape, so
+the entire visible circle responds rather than only the smaller icon area. Its outer
+14pt padding remains panel spacing and does not become a close target.
+Snapshot rehydration, disconnection and appearance changes stop reading motion
+with `finishingClose: true`: an already accepted Close completes its current
+visit even when the target was settled before the click. Ordinary updates do
+not stop the return. Explicit navigation/cancellation retains the default
+cancellation policy, so recovery cannot revive a cancelled return or close a
+new visit. The full-workspace replay clicks the settled panel's icon before
+injecting these events, including control cases for ordinary mutations and
+same-authority snapshots.

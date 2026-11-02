@@ -1,11 +1,13 @@
 # Foreground Overview Release measurements in CI
 
-This verification runner measures two fixed product commits on **one macOS arm64
-runner**, with one shared harness and two opposite-order pairs per condition. It
-does not need a developer Mac or a local measurement agent. The
-[Overview performance workflow](../../../.github/workflows/overview-performance.yml)
-is independent of ordinary build/test/WindowServer-capture CI; it never cancels or
-replaces that verification.
+This harness measures two fixed product commits on one macOS 26 arm64 host,
+with a shared harness and opposite-order pairs. It now runs through
+[local macOS CI with gh-signoff](../../../scripts/ci/local-macos.md).
+The [workflow](../../../.github/workflows/overview-performance.yml) retains its
+PR/path/dispatch triggers but verifies the local status for the exact harness
+revision and product pair. It does not replace ordinary native correctness CI.
+Metal, foreground and complete-card display requirements remain unchanged.
+Local execution never changes personal accessibility settings or display modes.
 
 ## Measurement contract
 
@@ -250,13 +252,11 @@ python3 tools/verification/overview-ci-performance/run.py \
   --output /tmp/overview-performance
 ```
 
-The hosted workflow adds `--configure-display` and a 1500-second experiment
-budget inside a 30-minute job timeout. Nominal measured time is five minutes;
-startup, settlement, tail, two Release builds and linking account for the rest.
-A cold build or unavailable runner capability may exhaust this budget; that is
-an incomplete experiment, not evidence that either product is faster.
+The local entry point retains the 1500-second experiment budget and does not
+pass `--configure-display`. Prepare a sufficiently large display before running;
+foreground/visibility failures remain invalid measurements, never passing results.
 
-The artifact `overview-release-performance-<run>-attempt-<attempt>` retains:
+The local attempt's `overview/` evidence directory retains:
 
 - `report.md`: complete standalone report, every raw formal run, opposite-order
   paired deltas, source accounting, per-card convergence, memory and environment.

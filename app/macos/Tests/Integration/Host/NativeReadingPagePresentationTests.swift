@@ -18,6 +18,8 @@ import MokuseiUI
     var enabled = true
     var text = "Initial overview"
     var duration = NativeReadingPageTiming.duration
+    var viewport: CGSize?
+    var phase: ScenePhase?
     let motion = NativeReadingPageMotion()
     @ObservationIgnored var parentAppearances = 0
     @ObservationIgnored var frontAppearances = 0
@@ -56,6 +58,8 @@ private struct ReadingReplay: View {
                 .onChange(of: fixture.text, initial: true) { _, text in fixture.renderedText = text }
         } front: { Text("Conversation detail").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.sRGB, red: 0, green: 0, blue: 1))
                 .background(ReadingFrontProbe(fixture: fixture)).onAppear { fixture.frontAppearances += 1 } }
+            .frame(width: fixture.viewport?.width, height: fixture.viewport?.height)
+            .transformEnvironment(\.scenePhase) { if let phase = fixture.phase { $0 = phase } }
     }
 }
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
@@ -356,10 +360,21 @@ struct NativeReadingPagePresentationTests {
         try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
         #expect(fixture.frontAppearances == 1)
         #expect(fixture.parentAppearances == 1)
+        fixture.open = true
+        try await SwiftUIReplay.wait { fixture.frontAppearances == 2 && !fixture.motion.active }
+        fixture.motion.close()
+        NativeReadingPageMotion.cancelAll()
+        #expect(fixture.open && !fixture.motion.active)
+        NativeReadingPageMotion.cancelAll(finishingClose: true)
+        #expect(fixture.open, "A cancelled return must not be revived by recovery")
+        fixture.motion.close()
+        NativeReadingPageMotion.cancelAll(finishingClose: true)
+        #expect(!fixture.open && !fixture.motion.active)
     }
 
     @Test func interruptedNavigationKeepsCloseActionAvailable() async throws {
         let fixture = ReadingFixture()
+        fixture.phase = .active
         let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
         defer { window.close() }
         try await SwiftUIReplay.wait { fixture.parentAppearances == 1 }
@@ -372,6 +387,30 @@ struct NativeReadingPagePresentationTests {
             try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
         }
         #expect(fixture.parentAppearances == 1)
+
+        // A layout or activation interruption settles the accepted return, rather
+        // than restoring the detail and silently discarding the Close request.
+        for (index, interruption) in ["resize", "inactive"].enumerated() {
+            fixture.open = true
+            try await SwiftUIReplay.wait { fixture.frontAppearances == 6 + index && !fixture.motion.active }
+            fixture.motion.close()
+            #expect(fixture.open && fixture.motion.active)
+            if interruption == "resize" { fixture.viewport = CGSize(width: 1000, height: 700) }
+            else { fixture.phase = .inactive }
+            try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
+        }
+
+        fixture.phase = .active
+        fixture.open = true
+        try await SwiftUIReplay.wait { fixture.frontAppearances == 8 && !fixture.motion.active }
+        fixture.motion.close()
+        fixture.identity = "replacement"
+        fixture.viewport = CGSize(width: 940, height: 680)
+        try await SwiftUIReplay.wait { fixture.frontAppearances == 9 && !fixture.motion.active }
+        try await Task.sleep(for: .milliseconds(450))
+        #expect(fixture.open, "An interrupted old return must not close a replacement visit")
+        fixture.motion.close()
+        try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
     }
 }
 

@@ -1,7 +1,7 @@
 # Verification value and execution policy
 
 A check earns a merge requirement by naming a defect it detects at a production
-boundary. Prefer the existing assertion on a hosted runner. A model assertion is
+boundary. Prefer the existing assertion at its real execution boundary. A model assertion is
 not an equivalent replacement for a mounted control, real transport, native CLI
 or rendered pixel assertion. Missing hardware, fixtures or permission is an
 execution limitation, never a passing result.
@@ -19,7 +19,7 @@ path/mode classifier use an explicit diff-validation scope; unknown/mixed change
 and manual dispatches run all checks below. Native tests outside a proven
 documentation scope are not claimed as executed.
 
-## Default hosted checks
+## Default checks
 
 | Gate | Independent value | Execution |
 | --- | --- | --- |
@@ -65,7 +65,15 @@ current-head Swift/native run validates Swift Testing's runtime selection semant
 
 ## Runner allocation and execution limits
 
-The default workflow uses one macOS job for build, fixtures, the complete ordinary
+GitHub Actions remains the Linux executor and protected aggregate service.
+[Local macOS CI with gh-signoff](local-macos.md) replaces macOS execution while
+retaining native test/evidence obligations. Actions metadata jobs require the
+matching successful local status on their exact checkout before aggregation can
+pass. Missing, pending or failed status is not coverage. No registered runner is
+used. Linux jobs retain `ubuntu-latest`; native work remains macOS 26 arm64 with
+actual Metal and graphical execution.
+
+The default local native command owns build, fixtures, the complete ordinary
 Swift suite and all interop/native replays. GUI work remains serial within that
 session. One current-build manifest and the observed method IDs establish complete
 execution; no weights, cross-runner build transport or artifact-slot aggregation
@@ -77,17 +85,17 @@ cancelled status instead of becoming a green required check. Remote strict branc
 rules control freshness; scope only determines the conservative documentation path.
 
 There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.
-Queue, attempt and total retry elapsed times are diagnostic. The single native job
+Queue, attempt and total retry elapsed times are diagnostic. The local native command
 has a sixty-minute guard; Linux/extended jobs and owned commands retain thirty-minute
 guards, with narrower existing CLI/test limits. Timeout is incomplete verification.
 
-Preserve each attempt's complete native artifact. A failed native job must rerun
+Preserve each attempt's complete native artifact. A failed local native attempt must rerun
 its full local build/test/replay/audit path; successful independent Linux jobs may
 be carried forward. Diagnose before retrying. A same-commit passing retry does not
 establish that the first failure was harmless. The required aggregate only passes
 when every applicable job and complete observed native coverage succeeds.
 
-## Extended hosted checks
+## Extended checks
 
 ### Foreground Overview performance
 
@@ -97,7 +105,7 @@ with four fully visible running cards for idle animation, short message rewrite
 and cumulative message append. A separate Core process supplies events through
 the production store, publisher, HTTP/NDJSON transport and Swift workspace.
 Both fixed revisions use identical harness sources and run serial A/B and B/A
-pairs on the same hosted Mac after both builds finish. The runner retains exact
+pairs on the same local Mac after both builds finish. The runner retains exact
 source/build identities, environment and visibility observations, actual CPU/wall
 intervals, source/publication counts, raw JSON and a complete Markdown report.
 
@@ -112,10 +120,11 @@ measurement agent is required to advance this Overview optimization work.
 
 ### Native CLI and system matrices
 
-Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
+Run local `extended` mode, then dispatch `CI` with `extended=true` on the same ref
+for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.
-No account, paid model, microphone or self-hosted Mac is involved. Extended
-dispatches run only four independent native-CLI/system lanes. The normal PR run
+No paid-model account or microphone is involved. Local extended mode provides the same pinned-CLI/loopback execution.
+The extended dispatch requires the local result for all four native-CLI/system lanes. The normal PR run
 does not claim these checks ran.
 
 Run these checks for native CLI/adapter compatibility, process ownership and system
@@ -134,7 +143,7 @@ These are change-triggered acceptance checks, not universal local merge gates.
 | Physical Force Touch and trackpad scroll/pinch; when pressure configuration, hit regions, monitors or recognizer routing changes | Correct controller state but real OS events never reach it, or recognizers steal physical input | Physical input on the affected path. State-machine, synthetic event, focus and geometry checks remain CI-covered |
 | A specified performance regression on a target Mac; only when a change makes a concrete device-performance claim | Target chip/display/thermal conditions produce a regression that a hosted VM's timing does not represent | Repeatable target-machine comparison with fixed workload and declared metric. CPU/timer samples are not display FPS, GPU or energy evidence |
 
-If a hosted runner cannot execute a newly affected graphical check, first name
+If the configured execution environment cannot execute a newly affected graphical check, first name
 the missing capability and assess independent value. For example, WindowServer
 pixels during a glass morph catch intermediate rectangular clipping that final
 geometry misses. Such a specific visual regression can justify a related-change
@@ -152,8 +161,8 @@ and scoped reader loading/release or load-earlier wiring.
 
 Require these only when signing/entitlements, bundled resources/dependencies,
 application or bundled-Runtime startup/discovery, or production navigation/reader
-wiring changes. They can run on hosted macOS with Apple Development signing
-credentials. This workflow does not configure those credentials; preserve this
+wiring changes. They run locally with Apple Development signing credentials. The CI entry point
+does not configure those credentials; preserve this
 specific signed-package acceptance until they are configured. An ad-hoc fixture
 does not replace the existing same-team/hardened signing contract. Ordinary
 component changes use their default CI coverage instead.
@@ -180,7 +189,7 @@ directories. No developer signing private key is exported by this CI migration.
 | --- | --- |
 | Repeat all of `make check` after equivalent CI passes | Replaced by successful checks for the current revision; retain `make check` as a local development command |
 | Repeat DirectoryTag separately from the full Swift suite | Removed from CI; identical cases already run in the full suite |
-| Skip all native UI because CI is called headless | Replaced by actual hosted native execution, with required coverage reporting |
+| Skip all native UI because CI is called headless | Replaced by actual local native execution, with required evidence and signoff |
 | Three tag-glass cases requiring an isolated capture launcher despite not needing capture | Run their unchanged glyph, semantic input and layout assertions in ordinary graphical Swift tests |
 | Hand-inspect every screenshot or record a complete video for routine correctness | Use existing intermediate-frame pixel, geometry and interaction assertions; keep recording for a named visual defect or presentation review |
 | Run historical glass/CPU research tools for every change | Removed as a general requirement: they have no general correctness threshold and do not measure FPS/GPU/energy |
@@ -188,5 +197,5 @@ directories. No developer signing private key is exported by this CI migration.
 
 Standalone visual/research drivers remain available to reproduce specific issues.
 Before requiring an additional local run, identify the uncovered production
-boundary and why the default or extended hosted checks do not cover it. If no
+boundary and why the default or extended checks do not cover it. If no
 such difference exists, use the existing CI evidence instead.

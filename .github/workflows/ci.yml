@@ -204,191 +204,42 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # macOS work runs manually on a reviewed local checkout. These Linux jobs
+  # only verify its exact-commit signoff; they never execute native test code.
   mac:
     needs: scope
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.extended) && needs.scope.outputs.documentation_only != 'true' }}
     name: macOS / Native verification
-    runs-on: macos-26
-    # One native session owns the complete suite and every graphical replay.
-    # This is a hang guard, not a whole-run performance or merge deadline.
-    timeout-minutes: 60
-    env:
-      MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY: '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: read
     steps:
-      - name: Prepare native evidence directory
-        run: |
-          mkdir -p "$RUNNER_TEMP/native-evidence"
-          printf 'MOKUSEI_CI_EVIDENCE=%s/native-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Prepare the native toolchain
-        id: toolchain
-        run: |
-          mkdir -p "$MOKUSEI_CI_EVIDENCE"
-          sw_vers
-          xcodebuild -version
-          if ! xcrun --sdk macosx metal --version; then
-            python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
-          fi
-          printf 'fingerprint=%s\n' "$(python3 scripts/ci/swift-native.py fingerprint)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v4
-        id: swift-cache
-        with:
-          path: app/macos/.build
-          key: ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-native-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-native-
-            ${{ runner.os }}-${{ runner.arch }}-swift-${{ steps.toolchain.outputs.fingerprint }}-${{ hashFiles('app/macos/Package.swift', 'app/macos/Package.resolved') }}-
-      - name: Build current Swift sources and discover every test
-        id: swift-build
-        run: |
-          set -o pipefail
-          python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos --build-tests --force-resolved-versions --disable-index-store 2>&1 | tee "$MOKUSEI_CI_EVIDENCE/build.log"
-          python3 scripts/ci/deadline.py xcrun swiftc scripts/ci/native-environment.swift -o app/macos/.build/ci-native-environment
-          python3 scripts/ci/swift-native.py prepare
-          python3 scripts/ci/swift-native.py verify --evidence "$MOKUSEI_CI_EVIDENCE"
-          printf 'MOKUSEI_SWIFT_SKIP_BUILD=1\n' >> "$GITHUB_ENV"
-      # Reuse compilation only. The current sources are always built, and every
-      # test/replay executes again in this job even after an exact cache hit.
-      - uses: actions/cache/save@v4
-        if: ${{ steps.swift-cache.outputs.cache-hit != 'true' }}
-        with:
-          path: app/macos/.build
-          key: ${{ steps.swift-cache.outputs.cache-primary-key }}
-      - name: Verify the graphical session
-        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
-        run: |
-          defaults write com.apple.universalaccess reduceMotion -bool false
-          defaults write com.apple.universalaccess reduceTransparency -bool false
-          app/macos/.build/ci-native-environment
-      - name: Native Go module and development-tool tests
-        if: ${{ !cancelled() }}
-        run: |
-          python3 scripts/ci/go-tests.py run "$MOKUSEI_CI_EVIDENCE/ci-native-go/moku" -- go test -json -race -count=1 ./internal/services/moku
-          python3 scripts/ci/go-tests.py run "$MOKUSEI_CI_EVIDENCE/ci-native-go/devtool" -- go test -json -count=1 ./internal/tooling/devtool
-      - name: Enforce native Go execution
-        if: ${{ always() }}
-        run: |
-          python3 scripts/ci/go-tests.py report --output "$MOKUSEI_CI_EVIDENCE/ci-native-go/summary.json" "$MOKUSEI_CI_EVIDENCE/ci-native-go/moku" "$MOKUSEI_CI_EVIDENCE/ci-native-go/devtool"
-      - name: Generate actual Go projections for Swift consumers
-        id: fixtures
-        if: ${{ !cancelled() }}
-        run: python3 scripts/ci/replays.py fixtures --output "$MOKUSEI_CI_EVIDENCE/ci-fixtures"
-      - name: Run the complete ordinary Swift suite once
-        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' && steps.fixtures.outcome == 'success' }}
-        run: python3 scripts/ci/swift-native.py run --evidence "$MOKUSEI_CI_EVIDENCE"
-      - name: Run Go and Swift boundary replays
-        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
-        run: python3 scripts/ci/replays.py interop --output "$MOKUSEI_CI_EVIDENCE/ci-interop"
-      - name: Run native interaction and capture replays serially
-        if: ${{ !cancelled() && steps.swift-build.outcome == 'success' }}
-        run: python3 scripts/ci/replays.py native --output "$MOKUSEI_CI_EVIDENCE/ci-native"
-      - name: Enforce complete Swift and replay execution
-        if: ${{ always() }}
-        run: python3 scripts/ci/swift-tests.py
-      - name: Collect native captures and summary
-        if: ${{ always() }}
-        run: |
-          mkdir -p "$MOKUSEI_CI_EVIDENCE/native-captures"
-          for path in .scratch/reading-presentation .scratch/moku-note-production; do
-            if [[ -d "$path" ]]; then cp -R "$path" "$MOKUSEI_CI_EVIDENCE/native-captures/"; fi
-          done
-          if [[ -f "$RUNNER_TEMP/swift-summary.json" ]]; then
-            cp "$RUNNER_TEMP/swift-summary.json" "$MOKUSEI_CI_EVIDENCE/"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: macos-native-evidence-attempt-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/native-evidence
-            !${{ runner.temp }}/native-evidence/**/mokusei-runtime
-          if-no-files-found: error
-          retention-days: 7
+      - name: Require complete local native verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/macos-signoff-gate.py native
 
   external:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.extended }}
-    name: Native CLI / ${{ matrix.kind }}
-    runs-on: macos-26
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - {kind: codex, package: '@openai/codex@0.163.0'}
-          - {kind: pi, package: '@earendil-works/pi-coding-agent@1.0.0'}
-          - {kind: opencode, package: '@opencode/cli@2.0.25'}
-          - {kind: system, package: '@openai/codex@0.163.0'}
+    name: Native CLI / Local verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: read
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: actions/cache/restore@v4
-        id: cli
-        with:
-          path: ${{ runner.temp }}/cli
-          key: pinned-native-cli-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}
-      - name: Install only this runner's pinned native CLI
-        if: ${{ steps.cli.outputs.cache-hit != 'true' }}
-        timeout-minutes: 3
+      - name: Require all four local pinned CLI lanes
         env:
-          CLI_PACKAGE: ${{ matrix.package }}
-        run: |
-          python3 scripts/ci/deadline.py npm install --prefix "$RUNNER_TEMP/cli" --no-audit --no-fund --fetch-timeout=60000 --fetch-retries=1 "$CLI_PACKAGE"
-      - uses: actions/cache/save@v4
-        if: ${{ steps.cli.outputs.cache-hit != 'true' }}
-        with:
-          path: ${{ runner.temp }}/cli
-          key: ${{ steps.cli.outputs.cache-primary-key }}
-      - name: Expose the pinned native CLI
-        run: printf '%s\n' "$RUNNER_TEMP/cli/node_modules/.bin" >> "$GITHUB_PATH"
-      - name: Locate the actual Codex executable
-        if: ${{ matrix.kind == 'codex' || matrix.kind == 'system' }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP']) / 'cli/node_modules'
-          binaries = [path for path in root.rglob('codex') if path.is_file()
-                      and not path.is_symlink() and os.access(path, os.X_OK)
-                      and path.open('rb').read(4) in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe')]
-          if len(binaries) != 1:
-              raise SystemExit(f'Expected one native Codex binary, found {binaries}')
-          with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write(f'MOKUSEI_SYSTEM_CODEX={binaries[0]}\n')
-          PY
-      - name: Execute the native CLI or full system matrix
-        env:
-          CLI_KIND: ${{ matrix.kind }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/external"
-          set -o pipefail
-          case "$CLI_KIND" in
-            codex) python3 scripts/ci/deadline.py go run -race ./tools/verification/codex -real-only -real-codex "$MOKUSEI_SYSTEM_CODEX" ;;
-            pi) python3 scripts/ci/deadline.py go run -race ./tools/verification/pi -mode native -timeout 7m ;;
-            opencode) python3 scripts/ci/deadline.py go run -race ./tools/verification/opencode -native-cli "$(command -v opencode)" ;;
-            system) python3 scripts/ci/deadline.py make check-system GO=go ;;
-          esac 2>&1 | tee "$RUNNER_TEMP/external/$CLI_KIND.log"
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: native-cli-${{ matrix.kind }}-evidence-attempt-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/external
-          if-no-files-found: error
-          retention-days: 7
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/macos-signoff-gate.py extended
 
   verification:
     name: ${{ github.event_name == 'workflow_dispatch' && inputs.extended && 'Extended native CLI coverage' || 'Complete coverage' }}
