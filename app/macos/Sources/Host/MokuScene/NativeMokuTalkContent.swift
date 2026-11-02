@@ -52,10 +52,12 @@ struct NativeMokuTalkContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     // AppKit reserves a persistent gutter after SwiftUI has proposed
                     // the full scroll width. Constrain prose to the actual clip width;
-                    // the outer leading frame prevents it centering under that gutter.
-                    .frame(width: max(1, viewport.size.width - NativeMokuTalkTypography.scrollbarGutter(for: scrollbarStyle)))
-                    .frame(width: viewport.size.width, alignment: .leading)
+                    // the flexible outer frame prevents it centering under that
+                    // gutter without forcing the native viewport to grow for it.
+                    .frame(maxWidth: max(1, viewport.size.width - NativeMokuTalkTypography.scrollbarGutter(for: scrollbarStyle)))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(width: viewport.size.width, height: viewport.size.height)
             .defaultScrollAnchor(.bottom)
             // Short messages share the eyes' center; overflow still follows its tail.
             .defaultScrollAnchor(.center, for: .alignment)

@@ -42,6 +42,9 @@ struct NativeMokuTalkClippingTests {
                         try await Task.sleep(for: .milliseconds(20))
                     }
                     let label = try #require(descendants(host, of: NSTextField.self).first { $0.stringValue == text })
+                    let scrollBounds = host.convert(scroll.bounds, from: scroll)
+                    #expect(scrollBounds.minX >= -0.5 && scrollBounds.maxX <= width + 0.5,
+                            "Native viewport \(scrollBounds) exceeds promised width \(width), style \(style)")
                     #expect(label.isSelectable && !label.isEditable)
                     // SwiftUI's selectable label includes a native 4pt field
                     // editor margin on either side, outside its text layout seat.

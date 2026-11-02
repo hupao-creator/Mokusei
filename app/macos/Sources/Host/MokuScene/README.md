@@ -200,8 +200,11 @@ both without replacing the scroll view. `NativeMokuTalkClippingTests` mounts the
 production selectable content with overlay and persistent scrollers at six
 widths, including the reported Chinese/Overview sentence, mixed Unicode, long
 Chinese/Latin text and explicit overflow. It checks the rendered label's text
-seat against the actual native clip and scrolls overflow to both ends. Set
-`MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
+seat against the actual native clip and scrolls overflow to both ends.
+The native viewport also stays inside its promised host bounds: the prose width
+is a maximum inside a flexible, leading-aligned document, so persistent scrollers
+cannot expand it into the note's history/voice actions.
+Set `MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
 these are AppKit display-cache images, not WindowServer glass captures.
 
 Text shorter than the Talk viewport is vertically centered beside the eyes.
