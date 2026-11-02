@@ -188,38 +188,65 @@ extension RollingNumberCellTests {
         window.contentView = host
         window.orderFront(nil)
         defer { window.close() }
-        func inkRows() throws -> [Double] {
+        func inkRows() throws -> (rows: [Double], bitmap: NSBitmapImageRep) {
             host.layoutSubtreeIfNeeded()
             window.displayIfNeeded()
             let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            return (0..<bitmap.pixelsHigh).map { y in
+            let rows = (0..<bitmap.pixelsHigh).map { y in
                 (0..<bitmap.pixelsWide).reduce(0.0) { total, x in
                     let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB)
                     return total + 1 - Double(color?.redComponent ?? 1)
                 }
             }
+            return (rows, bitmap)
         }
         try await Task.sleep(for: .milliseconds(250))
+        let inputAt = ProcessInfo.processInfo.systemUptime
         probe.value = "888"
+        let inputReturnedAt = ProcessInfo.processInfo.systemUptime
         try await Task.sleep(for: .milliseconds(65))
+        let duringAt = ProcessInfo.processInfo.systemUptime
         let during = try inkRows()
+        let duringFinishedAt = ProcessInfo.processInfo.systemUptime
         try await Task.sleep(for: .milliseconds(330))
+        let settledAt = ProcessInfo.processInfo.systemUptime
         let settled = try inkRows()
+        let settledFinishedAt = ProcessInfo.processInfo.systemUptime
         // Correlate captured glyph ink with the settled incoming digits. In
         // bitmap coordinates, a negative displacement is above the final row.
-        let scale = Double(during.count) / 80
+        let scale = Double(during.rows.count) / 80
         let shifts = Array(-Int(20 * scale)...Int(20 * scale))
         let bestShift = try #require(shifts.max { left, right in
             func correlation(_ shift: Int) -> Double {
-                during.indices.reduce(0) { sum, y in
+                during.rows.indices.reduce(0) { sum, y in
                     let source = y - shift
-                    return sum + (settled.indices.contains(source) ? during[y] * settled[source] : 0)
+                    return sum + (settled.rows.indices.contains(source) ? during.rows[y] * settled.rows[source] : 0)
                 }
             }
             return correlation(left) < correlation(right)
         })
         #expect(bestShift < 0, "Incoming glyphs must approach their baseline from above")
+        // Encode after both observations so retaining evidence cannot delay the
+        // timed captures. Keep the original bitmap and row-based oracle intact.
+        if let root = ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"]
+            ?? ProcessInfo.processInfo.environment["MOKUSEI_ROLLING_NUMBER_ARTIFACTS"] {
+            let directory = URL(fileURLWithPath: root, isDirectory: true)
+                .appendingPathComponent("rolling-number-direction-\(UUID().uuidString)", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try #require(during.bitmap.representation(using: .png, properties: [:]))
+                .write(to: directory.appendingPathComponent("during.png"))
+            try #require(settled.bitmap.representation(using: .png, properties: [:]))
+                .write(to: directory.appendingPathComponent("settled.png"))
+            let receipt: [String: Any] = ["inputAt": inputAt, "inputReturnedAt": inputReturnedAt,
+                "duringAt": duringAt, "duringFinishedAt": duringFinishedAt,
+                "settledAt": settledAt, "settledFinishedAt": settledFinishedAt,
+                "scale": scale, "bestShift": bestShift,
+                "duringRows": during.rows, "settledRows": settled.rows]
+            try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
+                .write(to: directory.appendingPathComponent("measurements.json"))
+            print("ROLLING_NUMBER_DIRECTION_EVIDENCE \(directory.path)")
+        }
     }
 }
 
