@@ -191,3 +191,13 @@ replacement and every later frame in its batch. All raw frames, original ink
 bands, 50ms freshness, single input, fixed 500ms check and offline pixel audits
 remain. A late or missing live prerequisite still fails; retained historical
 intermediate frames cannot substitute for a current one.
+
+## Windowless feedback
+
+The reviewed `swift-native.py headless` selection runs current protocol, pure
+geometry/model and offscreen Metal tests with display admission disabled. It
+requires every selected method to pass, with no skips; it is not the full native
+gate. Metal uses SwiftUI ImageRenderer directly without initializing NSApplication
+or creating a window. Main-actor controls retain the shared gate; genuinely pure
+cases keep their ordinary scheduling. Tests for removed embedded selector
+presentations are not carried forward as headless coverage.

@@ -199,3 +199,10 @@ Standalone visual/research drivers remain available to reproduce specific issues
 Before requiring an additional local run, identify the uncovered production
 boundary and why the default or extended checks do not cover it. If no
 such difference exists, use the existing CI evidence instead.
+
+Windowless feedback (`local-macos.py headless`) is a separate selected boundary,
+not a substitute for Complete coverage or full native execution. Fixture
+producers may run two at a time because they own disjoint temporary profiles and
+exports; graphical replays remain serial. Removed embedded-selector and Talk
+scroll-view fixture contracts are documented in the CI and replay READMEs; their
+historical assertions do not count as current production coverage.

@@ -9,6 +9,7 @@ import time
 import subprocess
 import sys
 import tempfile
+import importlib.util
 
 SCRIPTS = Path(__file__).resolve().parent
 
@@ -263,6 +264,30 @@ def verify_swift_ownership(root, repo, environment):
     command(local, cwd=repo, env=environment, success=False)
     print("PASS local Swift CLI: ordinary exclusion plus real replay producer, required outcome/marker, duplicate and wrong-host rejection")
 
+    spec = importlib.util.spec_from_file_location("headless_control", SCRIPTS / "swift-native.py")
+    launcher_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(launcher_module)
+    headless_tests = sorted(suite + "/" + suite.split(".")[-1] + "Contract()" for suite in launcher_module.HEADLESS_SUITES)
+    headless_manifest = json.loads(json.dumps(manifest))
+    headless_manifest["tests"] = sorted(tests + headless_tests)
+    headless_manifest["ordinary"]["tests"] = sorted(ordinary_tests + headless_tests)
+    (build / "ci-manifest.json").write_text(json.dumps(headless_manifest))
+    peer_log.write_text(swift_log(headless_tests))
+    headless = [sys.executable, str(scripts / "swift-native.py"), "headless",
+                "--evidence", str(root / "headless-evidence")]
+    headless_environment = dict(environment, CI_SWIFT_LOG=str(peer_log))
+    command(headless, cwd=repo, env=headless_environment)
+    receipt = json.loads((root / "headless-evidence/headless-swift.json").read_text())
+    if receipt["tests"] != headless_tests or receipt["status"] != "passed":
+        raise AssertionError("Headless receipt did not account for the complete selection")
+    good_log = peer_log.read_text()
+    line = f"✔ Test {headless_tests[0].split('/', 1)[1]} passed after 0.001 seconds.\n"
+    for bad_log in (good_log.replace(line, "", 1), good_log + line,
+                    good_log.replace(line, f"➜ Test {headless_tests[0].split('/', 1)[1]} skipped: missing capability\n", 1)):
+        peer_log.write_text(bad_log)
+        command(headless, cwd=repo, env=headless_environment, success=False)
+    print("PASS actual headless Swift CLI: exact selection, terminal summaries, missing/duplicate outcomes and zero allowed skips")
+
 
 def verify_local_signoff(root):
     """Exercise actual metadata and local execution CLIs, without remote writes."""
@@ -471,6 +496,7 @@ def main():
         print("PASS real subprocess completion, nonzero status and deadline termination")
         verify_swift_ownership(root, repo, environment)
         verify_local_signoff(root)
+        print(command([sys.executable, str(SCRIPTS / "verify-headless-parallel.py")], cwd=root).strip())
 
 
 if __name__ == "__main__":

@@ -55,7 +55,7 @@ The local native mode performs these stages:
 3. Verify the graphical environment, run native Go checks and generate the five
    real Go fixture producers' six output files in the same evidence directory.
 4. Execute every ordinary Swift method once with `--skip-build --no-parallel`.
-5. Run all ten `interop` checks and all twelve `native` checks serially.
+5. Run all ten `interop` checks and all eleven `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -104,7 +104,7 @@ only because that same method has a mandatory native outcome and receipt.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings
-capsule transitions, native input/responder/pointer cases and model-selector flows
+capsule transitions and native input/responder/pointer cases
 keep their existing native launchers and assertions. No new skip is admitted
 merely because the rest of the suite passed. The generated Moku Timer fixture is
 available before the full suite, so its ordinary consumer must execute normally.
@@ -228,3 +228,29 @@ zero. There are no bypass actors, and force pushes/deletion of main remain block
 The remote ruleset is separate from workflow code; inspect its actual requirements
 before planning a merge. Local checks and historical green runs cannot replace
 the final revision's required check.
+
+## Windowless feedback and bounded fixture concurrency
+
+`local-macos.py headless --commit FULL_SHA --reviewed` rebuilds/discovers current
+sources and runs the reviewed protocol, cancellation, geometry, directory-model
+and offscreen Metal suites with `MOKUSEI_TEST_HEADLESS=1`. Every selected method
+must pass exactly once; an absent suite, skip, incomplete summary or process
+failure fails the run. It creates no test window or activation request. macOS,
+AppKit and the Metal device remain dependencies; setting this capability override
+is not proof from a machine with no WindowServer. The distinct
+`signoff/macos-headless` status never replaces `signoff/macos-native` or Complete
+coverage. Full native execution still includes these methods and all real input,
+focus, visibility, WebKit and capture owners.
+
+Fixture producers have disjoint temporary profiles and export files and now run
+at most two concurrently (`replays.py fixtures --jobs 1` is the diagnostic serial
+control). Native and interop replays remain serial. The coordinator retains each
+command's log/exit/result and waits for cancellation cleanup of every owned
+process group. Missing exports and any failed producer still fail the group.
+The real subprocess control verifier covers actual overlap, failures and parent
+cancellation; it does not claim product or rendering coverage.
+
+The obsolete embedded model-selector suites and native lane were removed;
+Settings system-select and Harness-form coverage remain. The former Talk driver
+and dedicated export helpers were removed with their deleted scroll-view
+contract, without deleting the current Talk/dispatch backend and Swift checks.

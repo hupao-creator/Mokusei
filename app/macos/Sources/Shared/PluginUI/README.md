@@ -553,21 +553,12 @@ Escape monitor can follow the responder chain and cancel the popover before
 leaving the page, even when AppKit
 addresses the key event to the anchor window.
 
-The mounted `NativeModelSelectorReplayTests` exercises real controls and bindings
-for opaque IDs, disabled rows, keyboard cancellation, native slider actions,
-reset, model navigation, catalog refresh and one-choice capabilities. Run `python3 tools/verification/reading-presentation/run.py --model-selector`
-in the AppKit loop, alongside the existing `ClaudeSettingsControlReplayTests`
-and Harness-form replay. The launcher retains light/dark model-list and
-reasoning-panel renders under `.scratch/reading-presentation/NativeModelSelectorReplayTests`. These renders inspect component
-pixels, not WindowServer shadow/compositing or physical pointer delivery.
-
-`NativeModelSelectorHeadlessTests` also drives the production list, slider, reset
-and model-navigation bindings without creating a window. It covers stale profile
-callbacks and exact native IDs under `MOKUSEI_TEST_HEADLESS=1`; it does not replace
-the popover opening/dismissal, focus or WindowServer replay above. Setting
-`MOKUSEI_MODEL_SELECTOR_HEADLESS_ARTIFACTS` captures the unmounted production
-content in both appearances without creating or ordering a window; popover
-chrome, screen placement and compositing remain outside those renders.
+Current Settings pages and compact configuration use `NativeSettingsSelect`.
+The direct embedded-popover/slider fixtures were removed because they exercised
+the former selector presentation rather than those production entry points.
+Settings control, Harness-form and full-page Settings replays retain coverage of
+current selection values, admission and persistence. The embedded component's
+code is not changed by this test cleanup.
 
 ## Compact configuration presentation
 
