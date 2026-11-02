@@ -459,7 +459,7 @@ private struct ThreadHistoryDocument: View {
                     .padding(16).help(backLabel).accessibilityLabel(backLabel)
                 }
             }.nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
-            .background(ThreadHistoryEscapeHandler(back: readingActive ? onBack : nil))
+            .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
                 "rowId": page.map { .string($0.id) } ?? .null,
@@ -496,6 +496,15 @@ private struct ThreadHistoryDocument: View {
 /// Result positioning can leave no SwiftUI focus target after scrolling. Only
 /// the mounted active document owns this fallback; sibling focus and native
 /// editing/menu cancellation must retain their existing handlers.
+public extension View {
+    /// Scope Escape to this native reading viewport while leaving editors,
+    /// composition, menus and sibling surfaces with their own cancellation.
+    /// WebKit documents use their trusted DOM key handler instead.
+    func nativeReadingEscape(perform action: (() -> Void)?) -> some View {
+        background(ThreadHistoryEscapeHandler(back: action))
+    }
+}
+
 private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
     let back: (() -> Void)?
     func makeNSView(context: Context) -> EscapeView { EscapeView(back: back) }

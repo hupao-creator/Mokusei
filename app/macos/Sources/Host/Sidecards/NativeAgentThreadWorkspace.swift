@@ -183,13 +183,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            Button(action: model.closeThread) {
-                NativeIcon(name: "X", size: 17).frame(width: 32, height: 32)
-                    .background(.quaternary.opacity(0.5), in: Circle())
-                    .contentShape(Circle())
-            }
-                .buttonStyle(.plain).padding(14)
-                .help(localize("关闭 Thread", "Close thread")).accessibilityLabel(localize("关闭 Thread", "Close thread"))
+            NativeReadingPanelCloseButton(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))

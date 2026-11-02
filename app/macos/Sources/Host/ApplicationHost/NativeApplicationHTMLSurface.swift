@@ -23,6 +23,7 @@ public struct NativeApplicationHTMLSurface: View {
     private let onSettings: () -> Void
     private let onNativeNavigationChange: (Bool) -> Void
     private let onFailure: (ApplicationHTMLFailure) -> Void
+    @Environment(\.nativeApplicationReadingPanel) private var panel
     @Environment(\.nativeHTMLPreloader) private var preloader
 
     public init(source: ApplicationHTMLSource, thread: ApplicationThreadRef, theme: PluginTheme,
@@ -40,7 +41,7 @@ public struct NativeApplicationHTMLSurface: View {
     }
 
     public var body: some View {
-        HTMLDocumentSession(source: source, thread: thread, theme: theme, suppressed: suppressed,
+        HTMLDocumentSession(source: source, thread: thread, theme: theme, suppressed: suppressed, panel: panel,
             locale: locale, zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
             readDocument: readDocument, openExternal: openExternal,
             onBack: onBack, onSettings: onSettings,
@@ -60,6 +61,7 @@ private struct HTMLDocumentSession: View {
     let thread: ApplicationThreadRef
     let theme: PluginTheme
     let suppressed: Bool
+    let panel: Bool
     let locale: JSONText
     let zoomPreferencesURL: URL?
     let preloader: NativeApplicationHTMLPreloader?
@@ -86,10 +88,10 @@ private struct HTMLDocumentSession: View {
         ZStack(alignment: .topLeading) {
             NativeAppKitPalette.thread.canvas.swiftUI
             if let document {
-                HTMLWebDocument(document: document, thread: thread, theme: theme, suppressed: suppressed, locale: locale,
+                HTMLWebDocument(document: document, thread: thread, theme: theme, suppressed: suppressed, panel: panel, locale: locale,
                     zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
                     openExternal: openExternal, onReady: {
-                        ready = true; onNativeNavigationChange(true)
+                        ready = true; onNativeNavigationChange(!panel)
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
                         switch intent {
@@ -115,7 +117,7 @@ private struct HTMLDocumentSession: View {
                 ProgressView(english ? "Loading document…" : "正在读取文档…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            if ready {
+            if ready && !panel {
                 HTMLNavigationPortal(content: AnyView(navigation), collapsed: collapsed, suppressed: suppressed,
                     zoomPreferencesURL: zoomPreferencesURL,
                     onBack: onBack, onSettings: onSettings)
@@ -135,6 +137,7 @@ private struct HTMLDocumentSession: View {
                 .accessibilityIdentifier("report.navigation-notice")
             }
         }
+        .nativeReadingEscape(perform: panel && !ready && !suppressed ? onBack : nil)
         .preferredColorScheme(theme == .dark ? .dark : .light)
         .task(id: refresh) {
             document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false; navigationNotice = nil
@@ -223,6 +226,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
     let thread: ApplicationThreadRef
     let theme: PluginTheme
     let suppressed: Bool
+    let panel: Bool
     let locale: JSONText
     let zoomPreferencesURL: URL?
     let preloader: NativeApplicationHTMLPreloader?
@@ -249,6 +253,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         view.suppressed = suppressed
         if let document = view.documentView as? HTMLDocumentWebView {
             document.applyAppearance(theme)
+            document.panelPresentation = panel
             document.setWorkspaceScale(contentScale)
         }
     }
@@ -289,8 +294,9 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             // This content world is inaccessible to document scripts. Its only
             // messages are validated presentation observations and real keys.
             controller.add(self, contentWorld: Self.world, name: Self.handler)
-            controller.addUserScript(WKUserScript(source: Self.observerScript,
+            controller.addUserScript(WKUserScript(source: Self.observerScript(panel: input.panel),
                 injectionTime: .atDocumentEnd, forMainFrameOnly: true, in: Self.world))
+            view.panelPresentation = input.panel
             view.zoomPreferences = HTMLZoomPreferences.shared(at: input.zoomPreferencesURL)
             view.setWorkspaceScale(input.contentScale)
             view.restoreZoom(for: documentURL)
@@ -498,61 +504,63 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             }
         }
 
-        private static let observerScript = #"""
-        (() => {
-          const send = value => window.webkit.messageHandlers.presentation.postMessage(value);
-          if (location.protocol === 'mokusei-html:') {
-            const root = document.documentElement;
-            root.style.setProperty('--mokusei-safe-area-top', '74px', 'important');
-            root.style.setProperty('--mokusei-safe-area-left', '160px', 'important');
-            const style = document.createElement('style');
-            style.textContent = `
-              html { color-scheme: light dark; scroll-padding-top: var(--mokusei-safe-area-top); }
-              body { margin: 0 !important; }
-              body > [data-mokusei-html-content], body:not(:has(> [data-mokusei-html-content])) {
-                box-sizing: border-box !important;
-                padding-block-start: max(var(--mokusei-safe-area-top), var(--mokusei-html-top-space, 0px)) !important;
-              }`;
-            (document.head || root).append(style);
-          }
-          let hidden = false;
-          const present = () => send({event: 'presentation', hidden});
-          const scroll = target => {
-            const top = target?.scrollTop ?? 0;
-            const next = hidden ? top > 40 : top > 80;
-            if (next !== hidden) { hidden = next; present(); }
-          };
-          document.addEventListener('scroll', event => {
-            if (!event.isTrusted) return;
-            if (event.target === document) scroll(document.scrollingElement);
-            else if (event.target instanceof HTMLElement) {
-              const rect = event.target.getBoundingClientRect();
-              if (rect.width >= innerWidth / 2 && rect.height >= innerHeight / 2 && rect.top < innerHeight && rect.bottom > 0) scroll(event.target);
-            }
-          }, {capture: true, passive: true});
-          scroll(document.scrollingElement); present();
-          setTimeout(() => window.addEventListener('keydown', event => {
-            if (!event.isTrusted || event.defaultPrevented || event.isComposing) return;
-            let intent;
-            if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',') intent = 'settings';
-            // Option-Left belongs to WebKit. A closed shadow root can hide an
-            // editable target even from composedPath and activeElement.
-            else if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === 'Escape') {
-              const ownsEditing = element => element instanceof Element &&
-                (element.isContentEditable || element.closest('input, textarea, select, dialog[open], [role="dialog"], [inert]'));
-              const path = event.composedPath();
-              let focused = document.activeElement;
-              while (focused) {
-                path.push(focused);
-                focused = focused.shadowRoot?.activeElement;
+        private static func observerScript(panel: Bool) -> String {
+            #"""
+            (() => {
+              const send = value => window.webkit.messageHandlers.presentation.postMessage(value);
+              if (location.protocol === 'mokusei-html:') {
+                const root = document.documentElement;
+                root.style.setProperty('--mokusei-safe-area-top', '\#(panel ? 60 : 74)px', 'important');
+                root.style.setProperty('--mokusei-safe-area-left', '\#(panel ? 0 : 160)px', 'important');
+                const style = document.createElement('style');
+                style.textContent = `
+                  html { color-scheme: light dark; scroll-padding-top: var(--mokusei-safe-area-top); }
+                  body { margin: 0 !important; }
+                  body > [data-mokusei-html-content], body:not(:has(> [data-mokusei-html-content])) {
+                    box-sizing: border-box !important;
+                    padding-block-start: max(var(--mokusei-safe-area-top), var(--mokusei-html-top-space, 0px)) !important;
+                  }`;
+                (document.head || root).append(style);
               }
-              if (path.some(ownsEditing) || document.querySelector('dialog:modal')) return;
-              intent = 'back';
-            }
-            if (intent) { event.preventDefault(); send({event: 'navigation', intent}); }
-          }), 0);
-        })();
-        """#
+              let hidden = false;
+              const present = () => send({event: 'presentation', hidden});
+              const scroll = target => {
+                const top = target?.scrollTop ?? 0;
+                const next = hidden ? top > 40 : top > 80;
+                if (next !== hidden) { hidden = next; present(); }
+              };
+              document.addEventListener('scroll', event => {
+                if (!event.isTrusted) return;
+                if (event.target === document) scroll(document.scrollingElement);
+                else if (event.target instanceof HTMLElement) {
+                  const rect = event.target.getBoundingClientRect();
+                  if (rect.width >= innerWidth / 2 && rect.height >= innerHeight / 2 && rect.top < innerHeight && rect.bottom > 0) scroll(event.target);
+                }
+              }, {capture: true, passive: true});
+              scroll(document.scrollingElement); present();
+              setTimeout(() => window.addEventListener('keydown', event => {
+                if (!event.isTrusted || event.defaultPrevented || event.isComposing) return;
+                let intent;
+                if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === ',') intent = 'settings';
+                // Option-Left belongs to WebKit. A closed shadow root can hide an
+                // editable target even from composedPath and activeElement.
+                else if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === 'Escape') {
+                  const ownsEditing = element => element instanceof Element &&
+                    (element.isContentEditable || element.closest('input, textarea, select, dialog[open], [role="dialog"], [inert]'));
+                  const path = event.composedPath();
+                  let focused = document.activeElement;
+                  while (focused) {
+                    path.push(focused);
+                    focused = focused.shadowRoot?.activeElement;
+                  }
+                  if (path.some(ownsEditing) || document.querySelector('dialog:modal')) return;
+                  intent = 'back';
+                }
+                if (intent) { event.preventDefault(); send({event: 'navigation', intent}); }
+              }), 0);
+            })();
+            """#
+        }
     }
 }
 
@@ -1101,6 +1109,7 @@ private final class HTMLDocumentWebView: WKWebView {
     private var documentZoomLevel: Double = 0
     private var zoomHostname = ""
     private var workspaceScale: CGFloat = 1
+    var panelPresentation = false
     var zoomPreferences: HTMLZoomPreferences?
 
     func setWorkspaceScale(_ scale: CGFloat) {
@@ -1110,11 +1119,11 @@ private final class HTMLDocumentWebView: WKWebView {
     }
 
     func updateSafeArea() {
-        // Navigation stays in window points while both workspace and document
-        // zoom scale CSS pixels. Reserve the same physical clearance in either.
+        // Window navigation uses physical points; a panel Close scales with
+        // its workspace. Document zoom must not consume either control's space.
         let factor = Double(workspaceScale) * pageZoom
-        let top = 74 / factor
-        let left = 160 / factor
+        let top = panelPresentation ? 60 / pageZoom : 74 / factor
+        let left = panelPresentation ? 0 : 160 / factor
         evaluateJavaScript("""
             if (location.protocol === 'mokusei-html:') {
               document.documentElement.style.setProperty('--mokusei-safe-area-top', '\(top)px', 'important');

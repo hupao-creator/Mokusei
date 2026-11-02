@@ -217,3 +217,7 @@ have no separate morph. Closing refreshes the source position after viewport
 changes when available. Direct/restored entries without an eligible card use a
 small centered expansion instead. Route identity, cancellation and reduced-motion
 settling remain owned by the shared reading stack.
+
+Reports expand from their own card. The optional Git activation callback also
+forwards the actual clicked Agent card, even when several tasks share a repository.
+The shell uses that identity to refresh the return frame after layout changes.

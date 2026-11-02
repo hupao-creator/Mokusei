@@ -588,17 +588,21 @@ onboarding share native field bindings, catalogs and persistence.
 
 ## Reading-panel presentation
 
-The shared reading stack can present an Agent route as a bounded panel using a
+The shared reading stack can present Agent, Report and Git routes as a bounded panel using a
 source card frame. It retains the same route identity, explicit progress clock,
 close/cancel lifecycle and reduced-motion settling as page navigation. Panel
 content fades while its outer frame expands; title/emoji/author remain owned by
 the unchanged reader. The final aperture admits the host's independent toolbar
 outside the panel. The front layout includes a 76pt trailing toolbar seat so
 native pointer input reaches those buttons; their labels expose a complete
-42pt circular hit region. Ordinary application pages and vertical history transitions
+42pt circular hit region. Other application pages and vertical history transitions
 keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
 to complete an accepted return for its current visit. Default cancellation still
 preserves the page, and recovery never revives a previously cancelled return.
+
+`nativeReadingEscape` shares the conversation reader’s native viewport-scoped
+Escape owner with Git panels. It rejects events owned by editing/IME, menus or
+sibling surfaces. HTML panels keep their isolated trusted DOM key boundary.

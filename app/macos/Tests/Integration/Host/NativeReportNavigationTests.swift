@@ -15,6 +15,7 @@ import MokuseiApplications
 
 @MainActor @Observable private final class ReportNavigationFixture {
     var open = false
+    var panel = false
     var ready = false
     var suppressed = false
     var revision = "1"
@@ -74,6 +75,7 @@ private struct ReportNavigationReplay: View {
         GeometryReader { geometry in
             NativeReadingPageStack(open: fixture.open, identity: "report", motion: fixture.motion,
                 enabled: !fixture.suppressed, focusBlur: true, stationaryParent: true, emphasizedOpening: true,
+                panel: fixture.panel,
                 onClose: { fixture.open = false }) {
                 Color.gray
             } front: {
@@ -84,6 +86,9 @@ private struct ReportNavigationReplay: View {
                             contentRevision: source.contentRevision)
                     }, openExternal: { fixture.externalURLs.append($0) }, onBack: { fixture.backs += 1; fixture.motion.close() }, onSettings: {},
                     onNativeNavigationChange: { fixture.ready = $0 }, onFailure: { Issue.record(Comment(rawValue: $0.message)) })
+                    .modifier(NativeApplicationReadingPanel(enabled: fixture.panel, identifier: "report-reading-panel",
+                        onClose: { fixture.backs += 1; fixture.motion.close() }))
+                    .environment(\.nativeApplicationReadingPanel, fixture.panel)
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
             .environment(\.nativeWindowContentScale, fixture.scale)
@@ -91,7 +96,7 @@ private struct ReportNavigationReplay: View {
         }
         .overlay(alignment: .topLeading) {
             NativeWindowNavigationView(action: fixture.open ? .init(label: "Back", onBack: { fixture.motion.close() }) : nil,
-                hidden: fixture.ready || fixture.suppressed)
+                hidden: fixture.panel || fixture.ready || fixture.suppressed)
         }
         .modifier(NativeWorkspaceWindowSurface())
     }
@@ -409,6 +414,69 @@ struct NativeReportNavigationTests {
             "The report and back navigation must leave together, rather than leaving a root overlay behind")
         #expect(portal(in: root) == nil)
         assertButtons(hidden: false)
+
+        // The workspace now embeds Report in the same panel stack as Agent.
+        // Exercise its real WebKit session without the window-navigation portal.
+        fixture.panel = true
+        fixture.revision = "panel"
+        fixture.open = true
+        func panelFrame(in view: NSView) -> NSView? {
+            if view.identifier?.rawValue == "report-reading-panel-frame" { return view }
+            return view.subviews.lazy.compactMap { panelFrame(in: $0) }.first
+        }
+        try await SwiftUIReplay.wait(timeout: .seconds(15)) {
+            webView(in: root)?.isLoading == false && panelFrame(in: root) != nil && !fixture.motion.active
+        }
+        let panelDocument = try #require(webView(in: root))
+        #expect(portal(in: root) == nil && !fixture.ready, "Panel HTML must leave window chrome with the host")
+        for scale: CGFloat in [1, 2, 0.5, 1] {
+            fixture.scale = scale
+            try await Task.sleep(for: .milliseconds(150))
+            let frame = try #require(panelFrame(in: root))
+            let actual = frame.convert(frame.bounds, to: root)
+            let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
+            #expect(abs(actual.width - expected.width * scale) < 1 && abs(actual.height - expected.height * scale) < 1)
+            #expect(abs(actual.minX - expected.minX * scale) < 1 && abs(top(frame) - expected.minY * scale) < 1)
+            let headingTop = try #require(try await panelDocument.evaluateJavaScript("document.querySelector('h1').getBoundingClientRect().top") as? Double)
+            #expect(headingTop * panelDocument.pageZoom >= 59, "The panel Close must retain its workspace-scaled clearance")
+            _ = try await panelDocument.evaluateJavaScript("window.scrollTo(0, 300)")
+            try await Task.sleep(for: .milliseconds(250))
+            assertButtons(hidden: false)
+            #expect(portal(in: root) == nil)
+            _ = try await panelDocument.evaluateJavaScript("window.scrollTo(0, 0)")
+        }
+        window.makeFirstResponder(panelDocument)
+        _ = try await panelDocument.evaluateJavaScript("document.querySelector('input').focus()")
+        try key(53, "\u{1b}")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(fixture.open && fixture.backs == 1, "Editing still owns Escape inside the panel")
+        _ = try await panelDocument.evaluateJavaScript("document.activeElement.blur()")
+        try key(53, "\u{1b}")
+        try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
+        fixture.open = true
+        try await SwiftUIReplay.wait(timeout: .seconds(15)) {
+            panelFrame(in: root) != nil && webView(in: root)?.isLoading == false && !fixture.motion.active
+        }
+        let frame = try #require(panelFrame(in: root))
+        // Click the circle's rim, beyond the X glyph, as in the Agent panel.
+        let close = frame.convert(NSPoint(x: frame.bounds.maxX - 17, y: frame.isFlipped ? 30 : frame.bounds.maxY - 30), to: nil)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            window.sendEvent(try #require(NSEvent.mouseEvent(with: type, location: close, modifierFlags: [], timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)))
+        }
+        try await SwiftUIReplay.wait { fixture.motion.active && fixture.backs == 3 }
+        window.setContentSize(CGSize(width: 850, height: 600))
+        try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
+        // Route settling precedes AppKit's deferred titlebar relayout after
+        // resize. Observe that layout before asserting its unchanged geometry.
+        try await SwiftUIReplay.wait {
+            buttons.enumerated().allSatisfy { index, button in
+                let rect = button.convert(button.bounds, to: root)
+                return !button.isHidden && abs(rect.minX - CGFloat(24 + index * 20)) < 0.5 && abs(top(button) - 31) < 0.5
+            }
+        }
+        #expect(portal(in: root) == nil)
+        assertButtons(hidden: false)
     }
     @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
         "Requires the isolated AppKit event loop for native file panels: python3 tools/verification/reading-presentation/run.py --report-controls"))
@@ -526,7 +594,7 @@ struct NativeReportNavigationTests {
         let history = HarnessReadingTarget(executionID: "historical", requestID: "request", mode: .history)
         presentation.open(source, target: history)
         presentation.open(report)
-        #expect(presentation.selected == report)
+        #expect(presentation.selected == report && presentation.usesReadingPanel)
         presentation.closeApplication()
         #expect(presentation.selected == source)
         #expect(presentation.readingTarget == history)

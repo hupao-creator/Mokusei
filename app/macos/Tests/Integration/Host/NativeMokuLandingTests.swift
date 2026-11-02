@@ -57,6 +57,19 @@ struct NativeMokuLandingTests {
                 archived: archived, mokuHistory: history, tagEmojis: ["Work": "🛠️"],
                 directoryTag: "Fixture", directoryScope: JSONText(directory.path))
         }
+        func report() -> JSONValue {
+            .object([
+                "id": .text("report"),
+                "ref": ApplicationThreadRef(threadID: "report", typeID: "report.document").json,
+                "revision": .integer(1), "createdAt": .integer(1), "updatedAt": .integer(1), "title": .text("Report"),
+                "archived": .bool(false), "scope": .text(directory.path),
+                "tags": .object(["tags": .array([.text("Fixture")]), "directoryTags": .array([.text("Fixture")]),
+                    "semanticTags": .array([]), "tagEmojis": .object([:])]),
+                "presentations": .array([.object(["id": .text("mokusei.overview"), "apiVersion": .integer(1),
+                    "schemaVersion": .integer(1), "value": .object(["visible": .bool(true), "tagFilter": .text("directory"),
+                        "coversExecutions": .array([])])])]),
+                "view": .object(["previewText": .text("Report"), "contentRevision": .text("one"), "relatedExecutions": .array([])])])
+        }
         func install(_ threads: [HarnessThread] = [], operations: [JSONValue] = [], applications: [JSONValue] = [],
                      includeMoku: Bool = true, execution: JSONText = "moku-run", running: Bool = false) async throws {
             await workspace.client.connectLandingFixture()
@@ -79,6 +92,10 @@ struct NativeMokuLandingTests {
             #expect(overview.error == nil && workspace.runtimeAvailable)
         }
         func mount(fullWorkspace: Bool = false, width: CGFloat = 900, height: CGFloat = 620) {
+            // Match SwiftUIReplay.window's self-inspection prerequisite for the
+            // production panel Close and native Escape focus boundary.
+            let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
+            if NSApp.responds(to: enableAX) { _ = NSApp.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
             let window = NSWindow(contentRect: CGRect(x: 100, y: 100, width: width, height: height),
                 styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
@@ -390,6 +407,94 @@ struct NativeMokuLandingTests {
                 }
             }
         }
+        for type in ["report.document", "git.worktree"] {
+            try await withFixture { fixture in
+                fixture.presentation.applicationHost.git.stop()
+                let report = fixture.report()
+                try await fixture.install([fixture.thread(status: .completed)], applications: [report])
+                if type == "git.worktree" {
+                    let repository = try NativeGitRepository(.object([
+                        "id": .text("git-fixture"), "available": .bool(true), "directories": .array([.text(fixture.directory.path)]),
+                        "snapshot": .object(["root": .text(fixture.directory.path), "branch": .text("main"), "head": .null,
+                            "upstream": .null, "ahead": .null, "behind": .null, "additions": .integer(2), "deletions": .integer(1),
+                            "lineStatsError": .null, "changed": .integer(1), "staged": .integer(0), "unstaged": .integer(1),
+                            "untracked": .integer(0), "conflicts": .integer(0)]),
+                        "sync": .object(["attemptedAt": .integer(1), "observedAt": .integer(1), "error": .null])]))
+                    fixture.presentation.applicationHost.git.install([repository])
+                    fixture.overview.refreshCardExtensions()
+                }
+                let directoryFilter = try #require(fixture.overview.filters.first(where: { $0.isDirectory }))
+                fixture.overview.selectTag(directoryFilter)
+                fixture.mount(fullWorkspace: true, width: 1100, height: 760)
+                let window = try #require(fixture.window), root = try #require(window.contentView)
+                let sourceID = type == "report.document" ? "report" : "child"
+                let ref = ApplicationThreadRef(threadID: type == "report.document" ? "report" : "git-fixture", typeID: JSONText(type))
+                let identifier = type == "report.document" ? "report-reading-panel-frame" : "git-reading-panel-frame"
+                try await SwiftUIReplay.wait {
+                    fixture.presentation.canvas.allowsActivation(cardID: sourceID)
+                        && fixture.presentation.canvas.displayedFrame(for: sourceID) != nil
+                }
+                let origin = try #require(fixture.presentation.canvas.displayedFrame(for: sourceID))
+                let face = try #require(faces(in: root).first)
+                fixture.presentation.open(ref, sourceCardID: sourceID)
+                #expect(fixture.presentation.usesReadingPanel && fixture.presentation.readingPanelSource == origin)
+                try await SwiftUIReplay.wait {
+                    fixture.presentation.mountedReadingThread == ref && !fixture.presentation.messageMotion.active
+                        && readingPanel(in: root, identifier: identifier) != nil
+                }
+                for width: CGFloat in [1100, 540, 980] {
+                    window.setContentSize(CGSize(width: width, height: 700))
+                    try await SwiftUIReplay.wait { abs(root.bounds.width - width) < 1 }
+                    try await Task.sleep(for: .milliseconds(100))
+                    let panel = try #require(readingPanel(in: root, identifier: identifier))
+                    let frame = panel.convert(panel.bounds, to: root)
+                    let expected = NativeReadingPanelGeometry.frame(in: root.bounds.size)
+                    let top = root.isFlipped ? frame.minY : root.bounds.height - frame.maxY
+                    #expect(abs(frame.width - expected.width) < 1 && abs(frame.height - expected.height) < 1
+                        && abs(frame.minX - expected.minX) < 1 && abs(top - expected.minY) < 1)
+                    #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible && !fixture.presentation.canOpenSettings)
+                    #expect(!fixture.presentation.nativeApplicationNavigation)
+                    #expect(faces(in: root).contains { $0 === face })
+                }
+                try fixture.presentation.performInteraction(.toggleMokuInput)
+                try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
+                fixture.scene.setInputOpen(false)
+                let panel = try #require(readingPanel(in: root, identifier: identifier))
+                let point = panel.convert(CGPoint(x: panel.bounds.maxX - 17,
+                    y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
+                try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
+                try #require(fixture.presentation.messageMotion.active)
+                window.setContentSize(CGSize(width: 940, height: 680))
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+                #expect(fixture.scene.overviewVisible && faces(in: root).contains { $0 === face })
+                try await SwiftUIReplay.wait { readingPanel(in: root, identifier: identifier) == nil }
+                fixture.presentation.open(ref, sourceCardID: sourceID)
+                do {
+                    try await SwiftUIReplay.wait {
+                        let labels = SwiftUIReplay.text(in: root)
+                        return fixture.presentation.mountedReadingThread == ref && !fixture.presentation.messageMotion.active
+                            && (labels.contains("关闭面板") || labels.contains("Close panel"))
+                    }
+                } catch {
+                    print("PANEL_REOPEN type=\(type) selected=\(String(describing: fixture.presentation.selected)) mounted=\(String(describing: fixture.presentation.mountedReadingThread)) content=\(fixture.workspace.hasInitialContent) scene=\(fixture.scene.overviewVisible)/\(fixture.scene.readingPanelVisible)/\(fixture.scene.mokuOpen)/\(fixture.scene.cameraActive)/\(fixture.scene.inputOpen) frame=\(String(describing: readingPanel(in: root, identifier: identifier)?.frame)) labels=\(SwiftUIReplay.text(in: root))")
+                    if let bitmap = root.bitmapImageRepForCachingDisplay(in: root.bounds) {
+                        root.cacheDisplay(in: root.bounds, to: bitmap)
+                        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/panel-reopen")
+                        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                        try? bitmap.representation(using: .png, properties: [:])?.write(to: directory.appendingPathComponent(type + ".png"))
+                    }
+                    throw error
+                }
+                window.makeFirstResponder(root)
+                let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                    characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+                // Native reading Escape is an application-level event monitor.
+                // Window.sendEvent would bypass the production owner entirely.
+                NSApp.sendEvent(escape)
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+            }
+        }
     }
 
     @Test func pendingShellAndFailureStayCenteredUntilExplicitDispatchSuccess() async throws {
@@ -454,9 +559,9 @@ struct NativeMokuLandingTests {
         if let canvas = view as? NativeMokuCharacterCanvas { return canvas.seat == .face ? [canvas] : [] }
         return view.subviews.flatMap { faces(in: $0) }
     }
-    private func readingPanel(in view: NSView) -> NSView? {
-        if view.identifier?.rawValue == "agent-reading-panel-frame" { return view }
-        return view.subviews.lazy.compactMap { readingPanel(in: $0) }.first
+    private func readingPanel(in view: NSView, identifier: String = "agent-reading-panel-frame") -> NSView? {
+        if view.identifier?.rawValue == identifier { return view }
+        return view.subviews.lazy.compactMap { readingPanel(in: $0, identifier: identifier) }.first
     }
     private func element(id: String, in object: NSObject) -> NSObject? {
         let identifier = NSSelectorFromString("accessibilityIdentifier")
@@ -570,17 +675,7 @@ struct NativeMokuLandingTests {
 
     @Test func directoryOnlyDocumentsAndRehydrationKeepGlobalMembership() async throws {
         try await withFixture { fixture in
-            let report: JSONValue = .object([
-                "id": .text("report"),
-                "ref": ApplicationThreadRef(threadID: "report", typeID: "report.document").json,
-                "revision": .integer(1), "createdAt": .integer(1), "updatedAt": .integer(1), "title": .text("Report"),
-                "archived": .bool(false), "scope": .text(fixture.directory.path),
-                "tags": .object(["tags": .array([.text("Fixture")]), "directoryTags": .array([.text("Fixture")]),
-                    "semanticTags": .array([]), "tagEmojis": .object([:])]),
-                "presentations": .array([.object(["id": .text("mokusei.overview"), "apiVersion": .integer(1),
-                    "schemaVersion": .integer(1), "value": .object(["visible": .bool(true), "tagFilter": .text("directory"),
-                        "coversExecutions": .array([])])])]),
-                "view": .object(["previewText": .text("Report"), "contentRevision": .text("one"), "relatedExecutions": .array([])])])
+            let report = fixture.report()
             try await fixture.install(applications: [report]); fixture.mount()
             #expect(fixture.overview.items.isEmpty && fixture.overview.globalConversationCount == 1 && !fixture.moku.landing)
             let snapshot = try #require(fixture.workspace.state)

@@ -23,6 +23,11 @@ public final class NativeWorkspacePresentation {
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var followUpRequest: NativeSidecardFollowUpRequest?
     public private(set) var readingPanelSource: CGRect?
+    private var readingPanelSourceCardID: String?
+    public var usesReadingPanel: Bool {
+        guard let type = selected?.typeID else { return false }
+        return type == "agent" || type == "report.document" || type == "git.worktree"
+    }
     public var navigation: ThreadDetailBackAction?
     @ObservationIgnored var navigationRouteID = UUID()
     public var nativeApplicationNavigation = false
@@ -73,7 +78,7 @@ public final class NativeWorkspacePresentation {
         }
         // Route is restored before the first layout. Do not wait for start()
         // or a saved thread briefly mounts the Overview capsule.
-        state.agentReadingVisible = selected?.typeID == "agent"
+        state.readingPanelVisible = usesReadingPanel
         state.overviewVisible = selected == nil
         state.onMokuOpenChange = { [weak self] _ in
             NativeReadingPageMotion.cancelAll()
@@ -152,6 +157,7 @@ public final class NativeWorkspacePresentation {
                 if let thread = workspace.catalog.thread(key), thread.moku != true {
                     guard !thread.isHiddenFromUser else { persistSelection(nil); return }
                     selected = ApplicationThreadRef(threadID: key, typeID: "agent")
+                    readingPanelSourceCardID = key.string
                     beginPerformanceVisit(ApplicationThreadRef(threadID: key, typeID: "agent"))
                 }
             }
@@ -177,7 +183,7 @@ public final class NativeWorkspacePresentation {
         configureThreadVoice()
     }
 
-    public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil) {
+    public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil, sourceCardID: String? = nil) {
         guard !onboarding.blocksWorkspace, !scene.settingsOpen else { return }
         if ref.typeID == "agent" {
             guard let thread = workspace.catalog.thread(ref.threadID) else { return }
@@ -199,7 +205,8 @@ public final class NativeWorkspacePresentation {
             followUpRequest = nil; followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
-            readingPanelSource = selected == nil && ref.typeID == "agent" ? canvas.displayedFrame(for: ref.threadID.string) : nil
+            readingPanelSourceCardID = selected == nil ? sourceCardID ?? (ref.typeID == "git.worktree" ? nil : ref.threadID.string) : nil
+            readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
         }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
@@ -246,8 +253,7 @@ public final class NativeWorkspacePresentation {
         }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
-        if let selected, selected.typeID == "agent", !messageMotion.active,
-           let current = canvas.displayedFrame(for: selected.threadID.string) { readingPanelSource = current }
+        refreshReadingPanelSource()
         if selected != nil, !scene.cameraActive, !scene.settingsOpen { messageMotion.close() }
         else { finishBack() }
     }
@@ -263,9 +269,15 @@ public final class NativeWorkspacePresentation {
         persistSelection(nil); publishPresence()
     }
 
+    private func refreshReadingPanelSource() {
+        if usesReadingPanel, !messageMotion.active, let id = readingPanelSourceCardID,
+           let current = canvas.displayedFrame(for: id) { readingPanelSource = current }
+    }
+
     public func closeApplication() {
         guard selected?.typeID != "agent" else { return }
         if applicationReturn == nil, !scene.cameraActive, !scene.settingsOpen {
+            refreshReadingPanelSource()
             messageMotion.close()
             return
         }
@@ -317,8 +329,8 @@ public final class NativeWorkspacePresentation {
         guard started else { return }
         configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
-        if selected == nil { scene.overviewVisible = true; scene.agentReadingVisible = false }
-        else { scene.agentReadingVisible = selected?.typeID == "agent"; scene.overviewVisible = false }
+        if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
+        else { scene.readingPanelVisible = usesReadingPanel; scene.overviewVisible = false }
         scene.disabled = workspace.stopping || workspace.catalog.moku == nil
             || (onboarding.blocksWorkspace && onboarding.step != .landing)
         overview.setPresentation(NativeOverviewPresentationFacts(
@@ -579,7 +591,7 @@ public struct NativeWorkspaceView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.nativeApplicationNavigation || (presentation.selected?.typeID == "agent" && !presentation.scene.mokuOpen),
+            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.nativeApplicationNavigation || (presentation.usesReadingPanel && !presentation.scene.mokuOpen),
                 suspended: presentation.scene.cameraActive || presentation.scene.settingsOpen,
                 managesNativeButtons: !presentation.nativeApplicationNavigation || applicationSuppressed,
                 reading: presentation.readingNavigation)
@@ -596,14 +608,15 @@ public struct NativeWorkspaceView: View {
                 identity: readingIdentity, motion: presentation.messageMotion,
                 enabled: !presentation.scene.settingsOpen && !presentation.scene.mokuOpen && !presentation.scene.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
-                panel: presentation.selected?.typeID == "agent", panelSource: presentation.readingPanelSource,
+                panel: presentation.usesReadingPanel, panelSource: presentation.readingPanelSource,
                 onClose: { presentation.finishBack() }) {
                 NativeOverviewWorkspaceView(model: presentation.overview,
                     callbacks: NativeOverviewWorkspaceCallbacks(
                         openThread: { id, target in presentation.open(ApplicationThreadRef(threadID: id, typeID: "agent"), target: target) },
                         openApplication: { presentation.open($0, target: $1) },
                         onSettings: { presentation.openSettings() },
-                        onFollowUp: { presentation.openFollowUp($0, draft: $1) }),
+                        onFollowUp: { presentation.openFollowUp($0, draft: $1) },
+                        openGitWorktree: { presentation.open(.init(threadID: $0, typeID: "git.worktree"), sourceCardID: $1) }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
                     chromeVisible: presentation.selected == nil)
@@ -611,10 +624,15 @@ public struct NativeWorkspaceView: View {
                 if let selected = presentation.selected, selected.typeID != "agent" {
                     presentation.applicationHost.detail(thread: selected, readingTarget: presentation.readingTarget,
                         environment: NativeApplicationDetailEnvironment(suppressed: applicationSuppressed,
+                            contentTopInset: presentation.usesReadingPanel ? 60 : 74,
                             onBack: { presentation.closeApplication() }, onSettings: { presentation.openSettings() },
                             onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
                             onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
-                        .environment(\.nativeReadingNavigation, presentation.readingNavigation)
+                        .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
+                            identifier: selected.typeID == "report.document" ? "report-reading-panel" : "git-reading-panel",
+                            onClose: { presentation.closeApplication() }))
+                        .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
+                        .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
                         .id(ApplicationSurfaceIdentity(thread: selected, recovery: model.recoveryRevision))
                         .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
                         .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }

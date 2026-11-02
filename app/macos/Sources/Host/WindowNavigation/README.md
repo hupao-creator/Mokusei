@@ -91,10 +91,18 @@ handle; the surviving document remains loaded. Execution disclosure groups still
 share demand within their owning row, and retiring a surface releases all its
 remaining handles.
 
-Agent reading uses a panel-owned Close rather than a Back control beside the
+Agent, Report and Git reading use a panel-owned Close rather than a Back control beside the
 traffic lights. Its nested history Back remains inside the main panel and keeps
-the existing route-visit fence. Moku history and application/Report navigation
-retain their own window-navigation behavior.
+the existing route-visit fence. Moku history and other application navigation
+retain their own window-navigation behavior. Report panel HTML keeps its trusted
+DOM Escape/editing/dialog handling without installing the scroll-driven window
+navigation portal; scrolling never moves the traffic lights. Git reuses the
+conversation reader’s viewport-scoped native Escape cancellation, preserving
+menu, IME and sibling Moku input ownership. Opening either application from an
+Agent still restores that Agent and its reading target on Close. Overview entry
+remembers the actual source card (the clicked Agent card for Git), and refreshes
+its return frame after resize. All three routes share panel margins, source-frame
+animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
 The Close button's label owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.

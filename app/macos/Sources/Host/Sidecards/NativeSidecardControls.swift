@@ -5,8 +5,9 @@ import AppKit
 /// A noninteractive native frame anchor lets mounted replay/diagnostics measure
 /// the panel rather than the union of its synthesized accessibility children.
 struct NativeReadingPanelFrame: NSViewRepresentable {
+    var identifier = "agent-reading-panel"
     func makeNSView(context: Context) -> NSView {
-        let view = FrameView(); view.identifier = NSUserInterfaceItemIdentifier("agent-reading-panel-frame")
+        let view = FrameView(); view.identifier = NSUserInterfaceItemIdentifier(identifier + "-frame")
         view.setAccessibilityElement(false); return view
     }
     func updateNSView(_ view: NSView, context: Context) {}

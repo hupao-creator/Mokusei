@@ -34,12 +34,12 @@ import MokuseiPluginUI
     public private(set) var readReplies: Set<JSONText> = []
     public private(set) var notePanelOpen = false
     public private(set) var noteOpenGeneration = 0
-    public var agentReadingVisible = false {
+    public var readingPanelVisible = false {
         didSet {
             if !dockRouteVisible { setInputOpen(false); dockHitRects = []; dockMentionHitRect = nil }
         }
     }
-    public var dockRouteVisible: Bool { overviewVisible || agentReadingVisible }
+    public var dockRouteVisible: Bool { overviewVisible || readingPanelVisible }
     public var overviewVisible = true {
         didSet {
             guard overviewVisible != oldValue, !overviewVisible else { return }

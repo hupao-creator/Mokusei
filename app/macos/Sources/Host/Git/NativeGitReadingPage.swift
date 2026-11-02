@@ -35,6 +35,7 @@ struct NativeGitDetailProps {
                 content(lifetime)
             } else { NativeHarnessStatusView.loading }
         }
+        .nativeReadingEscape(perform: environment.suppressed ? nil : environment.onBack)
         .task(id: id) { lifetime?.cancel(); lifetime = PluginLifetime() }
         .onChange(of: [id, JSONText(label)]) { _, _ in
             navigation = ThreadDetailBackAction(label: label, onBack: environment.onBack)

@@ -29,8 +29,8 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
                     .onTapGesture { if !state.settingsClosing { closeSettings() } }
                     .accessibilityHidden(true)
             }
-            // One resident instance spans Overview and Agent reading. Application
-            // documents and covering routes remain ineligible for the Dock.
+            // One resident instance spans Overview and reading panels. Other
+            // application pages and covering routes remain ineligible for the Dock.
             if !state.dockCovered || state.settingsOpen {
                 Group {
                     if state.dockRouteVisible {

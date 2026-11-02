@@ -7,6 +7,8 @@ import SwiftUI
 public struct NativeOverviewWorkspaceCallbacks {
     public let openThread: (JSONText, HarnessReadingTarget?) -> Void
     public let openApplication: (ApplicationThreadRef, HarnessReadingTarget?) -> Void
+    /// Git expands from its owning task card rather than a separate repository card.
+    public let openGitWorktree: ((JSONText, String) -> Void)?
     public let onSettings: () -> Void
     /// Settings bounds in the logical client viewport, with a top-left origin.
     public let onSettingsWithOrigin: ((CGRect) -> Void)?
@@ -18,8 +20,9 @@ public struct NativeOverviewWorkspaceCallbacks {
                 onSettings: @escaping () -> Void, onFollowUp: ((JSONText, JSONText) -> Void)? = nil,
                 onRestart: (() -> Void)? = nil,
                 onSettingsWithOrigin: ((CGRect) -> Void)? = nil,
-                onSettingsFrameChange: ((CGRect?) -> Void)? = nil) {
-        self.openThread = openThread; self.openApplication = openApplication
+                onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
+                openGitWorktree: ((JSONText, String) -> Void)? = nil) {
+        self.openThread = openThread; self.openApplication = openApplication; self.openGitWorktree = openGitWorktree
         self.onSettings = onSettings; self.onFollowUp = onFollowUp; self.onRestart = onRestart
         self.onSettingsWithOrigin = onSettingsWithOrigin; self.onSettingsFrameChange = onSettingsFrameChange
     }
@@ -197,7 +200,8 @@ private struct NativeOverviewWorkspaceCard: View {
                         guard model.canvasState.allowsActivation(cardID: item.id),
                               let current = model.workspace.catalog.thread(thread.id),
                               model.applicationFactories.gitStatus(current)?.id == id else { return }
-                        callbacks.current.openApplication(.init(threadID: id, typeID: "git.worktree"), nil)
+                        if let openGitWorktree = callbacks.current.openGitWorktree { openGitWorktree(id, item.id) }
+                        else { callbacks.current.openApplication(.init(threadID: id, typeID: "git.worktree"), nil) }
                     })
                     .environment(\.threadCardLogo, { @MainActor in
                         (try? model.workspace.harnessHost.registry.require(thread.harnessID))?.logo(size: 12) ?? AnyView(EmptyView())

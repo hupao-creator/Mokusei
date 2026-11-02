@@ -741,3 +741,17 @@ so this image certifies shell/Dock geometry rather than live transcript delivery
 The standalone thread-panel demo exercises real Sidecard content and shared
 production split geometry with mock capabilities, including retained widths,
 rapid switching and narrow vertical splits.
+
+### Report and Git reading panels
+
+The existing `--report-navigation` mounted case also exercises Report HTML in the
+production application-panel wrapper and reading stack: scaled panel geometry,
+Close clearance, unchanged traffic lights while scrolling, editing-first Escape,
+DOM Escape return, the full Close circle and resize during an accepted return.
+Its original full-window HTML checks remain coverage for the standalone surface.
+The existing `--moku-landing` full-workspace case now opens both Report and Git,
+checking actual source-card geometry, wide/narrow panel frames, retained Moku
+identity/input, Settings exclusion, Close hit testing and resize completion.
+These workspace fixtures exercise loading/unavailable content without a Runtime;
+the Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
+selection, refresh and cancellation coverage with scoped capability fixtures.
