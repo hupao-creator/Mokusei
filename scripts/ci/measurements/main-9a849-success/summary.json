@@ -1,0 +1,714 @@
+{
+  "collectedAt": "2026-11-02T08:47:48.038635+00:00",
+  "outcomes": {
+    "CI: success": 1
+  },
+  "aggregates": [
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "Complete coverage",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 3.0,
+        "p90": 3.0
+      },
+      "executionSeconds": {
+        "median": 12.0,
+        "p90": 12.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 4.0,
+        "build": 0,
+        "verification": 0,
+        "evidence": 4.0,
+        "other": 0
+      }
+    },
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "Determine verification scope",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 3.0,
+        "p90": 3.0
+      },
+      "executionSeconds": {
+        "median": 5.0,
+        "p90": 5.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 2.0,
+        "build": 0,
+        "verification": 0,
+        "evidence": 0,
+        "other": 0.0
+      }
+    },
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "Go / Linux",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 4.0,
+        "p90": 4.0
+      },
+      "executionSeconds": {
+        "median": 120.0,
+        "p90": 120.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 16.0,
+        "build": 19.0,
+        "verification": 52.0,
+        "evidence": 1.0,
+        "other": 28.0
+      }
+    },
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "Integration / adapters",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 3.0,
+        "p90": 3.0
+      },
+      "executionSeconds": {
+        "median": 282.0,
+        "p90": 282.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 12.0,
+        "build": 0,
+        "verification": 266.0,
+        "evidence": 1.0,
+        "other": 0
+      }
+    },
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "Integration / runtime",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 4.0,
+        "p90": 4.0
+      },
+      "executionSeconds": {
+        "median": 185.0,
+        "p90": 185.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 12.0,
+        "build": 0,
+        "verification": 167.0,
+        "evidence": 2.0,
+        "other": 0
+      }
+    },
+    {
+      "workflow": "CI",
+      "verificationScope": "full",
+      "job": "macOS / Native verification",
+      "samples": 1,
+      "queueSeconds": {
+        "median": 3.0,
+        "p90": 3.0
+      },
+      "executionSeconds": {
+        "median": 1931.0,
+        "p90": 1931.0
+      },
+      "stepSecondsMedian": {
+        "preparation": 73.0,
+        "build": 272.0,
+        "verification": 1579.0,
+        "evidence": 4.0,
+        "other": 0
+      }
+    }
+  ],
+  "runs": [
+    {
+      "id": 41411550809,
+      "name": "CI",
+      "event": "push",
+      "head_sha": "9a849d0a9ab80d5ba4f07d32267dbb63b832521a",
+      "head_branch": "main",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-02T08:14:08Z",
+      "run_started_at": "2026-11-02T08:14:08Z",
+      "updated_at": "2026-11-02T08:46:46Z",
+      "run_attempt": 1,
+      "html_url": "https://github.com/hupao-creator/Mokusei/actions/runs/41411550809",
+      "verificationScope": "full",
+      "jobs": [
+        {
+          "name": "Determine verification scope",
+          "id": 125165514202,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 3.0,
+          "executionSeconds": 5.0,
+          "stepSeconds": {
+            "preparation": 2.0,
+            "build": 0,
+            "verification": 0,
+            "evidence": 0,
+            "other": 0.0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Classify the complete changed-path set",
+              "category": "other",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 3.0
+        },
+        {
+          "name": "Integration / adapters",
+          "id": 125165566740,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 3.0,
+          "executionSeconds": 282.0,
+          "stepSeconds": {
+            "preparation": 12.0,
+            "build": 0,
+            "verification": 266.0,
+            "evidence": 1.0,
+            "other": 0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 8.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run python3 scripts/ci/replays.py \"adapters\" --output \"$RUNNER_TEMP/replays\"",
+              "category": "verification",
+              "seconds": 266.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/upload-artifact@v4",
+              "category": "evidence",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 3.0
+        },
+        {
+          "name": "Go / Linux",
+          "id": 125165566744,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 4.0,
+          "executionSeconds": 120.0,
+          "stepSeconds": {
+            "preparation": 16.0,
+            "build": 19.0,
+            "verification": 52.0,
+            "evidence": 1.0,
+            "other": 28.0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 8.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Locate Go caches",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/cache@v4",
+              "category": "preparation",
+              "seconds": 4.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Check SQLite C toolchain",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Go formatting",
+              "category": "verification",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Architecture, registration and source boundaries",
+              "category": "verification",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Go vet",
+              "category": "verification",
+              "seconds": 5.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Go build",
+              "category": "build",
+              "seconds": 19.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify CI scope, native execution audit and deadline controls",
+              "category": "other",
+              "seconds": 13.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify Go reporting against real failure and skip fixtures",
+              "category": "verification",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Go unit tests (including directory tags)",
+              "category": "verification",
+              "seconds": 14.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Go module race tests (check-modules)",
+              "category": "verification",
+              "seconds": 30.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Runtime and Codex integration properties (pbt)",
+              "category": "other",
+              "seconds": 15.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Summarize Go tests and enforce execution",
+              "category": "evidence",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Retain Go test evidence",
+              "category": "evidence",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/cache@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 4.0
+        },
+        {
+          "name": "macOS / Native verification",
+          "id": 125165566745,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 3.0,
+          "executionSeconds": 1931.0,
+          "stepSeconds": {
+            "preparation": 73.0,
+            "build": 272.0,
+            "verification": 1579.0,
+            "evidence": 4.0,
+            "other": 0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare native evidence directory",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 4.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 27.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare the native toolchain",
+              "category": "preparation",
+              "seconds": 14.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/cache/restore@v4",
+              "category": "preparation",
+              "seconds": 12.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Build current Swift sources and discover every test",
+              "category": "build",
+              "seconds": 272.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/cache/save@v4",
+              "category": "preparation",
+              "seconds": 11.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify the graphical session",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Native Go module and development-tool tests",
+              "category": "verification",
+              "seconds": 25.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Enforce native Go execution",
+              "category": "evidence",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Generate actual Go projections for Swift consumers",
+              "category": "verification",
+              "seconds": 150.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run the complete ordinary Swift suite once",
+              "category": "verification",
+              "seconds": 679.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run Go and Swift boundary replays",
+              "category": "verification",
+              "seconds": 164.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run native interaction and capture replays serially",
+              "category": "verification",
+              "seconds": 561.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Enforce complete Swift and replay execution",
+              "category": "evidence",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Collect native captures and summary",
+              "category": "evidence",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/upload-artifact@v4",
+              "category": "evidence",
+              "seconds": 3.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 3.0
+        },
+        {
+          "name": "Integration / runtime",
+          "id": 125165566935,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 4.0,
+          "executionSeconds": 185.0,
+          "stepSeconds": {
+            "preparation": 12.0,
+            "build": 0,
+            "verification": 167.0,
+            "evidence": 2.0,
+            "other": 0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 8.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "category": "preparation",
+              "seconds": 1.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run python3 scripts/ci/replays.py \"runtime\" --output \"$RUNNER_TEMP/replays\"",
+              "category": "verification",
+              "seconds": 167.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/upload-artifact@v4",
+              "category": "evidence",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-go@v6",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 4.0
+        },
+        {
+          "name": "Complete coverage",
+          "id": 125178242661,
+          "attempt": 1,
+          "conclusion": "success",
+          "reused": false,
+          "queueSeconds": 3.0,
+          "executionSeconds": 12.0,
+          "stepSeconds": {
+            "preparation": 4.0,
+            "build": 0,
+            "verification": 0,
+            "evidence": 4.0,
+            "other": 0
+          },
+          "steps": [
+            {
+              "name": "Set up job",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Report queueing and retries",
+              "category": "evidence",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/upload-artifact@v4",
+              "category": "evidence",
+              "seconds": 2.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Enforce every required job",
+              "category": "evidence",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "category": "preparation",
+              "seconds": 0.0,
+              "conclusion": "success"
+            }
+          ],
+          "unattributedSeconds": 4.0
+        }
+      ],
+      "triggerToFirstJobCreationSeconds": 0.0,
+      "elapsedSeconds": 1957.0,
+      "runnerSecondsThisAttempt": 2535.0
+    }
+  ]
+}
