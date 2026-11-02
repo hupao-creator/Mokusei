@@ -669,7 +669,7 @@ public struct NativeMokuDock: View {
                     NativeMokuNoteContent(note: note, width: width, height: noteHeight, availableHeight: noteAvailableHeight,
                                           routeEligible: state.notePanelOpen && !state.settingsOpen && state.overviewVisible
                                               && !state.dockCovered && !navigationDisabled,
-                                          openExternal: openExternal, openExecution: openExecution,
+                                          openExternal: openExternal, openExecution: openExecution, workspace: presentation?.workspace,
                                           onContentHeightChange: { noteContentHeight = $0 },
                                           claimOpenArm: { state.claimNoteOpenArm() },
                                           onExposure: { state.recordNoteExposure($0) },

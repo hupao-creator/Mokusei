@@ -292,6 +292,25 @@ Agent Threads qualify, including archived, failed and interrupted ones. Moku,
 its history and missing/private targets produce an unavailable notice. The note
 retains its existing character budget and viewport-exposure semantics.
 
+Note execution references use the selected A clear Liquid Glass capsule with
+its owning Harness's native logo and a trailing up-right arrow. There is no
+hover scale or interactive glass response. Ordinary links keep their existing
+purple underline. The note observes public catalog membership and uses the
+registered plugin logo; missing/loading metadata and unregistered Harnesses use
+a neutral execution symbol, then update in place when metadata arrives. Private
+Moku/history targets never receive an ordinary Harness brand. Decoration does
+not replace the existing exact-execution route or its admission checks.
+
+The native Markdown renderer reserves a width-bounded attachment seat for each
+execution reference and hosts a live glass surface in that seat. Long titles
+wrap inside the capsule, while surrounding prose remains TextKit text. Selection
+and copying preserve the full title, without inserting a logo/arrow into copied
+content. Pointer events remain with TextKit for drag selection, and the hosted
+control supplies named keyboard/accessibility activation. The existing
+`--moku-execution-links` replay covers all four logos, catalog fallback/refresh,
+narrow long-title geometry, copy and accessible exact-execution navigation.
+
+
 The reader opens one fixed execution at its final visible reply, or its latest
 visible content/status when no final reply exists. Running executions initially
 scroll to the bottom and follow output until the user scrolls up; Jump to latest

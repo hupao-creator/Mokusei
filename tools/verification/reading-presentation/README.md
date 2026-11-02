@@ -658,6 +658,10 @@ For window-free Host routing and content-handle lifetime verification, run
 These two tests cover 12 route cases and three content scopes. They do not
 certify the mounted window Back control, Escape delivery or return animation;
 the other six tests require a graphical session and explicitly skip headless.
+The nine-method replay also mounts the production clear-glass execution capsules
+for all four Harnesses. It checks narrow long-title geometry, native accessible
+activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
+brands without changing the note incarnation or revision.
 
 ## Report controls and recovery
 
