@@ -1,3 +1,4 @@
+import AppKit
 import CoreText
 import MokuseiPluginUI
 import SwiftUI
@@ -27,31 +28,42 @@ import SwiftUI
         return ceil(CTFramesetterSuggestFrameSizeWithConstraints(framesetter, CFRange(location: 0, length: 0), nil,
             CGSize(width: max(1, width), height: .greatestFiniteMagnitude), nil).height)
     }
+    static func scrollbarGutter(for style: NSScroller.Style) -> CGFloat {
+        style == .legacy ? NSScroller.scrollerWidth(for: .mini, scrollerStyle: style) : 0
+    }
     static func capsuleHeight(_ text: String, width: CGFloat, trailingInset: CGFloat? = nil,
-                              maximumHeight: CGFloat = NativeMokuTalkTypography.maximumHeight) -> CGFloat {
-        max(58, min(maximumHeight, height(text, width: width - leading - (trailingInset ?? trailing))) + verticalPadding * 2)
+                              maximumHeight: CGFloat = NativeMokuTalkTypography.maximumHeight,
+                              scrollbarStyle: NSScroller.Style = NSScroller.preferredScrollerStyle) -> CGFloat {
+        max(58, min(maximumHeight, height(text, width: width - leading - (trailingInset ?? trailing) - scrollbarGutter(for: scrollbarStyle))) + verticalPadding * 2)
     }
 }
 struct NativeMokuTalkContent: View {
     let message: NativeMokuTalkMessage
+    var scrollbarStyle: NSScroller.Style = NSScroller.preferredScrollerStyle
     @State private var followsTail = true
     var body: some View {
-        NativeScrollView {
-            // Pin the text to its natural height before the viewport clips it.
-            // Otherwise a shorter proposal can truncate wrapped transcript text
-            // instead of letting the scroller reveal it.
-            Text(message.text).font(.system(size: 13, weight: .medium))
-                .lineSpacing(3).multilineTextAlignment(.center).textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
+        GeometryReader { viewport in
+            NativeScrollView {
+                // Pin the text to its natural height before the viewport clips it.
+                // Otherwise a shorter proposal can truncate wrapped transcript text
+                // instead of letting the scroller reveal it.
+                Text(message.text).font(.system(size: 13, weight: .medium))
+                    .lineSpacing(3).multilineTextAlignment(.center).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    // AppKit reserves a persistent gutter after SwiftUI has proposed
+                    // the full scroll width. Constrain prose to the actual clip width;
+                    // the outer leading frame prevents it centering under that gutter.
+                    .frame(width: max(1, viewport.size.width - NativeMokuTalkTypography.scrollbarGutter(for: scrollbarStyle)))
+                    .frame(width: viewport.size.width, alignment: .leading)
+            }
+            .defaultScrollAnchor(.bottom)
+            // Short messages share the eyes' center; overflow still follows its tail.
+            .defaultScrollAnchor(.center, for: .alignment)
+            .defaultScrollAnchor(followsTail ? .bottom : .top, for: .sizeChanges)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 1
+            } action: { _, atBottom in followsTail = atBottom }
+            .accessibilityIdentifier("moku-talk-content")
         }
-        .defaultScrollAnchor(.bottom)
-        // Short messages share the eyes' center; overflow still follows its tail.
-        .defaultScrollAnchor(.center, for: .alignment)
-        .defaultScrollAnchor(followsTail ? .bottom : .top, for: .sizeChanges)
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 1
-        } action: { _, atBottom in followsTail = atBottom }
-        .accessibilityIdentifier("moku-talk-content")
     }
 }
