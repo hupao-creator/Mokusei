@@ -513,6 +513,10 @@ struct NativeMokuLandingTests {
                     #expect(!fixture.presentation.nativeApplicationNavigation)
                     #expect(faces(in: root).contains { $0 === face })
                 }
+                #expect(!fixture.overview.presentationActive)
+                let retainedItems = fixture.overview.items
+                try await fixture.install([fixture.thread(status: .completed), fixture.thread("added-while-hidden", status: .completed)], applications: [report])
+                #expect(fixture.overview.items == retainedItems)
                 try fixture.presentation.performInteraction(.toggleMokuInput)
                 try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
                 fixture.scene.setInputOpen(false)
@@ -521,6 +525,12 @@ struct NativeMokuLandingTests {
                     y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
                 try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
                 try #require(fixture.presentation.messageMotion.active)
+                try await SwiftUIReplay.wait {
+                    fixture.overview.presentationActive && !fixture.presentation.canvas.isLayingOut
+                        && fixture.overview.items.contains { $0.id == "added-while-hidden" }
+                        && fixture.presentation.readingPanelSource == fixture.presentation.canvas.displayedFrame(for: sourceID)
+                        && fixture.presentation.readingPanelSource != nil
+                }
                 window.setContentSize(CGSize(width: 940, height: 680))
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
                 #expect(fixture.scene.overviewVisible && faces(in: root).contains { $0 === face })

@@ -208,6 +208,10 @@ The [layout comparison](../../../../../tools/verification/overview-layout/README
 
 ## Agent reading panels
 
+The presentation gate and prepared return apply to Agent, Report and Git panels.
+Report returns to its document card; Git uses the task card captured at activation.
+All sample their destination only after the refreshed canvas preparation completes.
+
 The outer reading stack pauses Overview presentation only after opening settles.
 Catalog installation, membership/filter context, selection validity and Moku
 operation state continue at each runtime transaction. Hidden transactions coalesce

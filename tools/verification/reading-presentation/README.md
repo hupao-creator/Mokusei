@@ -752,6 +752,8 @@ Its original full-window HTML checks remain coverage for the standalone surface.
 The existing `--moku-landing` full-workspace case now opens both Report and Git,
 checking actual source-card geometry, wide/narrow panel frames, retained Moku
 identity/input, Settings exclusion, Close hit testing and resize completion.
-These workspace fixtures exercise loading/unavailable content without a Runtime;
-the Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
+These workspace fixtures exercise loading/unavailable content without a Runtime.
+Report/Git cases also merge hidden catalog changes and require the refreshed
+source-card frame before their close animation completes.
+The Report fixture separately loads real HTML, and `GitNativeTests` retains diff,
 selection, refresh and cancellation coverage with scoped capability fixtures.
