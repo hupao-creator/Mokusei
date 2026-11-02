@@ -275,9 +275,9 @@ its own isolated process. Nothing is uploaded or reused across jobs.
 Local invocations without the variable retain their private temporary cache.
 
 The reading-presentation app requests a user-initiated, latency-critical activity
-for its bounded lifetime. Passive waits and title-frame polls retain their 10ms,
-zero-tolerance sleeps; the retained-return midpoint is prompted by actual
-geometry-change callbacks. The original three-second deadlines, 40–60% geometry /
+for its bounded lifetime. Passive waits retain 10ms zero-tolerance sleeps;
+title inspection wakes on complete frame arrival, and the retained-return midpoint
+is prompted by actual geometry-change callbacks. The original three-second deadlines, 40–60% geometry /
 10–60% ink bands and live-frame age checks remain mandatory. A
 [hosted A/B/B/A diagnostic](measurements/hosted-ab-41398629007/README.md)
 found that moving those sleeps to a main-queue timer still missed required live

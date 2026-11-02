@@ -689,13 +689,20 @@ need a running AppKit application. The default CI `native` replay group
 runs them and the coverage auditor requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.
 
+Title-motion capture waits on copied-frame arrival with the existing absolute
+three-second deadline; it does not poll an empty capture queue. Every retained
+frame and the newest-live-frame/freshness rules remain authoritative. Frame-wake
+receipts accompany the existing pixel/input timing evidence. The production
+Canvas revision replay separately waits for actual final mounted membership,
+not only the logical FIFO/layout completion flag.
+
 ## Replay timing and compiler module cache
 
 The staged app holds a user-initiated, latency-critical activity only while its
 AppKit loop runs, and releases it when the loop returns. It logs
 `NATIVE_REPLAY_TIMING` and does not change desktop accessibility preferences or
-production animation timing. Passive waits and title polls use 10ms sleeps with
-zero tolerance; all actual-frame, freshness, midpoint and cancellation assertions
+production animation timing. Passive waits use 10ms sleeps with zero tolerance;
+all actual-frame, freshness, midpoint and cancellation assertions
 remain mandatory. This is a scheduling request, not a timing guarantee. A hosted
 [A/B/B/A diagnostic](../../../scripts/ci/measurements/hosted-ab-41398629007/README.md)
 did not establish that a main-queue timer fixed missing observations.
