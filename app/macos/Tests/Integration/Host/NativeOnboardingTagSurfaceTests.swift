@@ -81,15 +81,30 @@ struct NativeOnboardingTagSurfaceTests {
         try stream.addStreamOutput(frames, type: .screen, sampleHandlerQueue: DispatchQueue(label: "tag-onboarding-first-frame"))
         try await stream.startCapture()
         var visits: [[TagGlassFrames.Sample]] = []
+        var visitEvents: [[String: Any]] = []
         var captureFailure: (any Error)?
         do {
             try await SwiftUIReplay.wait { frames.ready }
             _ = frames.take()
-            for _ in 0..<3 {
+            for visit in 0..<3 {
+                fixture.appearedAt = nil
+                let applicationActive = NSApp.isActive
+                let windowKey = window.isKeyWindow
+                let windowVisible = window.isVisible
+                let windowUnoccluded = window.occlusionState.contains(.visible)
+                let mountBefore = ProcessInfo.processInfo.systemUptime
                 fixture.mounted = true
+                let mountAfter = ProcessInfo.processInfo.systemUptime
                 try await Task.sleep(for: .milliseconds(400))
+                let drainBefore = ProcessInfo.processInfo.systemUptime
                 let samples = frames.takeSamples()
+                let drainAfter = ProcessInfo.processInfo.systemUptime
                 visits.append(samples)
+                visitEvents.append(["visit": visit, "mountBefore": mountBefore, "mountAfter": mountAfter,
+                    "appearanceAt": fixture.appearedAt.map { $0 as Any } ?? NSNull(),
+                    "drainBefore": drainBefore, "drainAfter": drainAfter, "completeFrames": samples.count,
+                    "applicationActiveAtInput": applicationActive, "windowKeyAtInput": windowKey,
+                    "windowVisibleAtInput": windowVisible, "windowOcclusionVisibleAtInput": windowUnoccluded])
                 try #require(samples.count >= 2, "Missing intermediate WindowServer frames during Tag entry")
                 fixture.mounted = false
                 try await Task.sleep(for: .milliseconds(100))
@@ -104,6 +119,10 @@ struct NativeOnboardingTagSurfaceTests {
             ?? ProcessInfo.processInfo.environment["MOKUSEI_CI_EVIDENCE"]
         let directory = root.map { URL(fileURLWithPath: $0).appendingPathComponent("tag-first-frame") }
         if let directory { try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
+        if let directory {
+            try JSONSerialization.data(withJSONObject: visitEvents, options: [.prettyPrinted, .sortedKeys])
+                .write(to: directory.appendingPathComponent("visit-events.json"))
+        }
         for (visit, samples) in visits.enumerated() {
             for (index, sample) in samples.enumerated() {
                 let image = sample.image
@@ -185,6 +204,7 @@ private struct TagSurfaceReplay: View {
 @MainActor @Observable private final class TagAnimationFixture {
     var mounted = false
     var started = false
+    @ObservationIgnored var appearedAt: TimeInterval?
 }
 
 private struct TagAnimationReplay: View {
@@ -196,6 +216,7 @@ private struct TagAnimationReplay: View {
                 NativeOnboardingTagAnimation(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], locale: .chinese,
                                              visitPlaybackStarted: $fixture.started)
                     .frame(width: 560, height: 250)
+                    .onAppear { fixture.appearedAt = ProcessInfo.processInfo.systemUptime }
             }
         }
         .overlay(alignment: .bottomLeading) {

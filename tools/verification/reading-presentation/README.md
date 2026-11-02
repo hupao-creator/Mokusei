@@ -337,8 +337,11 @@ complete WindowServer frames per entry and rejecting a broad light rectangle.
 It runs with the real AppKit loop and emits `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED`;
 ordinary SwiftPM timing cannot certify capture delivery. A clock outside the
 sampled area supplies compositor updates during paused final scenes. Frame times,
-all PNGs and source/binary provenance are retained under `tag-first-frame`, and
-pixel scans/encoding run only after capture stops.
+all PNGs and source/binary provenance are retained under `tag-first-frame`.
+`visit-events.json` records mount, view appearance and drain times plus window
+state, including a visit that fails the frame-count requirement. Appearance is
+diagnostic only; it does not replace a captured frame. Pixel scans and PNG
+encoding run only after capture stops.
 
 ## Overview tag bar
 
