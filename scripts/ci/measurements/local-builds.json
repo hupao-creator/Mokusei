@@ -1,0 +1,115 @@
+{
+  "productSourceRevision": "2972115af0094f875b9674fe7672c23302443925",
+  "notes": "Main product sources plus candidate CI changes. First Go build has an empty isolated object cache but an existing module download cache. Swift attempts failed before a valid build. No hosted candidate run.",
+  "builds": [
+    {
+      "sourceRevision": "2972115af0094f875b9674fe7672c23302443925",
+      "command": [
+        "./scripts/go.sh",
+        "build",
+        "./..."
+      ],
+      "attempt": 1,
+      "exitCode": 0,
+      "seconds": 20.872
+    },
+    {
+      "sourceRevision": "2972115af0094f875b9674fe7672c23302443925",
+      "command": [
+        "./scripts/go.sh",
+        "build",
+        "./..."
+      ],
+      "attempt": 2,
+      "exitCode": 0,
+      "seconds": 11.799
+    },
+    {
+      "sourceRevision": "2972115af0094f875b9674fe7672c23302443925",
+      "command": [
+        "xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "app/macos",
+        "--build-tests",
+        "--force-resolved-versions",
+        "--disable-index-store",
+        "--cache-path",
+        "/Users/felixwang/Desktop/.Mokusei-mokusei-worktrees/ci-optimization/.build/ci-optimization/spm-cache",
+        "--manifest-cache",
+        "local"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "seconds": 2.255
+    },
+    {
+      "sourceRevision": "2972115af0094f875b9674fe7672c23302443925",
+      "command": [
+        "xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "app/macos",
+        "--build-tests",
+        "--force-resolved-versions",
+        "--disable-index-store",
+        "--cache-path",
+        "/Users/felixwang/Desktop/.Mokusei-mokusei-worktrees/ci-optimization/.build/ci-optimization/spm-cache",
+        "--manifest-cache",
+        "local"
+      ],
+      "attempt": 2,
+      "exitCode": 1,
+      "seconds": 1.506
+    }
+  ],
+  "swiftRetryBuilds": [
+    {
+      "command": [
+        "xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "app/macos",
+        "--build-tests",
+        "--force-resolved-versions",
+        "--disable-index-store",
+        "--cache-path",
+        "/Users/felixwang/Desktop/.Mokusei-mokusei-worktrees/ci-optimization/.build/ci-optimization/spm-cache",
+        "--manifest-cache",
+        "local",
+        "--disable-sandbox"
+      ],
+      "attempt": 1,
+      "exitCode": 1,
+      "seconds": 3.086
+    },
+    {
+      "command": [
+        "xcrun",
+        "swift",
+        "build",
+        "--package-path",
+        "app/macos",
+        "--build-tests",
+        "--force-resolved-versions",
+        "--disable-index-store",
+        "--cache-path",
+        "/Users/felixwang/Desktop/.Mokusei-mokusei-worktrees/ci-optimization/.build/ci-optimization/spm-cache",
+        "--manifest-cache",
+        "local",
+        "--disable-sandbox"
+      ],
+      "attempt": 2,
+      "exitCode": 1,
+      "seconds": 1.262
+    }
+  ],
+  "warmGoActions": {
+    "compile": 0,
+    "cgo": 0,
+    "link": 45
+  }
+}

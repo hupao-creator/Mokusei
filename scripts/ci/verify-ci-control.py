@@ -258,7 +258,7 @@ def main():
         (repo / "README.md").write_text("Changed documentation\n")
         git("commit", "-qam", "Update documentation")
         scope(True)
-        scope(True, "push")
+        scope(False, "push")
         scope(False, "workflow_dispatch")
         (repo / "source.go").write_text("package changed\n")
         git("commit", "-qam", "Change source")
