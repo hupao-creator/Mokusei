@@ -176,11 +176,11 @@ func runCreationContractReplay() error {
 	}
 	mokuReplayCheck(len(freeText) == 0, "missing free-text tool bindings")
 	for _, text := range []string{description.Instructions, fmt.Sprint(definition["properties"].(map[string]any)["worktree"])} {
-		mokuReplayCheck(strings.Contains(text, "Recommend worktree:true") && strings.Contains(text, "parallel code changes") && strings.Contains(text, "Choose false"), "creation guidance lost recommendation or false choice")
+		mokuReplayCheck(strings.Contains(text, "worktree:true by default") && strings.Contains(text, "even without parallel tasks") && strings.Contains(text, "Use false only when no eligible Git workspace exists, the user requests the existing checkout, or the task requires its uncommitted changes or live state") && strings.Contains(text, "Use create_thread's managed worktree rather than asking the Agent to create one"), "creation guidance lost worktree default, exceptions or managed creation")
 	}
 	for _, binding := range moku.ToolSchemas(description) {
 		if binding.Name == "create_thread" {
-			mokuReplayCheck(strings.Contains(binding.Description, "Recommend worktree:true"), "tool recommendation missing")
+			mokuReplayCheck(strings.Contains(binding.Description, "worktree:true by default"), "tool worktree default missing")
 		}
 	}
 	fmt.Println("PASS create_thread free-text prompt has no pattern, keeps length bounds, rejects blank/oversized input and preserves a long prompt; worktreeName is optional, rune-bounded, Unicode-preserving, accepts blank as absent, requires worktree:true for a non-blank value and is advertised by native/deferred and Claude schemas; required worktree still validated across native/deferred schemas, Claude wire schema and parser")
