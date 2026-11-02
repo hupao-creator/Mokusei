@@ -138,6 +138,21 @@ for production rendering, selection, copying and navigation fixtures.
 
 `NativeMarkdownView` has an optional applied-document callback for Moku note exposure. It reports the requested document token only after the production parser result is applied, including when two versions produce equal blocks. The callback also reports conservative vertical-coverage eligibility from the production presentation tree: text headings, paragraphs, lists, quotes, rules and footnotes can qualify; code, tables, images and links that may load local previews cannot. Other readers omit the callback. The note host separately measures viewport, window qualification and dwell; a parser result by itself is never reading evidence.
 
+### Note execution capsules
+
+`NativeMarkdownView.executionLinkHarnesses` opts a host into native execution
+capsules. `nil` retains ordinary Markdown rendering; an empty map still renders
+neutral capsules. The Host supplies only public ordinary-thread brands from its
+plugin registry. Brand identities participate in the rendered-block and TextKit
+input comparisons, so catalog hydration changes logos without a note revision.
+`NativeMarkdownExecutionLink` hosts live clear Liquid Glass in TextKit attachment
+seats, with full-title copy descriptions and pointer passthrough for document
+selection. Its accessible Button routes through the document-owned current link
+action. Attachments remeasure at actual container widths and retire their native
+hosts when the corresponding source disappears. Other Markdown surfaces and
+ordinary web links retain their existing text behavior.
+
+
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift) owns demand for settled execution bodies. Multiple disclosures share a turn resource; the last lease releases its payload. Explicit expansion mounts the full process rows, while a collapsed settled process retains its summary. Running/waiting content and pending interactions remain available.
 
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).

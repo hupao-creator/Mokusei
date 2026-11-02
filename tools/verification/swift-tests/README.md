@@ -276,3 +276,27 @@ native replay concurrently or mutate focus/clipboard during the run. Screen-capt
 permission is additionally needed only for the existing WindowServer capture
 replays, not the Settings bitmap test. The eight Go fixture replays above remain
 separate checks; a skipped plain-Swift invocation is not a passing interop replay.
+
+## Git summary token animation foreground admission
+
+PR #228 run `41393011352`, attempt 1, reported equal token-animation snapshots
+at the original 90ms observation; its log did not identify the equal pair or
+retain those frames. This does not establish that the failure was harmless.
+The fixture now explicitly activates its application, centres and keys its
+window, and requires visible foreground ownership before changing the digits.
+The original 100/90/300ms sampling intervals, three-distinct-frames assertion
+and 400×90 geometry assertion are unchanged. Every run retains the three PNGs,
+actual capture/source times, focus/occlusion/scale and pair-equality facts under
+`$MOKUSEI_CI_EVIDENCE/git-number-flip-<UUID>/measurements.json` beside the three PNGs.
+This retains main’s latency-critical activity, zero-tolerance sampling and timing receipt.
+A missing foreground prerequisite fails explicitly; no skip or assertion
+relaxation substitutes for the observation.
+
+The focused ordinary Swift host reproduced a missing capability: after activation
+and the original setup interval, the window was visible but the application and
+key-window facts were false and the window was occluded. The same existing case
+therefore has an explicit `native/rolling-numbers` owner in `swift_ownership.py`.
+The ordinary command excludes its full discovered identity; the mandatory native
+producer must execute it, return zero and emit `GIT_TOKEN_FLIP_FRAMES_CONFIRMED`.
+This is not a framework skip or permission to omit the test. The native launcher
+runs all three existing rolling-number cases plus this existing Git case.

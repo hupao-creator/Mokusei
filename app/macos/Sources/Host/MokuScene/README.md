@@ -193,6 +193,20 @@ settled eye-path and native message-clip separation. This headless check does
 not certify animation frames, rendered pixels or native scrolling behavior;
 those remain in the display-gated transcript and transition replays.
 
+Talk and voice transcript prose wrap within the native clip width, including
+AppKit's mini-scroller gutter when the system uses persistent scrollbars. The
+capsule height uses the same width; changing the scrollbar preference updates
+both without replacing the scroll view. `NativeMokuTalkClippingTests` mounts the
+production selectable content with overlay and persistent scrollers at six
+widths, including the reported Chinese/Overview sentence, mixed Unicode, long
+Chinese/Latin text and explicit overflow. It checks the rendered label's text
+seat against the actual native clip and scrolls overflow to both ends.
+The native viewport also stays inside its promised host bounds: the prose width
+is a maximum inside a flexible, leading-aligned document, so persistent scrollers
+cannot expand it into the note's history/voice actions.
+Set `MOKU_TALK_CLIPPING_EVIDENCE` to retain mounted-view PNGs of the reported sentence;
+these are AppKit display-cache images, not WindowServer glass captures.
+
 Text shorter than the Talk viewport is vertically centered beside the eyes.
 Overflow keeps its bottom anchor and follows new text only while the reader is
 at the tail; the same layout applies to the voice transcript. The Dock's Stop
@@ -277,6 +291,25 @@ open these links and they are never handed to the OS. Only ordinary public
 Agent Threads qualify, including archived, failed and interrupted ones. Moku,
 its history and missing/private targets produce an unavailable notice. The note
 retains its existing character budget and viewport-exposure semantics.
+
+Note execution references use the selected A clear Liquid Glass capsule with
+its owning Harness's native logo and a trailing up-right arrow. There is no
+hover scale or interactive glass response. Ordinary links keep their existing
+purple underline. The note observes public catalog membership and uses the
+registered plugin logo; missing/loading metadata and unregistered Harnesses use
+a neutral execution symbol, then update in place when metadata arrives. Private
+Moku/history targets never receive an ordinary Harness brand. Decoration does
+not replace the existing exact-execution route or its admission checks.
+
+The native Markdown renderer reserves a width-bounded attachment seat for each
+execution reference and hosts a live glass surface in that seat. Long titles
+wrap inside the capsule, while surrounding prose remains TextKit text. Selection
+and copying preserve the full title, without inserting a logo/arrow into copied
+content. Pointer events remain with TextKit for drag selection, and the hosted
+control supplies named keyboard/accessibility activation. The existing
+`--moku-execution-links` replay covers all four logos, catalog fallback/refresh,
+narrow long-title geometry, copy and accessible exact-execution navigation.
+
 
 The reader opens one fixed execution at its final visible reply, or its latest
 visible content/status when no final reply exists. Running executions initially
