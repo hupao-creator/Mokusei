@@ -51,6 +51,9 @@ check out and verify the new revision.
 The wrapper requires a clean worktree and matching HEAD before and after checks,
 proves the SHA is known to GitHub before publishing, pins the extension, serializes
 runs across worktrees with a local process lock, and retains each fresh attempt.
+Stage owners inherit the lock, so a killed parent does not allow a second run
+while its surviving stage is still executing. An incomplete parent receipt is
+never success; inspect surviving stages and their reports before resuming.
 It posts `pending` before execution, invokes `gh signoff fail` on failures and
 publishes success only after all required command receipts and audits pass.
 Cancellation/crash can leave `pending`; it cannot create success. Native Swift

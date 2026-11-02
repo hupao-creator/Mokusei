@@ -327,6 +327,59 @@ def verify_local_signoff(root):
     command(local + ["--reviewed"], cwd=repo, env=environment, success=False)
     if calls.exists():
         raise AssertionError("Dirty execution must fail before publication")
+    # A hard-killed parent cannot run finally blocks. The real stage owner must
+    # retain the account lock until it exits, so a resumed run cannot overlap it.
+    lock_path = sandbox / "inherited.lock"
+    stage_pid = sandbox / "stage.pid"
+    stage_output = sandbox / "stage-output"
+    stage_output.mkdir()
+    child = f"import os,time; from pathlib import Path; Path({str(stage_pid)!r}).write_text(str(os.getpid())); time.sleep(60)"
+    runner = ("import importlib.util,os,fcntl; from pathlib import Path; "
+              f"spec=importlib.util.spec_from_file_location('local_ci', {str(SCRIPTS / 'local-macos.py')!r}); "
+              "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m); "
+              f"lock=open({str(lock_path)!r}, 'a'); fcntl.flock(lock,fcntl.LOCK_EX); "
+              f"r=m.Run(Path({str(stage_output)!r}), {'a' * 40!r}, 'native', lock_fd=lock.fileno()); "
+              f"r.stage('controlled-child', [{sys.executable!r}, '-c', {child!r}])")
+    parent = subprocess.Popen([sys.executable, "-c", runner], cwd=repo,
+                              env=dict(environment, PYTHONPATH=str(SCRIPTS)),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    import fcntl
+    contender = lock_path.open("a")
+    try:
+        expires = time.monotonic() + 10
+        while not stage_pid.exists() and time.monotonic() < expires:
+            time.sleep(0.02)
+        if not stage_pid.exists():
+            raise AssertionError("Controlled inherited-lock stage did not start")
+        parent.kill()
+        parent.communicate(timeout=10)
+        try:
+            fcntl.flock(contender, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            pass
+        else:
+            raise AssertionError("Hard-killed parent released the lock while its stage was still alive")
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+            parent.communicate()
+        if stage_pid.exists():
+            try:
+                os.killpg(int(stage_pid.read_text()), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        contender.close()
+    with lock_path.open("a") as released:
+        expires = time.monotonic() + 5
+        while True:
+            try:
+                fcntl.flock(released, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= expires:
+                    raise AssertionError("Finished stage did not release the inherited lock")
+                time.sleep(0.02)
+    print("PASS actual hard interruption: surviving stage retains the account lock and prevents overlapping recovery")
     print("PASS local signoff: exact-SHA queries, missing/pending/failure/wrong-context rejection, latest-status precedence, review/clean admission and real failure publication")
 
 

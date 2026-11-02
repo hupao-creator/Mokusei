@@ -28,8 +28,9 @@ def unchanged(sha):
 
 
 class Run:
-    def __init__(self, output, sha, mode):
+    def __init__(self, output, sha, mode, *, lock_fd=None):
         self.output = output
+        self.lock_fd = lock_fd
         self.env = {key: value for key, value in os.environ.items()
                     if key not in ("GH_TOKEN", "GITHUB_TOKEN", "MOKUSEI_SWIFT_SKIP_BUILD", "GITHUB_ENV",
                                    "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_ACTIONS", "MOKUSEI_TEST_HEADLESS", "GOROOT")}
@@ -54,8 +55,11 @@ class Run:
             with log.open("w") as stream:
                 # Inner replay launchers own separate process groups and need
                 # time to unwind their own bounded teardown before escalation.
+                # Keep the account lock alive in the stage owner even if this
+                # parent is killed; otherwise a recovery can overlap its replay.
                 code = deadline.run(command, cwd=ROOT, env=self.env, timeout=timeout, termination_grace=30,
-                                    stdout=stream, stderr=subprocess.STDOUT)
+                                    stdout=stream, stderr=subprocess.STDOUT,
+                                    pass_fds=() if self.lock_fd is None else (self.lock_fd,))
             record.update(exit_code=code, status="passed" if code == 0 else "failed")
         except (OSError, TimeoutError) as error:
             record.update(status="failed", error=str(error))
@@ -211,7 +215,7 @@ def main():
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     output = (args.output or ROOT / ".scratch/local-ci" / args.commit / f"{args.mode}-{time.time_ns()}").resolve()
     output.mkdir(parents=True, exist_ok=False)
-    run = Run(output, args.commit, args.mode)
+    run = Run(output, args.commit, args.mode, lock_fd=lock.fileno())
     def signoff(failed=False):
         # gh-signoff's --commit path otherwise fetches all shared remote refs and
         # rejects PR merge objects absent from remote branch tips. The wrapper
