@@ -14,6 +14,7 @@ import MokuseiPluginUI
     var target: ThreadConversationReadingTarget?
     var longAuthor = false
     var inherited = false
+    var summarizedWork = false
     let controls = NativeReadingInteractions()
     let visit = UUID()
     @ObservationIgnored var mounted: Set<JSONText> = []
@@ -64,7 +65,9 @@ private struct SidebarTurn: View {
             "effort": .text("xhigh")
         ]), rows: [
             .init(id: JSONText(id.string + "-user"), kind: .user, node: AnyView(Text("User prompt"))),
-            .init(id: JSONText(id.string + "-work"), kind: .work, node: AnyView(Text("Execution details"))),
+            .init(id: JSONText(id.string + "-work"), kind: .work, node: AnyView(Text("Execution details")),
+                execution: fixture.summarizedWork ? .member : nil,
+                executionSummary: fixture.summarizedWork ? .init(reasoningSegments: 4, toolCalls: 7) : nil),
             .init(id: JSONText(id.string + "-answer"), kind: .content,
                 node: AnyView(Text("回答 \(id.string)\n\n" + String(repeating: "正文保持可访问，切换目录仅加载选中的轮次。\n\n", count: 30))), finalReply: true)
         ], createdAt: 1, updatedAt: 2, status: "completed", completedAt: 1_700_000_000_000, active: false)
@@ -93,6 +96,7 @@ private struct SidebarSurface: View {
 struct NativeThreadHistorySidebarTests {
     @Test func sidebarNavigatesRetainsScrollAndMovesTheActualAuthor() async throws {
         let fixture = SidebarFixture()
+        fixture.summarizedWork = true
         let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700, offscreen: true)
         defer { window.close() }
         try await fixture.ready()
@@ -113,6 +117,16 @@ struct NativeThreadHistorySidebarTests {
         try await fixture.perform("visibility.work")
         try await fixture.perform("visibility.userMessages")
         #expect(fixture.state("turn")?["visibleRowCount"] == .integer(3))
+        let summary = "执行过程 · 4 段思考 · 7 次工具调用"
+        let content = try #require(window.contentView)
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: content).contains(summary) }
+        #expect(!SwiftUIReplay.text(in: content).contains("Execution details"))
+        #expect(fixture.control("execution.group") == nil)
+        try await fixture.perform("visibility.work")
+        try await SwiftUIReplay.wait { !SwiftUIReplay.text(in: content).contains(summary) }
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
+        try await fixture.perform("visibility.work")
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: content).contains(summary) }
         try await fixture.perform("history.close")
         try await SwiftUIReplay.wait { abs((fixture.state("timeline")?["top"]?.numberValue ?? 0) - 220) < 2 }
         #expect(fixture.state("history.sidebar")?["selectedRow"] == .text("turn-4"))

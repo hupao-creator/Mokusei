@@ -44,7 +44,7 @@ public enum ThreadExecutionRowRun {
     case execution(id: JSONText, rows: [ThreadDetailRow])
 }
 
-/// Adjacent visible execution rows share a disclosure even across hidden native
+/// Adjacent visible execution rows share a summary even across hidden native
 /// boundaries. Its identity comes from the first surviving run's source start.
 public func partitionExecutionRows(_ rows: [ThreadDetailRow]) -> [ThreadExecutionRowRun] {
     var result: [ThreadExecutionRowRun] = []
@@ -100,7 +100,6 @@ public struct ThreadExecutionProcess: View {
     public let rows: [ThreadDetailRow]
     public let reasoningUsage: ThreadReasoningUsage?
     @Environment(\.locale) private var locale
-    @Environment(\.threadExecutionLoader) private var loadExecution
 
     public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil) {
         self.groupID = groupID
@@ -109,16 +108,21 @@ public struct ThreadExecutionProcess: View {
     }
 
     public var body: some View {
-        let label = summary
-        HarnessToolActivityGroup(
-            groupID: executionProcessID(groupID),
-            items: rows.map { row in
-                ThreadActivitySlot(id: row.id, node: AnyView(row.node.threadReadingAnchor(row.id)))
-            },
-            summary: AnyView(Text(label).monospacedDigit().fixedSize(horizontal: false, vertical: true)),
-            summaryLabel: label,
-            summaryState: AnyView(NativeIcon(name: "Wrench", size: 13)), alwaysGroup: true,
-            expandedContent: loadExecution?(groupID))
+        HStack(spacing: 7) {
+            NativeIcon(name: "Wrench", size: 13)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            Text(summary)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
+        .padding(.vertical, 6)
+        .font(NativeTypography.inter(size: 11))
+        .foregroundStyle(NativePalette.thread.muted.swiftUI)
+        .accessibilityElement(children: .combine)
+        .id(executionProcessID(groupID))
     }
 
     private var summary: String {
