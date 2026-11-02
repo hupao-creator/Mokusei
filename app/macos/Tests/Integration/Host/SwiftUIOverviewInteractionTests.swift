@@ -1105,9 +1105,10 @@ extension SwiftUIOverviewInteractionTests {
                 }
             }
             if selected != nil { break }
-            // A frame must still be <50ms old when its live input is submitted.
-            // Clock-selected coalescing leeway can consume that entire window.
-            try await Task.sleep(for: .milliseconds(10), tolerance: .zero)
+            let wakeup = try await NativeReplayObservation.waitForNextPoll()
+            measurements.append(["kind": "wakeup", "stage": stage,
+                "scheduledAt": "\(wakeup.scheduledAt)", "firedAt": "\(wakeup.firedAt)",
+                "resumedAt": "\(wakeup.resumedAt)"])
         }
         return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
     }

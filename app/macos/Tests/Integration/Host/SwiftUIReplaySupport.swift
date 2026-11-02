@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 import Testing
+#if SWIFT_PACKAGE
+import MokuseiTestSupport
+#endif
 
 /// AppKit is used by the test runner to host real SwiftUI, never by the production scene.
 @MainActor enum SwiftUIReplay {
@@ -9,6 +12,7 @@ import Testing
     /// replayed AppKit surfaces and plain draft tests share one safe entry point.
     private static var app: NSApplication { NSApp ?? NSApplication.shared }
     private static var reportedEnvironment = false
+    static var lastObservationWakeup: NativeReplayObservation.Wakeup?
 
     static func window<Content: View>(_ content: Content, width: CGFloat = 1180, height: CGFloat = 780, offscreen: Bool = false) -> NSWindow {
         let sharedApp = app
@@ -40,6 +44,7 @@ import Testing
     }
     static func wait(timeout: Duration = .seconds(3), driveLayout: Bool = true, _ predicate: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
         if !driveLayout {
+            lastObservationWakeup = nil
             try #require(NSApp?.isRunning == true,
                 "Passive presentation observation requires a running NSApplication event loop", sourceLocation: sourceLocation)
         }
@@ -52,9 +57,8 @@ import Testing
             }
             settled = predicate()
             if settled { return }
-            // Passive observations have bounded live-frame prerequisites. Do
-            // not grant the clock extra coalescing leeway beyond this interval.
-            try await Task.sleep(for: .milliseconds(10), tolerance: driveLayout ? nil : .zero)
+            if driveLayout { try await Task.sleep(for: .milliseconds(10)) }
+            else { lastObservationWakeup = try await NativeReplayObservation.waitForNextPoll() }
         }
         // A timeout is one failed expectation, not a second cancellation issue.
         try #require(settled, "SwiftUI presentation did not settle within \(timeout); AppKit running: \(NSApp?.isRunning == true), visible windows: \(NSApp?.windows.filter(\.isVisible).count ?? 0)", sourceLocation: sourceLocation)

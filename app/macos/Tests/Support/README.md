@@ -156,3 +156,23 @@ The scheduling contract is documented by Swift's
 [ContinuousClock implementation](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift)
 and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
 Neither promises immunity to executor/OS preemption.
+
+
+### Hosted follow-up: main-queue wake-up
+
+PR run 41393168410 still had a 76ms opening-sample gap after requesting zero
+Task.sleep tolerance and a latency-critical process. Its title observer found
+a valid outgoing frame only at 151.017ms, after the unchanged 150ms input bound.
+The candidate therefore failed correctly; the earlier mitigation was insufficient.
+The passive waits now use a one-shot Dispatch timer on AppKit's main queue,
+with the same 10ms interval and zero leeway. Each receipt separates scheduled,
+fired and resumed uptime to distinguish queue delay from actor resumption. This
+does not promise that OS or main-thread contention disappears.
+
+The wait checks cancellation before registration and after waking. Cancellation
+and firing serialize their one terminal continuation on the main queue; both
+disarm the source before resuming. A queued cancellation before registration and
+a cancellation racing a fire cannot double-resume or submit a subsequent poll
+after cancellation is observed. Ordinary layout-driven waits keep their original
+sleep. No original predicate, animation, deadline, early-source bound or
+exact-frame assertion is changed.

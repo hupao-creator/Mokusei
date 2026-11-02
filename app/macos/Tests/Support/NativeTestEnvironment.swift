@@ -1,5 +1,63 @@
 import AppKit
+import Dispatch
 import Testing
+
+/// Drive polls from AppKit's queue and expose timer versus task-resumption delay.
+/// This is observation scheduling, never a virtual animation clock.
+@MainActor public enum NativeReplayObservation {
+    public struct Wakeup: Sendable {
+        public let scheduledAt: Double
+        public let firedAt: Double
+        public let resumedAt: Double
+    }
+
+    public static func waitForNextPoll() async throws -> Wakeup {
+        let delay = ObservationDelay()
+        let firedAt = try await delay.wait()
+        try Task.checkCancellation()
+        return Wakeup(scheduledAt: delay.scheduledAt, firedAt: firedAt,
+                      resumedAt: ProcessInfo.processInfo.systemUptime)
+    }
+
+    @MainActor private final class ObservationDelay {
+        let scheduledAt = ProcessInfo.processInfo.systemUptime
+        private var continuation: CheckedContinuation<Double, Error>?
+        private var timer: DispatchSourceTimer?
+
+        func wait() async throws -> Double {
+            try Task.checkCancellation()
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    self.continuation = continuation
+                    // Cancellation may arrive before the timer is registered.
+                    // Its main-queue completion then observes the registered
+                    // continuation; the post-wake check also covers a fire race.
+                    let timer = DispatchSource.makeTimerSource(queue: .main)
+                    self.timer = timer
+                    timer.setEventHandler { [weak self] in
+                        MainActor.assumeIsolated { self?.finish(error: nil) }
+                    }
+                    timer.schedule(deadline: .now() + .milliseconds(10), leeway: .nanoseconds(0))
+                    timer.resume()
+                }
+            } onCancel: {
+                DispatchQueue.main.async { self.finish(error: CancellationError()) }
+            }
+        }
+
+        private func finish(error: Error?) {
+            guard let continuation else { return }
+            self.continuation = nil
+            // Either cancellation or the timer owns this one terminal receipt.
+            // Disarm the source before resuming so it cannot outlive its poll.
+            timer?.setEventHandler {}
+            timer?.cancel()
+            timer = nil
+            if let error { continuation.resume(throwing: error) }
+            else { continuation.resume(returning: ProcessInfo.processInfo.systemUptime) }
+        }
+    }
+}
 
 /// AppKit windows, focus, the Edit menu and the pasteboard belong to the process,
 /// not a suite. MainActor isolation does not protect them across an `await`.

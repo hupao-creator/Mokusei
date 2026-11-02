@@ -691,8 +691,8 @@ a skipped or incomplete replay is a failure.
 The staged app holds a user-initiated, latency-critical activity only while its
 AppKit loop runs, and releases it when the loop returns. It logs
 `NATIVE_REPLAY_TIMING` and does not change desktop accessibility preferences or
-production animation timing. Passive geometry/title polls use zero clock sleep
-tolerance; all actual-frame, freshness, midpoint and cancellation assertions
+production animation timing. Passive geometry/title polls use a cancellable 10ms main-queue timer with
+zero leeway and record timer-fire versus task-resumption times; all actual-frame, freshness, midpoint and cancellation assertions
 remain mandatory. This is a scheduling request, not a timing guarantee.
 
 CI sets `MOKUSEI_NATIVE_MODULE_CACHE` to one temporary directory for the native

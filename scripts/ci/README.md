@@ -272,9 +272,10 @@ jobs. `launch.json` records staging seconds, compiler seconds and the cache path
 Local invocations without the variable retain their private temporary cache.
 
 The reading-presentation app requests a user-initiated, latency-critical activity
-for its bounded lifetime. Passive geometry and title-frame observation retain
-10ms polling with zero clock tolerance, their original three-second deadlines,
-40–60% geometry / 10–60% ink bands and live-frame age checks. These changes remove
-optional timer coalescing; they cannot guarantee OS scheduling or turn a missing
+for its bounded lifetime. Passive geometry and title-frame observations now wait on a cancellable
+main-queue timer at the original 10ms interval with zero leeway, retaining their original three-second deadlines,
+40–60% geometry / 10–60% ink bands and live-frame age checks. Zero-tolerance Task.sleep still missed a hosted outgoing window, so the main-queue
+wait records scheduling, timer-fire and task-resumption times separately. These
+requests remove one delayed executor wake-up boundary; they cannot guarantee OS scheduling or turn a missing
 qualifying observation into a pass. Hosted measurements must establish whether
 they resolve the observed missed windows.
