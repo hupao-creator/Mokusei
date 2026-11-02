@@ -219,7 +219,7 @@ def main():
              7 if glass_captures else
              8 if "--moku-composer" in sys.argv else
              7 if tag_glass else
-             11 if "--moku-note-tests" in sys.argv else 6)
+             11 if "--moku-note-tests" in sys.argv else 12)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

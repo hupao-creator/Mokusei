@@ -2,20 +2,15 @@ import MokuseiPluginUI
 import SwiftUI
 import AppKit
 
-/// One system material belongs to each card's animated subtree. Sharing a glass
-/// container across independently folded cards would separate glass and content.
-struct NativeSidecardGlass: NSViewRepresentable {
-    func makeNSView(context: Context) -> Surface { Surface() }
-    func updateNSView(_ view: Surface, context: Context) {}
-
-    final class Surface: NSGlassEffectView {
-        init() {
-            super.init(frame: .zero)
-            style = .regular
-            cornerRadius = 21
-            setAccessibilityElement(false)
-        }
-        required init?(coder: NSCoder) { nil }
+/// A noninteractive native frame anchor lets mounted replay/diagnostics measure
+/// the panel rather than the union of its synthesized accessibility children.
+struct NativeReadingPanelFrame: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = FrameView(); view.identifier = NSUserInterfaceItemIdentifier("agent-reading-panel-frame")
+        view.setAccessibilityElement(false); return view
+    }
+    func updateNSView(_ view: NSView, context: Context) {}
+    private final class FrameView: NSView {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 }

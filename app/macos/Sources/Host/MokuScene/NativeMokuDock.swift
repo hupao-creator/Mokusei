@@ -171,7 +171,7 @@ public struct NativeMokuDock: View {
             && (state.inputOpen || state.inputLeaving) && !voiceModeActive && interaction == nil
     }
     private var composerMounted: Bool {
-        state.overviewVisible && !state.notePanelOpen && (state.inputOpen || state.inputLeaving || (voiceModeActive && voiceComposerRestoration.shouldRestore)) && interaction == nil
+        state.dockRouteVisible && !state.notePanelOpen && (state.inputOpen || state.inputLeaving || (voiceModeActive && voiceComposerRestoration.shouldRestore)) && interaction == nil
     }
     private var incomingTalk: NativeMokuTalkMessage? {
         if let presentation { return presentation.talkMessage }
@@ -179,12 +179,12 @@ public struct NativeMokuDock: View {
         return NativeMokuTalkMessage(id: JSONText(talk), text: talk)
     }
     private var visibleTalk: NativeMokuTalkMessage? {
-        guard !state.inputOpen, interaction == nil, !state.dockCovered, state.overviewVisible,
+        guard !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
               state.windowVisible, !disabled, !submitting, !draft.submitting else { return nil }
         return state.talkPresentation.message
     }
     private var visibleVoiceTranscript: NativeMokuTalkMessage? {
-        guard voiceModeActive, interaction == nil, !state.dockCovered, state.overviewVisible,
+        guard voiceModeActive, interaction == nil, !state.dockCovered, state.dockRouteVisible,
               state.windowVisible, !disabled else { return nil }
         return voiceTranscript
     }
@@ -194,7 +194,7 @@ public struct NativeMokuDock: View {
             && !voiceModeActive && interaction == nil && !navigationDisabled
     }
     private var rowControlAvailable: Bool {
-        state.overviewVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
+        state.dockRouteVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
             && interaction == nil && !state.inputOpen && !state.inputLeaving
     }
     private var voiceControlVisible: Bool {
@@ -302,12 +302,12 @@ public struct NativeMokuDock: View {
             trailingInset: talkTrailing(width: width), maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
     }
     private var residentPresenting: Bool {
-        !state.dockCovered && state.overviewVisible && state.windowVisible && !state.inputOpen &&
+        !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
         !submitting && !draft.submitting && interaction == nil && displayedMessage == nil
     }
     private var completionVisible: Bool { inputPresent && !retaining && directoryMentions.isOpen }
     private var mentionsEnabled: Bool {
-        state.overviewVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
+        state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
     }
     private var reminder: NativeMokuDockReply? {
         guard let reply, !state.readReplies.contains(JSONText(reply.readKey)),
@@ -397,7 +397,7 @@ public struct NativeMokuDock: View {
             }
             .coordinateSpace(name: "native-moku-dock")
             .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil && !state.settingsOpen, noteButton: noteButtonRect), initial: true) { _, layout in
-                guard state.overviewVisible else {
+                guard state.dockRouteVisible else {
                     state.dockHitRects = []
                     state.dockMentionHitRect = nil
                     return
@@ -408,11 +408,11 @@ public struct NativeMokuDock: View {
                 if let button = layout.noteButton { state.dockHitRects.append(button) }
             }
             .onChange(of: interaction != nil, initial: true) { _, visible in
-                state.setDockInteractionVisible(state.overviewVisible && visible, question: interactionIsQuestion)
-                if visible && state.overviewVisible && !state.settingsOpen { state.setInputOpen(false) }
+                state.setDockInteractionVisible(state.dockRouteVisible && visible, question: interactionIsQuestion)
+                if visible && state.dockRouteVisible && !state.settingsOpen { state.setInputOpen(false) }
             }
             .onChange(of: interactionIsQuestion) { _, value in
-                state.setDockInteractionVisible(state.overviewVisible && interaction != nil, question: value)
+                state.setDockInteractionVisible(state.dockRouteVisible && interaction != nil, question: value)
             }
         }
         .overlay {
@@ -420,7 +420,7 @@ public struct NativeMokuDock: View {
                 NativeMokuOutsideClickMonitor(
                     exclusions: state.outsideClickExclusions,
                     beginClick: { state.overviewState.clearAutoFocusSuppression() },
-                    isActive: { (state.inputOpen || state.notePanelOpen || foregroundTalkID != nil) && state.overviewVisible && !state.dockCovered && !navigationDisabled },
+                    isActive: { (state.inputOpen || state.notePanelOpen || foregroundTalkID != nil) && state.dockRouteVisible && !state.dockCovered && !navigationDisabled },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
                     preservesOwnedInteractions: landing && state.inputOpen,
                     outsideWindowClick: !state.notePanelOpen && foregroundTalkID != nil ? {
@@ -540,22 +540,22 @@ public struct NativeMokuDock: View {
         .onChange(of: expanded, initial: true) { _, expanded in
             withAnimation(surfaceAnimation) { capsuleFraction = expanded ? 1 : 0 }
         }
-        .onChange(of: state.overviewVisible) { _, visible in
+        .onChange(of: state.dockRouteVisible) { _, visible in
             guard !visible else { return }
             focusReady = false
             state.dockHitRects = []
             state.dockMentionHitRect = nil
             hoverTask?.cancel(); hoverTask = nil
         }
-        .task(id: state.overviewVisible && state.inputOpen && !state.dockCovered) {
-            guard state.overviewVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
+        .task(id: state.dockRouteVisible && state.inputOpen && !state.dockCovered) {
+            guard state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
             do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
-            guard !Task.isCancelled, state.overviewVisible, state.inputOpen else { return }
+            guard !Task.isCancelled, state.dockRouteVisible, state.inputOpen else { return }
             focusReady = true; focusRequest += 1
         }
-        .onChange(of: draft.text) { _, _ in if state.overviewVisible && state.inputOpen { state.retainDraft(draft) } }
-        .onChange(of: draft.attachments) { _, _ in if state.overviewVisible && state.inputOpen { state.retainDraft(draft) } }
-        .onChange(of: draft.directories) { _, _ in if state.overviewVisible && state.inputOpen { state.retainDraft(draft) } }
+        .onChange(of: draft.text) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
+        .onChange(of: draft.attachments) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
+        .onChange(of: draft.directories) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: reply?.readKey, initial: true) { _, key in
             state.liveReplyKey = key
             if state.mokuOpen, !state.cameraActive, state.windowVisible, let key { state.markReplyRead(key) }
@@ -790,7 +790,7 @@ public struct NativeMokuDock: View {
     private func restoreVoiceComposer() {
         // A voice lifecycle change can arrive while Settings owns the capsule.
         // Defer the restoration receipt as well as the UI change until release.
-        guard !state.settingsOpen, state.overviewVisible,
+        guard !state.settingsOpen, state.dockRouteVisible,
               let open = voiceComposerRestoration.update(active: voiceModeActive, inputOpen: state.inputOpen) else { return }
         if !open { state.retainDraft(draft) }
         state.setInputOpen(open && interaction == nil)
@@ -801,7 +801,7 @@ public struct NativeMokuDock: View {
     }
     private func composer(room: CGFloat) -> some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
-            readOnly: state.inputLeaving, focusEnabled: state.overviewVisible && state.inputOpen && !state.dockCovered && focusReady,
+            readOnly: state.inputLeaving, focusEnabled: state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing,
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,

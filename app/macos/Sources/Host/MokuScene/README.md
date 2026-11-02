@@ -395,3 +395,14 @@ accessibility. They do not certify rendered animation frames, actual keyboard
 focus, active voice playback continuity, sound output, or real VoiceOver operation.
 Those require explicit interactive acceptance; do not open windows or play the
 production bell during headless verification.
+
+## Agent reading Dock
+
+The same resident Dock remains mounted and interactive while an ordinary Agent
+Thread is presented in a reading panel. `dockRouteVisible` combines Overview and
+Agent reading eligibility without admitting Settings or Note on an Agent route.
+The composer, Talk, voice visuals and pending interventions use that shared
+eligibility; application/Report documents and covering routes still hide it.
+Returning to Overview publishes eligibility in an order that retains native
+input/hit-region ownership. The mounted landing replay also covers Agent entry,
+continued Moku input, the panel close route and direct execution-result return.
