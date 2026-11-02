@@ -130,6 +130,70 @@ struct NativeMokuHistoryComposerTests {
             timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
             context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)))
     }
+    @Test(arguments: [CGFloat(0.25), 1, 5])
+    func historySessionPickerClearsWindowNavigationAndBackStillWorks(scale: CGFloat) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
+        let thread = try HarnessThread(id: "moku", harnessID: "layout-fixture", revision: 0,
+            sessionState: .null, observation: .init(), cwd: "/tmp", settings: .object([:]),
+            createdAt: 1, updatedAt: 1, title: "Moku", tags: [])
+        let archive = try HarnessThread(id: "archive", harnessID: "layout-fixture", revision: 0,
+            sessionState: .null, observation: .init(), cwd: "/tmp", settings: .object([:]),
+            createdAt: 1, updatedAt: 1, title: "Previous Moku", tags: [], archived: true, mokuHistory: true)
+        // The shell owns this menu; no runtime or Harness body is needed to
+        // exercise its real layout and native window navigation.
+        let host = NativeHarnessHost(client: client, registry: try HarnessPluginRegistry([]),
+            currentThread: { _ in thread }, callbacks: .init(openExternal: { _ in },
+                openFollowUp: { _, _ in }, onError: { _ in }))
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        draft.text = "Keep the history draft"
+        var backs = 0
+        let back = ThreadDetailBackAction(label: "Back to overview", onBack: { backs += 1 })
+        let window = SwiftUIReplay.window(GeometryReader { geometry in
+            GeometryReader { _ in
+                NativeMokuThreadView(harnessHost: host, thread: thread, draft: draft, archiveThreads: [archive],
+                    focusEnabled: false, onNavigationChange: { _ in }, onBack: back.onBack,
+                    onSend: { _ in }, onCancel: {})
+            }
+                .overlay(alignment: .topLeading) { NativeWindowNavigationView(action: back) }
+                .frame(width: geometry.size.width / scale, height: geometry.size.height / scale)
+                .environment(\.nativeWindowContentScale, scale)
+                .environment(\.locale, Locale(identifier: "zh-Hans"))
+                .scaleEffect(scale, anchor: .topLeading)
+        }.modifier(NativeWorkspaceWindowSurface()), width: 1200, height: 800, offscreen: true)
+        defer { window.close(); try? FileManager.default.removeItem(at: directory) }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { element(id: "moku-history-sessions", in: root) != nil }
+        let picker = try #require(element(id: "moku-history-sessions", in: root))
+        let button = try #require(element(id: "window-navigation.back", in: root))
+        func frame(_ item: NSObject) throws -> CGRect {
+            if let accessible = item as? any NSAccessibilityProtocol { return accessible.accessibilityFrame() }
+            let selector = NSSelectorFromString("accessibilityFrame")
+            let method = try #require(class_getInstanceMethod(type(of: item), selector))
+            typealias FrameFunction = @convention(c) (AnyObject, Selector) -> CGRect
+            return unsafeBitCast(method_getImplementation(method), to: FrameFunction.self)(item, selector)
+        }
+        let pickerFrame = try frame(picker)
+        let backFrame = try frame(button)
+        print("MOKU_HISTORY_SESSION_FRAMES scale=\(scale) picker=\(pickerFrame) back=\(backFrame)")
+        if let path = ProcessInfo.processInfo.environment["MOKUSEI_MOKU_HISTORY_ARTIFACTS"] {
+            let directory = URL(fileURLWithPath: path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let image = try #require(root.bitmapImageRepForCachingDisplay(in: root.bounds))
+            root.cacheDisplay(in: root.bounds, to: image)
+            try #require(image.representation(using: .png, properties: [:])).write(
+                to: directory.appendingPathComponent("history-session-\(scale).png"))
+        }
+        #expect(pickerFrame.width > 0 && pickerFrame.height > 0)
+        #expect(pickerFrame.maxY <= backFrame.minY, "The session picker must be below the window controls at every workspace zoom")
+        _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
+        #expect(backs == 1)
+        #expect(draft.text == "Keep the history draft")
+        window.close()
+        await host.releaseAll()
+        await client.close()
+    }
+
     @Test func historyKeepsItsEditorAndDraftAcrossFailureSendAndRemount() async throws {
         _ = NSApplication.shared
         let draft = NativeComposerDraft(services: .init(stageFiles: { files, _ in

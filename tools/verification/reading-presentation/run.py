@@ -137,6 +137,8 @@ def main():
             environment["MOKUSEI_SETTINGS_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--model-selector" in sys.argv:
             environment["MOKUSEI_MODEL_SELECTOR_ARTIFACTS"] = str(replay.workspace / "evidence")
+        if "--moku-composer" in sys.argv:
+            environment["MOKUSEI_MOKU_HISTORY_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--thread-sidebar" in sys.argv:
             environment["MOKUSEI_SIDEBAR_ARTIFACTS"] = str(replay.workspace / "evidence")
         if "--overview-search" in sys.argv:
@@ -208,7 +210,8 @@ def main():
              10 if "--browser-viewport" in sys.argv else
              8 if "--markdown" in sys.argv else
              7 if glass_captures else
-             7 if tag_glass or "--moku-composer" in sys.argv else
+             8 if "--moku-composer" in sys.argv else
+             7 if tag_glass else
              11 if "--moku-note-tests" in sys.argv else 6)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
