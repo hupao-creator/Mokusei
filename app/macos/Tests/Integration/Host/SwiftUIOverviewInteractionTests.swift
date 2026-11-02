@@ -1111,7 +1111,9 @@ extension SwiftUIOverviewInteractionTests {
                 }
             }
             if selected != nil { break }
-            try await Task.sleep(for: .milliseconds(10))
+            // A frame must still be <50ms old when its live input is submitted.
+            // Clock-selected coalescing leeway can consume that entire window.
+            try await Task.sleep(for: .milliseconds(10), tolerance: .zero)
         }
         return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
     }
