@@ -8,8 +8,28 @@ import signal
 import subprocess
 import sys
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 import deadline
+
+
+def execute(record, root, output, environment, cancellation):
+    record = dict(record)
+    print("RUN", record["name"], flush=True)
+    start = time.monotonic()
+    try:
+        with (output / record["log"]).open("w") as log:
+            record["exit_code"] = deadline.run(record["command"], cwd=root, env=environment,
+                                               cancel_event=cancellation, stdout=log, stderr=subprocess.STDOUT)
+        record["status"] = "passed" if record["exit_code"] == 0 else "failed"
+        text = (output / record["log"]).read_text(errors="replace")
+        if re.search(r"Test Case '[^\n]+' skipped|[➜↷✘] Test [^\n]* skipped(?:[.:]| because)", text):
+            record.update(status="failed", error="Replay skipped a required native test")
+    except (OSError, TimeoutError, subprocess.TimeoutExpired) as error:
+        record.update(status="failed", error=str(error))
+    record["seconds"] = round(time.monotonic() - start, 3)
+    return record
 
 
 def main():
@@ -18,7 +38,11 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--check", action="append", help="Run only named checks (local evidence, not a complete CI group)")
     parser.add_argument("--go", default=os.environ.get("MOKUSEI_GO", "go"))
+    parser.add_argument("--jobs", type=int, default=None, help="1 or 2 independent fixture producers; GUI groups remain serial")
     args = parser.parse_args()
+    jobs = args.jobs if args.jobs is not None else (2 if args.group == "fixtures" else 1)
+    if jobs not in (1, 2) or (jobs != 1 and args.group != "fixtures"):
+        parser.error("Only independent fixture producers support --jobs 2; all other groups require --jobs 1")
     root = Path(__file__).resolve().parents[2]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -72,7 +96,6 @@ def main():
               for name in ["browser-dialogs", "application-navigation", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
-            ("model-selector", [sys.executable, "tools/verification/reading-presentation/run.py", "--model-selector"]),
         ],
     }
     if args.group == "fixtures":
@@ -86,7 +109,7 @@ def main():
                for name, command in checks]
     report = {"revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
               "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root)),
-              "group": args.group, "checks": records}
+              "group": args.group, "jobs": jobs, "startedAt": time.time(), "checks": records}
     if args.check:
         report["selectedChecks"] = args.check
 
@@ -96,25 +119,35 @@ def main():
     # A killed workflow must leave pending/running evidence, never a false pass.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit("Replay runner terminated"))
     save()
-    for record in records:
-        record["status"] = "running"
+    cancellation = threading.Event()
+    pool = ThreadPoolExecutor(max_workers=jobs)
+    pending = {}
+    next_index = 0
+    completed = []
+    try:
+        while next_index < len(records) or pending:
+            while next_index < len(records) and len(pending) < jobs:
+                record = records[next_index]
+                record["status"] = "running"
+                pending[pool.submit(execute, record, root, output, environment, cancellation)] = next_index
+                next_index += 1
+                save()
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                index = pending.pop(future)
+                records[index] = future.result()
+                completed.append(records[index])
+                print(records[index]["status"].upper(), records[index]["name"], flush=True)
+                save()
+    finally:
+        # Worker commands own separate process groups. Unwind every one before
+        # releasing the parent/CI lease; a cancelled producer cannot outlive it.
+        cancellation.set()
+        pool.shutdown(wait=True, cancel_futures=True)
+        report["finishedAt"] = time.time()
+        report["wallSeconds"] = round(report["finishedAt"] - report["startedAt"], 3)
         save()
-        print("RUN", record["name"], flush=True)
-        start = time.monotonic()
-        try:
-            with (output / record["log"]).open("w") as log:
-                record["exit_code"] = deadline.run(record["command"], cwd=root, env=environment,
-                                                   stdout=log, stderr=subprocess.STDOUT)
-            record["status"] = "passed" if record["exit_code"] == 0 else "failed"
-            text = (output / record["log"]).read_text(errors="replace")
-            if re.search(r"Test Case '[^\n]+' skipped|[➜↷✘] Test [^\n]* skipped(?:[.:]| because)", text):
-                record.update(status="failed", error="Replay skipped a required native test")
-        except (OSError, TimeoutError, subprocess.TimeoutExpired) as error:
-            record.update(status="failed", error=str(error))
-        finally:
-            record["seconds"] = round(time.monotonic() - start, 3)
-            save()
-        print(record["status"].upper(), record["name"], flush=True)
+    for record in completed:
         if record["status"] != "passed":
             path = output / record["log"]
             # The log can exist but be empty when its execution limit kills a

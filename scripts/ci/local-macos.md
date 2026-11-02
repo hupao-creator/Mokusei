@@ -141,9 +141,24 @@ that plan with gh-signoff. See the [preparation record](self-hosted.md) for the
 actual installation paths, commands, privilege/network results and stopped VM
 pull. No administrator privilege or VM is required for this replacement.
 
-Until this commit is integrated by the caller, the published workflows still run
-macOS on GitHub. No local status or current-revision Complete coverage is claimed
-without an actual successful run. This worktree remains detached and is not pushed.
-The caller owns integration and the operator must run local checks for each
-required published revision. Never weaken the existing main protection to hide a
-missing local run.
+The gh-signoff migration was merged through PR #243. Exact-commit tests and the
+required Complete coverage check passed for its PR merge revision and separately
+for main `1f976a517587d2fc871e4e925fae324607d043eb`. These historical results do not
+certify a later revision.
+
+## Fast windowless feedback
+
+```sh
+python3 scripts/ci/local-macos.py headless --commit FULL_40_CHARACTER_SHA --reviewed
+```
+
+This builds current tests and runs only the reviewed windowless suites, with
+complete method/outcome accounting and zero allowed skips. It does not activate
+a test window or require motion/transparency preferences. AppKit, macOS and
+Metal are still required; a display-capability override alone is not evidence of
+physical WindowServer absence. The optional `signoff/macos-headless` status
+cannot satisfy the native gate. Use `--no-publish` for unpublished commits.
+
+The native mode now runs independent fixture producers with a maximum of two
+workers; `replays.py fixtures --jobs 1` retains the serial diagnostic control.
+The GUI phase, shared AppKit gate and all pixel/input assertions remain serial.

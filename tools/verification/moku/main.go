@@ -41,9 +41,6 @@ func runMokuReplays() error {
 	if options.swiftNoteExposure {
 		return runSwiftNoteExposureReplay()
 	}
-	if err := exportNativeTalkRecords(); err != nil {
-		return err
-	}
 	if err := exportNativeNoteRecords(); err != nil {
 		return err
 	}

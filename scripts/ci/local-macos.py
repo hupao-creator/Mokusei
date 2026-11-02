@@ -77,7 +77,7 @@ class Run:
     def retain_captures(self):
         if getattr(self, "captures_retained", False):
             return
-        if any(step["name"] == "swift-build" for step in self.receipt["steps"]):
+        if self.receipt["mode"] == "native" and any(step["name"] == "swift-build" for step in self.receipt["steps"]):
             for name in ("reading-presentation", "moku-note-production"):
                 source = ROOT / ".scratch" / name
                 if source.is_dir():
@@ -90,11 +90,20 @@ class Run:
             self.stage("xcode", ["xcodebuild", "-version"])
             self.stage("metal", ["xcrun", "--sdk", "macosx", "metal", "--version"])
             # Never alter personal motion/transparency settings or display modes.
-            self.stage("display", ["xcrun", "swift", "scripts/ci/native-environment.swift"])
+            if self.receipt["mode"] != "headless":
+                self.stage("display", ["xcrun", "swift", "scripts/ci/native-environment.swift"])
         goroot = subprocess.check_output([str(ROOT / "scripts/go.sh"), "env", "GOROOT"],
                                          cwd=ROOT, env=self.env, text=True).strip()
         self.env.update(PATH=str(Path(goroot) / "bin") + os.pathsep + self.env["PATH"],
                         MOKUSEI_GO=str(Path(goroot) / "bin/go"))
+
+    def headless(self):
+        evidence = Path(self.env["MOKUSEI_CI_EVIDENCE"])
+        evidence.mkdir()
+        self.stage("swift-build", ["xcrun", "swift", "build", "--package-path", "app/macos", "--build-tests",
+                                   "--force-resolved-versions", "--disable-index-store", "-j", "2"])
+        self.stage("swift-discovery", [PYTHON, "scripts/ci/swift-native.py", "prepare"])
+        self.stage("headless-swift", [PYTHON, "scripts/ci/swift-native.py", "headless", "--evidence", str(evidence)])
 
     def native(self):
         # Retain earlier captures separately; never present them as this run's evidence.
@@ -179,7 +188,7 @@ class Run:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["native", "extended", "overview"])
+    parser.add_argument("mode", choices=["native", "headless", "extended", "overview"])
     parser.add_argument("--commit", required=True, type=commit_sha)
     parser.add_argument("--baseline")
     parser.add_argument("--candidate")
@@ -228,7 +237,7 @@ def main():
         subprocess.run(command, cwd=ROOT, check=True, timeout=60)
     published_pending = False
     signal.signal(signal.SIGALRM, lambda *_: sys.exit("Local verification time limit exhausted"))
-    signal.alarm({"native": 3600, "overview": 1800, "extended": 7920}[args.mode])
+    signal.alarm({"native": 3600, "headless": 1800, "overview": 1800, "extended": 7920}[args.mode])
     try:
         if not args.no_publish:
             gh_json("-X", "POST", f"repos/{repository}/statuses/{args.commit}", "-f", "state=pending", "-f",

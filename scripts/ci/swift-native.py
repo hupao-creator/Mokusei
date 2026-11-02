@@ -11,12 +11,26 @@ import signal
 import sys
 import subprocess
 import time
+from collections import Counter
 
 import deadline
 from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "app/macos/.build/ci-manifest.json"
+
+# Reviewed windowless production boundaries. Unknown/new suites stay in the full
+# graphical run; this selection cannot replace the complete native audit.
+HEADLESS_SUITES = {
+    "MokuseiCoreTests.RuntimeProtocolTests",
+    "MokuseiCoreTests.RuntimeAppliedDeliveryTests",
+    "MokuseiCoreTests.RuntimeQueryCancellationTests",
+    "MokuseiSettingsIntegrationTests.NativeOverviewPackingTests",
+    "MokuseiSettingsIntegrationTests.NativeOverviewCameraReadabilityTests",
+    "MokuseiSettingsIntegrationTests.NativeMokuDirectoryMentionsTests",
+    "MokuseiSettingsIntegrationTests.NativeCloudMetalTests",
+    "MokuseiGitIntegrationTests.ThreadCardExtensionLayoutTests",
+}
 
 
 def identity():
@@ -69,7 +83,7 @@ def verify(evidence):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["fingerprint", "prepare", "verify", "run"])
+    parser.add_argument("mode", choices=["fingerprint", "prepare", "verify", "run", "headless"])
     parser.add_argument("--evidence", type=Path)
     args = parser.parse_args()
     if args.mode == "fingerprint":
@@ -82,6 +96,39 @@ def main():
         parser.error("--evidence is required")
     manifest = verify(args.evidence)
     if args.mode == "verify":
+        return
+    if args.mode == "headless":
+        from swift_reporting import summarize, terminal_methods
+        tests = [test for test in manifest["tests"] if test.split("/")[0] in HEADLESS_SUITES]
+        if {test.split("/")[0] for test in tests} != HEADLESS_SUITES:
+            raise RuntimeError("A reviewed headless suite is absent from the current build")
+        selection = "^(?:" + "|".join(re.escape(suite) + "/" for suite in sorted(HEADLESS_SUITES)) + ")"
+        command = ["xcrun", "swift", "test", "--skip-build", "--no-parallel", "--package-path", "app/macos",
+                   "--filter", selection]
+        log = args.evidence / "headless-swift.log"
+        receipt = {"revision": manifest["revision"], "tests": tests, "command": command, "status": "running",
+                   "dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT))}
+        path = args.evidence / "headless-swift.json"
+        path.write_text(json.dumps(receipt, indent=2) + "\n")
+        try:
+            with log.open("w") as stream:
+                receipt["exit_code"] = deadline.run(command, cwd=ROOT, env=dict(os.environ, MOKUSEI_TEST_HEADLESS="1"),
+                                                    stdout=stream, stderr=subprocess.STDOUT)
+            results, errors, _ = summarize([("Windowless Swift", log)])
+            outcomes = terminal_methods(log.read_text(errors="replace"), tests, errors)
+            if Counter(outcomes) != Counter((test, "passed") for test in tests):
+                errors.append("Headless execution must observe every selected method passing exactly once, without skips")
+            if receipt["exit_code"] != 0:
+                errors.append("Headless process failed")
+            receipt.update(results=results, errors=errors, status="failed" if errors else "passed")
+        except BaseException:
+            receipt["status"] = "failed"
+            raise
+        finally:
+            path.write_text(json.dumps(receipt, indent=2) + "\n")
+        print(json.dumps(receipt | {"tests": len(tests)}), flush=True)
+        if receipt["status"] != "passed":
+            raise SystemExit(1)
         return
     ordinary = manifest["ordinary"]
     receipt = {"revision": manifest["revision"], "tests": ordinary["tests"],

@@ -27,6 +27,9 @@ resources and evidence output into a temporary workspace, then exports results
 after the GUI process exits. The app validates those paths at startup and records
 its PID for timeout/cancellation cleanup. Desktop access is not needed.
 
-The older `moku-talk` replay currently references the removed
-`NativeMokuTalkScrollView`; this focused replay uses the current SwiftUI production
-content and does not claim to validate that older audit/dispatch suite.
+The former `moku-talk` driver and its dedicated Go audit exports were removed:
+they referenced the deleted `NativeMokuTalkScrollView` and its obsolete
+scroll-view/dispatch presentation. This replay uses current production content.
+Current Talk/dispatch state and binding contracts remain in the Swift suites and
+Moku backend replays; the retired driver's old OCR/layout claims are not claimed
+as current coverage.
