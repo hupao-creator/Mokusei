@@ -90,6 +90,8 @@ def main():
     thread_suite = "--model-selector" in sys.argv or "--rolling-numbers" in sys.argv or "--initial-response" in sys.argv or "--harness-forms" in sys.argv
     suites = (["NativeMokuHistoryComposerTests", "NativeBrowserViewportTests", "NativeReportNavigationTests", "NativeThreadHistorySidebarTests", "NativeMokuLandingTests"]
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeReadingPagePresentationTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
+    if "--rolling-numbers" in sys.argv:
+        suites.append("GitThreadExtensionTests")
     tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
@@ -169,7 +171,9 @@ def main():
                     "|".join(isolated_methods) if isolated_input else
                     "directorySelectionResizeKeepsRoundedGlass|shortChildMorphKeepsBothCapsuleEnds|titleReversalAndVisibilityCancellationSettlePixels|excerptRevealKeepsMovingThroughRewriteAndWidthChanges|nativeCloudAndScanMoveInComposedOverview|retainedOverviewReturnsWithLatestContent|productionAnimationMountsWithoutAnOpaqueFirstFrame"
                     if glass_captures else
-                    "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else suite)
+                    "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else
+                    "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
+                    if "--rolling-numbers" in sys.argv else suite)
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests", env=environment,
                             launch_environment={key: environment[key] for key in (
@@ -197,8 +201,8 @@ def main():
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
              5 if "--thread-sidebar" in sys.argv else
-             8 if "--moku-execution-links" in sys.argv else
-             3 if "--rolling-numbers" in sys.argv else
+             9 if "--moku-execution-links" in sys.argv else
+             4 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
@@ -217,6 +221,10 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if "--moku-execution-links" in sys.argv and "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED" not in result.stdout:
+        raise SystemExit("FAIL: execution capsules did not confirm their native input path")
+    if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
+        raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")
     if glass_captures:
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",

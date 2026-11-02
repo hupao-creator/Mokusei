@@ -7,7 +7,7 @@ import MokuseiTestSupport
 #endif
 import MokuseiCore
 import MokuseiPluginAPI
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 import MokuseiHarnessCodex
 import MokuseiHarnessClaude
 import MokuseiHarnessPi
@@ -153,7 +153,7 @@ private struct ExecutionLinkSurface: View {
         VStack(spacing: 0) {
             NativeMokuNoteContent(note: .init(id: "note", text: fixture.noteText, revision: 1, updatedAt: 1),
                 width: 620, height: 110, availableHeight: 110,
-                openExternal: { fixture.external.append($0) }, openExecution: fixture.presentation.openNoteExecution)
+                openExternal: { fixture.external.append($0) }, openExecution: fixture.presentation.openNoteExecution, workspace: fixture.workspace)
                 .frame(height: 110)
             if fixture.presentation.selected != nil {
                 let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
@@ -178,12 +178,16 @@ private struct ExecutionLinkSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMokuExecutionLinkTests {
-    private func element(id: String, in root: NSView) -> NSObject? {
+    private func element(id: String, nativeOnly: Bool = false, label: String? = nil, in root: NSView) -> NSObject? {
         var seen = Set<ObjectIdentifier>()
         func find(_ object: AnyObject) -> NSObject? {
             guard seen.insert(ObjectIdentifier(object)).inserted, seen.count < 10000, let object = object as? NSObject else { return nil }
             let identifier = NSSelectorFromString("accessibilityIdentifier")
-            if object.responds(to: identifier), object.perform(identifier)?.takeUnretainedValue() as? String == id { return object }
+            if object.responds(to: identifier), object.perform(identifier)?.takeUnretainedValue() as? String == id {
+                let selector = NSSelectorFromString("accessibilityLabel")
+                if label == nil || (object.responds(to: selector)
+                    && (object.perform(selector)?.takeUnretainedValue() as? String)?.contains(label!) == true) { return object }
+            }
             let children = NSSelectorFromString("accessibilityChildren")
             if object.responds(to: children), let values = object.perform(children)?.takeUnretainedValue() as? [AnyObject] {
                 for value in values { if let found = find(value) { return found } }
@@ -193,7 +197,7 @@ struct NativeMokuExecutionLinkTests {
             if object.responds(to: legacy), let values = object.perform(legacy, with: "AXChildren")?.takeUnretainedValue() as? [AnyObject] {
                 for value in values { if let found = find(value) { return found } }
             }
-            if let view = object as? NSView {
+            if !nativeOnly, let view = object as? NSView {
                 for child in view.subviews { if let found = find(child) { return found } }
             }
             return nil
@@ -210,6 +214,10 @@ struct NativeMokuExecutionLinkTests {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
     }
     private func click(_ label: String, in root: NSView) throws {
+        if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
+            _ = capsule.perform(NSSelectorFromString("accessibilityPerformPress"))
+            return
+        }
         let view = try #require(textViews(root).first { $0.string.contains(label) })
         let index = (view.string as NSString).range(of: label).location
         let link = try #require(view.textStorage?.attribute(.link, at: index, effectiveRange: nil))
@@ -225,6 +233,105 @@ struct NativeMokuExecutionLinkTests {
         }
     }
 
+    @Test(arguments: ["codex", "claude", "pi", "opencode"])
+    func noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness: String) async throws {
+        try #require(NSApp?.isRunning == true, "The capsule input case requires its declared AppKit replay owner")
+        let fixture = try ExecutionLinkFixture(harness)
+        let title = "检查长标题连续换行，保留执行引用的关键信息 e\u{301} 与 👩🏽‍💻"
+        let note = NativeMokuNote(id: "same-note", text: "参考 [Website](https://example.com)；已完成 [\(title)](mokusei://execution?threadId=ordinary&executionId=target)。\n\n[Plain](https://example.com/plain)", revision: 1, updatedAt: 1)
+        let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: 280, height: 350,
+            availableHeight: 350, openExternal: { fixture.external.append($0) },
+            openExecution: fixture.presentation.openNoteExecution, workspace: fixture.workspace), width: 280, height: 350, offscreen: true)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        func attachments() -> [MarkdownExecutionAttachment] {
+            textViews(root).flatMap { view in
+                var found: [MarkdownExecutionAttachment] = []
+                if let storage = view.textStorage {
+                    storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, _, _ in
+                        if let attachment = value as? MarkdownExecutionAttachment { found.append(attachment) }
+                    }
+                }
+                return found
+            }
+        }
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: title, in: root) != nil }
+        let capsule = try #require(attachments().first)
+        #expect(attachments().count == 1)
+        #expect(capsule.harness?.descriptor.id == JSONText(harness))
+        #expect(capsule.size.width <= 244)
+        #expect(capsule.size.height > 30)
+        let text = try #require(textViews(root).first { $0.string.contains("Website") } as? MarkdownTextView)
+        let website = (text.string as NSString).range(of: "Website")
+        #expect(text.textStorage?.attribute(.link, at: website.location, effectiveRange: nil) as? URL == URL(string: "https://example.com"))
+        #expect((text.linkTextAttributes?[.underlineStyle] as? Int) == NSUnderlineStyle.single.rawValue)
+        let plain = try #require(textViews(root).first { $0.string == "Plain" })
+        let paragraph = try #require(plain.textStorage?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(paragraph.maximumLineHeight == 13 * 1.8)
+        window.makeFirstResponder(text)
+        text.selectAll(nil); text.copy(nil)
+        #expect(NSPasteboard.general.string(forType: .string) == "参考 Website；已完成 \(title)。\nPlain")
+        let hosts = text.subviews.compactMap { $0 as? MarkdownExecutionHost }
+        #expect(hosts.count == 1)
+        let host = try #require(hosts.first)
+        #expect(host.frame.minX >= -1 && host.frame.maxX <= text.bounds.width + 1)
+        #expect(host.frame.minY >= -1 && host.frame.maxY <= text.bounds.height + 1)
+        #expect(host.hitTest(NSPoint(x: host.bounds.midX, y: host.bounds.midY)) == nil)
+
+        func publish(_ threads: [JSONValue], revision: Int) throws {
+            try fixture.workspace.catalog.install(.object(["revision": .integer(revision), "settingsRevision": .integer(0),
+                "defaultCwd": .text(""), "settings": .object([:]), "threads": .array(threads),
+                "executions": .array([]), "applicationThreads": .array([])]))
+        }
+        try publish([], revision: 2)
+        try await SwiftUIReplay.wait { attachments().count == 1 && attachments().first?.harness == nil }
+        #expect(element(id: "moku-note-execution-link", nativeOnly: true, label: title, in: root) != nil)
+        text.executionLocale = Locale(identifier: "zh-CN")
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "执行记录 ·", in: root) != nil }
+        text.executionLocale = Locale(identifier: "en-US")
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "Execution ·", in: root) != nil }
+        var unknown = try #require(fixture.thread.json.objectValue)
+        unknown["harnessId"] = .text("not-registered")
+        try publish([.object(unknown)], revision: 3)
+        try await SwiftUIReplay.wait { attachments().first?.harness == nil }
+        try publish([fixture.thread.json], revision: 4)
+        try await SwiftUIReplay.wait { attachments().first?.harness?.descriptor.id == JSONText(harness) }
+        #expect(text.subviews.contains { $0 === host })
+        try click("Website", in: root)
+        #expect(fixture.external == [URL(string: "https://example.com")!])
+        try click(title, in: root)
+        #expect(fixture.presentation.readingTarget?.executionID == "target")
+        fixture.presentation.finishBack()
+        let storage = try #require(text.textStorage)
+        var linkRange: NSRange?
+        storage.enumerateAttribute(.nativeMarkdownExecution, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            if value != nil { linkRange = range }
+        }
+        let range = try #require(linkRange)
+        text.setSelectedRange(range)
+        let enter = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+        text.keyDown(with: enter)
+        #expect(fixture.presentation.readingTarget?.executionID == "target")
+        // The mandatory AppKit owner supplies NSTextView's tracking loop.
+        fixture.presentation.finishBack()
+        let layout = try #require(text.layoutManager), container = try #require(text.textContainer)
+        let box = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
+        let point = text.convert(NSPoint(x: box.midX + text.textContainerOrigin.x, y: box.midY + text.textContainerOrigin.y), to: nil)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 1, clickCount: 1, pressure: 1))
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 2, clickCount: 1, pressure: 0))
+        NSApp.postEvent(up, atStart: true)
+        text.mouseDown(with: down)
+        #expect(fixture.presentation.readingTarget?.executionID == "target")
+        print("MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED")
+        window.close(); await fixture.close()
+    }
+
     @Test(arguments: ["codex", "claude", "pi", "opencode"], ["prior", "target", "missing"])
     func noteResultBackClosesTheRouteAndReopeningStillLoads(harness: String, execution: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
@@ -233,7 +340,7 @@ struct NativeMokuExecutionLinkTests {
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "View result", in: root) != nil }
         for attempt in 0..<2 {
             try click("View result", in: root)
             try await SwiftUIReplay.wait { fixture.conversation?["destination"] == .text(execution == "missing" ? "unavailable" : "history") }
@@ -295,7 +402,7 @@ struct NativeMokuExecutionLinkTests {
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "View result", in: root) != nil }
         try click("View result", in: root)
         #expect(fixture.presentation.selected?.threadID == "ordinary")
         #expect(fixture.presentation.readingTarget?.executionID == "target")
@@ -349,7 +456,7 @@ struct NativeMokuExecutionLinkTests {
                 Issue.record(Comment(rawValue: "Could not encode execution-link receipts: \(error)"))
             }
         }
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "View result", in: root) != nil }
         try click("View result", in: root)
         try await ready(fixture)
         #expect(fixture.scroll?["value"]?["following"] == .bool(true))
@@ -399,7 +506,7 @@ struct NativeMokuExecutionLinkTests {
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("View result") } }
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "View result", in: root) != nil }
         try click("View result", in: root)
         #expect(fixture.presentation.selected?.threadID == "ordinary")
         try await ready(fixture)

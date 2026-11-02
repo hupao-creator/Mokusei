@@ -67,6 +67,7 @@ struct NativeMokuNoteContent: View {
     var routeEligible = true
     let openExternal: ((URL) -> Void)?
     var openExecution: ((ApplicationExecutionRef) -> Void)? = nil
+    var workspace: NativeWorkspaceModel? = nil
     var onContentHeightChange: ((CGFloat) -> Void)?
     var claimOpenArm: () -> Bool = { false }
     var onExposure: ((NativeMokuNote) -> Void)?
@@ -140,11 +141,22 @@ struct NativeMokuNoteContent: View {
         .frame(height: 24)
         .padding(.horizontal, 18).padding(.top, 18)
     }
+    private var executionHarnesses: [JSONText: AnyHarnessPlugin] {
+        guard let workspace else { return [:] }
+        // Observe the public catalog, not private transcript bodies. Missing or
+        // unregistered targets keep their neutral symbol until metadata arrives.
+        var result: [JSONText: AnyHarnessPlugin] = [:]
+        for thread in workspace.catalog.threads where thread.moku != true && !thread.mokuHistory {
+            result[thread.id] = try? workspace.plugins.harnesses.require(thread.harnessID)
+        }
+        return result
+    }
+
     private var noteBody: some View {
         Group {
             if let note {
                 NativeMarkdownView(text: note.text, fontSize: 13, openExternal: openExternal,
-                    openExecution: openExecution, documentToken: note.documentToken,
+                    openExecution: openExecution, executionLinkHarnesses: executionHarnesses, documentToken: note.documentToken,
                     onDocumentApplied: { exposure.applied($0) })
                     .id(note.documentToken)
                     .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,

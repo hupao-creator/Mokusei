@@ -22,6 +22,8 @@ public struct NativeMarkdownView: View {
     public var openExternal: ((URL) -> Void)?
     public var openExecution: ((ApplicationExecutionRef) -> Void)?
     public var resolveMedia: NativeMarkdownMediaResolver?
+    /// Opt-in decoration supplied only by the note; an empty map retains neutral capsules.
+    public var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]?
     public var documentToken: String?
     public var onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)?
     @Environment(\.nativeMarkdownMediaResolver) private var environmentMediaResolver
@@ -34,11 +36,13 @@ public struct NativeMarkdownView: View {
                 muted: Bool = false, openExternal: ((URL) -> Void)? = nil,
                 resolveMedia: NativeMarkdownMediaResolver? = nil,
                 openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
+                executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil,
                 documentToken: String? = nil,
                 onDocumentApplied: ((NativeMarkdownAppliedDocument?) -> Void)? = nil) {
         self.text = text; self.sourceBytes = Data(text.utf8); self.streaming = streaming
         self.fontSize = fontSize; self.muted = muted; self.openExternal = openExternal
         self.resolveMedia = resolveMedia; self.openExecution = openExecution
+        self.executionLinkHarnesses = executionLinkHarnesses
         self.documentToken = documentToken; self.onDocumentApplied = onDocumentApplied
     }
 
@@ -56,7 +60,7 @@ public struct NativeMarkdownView: View {
         let options = MarkdownViewOptions(
             fontSize: fontSize, muted: muted,
             openLink: actions.open, resolveMedia: media,
-            anchorPrefix: model.anchorPrefix, actions: actions)
+            anchorPrefix: model.anchorPrefix, actions: actions, executionLinkHarnesses: executionLinkHarnesses)
         return Group {
             if pageCapacity != nil, streaming || hasStreamed {
                 // Page-level streaming keeps the open page invisible until it
@@ -176,6 +180,7 @@ struct MarkdownViewOptions {
     var resolveMedia: NativeMarkdownMediaResolver?
     var anchorPrefix: String
     var actions: MarkdownViewActions? = nil
+    var executionLinkHarnesses: [JSONText: AnyHarnessPlugin]? = nil
 
     struct Rendering: Equatable, Sendable {
         let actions: ObjectIdentifier?
@@ -183,11 +188,13 @@ struct MarkdownViewOptions {
         let muted: Bool
         let anchorPrefix: String
         let media: Bool
+        let executionHarnesses: [JSONText: ObjectIdentifier]?
     }
 
     var rendering: Rendering {
         Rendering(actions: actions.map(ObjectIdentifier.init), fontSize: fontSize, muted: muted,
-                  anchorPrefix: anchorPrefix, media: resolveMedia != nil)
+                  anchorPrefix: anchorPrefix, media: resolveMedia != nil,
+                  executionHarnesses: executionLinkHarnesses?.mapValues(ObjectIdentifier.init))
     }
 }
 
@@ -349,7 +356,8 @@ struct MarkdownInlineView: View {
 
     var body: some View {
         MarkdownSelectableText(spans: displayedSpans, fontSize: fontSize, weight: weight, muted: muted, strongInk: strongInk, tracking: tracking,
-                               lineHeight: lineHeight, alignment: alignment, images: images, selectionScope: options.anchorPrefix, openLink: options.openLink)
+                               lineHeight: lineHeight, alignment: alignment, images: images, selectionScope: options.anchorPrefix,
+                               executionLinkHarnesses: options.executionLinkHarnesses, openLink: options.openLink)
         .fixedSize(horizontal: false, vertical: true)
         .help(imageFailure ?? "")
         .task(id: sources) {

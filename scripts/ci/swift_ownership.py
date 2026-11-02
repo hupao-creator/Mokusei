@@ -2,6 +2,12 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkTests/noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness:)": {
+        "group": "native", "check": "moku-execution-links", "marker": "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED",
+    },
+    "MokuseiGitIntegrationTests.GitThreadExtensionTests/sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes()": {
+        "group": "native", "check": "rolling-numbers", "marker": "GIT_TOKEN_FLIP_FRAMES_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeOnboardingTagSurfaceTests/productionAnimationMountsWithoutAnOpaqueFirstFrame()": {
         "group": "native", "check": "tag-glass-captures", "marker": "TAG_ONBOARDING_FIRST_FRAME_CONFIRMED",
     },
