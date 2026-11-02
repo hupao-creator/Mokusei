@@ -9,7 +9,9 @@ commands or independent copy of page state.
 
 `interactionSnapshot()` reports the semantic route, mounted reading/settings
 surface, navigation animation activity, settings save state, search, filter and
-thread identities, available action names and errors. `settings.appearance` and
+thread identities, available action names and errors. Overview camera observations
+contain ordinary framing, viewport, motion and pause facts; they expose no
+automatic per-card target. `settings.appearance` and
 `settings.locale` report the saved client preferences even when Settings is closed
 or the Runtime is unavailable. Thread targets are the current Overview projection;
 stale or filtered-out targets are rejected.

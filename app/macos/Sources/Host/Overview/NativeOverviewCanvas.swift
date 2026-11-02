@@ -9,19 +9,17 @@ public struct NativeOverviewItem: Identifiable, Equatable, Sendable {
     public var columns: Int
     public var rows: Int
     public var structureKey: String
-    public var carouselEligible: Bool
     public var needsAttention: Bool
     /// Opaque identity of the owning plugin projection; excluded from structural layout signatures.
     public var presentationID: String
     public var completed: Bool
 
     public init(id: String, columns: Int = 1, rows: Int = 1, structureKey: String = "",
-                carouselEligible: Bool = false, needsAttention: Bool = false, presentationID: String = "", completed: Bool = false) {
+                needsAttention: Bool = false, presentationID: String = "", completed: Bool = false) {
         self.id = id
         self.columns = columns
         self.rows = rows
         self.structureKey = structureKey
-        self.carouselEligible = carouselEligible
         self.needsAttention = needsAttention
         self.presentationID = presentationID
         self.completed = completed
@@ -380,11 +378,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
         if let previous = attachedContent, previous !== source { previous.release(owner: ownership) }
         attachedContent = source
         let owner = ownership, state = state
-        source.observe(owner: owner) { [weak source, weak state] change in
+        source.observe(owner: owner) { [weak source, weak state] in
             guard let source, let state, state.hostOwner == owner else { return }
             state.activeIDs = source.activeIDs
-            if change.carousel && !change.structure { Self.updateCarousel(state, records: source.records) }
-            if change.attention || change.structure { state.camera.onChange?() }
+            state.camera.onChange?()
         }
         state.camera.reduceMotion = spatialMotionReduced
         state.hostOwner = ownership
@@ -434,14 +431,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
     }
     private func retain() {
         onRetainedPresentationIDsChanged?(Set(rendered.map { $0.item.presentationID }).union(retiringPresentationIDs))
-    }
-    private func updateCarousel() { Self.updateCarousel(state, records: contentStore.records) }
-    private static func updateCarousel(_ state: NativeOverviewCanvasState, records: [String: NativeOverviewItem]) {
-        state.camera.setCarouselCards(state.presentedPlacements.compactMap { placement in
-            guard let item = records[placement.id] else { return nil }
-            return .init(id: item.id, rect: .init(left: Double(placement.column) * 376, top: Double(placement.row) * 216,
-                width: Double(placement.columns) * 376 - 16, height: Double(placement.rows) * 216 - 16), eligible: item.carouselEligible)
-        })
     }
     private func reconcile(_ viewport: NativeOverviewViewport, items: [NativeOverviewItem]) async {
         guard viewport.width > 0, viewport.height > 0, state.hostOwner == ownership else { return }
@@ -498,7 +487,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             retain()
             state.geometryReuseCount += 1
             plannedViewport = viewport
-            updateCarousel()
             state.camera.requestRefit(content: contentRect, viewport: viewport)
             return
         }
@@ -534,8 +522,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let planning = Task.detached(priority: .userInitiated) {
             let preferred = try NativeOverviewLayout.plan(previous: previous, next: members, fittingSize: fittingSize,
                                           preferredSize: ordinaryLayout ? preferredSize : nil, preservePositions: ordinaryLayout)
-            // Preserve ordinary packing when it fits. Before admitting a
-            // carousel, also try the real control-free extent: a wider shape
+            // Preserve ordinary packing when it fits. Also try the actual
+            // control-free extent before accepting overflow: a wider shape
             // can fit even when the preferred inset planner chose a tall one.
             if preferred.bounds.width > capacitySize.width + 1e-6 || preferred.bounds.height > capacitySize.height + 1e-6 {
                 return try NativeOverviewLayout.plan(previous: previous, next: members, fittingSize: capacitySize,
@@ -680,7 +668,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
         retain()
         if next.isEmpty { state.memory.current = nil }
         state.refreshInteractionPause()
-        updateCarousel()
         // Entrants change the collection being framed even when survivors keep
         // their world positions. The old camera would leave new cards at an edge.
         state.camera.requestRefit(content: contentRect, viewport: viewport, layoutChanged: previous != plan.placements,

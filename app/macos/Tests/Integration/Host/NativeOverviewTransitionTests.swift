@@ -663,8 +663,6 @@ struct NativeOverviewTransitionTests {
         var consumed1At: TimeInterval?
         var samples: [[String: Any]] = []
         var consumed: [[String: Any]] = []
-        var logicalCompletionAt: TimeInterval?
-        var mountedCompletionAt: TimeInterval?
         var droppedSamples = 0
         let camera = fixture.state.camera.liveTransform
         let final = [NativeOverviewItem(id: "a"), .init(id: "instant")]
@@ -698,8 +696,7 @@ struct NativeOverviewTransitionTests {
                 "precedingInjection": describe(precedingInjection), "beforeInjection": describe(beforeInjection),
                 "beforeFirstConsumption": describe(beforeFirstConsumption), "samples": samples,
                 "droppedSamples": droppedSamples, "consumptions": consumed,
-                "logicalCompletionAt": timestamp(logicalCompletionAt), "mountedCompletionAt": timestamp(mountedCompletionAt),
-                "finalMountedCardIDs": fixture.state.mountedCardIDs.sorted(), "finalIsLayingOut": fixture.state.isLayingOut]
+                "finalMountedIDs": fixture.state.mountedCardIDs.sorted()]
             do {
                 let data = try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys])
                 FileHandle.standardOutput.write(Data("OVERVIEW_ENTRY_REVISION_RECEIPTS ".utf8) + data + Data("\n".utf8))
@@ -764,15 +761,13 @@ struct NativeOverviewTransitionTests {
         let after = afterSample.frame
         #expect(after.minY < before.minY - 2)
         #expect(fixture.consumed.first == 1)
-        // Reconcile can finish before SwiftUI delivers onDisappear for the
-        // retired leaf. Require both boundaries within the same bounded wait.
+        // Revision consumption finishes geometry work; SwiftUI delivers the
+        // retiring card's onDisappear in a following presentation transaction.
+        // Observe that native lifetime too, within the same three-second budget.
         try await waitForReceipt({
-            let logicalCompletion = fixture.consumed == [1, 2] && !fixture.state.isLayingOut
-            if logicalCompletion && logicalCompletionAt == nil { logicalCompletionAt = ProcessInfo.processInfo.systemUptime }
-            let mountedCompletion = fixture.state.mountedCardIDs == ["a", "instant"]
-            if logicalCompletion && mountedCompletion { mountedCompletionAt = ProcessInfo.processInfo.systemUptime }
-            return logicalCompletion && mountedCompletion
-        }, "The queued revisions did not complete in FIFO order with their final mounted membership")
+            fixture.consumed == [1, 2] && !fixture.state.isLayingOut
+                && fixture.state.mountedCardIDs == ["a", "instant"]
+        }, "The queued revisions did not complete in FIFO order with their retired card unmounted")
         #expect(fixture.appearances["a"] == 1)
         #expect(fixture.state.mountedCardIDs == ["a", "instant"])
     }
