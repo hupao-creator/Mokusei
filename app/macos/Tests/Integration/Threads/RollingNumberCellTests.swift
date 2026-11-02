@@ -214,7 +214,12 @@ extension RollingNumberCellTests {
         let inputAt = ProcessInfo.processInfo.systemUptime
         probe.value = "888"
         let inputReturnedAt = ProcessInfo.processInfo.systemUptime
-        try await Task.sleep(for: .milliseconds(65))
+        let zeroTolerance = ProcessInfo.processInfo.environment["MOKUSEI_ROLLING_ZERO_TOLERANCE"] == "1"
+        if zeroTolerance {
+            try await Task.sleep(for: .milliseconds(65), tolerance: .zero)
+        } else {
+            try await Task.sleep(for: .milliseconds(65))
+        }
         let duringAt = ProcessInfo.processInfo.systemUptime
         let during = try inkRows()
         let duringFinishedAt = ProcessInfo.processInfo.systemUptime
@@ -250,6 +255,7 @@ extension RollingNumberCellTests {
             let receipt: [String: Any] = ["inputAt": inputAt, "inputReturnedAt": inputReturnedAt,
                 "duringAt": duringAt, "duringFinishedAt": duringFinishedAt,
                 "settledAt": settledAt, "settledFinishedAt": settledFinishedAt,
+                "requestedSleepTolerance": zeroTolerance ? "zero" : "default",
                 "applicationActiveAtInput": activeAtInput, "applicationRunningAtInput": runningAtInput,
                 "activationPolicyAtInput": activationPolicyAtInput, "windowKeyAtInput": keyAtInput,
                 "windowVisibleAtInput": visibleAtInput, "windowOcclusionVisibleAtInput": unoccludedAtInput,
