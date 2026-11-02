@@ -658,6 +658,13 @@ For window-free Host routing and content-handle lifetime verification, run
 These two tests cover 12 route cases and three content scopes. They do not
 certify the mounted window Back control, Escape delivery or return animation;
 the other six tests require a graphical session and explicitly skip headless.
+The nine-method replay also mounts the production clear-glass execution capsules
+for all four Harnesses. It checks narrow long-title geometry, native accessible
+activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
+brands without changing the note incarnation or revision. That capsule method
+has a mandatory `native/moku-execution-links` CI owner and must emit
+`MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`; a non-running AppKit host fails its
+prerequisite rather than silently omitting the mouse path.
 
 ## Report controls and recovery
 
@@ -692,3 +699,12 @@ frame and the newest-live-frame/freshness rules remain authoritative. Frame-wake
 receipts accompany the existing pixel/input timing evidence. The production
 Canvas revision replay separately waits for actual final mounted membership,
 not only the logical FIFO/layout completion flag.
+
+### Git token animation owner
+
+`--rolling-numbers` runs the three existing cell/projection cases and the Git
+summary/original-size flip case in the real AppKit loop. The latter has an explicit
+mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, the
+original three sampling intervals, three distinct frames and fixed 400×90 geometry
+remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
+are audited; ordinary-suite exclusion never substitutes for that execution.
