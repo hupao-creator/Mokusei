@@ -46,7 +46,17 @@ playback settles to the completed composition without replaying on activation.
 Reduce Motion shows the completed composition without deferred playback. Tag
 also rebuilds a static final frame on size, appearance, locale or Harness changes
 after playback starts, and pauses SpriteKit once that frame is rendered. Tag's
-collision boundaries remain invisible. Report gathers dense documents into one
+collision boundaries remain invisible. A native `SKView` adapter makes both the
+view and its backing Metal layer nonopaque and clears the layer before presenting
+the scene. This keeps tab entry transparent before SpriteKit's first drawable;
+a clear scene background alone does not configure the native host. Ordinary
+updates retain scene identity, and unmounting pauses and detaches it.
+`NativeOnboardingTagSurfaceTests` mounts the production animation and captures
+continuous WindowServer frames across entry and return, rejecting a broad light
+rectangle in the dark animation area. CI retains those frames alongside its
+native evidence. The same suite checks pause/resume, scene replacement and
+unmount/remount ownership.
+Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
 
 The setup panel does not mount a hidden composer. Pointer, keyboard, semantic
