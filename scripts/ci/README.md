@@ -90,6 +90,7 @@ failed/cancelled/in-progress runs and reused jobs remain visible in raw evidence
 The per-run JSON also records time from the first trigger to creation of the
 first observed job. This can include event processing or concurrency scheduling;
 it is separate from each job's runner queue and does not identify its cause.
+An attempt with no observed jobs has unknown runner work, not zero seconds.
 Compare matched code scope, workflow revision, runner image and cache state;
 never count a skipped documentation run as a faster full run.
 

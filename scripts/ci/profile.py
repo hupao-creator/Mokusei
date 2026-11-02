@@ -65,7 +65,7 @@ def summarize(samples):
                      "elapsedSeconds": max(completed) - timestamp(run["created_at"])
                      if run["status"] == "completed" and completed else None,
                      "runnerSecondsThisAttempt": sum(job["executionSeconds"] for job in current)
-                     if all(job["executionSeconds"] is not None for job in current) else None})
+                     if current and all(job["executionSeconds"] is not None for job in current) else None})
     aggregates = []
     for (workflow, scope, name), jobs in sorted(groups.items()):
         def stats(values):
