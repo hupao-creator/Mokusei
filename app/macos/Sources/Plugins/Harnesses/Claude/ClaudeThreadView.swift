@@ -137,7 +137,7 @@ struct ClaudeTurnView: View {
                 cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active)
     }
     private var rows: [ThreadDetailRow] {
-        let timeline = claudeProjectTimeline(turn), starts = claudeActivityRunStarts(turn)
+        let timeline = claudeProjectTimeline(turn).filter { $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)
         let final = waiting ? nil : timeline.last(where: { $0.claudeKind == "assistant" && !claudeTrim($0["content"]).isEmpty })?.claudeID("id")
         var rows: [ThreadDetailRow] = [], index = 0
         while index < timeline.count {
@@ -161,14 +161,13 @@ struct ClaudeTurnView: View {
         for kind in fallbackKinds where !kinds.contains(kind) {
             let field = kind == "assistant" ? "text" : kind
             var fields: [String: JSONValue] = [:]
-            if kind == "plan" { guard !turn.plan.isEmpty else { continue }; fields["plan"] = .array(turn.plan); fields["explanation"] = turn.raw["planExplanation"] }
-            else if kind == "context-compaction" { guard turn.raw["compacted"] == .bool(true) else { continue } }
+            if kind == "context-compaction" { guard turn.raw["compacted"] == .bool(true) else { continue } }
             else { guard kind == "reasoning" ? (!claudeTrim(turn.raw[field]).isEmpty || executionPresence.contains(turn.id, "reasoning")) : turn.raw[field]?.stringValue?.isEmpty == false else { continue }; fields[kind == "error" ? "message" : "content"] = turn.raw[field]; if kind == "assistant" { fields["status"] = .text(active ? "streaming" : "complete") } }
             let row = detail(synthetic(kind, kind: kind, fields: fields), final: kind == "assistant" && !waiting)
             rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: kind == "reasoning" ? .member : nil, executionSummary: row.executionSummary, finalReply: row.finalReply))
         }
         }
-        appendFallback(["reasoning","assistant","plan"])
+        appendFallback(["reasoning","assistant"])
         let activityIDs = Set(timeline.filter { $0.claudeKind == "activity" }.map { $0["activity"]!.claudeID("id") })
         let remaining = turn.activities.filter { !activityIDs.contains($0.claudeID("id")) }
         if !remaining.isEmpty { rows.append(ThreadDetailRow(id: synthetic("activities", kind: "activity").claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: remaining)), execution: .member, executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count))) }
@@ -177,7 +176,7 @@ struct ClaudeTurnView: View {
             for value in values where !referenced.contains(value.claudeID("id")) { rows.append(detail(syntheticID(JSONText(codeUnits: Array((kind + ":").utf16) + value.claudeID("id").codeUnits), kind: kind, fields: [kind:value]), final: false)) }
         }
         appendFallback(["error","review","context-compaction"])
-        return bindThreadExecutionSource(rows: rows, source: turn.timeline, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
+        return bindThreadExecutionSource(rows: rows, source: turn.timeline.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
     }
     private func synthetic(_ id: String, kind: String, fields: [String: JSONValue] = [:]) -> JSONValue {
         syntheticID(JSONText(id), kind: kind, fields: fields)

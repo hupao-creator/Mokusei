@@ -52,21 +52,22 @@ struct CodexTurnRows: View {
     }
 
     private var rows: [ThreadDetailRow] {
+        let timeline = turn.timeline.filter { $0.kind != "plan" }
         let messages = firstByID(turn.messages)
         let interactions = firstByID(turn.interactions)
         let activities = firstByID(turn.activities)
         var notices: [JSONText: JSONValue] = [:]
         for notice in turn.notices where notices[notice.codexIdentity("id")] == nil { notices[notice.codexIdentity("id")] = notice }
-        let lastAssistant = turn.timeline.lastIndex(where: { $0.kind == "assistant" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
+        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
         var result: [ThreadDetailRow] = []
         var index = 0
-        while index < turn.timeline.count {
-            let item = turn.timeline[index]
+        while index < timeline.count {
+            let item = timeline[index]
             if item.kind == "activity" {
                 var group: [CodexActivity] = []
                 var next = index
-                while next < turn.timeline.count && turn.timeline[next].kind == "activity" {
-                    if let activity = activities[turn.timeline[next].raw.codexIdentity("activityId")] { group.append(activity) }
+                while next < timeline.count && timeline[next].kind == "activity" {
+                    if let activity = activities[timeline[next].raw.codexIdentity("activityId")] { group.append(activity) }
                     next += 1
                 }
                 if !group.isEmpty {
@@ -91,7 +92,7 @@ struct CodexTurnRows: View {
             }
             index += 1
         }
-        return bindThreadExecutionSource(rows: result, source: turn.timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" })
+        return bindThreadExecutionSource(rows: result, source: timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" })
     }
 
     private func node(_ item: CodexTimelineItem, messages: [JSONText: CodexMessage], interactions: [JSONText: CodexInteraction], notices: [JSONText: JSONValue]) -> AnyView? {
@@ -107,9 +108,6 @@ struct CodexTurnRows: View {
                 NativeMarkdownView(text: item.content, streaming: active && turn.timeline.last?.id == item.id,
                     muted: true, openExternal: openExternal, resolveMedia: context.resolveMedia)
             })
-        case "plan":
-            guard !turn.plan.isEmpty else { return nil }
-            return AnyView(CodexPlan(turn: turn))
         case "interaction":
             guard let interaction = interactions[item.raw.codexIdentity("interactionId")] else { return nil }
             return AnyView(CodexInteractionPanel(interaction: interaction, publicInteraction: publicInteractions[interaction.id],
@@ -168,34 +166,6 @@ private struct CodexNotice: View {
     var body: some View {
         Text(message).font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8).textSelection(.enabled)
-    }
-}
-
-private struct CodexPlan: View {
-    let turn: CodexTurn
-    @Environment(\.locale) private var locale
-    var body: some View {
-        ThreadSurfacePlan(explanation: turn.planExplanation, label: codexLocalized("计划", locale: locale),
-            completed: turn.plan.filter { $0["status"]?.stringValue == "completed" }.count, total: turn.plan.count) {
-            ForEach(Array(turn.plan.enumerated()), id: \.offset) { _, step in
-                ThreadSurfacePlanRow(state: planState(step["status"]?.stringValue ?? "pending"), inProgress: step["status"]?.stringValue == "inProgress") {
-                    Text(step["step"]?.stringValue ?? "")
-                }
-            }
-        }
-    }
-    private func planState(_ status: String) -> AnyView {
-        switch status {
-        case "completed": AnyView(PlanCheck().stroke(style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)).frame(width: 12, height: 12))
-        case "inProgress": AnyView(CodexStatusSpinner(size: 13))
-        default: AnyView(Circle().fill(NativePalette.thread.faint.swiftUI).frame(width: 5, height: 5).frame(width: 12, height: 12))
-        }
-    }
-    private struct PlanCheck: Shape {
-        func path(in rect: CGRect) -> Path {
-            var path = Path(); path.move(to: CGPoint(x: 3.5, y: 8.2)); path.addLine(to: CGPoint(x: 6.3, y: 10.9)); path.addLine(to: CGPoint(x: 12.5, y: 4.9))
-            return path.applying(CGAffineTransform(scaleX: rect.width / 16, y: rect.height / 16))
-        }
     }
 }
 

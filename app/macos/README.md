@@ -27,6 +27,10 @@ gutter at every content height and keep a knob whenever scrolling is possible.
 | [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation, browser and read-only voice discussions |
 | [Sources/Voice](Sources/Voice/README.md) | Native media, WebRTC and ownership |
 
+Thread detail omits plan timeline entries while retaining plan data for other
+projections, including overview cards. Adjacent execution entries remain grouped
+across hidden plans; messages continue to separate execution summaries.
+
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
 
 `make check` runs the complete `swift test` suite as well as building it. Native

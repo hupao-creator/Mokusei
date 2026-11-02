@@ -44,12 +44,6 @@ struct ClaudeTimelineEntry: View {
             HStack(alignment: .top, spacing: 8) { NativeIcon(name: "CircleAlert", size: 13); Text(notice["message"]?.stringValue ?? "").textSelection(.enabled) }
                 .font(NativeTypography.inter(size: 12)).foregroundStyle((notice["level"]?.stringValue == "error" ? NativePalette.thread.danger : NativePalette.thread.muted).swiftUI)
         }
-        case "plan": let plan = item["plan"]?.arrayValue ?? []
-            ThreadSurfacePlan(explanation: item["explanation"]?.stringValue, label: t("计划"), completed: plan.filter { $0["status"]?.stringValue == "completed" }.count, total: plan.count) {
-                ForEach(Array(plan.enumerated()), id: \.offset) { _, step in
-                    ThreadSurfacePlanRow(state: AnyView(NativeIcon(name: step["status"]?.stringValue == "completed" ? "Check" : step["status"]?.stringValue == "inProgress" ? "LoaderCircle" : "Circle", size: 11)), inProgress: step["status"]?.stringValue == "inProgress") { Text(step["step"]?.stringValue ?? "") }
-                }
-            }
         case "review": DisclosureGroup(t("Claude 代码审查"), isExpanded: $reviewExpanded) { markdown(item["content"]?.stringValue ?? "") }
         case "error": ClaudeFailure(message: item["message"]?.stringValue ?? "")
         case "context-compaction": HStack(spacing: 8) { NativeIcon(name: "Minimize2", size: 12); Text(t("Claude 上下文已压缩")) }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
@@ -132,8 +126,8 @@ struct ClaudeForkHistory: View {
     }
     private var rows: [ThreadDetailRow] {
         var last: [String: Int] = [:], final = Set<JSONText>(), lastAssistant: JSONText?
-        for (index, item) in items.enumerated() where ["plan","review"].contains(item.claudeKind) { last[item.claudeKind] = index }
-        let selected = items.enumerated().filter { index, item in !["diff","usage"].contains(item.claudeKind) && (last[item.claudeKind] == nil || last[item.claudeKind] == index) }.map(\.element)
+        for (index, item) in items.enumerated() where item.claudeKind == "review" { last[item.claudeKind] = index }
+        let selected = items.enumerated().filter { index, item in !["diff","usage","plan"].contains(item.claudeKind) && (last[item.claudeKind] == nil || last[item.claudeKind] == index) }.map(\.element)
         for item in selected {
             if item.claudeKind == "user-message" { if let lastAssistant { final.insert(lastAssistant) }; lastAssistant = nil }
             else if item.claudeKind == "assistant" { lastAssistant = item.claudeID("id") }
@@ -144,7 +138,7 @@ struct ClaudeForkHistory: View {
             guard (kind != .user || visibility.userMessages), (kind != .work || visibility.work && visibility.workTurnID == nil) else { return nil }
             return ThreadDetailRow(id: item.claudeID("id"), kind: kind, node: AnyView(ClaudeTimelineEntry(item: item, actions: actions, context: context)), executionSummary: item.claudeKind == "reasoning" ? ThreadExecutionSummary(reasoningSegments: 1) : item["activity"]?["toolName"] != nil ? ThreadExecutionSummary(toolCalls: 1) : nil)
         }
-        return bindThreadExecutionSource(rows: rows, source: items, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
+        return bindThreadExecutionSource(rows: rows, source: items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
     }
 }
 struct ClaudeBackgroundTasks: View {
