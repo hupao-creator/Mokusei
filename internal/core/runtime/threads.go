@@ -146,6 +146,10 @@ func (r *Runtime) harness(ctx context.Context, t model.ThreadRecord) (plugin.Har
 	return h, nil
 }
 func (r *Runtime) openThread(ctx context.Context, t model.ThreadRecord, injection *plugin.Injection) (*threadHandle, error) {
+	return r.openThreadWithAdmission(ctx, t, injection, nil)
+}
+
+func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRecord, injection *plugin.Injection, before func(context.Context) error) (*threadHandle, error) {
 	if t.MokuHistory {
 		return nil, errors.New("Moku history is read-only and cannot reopen a native session")
 	}
@@ -165,6 +169,11 @@ func (r *Runtime) openThread(ctx context.Context, t model.ThreadRecord, injectio
 		if err := cached.active(); err != nil {
 			return nil, err
 		}
+		if before != nil {
+			cached.mu.Lock()
+			cached.beforeNativeAdmission = before
+			cached.mu.Unlock()
+		}
 		return cached, nil
 	}
 	ctx, stopOperation := r.operationContext(ctx)
@@ -179,7 +188,9 @@ func (r *Runtime) openThread(ctx context.Context, t model.ThreadRecord, injectio
 		}
 	}
 	lifetime, cancel := context.WithCancel(generationCtx)
-	owner := &threadHandle{runtime: r, id: t.ID, generation: generation, harness: h, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
+	// Native Open may restore and admit work before returning its handle.
+	// Install the authority check before exposing ExecutionAdmission to it.
+	owner := &threadHandle{runtime: r, id: t.ID, generation: generation, harness: h, beforeNativeAdmission: before, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
 	r.mu.Lock()
 	stale := r.closed || r.resetting || r.generation != generation || r.deleting[t.ID] || ctx.Err() != nil
 	if !stale {

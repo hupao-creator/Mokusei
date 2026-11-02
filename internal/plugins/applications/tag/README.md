@@ -10,6 +10,15 @@ causes re-resolution without spending a batch retry, including when the initial
 discovery result matches an existing idle session. The Runtime replay exercises
 the production Tag and Report participants in inherited and independent modes.
 
+`tag.settings.enabled` is independent of Report and defaults to true when
+omitted. Saving false immediately revokes the active attempt and its tools;
+the runner interrupts/closes its native session and pauses without deleting the
+pool, assignments, profiles, batch identity or receipts. User pauses refund the
+interrupted attempt rather than exhausting failure retries. Re-enabling resumes
+pending work, including events retained across a disabled restart. The consumer
+uses durable pending replay so a queued event cannot disappear before admission.
+Overview filtering and existing tags remain available while the Agent is off.
+
 ## Names and emoji
 
 `create_tags` requires `{name, emoji}` entries. `merge_tags` requires the target emoji; `rename_tag` preserves it unless supplied. Duplicate creation returns the existing definition. Unused tags may be deleted; an in-use tag must be merged instead. Renames/merges update affected assignments atomically.

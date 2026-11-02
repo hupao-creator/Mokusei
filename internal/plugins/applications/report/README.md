@@ -6,6 +6,14 @@
 
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
+`report.settings.enabled` defaults to true when omitted and operates independently
+of Tag. Disabling revokes the active attempt and tool lifetime, interrupts/closes
+native work and pauses the durable inbox. Existing report documents remain in the
+catalog and reader; settings, source references, batches and write receipts stay
+intact. Re-enabling resumes pending work after native cleanup, including after a
+restart. User pauses do not spend the batch's failure retry budget. The host
+checks enablement inside the write transaction, rejecting late background writes.
+
 Report writing and presentation use the complete, unmodified upstream
 [ELI5 skill](eli5-skill.md), embedded as a separate system-instruction entry after
 [the agent's operational and host-integration instructions](instructions.txt).

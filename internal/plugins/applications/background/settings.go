@@ -19,7 +19,12 @@ func parseSettings(raw json.RawMessage) (json.RawMessage, error) {
 		return nil, err
 	}
 	mode, _ := object["mode"].(string)
-	allowed := map[string]bool{"mode": true}
+	allowed := map[string]bool{"mode": true, "enabled": true}
+	if enabled, exists := object["enabled"]; exists {
+		if _, ok := enabled.(bool); !ok {
+			return nil, errors.New("Background enabled must be a boolean")
+		}
+	}
 	if mode == "inherit" {
 		allowed["independent"] = true
 		if independent, ok := object["independent"]; ok {

@@ -11,6 +11,10 @@ selector; the Runtime rejects execution, settings changes and unarchive attempts
 
 [ApplicationContracts.swift](ApplicationContracts.swift), [ApplicationCapabilities.swift](ApplicationCapabilities.swift) and [ApplicationRegistry.swift](ApplicationRegistry.swift) describe native application surfaces and injected operations. Runtime transactions and background-agent authority remain in the [Go Application host](../../../../../internal/hosts/applicationhost/README.md).
 
+`ApplicationBackgroundExecutionSettings.enabled` is independent of inheritance
+and retained overrides. Missing values decode as true; false round-trips with
+both modes, and changing a mode/profile preserves the switch.
+
 [SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment and voice capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. A voice capability exposes a private read-only discussion, not a send action against the source task.
 
 [Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.

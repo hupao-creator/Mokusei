@@ -70,6 +70,7 @@ enum NativeOnboardingStep: Int, CaseIterable {
         guard let id = step.settingID,
               let raw = settings.draft.value["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"],
               let value = try? ApplicationBackgroundExecutionSettings(json: raw) else { return false }
+        if !value.enabled { return true }
         switch value.mode {
         case .inherit: return selectedHost != nil
         case .override(let profile):

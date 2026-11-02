@@ -65,6 +65,12 @@ BackgroundAgentDefinition 必须显式声明 Global 或 PerDirectoryScope。Runt
 
 每个实例携带显式 ScopeBinding：Global 与 Directory 不同，Inbox 是有效 Directory，零值和非法绑定被拒绝。生命周期订阅、历史（包括显式事件 ID）和普通任务读取自动与绑定取交集；冲突的事件 scope 匹配空集合。观察私有 session 也必须属于同一实例。Global 仍受 Requires 和普通来源校验约束；分类证据能力暂不支持 Directory 绑定。实例划分不决定 lazy/idle 会话资源策略。
 
+`ExecutionSettingsID` 绑定的 `enabled` 控制后台执行，缺省为开启。Settings
+提交后，Host 同步通知支持 `RefreshSettings` 的参与者撤销当前 attempt；参与者
+自行串行排空和恢复，避免快速关开丢失停用事实。DomainClient 携带宿主绑定的
+settings ID，在命令写事务内拒绝已停用 agent 的写入。此控制不撤销 Application
+注册，已有文档的用户读取和归档仍可使用。
+
 BackgroundAgentDefinition.Create 接收独立 owner、DomainClient、SettingsReader 和 capability access。私有 session 按 owner/sessionKey 隔离。Lifecycle consumer 的 local ID 由宿主加 owner namespace；durable work 保留 event IDs、attempts、retry time、execution identity 和 receipts。普通任务、Moku、其他 agent 的私有会话不能因为注册订阅而混为一个可见集合。
 
 Host.Start 在全部定义冻结后创建一代 participants。Stop 先撤销工作并取消 generation，然后等待创建中的工作、participants 和领域操作排空；清历史只在成功停止后执行，保留 settings-retention collections，再创建新一代。

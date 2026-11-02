@@ -43,7 +43,7 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		return nil, err
 	}
 	var runner *background.Runner
-	runner, err = background.NewRunner(ctx, background.Behavior{ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions, eli5Instructions}, Message: func(_ context.Context, request background.BatchRequest) (model.AgentInput, error) {
+	runner, err = background.NewRunner(ctx, background.Behavior{SettingsID: SettingsID, ID: ctx.Owner.AgentID, LazyInitialize: true, IdleDispose: true, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Filter: plugin.LifecycleScope{{Sources: []string{"application"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"execution.completed"}}}}, Instructions: []string{instructions, eli5Instructions}, Message: func(_ context.Context, request background.BatchRequest) (model.AgentInput, error) {
 		instruction := "Review this lifecycle batch and decide what reports need work."
 		if request.Steering {
 			instruction = "Incorporate these additional lifecycle events into your current batch now. Revisit earlier reporting decisions using the new evidence, and continue all unfinished report work."

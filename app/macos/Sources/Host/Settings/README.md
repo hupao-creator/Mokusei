@@ -16,6 +16,15 @@ selection, Undo, label activation and the draft close/save gate.
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
 | Report and Tag | Onboarding inheritance/independent glass choices, Harness seats, native execution fields and live capability animations |
 
+Report and Tag each expose an independent Enable Agent switch, enabled by
+default. A disabled role hides its execution fields while preserving its saved
+inheritance and independent choices; its switch remains available for recovery.
+The save revokes active work and pauses automatic processing without removing
+existing reports, tags or pending work. Re-enabling resumes after native cleanup.
+The workspace does not prefetch execution resources for disabled roles. The
+shared onboarding editor exposes the same control, and a disabled role is ready
+to continue without requiring an available execution profile.
+
 Report and Tag show the saved Moku execution profile beside the inherited Agent
 in both Settings and onboarding. The read-only details reuse the Harness's native
 fields and catalog statuses, including model, reasoning and other execution

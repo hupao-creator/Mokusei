@@ -60,7 +60,7 @@ func (h *Host) startAgent(ctx context.Context, start plugin.RuntimeStartContext,
 	} else if len(definition.Requires) > 0 {
 		return errors.New("background capability binder is required")
 	}
-	participant, err := definition.Create(plugin.BackgroundAgentContext{Owner: owner, Capabilities: restrictCapabilities(capabilities, definition.Requires, "runtime"), Domain: domainClient{host: h, owner: owner}, Settings: settingsReader{host: h, owner: owner.PluginID}})
+	participant, err := definition.Create(plugin.BackgroundAgentContext{Owner: owner, Capabilities: restrictCapabilities(capabilities, definition.Requires, "runtime"), Domain: domainClient{host: h, owner: owner, settingsID: definition.ExecutionSettingsID}, Settings: settingsReader{host: h, owner: owner.PluginID}})
 	if err != nil {
 		return err
 	}
@@ -91,6 +91,20 @@ func (h *Host) RefreshScopeAgents(ctx context.Context) error {
 		return nil
 	}
 	return h.startScopeAgents(lifetime, plugin.RuntimeStartContext{Reason: "scope-refresh"})
+}
+
+// RefreshBackgroundSettings is called after settings commit while admission is
+// still serialized. Revocation cannot be coalesced away by a quick off/on save;
+// each participant drains asynchronously under its own lifetime.
+func (h *Host) RefreshBackgroundSettings() {
+	h.mu.Lock()
+	participants := append([]plugin.RuntimeParticipant{}, h.participants...)
+	h.mu.Unlock()
+	for _, participant := range participants {
+		if controlled, ok := participant.(interface{ RefreshSettings() }); ok {
+			controlled.RefreshSettings()
+		}
+	}
 }
 
 // BackgroundInstances returns the identities admitted in this host generation.

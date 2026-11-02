@@ -45,6 +45,12 @@ authorizes another append. Other voice paths do not opt into this handshake.
 
 [metadata.go](metadata.go) and [metadata_completion.go](metadata_completion.go) own the optional generated title/emoji policy. Successful input admission updates bounded initial/recent intent even if later native dispatch fails or the caller releases its request context. Rejected admission does not update metadata, and metadata persistence failures do not reject accepted input. Existing metadata stays visible until a replacement succeeds. Completion can steer to newer accepted input; results are fenced by metadata revision. Transient failures retry after 2, 5 and 15 seconds; exhausted or invalid results remain pending for another input or reopen. Interrupt and Close cancel and drain completion and backoff. An admission racing with Interrupt remains pending in admission order without resuming naming.
 
+Background execution settings share optional `enabled` control. The owner validates
+Boolean input; `BackgroundExecutionEnabled` treats omitted values as enabled, and
+`RequireBackgroundExecution` checks a saved settings snapshot at native/write
+admission. A disabled execution binding does not disable its application reader
+or remove retained settings and history.
+
 ## Other plugin categories
 
 - [Application host](../../hosts/applicationhost/README.md): records, transactions, projections and background participants, declared in [application.go](application.go) and [capabilities.go](capabilities.go).

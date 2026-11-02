@@ -35,7 +35,7 @@ final class NativeWorkspaceSettingsPrefetch {
             next.append(.init(harnessID: id, cwd: cwd, source: execution, scope: .global(executionOwner: .moku)))
             for definition in backgroundSettings {
                 guard let entry = settings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .string(definition.id) }),
-                      let value = entry["value"], let saved = try? ApplicationBackgroundExecutionSettings(json: value) else { continue }
+                      let value = entry["value"], let saved = try? ApplicationBackgroundExecutionSettings(json: value), saved.enabled else { continue }
                 let source: JSONValue
                 let inherited: Bool
                 switch saved.mode {

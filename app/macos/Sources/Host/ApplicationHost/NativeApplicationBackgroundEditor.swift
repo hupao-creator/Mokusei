@@ -37,6 +37,24 @@ public struct NativeApplicationBackgroundEditor: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            NativeSettingsRow(label: locale.text("启用 Agent", "Enable Agent"), description: locale.text(
+                "关闭后停止当前 Agent，暂停自动处理；保留已有数据和运行配置，重新开启后继续处理。",
+                "Turning off stops this Agent and pauses automatic processing. Existing data and execution settings are kept; turning on resumes pending work."), inlineControl: true) {
+                NativeSettingsToggle(value: Binding(get: { value.enabled }, set: {
+                    change(.init(mode: value.mode, enabled: $0))
+                })).nativeSettingsControl("enabled")
+            }
+            if value.enabled { configuration }
+            else {
+                Text(locale.text("Agent 已停用", "Agent is off"))
+                    .font(.system(size: 12)).foregroundStyle(.secondary).padding(.vertical, 8)
+                    .nativeSettingsEditorReady(true)
+            }
+        }
+    }
+
+    private var configuration: some View {
+        VStack(alignment: .leading, spacing: 0) {
             if onboarding {
                 GlassEffectContainer {
                     HStack(spacing: 12) {
@@ -214,7 +232,7 @@ public struct NativeApplicationBackgroundEditor: View {
             case (false, .inherit(let independent)): mode = .override(try independent ?? savedMokuSettings())
             default: return
             }
-            change(.init(mode: mode))
+            change(.init(mode: mode, enabled: value.enabled))
         } catch { workspace.report(error) }
     }
 
@@ -223,7 +241,7 @@ public struct NativeApplicationBackgroundEditor: View {
               harnesses.contains(where: { $0.descriptor.id == id }) else { return }
         do {
             let next = try ApplicationBackgroundExecutionSettings.Overrides(harnessPreference: id, harnesses: overrides.harnesses)
-            change(.init(mode: .override(next)))
+            change(.init(mode: .override(next), enabled: value.enabled))
         } catch { workspace.report(error) }
     }
 
@@ -232,7 +250,7 @@ public struct NativeApplicationBackgroundEditor: View {
         do {
             var harnesses = overrides.harnesses; harnesses[id] = settings
             let next = try ApplicationBackgroundExecutionSettings.Overrides(harnessPreference: id, harnesses: harnesses)
-            change(.init(mode: .override(next)))
+            change(.init(mode: .override(next), enabled: value.enabled))
         } catch { workspace.report(error) }
     }
 }

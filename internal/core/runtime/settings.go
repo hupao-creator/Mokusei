@@ -197,6 +197,9 @@ func (r *Runtime) UpdateSettings(ctx context.Context, expected int64, settings m
 	finishPersist(err)
 	if err == nil {
 		if result.Status == "saved" {
+			if host, ok := r.config.Applications.(interface{ RefreshBackgroundSettings() }); ok {
+				host.RefreshBackgroundSettings()
+			}
 			r.Publish()
 			r.settingsTrace(ctx, "published", model.Object{"revision": result.SettingsRevision})
 			r.settingsTrace(ctx, "save.saved", model.Object{"revision": result.SettingsRevision, "changed": result.SettingsRevision != revision})

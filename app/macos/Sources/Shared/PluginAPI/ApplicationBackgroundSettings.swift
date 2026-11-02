@@ -19,13 +19,18 @@ public struct ApplicationBackgroundExecutionSettings: Hashable, Sendable {
         case override(Overrides)
     }
     public let mode: Mode
-    public init(mode: Mode) { self.mode = mode }
+    public let enabled: Bool
+    public init(mode: Mode, enabled: Bool = true) { self.mode = mode; self.enabled = enabled }
     public init(json: JSONValue) throws {
         try PluginJSONValidation.validate(json)
         let r = try ApplicationRecordReader(json, path: "background execution settings")
+        if let value = r.fields["enabled"] {
+            guard case .bool(let enabled) = value else { throw PluginContractError("Background enabled must be boolean") }
+            self.enabled = enabled
+        } else { enabled = true }
         let kind = try r.text("mode")
         if kind == "inherit" {
-            guard Set(r.fields.keys).isSubset(of: ["mode", "independent"]) else {
+            guard Set(r.fields.keys).isSubset(of: ["mode", "independent", "enabled"]) else {
                 throw PluginContractError("Unknown inherited background execution field")
             }
             if let value = r.fields["independent"] {
@@ -36,7 +41,7 @@ public struct ApplicationBackgroundExecutionSettings: Hashable, Sendable {
                 mode = .inherit(independent: try Self.overrides(independent))
             } else { mode = .inherit(independent: nil) }
         } else if kind == "override" {
-            guard Set(r.fields.keys).isSubset(of: ["mode", "harnessPreference", "harnesses"]) else {
+            guard Set(r.fields.keys).isSubset(of: ["mode", "harnessPreference", "harnesses", "enabled"]) else {
                 throw PluginContractError("Unknown overridden background execution field")
             }
             mode = .override(try Self.overrides(r))
@@ -51,6 +56,8 @@ public struct ApplicationBackgroundExecutionSettings: Hashable, Sendable {
         case .override(let overrides):
             fields = ["mode": .text("override"), "harnessPreference": .string(overrides.harnessPreference), "harnesses": .object(overrides.harnesses)]
         }
+        // Keep the default encoding compatible with saved profiles that omit it.
+        if !enabled { fields["enabled"] = .bool(false) }
         return .object(fields)
     }
     private static func overrides(_ record: ApplicationRecordReader) throws -> Overrides {

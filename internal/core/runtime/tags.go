@@ -130,9 +130,10 @@ func (c tagsReadCapability) CaptureUsage(ctx context.Context, name string) (plug
 }
 
 type tagsWriteCapability struct {
-	runtime *Runtime
-	source  string
-	scope   string
+	settingsID string
+	runtime    *Runtime
+	source     string
+	scope      string
 }
 
 func (c tagsWriteCapability) scopeID() string { return tagScope(c.scope) }
@@ -176,6 +177,9 @@ func (c tagsWriteCapability) EnsureInventory(ctx context.Context) error {
 	r := c.runtime
 	scope := c.scopeID()
 	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
+		if err := requireBackgroundExecution(tx.Snapshot(), c.settingsID); err != nil {
+			return err
+		}
 		if tx.Has(tagInventoryKey(scope)) {
 			return nil
 		}
@@ -203,6 +207,9 @@ func (c tagsWriteCapability) Execute(ctx context.Context, operation plugin.Seman
 	r := c.runtime
 	var output json.RawMessage
 	_, err := r.config.Store.Update(ctx, func(tx *store.Tx) error {
+		if err := requireBackgroundExecution(tx.Snapshot(), c.settingsID); err != nil {
+			return err
+		}
 		effect := func(tx *store.Tx) (any, error) { return c.apply(tx, operation) }
 		if options.Batch.BatchID != "" {
 			raw, err := tx.ApplyReceipt(store.Receipt{ConsumerID: options.Batch.ConsumerID, BatchID: options.Batch.BatchID, Key: options.Batch.InvocationID}, effect)

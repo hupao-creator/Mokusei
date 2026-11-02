@@ -77,7 +77,15 @@ admission keeps the gate until native acknowledgment.
 
 [configuration.go](configuration.go) initializes missing internal execution profiles from actual native facts. It persists complete choices before use and fences late discovery against newer saves. Background settings select inheritance from Moku or an independent profile. Native credentials and context budgets remain Harness-owned. Moku and background agents use their built-in system instructions; execution profiles do not contain a system-prompt replacement.
 
-Enablement is captured by the composition at startup. Saving desired `harness:`, `extension:`, `context:` or `sidecard:` keys does not change active registrations until the service restarts. Built-in Git has no switch. Client appearance, language, selection and drafts belong to the [native client](../../../app/macos/Sources/Core/README.md).
+Report and Tag execution settings have independent optional `enabled` switches,
+with omission meaning enabled. These switches take effect live, independently of
+plugin registration. After committing settings, Runtime synchronously revokes
+current background attempts through the Application host before releasing
+configuration admission. Native configuration, sends and spontaneous starts
+check saved enablement; semantic-tag writes check it inside the store transaction.
+Disabling does not clear data, execution profiles, lifecycle work or receipts.
+
+Plugin enablement is captured by the composition at startup. Saving desired `harness:`, `extension:`, `context:` or `sidecard:` keys does not change active registrations until the service restarts. Built-in Git has no switch. Client appearance, language, selection and drafts belong to the [native client](../../../app/macos/Sources/Core/README.md).
 
 ## Lifecycle and directory scopes
 

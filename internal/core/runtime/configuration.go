@@ -39,6 +39,7 @@ type executionProfiles struct {
 	Harnesses         map[string]json.RawMessage `json:"harnesses"`
 }
 type backgroundSettings struct {
+	Enabled           *bool                      `json:"enabled,omitempty"`
 	Mode              string                     `json:"mode"`
 	HarnessPreference string                     `json:"harnessPreference,omitempty"`
 	Harnesses         map[string]json.RawMessage `json:"harnesses,omitempty"`
@@ -373,6 +374,9 @@ func (r *Runtime) captureExecutionProfiles(ctx context.Context, settings model.S
 		}
 		if background == nil {
 			return settings, errors.New("unknown application execution settings")
+		}
+		if initializeOnly && background.Enabled != nil && !*background.Enabled {
+			return settings, nil
 		}
 		if background.Mode == "inherit" {
 			return r.captureExecutionProfiles(ctx, settings, "", requested, initializeOnly)

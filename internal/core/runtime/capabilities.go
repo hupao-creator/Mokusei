@@ -32,7 +32,7 @@ func (c capabilityAccess) Require(key plugin.CapabilityKey) (any, error) {
 	return value, nil
 }
 func (r *Runtime) RuntimeCapabilities(pluginID string) plugin.CapabilityAccess {
-	values := map[string]any{plugin.OrdinaryTaskReadCapabilityKey.ID: taskReadCapability{runtime: r, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}, plugin.SemanticTagsReadCapabilityKey.ID: tagsReadCapability{r, directorytag.InboxScope}, plugin.SemanticTagsWriteCapabilityKey.ID: tagsWriteCapability{r, pluginID, directorytag.InboxScope}, plugin.ClassificationReadCapabilityKey.ID: classificationCapability{r}, plugin.LifecycleCapabilityKey.ID: scopedLifecycle{base: r.lifecycle, owner: plugin.BackgroundAgentRef{PluginID: pluginID, AgentID: pluginID, Binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}}}
+	values := map[string]any{plugin.OrdinaryTaskReadCapabilityKey.ID: taskReadCapability{runtime: r, binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}, plugin.SemanticTagsReadCapabilityKey.ID: tagsReadCapability{r, directorytag.InboxScope}, plugin.SemanticTagsWriteCapabilityKey.ID: tagsWriteCapability{runtime: r, source: pluginID, scope: directorytag.InboxScope}, plugin.ClassificationReadCapabilityKey.ID: classificationCapability{r}, plugin.LifecycleCapabilityKey.ID: scopedLifecycle{base: r.lifecycle, owner: plugin.BackgroundAgentRef{PluginID: pluginID, AgentID: pluginID, Binding: plugin.ScopeBinding{Kind: plugin.GlobalScope}}}}
 	for id, value := range r.config.ExtraCapabilities {
 		values[id] = value
 	}

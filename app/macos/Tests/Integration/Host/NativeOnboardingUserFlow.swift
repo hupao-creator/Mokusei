@@ -50,6 +50,10 @@ import MokuseiApplications
             try await activate("next", in: presentation)
             try await wait("Tag did not inherit the saved Moku profile") { setup.step == .tag && setup.canAdvance }
             try await verifyInherited("tag.settings", in: presentation, window: window)
+            try await control("tag.settings.enabled", operation: "set", value: .bool(false), in: presentation)
+            try await wait("Disabled Tag blocked onboarding") { setup.canAdvance }
+            try await control("tag.settings.enabled", operation: "set", value: .bool(true), in: presentation)
+            try await wait("Re-enabled Tag did not restore readiness") { setup.canAdvance }
             #expect(setup.settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("high"))
             try await activate("independent", in: presentation)
             try await wait("Tag independent profile did not become ready") {
@@ -135,6 +139,26 @@ import MokuseiApplications
             try await wait("Independent Report choice was not restored") {
                 application("report.settings")?["mode"] == .text("override") &&
                 application("report.settings")?["harnesses"]?["codex"]?["threadSettings"]?["model"] == .text("settings-b")
+            }
+            // The real Settings controls persist independently and retain both
+            // inherited choices and the independent profile across close/reopen.
+            let tagBefore = try #require(application("tag.settings"))
+            let reportBefore = try #require(application("report.settings"))
+            for id in ["report.settings", "tag.settings"] {
+                try presentation.performInteraction(.selectSettingsSection(id))
+                try await control(id + ".enabled", operation: "set", value: .bool(false), in: presentation)
+                try await wait("Agent switch did not persist: \(id)") { application(id)?["enabled"] == .bool(false) }
+                let controls = presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? []
+                #expect(!controls.contains { $0["id"] == .text(id + ".inherit") })
+            }
+            try presentation.performInteraction(.closeSettings)
+            try await wait("Disabled Settings did not close") { !presentation.scene.settingsOpen }
+            try presentation.performInteraction(.openSettings)
+            try await wait("Disabled Settings did not reopen") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
+            for (id, before) in [("tag.settings", tagBefore), ("report.settings", reportBefore)] {
+                try presentation.performInteraction(.selectSettingsSection(id))
+                try await control(id + ".enabled", operation: "set", value: .bool(true), in: presentation)
+                try await wait("Agent switch did not restore saved profile: \(id)") { application(id) == before }
             }
             try presentation.performInteraction(.closeSettings)
             try await wait("Settings did not release its modal gate") { !presentation.scene.settingsOpen }

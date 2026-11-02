@@ -36,6 +36,11 @@ and resource status. It waits for resource readiness rather than treating the
 presence of a saved profile as sufficient. Switching back to independent mode
 restores its own retained configuration.
 
+Tag and Report also share Settings' independent Enable Agent switches. Turning a
+role off keeps its profile and bypasses that role's resource/availability gate;
+the switch stays available, and re-enabling restores the ordinary readiness gate.
+Existing reports, tags and pending backend work are retained.
+
 The Tag SpriteKit and Report SwiftUI sequences are abstract capability examples,
 shared with Settings through `NativeRoleConfigurationPanel` and with the visual
 demo. Each mounted Tag or Report page plays once with the discovered Harness

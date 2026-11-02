@@ -12,6 +12,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/hosts/applicationhost"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/report"
+	"github.com/hupao-creator/Mokusei/internal/plugins/applications/tag"
 	"github.com/hupao-creator/Mokusei/internal/services/attachments"
 	"github.com/hupao-creator/Mokusei/internal/services/workspaces"
 	"os"
@@ -195,6 +196,7 @@ func main() {
 	verifyBackgroundScopeBindings(ctx)
 	verifyReportScopes(ctx)
 	verifyBackgroundSettings(ctx)
+	verifyBackgroundEnablement(ctx)
 	verifyComputePool(ctx)
 	verifyProjectionWorkers(ctx, dir)
 	verifyProjectionReuse(ctx, dir)
@@ -206,7 +208,7 @@ func main() {
 	manager := workspaces.New(workspaces.Paths{DefaultCwd: dir, MokuCwd: filepath.Join(dir, "moku"), TemporaryRoot: filepath.Join(dir, "workspaces"), RegistryPath: filepath.Join(dir, "worktrees.json")})
 	r, err := core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{"fixture": harness{}}, DataDir: dir, DefaultCwd: dir, Attachments: attachments.New(filepath.Join(dir, "attachments")), Workspaces: manager, Log: func(kind string, err error) { fmt.Println("log", kind, err) }})
 	must(err)
-	app, err := applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{report.New()}, RuntimeCapabilities: r.RuntimeCapabilities, BackgroundCapabilities: r.BackgroundCapabilities, SnapshotCapabilities: r.SnapshotCapabilities, ProjectSession: r.ProjectSession, InitializeSession: r.InitializeApplicationSession, ArchiveExecutions: r.ArchiveExecutions})
+	app, err := applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{report.New(), tag.New()}, RuntimeCapabilities: r.RuntimeCapabilities, BackgroundCapabilities: r.BackgroundCapabilities, SnapshotCapabilities: r.SnapshotCapabilities, ProjectSession: r.ProjectSession, InitializeSession: r.InitializeApplicationSession, ArchiveExecutions: r.ArchiveExecutions})
 	must(err)
 	r.SetApplications(app)
 	verifyDownloadMutation(ctx, r, dir)

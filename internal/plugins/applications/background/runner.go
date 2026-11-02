@@ -10,6 +10,8 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
+var errAgentDisabled = errors.New("background agent disabled")
+
 const maxAttempts = 3
 const runTimeout = 10 * time.Minute
 const batchSize = 64
@@ -25,6 +27,7 @@ type BatchPlan struct {
 	Finish func(context.Context, string) error
 }
 type Behavior struct {
+	SettingsID   string
 	ID           string
 	Consumer     plugin.LifecycleConsumerDefinition
 	Instructions []string
@@ -46,6 +49,8 @@ type Behavior struct {
 // Runner serializes one durable inbox and private native session. Only admission
 // joins new events to work; receipts and acknowledgment remain owned by the host.
 type Runner struct {
+	settings      plugin.SettingsReader
+	processCancel context.CancelCauseFunc
 	behavior      Behavior
 	consumer      plugin.LifecycleConsumer
 	sessions      plugin.BackgroundSessionsCapability
@@ -84,7 +89,7 @@ func NewRunner(ctx plugin.BackgroundAgentContext, behavior Behavior) (*Runner, e
 	if err != nil {
 		return nil, err
 	}
-	return &Runner{behavior: behavior, consumer: consumer, sessions: sessions, configuration: configuration, environment: environment, wake: make(chan struct{}, 1)}, nil
+	return &Runner{settings: ctx.Settings, behavior: behavior, consumer: consumer, sessions: sessions, configuration: configuration, environment: environment, wake: make(chan struct{}, 1)}, nil
 }
 func (r *Runner) WriteOptions(ctx context.Context, invocationID string) (plugin.DomainCommandOptions, error) {
 	if err := ctx.Err(); err != nil {
@@ -206,6 +211,16 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 		case <-r.wake:
 		}
 		for ctx.Err() == nil {
+			enabled, err := r.enabled()
+			if err != nil {
+				r.log("enabled", err)
+			}
+			if err != nil || !enabled {
+				if err := r.pause(); err != nil {
+					r.log("disabled-close", err)
+				}
+				break
+			}
 			pending, err := r.consumer.Pending(plugin.PendingEventsQuery{Limit: 1})
 			if err != nil {
 				r.log("pending", err)
@@ -243,7 +258,31 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 			if !wait(ctx, delay) {
 				return
 			}
-			if err = r.process(ctx); err != nil {
+			attempt, cancel := context.WithCancelCause(ctx)
+			r.mu.Lock()
+			r.processCancel = cancel
+			r.mu.Unlock()
+			// A save may have revoked work before this attempt acquired its
+			// cancellation function. Re-read after publishing that function.
+			enabled, err = r.enabled()
+			if err != nil || !enabled {
+				cancel(errAgentDisabled)
+			}
+			err = r.process(attempt)
+			cancelled := attempt.Err() != nil
+			cancel(nil)
+			r.mu.Lock()
+			r.processCancel = nil
+			r.mu.Unlock()
+			if cancelled {
+				if errors.Is(context.Cause(attempt), errAgentDisabled) {
+					if err := r.pause(); err != nil {
+						r.log("pause-close", err)
+					}
+				}
+				continue
+			}
+			if err != nil {
 				if ctx.Err() == nil {
 					r.log("process", err)
 				}
@@ -254,6 +293,39 @@ func (r *Runner) loop(ctx context.Context, done chan struct{}) {
 		}
 	}
 }
+
+// RefreshSettings revokes an active attempt synchronously with a settings save.
+// The loop alone drains native work, so a quick off/on cannot resurrect its tools
+// or start a second attempt while cleanup is still in progress.
+func (r *Runner) RefreshSettings() {
+	enabled, err := r.enabled()
+	if err != nil {
+		r.log("enabled", err)
+	}
+	if err != nil || !enabled {
+		r.mu.Lock()
+		if r.processCancel != nil {
+			r.processCancel(errAgentDisabled)
+		}
+		if r.handleCancel != nil {
+			r.handleCancel()
+		}
+		r.mu.Unlock()
+	}
+	r.notify()
+}
+
+func (r *Runner) enabled() (bool, error) {
+	if r.behavior.SettingsID == "" {
+		return true, nil
+	}
+	value, err := r.settings.Read(r.behavior.SettingsID)
+	if err != nil {
+		return false, err
+	}
+	return plugin.BackgroundExecutionEnabled(value.Value)
+}
+
 func wait(ctx context.Context, duration time.Duration) bool {
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
@@ -282,7 +354,7 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 	ctx, cancel := context.WithTimeout(shutdown, runTimeout)
 	defer cancel()
 	defer func() {
-		if returned != nil || !r.behavior.IdleDispose {
+		if returned != nil || !r.behavior.IdleDispose || errors.Is(context.Cause(shutdown), errAgentDisabled) {
 			return
 		}
 		if err := r.dispose(); err != nil {
@@ -332,6 +404,7 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		work = &created
 	}
 	counted := false
+	recovered := false
 	batch = true
 	var plan BatchPlan
 	finish := func(outcome string) error {
@@ -352,18 +425,34 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 			return
 		}
 		var failure *model.Error
-		if errors.As(returned, &failure) && failure.Code == "SERVICE_DRAINING" {
+		if errors.As(returned, &failure) && (failure.Code == "SERVICE_DRAINING" || failure.Code == "BACKGROUND_AGENT_DISABLED") {
 			// Drain can win after the loop's preflight. Preserve the admitted
 			// inbox and roll back only this unstarted attempt; no work failed.
 			if counted {
 				work.Attempts--
-				returned = r.updateWork(shutdown, work)
+				cleanup, cancel := context.WithTimeout(context.WithoutCancel(shutdown), 30*time.Second)
+				returned = r.updateWork(cleanup, work)
+				cancel()
 			} else {
 				returned = nil
 			}
 			return
 		}
 		if shutdown.Err() != nil {
+			if errors.Is(context.Cause(shutdown), errAgentDisabled) && (counted || recovered) {
+				// Keep receipts and execution identity; only a user's interrupted
+				// attempt is refunded, so repeated toggles cannot exhaust retries.
+				current := r.consumer.Work()
+				if current != nil && current.ID == work.ID && current.Attempts > 0 {
+					current.Attempts--
+					cleanup, cancel := context.WithTimeout(context.WithoutCancel(shutdown), 30*time.Second)
+					updateErr := r.updateWork(cleanup, current)
+					cancel()
+					if updateErr != nil {
+						r.log("pause-work", updateErr)
+					}
+				}
+			}
 			r.diagnose("cancelled", stage, work.Attempts, started, returned)
 			returned = nil
 			return
@@ -435,6 +524,7 @@ func (r *Runner) process(shutdown context.Context) (returned error) {
 		return finish("processed")
 	}
 	recovering := work.ExecutionID != "" && execution != nil && execution.ExecutionID == work.ExecutionID && busy(observation)
+	recovered = recovering
 	if !recovering {
 		if work.Attempts >= maxAttempts {
 			return finish("failed")
@@ -623,6 +713,21 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 	}
 	return instancePreparation{handle: handle, needsConfiguration: orphan}, nil
 }
+func (r *Runner) pause() error {
+	r.mu.Lock()
+	handle := r.handle
+	lifetime := r.ctx
+	r.mu.Unlock()
+	if handle != nil && busy(handle.Observation()) {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(lifetime), 30*time.Second)
+		if err := handle.Interrupt(cleanup, nil); err != nil {
+			r.log("pause-interrupt", err)
+		}
+		cancel()
+	}
+	return r.dispose()
+}
+
 func (r *Runner) dispose() error {
 	r.mu.Lock()
 	handle := r.handle

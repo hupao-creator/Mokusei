@@ -90,9 +90,9 @@ func (h *Host) query(ctx context.Context, request plugin.OperationRequest, owner
 	return nil, fmt.Errorf("unknown application query: %s", request.OperationID)
 }
 func (h *Host) Command(ctx context.Context, request plugin.OperationRequest) (any, error) {
-	return h.execute(ctx, request, nil, nil)
+	return h.execute(ctx, request, nil, nil, "")
 }
-func (h *Host) execute(ctx context.Context, request plugin.OperationRequest, owner *plugin.BackgroundAgentRef, batch *plugin.BatchWriteContext) (json.RawMessage, error) {
+func (h *Host) execute(ctx context.Context, request plugin.OperationRequest, owner *plugin.BackgroundAgentRef, batch *plugin.BatchWriteContext, settingsID string) (json.RawMessage, error) {
 	if err := h.begin(); err != nil {
 		return nil, err
 	}
@@ -140,6 +140,15 @@ func (h *Host) execute(ctx context.Context, request plugin.OperationRequest, own
 	}
 	var result json.RawMessage
 	_, err = h.config.Store.Update(ctx, func(tx *store.Tx) error {
+		if settingsID != "" {
+			var settings model.Settings
+			if _, err := tx.Get("settings", &settings); err != nil {
+				return err
+			}
+			if err := plugin.RequireBackgroundExecution(settings, settingsID); err != nil {
+				return err
+			}
+		}
 		receiptKey := "application-command-receipt:" + source + ":" + stableID(commandID, request.RequestID)
 		if batch != nil {
 			work, exists, e := tx.Work(batch.ConsumerID)
@@ -232,15 +241,16 @@ func (h *Host) execute(ctx context.Context, request plugin.OperationRequest, own
 }
 
 type domainClient struct {
-	host  *Host
-	owner plugin.BackgroundAgentRef
+	settingsID string
+	host       *Host
+	owner      plugin.BackgroundAgentRef
 }
 
 func (d domainClient) Query(ctx context.Context, id string, input json.RawMessage) (json.RawMessage, error) {
 	return d.host.query(ctx, plugin.OperationRequest{PluginID: d.owner.PluginID, OperationID: id, Input: input}, &d.owner)
 }
 func (d domainClient) Execute(ctx context.Context, id string, input json.RawMessage, options plugin.DomainCommandOptions) (json.RawMessage, error) {
-	return d.host.execute(ctx, plugin.OperationRequest{PluginID: d.owner.PluginID, OperationID: id, Input: input, RequestID: options.RequestID}, &d.owner, options.Batch)
+	return d.host.execute(ctx, plugin.OperationRequest{PluginID: d.owner.PluginID, OperationID: id, Input: input, RequestID: options.RequestID}, &d.owner, options.Batch, d.settingsID)
 }
 
 // Copy the trusted caller identity so callbacks cannot mutate the client owner.

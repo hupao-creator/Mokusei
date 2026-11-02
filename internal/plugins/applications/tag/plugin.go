@@ -54,7 +54,7 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		agentID = "tag.agent"
 	}
 	var runner *background.Runner
-	runner, err = background.NewRunner(ctx, background.Behavior{ID: agentID, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Replay: "new", Filter: plugin.LifecycleScope{{Sources: []string{"application", "user"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.input-accepted", "execution.completed", "execution.failed", "execution.interrupted"}}, {Sources: []string{agentID}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.inventory"}}}}, Instructions: []string{instructions}, Initialize: writes.EnsureInventory, LazyInitialize: true, IdleDispose: true,
+	runner, err = background.NewRunner(ctx, background.Behavior{SettingsID: "tag.settings", ID: agentID, Consumer: plugin.LifecycleConsumerDefinition{ID: "events", Replay: "pending", Filter: plugin.LifecycleScope{{Sources: []string{"application", "user"}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.input-accepted", "execution.completed", "execution.failed", "execution.interrupted"}}, {Sources: []string{agentID}, SubjectKinds: []string{"thread"}, SubjectTypeIDs: []string{"agent"}, Types: []string{"thread.inventory"}}}}, Instructions: []string{instructions}, Initialize: writes.EnsureInventory, LazyInitialize: true, IdleDispose: true,
 		Message: func(callCtx context.Context, request background.BatchRequest) (model.AgentInput, error) {
 			locale, err := environment.OutputLocale(callCtx)
 			if err != nil {

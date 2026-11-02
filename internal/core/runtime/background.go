@@ -42,7 +42,7 @@ func (r *Runtime) BackgroundCapabilities(owner plugin.BackgroundAgentRef, settin
 	access.values[plugin.OrdinaryTaskReadCapabilityKey.ID] = taskReadCapability{runtime: r, binding: owner.Binding}
 	access.values[plugin.LifecycleCapabilityKey.ID] = scopedLifecycle{base: r.lifecycle, owner: owner}
 	access.values[plugin.SemanticTagsReadCapabilityKey.ID] = tagsReadCapability{r, owner.Binding.Scope}
-	access.values[plugin.SemanticTagsWriteCapabilityKey.ID] = tagsWriteCapability{r, owner.AgentID, owner.Binding.Scope}
+	access.values[plugin.SemanticTagsWriteCapabilityKey.ID] = tagsWriteCapability{runtime: r, source: owner.AgentID, scope: owner.Binding.Scope, settingsID: settingsID}
 	if owner.Binding.Kind == plugin.DirectoryScopeKind {
 		// Classification includes application-wide evidence and has no scoped contract.
 		delete(access.values, plugin.ClassificationReadCapabilityKey.ID)
@@ -57,6 +57,17 @@ func (r *Runtime) BackgroundCapabilities(owner plugin.BackgroundAgentRef, settin
 	}
 	return access
 }
+func requireBackgroundExecution(snapshot store.Snapshot, id string) error {
+	if id == "" {
+		return nil
+	}
+	var settings model.Settings
+	if _, err := snapshot.Get("settings", &settings); err != nil {
+		return err
+	}
+	return plugin.RequireBackgroundExecution(settings, id)
+}
+
 func (c backgroundCapability) Owner() plugin.BackgroundAgentRef { return c.owner }
 func (c backgroundCapability) Cwd() string {
 	return filepath.Join(c.runtime.config.DefaultCwd, "plugins", c.owner.PluginID, c.owner.AgentID)
@@ -93,6 +104,10 @@ func (c backgroundCapability) Resolve(ctx context.Context, sessionKey string) (p
 		return plugin.ResolvedBackgroundConfiguration{}, err
 	}
 	admission := context.WithValue(ctx, configurationContextKey{}, c.runtime)
+	if err := requireBackgroundExecution(c.runtime.config.Store.Snapshot(), c.settingsID); err != nil {
+		unlock()
+		return plugin.ResolvedBackgroundConfiguration{}, err
+	}
 	settings, err := c.runtime.EnsureExecutionSettings(admission, "", c.settingsID)
 	_, revision, revisionErr := c.runtime.Settings()
 	unlock()
@@ -306,6 +321,9 @@ func (c backgroundCapability) Configure(ctx context.Context, request plugin.Conf
 		if _, err := snapshot.Get("settings-revision", &revision); err != nil {
 			return nil, err
 		}
+		if err := plugin.RequireBackgroundExecution(settings, c.settingsID); err != nil {
+			return nil, err
+		}
 		if revision != configuration.SettingsRevision {
 			return nil, model.NewError("BACKGROUND_CONFIGURATION_CHANGED", "settings changed while resolving background configuration")
 		}
@@ -430,8 +448,16 @@ func (c backgroundCapability) Open(ctx context.Context, request plugin.OpenSessi
 	if snapshot == nil {
 		return nil, errors.New("private session disappeared")
 	}
+	if err := requireBackgroundExecution(c.runtime.config.Store.Snapshot(), c.settingsID); err != nil {
+		return nil, err
+	}
 	thread := model.ThreadRecord{SessionRecord: snapshot.Record, Tags: []string{}, TagEmojis: map[string]string{}}
-	owner, err := c.runtime.openThread(ctx, thread, &request.Injection)
+	owner, err := c.runtime.openThreadWithAdmission(ctx, thread, &request.Injection, func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return requireBackgroundExecution(c.runtime.config.Store.Snapshot(), c.settingsID)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -461,6 +487,15 @@ func (h *privateHandle) Send(ctx context.Context, input model.AgentInput, entrie
 	ctx, cancel := r.operationContext(ctx)
 	defer cancel()
 	if err := validateInput(input); err != nil {
+		return SendResult{}, err
+	}
+	unlock, err := r.configurationLock(ctx)
+	if err != nil {
+		return SendResult{}, err
+	}
+	defer unlock()
+	ctx = context.WithValue(ctx, configurationContextKey{}, r)
+	if err := requireBackgroundExecution(r.config.Store.Snapshot(), h.cap.settingsID); err != nil {
 		return SendResult{}, err
 	}
 	lock := r.threadLock(h.ref.SessionID)
