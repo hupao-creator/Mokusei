@@ -127,7 +127,10 @@ private struct NativeSidecardWorkspaceLayout: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, snapshot: snapshot)
+            // The toolbar has an actual layout seat, not merely an offset
+            // outside the reader; native hit testing must reach that background.
+            let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
+            let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
             ZStack(alignment: .topLeading) {
                 mainConversation
                     .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
@@ -150,7 +153,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                 ForEach(snapshot.cards) { card in
                     sidecard(card, layout: layout)
                 }
-                launchers.position(x: geometry.size.width + 38, y: geometry.size.height / 2)
+                launchers.position(x: panelSize.width + 38, y: panelSize.height / 2)
             }
             .animation(animation, value: snapshot.selected)
             .animation(animation, value: layout.stacked)
@@ -229,7 +232,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             VStack(spacing: 14) {
                 ForEach(snapshot.available) { card in
                     Button { model.activate(card.id) } label: {
-                        card.icon.frame(width: 42, height: 42)
+                        card.icon.frame(width: 42, height: 42).contentShape(Circle())
                             .overlay(alignment: .topTrailing) {
                                 if let indicator = card.view.indicator {
                                     Circle().fill((indicator == .attention ? NativePalette.thread.warning : NativePalette.thread.accent).swiftUI)

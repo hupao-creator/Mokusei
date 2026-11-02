@@ -95,7 +95,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         // Limit replacement animation to the history identities;
                         // opening/return travel and timeline layout have their own owners.
                         .animation(axis == .vertical && direction != 0 && !reduceMotion ? curve : nil, value: identity)
-                        .frame(width: panel ? panelBounds.width : bounds.size.width, height: panel ? panelBounds.height : bounds.size.height)
+                        .frame(width: panel ? panelBounds.width + 76 : bounds.size.width, height: panel ? panelBounds.height : bounds.size.height)
                         .background {
                             if axis == .horizontal {
                                 NativeReadingPageAnchor(geometry: geometry, role: .front, geometryContext: geometryContext)
@@ -103,7 +103,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                                     .accessibilityHidden(true)
                             }
                         }
-                        .modifier(ReadingPageSurface(progress: progress, active: !panel && motion.active && axis == .horizontal, axis: axis))
+                        .modifier(ReadingPageSurface(progress: progress, active: !panel && motion.active && axis == .horizontal, axis: axis, clips: !panel))
                         .modifier(ReadingPanelSurface(enabled: panel, progress: progress, source: panelSource, target: panelBounds))
                         .offset(x: !panel && axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
                                 y: axis == .vertical ? bounds.size.height * (1 - progress) * direction : 0)
@@ -281,16 +281,22 @@ private struct ReadingPageSurface: ViewModifier, @MainActor Animatable {
     var progress: Double
     let active: Bool
     let axis: Axis
+    let clips: Bool
     var animatableData: Double {
         get { progress }
         set { progress = newValue }
     }
     func body(content: Content) -> some View {
         let envelope = max(0, min(1, min(progress, 1 - progress) / 0.15))
-        content
-            .clipShape(RoundedRectangle(cornerRadius: active ? 24 : 0))
-            .shadow(color: .black.opacity(active ? 0.16 * envelope : 0), radius: 12,
-                    x: axis == .horizontal ? -8 : 0, y: axis == .vertical ? -8 : 0)
+        if clips {
+            content.clipShape(RoundedRectangle(cornerRadius: active ? 24 : 0))
+                .shadow(color: .black.opacity(active ? 0.16 * envelope : 0), radius: 12,
+                        x: axis == .horizontal ? -8 : 0, y: axis == .vertical ? -8 : 0)
+        } else {
+            // Panel shells clip themselves; their launchers deliberately live
+            // outside the reader's frame, within the enclosing workspace.
+            content
+        }
     }
 }
 
@@ -409,12 +415,16 @@ private struct ReadingPanelSurface: ViewModifier {
                 width: origin.width + (target.width - origin.width) * progress,
                 height: origin.height + (target.height - origin.height) * progress)
             content.opacity(min(1, max(0, (progress - 0.2) / 0.6)))
-                .frame(width: frame.width, height: frame.height, alignment: .topLeading)
+                .frame(width: frame.width + 76, height: frame.height, alignment: .topLeading)
                 .background(NativePalette.thread.canvas.swiftUI.opacity(progress < 1 ? 1 : 0), in: RoundedRectangle(cornerRadius: 22))
                 // Keep one subtree through settling; the final aperture also
                 // admits the independent toolbar outside the panel's right edge.
-                .mask { RoundedRectangle(cornerRadius: progress < 1 ? 22 : 0).padding(progress < 1 ? 0 : -76) }
-                .position(x: frame.midX, y: frame.midY)
+                .mask {
+                    RoundedRectangle(cornerRadius: progress < 1 ? 22 : 0)
+                        .frame(width: frame.width + (progress < 1 ? 0 : 76), height: frame.height)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .position(x: frame.midX + 38, y: frame.midY)
         } else { content }
     }
 }

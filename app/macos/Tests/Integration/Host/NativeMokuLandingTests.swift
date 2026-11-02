@@ -11,6 +11,7 @@ import MokuseiPluginAPI
 @testable import MokuseiPluginUI
 import MokuseiHarnessCodex
 import MokuseiApplications
+import MokuseiSidecardConversation
 @testable import MokuseiUI
 
 // Catalog fixtures still need the real connection event: loading must retire
@@ -38,7 +39,7 @@ struct NativeMokuLandingTests {
         init(onboarding: Bool = false) throws {
             workspace = NativeWorkspaceModel(client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory, homeDirectory: directory)),
                 preferences: DesktopPreferences(directory: directory), plugins: try .init(
-                    harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: NativeApplicationModules.make()))
+                    harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [AnySidecardPlugin(NativeConversationSidecard())], applications: NativeApplicationModules.make()))
             if !onboarding { try workspace.preferences.setOnboardingCompleted(true) }
             presentation = NativeWorkspacePresentation(workspace: workspace)
             presentation.start()
@@ -67,7 +68,8 @@ struct NativeMokuLandingTests {
             let snapshot: JSONValue = .object(["revision": .integer(revision), "settingsRevision": .integer(0),
                 "defaultCwd": .text(directory.path), "settings": .object([:]),
                 "threads": .array((includeMoku ? [coordinator.json] : []) + threads.map(\.json)),
-                "executions": .array([]), "applicationThreads": .array(applications)])
+                "executions": .array([]), "applicationThreads": .array(applications),
+                "plugins": .array([.object(["key": .text("sidecard:conversation"), "enabled": .bool(true)])])])
             let event: RuntimeClientEvent = revision == 1 ? .snapshot(snapshot, authority: authority)
                 : .mutation(.object([:]), state: snapshot, authority: authority)
             await workspace.installPrepared(snapshot, event: event)
@@ -151,16 +153,20 @@ struct NativeMokuLandingTests {
     }
 
     private func click(_ point: CGPoint, window: NSWindow) throws {
-        let height = try #require(window.contentView).bounds.height
+        let root = try #require(window.contentView)
+        let location = root.convert(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), to: nil)
+        let timestamp = ProcessInfo.processInfo.systemUptime
         func event(_ type: NSEvent.EventType) throws -> NSEvent {
             try #require(NSEvent.mouseEvent(with: type,
-                location: CGPoint(x: point.x, y: height - point.y), modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
+                location: location, modifierFlags: [],
+                timestamp: timestamp + (type == .leftMouseUp ? 0.01 : 0), windowNumber: window.windowNumber,
+                context: nil, eventNumber: type == .leftMouseUp ? 1 : 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
         }
-        // Native text selection may synchronously track until mouse-up.
+        // Native text selection may synchronously track until mouse-up; SwiftUI
+        // buttons can leave the release queued for the app event loop instead.
         NSApp.postEvent(try event(.leftMouseUp), atStart: true)
         NSApp.sendEvent(try event(.leftMouseDown))
+        if let release = NSApp.nextEvent(matching: .leftMouseUp, until: nil, inMode: .default, dequeue: true) { NSApp.sendEvent(release) }
     }
 
     @Test func firstRunOwnsAdmissionWithoutMountingTheHiddenComposer() async throws {
@@ -258,6 +264,7 @@ struct NativeMokuLandingTests {
             #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
         }
         try await withFixture { fixture in
+            try fixture.workspace.preferences.setAppearance(.light)
             try await fixture.install([fixture.thread(status: .completed)])
             fixture.mount(fullWorkspace: true, width: 1100, height: 760)
             let root = try #require(fixture.window?.contentView)
@@ -276,7 +283,19 @@ struct NativeMokuLandingTests {
                 let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: own), configuration: config)
                 let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/agent-panel")
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("root.png"))
+                let bitmap = NSBitmapImageRep(cgImage: image)
+                try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("root.png"))
+                let panelBounds = NativeReadingPanelGeometry.frame(in: root.bounds.size)
+                let centerX = Int((panelBounds.maxX + 38) * CGFloat(image.width) / root.bounds.width)
+                let centerY = Int(panelBounds.midY * CGFloat(image.height) / root.bounds.height)
+                var ink = 0
+                for y in (centerY - 9)...(centerY + 9) {
+                    for x in (centerX - 9)...(centerX + 9) {
+                        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                           color.redComponent < 0.4 && color.greenComponent < 0.4 && color.blueComponent < 0.4 { ink += 1 }
+                    }
+                }
+                #expect(ink > 5, "The external launcher's icon must be visibly painted, not merely present in AX")
             }
             #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible)
             #expect(!fixture.presentation.canOpenSettings && !fixture.scene.canOpenSettings)
@@ -288,6 +307,13 @@ struct NativeMokuLandingTests {
             let top = root.isFlipped ? frame.minY : root.bounds.height - frame.maxY
             #expect(abs(frame.width - expected.width) < 1 && abs(frame.height - expected.height) < 1
                 && abs(frame.minX - expected.minX) < 1 && abs(top - expected.minY) < 1)
+            // This is a real pointer event outside the main panel, not an AX
+            // invocation: it catches ancestor clipping of the external launcher.
+            let toolbarPoint = CGPoint(x: expected.maxX + 38, y: expected.midY)
+            try click(toolbarPoint, window: try #require(fixture.window))
+            try await SwiftUIReplay.wait { fixture.presentation.followUpVisible && (readingPanel(in: root)?.bounds.width ?? expected.width) < expected.width - 300 }
+            try click(toolbarPoint, window: try #require(fixture.window))
+            try await SwiftUIReplay.wait { !fixture.presentation.followUpVisible && abs((readingPanel(in: root)?.bounds.width ?? 0) - expected.width) < 1 }
             try fixture.presentation.performInteraction(.toggleMokuInput)
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
             let input = try #require(SwiftUIReplay.editor(in: root))
