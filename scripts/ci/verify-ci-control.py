@@ -379,6 +379,21 @@ def verify_local_signoff(root):
                 if time.monotonic() >= expires:
                     raise AssertionError("Finished stage did not release the inherited lock")
                 time.sleep(0.02)
+    makefile = sandbox / "Makefile"
+    marker = sandbox / "make-executed"
+    makefile.write_text("check:\n\t@test -z \"$(ARGS)\"\n\t@touch '" + str(marker) + "'\n")
+    make_output = sandbox / "make-output"
+    make_output.mkdir()
+    controlled_make = ("import importlib.util; from pathlib import Path; "
+                       f"spec=importlib.util.spec_from_file_location('local_ci', {str(SCRIPTS / 'local-macos.py')!r}); "
+                       "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m); "
+                       f"r=m.Run(Path({str(make_output)!r}), {'a' * 40!r}, 'extended'); "
+                       f"r.stage('real-make', ['make','-f',{str(makefile)!r},'check'])")
+    command([sys.executable, "-c", controlled_make], cwd=repo,
+            env=dict(environment, PYTHONPATH=str(SCRIPTS), ARGS="--not-a-test-flag", MAKEFLAGS="n"))
+    if not marker.exists():
+        raise AssertionError("Inherited dry-run settings suppressed real Make execution")
+    print("PASS actual Make execution: host ARGS/dry-run controls cannot select or suppress CI commands")
     print("PASS actual hard interruption: surviving stage retains the account lock and prevents overlapping recovery")
     print("PASS local signoff: exact-SHA queries, missing/pending/failure/wrong-context rejection, latest-status precedence, review/clean admission and real failure publication")
 

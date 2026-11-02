@@ -33,7 +33,8 @@ class Run:
         self.lock_fd = lock_fd
         self.env = {key: value for key, value in os.environ.items()
                     if key not in ("GH_TOKEN", "GITHUB_TOKEN", "MOKUSEI_SWIFT_SKIP_BUILD", "GITHUB_ENV",
-                                   "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_ACTIONS", "MOKUSEI_TEST_HEADLESS", "GOROOT")}
+                                   "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_ACTIONS", "MOKUSEI_TEST_HEADLESS", "GOROOT",
+                                   "ARGS", "MAKEFLAGS", "MFLAGS", "GNUMAKEFLAGS", "MAKELEVEL", "MAKEOVERRIDES", "MAKEFILES")}
         temporary = output / "tmp"
         temporary.mkdir()
         self.env.update(CGO_ENABLED="1", GOTOOLCHAIN="local", GOFLAGS="-mod=readonly",
@@ -162,7 +163,7 @@ class Run:
                 "codex": ["go", "run", "-race", "./tools/verification/codex", "-real-only", "-real-codex", self.env.get("MOKUSEI_SYSTEM_CODEX", "")],
                 "pi": ["go", "run", "-race", "./tools/verification/pi", "-mode", "native", "-timeout", "7m"],
                 "opencode": ["go", "run", "-race", "./tools/verification/opencode", "-native-cli", str(prefix / "node_modules/.bin/opencode")],
-                "system": ["make", "check-system", "GO=go"],
+                "system": ["make", "check-system", "GO=go", "ARGS="],
             }
             self.stage(kind, commands[kind], required=False)
             self.env["PATH"] = previous_path

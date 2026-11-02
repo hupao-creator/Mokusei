@@ -25,7 +25,10 @@ Authenticate locally as `hupao-creator` for this repository. Posting commit
 statuses requires repository status-write permission (`repo:status` on an
 appropriate classic token); read-only `GITHUB_TOKEN` is insufficient. Do not put
 personal tokens in workflow secrets, command arguments, logs or tracked files.
-The test subprocess environment omits `GH_TOKEN` and `GITHUB_TOKEN`, but this is
+The test subprocess environment omits `GH_TOKEN` and `GITHUB_TOKEN` and clears
+inherited Make controls (`ARGS`, `MAKEFLAGS`, injected makefiles and overrides).
+The system lane fixes `ARGS=` so personal flags cannot select or suppress tests.
+This is
 **not a sandbox** and does not prevent reviewed code from using account files.
 
 GitHub workflows never trigger local code automatically. Review the exact
