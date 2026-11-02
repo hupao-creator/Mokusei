@@ -4,10 +4,10 @@ The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
 tools to GitHub Linux gates and local macOS signoff, and explains their value.
 A current-revision CI pass replaces an equivalent local run. Standalone visual/research tools are
 not automatically merge requirements; additional local acceptance needs a named
-uncovered defect and trigger. Real CLI checks run through
-[local macOS CI](../../scripts/ci/local-macos.md);
-the `CI` workflow dispatch (`extended=true`) verifies their exact-commit signoff.
-No registered self-hosted runner is required.
+uncovered defect and trigger. macOS builds, complete native tests, the extended
+CLI matrices and foreground performance experiments execute in Actions under
+[the CI operator guide](../../scripts/ci/README.md). GitHub-hosted macOS is the
+default; no local result publication is needed.
 
 Retained evidence uses neutral `/Users/example` paths and numbered `.worktrees`
 directories. Archive owner names are also anonymized. Evidence-file and archive
@@ -150,8 +150,8 @@ Close after Interrupt, including native state flushes during cleanup.
 
 The fixture group runs up to two independent Go producers concurrently; native
 and interop commands remain serial. Windowless local feedback is available with
-`local-macos.py headless` (see its operator guide); it cannot replace full native
-signoff. The obsolete `moku-talk` scroll-view/dispatch driver and its private
+[the headless operator guide](../../scripts/ci/headless.md); it cannot replace full hosted native
+verification. The obsolete `moku-talk` scroll-view/dispatch driver and its private
 exports were removed; current Talk/dispatch checks remain. The old direct
 model-selector popover/slider suites were removed in favor of current Settings
 and Harness-form coverage. No skips, pixel thresholds or current production
