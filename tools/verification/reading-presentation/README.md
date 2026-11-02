@@ -151,7 +151,7 @@ python3 tools/verification/reading-presentation/run.py --overview-search
 Runs all 14 existing `NativeOverviewSearchTests` in the AppKit event loop,
 including the three cases skipped by ordinary SwiftPM: selected-chip search
 morph/reversal at 360/540/1100pt in light/dark appearance, fixture-backed Chinese
-hybrid search, and continuous query edits retaining mounted card identities.
+body keyword search, and continuous query edits retaining mounted card identities.
 The suite uses the production model, Chrome and Canvas with synthetic public
 catalog/search responses; it starts no Runtime or model provider. The morph case
 slows its test animation to inspect intermediate geometry, so this is functional
@@ -546,8 +546,9 @@ checks; this mounting suite checks state and lifecycle.
 MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verification/reading-presentation/run.py --rolling-numbers
 ```
 
-Runs two `RollingNumberCellTests` in the native application event loop. The
-production Codex plugin consumes changing session-state token totals and replaces
+Runs two `RollingNumberCellTests` and the Git summary/original-size case in the
+native application event loop. The production Codex plugin consumes changing
+session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
 a freshly mounted reference. The leaf check retains equal-width digit cells at
@@ -748,6 +749,9 @@ foreground/key-window admission, the original three sampling intervals, three
 distinct frames and fixed 400×90 geometry remain required.
 `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
+Bounded foreground admission precedes the original 100/90/300ms sampling timeline;
+the foreground requirement is checked again at input and still fails if absent.
+
 
 ## Agent reading panel admission
 

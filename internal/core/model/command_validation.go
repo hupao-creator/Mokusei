@@ -210,7 +210,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		return CommandJSONSize(value, limit)
 	case "app:update-settings":
 		return CommandJSONSize(value, 2_000_000)
-	case "search:query", "search:configure", "search:model", "search:index":
+	case "search:query":
 		return CommandJSONSize(value, 2_000_000)
 	case "settings:diagnostics", "moku:voice", "moku:voice-events":
 		return nil // Strict typed validators are owned by these modules.

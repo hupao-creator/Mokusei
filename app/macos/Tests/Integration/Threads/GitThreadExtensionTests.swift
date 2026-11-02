@@ -217,6 +217,13 @@ struct GitThreadExtensionTests {
             root.cacheDisplay(in: root.bounds, to: image)
             return try #require(image.representation(using: .png, properties: [:]))
         }
+        // Foreground admission is asynchronous even after LaunchServices starts
+        // the app. Establish it before the original pixel-sampling timeline.
+        let admissionDeadline = ContinuousClock.now + .seconds(3)
+        while !(app.isActive && window.isKeyWindow && window.occlusionState.contains(.visible))
+                && ContinuousClock.now < admissionDeadline {
+            try await Task.sleep(for: .milliseconds(10), tolerance: .zero)
+        }
         try await Task.sleep(for: .milliseconds(100), tolerance: .zero)
         let initial = try pixels()
         let activeAtInput = app.isActive

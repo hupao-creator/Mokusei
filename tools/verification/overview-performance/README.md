@@ -24,7 +24,7 @@ a path when its repeatable benefit no longer justifies complexity.
 | Layout / reordering / resize | 5/6 mixed footprints; 12/30 equal footprints; wide/narrow | Production solver timings plus packing/capacity/camera replay |
 | Appearance / material | Light/dark × glass on/off | Fixed native captures, mounted identity and independent CPU sampling |
 | Empty / small / large | Empty catalog, five readable cards, dense collection | Empty state, mounting, layout failure/recovery; all placements remain mounted |
-| Search / clearing | Keyword hit/miss and return to browse | Public metadata search and camera/semantic-search regression suite |
+| Search / clearing | Keyword hit/miss and return to browse | Public metadata search and camera/body-search regression suite |
 
 Not exposed by the current product: Overview tag CRUD/multiselection, mobile
 orientation sensors and Windows UI. This CPU fixture does not measure provider/

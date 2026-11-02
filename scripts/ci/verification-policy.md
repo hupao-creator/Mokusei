@@ -177,7 +177,7 @@ python3 tools/verification/thread-interaction/run.py \
 
 These use isolated profiles and do not send Harness model tasks or require an
 account. Normal production discovery/search still runs; this is not a promise
-of zero network or model-asset downloads. Preserve the printed per-run evidence
+of zero network access. Preserve the printed per-run evidence
 directories. No developer signing private key is exported by this CI migration.
 
 ## Obligations replaced or removed

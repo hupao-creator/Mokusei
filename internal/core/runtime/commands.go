@@ -53,7 +53,7 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 			return nil, err
 		}
 		return r.RecordNoteExposure(ctx, receipt)
-	case "search:status", "search:configure", "search:index", "search:query", "search:model":
+	case "search:status", "search:query":
 		return r.searchCommand(ctx, channel, args)
 	case "moku:deliveries":
 		return r.PendingMokuDeliveries()
