@@ -38,3 +38,12 @@ not a failed or passing execution of the three remaining cases.
 The [current Swift test inventory](local-inventory.log) contains exactly the
 two retained `RollingNumberCellTests` methods and the Git flip method; the
 removed method is absent rather than skipped. Discovery is not test execution.
+
+After the graphical lock was released, the retained owner ran at commit
+`b8b5771` and [passed](local-pass-report.json) in 27.374 seconds. The
+[log](local-pass.log) records exactly three passed methods: the two remaining
+rolling cases and the Git flip. Its [receipt](local-git-measurements.json)
+records a 2x display, active/key/visible foreground, and three distinct frames;
+its [initial](local-git-initial.png), [during](local-git-during.png), and
+[settled](local-git-settled.png) images are retained. This local run is not
+`Complete coverage` and does not replace final hosted CI.

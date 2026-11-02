@@ -1,0 +1,18 @@
+/private/var/folders/yh/1n42q4_n0wqd_fx2s24092gh0000gn/T/mokusei-native-replay-1ndsvgcp/ReadingPresentationReplay.app: replacing existing signature
+NATIVE_REPLAY_TIMING userInitiated=true latencyCritical=true
+GIT_NUMBER_FLIP_EVIDENCE /private/tmp/mokusei-ci-geometry-local/rolling-removal-evidence-2/git-number-flip-2BB00394-9D72-4263-A6FA-4F682E4F9F28
+GIT_TOKEN_FLIP_FRAMES_CONFIRMED
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite GitThreadExtensionTests started.
+◇ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() started.
+✔ Test sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes() passed after 0.685 seconds.
+✔ Suite GitThreadExtensionTests passed after 0.686 seconds.
+◇ Suite RollingNumberCellTests started.
+◇ Test threadCardUsageRollsInsideStableCells() started.
+✔ Test threadCardUsageRollsInsideStableCells() passed after 0.713 seconds.
+◇ Test projectedUsageUpdatesKeepTheirAnimation() started.
+✔ Test projectedUsageUpdatesKeepTheirAnimation() passed after 4.303 seconds.
+✔ Suite RollingNumberCellTests passed after 5.017 seconds.
+✔ Test run with 3 tests in 2 suites passed after 5.703 seconds.
