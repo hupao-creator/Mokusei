@@ -268,7 +268,14 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     var performanceOperation: UInt64?
     var ownedTextStorage: NSTextStorage?
     var executionSurfaces: [Int: MarkdownExecutionHost] = [:]
-    var executionLocale = Locale.current
+    var executionLocale = Locale.current {
+        didSet { if executionLocale != oldValue { updateExecutionSurfaces() } }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateExecutionSurfaces()
+    }
 
     override func accessibilityChildren() -> [Any]? {
         // NSTextView publishes its own links but omits embedded native views.

@@ -261,7 +261,7 @@ struct NativeMokuExecutionLinkTests {
         #expect(capsule.harness?.descriptor.id == JSONText(harness))
         #expect(capsule.size.width <= 244)
         #expect(capsule.size.height > 30)
-        let text = try #require(textViews(root).first { $0.string.contains("Website") })
+        let text = try #require(textViews(root).first { $0.string.contains("Website") } as? MarkdownTextView)
         let website = (text.string as NSString).range(of: "Website")
         #expect(text.textStorage?.attribute(.link, at: website.location, effectiveRange: nil) as? URL == URL(string: "https://example.com"))
         #expect((text.linkTextAttributes?[.underlineStyle] as? Int) == NSUnderlineStyle.single.rawValue)
@@ -286,6 +286,10 @@ struct NativeMokuExecutionLinkTests {
         try publish([], revision: 2)
         try await SwiftUIReplay.wait { attachments().count == 1 && attachments().first?.harness == nil }
         #expect(element(id: "moku-note-execution-link", nativeOnly: true, label: title, in: root) != nil)
+        text.executionLocale = Locale(identifier: "zh-CN")
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "执行记录 ·", in: root) != nil }
+        text.executionLocale = Locale(identifier: "en-US")
+        try await SwiftUIReplay.wait { element(id: "moku-note-execution-link", nativeOnly: true, label: "Execution ·", in: root) != nil }
         var unknown = try #require(fixture.thread.json.objectValue)
         unknown["harnessId"] = .text("not-registered")
         try publish([.object(unknown)], revision: 3)
