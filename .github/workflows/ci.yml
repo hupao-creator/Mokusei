@@ -16,10 +16,10 @@ permissions:
   actions: read
 
 concurrency:
-  # Only PR revisions supersede each other. Run-specific push/dispatch groups
-  # also prevent GitHub from replacing a pending main run before it starts.
-  group: ci-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Latest PR/main revision wins. Explicit dispatches own an independent group.
+  # GitHub records obsolete work as cancelled; it never becomes a green gate.
+  group: ci-${{ github.event_name }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 defaults:
   run:

@@ -1,5 +1,8 @@
 # 托管 CI 实测与第二轮（2026-11-02）
 
+> 此处各轮按当时的 workflow 记录；后续审查按照当前仓库要求恢复了同一 main
+> ref 的新提交取消旧运行，历史的 main 独立分组描述不代表最终方案。
+
 用户授权仅推送 CI 专用分支。原提交 `74b6e26` 已保留，专用分支
 `ci/optimization-20261102` 已推至指定远端，并创建
 [PR #225](https://github.com/hupao-creator/Mokusei/pull/225)。没有推送或合并 main，

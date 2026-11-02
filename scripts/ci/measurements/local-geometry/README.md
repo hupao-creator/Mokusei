@@ -37,6 +37,15 @@ These local results do not certify the eventual PR merge tree or prove hosted
 failures harmless. Full screenshots and logs remain under
 `/private/tmp/mokusei-ci-geometry-local/{positive-scratch,negative-scratch,guarded-scratch}`.
 
+After main's title-frame arrival fix was integrated, clean checkout `06f887a`
+rebuilt all Swift test targets and passed all seven original capture methods
+locally (exit 0, 90.351 seconds; 64.362 seconds inside the test process). The
+retained return observed x=680.5 of 1180 with two anchors, and the return check
+occurred 102.640 ms after close. The [integrated report](integrated-report.json),
+log and provenance retain the actual run and source identities; its full
+captures are in `/private/tmp/mokusei-ci-geometry-local/integrated-scratch`.
+This is an affected local replay, not the final hosted merge-tree gate.
+
 ## Shared compiler-cache review
 
 The cache used across these three staged launches contains `CAtomic`,

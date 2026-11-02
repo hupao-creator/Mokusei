@@ -23,11 +23,11 @@ runs retain full verification. Documentation-only runs execute scope, `Go / Linu
 and the aggregate; they validate the diff and explicitly state that native/build
 tests were outside the scope. Local link review remains required.
 
-PR runs have per-PR concurrency groups. A newer PR revision cancels that PR's older
-work using GitHub's cancelled state; it is never reported as a successful
-`Complete coverage` check. Main pushes and explicit dispatches have run-specific
-groups, so neither a running nor a pending main revision is superseded. Other PRs
-do not share a repository-wide lock; dispatches cannot cancel PR/main work.
+PR runs have per-PR concurrency groups and main pushes use their ref's group.
+A newer revision cancels older work only for the same event/ref, using GitHub's
+cancelled state; it is never reported as a successful `Complete coverage` check.
+Other PRs do not share a repository-wide lock. Explicit dispatches have
+run-specific groups and cannot cancel PR/main work.
 There is no custom API-based obsolete-head/base rejection: the required check
 belongs to its actual checked-out revision and the remote strict ruleset controls
 whether a PR is up to date. This is not GitHub Merge Queue.

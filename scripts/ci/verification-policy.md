@@ -71,10 +71,10 @@ session. One current-build manifest and the observed method IDs establish comple
 execution; no weights, cross-runner build transport or artifact-slot aggregation
 are involved. Compiler caches never replace the current-source build or tests.
 
-New PR revisions cancel older work only for that PR. Main pushes and explicit
-dispatches have independent run-specific groups, preserving every main revision
-even while pending. Obsolete PR work retains GitHub's cancelled status instead of
-becoming a green required check. Remote strict branch rules control freshness;
+New PR and main revisions cancel older work only in the same event/ref group.
+Explicit dispatches have independent run-specific groups. Obsolete work retains
+GitHub's cancelled status instead of becoming a green required check. Remote
+strict branch rules control freshness;
 only PRs can use the conservative documentation path. Main always runs the full suite.
 
 There is no fifteen-minute whole-run acceptance gate or shared 840-second deadline.

@@ -1,0 +1,22 @@
+{
+  "revision": "06f887a4664eab95f4c5af3b9ca9d0740fd216a5",
+  "dirty": false,
+  "group": "native",
+  "checks": [
+    {
+      "name": "tag-glass-captures",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--tag-glass-captures"
+      ],
+      "status": "passed",
+      "log": "tag-glass-captures.log",
+      "exit_code": 0,
+      "seconds": 90.351
+    }
+  ],
+  "selectedChecks": [
+    "tag-glass-captures"
+  ]
+}
