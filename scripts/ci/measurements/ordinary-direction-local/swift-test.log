@@ -1,0 +1,18 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-11-02 17:06:04.267.
+Test Suite 'MokuseiNativePackageTests.xctest' started at 2026-11-02 17:06:04.268.
+Test Suite 'MokuseiNativePackageTests.xctest' passed at 2026-11-02 17:06:04.268.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-11-02 17:06:04.268.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite RollingNumberCellTests started.
+◇ Test incomingDigitsMoveDownFromAbove() started.
+NATIVE_GATE begin: MokuseiGitIntegrationTests.RollingNumberCellTests/incomingDigitsMoveDownFromAbove()/RollingNumberCellTests.swift:179:6
+ROLLING_NUMBER_DIRECTION_EVIDENCE /private/tmp/mokusei-ci-geometry-local/ordinary-direction-local/evidence/rolling-number-direction-6C7D5254-5046-41E7-AFCC-228AA62BC7F6
+NATIVE_GATE end: MokuseiGitIntegrationTests.RollingNumberCellTests/incomingDigitsMoveDownFromAbove()/RollingNumberCellTests.swift:179:6
+✔ Test incomingDigitsMoveDownFromAbove() passed after 1.054 seconds.
+✔ Suite RollingNumberCellTests passed after 1.054 seconds.
+✔ Test run with 1 test in 1 suite passed after 1.054 seconds.
