@@ -117,14 +117,14 @@ struct NativeMokuNoteTests {
         let row = CGRect(x: 100, y: 300, width: 168, height: 44)
         let mic = CGRect(x: 221, y: 300, width: 44, height: 44)
         func allowed(_ point: CGPoint, message: Bool = false) -> Bool {
-            NativeMokuSwipeTarget.contains(point, row: row, showingMessage: message, excluding: [mic])
+            NativeMokuSwipeTarget.contains(point, row: row, eyesOnly: message, excluding: [mic])
         }
         #expect(allowed(CGPoint(x: 160, y: 322)))
         #expect(!allowed(CGPoint(x: 243, y: 322))) // Mic tap and long press.
         #expect(!allowed(CGPoint(x: 160, y: 280))) // Note's reading/scrolling area.
         #expect(!allowed(CGPoint(x: 293, y: 322))) // Separate note button.
         #expect(allowed(CGPoint(x: 132, y: 322), message: true))
-        #expect(!allowed(CGPoint(x: 180, y: 322), message: true)) // Talk prose.
+        #expect(!allowed(CGPoint(x: 180, y: 322), message: true)) // Voice transcript/dispatch prose.
 
         var touch = NativeMokuTouchSwipeSequence()
         #expect(touch.begin(at: CGPoint(x: 95, y: 322), eligible: true, inside: false) == false)
@@ -160,6 +160,58 @@ struct NativeMokuNoteTests {
                 }
             }
         }
+    }
+
+    @Test(.requiresDisplay, arguments: [236.0, 600.0])
+    func talkBubbleSwipeRetainsMessageAndNativeOverflow(width: Double) async throws {
+        let state = NativeMokuSceneState()
+        state.setWindowVisible(true)
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        let window = SwiftUIReplay.window(NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
+            running: true, talk: "Ready.", onSend: { _ in }, onCancel: {})
+            .transaction { $0.disablesAnimations = true }, width: width, height: 500)
+        defer { window.close(); state.settle() }
+        let root = try #require(window.contentView)
+        func find<T: NSView>(_ view: NSView, _ type: T.Type) -> T? {
+            if let match = view as? T { return match }
+            return view.subviews.lazy.compactMap { find($0, type) }.first
+        }
+        try await SwiftUIReplay.wait { state.talkPresentation.message != nil && state.capsuleFrame.width > 100 }
+        let monitor = try #require(find(root, NativeMokuSwipeMonitor.MonitorView.self))
+        let event = MokuNoteScrollSample()
+        event.target = window
+        func swipe(at point: CGPoint, inverted: Bool = true, phase: NSEvent.Phase = .began) -> NSEvent? {
+            event.point = monitor.convert(point, to: nil)
+            event.inverted = inverted; event.direct = phase
+            return monitor.handle(event)
+        }
+        try await SwiftUIReplay.wait { NSEvent.pressedMouseButtons == 0 }
+        let row = state.capsuleFrame
+        #expect(swipe(at: CGPoint(x: row.maxX - 22, y: row.midY)) != nil)
+        #expect(!state.notePanelOpen)
+        for inverted in [true, false] {
+            #expect(swipe(at: CGPoint(x: row.minX + 80, y: row.midY), inverted: inverted) == nil)
+            #expect(state.notePanelOpen && !state.inputOpen)
+            #expect(state.talkPresentation.message?.text == "Ready.")
+            state.setNotePanelOpen(false)
+            try await SwiftUIReplay.wait { abs(state.capsuleFrame.height - row.height) < 1 }
+        }
+        state.receiveTalk(.init(id: "overflow", text: (1...12).map { "Line \($0)" }.joined(separator: "\n")))
+        try await SwiftUIReplay.wait { state.capsuleFrame.height > row.height + 20 }
+        let overflowRow = state.capsuleFrame
+        let scroll = try #require(find(root, NSScrollView.self))
+        let document = try #require(scroll.documentView)
+        #expect(document.bounds.height > scroll.contentView.bounds.height + 1)
+        for offset in [CGFloat(0), document.bounds.height - scroll.contentView.bounds.height] {
+            scroll.contentView.scroll(to: CGPoint(x: 0, y: offset))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            #expect(swipe(at: CGPoint(x: overflowRow.minX + 80, y: overflowRow.midY)) != nil)
+            #expect(!state.notePanelOpen)
+            _ = swipe(at: CGPoint(x: overflowRow.minX + 32, y: overflowRow.midY), phase: .changed)
+            #expect(!state.notePanelOpen)
+        }
+        #expect(swipe(at: CGPoint(x: overflowRow.minX + 32, y: overflowRow.midY)) == nil)
+        #expect(state.notePanelOpen && state.talkPresentation.message?.id == "overflow")
     }
 
     @Test func wrongDirectionTouchDragsCannotFallBackToAButtonTap() {
@@ -358,4 +410,21 @@ struct NativeMokuNoteTests {
         try await Task.sleep(for: .milliseconds(250))
         #expect(selectableText(emptyContent).isEmpty)
     }
+}
+
+private final class MokuNoteScrollSample: NSEvent {
+    var target: NSWindow?
+    var point = CGPoint.zero
+    var inverted = true
+    var direct: NSEvent.Phase = .began
+    override var type: NSEvent.EventType { .scrollWheel }
+    override var window: NSWindow? { target }
+    override var locationInWindow: NSPoint { point }
+    override var scrollingDeltaX: CGFloat { 0 }
+    override var scrollingDeltaY: CGFloat { inverted ? -30 : 30 }
+    override var hasPreciseScrollingDeltas: Bool { true }
+    override var isDirectionInvertedFromDevice: Bool { inverted }
+    override var phase: NSEvent.Phase { direct }
+    override var momentumPhase: NSEvent.Phase { [] }
+    override var modifierFlags: NSEvent.ModifierFlags { [] }
 }

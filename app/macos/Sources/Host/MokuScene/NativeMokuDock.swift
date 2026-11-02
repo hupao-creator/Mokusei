@@ -112,6 +112,7 @@ public struct NativeMokuDock: View {
     @State private var historyActionWidth: CGFloat = 110
     @State private var voiceActionWidth: CGFloat = 34
     @State private var voiceControlsFrame = CGRect.zero
+    @State private var stopControlsFrame = CGRect.zero
     @State private var voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
     @State private var talkScrollbarStyle = NSScroller.preferredScrollerStyle
     @State private var dispatchDetail: NativeMokuTalkMessage?
@@ -442,8 +443,10 @@ public struct NativeMokuDock: View {
                     isActive: { rowControlAvailable },
                     isInside: { point in
                         let row = voiceActivationFrame
-                        return NativeMokuSwipeTarget.contains(point, row: row, showingMessage: displayedMessage != nil,
-                            excluding: voiceControlVisible ? [voiceControlsFrame] : [])
+                        return NativeMokuSwipeTarget.contains(point, row: row,
+                            eyesOnly: (voiceModeActive && displayedMessage != nil) || displayedMessage?.dispatch != nil,
+                            excluding: (voiceActionPresent ? [voiceControlsFrame] : [])
+                                + (stopControlPresent ? [stopControlsFrame] : []))
                     },
                     openNote: { state.openNotePanelFromUser() })
             }
@@ -755,6 +758,7 @@ public struct NativeMokuDock: View {
                         .help(localize("停止 Moku", "Stop Moku"))
                         .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
                         .accessibilityIdentifier("moku-stop")
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { stopControlsFrame = $0 }
                 } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
                     voiceControls.fixedSize(horizontal: true, vertical: true)
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { voiceControlsFrame = $0; voiceActionWidth = $0.width }

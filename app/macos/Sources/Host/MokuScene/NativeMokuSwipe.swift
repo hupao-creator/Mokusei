@@ -24,9 +24,9 @@ private struct NativeMokuSwipeIntent {
 }
 
 enum NativeMokuSwipeTarget {
-    static func contains(_ point: CGPoint, row: CGRect, showingMessage: Bool,
+    static func contains(_ point: CGPoint, row: CGRect, eyesOnly: Bool,
                          excluding controls: [CGRect] = []) -> Bool {
-        let region = showingMessage
+        let region = eyesOnly
             ? CGRect(x: row.minX + 9, y: row.midY - 18, width: 46, height: 36) : row
         return region.contains(point) && !controls.contains { $0.contains(point) }
     }
@@ -129,6 +129,22 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
         override var isFlipped: Bool { true }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
+        private func isOverScrollableContent(_ locationInWindow: CGPoint) -> Bool {
+            guard let content = window?.contentView else { return false }
+            let point = content.superview?.convert(locationInWindow, from: nil) ?? locationInWindow
+            var target = content.hitTest(point)
+            while let view = target {
+                if let scroll = view as? NSScrollView, let document = scroll.documentView,
+                   document.bounds.height > scroll.contentView.bounds.height + 1 {
+                    // The actual native viewport owns overflow, including at its
+                    // ends. Short Talk can use the same area to open the note.
+                    return true
+                }
+                target = view.superview
+            }
+            return false
+        }
+
         func handle(_ event: NSEvent) -> NSEvent? {
             guard let window, event.window === window, !isHiddenOrHasHiddenAncestor else { return event }
             if event.type != .scrollWheel { sequence.reset(); return event }
@@ -137,7 +153,8 @@ struct NativeMokuSwipeMonitor: NSViewRepresentable {
                 phase: event.phase, momentum: event.momentumPhase,
                 precise: event.hasPreciseScrollingDeltas, inverted: event.isDirectionInvertedFromDevice,
                 eligible: isActive() && window.isVisible && !modified && NSEvent.pressedMouseButtons == 0,
-                inside: isInside(convert(event.locationInWindow, from: nil)))
+                inside: isInside(convert(event.locationInWindow, from: nil))
+                    && !isOverScrollableContent(event.locationInWindow))
             switch result.action {
             case .note: openNote()
             case nil: break

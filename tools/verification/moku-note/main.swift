@@ -102,6 +102,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
     var voiceActive = false
     var voiceTranscript: NativeMokuTalkMessage?
     var voiceControlClicks = 0
+    var forceRunning = false
     var overrideNote: NativeMokuNote?
     var usesOverrideNote = false
     var exposureAttempts: [String] = []
@@ -144,7 +145,7 @@ private struct Dock: View {
     let fixture: Fixture
     var body: some View {
         NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/isolated/moku",
-            mode: fixture.presentation.dockMode, running: fixture.presentation.running,
+            mode: fixture.presentation.dockMode, running: fixture.forceRunning || fixture.presentation.running,
             talk: nil,
             voiceControls: AnyView(Button { fixture.voiceControlClicks += 1 } label: {
                 Image(systemName: "mic").frame(width: 34, height: 34)
@@ -508,10 +509,56 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try require(!fixture.state.inputOpen, "Clicking notification prose opened input")
     try require(axTexts(host).contains("Selectable notification text"),
                 "Clicking notification prose dismissed its text")
+    fixture.forceRunning = true
+    try await settle()
+    try require(try await scroll(-40, point: CGPoint(x: messageRow.maxX - 22, y: messageRow.midY)) != nil
+                    && !fixture.state.notePanelOpen, "Talk swipe acquired the Stop control")
+    fixture.forceRunning = false
+    try await settle()
+    for inverted in [true, false] {
+        let point = CGPoint(x: messageRow.minX + 120, y: messageRow.midY)
+        _ = try await scroll(inverted ? -10 : 10, point: point, inverted: inverted)
+        try require(!fixture.state.notePanelOpen, "Small Talk swipe opened note")
+        _ = try await scroll(inverted ? -16 : 16, phase: .changed, point: point, inverted: inverted)
+        try await wait("Talk bubble upward swipe did not open note") { fixture.state.notePanelOpen }
+        try await settle()
+        try require(!fixture.state.inputOpen && axTexts(host).contains("Selectable notification text"),
+                    "Talk swipe lost the bubble or opened the composer")
+        try require(try await scroll(-40, phase: [], momentum: .began, point: point) == nil,
+                    "Talk opening gesture leaked momentum into note")
+        fixture.state.setNotePanelOpen(false)
+        try await settle()
+    }
     try await click(CGPoint(x: messageRow.minX + 32, y: messageRow.midY))
     try await wait("Clicking notification eyes did not open input") { fixture.state.inputOpen }
     fixture.state.dismissTalk()
     fixture.state.setInputOpen(false)
+    try await settle()
+
+    fixture.state.receiveTalk(.init(id: "scrollable-notification", text:
+        (1...12).map { "Line \($0)" }.joined(separator: "\n")))
+    try await settle()
+    let longMessageRow = fixture.state.capsuleFrame
+    let prosePoint = CGPoint(x: longMessageRow.midX, y: longMessageRow.midY)
+    let messageScroll = try unwrap(find(host, NSScrollView.self, where: {
+        $0.bounds.contains($0.convert(swipe.convert(prosePoint, to: nil), from: nil))
+            && ($0.documentView?.bounds.height ?? 0) > $0.contentView.bounds.height + 1
+    }), "Long Talk did not mount a native overflow viewport")
+    for offset in [CGFloat(0), messageScroll.documentView!.bounds.height - messageScroll.contentView.bounds.height] {
+        messageScroll.contentView.scroll(to: CGPoint(x: 0, y: offset))
+        messageScroll.reflectScrolledClipView(messageScroll.contentView)
+        try require(try await scroll(-40, point: prosePoint) != nil && !fixture.state.notePanelOpen,
+                    "Talk note gesture stole overflow scrolling at a viewport end")
+        _ = try await scroll(-40, phase: .changed,
+                             point: CGPoint(x: longMessageRow.minX + 32, y: longMessageRow.midY))
+        try require(!fixture.state.notePanelOpen, "Overflow-origin gesture acquired the eye seat")
+    }
+    _ = try await scroll(-40, point: CGPoint(x: longMessageRow.minX + 32, y: longMessageRow.midY))
+    try await wait("Long Talk eye swipe did not open note") { fixture.state.notePanelOpen }
+    try require(fixture.state.talkPresentation.message?.id == "scrollable-notification",
+                "Opening note dismissed long Talk")
+    fixture.state.setNotePanelOpen(false)
+    fixture.state.dismissTalk()
     try await settle()
 
     // Voice is a presentation fixture: no microphone/provider is opened. Route
@@ -796,6 +843,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
             "Markdown body remains read-only and selectable inside the expanded surface",
             "opening and in-place updates retain unexposed state until Runtime accepts a full-coverage receipt",
             "composer and permission/question panels take priority",
+            "Talk bubble upward swipe in both scrolling directions retains the bubble; overflow keeps scrolling and eye entry",
             "voice upward swipe, retained transcript scroll, control exclusion/clicks, close paths and draft/focus restoration",
             "empty voice note fits a narrow viewport; idle-origin voice termination preserves the note without opening input",
             "Escape, outside click and the title close control dismiss; inside click keeps the panel",
