@@ -204,7 +204,8 @@ python3 scripts/ci/swift-tests.py --full-log /absolute/swift-tests.log \
 coverage and local capture entry points with temporary Git histories and controlled
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
-partial or misrouted native evidence; real subprocesses check deadline termination.
+partial or misrouted native evidence; real subprocesses check deadline termination
+and cancellation of the actual Swift launcher's separate child process group.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
 commit's local native run must establish actual native execution before signoff.
 

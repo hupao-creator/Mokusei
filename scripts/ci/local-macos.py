@@ -52,7 +52,9 @@ class Run:
         log = self.output / (name + ".log")
         try:
             with log.open("w") as stream:
-                code = deadline.run(command, cwd=ROOT, env=self.env, timeout=timeout,
+                # Inner replay launchers own separate process groups and need
+                # time to unwind their own bounded teardown before escalation.
+                code = deadline.run(command, cwd=ROOT, env=self.env, timeout=timeout, termination_grace=30,
                                     stdout=stream, stderr=subprocess.STDOUT)
             record.update(exit_code=code, status="passed" if code == 0 else "failed")
         except (OSError, TimeoutError) as error:
@@ -135,8 +137,10 @@ class Run:
                     "opencode": "@opencode/cli@2.0.25", "system": "@openai/codex@0.163.0"}
         for kind, package in packages.items():
             prefix = self.output / ("cli-" + kind)
-            self.stage("install-" + kind, ["npm", "install", "--prefix", str(prefix), "--no-audit", "--no-fund",
-                                          "--fetch-timeout=60000", "--fetch-retries=1", package], timeout=180)
+            if not self.stage("install-" + kind, ["npm", "install", "--prefix", str(prefix), "--no-audit", "--no-fund",
+                                                 "--fetch-timeout=60000", "--fetch-retries=1", package],
+                              timeout=180, required=False):
+                continue
             previous_path = self.env["PATH"]
             self.env["PATH"] = str(prefix / "node_modules/.bin") + os.pathsep + previous_path
             if kind in ("codex", "system"):
@@ -144,7 +148,11 @@ class Run:
                             if p.is_file() and not p.is_symlink() and os.access(p, os.X_OK)
                             and p.open("rb").read(4) in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe')]
                 if len(binaries) != 1:
-                    raise RuntimeError("Expected exactly one pinned native Codex executable")
+                    self.receipt["steps"].append({"name": "locate-" + kind, "status": "failed",
+                                                   "error": "Expected exactly one pinned native Codex executable"})
+                    self.save()
+                    self.env["PATH"] = previous_path
+                    continue
                 self.env["MOKUSEI_SYSTEM_CODEX"] = str(binaries[0])
             commands = {
                 "codex": ["go", "run", "-race", "./tools/verification/codex", "-real-only", "-real-codex", self.env.get("MOKUSEI_SYSTEM_CODEX", "")],
@@ -212,7 +220,7 @@ def main():
         command = ["gh", "signoff"] + (["fail"] if failed else ["-f"]) + ["--commit", args.commit, context.removeprefix("signoff/")]
         if args.url:
             command += ["--url", args.url]
-        subprocess.run(command, cwd=ROOT, check=True)
+        subprocess.run(command, cwd=ROOT, check=True, timeout=60)
     published_pending = False
     signal.signal(signal.SIGALRM, lambda *_: sys.exit("Local verification time limit exhausted"))
     signal.alarm({"native": 3600, "overview": 1800, "extended": 7920}[args.mode])

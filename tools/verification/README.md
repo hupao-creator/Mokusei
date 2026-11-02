@@ -1,11 +1,13 @@
 # Functional integration replays
 
 The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
-tools to hosted gates and explains their independent value. A current-revision
-CI pass replaces an equivalent local run. Standalone visual/research tools are
+tools to GitHub Linux gates and local macOS signoff, and explains their value.
+A current-revision CI pass replaces an equivalent local run. Standalone visual/research tools are
 not automatically merge requirements; additional local acceptance needs a named
-uncovered defect and trigger. Real CLI checks have a hosted
-`CI` workflow dispatch (`extended=true`); they do not require self-hosted Macs.
+uncovered defect and trigger. Real CLI checks run through
+[local macOS CI](../../scripts/ci/local-macos.md);
+the `CI` workflow dispatch (`extended=true`) verifies their exact-commit signoff.
+No registered self-hosted runner is required.
 
 Retained evidence uses neutral `/Users/example` paths and numbered `.worktrees`
 directories. Archive owner names are also anonymized. Evidence-file and archive
@@ -47,8 +49,8 @@ Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
 For the foreground Overview performance baseline, see the
-[Release CI comparison](overview-ci-performance/README.md). It uses one hosted
-macOS runner for serial, balanced A/B pairs with a separate production Core
+[Release CI comparison](overview-ci-performance/README.md). It uses one local
+macOS host for serial, balanced A/B pairs with a separate production Core
 producer, real transport/catalog consumption and four fully visible running
 cards. Its retained Markdown report and raw measurements are the continuing
 baseline; historical target-Mac measurements are not pooled with CI results.

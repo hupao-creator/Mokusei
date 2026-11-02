@@ -2,7 +2,6 @@
 import argparse
 import os
 from pathlib import Path
-import subprocess
 
 from macos_signoff import commit_sha, context_for, gh_json
 

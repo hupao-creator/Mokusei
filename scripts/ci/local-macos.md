@@ -53,7 +53,9 @@ proves the SHA is known to GitHub before publishing, pins the extension, seriali
 runs across worktrees with a local process lock, and retains each fresh attempt.
 It posts `pending` before execution, invokes `gh signoff fail` on failures and
 publishes success only after all required command receipts and audits pass.
-Cancellation/crash can leave `pending`; it cannot create success. A newer pending
+Cancellation/crash can leave `pending`; it cannot create success. Native Swift
+launchers unwind SIGTERM and terminate their separate test process group; the
+outer owner allows bounded nested cleanup before force termination. A newer pending
 or failing status supersedes an older success. A rerun always executes again.
 
 The reviewed gh-signoff implementation otherwise fetches all remote-tracking

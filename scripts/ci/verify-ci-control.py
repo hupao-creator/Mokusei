@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
+import time
 import subprocess
 import sys
 import tempfile
@@ -37,10 +39,13 @@ def verify_swift_ownership(root, repo, environment):
     bin_dir = root / "swift-bin"
     bin_dir.mkdir()
     peer = bin_dir / "xcrun"
-    peer.write_text("#!/usr/bin/env python3\nimport json, os, sys\nfrom pathlib import Path\n"
+    peer.write_text("#!/usr/bin/env python3\nimport json, os, sys, time\nfrom pathlib import Path\n"
                     "if sys.argv[1:4] == ['swift', 'test', 'list']:\n"
                     "    print(Path(os.environ['CI_SWIFT_INVENTORY']).read_text())\n"
                     "elif sys.argv[1:3] == ['swift', 'test']:\n"
+                    "    if os.environ.get('CI_SWIFT_BLOCK'):\n"
+                    "        Path(os.environ['CI_SWIFT_BLOCK']).write_text(str(os.getpid()))\n"
+                    "        time.sleep(60)\n"
                     "    Path(os.environ['CI_SWIFT_ARGUMENTS']).write_text(json.dumps(sys.argv[1:]))\n"
                     "    print(Path(os.environ['CI_SWIFT_LOG']).read_text(), end='')\n"
                     "else:\n    print('Fixture toolchain')\n")
@@ -92,6 +97,38 @@ def verify_swift_ownership(root, repo, environment):
             or arguments[arguments.index("--skip") + 1] != native_filter()
             or actual_receipt["skip"] != native_filter() or actual_receipt["tests"] != ordinary_tests):
         raise AssertionError("Full ordinary execution must be serial and exclude exactly the native owners")
+    child_pid = root / "swift-child-pid"
+    cancelled = root / "cancelled-swift"
+    launcher = subprocess.Popen([sys.executable, str(scripts / "swift-native.py"), "run", "--evidence", str(cancelled)],
+                                cwd=repo, env=dict(environment, CI_SWIFT_BLOCK=str(child_pid)),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        expires = time.monotonic() + 10
+        while not child_pid.exists() and time.monotonic() < expires:
+            time.sleep(0.02)
+        if not child_pid.exists():
+            raise AssertionError("Controlled Swift child did not start")
+        pid = int(child_pid.read_text())
+        launcher.send_signal(signal.SIGTERM)
+        launcher.communicate(timeout=10)
+        if launcher.returncode == 0 or json.loads((cancelled / "swift.json").read_text())["status"] != "failed":
+            raise AssertionError("Cancelled Swift launcher must retain a failing receipt")
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            pass
+        else:
+            raise AssertionError("Cancelled Swift launcher orphaned its separate test process group")
+    finally:
+        if launcher.poll() is None:
+            launcher.kill()
+            launcher.communicate()
+        if child_pid.exists():
+            try:
+                os.killpg(int(child_pid.read_text()), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    print("PASS actual Swift launcher cancellation: separate child process group terminated and failure receipt retained")
     changed_manifest = json.loads(json.dumps(manifest))
     changed_manifest["ordinary"]["skip"] = "wrong-exclusion"
     (build / "ci-manifest.json").write_text(json.dumps(changed_manifest))

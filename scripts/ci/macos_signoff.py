@@ -22,7 +22,7 @@ def context_for(mode, baseline=None, candidate=None):
 
 
 def gh_json(*arguments):
-    result = subprocess.run(["gh", "api", *arguments], text=True, capture_output=True)
+    result = subprocess.run(["gh", "api", *arguments], text=True, capture_output=True, timeout=60)
     if result.returncode:
         raise RuntimeError("GitHub API failed: " + result.stderr.strip())
     return json.loads(result.stdout)
