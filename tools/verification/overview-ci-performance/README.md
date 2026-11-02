@@ -5,7 +5,10 @@ runner**, with one shared harness and two opposite-order pairs per condition. It
 does not need a developer Mac or a local measurement agent. The
 [Overview performance workflow](../../../.github/workflows/overview-performance.yml)
 is independent of ordinary build/test/WindowServer-capture CI; it never cancels or
-replaces that verification.
+replaces that verification. Its [runner deployment contract](../../../scripts/ci/self-hosted.md)
+keeps macOS 26 arm64, Metal and foreground requirements on either GitHub or
+self-hosted execution. Self-hosted images must supply the display policy and
+size in advance; automatic display-mode changes remain GitHub-hosted only.
 
 ## Measurement contract
 

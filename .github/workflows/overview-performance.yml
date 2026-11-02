@@ -43,7 +43,7 @@ jobs:
   paired-release:
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/overview') }}
     name: Release A/B · foreground Overview
-    runs-on: macos-26
+    runs-on: ${{ fromJSON(vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' || '["macos-26"]') }}
     timeout-minutes: 30
     env:
       CGO_ENABLED: '1'
@@ -56,6 +56,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Verify runner platform
+        run: python3 scripts/ci/macos-runner-preflight.py
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -70,9 +72,12 @@ jobs:
           if ! xcrun --sdk macosx metal --version; then
             python3 scripts/ci/deadline.py xcodebuild -downloadComponent MetalToolchain
           fi
-          # These preferences belong to the disposable runner account only.
-          defaults write com.apple.universalaccess reduceMotion -bool false
-          defaults write com.apple.universalaccess reduceTransparency -bool false
+          if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
+            defaults write com.apple.universalaccess reduceMotion -bool false
+            defaults write com.apple.universalaccess reduceTransparency -bool false
+          fi
+          # A self-hosted image must already satisfy this graphical contract.
+          xcrun swift scripts/ci/native-environment.swift
       - name: Verify the source and shared-clock contracts
         run: |
           python3 -m unittest discover -s tools/verification/overview-ci-performance -p test_clock_contract.py -v \
@@ -81,10 +86,14 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/overview-clock-go.log"
       - name: Measure fixed Release products with one harness
         run: |
+          display_args=()
+          if [[ "$RUNNER_ENVIRONMENT" == github-hosted ]]; then
+            display_args+=(--configure-display)
+          fi
           python3 tools/verification/overview-ci-performance/run.py \
             --baseline "$BASELINE_SHA" --candidate "$CANDIDATE_SHA" \
             --output "$RUNNER_TEMP/overview-performance" \
-            --configure-display --time-budget-seconds 1500
+            "${display_args[@]}" --time-budget-seconds 1500
       - name: Publish complete measurement report
         if: ${{ always() }}
         run: |

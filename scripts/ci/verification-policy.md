@@ -65,6 +65,13 @@ current-head Swift/native run validates Swift Testing's runtime selection semant
 
 ## Runner allocation and execution limits
 
+GitHub Actions remains the check/evidence service. Execution may use GitHub
+runners or the explicitly enabled isolated self-hosted macOS platform in the
+[deployment contract](self-hosted.md). GitHub runners remain the default and the
+fork-PR route. Linux jobs retain their existing GitHub-hosted `ubuntu-latest`;
+macOS 26 arm64 still requires actual Metal and graphical execution. No local
+preflight, runner label or prepared configuration certifies a completed CI run.
+
 The default workflow uses one macOS job for build, fixtures, the complete ordinary
 Swift suite and all interop/native replays. GUI work remains serial within that
 session. One current-build manifest and the observed method IDs establish complete
@@ -114,8 +121,9 @@ measurement agent is required to advance this Overview optimization work.
 
 Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
 Pi and OpenCode against loopback providers and the Moku system matrices.
-No account, paid model, microphone or self-hosted Mac is involved. Extended
-dispatches run only four independent native-CLI/system lanes. The normal PR run
+No paid-model account or microphone is involved. The configured macOS route
+provides the same isolated pinned-CLI execution on either runner deployment.
+Extended dispatches run only four independent native-CLI/system lanes. The normal PR run
 does not claim these checks ran.
 
 Run these checks for native CLI/adapter compatibility, process ownership and system

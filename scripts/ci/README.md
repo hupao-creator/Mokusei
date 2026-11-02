@@ -10,6 +10,17 @@ CGO and system SQLite remain enabled. Actions installs the toolchain from
 `go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
 profile-rotation and clipboard-bridge tests run in the native job.
 
+## Runner deployment
+
+[Self-hosted deployment](self-hosted.md) defines the optional macOS
+26 arm64 route, exact labels, public-PR isolation, provisioning, acceptance and
+rollback. The default remains GitHub-hosted until isolated single-job capacity is
+available and the macOS repository variable is explicitly enabled. Fork
+PRs retain GitHub runners; workflow routing alone is not a security boundary.
+Each macOS job verifies its actual OS/architecture before product execution.
+Existing checks, required aggregation and evidence contracts apply to both deployments.
+All Linux jobs, including scope and aggregation, retain `ubuntu-latest`.
+
 ## Scope and scheduling
 
 `scope.py` compares the complete PR or push diff before scheduling builds. Only
@@ -33,8 +44,9 @@ whether a PR is up to date. This is not GitHub Merge Queue.
 Linux Go checks and the `runtime`/`adapters` protocol groups remain independent
 jobs. Those groups represent different production boundaries, not slices of the
 Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
-Hosted runner capacity can still queue jobs; removing the repository-wide lock
-does not create additional account capacity.
+Runner capacity can still queue jobs; removing the repository-wide lock
+does not create additional capacity. A self-hosted provisioner must replenish
+single-job guests and serialize native work across workflows on each physical Mac.
 
 ## One native session
 
@@ -101,10 +113,11 @@ keep their existing native launchers and assertions. No new skip is admitted
 merely because the rest of the suite passed. The generated Moku Timer fixture is
 available before the full suite, so its ordinary consumer must execute normally.
 
-CI enables motion and transparency only in the disposable runner account: the
-[stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
-Local commands do not alter developer accessibility preferences. Rendered geometry
-uses actual backing scale, while pure camera math keeps its numerical tolerance.
+On GitHub-owned images CI enables motion and transparency in the disposable
+runner account: the [stock image disables them](https://github.com/actions/runner-images/blob/19874e7af7ed79e9036b52cc749da639f5c9130f/images/macos/scripts/build/configure-system.sh).
+Self-hosted images must already satisfy that policy; CI validates it without
+rewriting their accessibility preferences. Local commands do not alter developer
+accessibility preferences. Rendered geometry uses actual backing scale, while pure camera math keeps its numerical tolerance.
 Real-window fixtures fit the current display and retain their specified logical
 component sizes. All GUI work within this session remains serial.
 
@@ -164,6 +177,11 @@ trigger. Failure to fetch/upload these timing diagnostics does not override the
 required-job gate. Successful jobs carried forward on a partial retry are marked reused,
 not counted as new work. Diagnose a failure before retrying; a passing retry alone
 does not establish that the first failure was harmless.
+
+The [historical flaky-case review](flaky-review.md) records the supplied failures,
+actual checkout identities, evidence limitations and current-version corrections.
+A passing retry or old-version failure alone does not justify removing a current
+coverage boundary.
 
 ## Local verification
 
