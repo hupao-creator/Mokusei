@@ -202,6 +202,15 @@ extension RollingNumberCellTests {
             return (rows, bitmap)
         }
         try await Task.sleep(for: .milliseconds(250))
+        let app = NSApplication.shared
+        let activeAtInput = app.isActive
+        let runningAtInput = app.isRunning
+        let activationPolicyAtInput = app.activationPolicy().rawValue
+        let keyAtInput = window.isKeyWindow
+        let visibleAtInput = window.isVisible
+        let unoccludedAtInput = window.occlusionState.contains(.visible)
+        let backingScaleAtInput = window.backingScaleFactor
+        let reduceMotionAtInput = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let inputAt = ProcessInfo.processInfo.systemUptime
         probe.value = "888"
         let inputReturnedAt = ProcessInfo.processInfo.systemUptime
@@ -241,6 +250,10 @@ extension RollingNumberCellTests {
             let receipt: [String: Any] = ["inputAt": inputAt, "inputReturnedAt": inputReturnedAt,
                 "duringAt": duringAt, "duringFinishedAt": duringFinishedAt,
                 "settledAt": settledAt, "settledFinishedAt": settledFinishedAt,
+                "applicationActiveAtInput": activeAtInput, "applicationRunningAtInput": runningAtInput,
+                "activationPolicyAtInput": activationPolicyAtInput, "windowKeyAtInput": keyAtInput,
+                "windowVisibleAtInput": visibleAtInput, "windowOcclusionVisibleAtInput": unoccludedAtInput,
+                "backingScaleAtInput": backingScaleAtInput, "reduceMotionAtInput": reduceMotionAtInput,
                 "scale": scale, "bestShift": bestShift,
                 "duringRows": during.rows, "settledRows": settled.rows]
             try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])

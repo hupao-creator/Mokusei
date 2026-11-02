@@ -557,8 +557,9 @@ restored interaction deliberately scrolls downward as requested.
 
 With `MOKUSEI_CI_EVIDENCE` or `MOKUSEI_ROLLING_NUMBER_ARTIFACTS` set, the
 direction case also saves its actual during/settled bitmaps, row-ink values,
-shift and capture times even when the assertion fails. PNG encoding happens
-after both captures so evidence retention does not delay the timed observations.
+shift, capture times and input-time app/window/motion state even when the
+assertion fails. PNG encoding happens after both captures so evidence retention
+does not delay the timed observations.
 
 ## First response in Overview
 

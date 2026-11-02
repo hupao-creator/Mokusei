@@ -1,0 +1,14 @@
+[0/1] Planning build
+[1/1] Compiling plugin CloudMetalCompiler
+Building for debugging...
+[1/9] Write sources
+[2/9] Copying PaletteResources-macosx.bundle
+[3/9] Write swift-version--58304C5D6DBC2206.txt
+[5/7] Emitting module MokuseiGitIntegrationTests
+[6/7] Compiling MokuseiGitIntegrationTests RollingNumberCellTests.swift
+[6/8] Write Objects.LinkFileList
+[7/8] Linking MokuseiNativePackageTests
+Build complete! (12.90s)
+real 14.44
+user 8.92
+sys 3.68
