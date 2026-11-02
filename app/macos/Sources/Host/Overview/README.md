@@ -54,8 +54,8 @@ revision snapshots until exit finishes. A queued revision can adopt newer
 content only for the same structural identity; A→B→A lifecycle history remains
 FIFO. Source replacement cancels the old queued work and refreshes ownership.
 
-Carousel eligibility and attention changes notify the mounted coordinator
-without routing ordinary text updates through canvas attachment. Structural,
+Offscreen attention changes notify the mounted coordinator without routing
+ordinary text updates through canvas attachment or moving the camera. Structural,
 scene and viewport changes refresh the camera callback, so its saved memory
 always belongs to the active scene. The workspace's empty-state and Dock
 reservation read separate presence facts, not the high-frequency item array or
@@ -90,7 +90,7 @@ this production workspace path and confirm that its native renderer is active.
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves every surviving top-left position, accepts nonconflicting footprint changes and fills existing vacancies before extending the envelope for entrants. This path must fit at the readable floor and occupy at least 75% of its bounding grid. Necessary vacancies, including enclosed ones, are allowed; if production packing proves the collection can lose an entire row or column without enlarging the other axis, the existing bounded compact planner repairs the avoidable envelope. This catches deletion/shrink histories that strand a wide card below a fitting vacancy even at exactly 75% occupancy. An area lower bound avoids searching already irreducible envelopes. If that proof exhausts the shared search budget, the legal preserved candidate returns with incomplete search; once a smaller readable witness exists, subsequent optimization retains it as a geometric fallback. Conflicting growth, excessive fragmentation and insufficient capacity also use the compact planner and its collision-certified move order. Calls without a fitting region retain the compact-planning contract.
 
-The canvas supplies both the readable fitting extent and the natural-scale extent (framing region divided by `max(1, minimumScale)`). Fresh/ordinary global candidates prefer the greatest attainable natural scale before aspect and survivor travel. A still-readable previous candidate shape remains stable across resize. Execution/attention eligibility does not reduce capacity or enlarge footprints. Explicit filter changes retain the compact planner and historical aspect preference, using visible survivors as placement history. This remains an identity-stable spatial layout, not a strict visual ordering of search rank; selection, grouping and semantic search ordering are unchanged.
+The canvas supplies both the readable fitting extent and the natural-scale extent (framing region divided by `max(1, minimumScale)`). Fresh/ordinary global candidates prefer the greatest attainable natural scale before aspect and survivor travel. A still-readable previous candidate shape remains stable across resize. Execution and attention state do not reduce capacity or enlarge footprints. Explicit filter changes retain the compact planner and historical aspect preference, using visible survivors as placement history. This remains an identity-stable spatial layout, not a strict visual ordering of search rank; selection, grouping and semantic search ordering are unchanged.
 
 Same-scene revisions with identical ID/outer-footprint sets refresh semantic snapshots and acknowledge structural history without acquiring a spatial stage or invoking the solver. This also applies to resize while the existing bounds remain readable. Exact viewport changes that invalidate capacity still plan normally; lifecycle revisions remain FIFO, including A→B→A and exits. `layoutSolveCount` and `geometryReuseCount` expose these distinct paths for native regression tests.
 
@@ -126,18 +126,19 @@ mounted identity, and child state, Observation and environment updates remain
 live. The native resize replay changes presentation and locale during motion and
 checks the retained semantic identity and final geometry.
 
-[NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes spatial motion with camera activity. Explicit return to automatic framing first restores the default fit, then resumes attention. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
+[NativeOverviewStageCoordinator](NativeOverviewStageCoordinator.swift) serializes spatial motion with camera activity. Explicit return to automatic framing restores the default collection fit. Temporary interaction/visibility pauses defer that reset; fresh manual input cancels it. First nonempty layout prepares its camera before revealing cards.
 
-Carousel admission, restoration and exit use the whole collection's readable
-extent against the actual viewport between the toolbar and the idle Moku Dock. The preferred 32/64pt
-framing margins are breathing room, not a reason to start attention movement.
-The layout planner still prefers that inset region. If its result exceeds actual
-capacity, it retries against the control-free extent before admitting a carousel;
-a wider packing may fit even when the preferred shape is too tall. Capacity
-does not depend on the current camera translation or which cards are offscreen.
-Manual navigation still stops attention and retains ownership until an explicit
-return. The [carousel regression investigation](../../../../../tools/verification/overview-layout/CAROUSEL.md)
-records the recording geometry and production-canvas coverage.
+Overview uses ordinary collection framing at the readable scale. Oversized
+collections remain centered with readable overflow and can be panned or zoomed
+manually. Execution and attention changes never select individual camera targets
+or start periodic movement. The planner prefers its inset framing region and
+retries against the control-free extent if that region would overflow; a wider
+packing may fit even when the preferred shape is too tall. Manual framing stays
+user-owned until an explicit return.
+
+Camera memory is a runtime bookmark (scene, transform and manual ownership),
+with no persisted mode selector. Existing preferences and user data need no
+migration or cleanup.
 
 The workspace supplies the Dock reservation from the same idle capsule geometry
 used by the renderer (44pt height plus its viewport-dependent bottom seat).
@@ -148,19 +149,22 @@ This keeps ordinary wide-window packing/reading scale while balancing the gaps
 to controls. The [balance investigation](../../../../../tools/verification/overview-layout/BALANCE.md)
 records screenshot measurements, the compact fallback and verification limits.
 
-Carousel facts join the presented placements against the canvas's existing current-record index in linear time. For unchanged structural identities, the canvas rebuilds those facts only when carousel eligibility changes; text, counters and other presentation metadata skip that work while attention counts still refresh. Structural and geometry changes retain the ordinary presentation/refit path, and manual navigation keeps ownership.
-
-Changed carousel facts do not restart an already queued or playing automatic refit. Queued work reads the latest bounds after acquiring the spatial stage; a playing refit reconciles newer framing revisions on completion. Continuous Harness output therefore cannot postpone insertion framing until output stops or the user clicks the background. The mounted carousel replay checks content-only updates, eligibility changes and manual-camera retention against the production canvas.
+Queued automatic refits read the latest bounds after acquiring the spatial
+stage; a playing refit reconciles newer framing revisions on completion.
+Content updates do not restart admitted work, so continuous Harness output
+cannot postpone insertion framing until output stops or the user clicks the
+background. The mounted capacity replay checks content updates and manual-camera
+retention against the production canvas.
 
 Reading-position preservation starts from settled automatic framing, or from an
 already retained reading target. A footprint revision arriving before insertion
 framing completes keeps the pending collection fit and resolves it against the
 latest bounds. It cannot retain the old or partially animated camera as a new
 reading position. Consecutive reading-preserving revisions carry their target
-forward rather than repeatedly sampling intermediate motion; explicit return,
-restoration and attention framing take precedence over reading retention.
+forward rather than repeatedly sampling intermediate motion; explicit return
+and restoration take precedence over reading retention.
 
-[NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic attention; hover/restored focus alone does not imply editing.
+[NativeOverviewScrollInput](NativeOverviewScrollInput.swift) coordinates pan/zoom with native controls. Window header dragging and Moku controls are excluded from canvas navigation. A click that dismisses Moku input cannot also reset the camera. Real interaction pauses automatic camera motion; hover/restored focus alone does not imply editing.
 
 The canvas combines SwiftUI's focused-card scope with the window's actual editable text responder before pausing for input. Search dismissal can restore keyboard focus to a whole card; that focus keeps keyboard activation without holding the text-editing pause. Window-scoped native responder notifications also release editing protection when a field loses focus or unmounts, without changing camera state from automation.
 
@@ -192,7 +196,7 @@ The shared prefix keeps its native ideal size: an emoji's advance and line bound
 
 The first nonempty query bookmarks the browsing camera. Clearing or closing search restores that camera into the current browsing scene, even when visible result cards survive the transition. Explicit bookmark restoration takes precedence over preserving the result scene's framing.
 
-Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewCapacityTests` hosts the production canvas for the five-card mixed-footprint screenshot, six-card growth, execution/attention updates, insufficient space, resize recovery and near-threshold stability. `NativeOverviewPackingTests` also exercises the six-card straight-move search exhaustion and truncated fitting-candidate optimization. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
+Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewCapacityTests` hosts the production canvas for the five-card mixed-footprint screenshot, six-card growth, attention updates, insufficient space, resize recovery and near-threshold stability. `NativeOverviewPackingTests` also exercises the six-card straight-move search exhaustion and truncated fitting-candidate optimization. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
 
 ## Production control chaos
 

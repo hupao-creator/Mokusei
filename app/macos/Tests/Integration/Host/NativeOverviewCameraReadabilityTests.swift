@@ -226,22 +226,6 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(NativeOverviewCameraGeometry.approximatelyEqual(camera.liveTransform, target))
     }
 
-    @Test func readableFloorDoesNotDisableAutomaticAttention() async throws {
-        let camera = NativeOverviewCamera()
-        camera.cutTo(content: largeContent, viewport: viewport)
-        #expect(camera.minimumScale > 0.7)
-        let target = NativeOverviewContentRect(left: 376 * 4, top: 216 * 4, width: 736, height: 848)
-        camera.setCarouselCards([.init(id: "attention", rect: target, eligible: true)])
-        #expect(camera.carouselTargetID == "attention")
-        for _ in 0..<100 where !NativeOverviewCameraGeometry.isVisible(target, transform: camera.liveTransform, viewport: viewport) {
-            try await Task.sleep(for: .milliseconds(1))
-        }
-        #expect(camera.transform.scale >= camera.minimumScale)
-        #expect(NativeOverviewCameraGeometry.isVisible(target, transform: camera.liveTransform, viewport: viewport))
-        camera.setInteractionPaused(true)
-        #expect(camera.carouselPaused)
-        camera.dispose()
-    }
 
     private func viewportCenter(_ viewport: NativeOverviewViewport) -> CGPoint {
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
