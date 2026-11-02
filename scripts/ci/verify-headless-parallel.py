@@ -38,7 +38,12 @@ for name in ["MOKUSEI_INITIAL_RESPONSE_FIXTURES", "MOKU_STATUS_NATIVE_FIXTURE", 
 raise SystemExit(7 if os.environ.get("REPLAY_PEER_FAIL") else 0)
 ''')
         peer.chmod(0o755)
-        environment = dict(os.environ, REPLAY_PEER_ROOT=str(root))
+        # These are output capabilities, not ordinary inputs. A controlled peer
+        # must never export its temporary fixture paths into later hosted steps.
+        environment = {key: value for key, value in os.environ.items()
+                       if key not in {"GITHUB_ENV", "GITHUB_OUTPUT", "GITHUB_STATE", "GITHUB_PATH", "GITHUB_STEP_SUMMARY"}}
+        environment.update(REPLAY_PEER_ROOT=str(root), GITHUB_ENV=str(root / "fixture-env"),
+                           GITHUB_STEP_SUMMARY=str(root / "fixture-summary"))
         entry = [sys.executable, str(ROOT / "scripts/ci/replays.py"), "fixtures", "--go", str(peer)]
         output = root / "passed"
         subprocess.run(entry + ["--output", str(output)], env=environment, cwd=ROOT, check=True,

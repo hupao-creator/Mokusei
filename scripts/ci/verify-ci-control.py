@@ -496,7 +496,13 @@ def main():
         print("PASS real subprocess completion, nonzero status and deadline termination")
         verify_swift_ownership(root, repo, environment)
         verify_local_signoff(root)
-        print(command([sys.executable, str(SCRIPTS / "verify-headless-parallel.py")], cwd=root).strip())
+        outer_env = root / "parent-github-env"
+        outer_env.write_text("untouched\n")
+        print(command([sys.executable, str(SCRIPTS / "verify-headless-parallel.py")], cwd=root,
+                      env=dict(os.environ, GITHUB_ENV=str(outer_env))).strip())
+        if outer_env.read_text() != "untouched\n":
+            raise AssertionError("Controlled producer contaminated the parent workflow environment")
+        print("PASS parallel control cannot export temporary fixture paths to the parent GitHub environment")
 
 
 if __name__ == "__main__":
