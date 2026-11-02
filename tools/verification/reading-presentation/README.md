@@ -321,8 +321,16 @@ excludes this exact method; complete coverage requires its native passing outcom
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
 These are AppKit geometry/content observations, not WindowServer pixel assertions.
 
-The capture launcher requires all six assigned methods: two tag-glass captures,
-title reversal, excerpt reveal, native decorations and retained Overview return.
+The capture launcher requires all seven assigned methods: two tag-glass captures,
+title reversal, excerpt reveal, native decorations, retained Overview return and
+Tag Settings first-frame capture. The last case mounts the production onboarding
+animation across initial entry and retained returns, asserting at least two
+complete WindowServer frames per entry and rejecting a broad light rectangle.
+It runs with the real AppKit loop and emits `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED`;
+ordinary SwiftPM timing cannot certify capture delivery. A clock outside the
+sampled area supplies compositor updates during paused final scenes. Frame times,
+all PNGs and source/binary provenance are retained under `tag-first-frame`, and
+pixel scans/encoding run only after capture stops.
 
 ## Overview tag bar
 
