@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import ScreenCaptureKit
 import Testing
 #if SWIFT_PACKAGE
 import MokuseiTestSupport
@@ -256,6 +257,62 @@ struct NativeMokuLandingTests {
             #expect(fixture.moku.landing && !fixture.scene.inputOpen && fixture.scene.dockHitRects.count == 1)
             #expect(fixture.scene.capsuleFrame.width > NativeMokuCapsuleLayout.idleSize.width)
         }
+        try await withFixture { fixture in
+            try await fixture.install([fixture.thread(status: .completed)])
+            fixture.mount(fullWorkspace: true, width: 1100, height: 760)
+            let root = try #require(fixture.window?.contentView)
+            try await SwiftUIReplay.wait { fixture.presentation.canvas.allowsActivation(cardID: "child") && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
+            let origin = try #require(fixture.presentation.canvas.displayedFrame(for: "child"))
+            let face = try #require(faces(in: root).first)
+            fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
+            #expect(fixture.presentation.readingPanelSource == origin)
+            try await SwiftUIReplay.wait {
+                fixture.presentation.mountedReadingThread?.threadID == "child" && !fixture.presentation.messageMotion.active
+                    && readingPanel(in: root) != nil
+            }
+            let captureContent = try await SCShareableContent.currentProcess
+            if let own = captureContent.windows.first(where: { $0.windowID == CGWindowID(fixture.window!.windowNumber) }) {
+                let config = SCStreamConfiguration(); config.width = 1100; config.height = 760; config.ignoreShadowsSingleWindow = true
+                let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: own), configuration: config)
+                let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/agent-panel")
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("root.png"))
+            }
+            #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible)
+            #expect(!fixture.presentation.canOpenSettings && !fixture.scene.canOpenSettings)
+            #expect(fixture.presentation.interactionActions.contains("moku.input.toggle"))
+            #expect(faces(in: root).contains { $0 === face }, "The resident Moku must survive entry into an Agent panel")
+            let panel = try #require(readingPanel(in: root))
+            let frame = panel.convert(panel.bounds, to: root)
+            let expected = NativeReadingPanelGeometry.frame(in: root.bounds.size)
+            let top = root.isFlipped ? frame.minY : root.bounds.height - frame.maxY
+            #expect(abs(frame.width - expected.width) < 1 && abs(frame.height - expected.height) < 1
+                && abs(frame.minX - expected.minX) < 1 && abs(top - expected.minY) < 1)
+            try fixture.presentation.performInteraction(.toggleMokuInput)
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
+            let input = try #require(SwiftUIReplay.editor(in: root))
+            input.insertText("Moku remains usable in the reading panel", replacementRange: NSRange(location: 0, length: 0))
+            try await SwiftUIReplay.wait { fixture.presentation.draft.text == "Moku remains usable in the reading panel" }
+            fixture.scene.setInputOpen(false)
+            fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
+                executionID: "run-child", requestID: "same-thread-result", mode: .history, position: .result))
+            #expect(fixture.presentation.readingPanelSource == origin, "Same-thread reading targets retain their return origin")
+            fixture.window?.setContentSize(CGSize(width: 980, height: 700))
+            try await SwiftUIReplay.wait { root.bounds.width == 980 && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
+            let returnOrigin = fixture.presentation.canvas.displayedFrame(for: "child")
+            fixture.presentation.showOverview()
+            #expect(fixture.presentation.readingPanelSource == returnOrigin)
+            try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+            #expect(fixture.scene.overviewVisible && fixture.scene.dockRouteVisible)
+            #expect(faces(in: root).contains { $0 === face })
+            // Direct result visits have no Overview card prerequisite and retain
+            // the same close route while their Harness loads the target.
+            fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
+                executionID: "run-child", requestID: "panel-result", mode: .history, position: .result))
+            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil }
+            fixture.presentation.navigation?.onBack()
+            try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
+        }
     }
 
     @Test func pendingShellAndFailureStayCenteredUntilExplicitDispatchSuccess() async throws {
@@ -310,12 +367,19 @@ struct NativeMokuLandingTests {
         if let canvas = view as? NativeMokuCharacterCanvas { return canvas.seat == .face ? [canvas] : [] }
         return view.subviews.flatMap { faces(in: $0) }
     }
+    private func readingPanel(in view: NSView) -> NSView? {
+        if view.identifier?.rawValue == "agent-reading-panel-frame" { return view }
+        return view.subviews.lazy.compactMap { readingPanel(in: $0) }.first
+    }
     private func element(id: String, in object: NSObject) -> NSObject? {
         let identifier = NSSelectorFromString("accessibilityIdentifier")
         if object.responds(to: identifier), object.perform(identifier)?.takeUnretainedValue() as? String == id { return object }
         let children = NSSelectorFromString("accessibilityChildren")
         if object.responds(to: children), let values = object.perform(children)?.takeUnretainedValue() as? [NSObject] {
             for child in values { if let found = element(id: id, in: child) { return found } }
+        }
+        if let view = object as? NSView {
+            for child in view.subviews { if let found = element(id: id, in: child) { return found } }
         }
         return nil
     }

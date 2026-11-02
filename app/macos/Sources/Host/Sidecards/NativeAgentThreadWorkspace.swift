@@ -21,6 +21,7 @@ public struct NativeAgentThreadWorkspace: View {
     private let backLabel: String?
     private let onNavigationChange: ((ThreadDetailBackAction?) -> Void)?
     @Environment(\.locale) private var locale
+    @State private var nestedNavigation: ThreadDetailBackAction?
     @State private var navigation: ThreadDetailBackAction
 
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, registry: SidecardPluginRegistry,
@@ -40,12 +41,20 @@ public struct NativeAgentThreadWorkspace: View {
 
     public var body: some View {
         let label = backLabel ?? (locale.language.languageCode?.identifier == "zh" ? "返回俯瞰" : "Back to overview")
-        ThreadDetailFrame(navigation: navigation, onNavigationChange: onNavigationChange) {
+        ThreadDetailFrame(navigation: navigation, onNavigationChange: { action in
+            nestedNavigation = action; onNavigationChange?(action)
+        }) {
                 NativeThreadWorkspaceBody(harnessHost: harnessHost, thread: thread, registry: registry,
                     executionDisabled: executionDisabled, readingTarget: readingTarget, followUpRequest: followUpRequest,
                     sidecardsSuppressed: sidecardsSuppressed, enabledSidecardIDs: enabledSidecardIDs,
                     services: services, onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
                     .id([thread.id, thread.harnessID])
+            }
+            .overlay(alignment: .topLeading) {
+                if let action = nestedNavigation, action.id != navigation.id {
+                    Button(action: action.onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 32) }
+                        .buttonStyle(.plain).padding(12).help(action.label).accessibilityLabel(action.label)
+                }
             }
             .task(id: [thread.id, JSONText(label)]) {
                 navigation = ThreadDetailBackAction(label: label, onBack: onBack)
@@ -83,7 +92,6 @@ private struct NativeThreadWorkspaceBody: View {
                 NativePalette.thread.canvas.swiftUI
             }
         }
-        .background(NativePalette.thread.canvas.swiftUI)
         .task {
             let current = model ?? NativeSidecardWorkspaceModel(harnessHost: harnessHost, registry: registry,
                 configuration: configuration, services: services, onBack: onBack,
@@ -123,12 +131,17 @@ private struct NativeSidecardWorkspaceLayout: View {
             ZStack(alignment: .topLeading) {
                 mainConversation
                     .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
+                    .background(NativePalette.thread.canvas.swiftUI)
+                    .background(NativeReadingPanelFrame())
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+                    .accessibilityIdentifier("agent-reading-panel")
                 if snapshot.selected != nil && !layout.stacked {
                     NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                         onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
                         onDraggingChange: model.setDragging)
                         .frame(width: dividerHitWidth, height: geometry.size.height)
-                        .offset(x: layout.mainWidth - (dividerHitWidth - 6) / 2)
+                        .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
                         .zIndex(2)
                         .accessibilityLabel(localize("调整卡片宽度", "Resize card"))
                 }
@@ -137,13 +150,15 @@ private struct NativeSidecardWorkspaceLayout: View {
                 ForEach(snapshot.cards) { card in
                     sidecard(card, layout: layout)
                 }
-                launchers
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 16).padding(.trailing, 12)
+                launchers.position(x: geometry.size.width + 38, y: geometry.size.height / 2)
             }
             .animation(animation, value: snapshot.selected)
             .animation(animation, value: layout.stacked)
-            .clipped()
+        }
+        .nativeOnExitCommand {
+            guard !snapshot.suppressed else { return }
+            if let selected = snapshot.selected { model.close(selected) }
+            else { model.closeThread() }
         }
         .onChange(of: snapshot.selected) { previous, selected in
             if selected == nil { focusedLauncher = previous }
@@ -164,6 +179,11 @@ private struct NativeSidecardWorkspaceLayout: View {
                     .accessibilityLabel(message)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            Button(action: model.closeThread) { NativeIcon(name: "X", size: 17).frame(width: 32, height: 32) }
+                .buttonStyle(.plain).background(.quaternary.opacity(0.5), in: Circle()).padding(14)
+                .help(localize("关闭 Thread", "Close thread")).accessibilityLabel(localize("关闭 Thread", "Close thread"))
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
     }
@@ -180,7 +200,8 @@ private struct NativeSidecardWorkspaceLayout: View {
             .environment(\.nativeReadingNavigation, nil)
             .frame(width: layout.surfaceWidth, height: layout.surfaceHeight, alignment: .topLeading)
             .clipShape(RoundedRectangle(cornerRadius: 21))
-            .background(NativeSidecardGlass())
+            .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
+            .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
             .mask(NativeSidecardFoldMask(progress: expanded ? 1 : 0))
             .animation(.easeInOut(duration: 0.16)) { content in
                 content.opacity(expanded ? 1 : 0)
@@ -204,33 +225,27 @@ private struct NativeSidecardWorkspaceLayout: View {
     }
 
     private var launchers: some View {
-        HStack(spacing: 0) {
-            ForEach(snapshot.available) { card in
-                Button { model.activate(card.id) } label: {
-                    card.icon.frame(width: launcherSize.width, height: launcherSize.height)
-                        .overlay(alignment: .topTrailing) {
-                            if let indicator = card.view.indicator {
-                                Circle().fill((indicator == .attention ? NativePalette.thread.warning : NativePalette.thread.accent).swiftUI)
-                                    .frame(width: 5, height: 5)
-                                    .overlay(Circle().stroke(NativePalette.thread.surfaceStrong.swiftUI, lineWidth: 2))
-                                    .padding(.top, 4).padding(.trailing, 3).accessibilityHidden(true)
+        GlassEffectContainer(spacing: 8) {
+            VStack(spacing: 14) {
+                ForEach(snapshot.available) { card in
+                    Button { model.activate(card.id) } label: {
+                        card.icon.frame(width: 42, height: 42)
+                            .overlay(alignment: .topTrailing) {
+                                if let indicator = card.view.indicator {
+                                    Circle().fill((indicator == .attention ? NativePalette.thread.warning : NativePalette.thread.accent).swiftUI)
+                                        .frame(width: 5, height: 5).padding(7).accessibilityHidden(true)
+                                }
                             }
-                        }
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.tint(snapshot.selected == card.id ? .blue.opacity(0.18) : .clear).interactive(), in: .circle)
+                    .focused($focusedLauncher, equals: card.id)
+                    .help(card.view.label.string).accessibilityLabel(card.view.label.string)
+                    .accessibilityValue(localize(snapshot.selected == card.id ? "已展开" : "已收起", snapshot.selected == card.id ? "Expanded" : "Collapsed"))
                 }
-                .buttonStyle(NativeSidecardLauncherStyle())
-                .focused($focusedLauncher, equals: card.id)
-                .help(card.view.label.string).accessibilityLabel(card.view.label.string)
-                .accessibilityValue(localize("已收起", "Collapsed"))
             }
         }
-        .padding(5)
-        // Clip the contents before adding glass so its capsule shadow stays outside.
-        .clipShape(Capsule())
-        .glassEffect(.regular.interactive(), in: .capsule)
-        .opacity(snapshot.selected == nil && !snapshot.available.isEmpty ? 1 : 0)
-        .allowsHitTesting(snapshot.selected == nil && !snapshot.available.isEmpty && !snapshot.suppressed)
-        .disabled(snapshot.selected != nil || snapshot.suppressed)
-        .accessibilityHidden(snapshot.selected != nil || snapshot.available.isEmpty || snapshot.suppressed)
+        .disabled(snapshot.suppressed)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("Thread 卡片", "Thread cards"))
     }
@@ -241,33 +256,36 @@ private struct NativeSidecardWorkspaceLayout: View {
 }
 
 @MainActor
-private struct NativeSidecardWorkspaceGeometry {
-    let size: CGSize
-    let stacked: Bool
-    let cardWidth: CGFloat
-    let maximumCardWidth: CGFloat
-    let mainWidth: CGFloat
-    let mainHeight: CGFloat
-    let surfaceWidth: CGFloat
-    let surfaceHeight: CGFloat
-    let surfaceX: CGFloat
-    let surfaceY: CGFloat
+public struct NativeSidecardWorkspaceGeometry {
+    public let size: CGSize
+    public let stacked: Bool
+    public let cardWidth: CGFloat
+    public let maximumCardWidth: CGFloat
+    public let mainWidth: CGFloat
+    public let mainHeight: CGFloat
+    public let surfaceWidth: CGFloat
+    public let surfaceHeight: CGFloat
+    public let surfaceX: CGFloat
+    public let surfaceY: CGFloat
 
     init(size: CGSize, snapshot: NativeSidecardWorkspaceSnapshot) {
-        self.size = size; stacked = size.width > 0 && size.width < 760
-        let usableWidth = max(0, size.width - 6)
-        maximumCardWidth = max(320, usableWidth - 360)
         let owner = snapshot.selected ?? snapshot.lastSelected
-        let preferred = snapshot.cards.first(where: { $0.id == owner })?.view.preferredWidth ?? 1 / 3
-        let fraction = preferred.isFinite ? preferred : 1 / 3
-        cardWidth = min(maximumCardWidth, max(320, owner.flatMap { snapshot.widths[$0] } ?? (usableWidth * fraction).rounded()))
-        let open = snapshot.selected != nil
-        mainWidth = max(0, size.width - (!stacked && open ? cardWidth + 6 : 0))
-        mainHeight = max(0, stacked && open ? size.height / 2 : size.height)
-        surfaceWidth = max(0, (stacked ? size.width : cardWidth) - 16)
-        surfaceHeight = max(0, (stacked ? size.height / 2 : size.height) - 32)
-        surfaceX = max(0, size.width - 12 - surfaceWidth)
-        surfaceY = 16 + (stacked ? size.height / 2 : 0)
+        self.init(size: size, open: snapshot.selected != nil,
+            preferredWidth: snapshot.cards.first(where: { $0.id == owner })?.view.preferredWidth ?? 1 / 3,
+            retainedWidth: owner.flatMap { snapshot.widths[$0] })
+    }
+    public init(size: CGSize, open: Bool, preferredWidth: Double = 1 / 3, retainedWidth: CGFloat? = nil) {
+        self.size = size; stacked = size.width > 0 && size.width < 760
+        let usableWidth = max(0, size.width - 16)
+        maximumCardWidth = max(320, usableWidth - 360)
+        let fraction = preferredWidth.isFinite ? preferredWidth : 1 / 3
+        cardWidth = min(maximumCardWidth, max(320, retainedWidth ?? (usableWidth * fraction).rounded()))
+        mainWidth = max(0, size.width - (!stacked && open ? cardWidth + 16 : 0))
+        mainHeight = max(0, stacked && open ? (size.height - 16) / 2 : size.height)
+        surfaceWidth = max(0, stacked ? size.width : cardWidth)
+        surfaceHeight = max(0, stacked ? (size.height - 16) / 2 : size.height)
+        surfaceX = max(0, size.width - surfaceWidth)
+        surfaceY = stacked ? (size.height + 16) / 2 : 0
     }
 }
 
@@ -279,22 +297,5 @@ private struct NativeSidecardFoldMask: Shape {
         let height = 30 + (rect.height - 30) * progress
         return Path(roundedRect: CGRect(x: rect.maxX - width, y: 0, width: max(0, width), height: max(0, height)),
                     cornerRadius: 21)
-    }
-}
-
-private struct NativeSidecardLauncherStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        NativeSidecardLauncherLabel(configuration: configuration)
-    }
-}
-
-private struct NativeSidecardLauncherLabel: View {
-    let configuration: ButtonStyleConfiguration
-    @State private var hovered = false
-    var body: some View {
-        configuration.label.foregroundStyle(NativePalette.thread.ink.swiftUI)
-            .background(NativePalette.thread.ink.swiftUI.opacity(configuration.isPressed ? 0.12 : hovered ? 0.07 : 0),
-                        in: Capsule())
-            .onHover { hovered = $0 }
     }
 }

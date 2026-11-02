@@ -579,3 +579,14 @@ must be ready. Each step owns its registry and unmounting removes the editor lea
 Host separately reports resource availability. The parent consumes the current
 step's readiness leases and rejects callbacks from departing pages. Settings and
 onboarding share native field bindings, catalogs and persistence.
+
+## Reading-panel presentation
+
+The shared reading stack can present an Agent route as a bounded panel using a
+source card frame. It retains the same route identity, explicit progress clock,
+close/cancel lifecycle and reduced-motion settling as page navigation. Panel
+content fades while its outer frame expands; title/emoji/author remain owned by
+the unchanged reader. The final aperture admits the host's independent toolbar
+outside the panel. Ordinary application pages and vertical history transitions
+keep their existing presentation. `NativeReadingPanelGeometry` is the shared
+viewport/margin contract for production and the standalone native fixture.

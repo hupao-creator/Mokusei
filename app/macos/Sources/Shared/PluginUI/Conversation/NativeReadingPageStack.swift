@@ -24,6 +24,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var enabled: Bool
     public var focusBlur: Bool
     public var stationaryParent: Bool
+    public var panel: Bool
+    public var panelSource: CGRect?
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
     public var axis: Axis
@@ -44,7 +46,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                emphasizedOpening: Bool = false, panel: Bool = false, panelSource: CGRect? = nil, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onClose: @escaping () -> Void,
@@ -52,6 +54,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.open = open; self.identity = identity; self.motion = motion; self.enabled = enabled
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
+        self.panel = panel; self.panelSource = panelSource
         self.axis = axis
         self.direction = direction
         self.onClose = onClose; self.parent = parent(); self.front = front()
@@ -62,13 +65,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 direction: direction, size: bounds.size)
             // Observe replacement state even while motion is idle.
             let openingOrClosing = !replacing && motion.active
+            let panelBounds = NativeReadingPanelGeometry.frame(in: bounds.size)
             ZStack {
                 parent
                     .overlay { Color.black.opacity(axis == .horizontal ? 0.14 * progress : 0).allowsHitTesting(false) }
-                    .blur(radius: axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
+                    .blur(radius: panel ? 5 * progress : axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
                     .offset(x: stationaryParent || axis == .vertical ? 0 : -0.25 * bounds.size.width * progress * direction,
                             y: stationaryParent || axis == .horizontal ? 0 : -bounds.size.height * progress * direction)
-                    .opacity(open && !openingOrClosing ? 0 : 1)
+                    .opacity(panel ? 1 - 0.78 * progress : open && !openingOrClosing ? 0 : 1)
                     .allowsHitTesting(!open && enabled)
                     // Disabling removes the native scroller gutter. Defer that
                     // input gate until the vertical parent is offscreen; restore
@@ -91,7 +95,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         // Limit replacement animation to the history identities;
                         // opening/return travel and timeline layout have their own owners.
                         .animation(axis == .vertical && direction != 0 && !reduceMotion ? curve : nil, value: identity)
-                        .frame(width: bounds.size.width, height: bounds.size.height)
+                        .frame(width: panel ? panelBounds.width : bounds.size.width, height: panel ? panelBounds.height : bounds.size.height)
                         .background {
                             if axis == .horizontal {
                                 NativeReadingPageAnchor(geometry: geometry, role: .front, geometryContext: geometryContext)
@@ -99,8 +103,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                                     .accessibilityHidden(true)
                             }
                         }
-                        .modifier(ReadingPageSurface(progress: progress, active: motion.active && axis == .horizontal, axis: axis))
-                        .offset(x: axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
+                        .modifier(ReadingPageSurface(progress: progress, active: !panel && motion.active && axis == .horizontal, axis: axis))
+                        .modifier(ReadingPanelSurface(enabled: panel, progress: progress, source: panelSource, target: panelBounds))
+                        .offset(x: !panel && axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
                                 y: axis == .vertical ? bounds.size.height * (1 - progress) * direction : 0)
                 }
             }
@@ -205,7 +210,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         generation += 1
         let token = generation
         let initialProgress: Double
-        if returningDuringOpening, let displayed = geometry.progress(identity: identity, direction: direction) {
+        if !panel, returningDuringOpening, let displayed = geometry.progress(identity: identity, direction: direction) {
             // A queued SwiftUI update can be ahead of the native geometry at
             // the click. Retarget from that committed pose, without flushing
             // pending layout or advancing the opening before reversing it.
@@ -378,4 +383,38 @@ private struct NativeReadingPageAnchor: NSViewRepresentable {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func isAccessibilityElement() -> Bool { false }
     override func accessibilityChildren() -> [Any]? { [] }
+}
+
+/// Shared by the production shell and native fixture. Margins yield only when
+/// the viewport cannot support a readable compact surface.
+public enum NativeReadingPanelGeometry {
+    public static func frame(in size: CGSize) -> CGRect {
+        let horizontal = min(76, max(12, (size.width - 320) / 2))
+        let top = min(58, max(12, size.height * 0.1))
+        let bottom = min(88, max(12, size.height * 0.15))
+        return CGRect(x: horizontal, y: top, width: max(1, size.width - 2 * horizontal), height: max(1, size.height - top - bottom))
+    }
+}
+
+private struct ReadingPanelSurface: ViewModifier {
+    let enabled: Bool
+    let progress: Double
+    let source: CGRect?
+    let target: CGRect
+    func body(content: Content) -> some View {
+        if enabled {
+            let origin = source ?? target.insetBy(dx: min(24, target.width / 4), dy: min(24, target.height / 4))
+            let frame = CGRect(x: origin.minX + (target.minX - origin.minX) * progress,
+                y: origin.minY + (target.minY - origin.minY) * progress,
+                width: origin.width + (target.width - origin.width) * progress,
+                height: origin.height + (target.height - origin.height) * progress)
+            content.opacity(min(1, max(0, (progress - 0.2) / 0.6)))
+                .frame(width: frame.width, height: frame.height, alignment: .topLeading)
+                .background(NativePalette.thread.canvas.swiftUI.opacity(progress < 1 ? 1 : 0), in: RoundedRectangle(cornerRadius: 22))
+                // Keep one subtree through settling; the final aperture also
+                // admits the independent toolbar outside the panel's right edge.
+                .mask { RoundedRectangle(cornerRadius: progress < 1 ? 22 : 0).padding(progress < 1 ? 0 : -76) }
+                .position(x: frame.midX, y: frame.midY)
+        } else { content }
+    }
 }

@@ -41,6 +41,7 @@ public struct NativeOverviewWorkspaceView: View {
     public let callbacks: NativeOverviewWorkspaceCallbacks
     public var interactionPaused: Bool
     public var clickExclusions: NativeClickExclusions
+    public var chromeVisible: Bool
     public var landing: Bool
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
@@ -48,10 +49,10 @@ public struct NativeOverviewWorkspaceView: View {
     private var inputRegions: NativeCanvasInputRegions { sharedInputRegions ?? localInputRegions }
     private var locale: DesktopLocale { model.workspace.preferences.locale }
     public init(model: NativeOverviewWorkspaceModel, callbacks: NativeOverviewWorkspaceCallbacks,
-                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false) {
+                interactionPaused: Bool = false, clickExclusions: NativeClickExclusions = .init(), landing: Bool = false, chromeVisible: Bool = true) {
         self.model = model; self.callbacks = callbacks; self.interactionPaused = interactionPaused
         self.clickExclusions = clickExclusions
-        self.landing = landing
+        self.landing = landing; self.chromeVisible = chromeVisible
         _callbackStore = State(initialValue: NativeOverviewWorkspaceCallbackStore(callbacks))
     }
     public var body: some View {
@@ -122,6 +123,10 @@ public struct NativeOverviewWorkspaceView: View {
                     onSettingsWithOrigin: callbacks.onSettingsWithOrigin,
                     onSettingsFrameChange: callbacks.onSettingsFrameChange,
                     clickExclusions: clickExclusions, interactions: model.chromeInteractions)
+                    .opacity(chromeVisible ? 1 : 0)
+                    .scaleEffect(x: 1, y: chromeVisible ? 1 : 0.1, anchor: .top)
+                    .allowsHitTesting(chromeVisible).accessibilityHidden(!chromeVisible)
+                    .animation(.easeOut(duration: 0.2), value: chromeVisible)
             }
         }
         .environment(\.nativeCanvasInputRegions, inputRegions)
