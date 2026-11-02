@@ -1,0 +1,10 @@
+{
+  "mainCommit": "2a54a3b43c79487f19eb1e54ec182d800d193b4e",
+  "mainTree": "295ef433ee3bf4393a5374cdf739207e0bb81921",
+  "successfulPRSyntheticCommit": "61cdb6cf1da1bab36b96493c4db33c7196ff64ce",
+  "successfulPRSyntheticTree": "295ef433ee3bf4393a5374cdf739207e0bb81921",
+  "nativeBuildManifestRevision": "61cdb6cf1da1bab36b96493c4db33c7196ff64ce",
+  "run": 41400177640,
+  "attempt": 1,
+  "scope": "full PR CI, not the final #225 merge gate"
+}

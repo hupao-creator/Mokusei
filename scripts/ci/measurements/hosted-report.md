@@ -117,3 +117,26 @@ main 原始数据见 [paired-baseline.json](paired-baseline.json)。完整 macOS
 种子保存预算。若保存时的查询仍高于预算，workflow 会跳过新种子保存，
 但仍执行构建与验证。GitHub 的用量接口约五分钟刷新一次；并行写入和逐出
 也会改变实际用量，因此这不是实时数值，也不能归因于本 PR。
+
+## `2a54a3b` 同树成功对照
+
+[PR #239 run 41400177640](https://github.com/hupao-creator/Mokusei/actions/runs/41400177640)
+的完整 CI 在 attempt 1 成功。其实际构建的合成提交 `61cdb6c` 与随后合入的
+main `2a54a3b` 具有完全相同的 Git tree
+`295ef433ee3bf4393a5374cdf739207e0bb81921`；构建清单也记录了合成提交。
+[身份记录](baseline-2a54-identity.json)和[原始 job/step](baseline-2a54-success.json)
+保留了可复核的数据。它是 PR 事件而非 main push；正常代码范围均为完整 CI，
+但事件、缓存和独立 runner 不完全相同，不能当作同机严格 A/B。
+
+| 指标（秒） | 成功对照 |
+| --- | ---: |
+| 首次触发到结束 | 1797 |
+| 本 attempt runner 执行总和 | 2302 |
+| macOS 排队 / 执行 | 4 / 1724 |
+| macOS Swift 构建 / 验证命令 | 279 / 1370 |
+| Go / Linux 执行 | 100 |
+
+macOS image 为 `20261026.0455.2`，恢复的 Swift 缓存键以
+`native-488b345` 结尾（428,600,923 字节）。#225 候选还改变了一个原生测试
+的几何观察方式和 CI 缓存策略，最终比较应列出这些差异，不能把该成功 run
+当作 #225 的 `Complete coverage` 或把耗时差全部归因于缓存。
