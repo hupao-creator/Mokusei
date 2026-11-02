@@ -147,6 +147,11 @@ import MokuseiHarnessOpenCode
     }
 }
 
+@MainActor private final class ExecutionLinkEditingTextView: NSTextView {
+    var cancellations = 0
+    override func cancelOperation(_ sender: Any?) { cancellations += 1 }
+}
+
 private struct ExecutionLinkSurface: View {
     let fixture: ExecutionLinkFixture
     var body: some View {
@@ -209,6 +214,14 @@ struct NativeMokuExecutionLinkTests {
         try await SwiftUIReplay.wait { element(id: "window-navigation.back", in: root) != nil }
         let button = try #require(element(id: "window-navigation.back", in: root))
         _ = button.perform(NSSelectorFromString("accessibilityPerformPress"))
+    }
+    private func escape(in window: NSWindow) throws {
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            let event = try #require(NSEvent.keyEvent(with: type, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+            NSApp.sendEvent(event)
+        }
     }
     private func textViews(_ root: NSView) -> [NSTextView] {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
@@ -335,6 +348,7 @@ struct NativeMokuExecutionLinkTests {
     @Test(arguments: ["codex", "claude", "pi", "opencode"], ["prior", "target", "missing"])
     func noteResultBackClosesTheRouteAndReopeningStillLoads(harness: String, execution: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
+        try fixture.update(successor: execution != "target", archived: true)
         fixture.noteText = "[View result](mokusei://execution?threadId=ordinary&executionId=\(execution))"
         fixture.load()
         let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
@@ -349,19 +363,138 @@ struct NativeMokuExecutionLinkTests {
             #expect(fixture.presentation.navigation?.label == "Back to overview")
             if attempt == 0 { try await back(in: root) }
             else {
-                // Escape and the document's close action use the same callback.
-                // The document control is only exposed once the opening motion
-                // settles; operating it mid-travel is deliberately unavailable.
+                // Wait for the document to be active before sending actual
+                // Escape events through AppKit's responder chain.
                 try await SwiftUIReplay.wait {
                     fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("history.close") }
                 }
-                let close = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
-                try fixture.perform(close, "activate")
+                if execution == "target" {
+                    // Place the sibling at the TOC edge, outside the document
+                    // viewport regardless of the hosting view's flipped Y axis.
+                    let sibling = ExecutionLinkEditingTextView(frame: .init(x: 0, y: 0, width: 32, height: 30))
+                    sibling.isEditable = false
+                    sibling.isSelectable = true
+                    sibling.string = "Sibling control"
+                    root.addSubview(sibling)
+                    #expect(window.makeFirstResponder(sibling))
+                    #expect(window.firstResponder === sibling)
+                    try escape(in: window)
+                    #expect(sibling.cancellations == 1)
+                    #expect(fixture.presentation.selected != nil)
+                    sibling.removeFromSuperview()
+                    let editor = ExecutionLinkEditingTextView(frame: .init(x: 0, y: 0, width: 240, height: 60))
+                    editor.isEditable = true
+                    editor.string = "An inline draft owns its cancellation"
+                    root.addSubview(editor)
+                    #expect(window.makeFirstResponder(editor))
+                    try escape(in: window)
+                    #expect(editor.cancellations == 1)
+                    #expect(fixture.presentation.selected != nil)
+                    editor.removeFromSuperview()
+                    #expect(window.makeFirstResponder(root))
+                }
+                try escape(in: window)
             }
-            try await SwiftUIReplay.wait { fixture.presentation.selected == nil && fixture.presentation.navigation == nil }
+            do {
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && fixture.presentation.navigation == nil }
+            } catch {
+                print("EXECUTION ENTRY BACK", harness, execution, "attempt", attempt,
+                      "selected", fixture.presentation.selected?.threadID.string as Any,
+                      "navigation", fixture.presentation.navigation?.label as Any,
+                      "destination", fixture.conversation?["destination"]?.stringValue as Any,
+                      "responder", window.firstResponder as Any,
+                      "focus", (window.accessibilityFocusedUIElement as? any NSAccessibilityProtocol)?.accessibilityLabel() as Any,
+                      "focusFrame", (window.accessibilityFocusedUIElement as? any NSAccessibilityProtocol)?.accessibilityFrame() as Any)
+                throw error
+            }
             #expect(fixture.presentation.readingTarget == nil)
             #expect(fixture.workspace.preferences.selectedThreadID == nil)
         }
+        window.close(); await fixture.close()
+    }
+
+    @Test(arguments: ["codex", "claude", "pi", "opencode"], [false, true])
+    func startPositionEntryBackExitsForOldCurrentAndMissingExecutions(harness: String, archived: Bool) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        // Establish the successor before opening: target is already historical,
+        // rather than becoming old only after a direct visit has begun.
+        try fixture.update(successor: true, archived: archived)
+        fixture.load()
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        let thread = ApplicationThreadRef(threadID: "ordinary", typeID: "agent")
+        for execution in ["target", "successor", "missing"] {
+            for entry in 0..<2 {
+                if entry == 0 {
+                    // Report relations and other application execution callbacks.
+                    fixture.presentation.applicationHost.navigation.openExecution(.init(thread: thread, executionID: JSONText(execution)))
+                } else {
+                    // Exact host reading requests also arrive through openThread.
+                    let target = try HarnessReadingTarget(json: .object([
+                        "executionId": .text(execution), "requestId": .text(UUID().uuidString), "mode": .text("history")
+                    ]))
+                    fixture.presentation.applicationHost.navigation.openThread(thread, target)
+                }
+                #expect(fixture.presentation.selected == thread)
+                #expect(fixture.presentation.readingTarget?.position == .start)
+                let destination = execution == "missing" ? "unavailable" : execution == "successor" ? "current" : "history"
+                try await SwiftUIReplay.wait {
+                    fixture.conversation?["destination"] == .text(destination)
+                        && fixture.conversation?["transitioning"] == .bool(false)
+                        && fixture.presentation.navigation != nil
+                }
+                #expect(fixture.presentation.navigation?.label == "Back to overview")
+                if entry == 1 && execution != "successor" {
+                    let close = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.close") })
+                    try fixture.perform(close, "activate")
+                } else { try await back(in: root) }
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && fixture.presentation.navigation == nil }
+                #expect(fixture.presentation.readingTarget == nil && fixture.workspace.preferences.selectedThreadID == nil)
+            }
+        }
+        window.close(); await fixture.close()
+    }
+
+    @Test(arguments: ["codex", "claude", "pi", "opencode"], [false, true])
+    func selectingHistoryAfterDirectEntryResumesInternalBack(harness: String, result: Bool) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        fixture.load()
+        let reference = ApplicationExecutionRef(thread: .init(threadID: "ordinary", typeID: "agent"), executionID: "prior")
+        if result { fixture.presentation.openNoteExecution(reference) }
+        else { fixture.presentation.openExecution(reference) }
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait {
+            fixture.conversation?["destination"] == .text("history")
+                && fixture.conversation?["transitioning"] == .bool(false)
+                && fixture.presentation.navigation?.label == "Back to overview"
+        }
+        // Even reselecting the entry row is an explicit internal navigation.
+        let selected = try #require(fixture.conversation?["selectedRow"])
+        let row = try #require(fixture.controls.snapshot(visit: fixture.visit).first {
+            $0["role"] == .text("history.open") && $0["value"] == selected
+        })
+        try fixture.perform(row, "activate")
+        try await SwiftUIReplay.wait { fixture.presentation.navigation != nil && fixture.presentation.navigation?.label != "Back to overview" }
+        let previousCurrent = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.sidebar") }?["value"]?["currentRow"])
+        try fixture.update(successor: true)
+        try await SwiftUIReplay.wait {
+            fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("history.sidebar") && $0["value"]?["currentRow"] != previousCurrent }
+                && fixture.conversation?["transitioning"] == .bool(false)
+        }
+        try await back(in: root)
+        try await SwiftUIReplay.wait {
+            fixture.conversation?["destination"] == .text("current")
+                && fixture.conversation?["transitioning"] == .bool(false)
+                && fixture.presentation.navigation?.label == "Back to overview"
+        }
+        #expect(fixture.presentation.selected == reference.thread)
+        let current = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("history.sidebar") }?["value"]?["currentRow"])
+        #expect(fixture.conversation?["selectedRow"] == current)
+        try await back(in: root)
+        try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
         window.close(); await fixture.close()
     }
 

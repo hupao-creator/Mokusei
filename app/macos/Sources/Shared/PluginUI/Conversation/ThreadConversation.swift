@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import MokuseiCore
 import MokuseiPluginAPI
@@ -134,9 +135,12 @@ public struct ThreadConversation: View {
     private var resultVisit: Bool {
         readingTarget?.position == .result && destination == requestedDestination
     }
-    // An external result opens the host route itself. There was no current
-    // document visit to return to until the user navigates within this thread.
-    private var resultRoute: Bool { resultVisit && rootNavigation != nil }
+    // A requested document is the host route's entry, regardless of scroll
+    // position. The retained current document is not a previous visit until
+    // explicit in-thread navigation clears requestedDestination.
+    private var entryRoute: Bool {
+        requestedDestination != nil && destination == requestedDestination && rootNavigation != nil
+    }
     private var scrollTarget: ThreadTimelineReadingTarget? {
         guard destination == requestedDestination, let consumedRequest, let acceptedAnchor else { return nil }
         return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: acceptedAnchor,
@@ -166,7 +170,7 @@ public struct ThreadConversation: View {
         .onChange(of: readingTarget) { _, _ in consumeReadingTarget() }
         .onChange(of: visibleRows.map(\.id)) { _, _ in promoteCurrentPage(); consumeReadingTarget() }
         .onChange(of: visibleRows.map { $0.execution?.readable }) { _, _ in consumeReadingTarget() }
-        .onChange(of: readingPage && !resultRoute, initial: true) { _, open in
+        .onChange(of: readingPage && !entryRoute, initial: true) { _, open in
             if let token = navigationToken { navigation?.unregister(token); navigationToken = nil }
             if open {
                 navigationToken = navigation?.register(ThreadDetailBackAction(label: localize("返回当前会话"), onBack: closeHistory))
@@ -295,7 +299,7 @@ public struct ThreadConversation: View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
-                              backLabel: (resultRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
+                              backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
                               showBack: navigation == nil, focusHeading: destination == requestedDestination, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
@@ -307,7 +311,7 @@ public struct ThreadConversation: View {
         return AnyView(ThreadDetailEmptyState())
     }
     private func closeHistory() {
-        if resultRoute { rootNavigation?.onBack(); return }
+        if entryRoute { rootNavigation?.onBack(); return }
         setPageDirection(toward: currentRow?.id, returning: true)
         pageMotion.close()
     }
@@ -432,6 +436,7 @@ private struct ThreadHistoryDocument: View {
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var manualWork: Bool?
     private var work: Bool { manualWork ?? (result && active) }
+    @Environment(\.nativeReadingInteractionActive) private var readingActive
     @FocusState private var headingFocused: Bool
     var body: some View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
@@ -449,6 +454,7 @@ private struct ThreadHistoryDocument: View {
                     .padding(16).help(backLabel).accessibilityLabel(backLabel)
                 }
             }.nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
+            .background(ThreadHistoryEscapeHandler(back: readingActive ? onBack : nil))
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
                 "rowId": page.map { .string($0.id) } ?? .null,
@@ -479,5 +485,85 @@ private struct ThreadHistoryDocument: View {
         let emojis = ["🌿", "🪐", "🧩", "🎨", "🦊", "🌊", "🍋", "🪁", "💡", "🌻", "🐳", "🏕️"]
         let hash = id.codeUnits.reduce(UInt32(2_166_136_261)) { ($0 ^ UInt32($1)) &* 16_777_619 }
         return emojis[Int(hash % UInt32(emojis.count))]
+    }
+}
+
+/// Result positioning can leave no SwiftUI focus target after scrolling. Only
+/// the mounted active document owns this fallback; sibling focus and native
+/// editing/menu cancellation must retain their existing handlers.
+private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
+    let back: (() -> Void)?
+    func makeNSView(context: Context) -> EscapeView { EscapeView(back: back) }
+    func updateNSView(_ view: EscapeView, context: Context) { view.back = back }
+    static func dismantleNSView(_ view: EscapeView, coordinator: ()) { view.dispose() }
+
+    @MainActor final class EscapeView: NSView {
+        var back: (() -> Void)?
+        private var monitor: Any?
+        private var observers: [NSObjectProtocol] = []
+        private var menus = Set<ObjectIdentifier>()
+        init(back: (() -> Void)?) {
+            self.back = back
+            super.init(frame: .zero)
+            setAccessibilityElement(false)
+            for name in [NSMenu.didBeginTrackingNotification, NSMenu.didEndTrackingNotification] {
+                observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                    guard let menu = note.object as? NSMenu else { return }
+                    let identity = ObjectIdentifier(menu), began = name == NSMenu.didBeginTrackingNotification
+                    MainActor.assumeIsolated {
+                        if began { self?.menus.insert(identity) }
+                        else { self?.menus.remove(identity) }
+                    }
+                })
+            }
+        }
+        required init?(coder: NSCoder) { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window == nil { removeMonitor(); return }
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                let handled = MainActor.assumeIsolated { () -> Bool in
+                    guard let self, let back = self.back, let window = self.window,
+                          event.window === window, !self.isHiddenOrHasHiddenAncestor, self.menus.isEmpty,
+                          event.keyCode == 53, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
+                          (window.firstResponder as? NSTextInputClient)?.hasMarkedText() != true,
+                          (window.firstResponder as? NSTextView)?.isEditable != true else { return false }
+                    // Transient popovers can keep events addressed to an anchor
+                    // in a sibling surface. Its explicit cancellation owner acts first.
+                    var responder = window.firstResponder
+                    while let current = responder, current !== window {
+                        if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return true }
+                        responder = current.nextResponder
+                    }
+                    if let responder = window.firstResponder as? NSView, responder !== window.contentView {
+                        let point = responder.convert(CGPoint(x: responder.bounds.midX, y: responder.bounds.midY), to: nil)
+                        guard self.bounds.contains(self.convert(point, from: nil)) else { return false }
+                    }
+                    // SwiftUI siblings share a hosting responder. Their focused
+                    // AX element identifies which document owns cancellation.
+                    if let focused = window.accessibilityFocusedUIElement as? any NSAccessibilityProtocol {
+                        let frame = focused.accessibilityFrame()
+                        if !frame.isEmpty, frame.width < window.frame.width || frame.height < window.frame.height {
+                            let point = window.convertPoint(fromScreen: CGPoint(x: frame.midX, y: frame.midY))
+                            guard self.bounds.contains(self.convert(point, from: nil)) else { return false }
+                        }
+                    }
+                    back()
+                    return true
+                }
+                return handled ? nil : event
+            }
+        }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        private func removeMonitor() {
+            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+        }
+        func dispose() {
+            back = nil
+            removeMonitor()
+            for observer in observers { NotificationCenter.default.removeObserver(observer) }
+            observers.removeAll(); menus.removeAll()
+        }
     }
 }
