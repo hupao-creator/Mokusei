@@ -290,9 +290,7 @@ public struct HarnessMessageTimeline: View {
                         Button { jumpToLatest() } label: {
                             HStack(spacing: 5) { NativeIcon(name: "ChevronDown", size: 13); Text(localize("回到最新")) }
                                 .font(NativeTypography.inter(size: 11)).padding(.vertical, 6).padding(.horizontal, 10)
-                                .background(NativeAppKitPalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 6))
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(NativeAppKitPalette.thread.line.swiftUI))
-                                .shadow(color: .black.opacity(0.07), radius: 3, y: 2)
+                                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 6))
                         }.buttonStyle(.plain).padding(.bottom, 16)
                             .nativeReadingAction("jumpLatest", role: "jumpLatest", label: localize("回到最新")) { jumpToLatest() }
                     }
