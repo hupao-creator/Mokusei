@@ -47,7 +47,7 @@ The native job performs these stages:
 3. Verify the graphical environment, run native Go checks and generate the five
    real Go fixture producers' six output files in the same evidence directory.
 4. Execute every ordinary Swift method once with `--skip-build --no-parallel`.
-5. Run all ten `interop` checks and all ten `native` checks serially.
+5. Run all ten `interop` checks and all twelve `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -62,7 +62,7 @@ The ordinary command has no positive suite filter. Its explicit `--skip` exclude
 only full identities recorded in `swift_ownership.py`, including Swift Testing's
 runtime source-location suffix. This is selection, not a passing skip result:
 each excluded method must produce its actual passing outcome, marker and zero
-exit receipt in the declared `native/tag-glass-captures` check. The title-reversal
+exit receipt in the declared native check. The title-reversal
 pixel proof needs that host's AppKit loop and WindowServer delivery.
 
 The same capture check owns
@@ -81,6 +81,18 @@ The Tag Settings first-frame case uses that owner too, requiring
 `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED` and retaining every entry/return frame.
 It needs the real AppKit event loop; ordinary SwiftPM sleeps do not guarantee
 that a newly mounted SpriteKit surface reaches WindowServer.
+
+The Git summary/original-size token flip uses `native/rolling-numbers`, retaining
+its 100/90/300ms sampling intervals, three distinct frames and fixed geometry.
+It requires a foreground key window in the AppKit runner and emits
+`GIT_TOKEN_FLIP_FRAMES_CONFIRMED` only after those assertions. The same manifest,
+exclusion and exactly-once receipt audit apply; a skipped or absent run fails.
+
+The Moku note capsule hydration/wrapping/copy/input case uses
+`native/moku-execution-links`. It requires the real AppKit loop, tests both
+keyboard and TextKit mouse tracking for all four Harnesses, and emits
+`MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
+only because that same method has a mandatory native outcome and receipt.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings

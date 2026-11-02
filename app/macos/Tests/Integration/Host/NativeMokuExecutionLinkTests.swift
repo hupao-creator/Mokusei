@@ -235,6 +235,7 @@ struct NativeMokuExecutionLinkTests {
 
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness: String) async throws {
+        try #require(NSApp?.isRunning == true, "The capsule input case requires its declared AppKit replay owner")
         let fixture = try ExecutionLinkFixture(harness)
         let title = "检查长标题连续换行，保留执行引用的关键信息 e\u{301} 与 👩🏽‍💻"
         let note = NativeMokuNote(id: "same-note", text: "参考 [Website](https://example.com)；已完成 [\(title)](mokusei://execution?threadId=ordinary&executionId=target)。\n\n[Plain](https://example.com/plain)", revision: 1, updatedAt: 1)
@@ -309,23 +310,21 @@ struct NativeMokuExecutionLinkTests {
             context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
         text.keyDown(with: enter)
         #expect(fixture.presentation.readingTarget?.executionID == "target")
-        // Only the isolated AppKit runner owns NSTextView's mouse tracking loop;
-        // the same case retains keyboard/AX coverage in the ordinary Swift run.
-        if NSApp.isRunning {
-            fixture.presentation.finishBack()
-            let layout = try #require(text.layoutManager), container = try #require(text.textContainer)
-            let box = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
-            let point = text.convert(NSPoint(x: box.midX + text.textContainerOrigin.x, y: box.midY + text.textContainerOrigin.y), to: nil)
-            let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                eventNumber: 1, clickCount: 1, pressure: 1))
-            let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                eventNumber: 2, clickCount: 1, pressure: 0))
-            NSApp.postEvent(up, atStart: true)
-            text.mouseDown(with: down)
-            #expect(fixture.presentation.readingTarget?.executionID == "target")
-        }
+        // The mandatory AppKit owner supplies NSTextView's tracking loop.
+        fixture.presentation.finishBack()
+        let layout = try #require(text.layoutManager), container = try #require(text.textContainer)
+        let box = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
+        let point = text.convert(NSPoint(x: box.midX + text.textContainerOrigin.x, y: box.midY + text.textContainerOrigin.y), to: nil)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 1, clickCount: 1, pressure: 1))
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 2, clickCount: 1, pressure: 0))
+        NSApp.postEvent(up, atStart: true)
+        text.mouseDown(with: down)
+        #expect(fixture.presentation.readingTarget?.executionID == "target")
+        print("MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED")
         window.close(); await fixture.close()
     }
 

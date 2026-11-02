@@ -202,11 +202,14 @@ struct GitThreadExtensionTests {
             options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
             reason: "Sample the rolling-number animation at its existing intermediate deadline")
         defer { ProcessInfo.processInfo.endActivity(activity) }
+        let app = NSApplication.shared
+        app.setActivationPolicy(.regular); app.unhide(nil); app.activate(ignoringOtherApps: true)
         let numbers = GitSummaryNumbers()
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 400, height: 90), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.appearance = NSAppearance(named: .aqua)
         let root = NSHostingView(rootView: GitSummaryNumberReplay(numbers: numbers))
-        window.contentView = root; window.orderFront(nil)
+        window.contentView = root
+        window.center(); window.makeKeyAndOrderFront(nil)
         defer { window.close() }
         func pixels() throws -> Data {
             root.layoutSubtreeIfNeeded()
@@ -216,6 +219,10 @@ struct GitThreadExtensionTests {
         }
         try await Task.sleep(for: .milliseconds(100), tolerance: .zero)
         let initial = try pixels()
+        let foreground = app.isActive && window.isKeyWindow && window.occlusionState.contains(.visible)
+        // Keep sampling after failed admission so its actual frames and timing
+        // survive too; a missing foreground owner still fails this native check.
+        #expect(foreground, "Token animation requires an active, visible key window")
         let inputAt = ProcessInfo.processInfo.systemUptime
         numbers.added = "957"; numbers.deleted = "26"
         // Clock-selected leeway can consume the 260ms production transition
@@ -235,7 +242,11 @@ struct GitThreadExtensionTests {
         for (name, data) in [("initial", initial), ("during", during), ("settled", settled)] {
             try data.write(to: evidence.appendingPathComponent(name + ".png"))
         }
-        let receipt: [String: Any] = ["inputAt": inputAt, "duringStartedAt": duringStartedAt,
+        let receipt: [String: Any] = ["foregroundAtInput": foreground,
+            "applicationActive": app.isActive, "windowKey": window.isKeyWindow,
+            "windowVisible": window.isVisible, "windowOccluded": !window.occlusionState.contains(.visible),
+            "backingScale": window.backingScaleFactor, "width": root.bounds.width, "height": root.bounds.height,
+            "inputAt": inputAt, "duringStartedAt": duringStartedAt,
             "duringFinishedAt": duringFinishedAt, "settledAt": settledAt,
             "duringDelayMilliseconds": (duringStartedAt - inputAt) * 1000,
             "duringCaptureMilliseconds": (duringFinishedAt - duringStartedAt) * 1000,
@@ -244,8 +255,11 @@ struct GitThreadExtensionTests {
         try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
             .write(to: evidence.appendingPathComponent("measurements.json"))
         print("GIT_NUMBER_FLIP_EVIDENCE \(evidence.path)")
-        #expect(initial != during && during != settled && initial != settled)
-        #expect(root.bounds.size == CGSize(width: 400, height: 90))
+        let distinct = initial != during && during != settled && initial != settled
+        let sized = root.bounds.size == CGSize(width: 400, height: 90)
+        #expect(distinct)
+        #expect(sized)
+        if foreground && distinct && sized { print("GIT_TOKEN_FLIP_FRAMES_CONFIRMED") }
     }
     @Test(.requiresDisplay, arguments: ["known", "unknown", "too-large", "timeout", "unavailable", "inaccessible", "stale"], ["en-US", "zh-CN"])
     func extensionButtonShowsStatisticsStateAndOpensWorktree(state: String, locale: String) async throws {

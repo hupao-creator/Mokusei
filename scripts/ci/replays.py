@@ -69,7 +69,7 @@ def main():
                                "-artifacts", str(output / "settings")]),
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name])
-              for name in ["browser-dialogs", "application-navigation", "tag-glass-captures",
+              for name in ["browser-dialogs", "application-navigation", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
             ("model-selector", [sys.executable, "tools/verification/reading-presentation/run.py", "--model-selector"]),
