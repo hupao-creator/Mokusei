@@ -90,3 +90,8 @@ handle, including for equal scopes. A departing document releases only its own
 handle; the surviving document remains loaded. Execution disclosure groups still
 share demand within their owning row, and retiring a surface releases all its
 remaining handles.
+
+Agent reading uses a panel-owned Close rather than a Back control beside the
+traffic lights. Its nested history Back remains inside the main panel and keeps
+the existing route-visit fence. Moku history and application/Report navigation
+retain their own window-navigation behavior.

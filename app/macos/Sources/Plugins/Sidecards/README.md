@@ -2,10 +2,16 @@
 
 The shared [NativePlugins](../../Composition/NativePlugins.swift) composition registers Conversation, Browser (`iab`) and Voice. The host in [Host/Sidecards](../../Host/Sidecards/) selects one expanded card, owns widths/responsive layout, outer transitions, focus and suppression, and injects [thread-bound capabilities](../../Shared/PluginAPI/SidecardPlugin.swift). Sidecards apply to ordinary Agent Threads.
 
-The collapsed launcher group uses concentric capsules: 30pt-high button feedback
-inside 5pt padding and a 40pt-high glass surface. Clip launcher contents before
-applying glass so the system owns the capsule's outer highlight and shadow;
-clipping the glass itself would cut off that shadow.
+Agent reading and the selected Sidecard occupy independent opaque reading-palette
+panels with fine borders and a 16pt workspace gap. The resident Moku Dock stays
+outside them. Separate 42pt round Liquid Glass launchers, spaced 14pt vertically,
+remain centered in the right background margin and indicate the active card.
+Opening a different launcher switches the retained plugin session; selecting it
+again folds it. Per-plugin preferred widths and retained drag widths still belong
+to the host. Below 760pt of available panel width the two panels stack vertically.
+Only their shells change; plugin forms, browser behavior and voice ownership remain
+with the existing sessions. Nested history Back belongs inside the main panel;
+its independent Close returns to Overview.
 
 ## Conversation
 

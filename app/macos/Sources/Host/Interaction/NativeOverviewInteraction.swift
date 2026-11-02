@@ -143,10 +143,10 @@ extension NativeWorkspacePresentation {
                 result += ["overview.directory.open", "overview.directory.close", "overview.directory.select"]
             }
             if !overview.isSearching, overview.chromeInteractions.canScroll { result.append("overview.filters.scroll") }
-            if !scene.disabled, !scene.dockCovered { result.append("moku.input.toggle") }
             if canToggleMokuNote { result.append("moku.note.toggle") }
         }
-        if !scene.disabled, interactionPage == "overview" || interactionPage == "moku" {
+        if scene.dockRouteVisible, !scene.disabled, !scene.dockCovered { result.append("moku.input.toggle") }
+        if !scene.disabled, scene.dockRouteVisible || interactionPage == "moku" {
             result.append("moku.history.toggle")
         }
         return result

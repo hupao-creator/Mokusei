@@ -715,3 +715,15 @@ mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, th
 original three sampling intervals, three distinct frames and fixed 400×90 geometry
 remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
+
+## Agent reading panel admission
+
+`--moku-landing` also mounts the production workspace with a real catalog Agent
+record. It checks source-card geometry, the measured native panel frame, resident
+Moku identity and input, Settings exclusion, same-thread result retargeting,
+resize/return and direct-result Back. A window capture is exported under
+`agent-panel/root.png`; its Harness is deliberately on the fixture loading path,
+so this image certifies shell/Dock geometry rather than live transcript delivery.
+The standalone thread-panel demo exercises real Sidecard content and shared
+production split geometry with mock capabilities, including retained widths,
+rapid switching and narrow vertical splits.

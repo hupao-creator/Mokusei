@@ -29,18 +29,18 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
                     .onTapGesture { if !state.settingsClosing { closeSettings() } }
                     .accessibilityHidden(true)
             }
-            // Shared shell slot. Covered routes already omit the dock; a selected
-            // thread or application is not Overview, so the capsule must not stay mounted.
+            // One resident instance spans Overview and Agent reading. Application
+            // documents and covering routes remain ineligible for the Dock.
             if !state.dockCovered || state.settingsOpen {
                 Group {
-                    if state.overviewVisible {
+                    if state.dockRouteVisible {
                         dock.environment(\.nativeMokuSettingsContent, AnyView(settings)).transition(.opacity)
                     }
                 }
-                .allowsHitTesting(state.overviewVisible)
-                .accessibilityHidden(!state.overviewVisible)
-                .disabled(!state.overviewVisible)
-                .animation(.smooth(duration: 0.42, extraBounce: 0), value: state.overviewVisible)
+                .allowsHitTesting(state.dockRouteVisible)
+                .accessibilityHidden(!state.dockRouteVisible)
+                .disabled(!state.dockRouteVisible)
+                .animation(.smooth(duration: 0.42, extraBounce: 0), value: state.dockRouteVisible)
             }
         }
         .modifier(NativeSettingsTransition(state: state))

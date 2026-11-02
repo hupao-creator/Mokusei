@@ -80,6 +80,13 @@ public final class NativeOverviewCanvasState {
         self.motionStages = motionStages
         camera.stageCoordinator = motionStages
     }
+    public func displayedFrame(for id: String) -> CGRect? {
+        guard !isLayingOut, let placement = presentedPlacements.first(where: { $0.id == id }) else { return nil }
+        let frame = placement.cardFrame
+        let transform = camera.liveTransform
+        return CGRect(x: frame.minX * transform.scale + transform.x, y: frame.minY * transform.scale + transform.y,
+                      width: frame.width * transform.scale, height: frame.height * transform.scale)
+    }
     public func retryLayout() { retryHandler?() }
     public func allowsActivation(cardID: String) -> Bool { activationCheck?(cardID) ?? false }
     /// Interaction widgets invoke this for real input, not hover or restored focus.
