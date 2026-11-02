@@ -41,6 +41,7 @@ struct ThreadReadingHeader: View {
     let author: JSONValue?
     var showsAuthor = true
     var showsFilters = true
+    var showsWorkFilter = true
     let users: Bool
     let work: Bool
     let toggleUsers: () -> Void
@@ -66,8 +67,8 @@ struct ThreadReadingHeader: View {
     }
     private var filters: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) { workButton; usersButton }.fixedSize()
-            VStack(alignment: .leading, spacing: 4) { workButton; usersButton }
+            HStack(spacing: 10) { if showsWorkFilter { workButton }; usersButton }.fixedSize()
+            VStack(alignment: .leading, spacing: 4) { if showsWorkFilter { workButton }; usersButton }
         }
     }
     private var workButton: some View {

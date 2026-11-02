@@ -228,6 +228,9 @@ closing one cannot revoke the other's content.
 mounted turn's resolved author under the title, beside execution/user-message
 visibility controls. Narrow widths wrap the controls and truncate the visible
 author while preserving its complete accessible label, tooltip and text selection.
+For the selected running execution, work stays visible and its visibility control
+is absent; completion restores the previous visibility behavior. Historical and
+result visits compare their own execution identity with the running execution.
 The author comes from the actual Harness-rendered body, including runtime model
 overrides; manifests cannot invent it. Completion time, duration and usage remain
 in the footer. Inherited transcripts containing several turns retain each turn's

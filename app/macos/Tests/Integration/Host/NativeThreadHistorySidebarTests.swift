@@ -15,6 +15,7 @@ import MokuseiPluginUI
     var longAuthor = false
     var inherited = false
     var summarizedWork = false
+    var runningID: JSONText?
     let controls = NativeReadingInteractions()
     let visit = UUID()
     @ObservationIgnored var mounted: Set<JSONText> = []
@@ -70,7 +71,8 @@ private struct SidebarTurn: View {
                 executionSummary: fixture.summarizedWork ? .init(reasoningSegments: 4, toolCalls: 7) : nil),
             .init(id: JSONText(id.string + "-answer"), kind: .content,
                 node: AnyView(Text("回答 \(id.string)\n\n" + String(repeating: "正文保持可访问，切换目录仅加载选中的轮次。\n\n", count: 30))), finalReply: true)
-        ], createdAt: 1, updatedAt: 2, status: "completed", completedAt: 1_700_000_000_000, active: false)
+        ], createdAt: 1, updatedAt: 2, status: fixture.runningID == id ? "running" : "completed",
+            completedAt: fixture.runningID == id ? nil : 1_700_000_000_000, active: fixture.runningID == id)
         .onAppear { fixture.mounted.insert(id); fixture.appearances[id, default: 0] += 1 }
         .onDisappear { fixture.mounted.remove(id) }
     }
@@ -81,7 +83,7 @@ private struct SidebarSurface: View {
     var executionCard = false
     var body: some View {
         ThreadConversation(threadId: "sidebar-replay", title: "检查历史轮次与目录导航", icon: "📝", rows: fixture.rows,
-            readingTarget: fixture.target,
+            readingTarget: fixture.target, running: fixture.runningID != nil, runningTurnId: fixture.runningID,
             context: .init(content: .manifest, presentation: executionCard ? .execution("turn-4") : .main(excludedExecutionIDs: []),
                 contentResource: { _ in .init(state: .loading, retry: {}, release: {}) }, onIndexChange: { _ in }),
             renderRow: fixture.render)
@@ -94,6 +96,30 @@ private struct SidebarSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeThreadHistorySidebarTests {
+    @Test func runningExecutionKeepsWorkVisibleAcrossHistoryAndCompletion() async throws {
+        let fixture = SidebarFixture()
+        let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700, offscreen: true)
+        defer { window.close() }
+        try await fixture.ready()
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(1))
+        fixture.runningID = "turn-4"
+        try await SwiftUIReplay.wait { fixture.control("visibility.work") == nil && fixture.state("turn")?["visibleRowCount"] == .integer(2) }
+        #expect(fixture.control("visibility.userMessages") != nil)
+        try await fixture.perform("history.open", value: .text("turn-2"))
+        #expect(fixture.control("visibility.work") != nil)
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(1))
+        fixture.target = .init(requestId: "running-result", mode: .history, executionId: "turn-4", position: .result, follow: false)
+        try await SwiftUIReplay.wait { fixture.state("history")?["rowId"] == .text("turn-4") && fixture.control("visibility.work") == nil }
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
+        fixture.runningID = nil
+        try await SwiftUIReplay.wait { fixture.control("visibility.work") != nil && fixture.state("turn")?["visibleRowCount"] == .integer(1) }
+        try await fixture.perform("visibility.work")
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
+        try await fixture.perform("visibility.work")
+        fixture.runningID = "turn-4"
+        try await SwiftUIReplay.wait { fixture.control("visibility.work") == nil && fixture.state("turn")?["visibleRowCount"] == .integer(2) }
+    }
+
     @Test func sidebarNavigatesRetainsScrollAndMovesTheActualAuthor() async throws {
         let fixture = SidebarFixture()
         fixture.summarizedWork = true

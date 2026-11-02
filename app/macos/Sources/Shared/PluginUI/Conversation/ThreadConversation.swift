@@ -117,10 +117,13 @@ public struct ThreadConversation: View {
         if case let .execution(id) = context?.presentation, id != runningTurnId { return nil }
         return runningTurnId
     }
-    private var work: Bool { executionCard || (manualWork ?? (effectiveRunningID != nil)) }
+    private var selectedIsRunning: Bool {
+        running && effectiveRunningID != nil && visibleRows.first { $0.id == selectedRowID }?.execution?.id == effectiveRunningID
+    }
+    private var work: Bool { executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil)) }
     private var visibility: ThreadDetailVisibility {
         ThreadDetailVisibility(userMessages: executionCard || userMessages, work: work,
-                               workTurnID: executionCard || manualWork != nil ? nil : effectiveRunningID)
+                               workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID)
     }
     private var inlineRow: JSONText? {
         if case let .document(inline) = destination { return inline }; return nil
@@ -265,7 +268,7 @@ public struct ThreadConversation: View {
                 let selected = selectedRowID
                 let authorID = visibleRows.first { $0.id == selected }?.execution?.id
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
-                    showsFilters: !executionCard, users: userMessages, work: work,
+                    showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
                     .padding(.top, executionCard ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
@@ -298,6 +301,7 @@ public struct ThreadConversation: View {
     private func historyPage() -> some View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
+                              running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
                               showBack: navigation == nil, focusHeading: destination == requestedDestination, onBack: closeHistory)
@@ -423,6 +427,7 @@ private struct ThreadHistoryDocument: View {
     let page: ThreadConversationRow?
     let rowContent: AnyView?
     let active: Bool
+    let running: Bool
     let result: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let locatedRequestId: JSONText?
@@ -435,7 +440,7 @@ private struct ThreadHistoryDocument: View {
     @State private var users = false
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var manualWork: Bool?
-    private var work: Bool { manualWork ?? (result && active) }
+    private var work: Bool { running || (manualWork ?? (result && active)) }
     @Environment(\.nativeReadingInteractionActive) private var readingActive
     @FocusState private var headingFocused: Bool
     var body: some View {
@@ -473,7 +478,7 @@ private struct ThreadHistoryDocument: View {
                 .focusable().focusEffectDisabled().focused($headingFocused)
             if page != nil {
                 ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] }, showsAuthor: page?.execution != nil,
-                    users: users, work: work, toggleUsers: toggleUsers, toggleWork: toggleWork)
+                    showsWorkFilter: !running, users: users, work: work, toggleUsers: toggleUsers, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
         }.padding(.bottom, 28)
