@@ -1071,6 +1071,7 @@ extension SwiftUIOverviewInteractionTests {
         let deadline = ContinuousClock.now + .seconds(3)
         var selected: TitleWindowFrame?
         while ContinuousClock.now < deadline {
+            try Task.checkCancellation()
             let samples = frames.takeSamples()
             let firstIndex = captures.count
             retainTitleSamples(samples, stage: stage, captures: &captures, measurements: &measurements)
@@ -1111,9 +1112,10 @@ extension SwiftUIOverviewInteractionTests {
                 }
             }
             if selected != nil { break }
-            // A frame must still be <50ms old when its live input is submitted.
-            // Clock-selected coalescing leeway can consume that entire window.
-            try await Task.sleep(for: .milliseconds(10), tolerance: .zero)
+            let waitingAt = ProcessInfo.processInfo.systemUptime
+            try await frames.waitForSamples(until: deadline)
+            measurements.append(["kind": "frame-arrival-wake", "stage": stage,
+                "waitingAt": "\(waitingAt)", "resumedAt": "\(ProcessInfo.processInfo.systemUptime)"])
         }
         return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
     }
