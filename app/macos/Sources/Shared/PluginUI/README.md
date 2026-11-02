@@ -325,6 +325,13 @@ Harnesses remain responsible for available options and dependent selections.
 
 ## Motion and materials
 
+The timeline’s “Jump to latest” button uses the same native regular interactive
+Liquid Glass as other floating actions, retaining its six-point rounded shape
+and existing hit area. The package requires macOS 26, so no older-system fallback
+is needed. SwiftUI owns light/dark appearance and accessibility material
+adaptation; the button keeps its localized label, native button semantics and
+`jumpLatest` reading action, with no change to following or scroll behavior.
+
 [Thread-card numbers](Cards/ThreadCardMetrics.swift) retain positional cells from
 right to left while usage changes. Changed digits enter from above and retire
 below over 260ms, for both increasing and decreasing totals; clocks retain their
