@@ -497,7 +497,6 @@ public final class NativeOverviewWorkspaceModel {
             entries.append((thread.createdAt, entries.count, .init(id: thread.id.string,
                 columns: projection.envelope.footprint.columns, rows: projection.envelope.footprint.rows,
                 structureKey: projection.envelope.structureKey.string,
-                carouselEligible: thread.pendingInput || thread.observation.isExecutionActive || thread.observation.backgroundWork?.status == .running,
                 needsAttention: thread.observation.latestExecution?.status == .waitingForUser, presentationID: token,
                 completed: completed)))
         }

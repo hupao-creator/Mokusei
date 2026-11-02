@@ -15,13 +15,7 @@ public final class NativeOverviewContentStore {
     @ObservationIgnored private var structure: [String] = []
     @ObservationIgnored private var slots: [String: OverviewCardContentState] = [:]
     @ObservationIgnored private var retained: [UUID: Set<String>] = [:]
-    @ObservationIgnored private var observers: [UUID: (Change) -> Void] = [:]
-
-    struct Change {
-        let structure: Bool
-        let carousel: Bool
-        let attention: Bool
-    }
+    @ObservationIgnored private var observers: [UUID: () -> Void] = [:]
 
     public init(items: [NativeOverviewItem] = []) { install(items) }
 
@@ -32,7 +26,6 @@ public final class NativeOverviewContentStore {
         let nextRecords = Dictionary(next.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
         let nextAttention = Set(next.filter(\.needsAttention).map(\.id))
         let changedStructure = structure != nextStructure
-        let changedCarousel = changedStructure || next.contains { records[$0.id]?.carouselEligible != $0.carouselEligible }
         let changedAttention = attentionIDs != nextAttention
         items = next
         records = nextRecords
@@ -46,9 +39,8 @@ public final class NativeOverviewContentStore {
         prune()
         if isEmpty != next.isEmpty { isEmpty = next.isEmpty }
         if changedStructure { structureRevision &+= 1 }
-        if changedStructure || changedCarousel || changedAttention {
-            let change = Change(structure: changedStructure, carousel: changedCarousel, attention: changedAttention)
-            for observer in Array(observers.values) { observer(change) }
+        if changedStructure || changedAttention {
+            for observer in Array(observers.values) { observer() }
         }
     }
 
@@ -61,7 +53,7 @@ public final class NativeOverviewContentStore {
         return slot
     }
 
-    func observe(owner: UUID, change: @escaping (Change) -> Void) { observers[owner] = change }
+    func observe(owner: UUID, change: @escaping () -> Void) { observers[owner] = change }
 
     func retain(_ keys: Set<String>, owner: UUID) {
         retained[owner] = keys

@@ -58,7 +58,6 @@ struct NativeOverviewCenteringTests {
         // and four standard report footprints fill a 3×3 envelope.
         fixture.items[0].columns = 2
         fixture.items[0].rows = 2
-        fixture.items[0].carouselEligible = true
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: 1400, height: 950)
         defer { window.close() }
         try await settle(fixture, in: window)
@@ -80,12 +79,11 @@ struct NativeOverviewCenteringTests {
         #expect(fixture.appearances == appearances)
     }
 
-    @Test(.requiresDisplay) func dockReservationRePacksThePreviousFiveCardCaseWithoutFalseCarousel() async throws {
+    @Test(.requiresDisplay) func dockReservationRePacksThePreviousFiveCardCaseWithoutOverflow() async throws {
         let fixture = CenteringFixture(size: .init(width: 1292, height: 858), count: 5)
         for index in 0..<2 {
             fixture.items[index].columns = 2
             fixture.items[index].rows = 2
-            fixture.items[index].carouselEligible = true
         }
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: 1400, height: 950)
         defer { window.close() }
@@ -97,7 +95,7 @@ struct NativeOverviewCenteringTests {
         #expect(fixture.state.presentedPlacements.map { $0.row + $0.rows }.max() == 3)
         fixture.size = .init(width: 860, height: 600)
         try await settle(fixture, in: window)
-        #expect(fixture.state.camera.carouselTargetID != nil)
+        #expect(fixture.state.camera.liveTransform.scale >= fixture.state.camera.minimumScale)
         fixture.size = .init(width: 1292, height: 858)
         try await settle(fixture, in: window)
         try verifyClearance(fixture, in: window)
@@ -256,7 +254,6 @@ struct NativeOverviewCenteringTests {
         // Preserve the original one-physical-pixel Retina tolerance on 1x CI displays.
         #expect(abs(above - below) < 1 / window.backingScaleFactor)
         #expect(envelope.minX >= -1 / window.backingScaleFactor && envelope.maxX <= fixture.viewport.width + 1 / window.backingScaleFactor)
-        #expect(fixture.state.camera.carouselTargetID == nil)
         #expect(fixture.state.camera.transform.scale >= fixture.state.camera.minimumScale)
     }
 }

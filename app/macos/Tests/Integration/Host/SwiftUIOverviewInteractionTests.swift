@@ -57,7 +57,7 @@ struct SwiftUIOverviewInteractionTests {
     @Test(.requiresDisplay) func focusedCardPausesCameraUntilFocusLeaves() async throws {
         let state = NativeOverviewCanvasState()
         let input = SearchInputFixture()
-        let items = (0..<20).map { NativeOverviewItem(id: "focus-\($0)", carouselEligible: $0 == 0) }
+        let items = (0..<20).map { NativeOverviewItem(id: "focus-\($0)") }
         let window = SwiftUIReplay.window(NativeOverviewCanvas(items: items, sceneKey: "focus", state: state) { item in
             if item.id == "focus-0" {
                 TextField("Card input", text: Binding(get: { input.text }, set: { input.text = $0 }))
@@ -66,14 +66,20 @@ struct SwiftUIOverviewInteractionTests {
         })
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { !state.isLayingOut && state.camera.carouselTargetID != nil && field(in: root) != nil }
+        try await SwiftUIReplay.wait { !state.isLayingOut && state.camera.isInitialized && field(in: root) != nil }
         let editor = try #require(SwiftUIReplay.editor(in: root))
         #expect(window.firstResponder === editor)
-        try await SwiftUIReplay.wait { state.camera.carouselPaused }
+        try await SwiftUIReplay.wait { state.interactionPauseReasons.contains("text-editing") }
         state.beginInteraction(cardID: "focus-0"); state.endInteraction(cardID: "focus-0")
-        #expect(state.camera.carouselPaused && !state.camera.manual)
+        #expect(state.interactionPauseReasons.contains("text-editing") && !state.camera.manual)
+        state.camera.returnToAuto()
+        #expect(state.camera.hasPendingAutomaticFit)
+        #expect(state.camera.automaticFitBlockReason == "interaction")
         window.makeFirstResponder(nil)
-        try await SwiftUIReplay.wait { !state.camera.carouselPaused }
+        try await SwiftUIReplay.wait {
+            !state.interactionPauseReasons.contains("text-editing")
+                && !state.camera.hasPendingAutomaticFit && !state.camera.hasScheduledMotion
+        }
     }
 
     @Test func adaptivePaletteRendersBothAppearancesWithoutNativeColors() throws {
@@ -1105,7 +1111,9 @@ extension SwiftUIOverviewInteractionTests {
                 }
             }
             if selected != nil { break }
-            try await Task.sleep(for: .milliseconds(10))
+            // A frame must still be <50ms old when its live input is submitted.
+            // Clock-selected coalescing leeway can consume that entire window.
+            try await Task.sleep(for: .milliseconds(10), tolerance: .zero)
         }
         return try #require(selected, Comment(rawValue: "No qualifying current WindowServer frame during " + stage))
     }
