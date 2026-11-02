@@ -219,7 +219,10 @@ struct GitThreadExtensionTests {
         }
         try await Task.sleep(for: .milliseconds(100), tolerance: .zero)
         let initial = try pixels()
-        let foreground = app.isActive && window.isKeyWindow && window.occlusionState.contains(.visible)
+        let activeAtInput = app.isActive
+        let keyAtInput = window.isKeyWindow
+        let visibleAtInput = window.occlusionState.contains(.visible)
+        let foreground = activeAtInput && keyAtInput && visibleAtInput
         // Keep sampling after failed admission so its actual frames and timing
         // survive too; a missing foreground owner still fails this native check.
         #expect(foreground, "Token animation requires an active, visible key window")
@@ -243,6 +246,8 @@ struct GitThreadExtensionTests {
             try data.write(to: evidence.appendingPathComponent(name + ".png"))
         }
         let receipt: [String: Any] = ["foregroundAtInput": foreground,
+            "applicationActiveAtInput": activeAtInput, "windowKeyAtInput": keyAtInput,
+            "windowOcclusionVisibleAtInput": visibleAtInput,
             "applicationActive": app.isActive, "windowKey": window.isKeyWindow,
             "windowVisible": window.isVisible, "windowOccluded": !window.occlusionState.contains(.visible),
             "backingScale": window.backingScaleFactor, "width": root.bounds.width, "height": root.bounds.height,

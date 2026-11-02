@@ -1,0 +1,22 @@
+{
+  "revision": "fdd079f6fed5aac1d3dea41030ab85184a734844",
+  "dirty": false,
+  "group": "native",
+  "checks": [
+    {
+      "name": "rolling-numbers",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--rolling-numbers"
+      ],
+      "status": "failed",
+      "log": "rolling-numbers.log",
+      "exit_code": 1,
+      "seconds": 59.451
+    }
+  ],
+  "selectedChecks": [
+    "rolling-numbers"
+  ]
+}

@@ -555,6 +555,11 @@ system motion preference is changed; the number path retains its existing
 always-animate policy. Historical pre-SwiftUI-shell metrics scrolled upward; the
 restored interaction deliberately scrolls downward as requested.
 
+With `MOKUSEI_CI_EVIDENCE` or `MOKUSEI_ROLLING_NUMBER_ARTIFACTS` set, the
+direction case also saves its actual during/settled bitmaps, row-ink values,
+shift and capture times even when the assertion fails. PNG encoding happens
+after both captures so evidence retention does not delay the timed observations.
+
 ## First response in Overview
 
 ```sh
@@ -725,8 +730,10 @@ Without the variable, local replays keep their own private module cache.
 ## Git token animation owner
 
 `--rolling-numbers` runs the three existing cell/projection cases and the Git
-summary/original-size flip case in the real AppKit loop. The latter has an explicit
-mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, the
-original three sampling intervals, three distinct frames and fixed 400×90 geometry
-remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
+summary/original-size flip case in a LaunchServices-started AppKit app with its
+foreground prerequisite intact. Evidence paths are passed explicitly to that
+app. The Git case has a mandatory `native/rolling-numbers` CI owner:
+foreground/key-window admission, the original three sampling intervals, three
+distinct frames and fixed 400×90 geometry remain required.
+`GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.

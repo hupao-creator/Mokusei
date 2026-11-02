@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/private/tmp/mokusei-ci-integration/tools/verification/native_replay.py", line 121, in acquire
+    fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+BlockingIOError: [Errno 35] Resource temporarily unavailable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 271, in <module>
+    main()
+    ~~~~^^
+  File "/private/tmp/mokusei-ci-integration/tools/verification/reading-presentation/run.py", line 102, in main
+    replay.acquire()
+    ~~~~~~~~~~~~~~^^
+  File "/private/tmp/mokusei-ci-integration/tools/verification/native_replay.py", line 123, in acquire
+    raise RuntimeError("Another Note replay owns the graphical session; do not retry concurrently")
+RuntimeError: Another Note replay owns the graphical session; do not retry concurrently

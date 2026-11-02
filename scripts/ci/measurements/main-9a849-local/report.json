@@ -1,0 +1,61 @@
+{
+  "revision": "60cdf95d4af6275ac9e2e81c12ca98971f0cbe78",
+  "dirty": false,
+  "group": "native",
+  "checks": [
+    {
+      "name": "moku-execution-links",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--moku-execution-links"
+      ],
+      "status": "passed",
+      "log": "moku-execution-links.log",
+      "exit_code": 0,
+      "seconds": 60.376
+    },
+    {
+      "name": "rolling-numbers",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--rolling-numbers"
+      ],
+      "status": "failed",
+      "log": "rolling-numbers.log",
+      "exit_code": 1,
+      "seconds": 15.884
+    },
+    {
+      "name": "tag-glass-captures",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--tag-glass-captures"
+      ],
+      "status": "passed",
+      "log": "tag-glass-captures.log",
+      "exit_code": 0,
+      "seconds": 84.97
+    },
+    {
+      "name": "isolated-input",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "tools/verification/reading-presentation/run.py",
+        "--isolated-input"
+      ],
+      "status": "passed",
+      "log": "isolated-input.log",
+      "exit_code": 0,
+      "seconds": 42.228
+    }
+  ],
+  "selectedChecks": [
+    "moku-execution-links",
+    "rolling-numbers",
+    "tag-glass-captures",
+    "isolated-input"
+  ]
+}
