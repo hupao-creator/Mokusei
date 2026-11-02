@@ -18,6 +18,7 @@ import MokuseiSidecardConversation
 // on disconnect, even when a retained snapshot says its execution is running.
 extension RuntimeClient {
     fileprivate func connectLandingFixture() { setStatus(.connected) }
+    fileprivate func disconnectLandingFixture() { setStatus(.disconnected) }
 }
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
@@ -342,6 +343,52 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
             try await Task.sleep(for: .milliseconds(450))
             #expect(fixture.presentation.selected == nil, "Layout updates must not restore the closed route")
+            for interruption in ["mutation", "same-snapshot", "reconnect", "disconnect", "appearance"] {
+                fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
+                try await SwiftUIReplay.wait {
+                    fixture.presentation.mountedReadingThread?.threadID == "child" && !fixture.presentation.messageMotion.active
+                        && readingPanel(in: root) != nil
+                }
+                let panel = try #require(readingPanel(in: root))
+                let settledFrame = panel.convert(panel.bounds, to: root)
+                try await Task.sleep(for: .milliseconds(100))
+                try #require(panel.convert(panel.bounds, to: root) == settledFrame, "Close target must be settled before input")
+                try closeAgentPanel(in: try #require(fixture.window))
+                try #require(fixture.presentation.messageMotion.active, "The settled icon click must be accepted before recovery")
+                var interruptedReturn = false
+                if interruption == "disconnect" {
+                    let callback = fixture.workspace.onConnectionChange
+                    fixture.workspace.onConnectionChange = { status in
+                        if status == .disconnected { interruptedReturn = interruptedReturn || fixture.presentation.messageMotion.active }
+                        callback?(status)
+                    }
+                    await fixture.workspace.client.disconnectLandingFixture()
+                    try await SwiftUIReplay.wait { fixture.workspace.connection == .disconnected }
+                    fixture.workspace.onConnectionChange = callback
+                } else if interruption == "appearance" {
+                    interruptedReturn = fixture.presentation.messageMotion.active
+                    try fixture.workspace.preferences.setAppearance(.dark)
+                } else {
+                    let snapshot = try #require(fixture.workspace.state)
+                    let authority = try #require(fixture.workspace.snapshotAuthority)
+                    let callback = fixture.workspace.onCatalogChange
+                    fixture.workspace.onCatalogChange = { event in
+                        interruptedReturn = interruptedReturn || fixture.presentation.messageMotion.active
+                        callback?(event)
+                    }
+                    let event: RuntimeClientEvent = interruption == "mutation"
+                        ? .mutation(.object([:]), state: snapshot, authority: authority)
+                        : .snapshot(snapshot, authority: interruption == "reconnect" ? UUID() : authority)
+                    await fixture.workspace.installPrepared(snapshot, event: event)
+                    fixture.workspace.onCatalogChange = callback
+                }
+                try #require(interruptedReturn, "The event must arrive before the accepted return finishes")
+                try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+                if interruption == "disconnect" {
+                    await fixture.workspace.client.connectLandingFixture()
+                    try await SwiftUIReplay.wait { fixture.workspace.connection == .connected }
+                }
+            }
         }
     }
 

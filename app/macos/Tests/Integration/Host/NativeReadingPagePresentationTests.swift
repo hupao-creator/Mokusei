@@ -360,6 +360,16 @@ struct NativeReadingPagePresentationTests {
         try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active }
         #expect(fixture.frontAppearances == 1)
         #expect(fixture.parentAppearances == 1)
+        fixture.open = true
+        try await SwiftUIReplay.wait { fixture.frontAppearances == 2 && !fixture.motion.active }
+        fixture.motion.close()
+        NativeReadingPageMotion.cancelAll()
+        #expect(fixture.open && !fixture.motion.active)
+        NativeReadingPageMotion.cancelAll(finishingClose: true)
+        #expect(fixture.open, "A cancelled return must not be revived by recovery")
+        fixture.motion.close()
+        NativeReadingPageMotion.cancelAll(finishingClose: true)
+        #expect(!fixture.open && !fixture.motion.active)
     }
 
     @Test func interruptedNavigationKeepsCloseActionAvailable() async throws {

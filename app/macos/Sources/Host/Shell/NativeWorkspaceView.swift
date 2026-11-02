@@ -108,7 +108,8 @@ public final class NativeWorkspacePresentation {
                 // incarnation/version still present in the new catalog.
                 self.scene.reconcileNoteExposure(self.moku.note)
                 self.scene.retryNoteExposure()
-                self.scene.settle(); NativeReadingPageMotion.cancelAll()
+                // Rehydration interrupts rendering, not an accepted Close.
+                self.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
             }
             self.reconcileSelection()
             self.onboarding.admitIfNeeded()
@@ -122,7 +123,7 @@ public final class NativeWorkspacePresentation {
             self.overview.receive(.connection(status)); self.moku.receive(.connection(status))
             if status != .connected {
                 self.scene.suspendNoteExposureSubmission()
-                self.scene.settle(); NativeReadingPageMotion.cancelAll()
+                self.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
             }
             else { self.scene.retryNoteExposure() }
             self.configureThreadVoice(); self.publishPresence()
@@ -503,7 +504,7 @@ public struct NativeWorkspaceView: View {
             presentation.scene.setSearchActive(value)
         }
         .onChange(of: model.preferences.appearance) { _, value in
-            presentation.scene.settle(); NativeReadingPageMotion.cancelAll()
+            presentation.scene.settle(); NativeReadingPageMotion.cancelAll(finishingClose: true)
         }
         .onChange(of: presentation.scene.cameraActive) { _, _ in presentation.publishPresence() }
         .onChange(of: model.stopping) { _, _ in presentation.publishPresence() }

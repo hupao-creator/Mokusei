@@ -592,3 +592,7 @@ native pointer input reaches those buttons; their labels expose a complete
 42pt circular hit region. Ordinary application pages and vertical history transitions
 keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
+
+Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
+to complete an accepted return for its current visit. Default cancellation still
+preserves the page, and recovery never revives a previously cancelled return.

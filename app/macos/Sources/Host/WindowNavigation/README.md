@@ -98,3 +98,11 @@ retain their own window-navigation behavior.
 The Close button's label owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
+Snapshot rehydration, disconnection and appearance changes stop reading motion
+with `finishingClose: true`: an already accepted Close completes its current
+visit even when the target was settled before the click. Ordinary updates do
+not stop the return. Explicit navigation/cancellation retains the default
+cancellation policy, so recovery cannot revive a cancelled return or close a
+new visit. The full-workspace replay clicks the settled panel's icon before
+injecting these events, including control cases for ordinary mutations and
+same-authority snapshots.

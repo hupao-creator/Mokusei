@@ -10,11 +10,13 @@ public final class NativeReadingPageMotion {
     public fileprivate(set) var active = false
     fileprivate var replacementDirection: CGFloat = 1
     @ObservationIgnored fileprivate var closeAction: (() -> Void)?
-    @ObservationIgnored fileprivate var cancelAction: (() -> Void)?
+    @ObservationIgnored fileprivate var cancelAction: ((Bool) -> Void)?
     public init() { Self.registry.removeAll { $0.value == nil }; Self.registry.append(WeakMotion(self)) }
     public func close() { closeAction?() }
-    public func cancel() { cancelAction?() }
-    public static func cancelAll() { registry.forEach { $0.value?.cancel() } }
+    public func cancel(finishingClose: Bool = false) { cancelAction?(finishingClose) }
+    public static func cancelAll(finishingClose: Bool = false) {
+        registry.forEach { $0.value?.cancel(finishingClose: finishingClose) }
+    }
 }
 
 public struct NativeReadingPageStack<Parent: View, Front: View>: View {
@@ -166,7 +168,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             if enabled { animate(closing: true) }
             else { onClose() }
         }
-        motion.cancelAction = { settle() }
+        motion.cancelAction = { settle(finishingClose: $0) }
     }
 
     private func settle(finishingClose: Bool = false) {
