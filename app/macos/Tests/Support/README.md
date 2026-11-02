@@ -141,3 +141,18 @@ the original content pixels. The replay does not wait for a match or accept a
 frame presented after the check. A later return to A cannot certify that earlier
 check. The separate incoming-cancellation oracle retains its 10–60% ink, 50ms
 freshness, three-second budget and exact replacement-pixel assertions.
+
+## Title frame arrival
+
+The title capture observer waits for a copied complete WindowServer frame to
+arrive instead of polling an empty queue on a timer. Queue inspection, waiter
+registration and frame publication share one lock, preventing a lost wakeup;
+arrival, cancellation and the unchanged three-second deadline retire each waiter
+exactly once. The losing deadline/arrival task is cancelled and joined.
+
+This changes observation scheduling only. Incoming/reversal qualification still
+inspects the newest complete frame, and cancellation still checks the first
+replacement and every later frame in its batch. All raw frames, original ink
+bands, 50ms freshness, single input, fixed 500ms check and offline pixel audits
+remain. A late or missing live prerequisite still fails; retained historical
+intermediate frames cannot substitute for a current one.

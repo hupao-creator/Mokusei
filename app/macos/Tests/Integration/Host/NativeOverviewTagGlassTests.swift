@@ -21,9 +21,40 @@ final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendable {
     }
     private let lock = NSLock()
     private var frames: [Sample] = []
+    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
     var ready: Bool { lock.withLock { !frames.isEmpty } }
     func take() -> [CGImage] { takeSamples().map(\.image) }
     func takeSamples() -> [Sample] { lock.withLock { let result = frames; frames = []; return result } }
+
+    /// A consumer only sleeps while the queue is empty. Registration and
+    /// publication share the lock, so a frame between draining and waiting
+    /// cannot lose its wakeup. The losing deadline/arrival task is always joined.
+    func waitForSamples(until deadline: ContinuousClock.Instant) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { await self.waitForArrival() }
+            group.addTask { try await Task.sleep(until: deadline, tolerance: .zero, clock: .continuous) }
+            defer { group.cancelAll() }
+            _ = try await group.next()
+        }
+        try Task.checkCancellation()
+    }
+
+    private func waitForArrival() async {
+        let owner = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let ready = lock.withLock {
+                    if !frames.isEmpty || Task.isCancelled { return true }
+                    waiters[owner] = continuation
+                    return false
+                }
+                if ready { continuation.resume() }
+            }
+        } onCancel: {
+            let continuation = self.lock.withLock { self.waiters.removeValue(forKey: owner) }
+            continuation?.resume()
+        }
+    }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sample: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .screen, sample.isValid,
@@ -52,8 +83,14 @@ final class TagGlassFrames: NSObject, SCStreamOutput, @unchecked Sendable {
                 bytesPerRow: stride, space: CGColorSpace(name: CGColorSpace.sRGB)!,
                 bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little),
                 provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) else { return }
-        lock.withLock { frames.append(Sample(image: image, receivedAt: receivedAt,
-                                             presentationTime: sample.presentationTimeStamp.seconds)) }
+        let arrivals = lock.withLock {
+            frames.append(Sample(image: image, receivedAt: receivedAt,
+                                 presentationTime: sample.presentationTimeStamp.seconds))
+            let arrivals = Array(waiters.values)
+            waiters.removeAll()
+            return arrivals
+        }
+        for continuation in arrivals { continuation.resume() }
     }
 }
 
