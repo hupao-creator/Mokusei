@@ -718,3 +718,5 @@ are audited; ordinary-suite exclusion never substitutes for that execution.
 The rolling producer starts through LaunchServices so macOS admits it as a
 foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.
+Bounded foreground admission precedes the original 100/90/300ms sampling timeline;
+the foreground requirement is checked again at input and still fails if absent.
