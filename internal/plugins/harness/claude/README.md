@@ -73,3 +73,10 @@ confirm effective settings through its own native session.
 `./scripts/go.sh run ./tools/verification/claude -settings-performance` measures
 cold and warm concurrent production reads with an isolated stream-json fixture.
 See [measurement scope](../../../../tools/verification/settings-performance/README.md).
+
+Turn-scoped reader projections omit plan steps, explanations and timeline markers,
+including inherited history, before native transport encoding. Canonical state,
+overview, context and full/execution projections retain those facts. Required
+empty plan arrays keep the native state contract valid. The
+[reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
+checks this boundary for active and terminal turns and inherited history.

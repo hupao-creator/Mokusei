@@ -113,3 +113,10 @@ No credential snapshot is written to disk.
 
 `./scripts/go.sh run ./tools/verification/codex -settings-performance` measures
 mixed catalog/defaults reads. See [measurement scope](../../../../tools/verification/settings-performance/README.md).
+
+Turn-scoped reader projections omit plan steps, explanations and timeline markers
+before encoding and copying them to native clients. Canonical, overview, context
+and full/execution projections retain those facts. Empty required plan arrays
+preserve native decoding, and surviving timeline identities/order remain intact.
+The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
+checks active, terminal and inherited turns without a native CLI or model call.

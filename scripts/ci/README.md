@@ -192,6 +192,10 @@ python3 scripts/ci/replays.py GROUP --go ./scripts/go.sh --output /tmp/new-evide
 ```
 
 `runtime`, `adapters`, `fixtures`, `interop` and `native` are the supported groups.
+The runtime group executes the content-publication benchmark assertions with
+three iterations under the race detector (revision continuity and no-op/changed
+event behavior, without a timing threshold). The adapters group includes the
+reader plan-projection replay for active, terminal and inherited Codex/Claude turns.
 Native groups need the current Swift build and graphical capabilities. The
 [verification policy](verification-policy.md) records independent defect coverage
 and the limited device/signed-package acceptance requirements.

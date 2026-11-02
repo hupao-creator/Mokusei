@@ -34,3 +34,12 @@ Verification from the repository root:
 ```
 
 `transport -swift-deltas` and `runtime -swift-voice` additionally use the actual Swift codecs and client.
+
+After a semantic no-op, content subscriptions retain a fixed-size digest of
+the accepted encoded projection; visible changes disarm it so continuously
+changing streams do not pay for hashing. An identical projection at a new source revision advances freshness
+without another decode, delta or event encoding. Equivalent re-encodings retain
+the semantic comparison; empty patches never advance the wire revision. Changed
+content and cancellation/replacement keep the existing ordered publication path.
+The [reader projection replay and publication benchmark](../../../tools/verification/thread-detail-performance/README.md)
+measure this boundary independently of Harness projection and native rendering.

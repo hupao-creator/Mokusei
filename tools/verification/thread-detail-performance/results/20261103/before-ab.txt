@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/hupao-creator/Mokusei/internal/platform/transport
+cpu: Apple M1 Pro
+BenchmarkUnchangedContent/bytes=2048/reencoded=false         	   29598	     11373 ns/op	 182.27 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=2048/reencoded=false         	   31358	     13997 ns/op	 148.10 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=2048/reencoded=false         	   17158	     24011 ns/op	  86.34 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=2048/reencoded=true          	   15360	     25774 ns/op	  80.43 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=2048/reencoded=true          	   10000	     33496 ns/op	  61.89 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=2048/reencoded=true          	   18414	     30107 ns/op	  68.85 MB/s	   12722 B/op	      56 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=false       	     183	   2310187 ns/op	 113.48 MB/s	 1313520 B/op	      67 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=false       	     100	   3504061 ns/op	  74.82 MB/s	 1313523 B/op	      67 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=false       	     128	   2629296 ns/op	  99.71 MB/s	 1313518 B/op	      67 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=true        	     192	   1976744 ns/op	 132.63 MB/s	 1313480 B/op	      66 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=true        	     255	   2325035 ns/op	 112.76 MB/s	 1313514 B/op	      67 allocs/op
+BenchmarkUnchangedContent/bytes=262144/reencoded=true        	     175	   2396633 ns/op	 109.39 MB/s	 1313514 B/op	      67 allocs/op
+BenchmarkChangedContent/bytes=2048                           	   10000	     30332 ns/op	  68.34 MB/s	   13701 B/op	      81 allocs/op
+BenchmarkChangedContent/bytes=2048                           	   12825	     27734 ns/op	  74.75 MB/s	   13701 B/op	      81 allocs/op
+BenchmarkChangedContent/bytes=2048                           	   10000	     34852 ns/op	  59.48 MB/s	   13700 B/op	      81 allocs/op
+BenchmarkChangedContent/bytes=262144                         	     122	   5044913 ns/op	  51.97 MB/s	 1314420 B/op	      89 allocs/op
+BenchmarkChangedContent/bytes=262144                         	     100	   5626507 ns/op	  46.60 MB/s	 1314456 B/op	      89 allocs/op
+BenchmarkChangedContent/bytes=262144                         	     100	   4739390 ns/op	  55.32 MB/s	 1314474 B/op	      89 allocs/op
+PASS
+ok  	github.com/hupao-creator/Mokusei/internal/platform/transport	12.332s

@@ -60,10 +60,12 @@ def main():
         "runtime": [(name, go + ["./tools/verification/" + name]) for name in [
             "transport", "runtime-concurrency", "storage-workspaces", "command-boundaries",
             "applicationhost", "settings-shell", "thread-metadata", "thread-search", "git",
-        ]],
+        ]] + [("content-publication", [args.go, "test", "-race", "./internal/platform/transport",
+                                       "-run", "^$", "-bench", "^Benchmark(Unchanged|Changed)Content$",
+                                       "-benchtime", "3x"])],
         "adapters": [(name.replace("/", "-"), go + ["./tools/verification/" + name]) for name in [
             "claude", "codex", "opencode", "console-oauth", "artificialanalysis",
-            "artificialanalysis/lifecycle", "maintenance",
+            "artificialanalysis/lifecycle", "maintenance", "thread-detail-performance",
         ]],
         "fixtures": [
             ("initial-response", go + ["./tools/verification/initial-response", "-output", fixtures["MOKUSEI_INITIAL_RESPONSE_FIXTURES"]]),

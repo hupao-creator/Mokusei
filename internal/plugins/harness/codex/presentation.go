@@ -153,7 +153,7 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 		deferred := kind == "turn" && selected != nil && !stActive(selected)
 		nonempty := []any{}
 		if selected != nil {
-			projected := stProjectTurn(selected)
+			projected := stProjectTurn(selected, kind == "turn")
 			if deferred {
 				if strings.TrimSpace(stString(projected["reasoning"])) != "" {
 					nonempty = append(nonempty, Map{"id": projected["executionId"], "field": "reasoning"})
@@ -207,12 +207,12 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 	}
 	base["turns"] = []any{}
 	for _, value := range turns {
-		base["turns"] = append(stArray(base["turns"]), stProjectTurn(stMap(value)))
+		base["turns"] = append(stArray(base["turns"]), stProjectTurn(stMap(value), false))
 	}
 	if len(history) > 0 {
 		base["forkHistory"] = []any{}
 		for _, value := range history {
-			base["forkHistory"] = append(stArray(base["forkHistory"]), stProjectTurn(stMap(value)))
+			base["forkHistory"] = append(stArray(base["forkHistory"]), stProjectTurn(stMap(value), false))
 		}
 	}
 	return base
@@ -227,8 +227,34 @@ func stFindTurn(turns []any, id string) Map {
 	}
 	return nil
 }
-func stProjectTurn(turn Map) Map {
-	result := stClone(turn)
+func stProjectTurn(turn Map, reading bool) Map {
+	// Exclude reader-only omissions before cloning; full execution consumers
+	// still receive the plan and its original timeline.
+	result := Map{}
+	for key, value := range turn {
+		if key == "interactions" {
+			continue
+		}
+		if reading {
+			switch key {
+			case "plan":
+				result[key] = []any{}
+				continue
+			case "planExplanation":
+				continue
+			case "timeline":
+				items := []any{}
+				for _, item := range stArray(value) {
+					if stMap(item)["kind"] != "plan" {
+						items = append(items, stCloneValue(item))
+					}
+				}
+				result[key] = items
+				continue
+			}
+		}
+		result[key] = stCloneValue(value)
+	}
 	interactions := []any{}
 	for _, value := range stArray(turn["interactions"]) {
 		interactions = append(interactions, stRendererInteraction(stMap(value)))

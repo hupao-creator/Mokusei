@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -22,6 +23,8 @@ type contentSubscription struct {
 	revision               int64
 	value                  any
 	hasValue               bool
+	valueDigest            [sha256.Size]byte
+	hasValueDigest         bool
 	working, queued, dirty bool
 }
 type contentServer struct {
@@ -186,6 +189,23 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 		c.fail(clientID, subscription, model.NewError("CONTENT_TOO_LARGE", "This conversation turn exceeds the content transport limit"))
 		return
 	}
+	// Arm the digest only after a semantic no-op, and disarm it on visible
+	// changes. Continuously changing streams do not pay for hashing, while
+	// repeated hidden-detail updates avoid decoding/diffing. No second raw
+	// payload is retained.
+	var digest [sha256.Size]byte
+	if subscription.hasValueDigest {
+		digest = sha256.Sum256(snapshot.Value)
+	}
+	if subscription.hasValueDigest && subscription.valueDigest == digest {
+		c.mu.Lock()
+		if !c.closed && c.clients[clientID][subscription.id] == subscription {
+			sourceRevision := snapshot.Revision
+			subscription.sourceRevision = &sourceRevision
+		}
+		c.mu.Unlock()
+		return
+	}
 	value, err := model.Decode(snapshot.Value)
 	if err != nil {
 		c.fail(clientID, subscription, model.NewError("INVALID_RESPONSE", "Thread content is not valid JSON"))
@@ -196,6 +216,20 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 	var patch []map[string]any
 	if subscription.hasValue {
 		patch = CreateJSONDelta(subscription.value, value)
+		if len(patch) == 0 {
+			if !subscription.hasValueDigest {
+				digest = sha256.Sum256(snapshot.Value)
+			}
+			c.mu.Lock()
+			if !c.closed && c.clients[clientID][subscription.id] == subscription {
+				sourceRevision := snapshot.Revision
+				subscription.sourceRevision = &sourceRevision
+				subscription.valueDigest = digest
+				subscription.hasValueDigest = true
+			}
+			c.mu.Unlock()
+			return
+		}
 		event = map[string]any{"type": "patch", "subscriptionId": subscription.id, "baseRevision": subscription.revision, "revision": revision, "patch": patch}
 	}
 	if subscription.ctx.Err() != nil {
@@ -217,9 +251,6 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 	}
 	sourceRevision := snapshot.Revision
 	subscription.sourceRevision = &sourceRevision
-	if subscription.hasValue && len(patch) == 0 {
-		return
-	}
 	if err = client.enqueue(encoded, subscription.id); err != nil {
 		delete(c.clients[clientID], subscription.id)
 		subscription.cancel()
@@ -230,6 +261,7 @@ func (c *contentServer) publishOne(clientID string, subscription *contentSubscri
 	subscription.revision = revision
 	subscription.value = value
 	subscription.hasValue = true
+	subscription.hasValueDigest = false
 }
 func (c *contentServer) fail(clientID string, subscription *contentSubscription, cause error) {
 	client := c.client(clientID)

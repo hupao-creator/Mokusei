@@ -637,6 +637,31 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 		if scope.Key != "fork-history" {
 			s.ForkHistory = nil
 		}
+		if scope.Kind == "turn" {
+			// Plans still belong to canonical/overview state, but the reader
+			// no longer consumes them, including inherited timeline entries.
+			for _, turn := range turns {
+				turn.Plan = []map[string]any{}
+				turn.PlanExplanation = ""
+				items := turn.Timeline[:0]
+				for _, item := range turn.Timeline {
+					if str(item["kind"]) != "plan" {
+						items = append(items, item)
+					}
+				}
+				clear(turn.Timeline[len(items):])
+				turn.Timeline = items
+			}
+			if s.ForkHistory != nil {
+				items := []any{}
+				for _, value := range arr(s.ForkHistory["items"]) {
+					if str(obj(value)["kind"]) != "plan" {
+						items = append(items, value)
+					}
+				}
+				s.ForkHistory["items"] = items
+			}
+		}
 		deferred := scope.Kind == "turn" && (s.ForkHistory != nil || len(turns) > 0)
 		for _, turn := range turns {
 			if turn.Status == "running" {
