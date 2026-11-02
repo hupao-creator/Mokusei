@@ -540,12 +540,13 @@ checks; this mounting suite checks state and lifecycle.
 MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verification/reading-presentation/run.py --rolling-numbers
 ```
 
-Runs three `RollingNumberCellTests` in the native application event loop. The
+Runs two `RollingNumberCellTests` and the Git summary/original-size case in the native application event loop. The
 production Codex plugin consumes changing session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
 a freshly mounted reference. The leaf checks retain equal-width digit cells at
-raster scale 2 and measure incoming glyph direction against settled glyph ink.
+raster scale 2. Incoming glyph direction is no longer automatically checked after
+the unstable direction-correlation test was removed under explicit user authorization.
 Optional PNGs capture the usage region of the production card. These are native
 view snapshots, not optical frame pacing or a live provider/Runtime replay. No
 system motion preference is changed; the number path retains its existing
@@ -709,7 +710,7 @@ not only the logical FIFO/layout completion flag.
 
 ### Git token animation owner
 
-`--rolling-numbers` runs the three existing cell/projection cases and the Git
+`--rolling-numbers` runs the two remaining cell/projection cases and the Git
 summary/original-size flip case in the real AppKit loop. The latter has an explicit
 mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, the
 original three sampling intervals, three distinct frames and fixed 400×90 geometry

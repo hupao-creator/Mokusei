@@ -299,4 +299,27 @@ therefore has an explicit `native/rolling-numbers` owner in `swift_ownership.py`
 The ordinary command excludes its full discovered identity; the mandatory native
 producer must execute it, return zero and emit `GIT_TOKEN_FLIP_FRAMES_CONFIRMED`.
 This is not a framework skip or permission to omit the test. The native launcher
-runs all three existing rolling-number cases plus this existing Git case.
+runs the two remaining rolling-number cases plus this existing Git case.
+
+## Removed flaky incoming-direction correlation (PR #220)
+
+At the user's explicit authorization, remove only
+`RollingNumberCellTests.incomingDigitsMoveDownFromAbove()` and its dedicated
+`DirectionRollHost`. The same direction correlation blocked CI with `bestShift=0`
+in [run 41413041330](https://github.com/hupao-creator/Mokusei/actions/runs/41413041330)
+and `bestShift=11` in
+[run 41422140080](https://github.com/hupao-creator/Mokusei/actions/runs/41422140080).
+The historical failures and original evidence remain; removal does not establish
+that they were harmless. No replacement direction assertion is claimed.
+
+Coverage loss: incoming digits approaching their baseline from above no longer
+have an automated pixel-displacement check. The other two cell/projection cases
+still verify stable cells/widths, increasing/decreasing and compact totals,
+retained identity, interrupted updates and convergence. The Git case still
+requires its foreground, three distinct frames, fixed geometry and execution
+marker. Those checks do not prove vertical direction. Production number rendering
+is unchanged. The native rolling producer now expects three methods in total.
+
+Deletion/count/documentation ownership is coordinated with #225 in
+[this comment](https://github.com/hupao-creator/Mokusei/pull/225#issuecomment-6574784600);
+that branch's other cache and observation work remains separate.
