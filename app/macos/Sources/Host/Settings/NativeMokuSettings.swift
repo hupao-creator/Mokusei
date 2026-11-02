@@ -140,9 +140,12 @@ import SwiftUI
                     .accessibilityLabel(locale.text("自定义模型路由指导", "Custom model routing guidance"))
             }
             if routingEnabled {
-                SettingsRow(label: locale.text("Moku 模型路由指导", "Moku model routing guidance"), error: model.draft.validationError("routingGuidance", locale: locale), stacked: true) {
+                VStack(alignment: .leading, spacing: 12) {
                     textArea(field: "routingGuidance", label: locale.text("输入 Moku 选择模型时应遵循的规则", "Enter the rules Moku should follow when selecting models"), height: 112)
-                }.id("routingGuidance")
+                    if let error = model.draft.validationError("routingGuidance", locale: locale) {
+                        SettingsNotice(error, error: true)
+                    }
+                }.padding(.bottom, 15).id("routingGuidance")
             }
         }
     }
