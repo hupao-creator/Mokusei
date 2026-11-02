@@ -256,6 +256,34 @@ struct NativeOverviewSearchTests {
         #expect(calls == 2)
     }
 
+    @Test func pausedPresentationRejectsOldSearchResponseAndRestartsOnReturn() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let workspace = try workspace(directory)
+        try install([thread("a", title: "First")], in: workspace)
+        var calls = 0
+        var response: CheckedContinuation<JSONValue, Never>?
+        let model = model(workspace, searchRequest: { _ in
+            calls += 1
+            if calls == 1 { return await withCheckedContinuation { response = $0 } }
+            return .object(["hits": .array([.object(["ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json])])])
+        })
+        model.refresh(); model.beginSearch(); model.updateSearch("body-only")
+        try await wait { response != nil }
+        model.setPresentation(.init(overviewVisible: false))
+        model.setPresentationActive(false)
+        response?.resume(returning: .object(["hits": .array([.object(["ref": ApplicationThreadRef(threadID: "a", typeID: "agent").json])])]))
+        response = nil
+        try await Task.sleep(for: .milliseconds(350))
+        #expect(calls == 1 && model.items.isEmpty && model.searchRank(for: "a") == nil)
+        model.setPresentationActive(true)
+        #expect(calls == 1)
+        model.setPresentation(.init())
+        try await wait { calls == 2 && model.items.map(\.id) == ["a"] }
+        #expect(model.isSearching && model.searchQuery == "body-only")
+        await model.stop(); await workspace.client.close()
+    }
+
 
 
 

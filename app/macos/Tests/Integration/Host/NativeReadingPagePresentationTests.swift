@@ -20,6 +20,9 @@ import MokuseiUI
     var duration = NativeReadingPageTiming.duration
     var viewport: CGSize?
     var phase: ScenePhase?
+    var parentPresentationActive = true
+    var prepareEnabled = false
+    @ObservationIgnored var preparation: CheckedContinuation<Void, Never>?
     let motion = NativeReadingPageMotion()
     @ObservationIgnored var parentAppearances = 0
     @ObservationIgnored var frontAppearances = 0
@@ -28,6 +31,9 @@ import MokuseiUI
     @ObservationIgnored weak var frontProbe: NSView?
     @ObservationIgnored weak var parentProbe: NSView?
     @ObservationIgnored var parentEnabled = true
+    func prepareReturn() async {
+        await withCheckedContinuation { preparation = $0 }
+    }
 }
 private struct ReadingFrontProbe: NSViewRepresentable {
     let fixture: ReadingFixture
@@ -46,6 +52,8 @@ private struct ReadingReplay: View {
     var body: some View {
         NativeReadingPageStack(open: fixture.open, identity: fixture.identity, motion: fixture.motion,
             enabled: fixture.enabled, focusBlur: true, stationaryParent: fixture.axis == .horizontal, emphasizedOpening: true, duration: fixture.duration, axis: fixture.axis, direction: fixture.direction,
+            onParentPresentationChange: { fixture.parentPresentationActive = $0 },
+            prepareParent: fixture.prepareEnabled ? { await fixture.prepareReturn() } : nil,
             onClose: { fixture.open = false }) {
             Group {
                 if fixture.scrollParent {
@@ -64,6 +72,48 @@ private struct ReadingReplay: View {
 }
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeReadingPagePresentationTests {
+    @Test func parentPreparationWaitsAndCannotCloseAReplacementRoute() async throws {
+        let fixture = ReadingFixture()
+        fixture.prepareEnabled = true
+        let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
+        defer { window.close(); fixture.preparation?.resume(); fixture.preparation = nil }
+        try await SwiftUIReplay.wait { fixture.parentAppearances == 1 }
+        fixture.open = true
+        try await SwiftUIReplay.wait { !fixture.parentPresentationActive && !fixture.motion.active }
+        fixture.motion.close()
+        try await SwiftUIReplay.wait { fixture.preparation != nil }
+        #expect(fixture.open && fixture.motion.active && fixture.parentPresentationActive)
+        fixture.identity = "replacement"
+        try await SwiftUIReplay.wait { !fixture.motion.active && !fixture.parentPresentationActive }
+        fixture.preparation?.resume(); fixture.preparation = nil
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(fixture.open && !fixture.motion.active)
+        fixture.motion.close()
+        try await SwiftUIReplay.wait { fixture.preparation != nil }
+        fixture.preparation?.resume(); fixture.preparation = nil
+        try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active && fixture.parentPresentationActive }
+        #expect(fixture.parentAppearances == 1)
+    }
+
+    @Test func focusLossFinishesAcceptedCloseDuringParentPreparation() async throws {
+        let fixture = ReadingFixture()
+        fixture.prepareEnabled = true
+        let window = SwiftUIReplay.window(ReadingReplay(fixture: fixture))
+        defer { window.close(); fixture.preparation?.resume(); fixture.preparation = nil }
+        try await SwiftUIReplay.wait { fixture.parentAppearances == 1 }
+        fixture.open = true
+        try await SwiftUIReplay.wait { !fixture.parentPresentationActive && !fixture.motion.active }
+        fixture.motion.close()
+        try await SwiftUIReplay.wait { fixture.preparation != nil }
+        fixture.phase = .inactive
+        try await SwiftUIReplay.wait { !fixture.open && !fixture.motion.active && fixture.parentPresentationActive }
+        fixture.preparation?.resume(); fixture.preparation = nil
+        fixture.phase = .active
+        fixture.open = true
+        try await SwiftUIReplay.wait { !fixture.parentPresentationActive && !fixture.motion.active }
+        #expect(fixture.open && fixture.parentAppearances == 1)
+    }
+
     @Test func historicalPromptKeepsContentBelowATwoLineHeading() async throws {
         for width: CGFloat in [420, 1180] {
             var twoLineContentTop: CGFloat?

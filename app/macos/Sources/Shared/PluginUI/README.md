@@ -2,6 +2,14 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+`NativeReadingPageStack` optionally reports whether its retained parent is
+participating in presentation and awaits host preparation before a settled-page
+return. Opening/reversal remains immediate. Preparation shares the stack's route
+generation and cancellation ownership; a late completion cannot close a replacement.
+Hosts without these hooks retain the same navigation behavior. Overview uses them
+to coalesce hidden display work while retaining native controls and authoritative
+state reception.
+
 ## Scrollbars
 
 [NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;

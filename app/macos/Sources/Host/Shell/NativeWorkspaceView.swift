@@ -253,9 +253,20 @@ public final class NativeWorkspacePresentation {
         }
         if focusFilter { overview.requestFilterFocus() }
         if scene.mokuOpen { scene.setMokuOpen(false) }
-        refreshReadingPanelSource()
+        // Reversal keeps the opening's source frozen. A settled return samples
+        // its new destination only after the retained canvas has been prepared.
         if selected != nil, !scene.cameraActive, !scene.settingsOpen { messageMotion.close() }
         else { finishBack() }
+    }
+
+    fileprivate func prepareOverviewReturn() async {
+        guard !Task.isCancelled else { return }
+        let route = navigationRouteID, target = selected
+        await canvas.prepareForPresentation()
+        guard !Task.isCancelled, navigationRouteID == route, selected == target else { return }
+        if overview.error == nil, canvas.layoutError == nil, usesReadingPanel, let id = readingPanelSourceCardID {
+            readingPanelSource = canvas.displayedFrame(for: id)
+        } else { readingPanelSource = nil }
     }
 
     public func finishBack() {
@@ -269,15 +280,9 @@ public final class NativeWorkspacePresentation {
         persistSelection(nil); publishPresence()
     }
 
-    private func refreshReadingPanelSource() {
-        if usesReadingPanel, !messageMotion.active, let id = readingPanelSourceCardID,
-           let current = canvas.displayedFrame(for: id) { readingPanelSource = current }
-    }
-
     public func closeApplication() {
         guard selected?.typeID != "agent" else { return }
         if applicationReturn == nil, !scene.cameraActive, !scene.settingsOpen {
-            refreshReadingPanelSource()
             messageMotion.close()
             return
         }
@@ -609,6 +614,11 @@ public struct NativeWorkspaceView: View {
                 enabled: !presentation.scene.settingsOpen && !presentation.scene.mokuOpen && !presentation.scene.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
                 panel: presentation.usesReadingPanel, panelSource: presentation.readingPanelSource,
+                onParentPresentationChange: { active in
+                    guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
+                    presentation.overview.setPresentationActive(active)
+                },
+                prepareParent: { await presentation.prepareOverviewReturn() },
                 onClose: { presentation.finishBack() }) {
                 NativeOverviewWorkspaceView(model: presentation.overview,
                     callbacks: NativeOverviewWorkspaceCallbacks(

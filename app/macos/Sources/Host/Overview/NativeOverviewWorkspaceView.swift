@@ -68,6 +68,7 @@ public struct NativeOverviewWorkspaceView: View {
                     selectionID: selectionID,
                     toolbarBottom: viewport.toolbarBottom, bottomReservedHeight: viewport.bottomReservedHeight,
                     visible: model.facts.overviewVisible && model.facts.documentVisible && !landing,
+                    layoutPaused: !model.presentationActive,
                     cloudAnimationsEnabled: !model.facts.settingsOpen && !landing,
                     interactionPaused: interactionPaused, resetEpoch: model.recoveryEpoch,
                     revisions: model.revisions, onRevisionsConsumed: { model.consumeRevisions(through: $0) },

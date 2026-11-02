@@ -42,13 +42,13 @@ struct NativeOverviewMembershipTests {
             "view": .object(["previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
     }
 
-    private func model(_ directory: URL) throws -> NativeOverviewWorkspaceModel {
+    private func model(_ directory: URL, gitStatus: @escaping (HarnessThread) -> HarnessGitStatus? = { _ in nil }) throws -> NativeOverviewWorkspaceModel {
         let workspace = NativeWorkspaceModel(client: RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory)),
             preferences: DesktopPreferences(directory: directory), plugins: try .init(
                 harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: NativeApplicationModules.make()))
         return .init(workspace: workspace, applications: .init(projectionCapabilities: { plugin, entry in
             try .init(scope: .init(pluginID: plugin.ownerPluginID, thread: entry.ref), requires: plugin.requires, registrations: [])
-        }, rendererContext: { _, _, _ in throw CancellationError() }))
+        }, rendererContext: { _, _, _ in throw CancellationError() }, gitStatus: gitStatus))
     }
 
     private func deliver(_ threads: [HarnessThread], applications: [JSONValue] = [],
@@ -84,6 +84,74 @@ struct NativeOverviewMembershipTests {
         #expect(model.items.map(\.id) == ["a", "b"])
         #expect(model.membershipBuildCount == builds)
         await model.stop(); await model.workspace.client.close()
+    }
+
+    @Test func hiddenPresentationKeepsAuthorityAndMembershipWhileCoalescingCards() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var projections = 0
+        let model = try model(directory, gitStatus: { _ in projections += 1; return nil }), authority = UUID()
+        try deliver([thread(), thread("b")], to: model, authority: authority)
+        model.selectTag(try #require(model.filters.first?.children.first))
+        let retained = model.items, initialProjections = projections, retainedScene = model.sceneKey
+        model.setPresentation(.init(overviewVisible: false, selectedThread: .init(threadID: "a", typeID: "agent")))
+        // Opening still participates; the stack pauses only after it settles.
+        #expect(model.presentationActive)
+        model.setPresentationActive(false)
+        for revision in 1...8 {
+            try deliver([thread(title: JSONText("Latest \(revision)"), revision: revision), thread("b", archived: true),
+                         thread("c", tag: "New")], to: model, authority: authority)
+            model.refreshCardExtensions()
+        }
+        #expect(model.items == retained && model.content.items == retained && model.revisions.isEmpty)
+        #expect(projections == initialProjections)
+        #expect(model.workspace.catalog.thread("a")?.title == "Latest 8")
+        #expect(model.filters.first?.children.contains { $0.tag == "New" && $0.count == 1 } == true)
+        #expect(model.snapshot(for: retained[0]) != nil)
+        // A new authority and removed selection must not resurrect the old cards.
+        try deliver([thread("c", status: .completed, tag: "New")], to: model, authority: UUID())
+        #expect(model.selectedTag.isEmpty && model.items == retained && model.sceneKey == retainedScene)
+        model.setPresentationActive(true)
+        #expect(model.items.map(\.id) == ["c"] && model.items.first?.completed == true)
+        #expect(model.sceneKey != retainedScene)
+        #expect(model.revisions.isEmpty && projections == initialProjections + 1)
+        model.setPresentationActive(false)
+        try deliver([], to: model, authority: UUID())
+        model.setPresentation(.init())
+        #expect(model.presentationActive && model.items.isEmpty)
+        await model.stop(); await model.workspace.client.close()
+        model.setPresentationActive(false)
+        #expect(model.items.isEmpty)
+    }
+
+    @Test func hiddenProjectionWorkComparison() async throws {
+        // Same-machine model comparison; no app CPU/GPU/energy claim. Both arms
+        // install the same catalog transactions, with only the display gate varied.
+        for paused in [false, true, true, false] {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            var projections = 0
+            let model = try model(directory, gitStatus: { _ in projections += 1; return nil }), authority = UUID()
+            var threads = try (0..<40).map { try thread(JSONText("bench-\($0)")) }
+            try deliver(threads, to: model, authority: authority)
+            model.setPresentation(.init(overviewVisible: false))
+            if paused { model.setPresentationActive(false) }
+            let initial = projections, start = ContinuousClock.now
+            for revision in 1...80 {
+                threads[0] = try thread("bench-0", title: JSONText("Update \(revision)"), revision: revision)
+                try deliver(threads, to: model, authority: authority)
+            }
+            let elapsed = start.duration(to: .now), beforeReturn = projections - initial
+            let returnStart = ContinuousClock.now
+            model.setPresentationActive(true)
+            let returnElapsed = returnStart.duration(to: .now)
+            #expect(beforeReturn == (paused ? 0 : 3200))
+            let item = try #require(model.items.first)
+            guard case .harness(let snapshot) = model.snapshot(for: item) else { Issue.record("Missing final card"); return }
+            #expect(snapshot.input.thread.title == "Update 80")
+            print("DETAIL_MODEL_COMPARISON paused=\(paused) events=80 cards=40 displayInputs=\(beforeReturn) elapsed=\(elapsed) resume=\(returnElapsed)")
+            await model.stop(); await model.workspace.client.close()
+        }
     }
 
     @Test(.requiresDisplay)

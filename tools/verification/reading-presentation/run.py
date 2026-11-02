@@ -205,8 +205,8 @@ def main():
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
-             14 if "--overview-search" in sys.argv else
-             9 if "--moku-landing" in sys.argv else
+             15 if "--overview-search" in sys.argv else
+             10 if "--moku-landing" in sys.argv else
              11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
@@ -215,7 +215,7 @@ def main():
              7 if glass_captures else
              8 if "--moku-composer" in sys.argv else
              7 if tag_glass else
-             12 if "--moku-note-tests" in sys.argv else 12)
+             12 if "--moku-note-tests" in sys.argv else 14)
     if f"Test run with {count} test{'s' if count != 1 else ''}" not in result.stdout or "passed" not in result.stdout.splitlines()[-1]:
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:

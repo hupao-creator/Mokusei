@@ -148,6 +148,63 @@ struct NativeMokuLandingTests {
         catch { await fixture.close(); throw error }
         await fixture.close()
     }
+
+    @Test func detailCoalescesHiddenOverviewAndPreparesLatestReturnFrame() async throws {
+        try await withFixture { fixture in
+            try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("b", status: .completed)])
+            fixture.mount(fullWorkspace: true)
+            let state = fixture.presentation.canvas
+            try await SwiftUIReplay.wait { state.mountedCardIDs == ["a", "b"] && !state.isLayingOut && !state.camera.isAnimating }
+            state.camera.setManualTransform(.init(scale: 1, x: 60, y: 100))
+            let camera = state.camera.liveTransform
+            fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
+            try await SwiftUIReplay.wait { !fixture.overview.presentationActive && !fixture.presentation.messageMotion.active }
+            let retained = fixture.overview.items, solves = state.layoutSolveCount
+            for _ in 0..<3 {
+                try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("b", archived: true),
+                                           fixture.thread("c", status: .completed)], operations: [dispatch("hidden")])
+            }
+            fixture.window?.setContentSize(.init(width: 980, height: 700))
+            try await Task.sleep(for: .milliseconds(150))
+            #expect(fixture.overview.items == retained && state.layoutSolveCount == solves)
+            #expect(state.mountedCardIDs == ["a", "b"])
+            #expect(fixture.overview.featuredOperation?.id == "hidden" && fixture.overview.featuredOperation?.phase == .running)
+            fixture.presentation.showOverview()
+            try await SwiftUIReplay.wait {
+                fixture.presentation.messageMotion.active && !state.isLayingOut
+                    && Set(state.presentedPlacements.map(\.id)) == ["a", "c"]
+                    && fixture.presentation.readingPanelSource == state.displayedFrame(for: "a")
+            }
+            #expect(fixture.overview.presentationActive && state.camera.manual && state.camera.liveTransform == camera)
+            try await SwiftUIReplay.wait {
+                fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active && state.mountedCardIDs == ["a", "c"]
+            }
+            // Switching an already settled detail must retain the pause, and a
+            // deleted selected route must still force a fresh direct return.
+            fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
+            try await SwiftUIReplay.wait { !fixture.overview.presentationActive && !fixture.presentation.messageMotion.active }
+            fixture.presentation.open(.init(threadID: "c", typeID: "agent"))
+            try await SwiftUIReplay.wait { !fixture.overview.presentationActive && !fixture.presentation.messageMotion.active }
+            await fixture.workspace.client.disconnectLandingFixture()
+            try await SwiftUIReplay.wait { fixture.workspace.connection == .disconnected }
+            try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("c", status: .completed)])
+            let snapshot = try #require(fixture.workspace.state)
+            await fixture.workspace.installPrepared(snapshot, event: .snapshot(snapshot, authority: UUID()))
+            #expect(!fixture.overview.presentationActive && fixture.presentation.selected?.threadID == "c")
+            try await fixture.install([fixture.thread("a", status: .completed)])
+            try await SwiftUIReplay.wait {
+                fixture.presentation.selected == nil && fixture.overview.presentationActive && state.mountedCardIDs == ["a"] && !state.isLayingOut
+            }
+            #expect(fixture.overview.items.map(\.id) == ["a"])
+            fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
+            let openingSource = fixture.presentation.readingPanelSource
+            try await SwiftUIReplay.wait { fixture.presentation.messageMotion.active && fixture.overview.presentationActive }
+            fixture.presentation.showOverview()
+            #expect(fixture.presentation.readingPanelSource == openingSource)
+            try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
+            #expect(fixture.overview.presentationActive)
+        }
+    }
     private func dispatch(_ id: String = "create", completed: Bool = false, ok: Bool = false, thread: String = "child") -> JSONValue {
         var value: [JSONText: JSONValue] = ["type": .text("tool-operation"), "id": .text(id),
             "executionId": .text("moku-run"), "name": .text("create_thread"),

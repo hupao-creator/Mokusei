@@ -50,6 +50,14 @@ for the mounted production-page regression.
 
 [NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition. Resize or an inactive scene completes an accepted Close for that same route visit; otherwise the animation simply settles. Identity replacement, explicit cancellation and disabled presentation still cancel the current generation without closing a replacement route.
 
+The outer workspace reading stack also owns the retained Overview presentation
+gate. It keeps projection active through opening and return, pauses it only at
+settled detail, and awaits refreshed canvas layout before sampling the return
+frame. Preparation belongs to the current route generation: replacement or
+cancellation cannot close another visit, and focus loss/disconnect completes an
+already accepted Close even while preparation is pending. Nested stacks retain
+their existing behavior unless a host supplies these optional hooks.
+
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,

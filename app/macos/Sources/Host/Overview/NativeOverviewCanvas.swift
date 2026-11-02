@@ -73,6 +73,8 @@ public final class NativeOverviewCanvasState {
     @ObservationIgnored fileprivate var visible = true
     @ObservationIgnored private var interactionCounts: [String: Int] = [:]
     @ObservationIgnored fileprivate var activationCheck: ((String) -> Bool)?
+    fileprivate var preparationRequest: UInt64 = 0
+    @ObservationIgnored fileprivate var completedPreparation: UInt64 = 0
     @ObservationIgnored var pendingSearchCameraRestoration: (sceneKey: String, view: NativeOverviewCameraState)?
 
     public init(memory: NativeOverviewCameraMemory = .init(), motionStages: NativeOverviewStageCoordinator = .init()) {
@@ -88,6 +90,17 @@ public final class NativeOverviewCanvasState {
                       width: frame.width * transform.scale, height: frame.height * transform.scale)
     }
     public func retryLayout() { retryHandler?() }
+    /// Wait for a layout admitted AFTER the caller refreshed the retained model.
+    /// A route cancellation or detached host releases the waiter without granting
+    /// its old task any navigation authority.
+    public func prepareForPresentation() async {
+        guard let owner = hostOwner else { return }
+        preparationRequest &+= 1
+        let request = preparationRequest
+        while completedPreparation < request, hostOwner == owner, !Task.isCancelled {
+            do { try await Task.sleep(for: .milliseconds(5)) } catch { return }
+        }
+    }
     public func allowsActivation(cardID: String) -> Bool { activationCheck?(cardID) ?? false }
     /// Interaction widgets invoke this for real input, not hover or restored focus.
     public func beginInteraction(cardID: String) {
@@ -152,6 +165,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     public var toolbarBottom: Double
     public var bottomReservedHeight: Double
     public var visible: Bool
+    public var layoutPaused: Bool
     public var cloudAnimationsEnabled: Bool
     public var interactionPaused: Bool
     public var resetEpoch: UInt64
@@ -202,6 +216,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
     public init(items: [NativeOverviewItem] = [], contentSource: NativeOverviewContentStore? = nil,
                 sceneKey: String, state: NativeOverviewCanvasState,
                 selectionID: String? = nil, toolbarBottom: Double = 58, bottomReservedHeight: Double = 0, visible: Bool = true,
+                layoutPaused: Bool = false,
                 cloudAnimationsEnabled: Bool = true,
                 interactionPaused: Bool = false, resetEpoch: UInt64 = 0,
                 revisions: [NativeOverviewLayoutRevision] = [], onRevisionsConsumed: ((UInt64) -> Void)? = nil,
@@ -214,6 +229,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         _localContent = State(initialValue: NativeOverviewContentStore(items: contentSource == nil ? items : []))
         self.sceneKey = sceneKey; self.state = state; self.selectionID = selectionID
         self.toolbarBottom = toolbarBottom; self.visible = visible; self.cloudAnimationsEnabled = cloudAnimationsEnabled
+        self.layoutPaused = layoutPaused
         self.bottomReservedHeight = bottomReservedHeight
         self.interactionPaused = interactionPaused; self.resetEpoch = resetEpoch; self.revisions = revisions
         self.onRevisionsConsumed = onRevisionsConsumed
@@ -351,9 +367,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .onEnded { _ in navigationInput.endPinch() }
     }
     private func requestKey(_ viewport: NativeOverviewViewport) -> String {
-        "\(ObjectIdentifier(contentStore))|\(sceneKey)|\(selectionID ?? "")|\(contentStore.structureRevision)|\(viewport)|\(resetEpoch)|\(retry)|\(revisions.last?.revision ?? 0)"
+        "\(ObjectIdentifier(contentStore))|\(sceneKey)|\(selectionID ?? "")|\(contentStore.structureRevision)|\(viewport)|\(resetEpoch)|\(retry)|\(revisions.last?.revision ?? 0)|\(layoutPaused)|\(state.preparationRequest)"
     }
     private func enqueue(_ viewport: NativeOverviewViewport) {
+        if layoutPaused {
+            worker?.cancel(); worker = nil; workerEpoch = UUID(); pendingWork.removeAll()
+            return
+        }
         let replaceScene = scheduledScene != nil && (scheduledSelection != selectionID ||
             (scheduledScene != sceneKey && (scheduledSelection == nil || selectionID == nil)))
         let replaceContent = scheduledContent != nil && scheduledContent != ObjectIdentifier(contentStore)
@@ -369,7 +389,13 @@ public struct NativeOverviewCanvas<Content: View>: View {
         // motion must not pull a later collection before its FIFO revision and
         // instant-entry flags have been consumed. Content is resolved per slot.
         let requestedItems = suppliedItems ?? contentStore.items
-        pendingWork.append(.init(run: { await reconcile(viewport, items: requestedItems) }))
+        let preparation = state.preparationRequest
+        pendingWork.append(.init(run: {
+            await reconcile(viewport, items: requestedItems)
+            if !Task.isCancelled, state.hostOwner == ownership {
+                state.completedPreparation = max(state.completedPreparation, preparation)
+            }
+        }))
         guard worker == nil else { return }
         let epoch = UUID(); workerEpoch = epoch
         worker = Task { @MainActor in

@@ -208,6 +208,24 @@ The [layout comparison](../../../../../tools/verification/overview-layout/README
 
 ## Agent reading panels
 
+The outer reading stack pauses Overview presentation only after opening settles.
+Catalog installation, membership/filter context, selection validity and Moku
+operation state continue at each runtime transaction. Hidden transactions coalesce
+the display's keyword filtering, sorting, plugin projections and content installs;
+the mounted canvas also defers layout (including viewport changes). Existing card
+snapshots, native controls, drafts and camera remain retained. Settings, Git
+monitoring, runtime, notifications and Voice keep their existing lifecycles.
+
+Before an animated return, the stack resumes projection and awaits a new canvas
+preparation receipt before sampling the current source frame. Removed/archived
+cards cannot supply that destination. Preparation is cancelled with its route;
+replacement, focus loss, disconnect/recovery and direct returns cannot let an old
+waiter close a newer visit. A reversal during opening uses the participating parent
+immediately. Hidden structural history is recovered as one current presentation,
+while foreground revisions retain their FIFO. `NativeOverviewMembershipTests`,
+`NativeMokuLandingTests.detailCoalescesHiddenOverviewAndPreparesLatestReturnFrame`
+and the reading presentation preparation cases exercise these production paths.
+
 Opening an Agent Thread captures its displayed card frame from the stable layout
 and live camera transform. The shared reading stack expands that shell into an
 opaque panel with equal horizontal margins, while retaining the Overview camera

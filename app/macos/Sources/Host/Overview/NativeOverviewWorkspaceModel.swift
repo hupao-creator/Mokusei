@@ -82,6 +82,8 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private let searchRequest: ((JSONValue) async throws -> JSONValue)?
     public private(set) var focusFilterRequestKey = 0
     public private(set) var facts = NativeOverviewPresentationFacts()
+    public private(set) var presentationActive = true
+    @ObservationIgnored private var presentationDirty = false
     @ObservationIgnored private var snapshots: [String: NativeOverviewCardSnapshot] = [:]
     @ObservationIgnored private var harnessCache: [JSONText: HarnessOverviewSnapshot] = [:]
     @ObservationIgnored private var applicationCache: [JSONText: (JSONValue, ApplicationOverviewSnapshot)] = [:]
@@ -156,6 +158,21 @@ public final class NativeOverviewWorkspaceModel {
     /// Host observations can change card geometry without changing catalog membership.
     public func refreshCardExtensions() { reconcile(captureMutation: true) }
 
+    /// The reading stack owns this gate: its parent still participates in opening
+    /// and return motion even though the logical route already points at detail.
+    public func setPresentationActive(_ value: Bool) {
+        guard active, presentationActive != value else { return }
+        presentationActive = value
+        revisions.removeAll()
+        if value {
+            recoveryEpoch += 1
+            if presentationDirty { reconcile(captureMutation: false) }
+        } else {
+            presentationDirty = true
+            invalidateContentSearch()
+        }
+    }
+
     public func setPresentation(_ value: NativeOverviewPresentationFacts) {
         guard facts != value else { return }
         if facts.overviewVisible != value.overviewVisible {
@@ -165,6 +182,8 @@ public final class NativeOverviewWorkspaceModel {
             if value.overviewVisible { recoveryEpoch += 1 }
         }
         facts = value
+        // Direct navigation/recovery can bypass an animated return.
+        if value.overviewVisible { setPresentationActive(true) }
         if isSearching {
             if searchAvailable { reconcile(captureMutation: false) }
             else { invalidateContentSearch() }
@@ -320,6 +339,13 @@ public final class NativeOverviewWorkspaceModel {
             selectedTag = filters.isEmpty ? "" : chosenTag
             selectedScope = tagSelection?.scope ?? ""
             selectedFilter = matchingFilter(tag: selectedTag, scope: selectedScope, kind: tagSelection?.kind)
+            guard presentationActive else {
+                presentationDirty = true
+                publishContext()
+                return
+            }
+            // Scene identity belongs to the retained presentation too. Advancing
+            // it while hidden could bookmark the old camera under a new selection.
             let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
             sceneKey = browseSceneKey
             let search = NativeOverviewSearch(isSearching ? searchQuery : "")
@@ -344,6 +370,7 @@ public final class NativeOverviewWorkspaceModel {
             }
             items = nextItems
             content.install(nextItems)
+            presentationDirty = false
             error = nil
             // Plugin caches retain only the current catalog; queued presentation
             // snapshots are pinned separately by revisions and canvas retention.
@@ -356,7 +383,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private var searchAvailable: Bool {
-        isSearching && facts.overviewVisible && !facts.settingsOpen && facts.documentVisible && facts.focused &&
+        presentationActive && isSearching && facts.overviewVisible && !facts.settingsOpen && facts.documentVisible && facts.focused &&
             (workspace.runtimeAvailable || searchRequest != nil) && !NativeOverviewSearch(searchQuery).terms.isEmpty
     }
     private func invalidateContentSearch() {

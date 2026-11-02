@@ -18,6 +18,7 @@ import MokuseiTestSupport
     var attached = true
     var dark = false
     var visible = true
+    var layoutPaused = false
     var cloudAnimationsEnabled = false
     var selection = "all"
     @ObservationIgnored let inputIDs: Set<String>
@@ -93,6 +94,7 @@ private struct OverviewMountingReplay: View {
         if fixture.attached {
             NativeOverviewCanvas(contentSource: fixture.content, sceneKey: "mounting", state: fixture.state,
                                  selectionID: fixture.selection, visible: fixture.visible,
+                                 layoutPaused: fixture.layoutPaused,
                                  cloudAnimationsEnabled: fixture.cloudAnimationsEnabled) { item in
                 OverviewMountingCard(item: item, fixture: fixture)
             }
@@ -229,6 +231,21 @@ struct NativeOverviewMountingIntegrationTests {
         #expect(fixture.visualIDs == visualIDs)
         #expect(SwiftUIReplay.textField(in: root) === field)
         #expect(field.stringValue == "保留草稿")
+        let solves = fixture.state.layoutSolveCount
+        fixture.visible = false
+        fixture.layoutPaused = true
+        try await SwiftUIReplay.wait { fixture.animationVisibility[id] == false }
+        fixture.items.append(.init(id: "hidden-addition", completed: true))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(fixture.state.layoutSolveCount == solves)
+        #expect(!fixture.state.mountedCardIDs.contains("hidden-addition"))
+        fixture.layoutPaused = false
+        await fixture.state.prepareForPresentation()
+        fixture.visible = true
+        try await settled(fixture)
+        #expect(SwiftUIReplay.textField(in: root) === field)
+        #expect(field.stringValue == "保留草稿" && fixture.drafts[id] == "保留草稿")
+        #expect(fixture.markerIDs[id] == identities[id] && fixture.visualIDs[id] == visualIDs[id])
     }
 
     @Test func flatCardsRetainMountedEditingAndSpatialStateAcrossAppearanceChanges() async throws {

@@ -33,6 +33,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var axis: Axis
     public var direction: CGFloat
     public var onClose: () -> Void
+    public var onParentPresentationChange: ((Bool) -> Void)?
+    public var prepareParent: (() async -> Void)?
     private let parent: Parent
     private let front: Front
 
@@ -40,6 +42,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress = 0.0
     @State private var closing = false
+    @State private var preparingClose = false
     @State private var replacing = false
     @State private var generation = 0
     @State private var mountedIdentity: JSONText?
@@ -51,6 +54,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 emphasizedOpening: Bool = false, panel: Bool = false, panelSource: CGRect? = nil, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
+                onParentPresentationChange: ((Bool) -> Void)? = nil,
+                prepareParent: (() async -> Void)? = nil,
                 onClose: @escaping () -> Void,
                 @ViewBuilder parent: () -> Parent, @ViewBuilder front: () -> Front) {
         self.open = open; self.identity = identity; self.motion = motion; self.enabled = enabled
@@ -59,6 +64,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.panel = panel; self.panelSource = panelSource
         self.axis = axis
         self.direction = direction
+        self.onParentPresentationChange = onParentPresentationChange; self.prepareParent = prepareParent
         self.onClose = onClose; self.parent = parent(); self.front = front()
     }
     public var body: some View {
@@ -163,19 +169,40 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
 
     private func bindActions() {
-        motion.closeAction = {
-            guard open, !closing else { return }
+        motion.closeAction = { requestClose() }
+        motion.cancelAction = { settle(finishingClose: $0) }
+    }
+
+    private func requestClose() {
+        guard open, !closing, !preparingClose else { return }
+        // Reversing an opening uses the already participating parent immediately.
+        // Only a settled detail needs to refresh its retained, paused backdrop.
+        guard let prepareParent, !motion.active else {
+            if enabled { animate(closing: true) }
+            else { onClose() }
+            return
+        }
+        generation += 1
+        let token = generation
+        preparingClose = true
+        motion.active = true
+        onParentPresentationChange?(true)
+        animationTask = Task { @MainActor in
+            guard !Task.isCancelled, generation == token else { return }
+            await prepareParent()
+            guard !Task.isCancelled, generation == token else { return }
+            preparingClose = false
+            motion.active = false
             if enabled { animate(closing: true) }
             else { onClose() }
         }
-        motion.cancelAction = { settle(finishingClose: $0) }
     }
 
     private func settle(finishingClose: Bool = false) {
         // Layout/activation can interrupt the animation after Close was accepted.
         // Complete that visit's intent, but never close a replacement route or
         // turn an explicit cancellation into navigation.
-        let finishClose = finishingClose && closing && open && mountedIdentity == identity
+        let finishClose = finishingClose && (closing || preparingClose) && open && mountedIdentity == identity
         animationTask?.cancel(); animationTask = nil
         generation += 1
         var transaction = Transaction(animation: nil)
@@ -183,9 +210,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         withTransaction(transaction) {
             progress = open ? 1 : 0
             closing = false
+            preparingClose = false
             replacing = false
             motion.active = false
         }
+        onParentPresentationChange?(!open || finishClose)
         if finishClose { onClose() }
     }
 
@@ -205,6 +234,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
 
     private func animate(closing: Bool) {
+        onParentPresentationChange?(true)
         guard !reduceMotion, closing || direction != 0 else {
             settle()
             if closing { onClose() }
@@ -261,6 +291,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             animationTask = nil
             motion.active = false
             self.closing = false
+            if !closing { onParentPresentationChange?(false) }
             // Keep destination, navigation and selection until return ends.
             if closing { onClose() }
         }
