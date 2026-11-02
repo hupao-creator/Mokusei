@@ -236,6 +236,24 @@ private struct Failure: Error { let message: String }
             throw Failure(message: "Map host and target actions did not retain their draft bindings")
         }
         try await activateMapControl("moku.host.codex")
+        try await activateMapControl("moku.advanced")
+        guard let routing = mapControls().first(where: { $0["id"] == .text("moku.routingEnabled") }),
+              let handle = routing["handle"]?.stringValue else {
+            throw Failure(message: "Routing switch is not mounted")
+        }
+        try fixture.navigation.interactions.perform(id: "moku.routingEnabled", handle: handle,
+            operation: "set", value: .bool(true), context: fixture.navigation.interactionContext(section: "moku"))
+        try await capture("settings-routing-guidance")
+        guard mapControls().contains(where: {
+            $0["id"] == .text("moku.routingGuidance") &&
+            $0["label"] == .text("输入 Moku 选择模型时应遵循的规则")
+        }) else { throw Failure(message: "Routing editor lost its accessible name") }
+        window.setContentSize(.init(width: 540, height: 780))
+        try await capture("settings-routing-guidance-compact")
+        try fixture.preferences.setLocale(.english)
+        try await capture("settings-routing-guidance-compact-english")
+        try fixture.preferences.setLocale(.chinese)
+        window.setContentSize(.init(width: 1100, height: 780))
         fixture.navigation.section = "general"
         try await capture("settings-dark")
         fixture.dark = false
@@ -257,7 +275,7 @@ private struct Failure: Error { let message: String }
         try await capture("settings-compact-zoom-in")
         fixture.scale = 1
         window.setContentSize(.init(width: 1100, height: 780))
-        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; four-Harness map bindings and last-target protection; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
+        let result = "PASS: production Settings in the resident Moku Dock; removed sections fall back to General; arrow/Home/End navigation; panel close blocks IME and closes after composition; four-Harness map bindings and last-target protection; routing editor accessible name and expanded/compact bilingual layouts; light/dark/compact/narrow-English/zoom screenshots; close remains in viewport.\n"
         try result.write(to: directory.appendingPathComponent("result.txt"), atomically: true, encoding: .utf8)
         print(result)
         if !CommandLine.arguments.contains("--interactive") { NSApp.terminate(nil) }

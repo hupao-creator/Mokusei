@@ -2,7 +2,7 @@ package model
 
 // commandReadOnly is the protocol registry, independent of installed plugins.
 var commandReadOnly = map[string]bool{
-	"search:status": true, "search:query": true, "search:configure": false, "search:index": false, "search:model": false,
+	"search:status": true, "search:query": true,
 	"attachment:preview": true, "attachment:discard": false,
 	"moku:voice": false, "moku:voice-events": true, "thread:voice": false, "thread:voice-events": true,
 	"moku:deliveries": true, "moku:resolve-delivery": false,

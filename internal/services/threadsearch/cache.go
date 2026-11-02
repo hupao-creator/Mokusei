@@ -24,8 +24,7 @@ type cachedResult struct {
 }
 
 type queryCounts struct {
-	documents, chunks, semantic int
-	bestCosine                  float64
+	documents int
 }
 
 type retrievalCache struct {
@@ -65,9 +64,6 @@ func (c *retrievalCache) document(ctx context.Context, snapshot store.Snapshot, 
 		return Document{}
 	}
 	size := int64(512 + len(document.Owner) + len(document.Fingerprint) + len(document.Version) + len(document.LiteralText))
-	for _, chunk := range document.Chunks {
-		size += int64(256 + len(chunk.Title) + len(chunk.Text) + len(chunk.Hash) + cap(chunk.Vector)*4)
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if generation != c.generation || ctx.Err() != nil || size > documentCacheBytes {
@@ -125,7 +121,6 @@ func resultKey(snapshot store.Snapshot, config Config, request QueryRequest, sou
 	type stamp struct {
 		Key, Owner, OwnerHash, CurrentOwnerHash, Identity, Title, Cwd, DocumentHash string
 		Tags                                                                        []string
-		Allowed                                                                     bool
 	}
 	stamps := []stamp{}
 	for _, source := range sources {
@@ -133,7 +128,7 @@ func resultKey(snapshot store.Snapshot, config Config, request QueryRequest, sou
 		if scope[key] {
 			hash, _ := snapshot.RecordHash(documentPrefix + key)
 			ownerHash, _ := snapshot.RecordHash(source.Owner)
-			stamps = append(stamps, stamp{key, source.Owner, source.OwnerHash, ownerHash, source.Identity, source.Title, source.Cwd, hash, source.Tags, allowed(config, source)})
+			stamps = append(stamps, stamp{key, source.Owner, source.OwnerHash, ownerHash, source.Identity, source.Title, source.Cwd, hash, source.Tags})
 		}
 	}
 	raw, _ := json.Marshal([]any{config, request, stamps})

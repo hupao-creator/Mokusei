@@ -72,46 +72,6 @@ func (r *Runtime) searchCommand(ctx context.Context, channel string, args []json
 	switch channel {
 	case "search:status":
 		return r.search.Status(ctx)
-	case "search:configure":
-		var request threadsearch.ConfigureRequest
-		if err := decode(&request); err != nil {
-			return nil, err
-		}
-		return r.search.Configure(ctx, request)
-	case "search:model":
-		var request struct {
-			Action          string `json:"action"`
-			ConfirmDownload bool   `json:"confirmDownload"`
-		}
-		if err := decode(&request); err != nil {
-			return nil, err
-		}
-		local, ok := r.config.Embeddings.(plugin.ManagedEmbeddings)
-		if !ok {
-			return nil, errors.New("Local embedding engine is unavailable")
-		}
-		switch request.Action {
-		case "download":
-			if !request.ConfirmDownload {
-				return nil, errors.New("Confirm the model download first")
-			}
-			if err := local.Download(ctx); err != nil {
-				return nil, err
-			}
-		case "cancel":
-			local.CancelDownload()
-		case "remove":
-			return r.search.RemoveModel(ctx)
-		default:
-			return nil, errors.New("Invalid model action")
-		}
-		return r.search.Status(ctx)
-	case "search:index":
-		var request threadsearch.IndexRequest
-		if err := decode(&request); err != nil {
-			return nil, err
-		}
-		return r.search.Index(ctx, request)
 	case "search:query":
 		var request threadsearch.QueryRequest
 		if err := decode(&request); err != nil {

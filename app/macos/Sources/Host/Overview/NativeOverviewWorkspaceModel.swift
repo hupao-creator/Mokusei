@@ -74,10 +74,10 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var searchMode = "keyword"
     public private(set) var searchReason = "disabled"
     public private(set) var searchIndexing = false
-    @ObservationIgnored private var semanticRequest: Task<Void, Never>?
-    @ObservationIgnored private var semanticRequestKey: String?
-    @ObservationIgnored private var semanticContextKey: String?
-    @ObservationIgnored private var semanticRanks: [String: Int]?
+    @ObservationIgnored private var contentRequest: Task<Void, Never>?
+    @ObservationIgnored private var contentRequestKey: String?
+    @ObservationIgnored private var contentContextKey: String?
+    @ObservationIgnored private var contentRanks: [String: Int]?
     @ObservationIgnored private var searchCameraBookmark: (sceneKey: String, view: NativeOverviewCameraState)?
     @ObservationIgnored private let searchRequest: ((JSONValue) async throws -> JSONValue)?
     public private(set) var focusFilterRequestKey = 0
@@ -167,7 +167,7 @@ public final class NativeOverviewWorkspaceModel {
         facts = value
         if isSearching {
             if searchAvailable { reconcile(captureMutation: false) }
-            else { invalidateSemanticSearch() }
+            else { invalidateContentSearch() }
         }
         pruneSnapshots()
         publishContext()
@@ -186,7 +186,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     public func beginSearch() {
-        if !isSearching { invalidateSemanticSearch() }
+        if !isSearching { invalidateContentSearch() }
         isSearching = true
         searchFocusRequest += 1
         reconcile(captureMutation: false)
@@ -206,7 +206,7 @@ public final class NativeOverviewWorkspaceModel {
     }
     public func endSearch() {
         guard isSearching else { return }
-        invalidateSemanticSearch()
+        invalidateContentSearch()
         restoreSearchCamera()
         isSearching = false
         searchQuery = ""
@@ -214,7 +214,7 @@ public final class NativeOverviewWorkspaceModel {
         focusFilterRequestKey += 1
     }
     public func requestFilterFocus() { endSearch(); focusFilterRequestKey += 1 }
-    public func searchRank(for id: String) -> Int? { isSearching ? semanticRanks?[id] : nil }
+    public func searchRank(for id: String) -> Int? { isSearching ? contentRanks?[id] : nil }
     public func consumeFilterFocus() { focusFilterRequestKey = 0 }
     private func restoreSearchCamera() {
         if let bookmark = searchCameraBookmark {
@@ -329,11 +329,11 @@ public final class NativeOverviewWorkspaceModel {
             let scope = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
                 ?? (selectedTags.isEmpty ? resolve(allMembers) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
             let keyword = search.filter(scope, directoryTags: directoryTags.values)
-            scheduleSemanticSearch(scope: scope, keyword: keyword)
+            scheduleContentSearch(scope: scope, keyword: keyword)
             let keywordIDs = Set(keyword.threads.map { $0.id.string } + keyword.applications.map { $0.entry.ref.threadID.string })
             let selected = NativeOverviewCollection(
-                threads: scope.threads.filter { keywordIDs.contains($0.id.string) || semanticRanks?[$0.id.string] != nil },
-                applications: scope.applications.filter { keywordIDs.contains($0.entry.ref.threadID.string) || semanticRanks?[$0.entry.ref.threadID.string] != nil })
+                threads: scope.threads.filter { keywordIDs.contains($0.id.string) || contentRanks?[$0.id.string] != nil },
+                applications: scope.applications.filter { keywordIDs.contains($0.entry.ref.threadID.string) || contentRanks?[$0.entry.ref.threadID.string] != nil })
             let nextItems = try project(selected)
             if sceneKey != previousScene { revisions.removeAll() }
             if captureMutation, facts.overviewVisible, previousScene == sceneKey,
@@ -359,38 +359,38 @@ public final class NativeOverviewWorkspaceModel {
         isSearching && facts.overviewVisible && !facts.settingsOpen && facts.documentVisible && facts.focused &&
             (workspace.runtimeAvailable || searchRequest != nil) && !NativeOverviewSearch(searchQuery).terms.isEmpty
     }
-    private func invalidateSemanticSearch() {
-        semanticRequest?.cancel(); semanticRequest = nil; semanticRequestKey = nil; semanticContextKey = nil; semanticRanks = nil
+    private func invalidateContentSearch() {
+        contentRequest?.cancel(); contentRequest = nil; contentRequestKey = nil; contentContextKey = nil; contentRanks = nil
         searchMode = "keyword"; searchReason = "disabled"; searchIndexing = false
     }
-    private func scheduleSemanticSearch(scope: NativeOverviewCollection, keyword: NativeOverviewCollection) {
-        guard searchAvailable else { invalidateSemanticSearch(); return }
+    private func scheduleContentSearch(scope: NativeOverviewCollection, keyword: NativeOverviewCollection) {
+        guard searchAvailable else { invalidateContentSearch(); return }
         let refs = scope.threads.map { ApplicationThreadRef(threadID: $0.id, typeID: "agent") } + scope.applications.map { $0.entry.ref }
         let literal = keyword.threads.map { ApplicationThreadRef(threadID: $0.id, typeID: "agent").json } + keyword.applications.map { $0.entry.ref.json }
         let contextKey = NativeOverviewSelection.jsonString(.array([.text(searchQuery), .text(sceneKey),
             .integer(workspace.catalog.searchRevision)]))
         // Live transcript/status revisions do not change the query. Polling
         // already refreshes indexed content; restarting on each revision would
-        // repeatedly discard semantic cards while a thread is streaming.
+        // repeatedly discard body matches while a thread is streaming.
         let key = NativeOverviewSelection.jsonString(.array([.text(contextKey), .array(refs.map(\.json)), .array(literal)]))
-        guard semanticRequestKey != key else { return }
-        semanticRequest?.cancel(); semanticRequestKey = key
-        if semanticContextKey != contextKey {
-            semanticRanks = nil
+        guard contentRequestKey != key else { return }
+        contentRequest?.cancel(); contentRequestKey = key
+        if contentContextKey != contextKey {
+            contentRanks = nil
             searchMode = "keyword"; searchReason = "loading"; searchIndexing = false
         }
-        semanticContextKey = contextKey
+        contentContextKey = contextKey
         let input = JSONValue.object(["query": .text(searchQuery), "threads": .array(refs.map(\.json)), "keywordMatches": .array(literal)])
-        semanticRequest = Task { [weak self] in
+        contentRequest = Task { [weak self] in
             do {
                 try await Task.sleep(for: .milliseconds(300))
                 while !Task.isCancelled {
-                    guard let self, self.searchAvailable, self.semanticRequestKey == key else { return }
+                    guard let self, self.searchAvailable, self.contentRequestKey == key else { return }
                     let result: JSONValue
                     if let request = self.searchRequest { result = try await request(input) }
                     else { result = try await self.workspace.client.invoke("search:query", args: [input]) }
                     try Task.checkCancellation()
-                    guard self.searchAvailable, self.semanticRequestKey == key else { return }
+                    guard self.searchAvailable, self.contentRequestKey == key else { return }
                     let allowed = Set(refs)
                     var ranks: [String: Int] = [:]
                     for (index, hit) in (result["hits"]?.arrayValue ?? []).enumerated() {
@@ -398,20 +398,20 @@ public final class NativeOverviewWorkspaceModel {
                               allowed.contains(ApplicationThreadRef(threadID: id, typeID: type)) else { continue }
                         ranks[id.string] = index
                     }
-                    self.semanticRanks = ranks
-                    self.searchMode = result["mode"]?.stringValue == "hybrid" ? "hybrid" : "keyword"
+                    self.contentRanks = ranks
+                    self.searchMode = "keyword"
                     self.searchReason = result["reason"]?.stringValue ?? ""
                     self.searchIndexing = result["indexing"]?.boolValue == true
                     self.reconcile(captureMutation: false)
                     // Preparation and retries can finish without a catalog
                     // change. Keep the active query fresh even when its first
-                    // response only had keywords; the runtime caches vectors.
+                    // response only had metadata matches; body indexing runs independently.
                     try await Task.sleep(for: .seconds(3))
                 }
             } catch is CancellationError { }
             catch {
-                guard let self, !Task.isCancelled, self.semanticRequestKey == key else { return }
-                if self.semanticRanks == nil { self.searchMode = "keyword" }
+                guard let self, !Task.isCancelled, self.contentRequestKey == key else { return }
+                if self.contentRanks == nil { self.searchMode = "keyword" }
                 self.searchReason = "local-unavailable"; self.searchIndexing = false
                 self.reconcile(captureMutation: false)
             }
@@ -518,7 +518,7 @@ public final class NativeOverviewWorkspaceModel {
                 structureKey: projection.envelope.structureKey.string, presentationID: token)))
         }
         let ordered = entries.sorted { a, b in
-            if isSearching, let ranks = semanticRanks {
+            if isSearching, let ranks = contentRanks {
                 let left = ranks[a.item.id] ?? Int.max, right = ranks[b.item.id] ?? Int.max
                 if left != right { return left < right }
             }
@@ -600,7 +600,7 @@ public final class NativeOverviewWorkspaceModel {
 
     public func stop() async {
         active = false
-        invalidateSemanticSearch()
+        invalidateContentSearch()
         await publication?.value
         try? await workspace.client.updateOverviewContext(nil)
         content.stop()
