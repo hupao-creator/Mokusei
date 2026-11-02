@@ -14,7 +14,9 @@ A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
 locates an old turn outside the current window. This is a resource-demand check,
 not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
 author accessibility and save settled dark/light screenshots under
-`.scratch/reading-presentation/NativeThreadHistorySidebarTests`.
+`.scratch/reading-presentation/NativeThreadHistorySidebarTests`. The same mounted
+fixtures verify title-free execution cards keep their author, user messages and
+work content at those widths while full reading pages retain headings.
 
 The ordinary Swift suite runs the four state/layout cases. The pointer case
 requires the isolated application's running AppKit loop and a foreground visible

@@ -112,6 +112,7 @@ public struct HarnessMessageTimeline: View {
     public let rows: [ThreadTimelineRow]
     public var toolbar: AnyView?
     public var emptyState: AnyView?
+    public var contentTopInset: CGFloat?
     public var suspended: Bool
     public var followOutput: Bool
     public var followKey: JSONText?
@@ -143,12 +144,14 @@ public struct HarnessMessageTimeline: View {
     @FocusState private var focused: Bool
 
     public init(timelineKey: JSONText, rows: [ThreadTimelineRow], toolbar: AnyView? = nil,
-                emptyState: AnyView? = nil, suspended: Bool = false, followOutput: Bool = false,
+                emptyState: AnyView? = nil, contentTopInset: CGFloat? = nil,
+                suspended: Bool = false, followOutput: Bool = false,
                 followKey: JSONText? = nil, followPaused: Bool = false, onJumpToLatest: (() -> Void)? = nil,
                 showOlderRows: Bool = true, pinnedRowId: JSONText? = nil,
                 readingTarget: ThreadTimelineReadingTarget? = nil, locatedRequestId: JSONText? = nil,
                 onLocated: ((JSONText) -> Void)? = nil) {
         self.timelineKey = timelineKey; self.rows = rows; self.toolbar = toolbar; self.emptyState = emptyState
+        self.contentTopInset = contentTopInset
         self.suspended = suspended; self.followOutput = followOutput; self.followKey = followKey
         self.followPaused = followPaused; self.onJumpToLatest = onJumpToLatest
         self.showOlderRows = showOlderRows; self.pinnedRowId = pinnedRowId; self.readingTarget = readingTarget
@@ -339,7 +342,7 @@ public struct HarnessMessageTimeline: View {
     private var readingBottomInset: CGFloat { 36 }
 
     private func readingTopInset(_ width: CGFloat) -> CGFloat {
-        readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44
+        contentTopInset ?? (readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44)
     }
     private func reportReading() {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)

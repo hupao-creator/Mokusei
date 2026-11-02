@@ -75,10 +75,11 @@ private struct SidebarTurn: View {
 
 private struct SidebarSurface: View {
     let fixture: SidebarFixture
+    var executionCard = false
     var body: some View {
         ThreadConversation(threadId: "sidebar-replay", title: "检查历史轮次与目录导航", icon: "📝", rows: fixture.rows,
             readingTarget: fixture.target,
-            context: .init(content: .manifest, presentation: .main(excludedExecutionIDs: []),
+            context: .init(content: .manifest, presentation: executionCard ? .execution("turn-4") : .main(excludedExecutionIDs: []),
                 contentResource: { _ in .init(state: .loading, retry: {}, release: {}) }, onIndexChange: { _ in }),
             renderRow: fixture.render)
         .environment(\.locale, Locale(identifier: "zh-Hans"))
@@ -198,6 +199,7 @@ struct NativeThreadHistorySidebarTests {
             try await fixture.ready()
             let root = try #require(window.contentView)
             try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.hasPrefix("Author:") } }
+            #expect(SwiftUIReplay.text(in: root).contains("检查历史轮次与目录导航"))
             #expect(fixture.control("visibility.work")?["enabled"] == .bool(true))
             #expect(fixture.control("visibility.userMessages")?["enabled"] == .bool(true))
             if fixture.longAuthor {
@@ -219,6 +221,32 @@ struct NativeThreadHistorySidebarTests {
                 try #require(image.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent("sidebar-\(Int(width))-\(scheme == .dark ? "dark" : "light").png"))
             }
             window.close()
+
+            let execution = SidebarFixture()
+            execution.longAuthor = width != 1180
+            let card = SwiftUIReplay.window(SidebarSurface(fixture: execution, executionCard: true)
+                .preferredColorScheme(scheme), width: width, height: 700, offscreen: true)
+            defer { card.close() }
+            try await execution.ready()
+            let cardRoot = try #require(card.contentView)
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: cardRoot).contains { $0.hasPrefix("Author:") } }
+            let text = SwiftUIReplay.text(in: cardRoot)
+            #expect(!text.contains("检查历史轮次与目录导航"))
+            #expect(!text.contains("📝"))
+            #expect(text.contains("User prompt"))
+            #expect(text.contains("Execution details"))
+            #expect(execution.state("turn")?["visibleRowCount"] == .integer(3))
+            #expect(execution.control("visibility.work") == nil)
+            #expect(execution.control("visibility.userMessages") == nil)
+            #expect(execution.state("turn.author")?["model"] == .text(execution.longAuthor
+                ? String(repeating: "long-runtime-model-", count: 12) : "Astra turn-4"))
+            if let path = ProcessInfo.processInfo.environment["MOKUSEI_SIDEBAR_ARTIFACTS"] {
+                let image = try #require(cardRoot.bitmapImageRepForCachingDisplay(in: cardRoot.bounds))
+                cardRoot.cacheDisplay(in: cardRoot.bounds, to: image)
+                try #require(image.representation(using: .png, properties: [:])).write(to:
+                    URL(fileURLWithPath: path).appendingPathComponent("execution-\(Int(width))-\(scheme == .dark ? "dark" : "light").png"))
+            }
+            card.close()
         }
     }
 
