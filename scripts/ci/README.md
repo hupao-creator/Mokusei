@@ -63,8 +63,10 @@ Before publishing, the workflow caps the uncompressed seed at 2 GiB and requires
 reported repository usage plus that conservative size to fit within 9 GiB,
 reserving 1 GiB below the 10 GiB target for other cache writers. The usage query
 has a 15-second timeout. Missing usage or
-an exceeded budget skips caching, never verification. This is a best-effort save
-budget, not a global lock or a guarantee against concurrent Go/CLI writes. Existing
+an exceeded budget skips caching, never verification. The GitHub usage API is
+[refreshed about every five minutes](https://docs.github.com/en/rest/actions/cache#get-github-actions-cache-usage-for-a-repository),
+so this is a best-effort save budget, not a real-time global lock or a guarantee
+against concurrent Go/CLI writes. Existing
 historical entries are not deleted by this workflow; GitHub expiration/eviction
 still applies. Inspect `gh api repos/OWNER/REPO/actions/cache/usage` before rotating
 seeds. Do not purge another in-flight task's entries to make room.

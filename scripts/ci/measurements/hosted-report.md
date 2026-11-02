@@ -108,3 +108,9 @@ job 内模块缓存尝试，也不能认证更新后的 PR 合成提交。
 main 原始数据见 [paired-baseline.json](paired-baseline.json)。完整 macOS
 作业日志保存在本地 `/private/tmp/mokusei-ci-performance-prior-comparison/`
 并可从对应 run 获取；最终 PR 必须再与最新 main 比较实际缓存、排队和耗时。
+
+2026-11-02 06:54:39 UTC 的 [仓库缓存用量快照](cache-usage-followup.json)
+报告 28 项、11,070,791,376 字节（约 10.31 GiB），超过候选的 9 GiB
+种子保存预算。若保存时的查询仍高于预算，workflow 会跳过新种子保存，
+但仍执行构建与验证。GitHub 的用量接口约五分钟刷新一次；并行写入和逐出
+也会改变实际用量，因此这不是实时数值，也不能归因于本 PR。

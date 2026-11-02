@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-11-02T06:54:39.076729+00:00",
+  "endpoint": "repos/hupao-creator/Mokusei/actions/cache/usage",
+  "apiReportedUsage": {
+    "full_name": "hupao-creator/Mokusei",
+    "active_caches_size_in_bytes": 11070791376,
+    "active_caches_count": 28
+  },
+  "note": "GitHub documents this endpoint as refreshed approximately every five minutes; concurrent cache writers and eviction may change usage."
+}
