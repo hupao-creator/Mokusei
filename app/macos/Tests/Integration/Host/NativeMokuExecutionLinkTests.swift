@@ -237,7 +237,7 @@ struct NativeMokuExecutionLinkTests {
     func noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)
         let title = "检查长标题连续换行，保留执行引用的关键信息 e\u{301} 与 👩🏽‍💻"
-        let note = NativeMokuNote(id: "same-note", text: "参考 [Website](https://example.com)；已完成 [\(title)](mokusei://execution?threadId=ordinary&executionId=target)。", revision: 1, updatedAt: 1)
+        let note = NativeMokuNote(id: "same-note", text: "参考 [Website](https://example.com)；已完成 [\(title)](mokusei://execution?threadId=ordinary&executionId=target)。\n\n[Plain](https://example.com/plain)", revision: 1, updatedAt: 1)
         let window = SwiftUIReplay.window(NativeMokuNoteContent(note: note, width: 280, height: 350,
             availableHeight: 350, openExternal: { fixture.external.append($0) },
             openExecution: fixture.presentation.openNoteExecution, workspace: fixture.workspace), width: 280, height: 350, offscreen: true)
@@ -264,9 +264,12 @@ struct NativeMokuExecutionLinkTests {
         let website = (text.string as NSString).range(of: "Website")
         #expect(text.textStorage?.attribute(.link, at: website.location, effectiveRange: nil) as? URL == URL(string: "https://example.com"))
         #expect((text.linkTextAttributes?[.underlineStyle] as? Int) == NSUnderlineStyle.single.rawValue)
+        let plain = try #require(textViews(root).first { $0.string == "Plain" })
+        let paragraph = try #require(plain.textStorage?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(paragraph.maximumLineHeight == 13 * 1.8)
         window.makeFirstResponder(text)
         text.selectAll(nil); text.copy(nil)
-        #expect(NSPasteboard.general.string(forType: .string) == "参考 Website；已完成 \(title)。")
+        #expect(NSPasteboard.general.string(forType: .string) == "参考 Website；已完成 \(title)。\nPlain")
         let hosts = text.subviews.compactMap { $0 as? MarkdownExecutionHost }
         #expect(hosts.count == 1)
         let host = try #require(hosts.first)

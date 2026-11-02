@@ -100,10 +100,11 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
         let output = NSMutableAttributedString(string: "")
         let paragraph = NSMutableParagraphStyle()
         paragraph.minimumLineHeight = lineHeight ?? fontSize * (code ? 1.7 : 1.8)
-        paragraph.maximumLineHeight = images.isEmpty && executionLinkHarnesses == nil ? paragraph.minimumLineHeight : 0
+        paragraph.maximumLineHeight = images.isEmpty ? paragraph.minimumLineHeight : 0
         paragraph.lineBreakMode = .byWordWrapping
         if code { paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: NativeMarkdownTypography.code(size: fontSize)]).width * 8 }
         switch alignment { case .left: paragraph.alignment = .left; case .center: paragraph.alignment = .center; case .right: paragraph.alignment = .right }
+        var hasExecutionAttachment = false
         var index = 0
         while index < spans.count {
             let span = spans[index]
@@ -125,6 +126,7 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
                     .paragraphStyle: paragraph, .nativeMarkdownExecution: url, .cursor: NSCursor.pointingHand,
                     .accessibilityDescription: title], range: NSRange(location: 0, length: value.length))
                 output.append(value)
+                hasExecutionAttachment = true
                 continue
             }
             let size = span.superscript ? fontSize * 0.72 : span.code ? fontSize * 0.88 : fontSize
@@ -163,6 +165,10 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
                 output.append(NSAttributedString(string: span.text, attributes: attributes))
                 if span.code { output.append(markdownCodePadding(attributes: attributes)) }
             }
+        }
+        if hasExecutionAttachment {
+            paragraph.maximumLineHeight = 0
+            output.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: output.length))
         }
         return output
     }
