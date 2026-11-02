@@ -92,6 +92,8 @@ mode):
 This verifies the unsupported source implementation, not a Linux runtime.
 Real interactive clipboard permission behavior requires separate manual testing.
 
+Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
+
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. Deferred native targets use `describe_native_harness` for the exact current schema; cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
