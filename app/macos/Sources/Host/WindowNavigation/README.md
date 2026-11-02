@@ -95,3 +95,6 @@ Agent reading uses a panel-owned Close rather than a Back control beside the
 traffic lights. Its nested history Back remains inside the main panel and keeps
 the existing route-visit fence. Moku history and application/Report navigation
 retain their own window-navigation behavior.
+The Close button's label owns its 32pt circular background and hit shape, so
+the entire visible circle responds rather than only the smaller icon area. Its outer
+14pt padding remains panel spacing and does not become a close target.
