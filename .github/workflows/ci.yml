@@ -219,6 +219,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/native-evidence"
           printf 'MOKUSEI_CI_EVIDENCE=%s/native-evidence\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'MOKUSEI_NATIVE_MODULE_CACHE=%s/native-module-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false

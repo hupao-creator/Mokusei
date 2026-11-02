@@ -261,3 +261,20 @@ zero. There are no bypass actors, and force pushes/deletion of main remain block
 The remote ruleset is separate from workflow code; inspect its actual requirements
 before planning a merge. Local checks and historical green runs cannot replace
 the final revision's required check.
+
+### Native replay compilation and live observation
+
+CI gives all serial native launchers a job-local `MOKUSEI_NATIVE_MODULE_CACHE`
+under `RUNNER_TEMP`. It only reuses validated SDK compilation modules: every
+replay still stages its current sources, compiles its executable, signs a fresh
+app and runs its own isolated process. Nothing is uploaded or reused across
+jobs. `launch.json` records staging seconds, compiler seconds and the cache path.
+Local invocations without the variable retain their private temporary cache.
+
+The reading-presentation app requests a user-initiated, latency-critical activity
+for its bounded lifetime. Passive geometry and title-frame observation retain
+10ms polling with zero clock tolerance, their original three-second deadlines,
+40–60% geometry / 10–60% ink bands and live-frame age checks. These changes remove
+optional timer coalescing; they cannot guarantee OS scheduling or turn a missing
+qualifying observation into a pass. Hosted measurements must establish whether
+they resolve the observed missed windows.

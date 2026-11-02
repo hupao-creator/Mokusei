@@ -1,0 +1,42 @@
+{
+  "toolchain": "Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "sdk": "26.5",
+  "source": "import AppKit\nimport SwiftUI\nimport WebKit\nimport ScreenCaptureKit\n@MainActor func probe(_ view: NSView) -> CGRect { view.bounds }\n",
+  "command": [
+    "xcrun",
+    "swiftc",
+    "-swift-version",
+    "6",
+    "-typecheck",
+    "-module-cache-path",
+    "CACHE",
+    "Probe.swift"
+  ],
+  "results": [
+    {
+      "label": "cold-a",
+      "seconds": 5.688763000071049,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "label": "cold-b",
+      "seconds": 4.970993959112093,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "label": "warm-a",
+      "seconds": 0.2748296670615673,
+      "exit": 0,
+      "stderr": ""
+    },
+    {
+      "label": "warm-b",
+      "seconds": 0.2833470420446247,
+      "exit": 0,
+      "stderr": ""
+    }
+  ],
+  "limitations": "One local VM/toolchain sample per cache state; SDK import/typecheck only. Not a hosted full replay or whole-CI speedup."
+}

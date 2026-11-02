@@ -1,0 +1,32 @@
+{
+  "scope": "Two focused local native runs; not hosted CI or a target-independent performance guarantee",
+  "runs": [
+    {
+      "state": "cold",
+      "compilation": {
+        "seconds": 26.626,
+        "moduleCache": "/private/tmp/mokusei-ci-native-modules"
+      },
+      "stagingSeconds": 0.334,
+      "openingChecks": 57,
+      "maxOpeningGapMilliseconds": 13.91529175452888,
+      "qualifiedX": 691.5,
+      "suiteSummary": "\u2714 Test run with 7 tests in 5 suites passed after 63.565 seconds.",
+      "titleMarker": true
+    },
+    {
+      "state": "warm",
+      "compilation": {
+        "seconds": 18.334,
+        "moduleCache": "/private/tmp/mokusei-ci-native-modules"
+      },
+      "stagingSeconds": 0.548,
+      "openingChecks": 58,
+      "maxOpeningGapMilliseconds": 12.136750156059861,
+      "qualifiedX": 697.5,
+      "suiteSummary": "\u2714 Test run with 7 tests in 5 suites passed after 64.010 seconds.",
+      "titleMarker": true
+    }
+  ],
+  "limitations": "Local observations on one Mac; launcher comments changed between staging the two apps. SDK-import probe is byte-identical input, but these launcher timings are not a strict A/B or hosted speedup guarantee."
+}

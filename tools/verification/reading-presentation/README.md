@@ -685,3 +685,19 @@ SwiftPM defers these four methods to this launcher because transient popovers
 need a running AppKit application. The default CI `native` replay group
 runs them and the coverage auditor requires their observed passing outcomes;
 a skipped or incomplete replay is a failure.
+
+## Replay timing and SDK compilation cache
+
+The staged app holds a user-initiated, latency-critical activity only while its
+AppKit loop runs, and releases it when the loop returns. It logs
+`NATIVE_REPLAY_TIMING` and does not change desktop accessibility preferences or
+production animation timing. Passive geometry/title polls use zero clock sleep
+tolerance; all actual-frame, freshness, midpoint and cancellation assertions
+remain mandatory. This is a scheduling request, not a timing guarantee.
+
+CI sets `MOKUSEI_NATIVE_MODULE_CACHE` to one temporary directory for the native
+job. The launcher and native-input compiler share their SDK caches there, while
+sources, includes, object copies, resources and app processes remain isolated.
+No executable or test outcome is cached. Each exported `launch.json` records
+`stagingSeconds` and `compilation.seconds/moduleCache` for hosted comparisons.
+Without the variable, local replays keep their own private module cache.

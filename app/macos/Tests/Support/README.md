@@ -136,3 +136,23 @@ the original content pixels. The replay does not wait for a match or accept a
 frame presented after the check. A later return to A cannot certify that earlier
 check. The separate incoming-cancellation oracle retains its 10–60% ink, 50ms
 freshness, three-second budget and exact replacement-pixel assertions.
+
+## Real-time observer scheduling
+
+CI optimization PR #225 recorded adjacent opening samples at x=740 and x=459,
+67.186ms apart, missing the unchanged 472–708 midpoint interval. Another attempt
+analyzed newest title frames at zero and 68.6% ink, missing its 10–60% interval.
+Those failures remain failures; a later passing run does not classify them as
+harmless. `Task.sleep` with unspecified tolerance permits clock-chosen leeway.
+Passive `SwiftUIReplay.wait` and the title-frame loop now specify zero tolerance
+for their existing 10ms sleeps. The isolated reading app holds a bounded
+user-initiated/latency-critical activity and starts Testing at user-initiated
+priority. This requests timely observation without forced layout, widening
+bands, changing production animation duration, extending deadlines or retrying
+input. OS preemption can still make the original assertions fail; retain actual
+sample times and frame ages when diagnosing that outcome.
+
+The scheduling contract is documented by Swift's
+[ContinuousClock implementation](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift)
+and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).
+Neither promises immunity to executor/OS preemption.

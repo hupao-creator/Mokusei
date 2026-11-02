@@ -145,3 +145,9 @@ settings-save conflicts without batch retry consumption, validation of matching
 idle-session reuse, unchanged admitted steering and next-batch profile adoption.
 It also checks cold Open settlement of an orphan and background work that needs
 Close after Interrupt, including native state flushes during cleanup.
+
+CI's serial native launchers share only a temporary SDK module cache through
+`MOKUSEI_NATIVE_MODULE_CACHE`; each still compiles its staged current test source
+and creates a separate signed app/process. Per-launch staging/compiler timings
+are retained in `launch.json`. The directory belongs to that job and is not
+published as an Actions cache or restored test evidence.
