@@ -13,6 +13,11 @@ The Settings content suppresses inherited animation only for changes to the
 expanded state, so its final layout remains stable during the shell morph while
 subsequent child-owned animations retain their own transactions.
 
+The history session picker sits below the shared window-navigation safe area.
+Its top clearance stays fixed in window points through workspace zoom, so the
+current/archived-session menu cannot overlap the traffic lights or Back control.
+The turn index and session-switching actions are unchanged.
+
 ## Dock and composer
 
 Moku always uses its existing dark appearance, independently of the system and

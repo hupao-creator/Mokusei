@@ -29,6 +29,7 @@ public struct NativeMokuThreadView: View {
     public let onSend: (NativeComposerSubmission) async throws -> Void
     public let onCancel: () -> Void
     @Environment(\.locale) private var locale
+    @Environment(\.nativeWindowContentScale) private var contentScale
     @State private var navigation: ThreadDetailBackAction
     @State private var focusRequest = 0
     @State private var archiveID: JSONText?
@@ -76,7 +77,10 @@ public struct NativeMokuThreadView: View {
                             Text(archiveID == nil ? localize("当前对话", "Current conversation") : localize("先前对话（只读）", "Previous conversation (read-only)"))
                         }.accessibilityIdentifier("moku-history-sessions")
                         Spacer()
-                    }.padding(.horizontal, 24).padding(.top, 12)
+                    }.padding(.horizontal, 24)
+                        // The window controls stay fixed in physical points as
+                        // workspace content zooms, so their clearance must too.
+                        .padding(.top, NativeWindowNavigationGeometry.safeAreaTop / contentScale)
                 }
                 if let archive = archiveThreads.first(where: { $0.id == archiveID }) {
                     NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: archive),
