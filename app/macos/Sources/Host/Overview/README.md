@@ -96,6 +96,16 @@ Same-scene revisions with identical ID/outer-footprint sets refresh semantic sna
 
 Fresh/filter framing centers the collection horizontally and vertically between persistent controls. In automatic mode, inserting a card refits the complete resulting collection to that anchor after its layout/entry completes; the old single-card camera must not remain the target of a multi-card scene. Ordinary revisions without entrants and with zero survivor world travel preserve the old camera scale/translation wherever the complete collection fits; otherwise translation is clamped to the nearest completely visible position. If the old scale cannot fit, normal readable fitting takes precedence. The resulting target survives delayed refits. Resize and explicit return to automatic framing restore the ordinary policy; manual framing remains user-owned, including during insertion. This protects stationary card origins on deletion and local footprint changes when capacity permits, but does not lock an individual editor through conflicting growth/global repacks.
 
+Filter changes with visible survivors retain the old automatic scale only while
+the new collection fits between persistent controls. If it exceeds that actual
+capacity, the filter prepares the ordinary readable fit before presenting its
+motion; retained framing cannot suppress a needed correction until a background
+click. Preferred margins may yield to retained scale. Manual pan/zoom remains
+user-owned, including when the new collection exceeds capacity. The production
+transition replay covers two-to-eight-card expansion with both motion policies
+and a Dock reservation, unchanged-scale fitting filters, manual overflow, rapid
+filter reversal, automatic-return coordination and empty/nonempty recovery.
+
 Geometry and straight-move optimization have separate outcomes. If the search budget expires after finding legal geometry but before certifying a move plan, the solver returns that geometry with `requiresRepack` rather than requiring a retry. A verified fitting candidate remains the fallback even if aspect enumeration is unfinished. The canvas keeps card identities mounted, fades the old presentation out, relocates while transparent, then reveals the result; new cards stay transparent during retirement. It never treats an uncertified straight path as collision-free. If capacity cannot be decided within the budget and there is no legal witness, the error remains visible and the last valid layout stays in place. Cancelled or replaced owners cannot overwrite the current scene with a stale layout error.
 
 [NativeOverviewCardMotion](NativeOverviewCardMotion.swift) samples interruptible SwiftUI card motion. Filter changes animate exit, survivor movement and entry on their shared schedule. Ordinary revisions serialize exit, shrink, ordered moves, grow and entry. Outgoing content survives until its exit finishes; shell and semantic content share geometry and opacity. Structural revisions are queued before SwiftUI can coalesce updates. Reduce Motion makes new card and camera spatial transitions immediate, while retaining stage ownership and cancellation. Retired and transparent semantic cards are explicitly hidden from accessibility. Retargeting samples current presentation, and completion cannot restore an obsolete scene.
