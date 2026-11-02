@@ -1,0 +1,1297 @@
+[
+  {
+    "captureIndex" : "0",
+    "file" : "window-reversal-reference-0.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.349297833",
+    "receivedAt" : "1590.3534304583334",
+    "recordedAt" : "1590.7675330000002",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "1",
+    "file" : "window-reversal-reference-1.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.367360708",
+    "receivedAt" : "1590.3792429583334",
+    "recordedAt" : "1590.7675410833335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "2",
+    "file" : "window-reversal-reference-2.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.389787166",
+    "receivedAt" : "1590.3916718750002",
+    "recordedAt" : "1590.7675450833335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "3",
+    "file" : "window-reversal-reference-3.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.408425291",
+    "receivedAt" : "1590.4095541666668",
+    "recordedAt" : "1590.7675477916669",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "4",
+    "file" : "window-reversal-reference-4.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.438255833",
+    "receivedAt" : "1590.4393690000002",
+    "recordedAt" : "1590.7675504583335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "5",
+    "file" : "window-reversal-reference-5.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.470354666",
+    "receivedAt" : "1590.4713189166669",
+    "recordedAt" : "1590.7675530833335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "6",
+    "file" : "window-reversal-reference-6.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.504915958",
+    "receivedAt" : "1590.5060120833334",
+    "recordedAt" : "1590.7675553333333",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "7",
+    "file" : "window-reversal-reference-7.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.537104833",
+    "receivedAt" : "1590.5381887916667",
+    "recordedAt" : "1590.7675572083335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "8",
+    "file" : "window-reversal-reference-8.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.570133708",
+    "receivedAt" : "1590.5710364166669",
+    "recordedAt" : "1590.7675597083335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "9",
+    "file" : "window-reversal-reference-9.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.604468333",
+    "receivedAt" : "1590.6052307916668",
+    "recordedAt" : "1590.7675619583333",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "10",
+    "file" : "window-reversal-reference-10.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.636684791",
+    "receivedAt" : "1590.6375332083335",
+    "recordedAt" : "1590.7675635416667",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "11",
+    "file" : "window-reversal-reference-11.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.66986125",
+    "receivedAt" : "1590.6708901250001",
+    "recordedAt" : "1590.7675652500002",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "12",
+    "file" : "window-reversal-reference-12.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.703117083",
+    "receivedAt" : "1590.70385575",
+    "recordedAt" : "1590.7675669583334",
+    "stage" : "reversal-reference"
+  },
+  {
+    "captureIndex" : "13",
+    "file" : "window-reversal-reference-13.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.736377625",
+    "receivedAt" : "1590.7373717916669",
+    "recordedAt" : "1590.7675685833335",
+    "stage" : "reversal-reference"
+  },
+  {
+    "batchCount" : "14",
+    "captureIndex" : "13",
+    "cropMilliseconds" : "0.38195833349163877",
+    "finishedAt" : "1590.7697019166667",
+    "ink" : "242851.0",
+    "inkMilliseconds" : "1.7093750000185537",
+    "kind" : "analysis",
+    "presentationTime" : "1590.736377625",
+    "processingMilliseconds" : "2.116375000014159",
+    "receivedAt" : "1590.7373717916669",
+    "regionHeight" : "200.0",
+    "regionWidth" : "360.0",
+    "regionX" : "0.0",
+    "regionY" : "32.0",
+    "sampleAgeMilliseconds" : "32.33012499981669",
+    "stage" : "reversal-reference",
+    "startedAt" : "1590.7675855416667"
+  },
+  {
+    "displayedTexts" : "[\"\", \"Title A\"]",
+    "finishedAt" : "1590.7759117916667",
+    "kind" : "diagnostic",
+    "stage" : "reversal-reference-AX",
+    "startedAt" : "1590.7739023333334"
+  },
+  {
+    "clock" : "ContinuousClock",
+    "continuousReturnedMilliseconds" : "0.0545",
+    "continuousStartMilliseconds" : "0",
+    "earliestReplacementMilliseconds" : "150",
+    "kind" : "event",
+    "returnedAt" : "1590.7760101666668",
+    "sentAt" : "1590.7759547083335",
+    "stage" : "title-B"
+  },
+  {
+    "captureIndex" : "14",
+    "file" : "window-reversal-outgoing-14.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.772147375",
+    "receivedAt" : "1590.7731474583334",
+    "recordedAt" : "1590.8338054166668",
+    "stage" : "reversal-outgoing"
+  },
+  {
+    "captureIndex" : "15",
+    "file" : "window-reversal-outgoing-15.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.805010625",
+    "receivedAt" : "1590.8066448333334",
+    "recordedAt" : "1590.833817375",
+    "stage" : "reversal-outgoing"
+  },
+  {
+    "captureIndex" : "16",
+    "file" : "window-reversal-outgoing-16.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.822465041",
+    "receivedAt" : "1590.8232682500002",
+    "recordedAt" : "1590.8338195000001",
+    "stage" : "reversal-outgoing"
+  },
+  {
+    "batchCount" : "3",
+    "captureIndex" : "16",
+    "cropMilliseconds" : "0.10283333335792122",
+    "finishedAt" : "1590.8341364583334",
+    "ink" : "126299.0",
+    "inkMilliseconds" : "0.1792499999737629",
+    "kind" : "analysis",
+    "presentationTime" : "1590.822465041",
+    "processingMilliseconds" : "0.2919583332641196",
+    "receivedAt" : "1590.8232682500002",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "10.86820833324964",
+    "stage" : "reversal-outgoing",
+    "startedAt" : "1590.8338445000002"
+  },
+  {
+    "actualBToAMilliseconds" : "58.19199999996272",
+    "clock" : "ContinuousClock",
+    "continuousReturnedMilliseconds" : "58.234375",
+    "continuousStartMilliseconds" : "58.191375",
+    "earliestReplacementMilliseconds" : "150",
+    "kind" : "event",
+    "prerequisiteAgeAtReturnMilliseconds" : "10.921874999894499",
+    "prerequisiteAgeMilliseconds" : "10.878458333309027",
+    "prerequisiteInkFraction" : "0.8936776932602158",
+    "prerequisitePresentationTime" : "1590.822465041",
+    "prerequisiteReceivedAt" : "1590.8232682500002",
+    "returnedAt" : "1590.834190125",
+    "returnedBeforeEarliestReplacement" : "true",
+    "sentAt" : "1590.8341467083335",
+    "stage" : "title-A"
+  },
+  {
+    "captureIndex" : "17",
+    "file" : "window-reversal-at-check-17.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.840029625",
+    "receivedAt" : "1590.8407522083335",
+    "recordedAt" : "1591.3381487916668",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "18",
+    "file" : "window-reversal-at-check-18.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.857354833",
+    "receivedAt" : "1590.8582925416667",
+    "recordedAt" : "1591.3381561666667",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "19",
+    "file" : "window-reversal-at-check-19.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.873442791",
+    "receivedAt" : "1590.8740204583335",
+    "recordedAt" : "1591.33815825",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "20",
+    "file" : "window-reversal-at-check-20.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.894512291",
+    "receivedAt" : "1590.8953462083334",
+    "recordedAt" : "1591.3381604583335",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "21",
+    "file" : "window-reversal-at-check-21.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.909170625",
+    "receivedAt" : "1590.9098285833334",
+    "recordedAt" : "1591.33816225",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "22",
+    "file" : "window-reversal-at-check-22.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.929676375",
+    "receivedAt" : "1590.93042725",
+    "recordedAt" : "1591.3381639583333",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "23",
+    "file" : "window-reversal-at-check-23.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.943752333",
+    "receivedAt" : "1590.9444578750001",
+    "recordedAt" : "1591.3381657083335",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "24",
+    "file" : "window-reversal-at-check-24.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.961093625",
+    "receivedAt" : "1590.9654031666669",
+    "recordedAt" : "1591.3381672916667",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "25",
+    "file" : "window-reversal-at-check-25.png",
+    "kind" : "capture",
+    "presentationTime" : "1590.986951833",
+    "receivedAt" : "1590.9879157083335",
+    "recordedAt" : "1591.338168875",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "26",
+    "file" : "window-reversal-at-check-26.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.005532166",
+    "receivedAt" : "1591.00624775",
+    "recordedAt" : "1591.3381703333334",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "27",
+    "file" : "window-reversal-at-check-27.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.022148333",
+    "receivedAt" : "1591.0231041666668",
+    "recordedAt" : "1591.3381717916668",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "28",
+    "file" : "window-reversal-at-check-28.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.038812416",
+    "receivedAt" : "1591.0395948333335",
+    "recordedAt" : "1591.3381732083335",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "29",
+    "file" : "window-reversal-at-check-29.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.056531833",
+    "receivedAt" : "1591.05718025",
+    "recordedAt" : "1591.3381745833335",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "30",
+    "file" : "window-reversal-at-check-30.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.073281583",
+    "receivedAt" : "1591.0739332916667",
+    "recordedAt" : "1591.3381760000002",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "31",
+    "file" : "window-reversal-at-check-31.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.090931291",
+    "receivedAt" : "1591.091639",
+    "recordedAt" : "1591.3381774166667",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "32",
+    "file" : "window-reversal-at-check-32.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.10788575",
+    "receivedAt" : "1591.1084402916667",
+    "recordedAt" : "1591.3381800000002",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "33",
+    "file" : "window-reversal-at-check-33.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.125444",
+    "receivedAt" : "1591.1261066250001",
+    "recordedAt" : "1591.3381821666667",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "captureIndex" : "34",
+    "file" : "window-reversal-at-check-34.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.143382083",
+    "receivedAt" : "1591.1446093333334",
+    "recordedAt" : "1591.3381838333335",
+    "stage" : "reversal-at-check"
+  },
+  {
+    "afterTitleAInput" : "true",
+    "afterTitleAReturn" : "true",
+    "baselineInk" : "242851.0",
+    "baselinePresentationTime" : "1590.736377625",
+    "cacheCheckReturnedAt" : "1591.3381227916668",
+    "captureIndex" : "34",
+    "checkedAt" : "1591.336452",
+    "contentPixelsEqual" : "true",
+    "frameAvailable" : "true",
+    "kind" : "observation",
+    "observedInk" : "242851.0",
+    "presentationTime" : "1591.143382083",
+    "receivedAt" : "1591.1446093333334",
+    "requestedWaitMilliseconds" : "500",
+    "stage" : "reversal-screen-check",
+    "titleASentAt" : "1590.8341467083335"
+  },
+  {
+    "displayedTexts" : "[\"\", \"Title A\"]",
+    "finishedAt" : "1591.339879625",
+    "kind" : "diagnostic",
+    "stage" : "reversal-screen-check-AX",
+    "startedAt" : "1591.3386336666667"
+  },
+  {
+    "kind" : "event",
+    "returnedAt" : "1592.3937699166668",
+    "sentAt" : "1592.3936797916667",
+    "stage" : "reduced-motion"
+  },
+  {
+    "captureIndex" : "35",
+    "file" : "window-reduced-reference-35.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.357320583",
+    "receivedAt" : "1591.3585371666668",
+    "recordedAt" : "1592.7933965833333",
+    "stage" : "reduced-reference"
+  },
+  {
+    "captureIndex" : "36",
+    "file" : "window-reduced-reference-36.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.386958458",
+    "receivedAt" : "1591.389064875",
+    "recordedAt" : "1592.7934032083335",
+    "stage" : "reduced-reference"
+  },
+  {
+    "captureIndex" : "37",
+    "file" : "window-reduced-reference-37.png",
+    "kind" : "capture",
+    "presentationTime" : "1591.403952291",
+    "receivedAt" : "1591.4053170416669",
+    "recordedAt" : "1592.7934052500002",
+    "stage" : "reduced-reference"
+  },
+  {
+    "captureIndex" : "38",
+    "file" : "window-reduced-reference-38.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.0000275",
+    "receivedAt" : "1592.000753",
+    "recordedAt" : "1592.7934073333333",
+    "stage" : "reduced-reference"
+  },
+  {
+    "captureIndex" : "39",
+    "file" : "window-reduced-reference-39.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.4010545",
+    "receivedAt" : "1592.4019652083334",
+    "recordedAt" : "1592.7934118333335",
+    "stage" : "reduced-reference"
+  },
+  {
+    "batchCount" : "5",
+    "captureIndex" : "39",
+    "cropMilliseconds" : "0.05220833349994791",
+    "finishedAt" : "1592.7936370416667",
+    "ink" : "528376.0",
+    "inkMilliseconds" : "0.16224999990299693",
+    "kind" : "analysis",
+    "presentationTime" : "1592.4010545",
+    "processingMilliseconds" : "0.21558333332905022",
+    "receivedAt" : "1592.4019652083334",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "391.6718333332483",
+    "stage" : "reduced-reference",
+    "startedAt" : "1592.7934214583333"
+  },
+  {
+    "captureIndex" : "40",
+    "file" : "window-title-reference-40.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.7973725",
+    "receivedAt" : "1592.79812925",
+    "recordedAt" : "1592.8584574166669",
+    "stage" : "title-reference"
+  },
+  {
+    "batchCount" : "1",
+    "captureIndex" : "40",
+    "cropMilliseconds" : "0.08133333335536008",
+    "finishedAt" : "1592.8587887083333",
+    "ink" : "141325.0",
+    "inkMilliseconds" : "0.2282083332829643",
+    "kind" : "analysis",
+    "presentationTime" : "1592.7973725",
+    "processingMilliseconds" : "0.31283333328246954",
+    "receivedAt" : "1592.79812925",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "60.65945833324804",
+    "stage" : "title-reference",
+    "startedAt" : "1592.858475875"
+  },
+  {
+    "captureIndex" : "41",
+    "file" : "window-blank-reference-41.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.870287791",
+    "receivedAt" : "1592.8711068333334",
+    "recordedAt" : "1592.9147457916667",
+    "stage" : "blank-reference"
+  },
+  {
+    "batchCount" : "1",
+    "captureIndex" : "41",
+    "cropMilliseconds" : "0.08287499986181501",
+    "finishedAt" : "1592.9150437083335",
+    "ink" : "0.0",
+    "inkMilliseconds" : "0.1932916668465623",
+    "kind" : "analysis",
+    "presentationTime" : "1592.870287791",
+    "processingMilliseconds" : "0.2775416667191166",
+    "receivedAt" : "1592.8711068333334",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "43.93687500009946",
+    "stage" : "blank-reference",
+    "startedAt" : "1592.9147661666668"
+  },
+  {
+    "captureIndex" : "42",
+    "file" : "window-incoming-42.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.956803458",
+    "receivedAt" : "1592.9577564166668",
+    "recordedAt" : "1593.0186220416667",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "43",
+    "file" : "window-incoming-43.png",
+    "kind" : "capture",
+    "presentationTime" : "1592.986360541",
+    "receivedAt" : "1592.9873355833333",
+    "recordedAt" : "1593.018638125",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "44",
+    "file" : "window-incoming-44.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.003658375",
+    "receivedAt" : "1593.0047484583333",
+    "recordedAt" : "1593.0186432083335",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "3",
+    "captureIndex" : "44",
+    "cropMilliseconds" : "0.19608333332143957",
+    "finishedAt" : "1593.0191125833335",
+    "ink" : "0.0",
+    "inkMilliseconds" : "0.2491249999820866",
+    "kind" : "analysis",
+    "presentationTime" : "1593.003658375",
+    "processingMilliseconds" : "0.44687500007967174",
+    "receivedAt" : "1593.0047484583333",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "14.364125000156491",
+    "stage" : "incoming",
+    "startedAt" : "1593.0186657083334"
+  },
+  {
+    "captureIndex" : "45",
+    "file" : "window-incoming-45.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.021855916",
+    "receivedAt" : "1593.0228325",
+    "recordedAt" : "1593.105444",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "46",
+    "file" : "window-incoming-46.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.038675416",
+    "receivedAt" : "1593.0396955",
+    "recordedAt" : "1593.1054518750002",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "47",
+    "file" : "window-incoming-47.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.055693",
+    "receivedAt" : "1593.0563723750001",
+    "recordedAt" : "1593.1054538333335",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "48",
+    "file" : "window-incoming-48.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.072942208",
+    "receivedAt" : "1593.0734912083335",
+    "recordedAt" : "1593.1054555416667",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "49",
+    "file" : "window-incoming-49.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.090477083",
+    "receivedAt" : "1593.0910999166667",
+    "recordedAt" : "1593.1054572500002",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "5",
+    "captureIndex" : "49",
+    "cropMilliseconds" : "0.08041666660574265",
+    "finishedAt" : "1593.1057466666668",
+    "ink" : "0.0",
+    "inkMilliseconds" : "0.19154166670887207",
+    "kind" : "analysis",
+    "presentationTime" : "1593.090477083",
+    "processingMilliseconds" : "0.2735000000484433",
+    "receivedAt" : "1593.0910999166667",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "14.646750000110842",
+    "stage" : "incoming",
+    "startedAt" : "1593.1054731666668"
+  },
+  {
+    "captureIndex" : "50",
+    "file" : "window-incoming-50.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.107548291",
+    "receivedAt" : "1593.1081487916667",
+    "recordedAt" : "1593.1751177916667",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "51",
+    "file" : "window-incoming-51.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.124614958",
+    "receivedAt" : "1593.1251837916668",
+    "recordedAt" : "1593.1751274583335",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "2",
+    "captureIndex" : "51",
+    "cropMilliseconds" : "0.07300000015675323",
+    "finishedAt" : "1593.1753739583335",
+    "ink" : "0.0",
+    "inkMilliseconds" : "0.16058333312685136",
+    "kind" : "analysis",
+    "presentationTime" : "1593.124614958",
+    "processingMilliseconds" : "0.23466666675631132",
+    "receivedAt" : "1593.1251837916668",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "50.19016666665266",
+    "stage" : "incoming",
+    "startedAt" : "1593.1751392916667"
+  },
+  {
+    "captureIndex" : "52",
+    "file" : "window-incoming-52.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.186337875",
+    "receivedAt" : "1593.187408875",
+    "recordedAt" : "1593.2051095000002",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "1",
+    "captureIndex" : "52",
+    "cropMilliseconds" : "0.08791666664365039",
+    "finishedAt" : "1593.2054902083335",
+    "ink" : "0.0",
+    "inkMilliseconds" : "0.2742499998475978",
+    "kind" : "analysis",
+    "presentationTime" : "1593.186337875",
+    "processingMilliseconds" : "0.36383333326739375",
+    "receivedAt" : "1593.187408875",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "18.081333333384464",
+    "stage" : "incoming",
+    "startedAt" : "1593.2051263750002"
+  },
+  {
+    "captureIndex" : "53",
+    "file" : "window-incoming-53.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.203021625",
+    "receivedAt" : "1593.2037122083334",
+    "recordedAt" : "1593.2866918333334",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "54",
+    "file" : "window-incoming-54.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.22024275",
+    "receivedAt" : "1593.2210705",
+    "recordedAt" : "1593.2867241666668",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "55",
+    "file" : "window-incoming-55.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.237948791",
+    "receivedAt" : "1593.2386076666667",
+    "recordedAt" : "1593.2867272916667",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "56",
+    "file" : "window-incoming-56.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.254817333",
+    "receivedAt" : "1593.2553831666667",
+    "recordedAt" : "1593.2867299583334",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "57",
+    "file" : "window-incoming-57.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.271695166",
+    "receivedAt" : "1593.2723075833335",
+    "recordedAt" : "1593.2867325416667",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "5",
+    "captureIndex" : "57",
+    "cropMilliseconds" : "0.12433333336048236",
+    "finishedAt" : "1593.2871755833335",
+    "ink" : "96937.0",
+    "inkMilliseconds" : "0.29679166664209333",
+    "kind" : "analysis",
+    "presentationTime" : "1593.271695166",
+    "processingMilliseconds" : "0.4227083334171766",
+    "receivedAt" : "1593.2723075833335",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "14.867999999978565",
+    "stage" : "incoming",
+    "startedAt" : "1593.286752875"
+  },
+  {
+    "captureIndex" : "58",
+    "file" : "window-incoming-58.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.288460083",
+    "receivedAt" : "1593.2889903333335",
+    "recordedAt" : "1593.3751232916668",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "59",
+    "file" : "window-incoming-59.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.306722125",
+    "receivedAt" : "1593.3074040833335",
+    "recordedAt" : "1593.3751289583333",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "60",
+    "file" : "window-incoming-60.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.324571083",
+    "receivedAt" : "1593.3253159583335",
+    "recordedAt" : "1593.3751313333335",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "61",
+    "file" : "window-incoming-61.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.341339708",
+    "receivedAt" : "1593.3418745416668",
+    "recordedAt" : "1593.3751340000001",
+    "stage" : "incoming"
+  },
+  {
+    "captureIndex" : "62",
+    "file" : "window-incoming-62.png",
+    "kind" : "capture",
+    "presentationTime" : "1593.358659125",
+    "receivedAt" : "1593.359209875",
+    "recordedAt" : "1593.3751356666667",
+    "stage" : "incoming"
+  },
+  {
+    "batchCount" : "5",
+    "captureIndex" : "62",
+    "cropMilliseconds" : "0.07004166650403931",
+    "finishedAt" : "1593.375381625",
+    "ink" : "141325.0",
+    "inkMilliseconds" : "0.16233333349191525",
+    "kind" : "analysis",
+    "presentationTime" : "1593.358659125",
+    "processingMilliseconds" : "0.23404166654472647",
+    "receivedAt" : "1593.359209875",
+    "regionHeight" : "64.0",
+    "regionWidth" : "344.0",
+    "regionX" : "8.0",
+    "regionY" : "40.0",
+    "sampleAgeMilliseconds" : "16.171750000012253",
+    "stage" : "incoming",
+    "startedAt" : "1593.3751475833335"
+  },
+  {
+    "accepted" : "true",
+    "continuousElapsedMilliseconds" : "58.173084",
+    "earliestReplacementMilliseconds" : "150",
+    "inkFraction" : "0.8936776932602158",
+    "kind" : "prerequisite",
+    "observedAt" : "1590.8341276666667",
+    "presentationTime" : "1590.822465041",
+    "receivedAt" : "1590.8232682500002",
+    "referenceInk" : "141325.0",
+    "sampleAgeMilliseconds" : "10.859416666562538",
+    "stage" : "reversal-outgoing-clock"
+  },
+  {
+    "captureIndex" : "0",
+    "histogramInk" : "136804.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "136804.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "1",
+    "histogramInk" : "136804.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "136804.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "2",
+    "histogramInk" : "139315.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "139315.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "3",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "4",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "5",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "6",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "7",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "8",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "9",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "10",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "11",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "12",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "13",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "14",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "15",
+    "histogramInk" : "141311.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141311.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "16",
+    "histogramInk" : "126299.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "126299.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "17",
+    "histogramInk" : "105283.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "105283.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "18",
+    "histogramInk" : "83698.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "83698.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "19",
+    "histogramInk" : "53173.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "53173.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "20",
+    "histogramInk" : "30418.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "30418.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "21",
+    "histogramInk" : "13627.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "13627.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "22",
+    "histogramInk" : "2440.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "2440.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "23",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "24",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "25",
+    "histogramInk" : "831.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "831.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "26",
+    "histogramInk" : "25924.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "25924.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "27",
+    "histogramInk" : "48641.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "48641.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "28",
+    "histogramInk" : "74757.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "74757.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "29",
+    "histogramInk" : "99259.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "99259.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "30",
+    "histogramInk" : "120854.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "120854.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "31",
+    "histogramInk" : "135189.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "135189.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "32",
+    "histogramInk" : "140712.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "140712.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "33",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "34",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "35",
+    "histogramInk" : "141311.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141311.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "36",
+    "histogramInk" : "137544.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "137544.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "37",
+    "histogramInk" : "324867.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "324867.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "38",
+    "histogramInk" : "449274.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "449274.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "39",
+    "histogramInk" : "528376.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "528376.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "40",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "41",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "42",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "43",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "44",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "45",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "46",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "47",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "48",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "49",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "50",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "51",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "52",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "53",
+    "histogramInk" : "0.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "0.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "54",
+    "histogramInk" : "7555.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "7555.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "55",
+    "histogramInk" : "22613.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "22613.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "56",
+    "histogramInk" : "70841.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "70841.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "57",
+    "histogramInk" : "96937.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "96937.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "58",
+    "histogramInk" : "118658.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "118658.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "59",
+    "histogramInk" : "133628.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "133628.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "60",
+    "histogramInk" : "140760.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "140760.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "61",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  },
+  {
+    "captureIndex" : "62",
+    "histogramInk" : "141325.0",
+    "kind" : "offline-audit",
+    "scalarInk" : "141325.0",
+    "stage" : "all-frames"
+  }
+]

@@ -58,13 +58,31 @@ jobs:
           persist-credentials: false
 
       # scripts/go.sh downloads Go 1.27.3 but rejects non-Darwin/arm64 hosts.
-      # setup-go selects the hosted version from go.mod without changing it.
+      # setup-go honors go.mod's toolchain directive without changing go.mod.
       - uses: actions/setup-go@v6
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         id: go
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      - name: Locate Go caches
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        id: go-cache
+        run: |
+          go version
+          printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.modules }}
+            ${{ steps.go-cache.outputs.build }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-
 
       # Ubuntu's standard image provides cc and libsqlite3-dev. Keep this
       # explicit: the runtime uses cgo, and disabling it is not a valid build.

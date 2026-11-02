@@ -1,0 +1,81 @@
+# 托管 CI 实测与第二轮（2026-11-02）
+
+用户授权仅推送 CI 专用分支。原提交 `74b6e26` 已保留，专用分支
+`ci/optimization-20261102` 已推至指定远端，并创建
+[PR #225](https://github.com/hupao-creator/Mokusei/pull/225)。没有推送或合并 main，
+没有修改保护规则、取消其他任务或删除缓存。原工作区未被本任务修改。
+
+## 对照与结果
+
+除了[原始报告](report.md)的七次历史成功样本，本轮复用了同产品源码
+`1593e6347457f8de4c5e2e517aa6ed498a5f7963` 的 main 成功运行
+[41380174891](https://github.com/hupao-creator/Mokusei/actions/runs/41380174891)。
+候选 `d7a4bd567967167a3f672be7974b5a7daf4fb335` 相对它只有 CI 文件差异。
+这是独立 hosted VM 的近邻比较，不是同一机器、完全相同缓存的严格 A/B。
+每个新对照仅一个样本，不能认证稳定加速比例。
+
+| 指标（秒） | 历史成功中位数 n=7 | 同源码 main n=1 | 首轮候选 n=1 |
+| --- | ---: | ---: | ---: |
+| 端到端 | 1853 | 1578 | 1667（失败，不算成功加速样本） |
+| runner 执行总和 | 2251 | 2135 | 2246（失败） |
+| macOS runner | 1681 | 1553 | 1644（失败） |
+| macOS 排队 | 3 | 3 | 3 |
+| Swift 构建与发现 | 309 | 206 | 218 |
+| Go / Linux runner | 91 | 91 | 139 |
+| runtime runner | 184 | 187 | 181 |
+| adapters runner | 280 | 290 | 269 |
+
+原始 job/step/attempt 元数据见 [paired-baseline.json](paired-baseline.json)
+和 [round1.json](round1.json)。用 `profile.py --input FILE --output DIR` 可重算。
+失败运行没有进入成功样本聚合；上表的失败耗时仅用于诊断。
+首轮 run 从 03:03:13 UTC 到 03:31:00 UTC；attempt=1，无重试。
+job 排队各为 2–3 秒，不能把这一 attempt 的耗时当成重试总等待。
+
+同源码 main 使用 macos-26-arm64 `20261026.0455.2`、macOS 26.6.2、Xcode 26.6。
+其 Swift 恢复键为 `native-2972115af0094f875b9674fe7672c23302443925`，
+压缩归档 407,693,778 字节。首轮 Go 主 job 使用 setup-go 精确键，
+归档 101,491,451 字节；这比此前专用缓存更小，不代表其编译覆盖更完整。
+候选使用相同 image 版本，Swift 恢复 `native-1593e6347457f8de4c5e2e517aa6ed498a5f7963`，
+归档 410,960,763 字节；因此两次编译缓存并不相同。候选 PR 没有保存新的 Swift 归档。
+候选完整日志和截图保留在
+[attempt 1 artifact](https://github.com/hupao-creator/Mokusei/actions/runs/41380935021/artifacts/13113803960)。
+
+## 首轮失败及证据
+
+[41380935021](https://github.com/hupao-creator/Mokusei/actions/runs/41380935021)
+的 Linux 三个 job、fixture、普通 Swift suite、interop 均成功。
+原生 `tag-glass-captures` 进程退出 1，执行 72.025 秒；其余 native checks 成功。
+最终审计及 `Complete coverage` 因此失败，未超时，未跳过失败断言。
+
+具体失败是 `titleReversalAndVisibilityCancellationSettlePixels()` 的
+`No qualifying current WindowServer frame during incoming`。
+判据要求捕获到墨迹比例在 10%–60%、帧龄小于 50 ms 的实时帧。
+保留的 [window-frames.json](round1-failure/window-frames.json) 显示每批只分析
+最新帧：incoming 44/49/51/52 墨迹为零，57 为 96,937 / 141,325 ≈ 68.6%，
+62 已完全显现。已查看 blank 41、incoming 55/56 截图；中间帧中存在部分显现。
+该证据指向捕获/分析时序，尚未证明产品无回归或失败是误报。
+完整断言日志和原生执行报告见 [失败目录](round1-failure/)。
+
+不放宽 10%–60% 或 50 ms 判据，不删除中间帧，不增加 skip。
+同源码 main 成功也不能替代候选失败。第二轮改动有独立缓存动机，
+不是对首轮同提交碰运气重跑；如第二轮通过，仍保留这次未解决的时序失败记录。
+
+## 第二轮取舍与验证
+
+首轮统一 Go 缓存后，Go 主 job 为 139 秒，同源码 main 为 91 秒。
+其中 `go vet` 为 19 秒、模块 race 为 33 秒；main 的模块 race 为 26 秒。
+样本不足以完全隔离缓存和 VM 负载，但足以撤回未经证实的统一缓存收益：
+第二轮恢复 Go 主 job 已有的专用缓存，其他 lane 继续使用 setup-go 缓存。
+专用键只随依赖/工具链变化，不按提交增长；该 lane 关闭 setup-go 缓存，
+避免同一 job 双重恢复/保存。第二轮托管结果将验证这一回退的实际成本。
+
+保留 main 独立 concurrency、PR 过期取消、Swift main-only seed 与保存预算。
+原生构建、普通 suite、图形回放和完整审计全部保留。没有增加 macOS runner。
+基线 fixture 的 voice 回放约 109 秒，同时验证真实配置拒绝、清理和预热；
+未将其简化成静态 JSON 导出。不能为了缩短数字删除这些覆盖。
+
+本地 actionlint 1.7.12、实际 CI control verifier 和 diff 检查已通过。
+未重复本地全套 `make check`，真实 Swift/native 由 hosted CI 执行。
+最终分支的托管结果和第二轮数值将追加至 PR 说明；本文件记录第二轮推送前证据，
+不声称尚未执行的第二轮通过。实验固定产品源码以便比较；期间 main 已继续前进，
+本分支的实验结果不认证更新后的 main，也不用于绕过 up-to-date 合并门禁。

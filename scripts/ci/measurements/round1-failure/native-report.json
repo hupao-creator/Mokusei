@@ -1,0 +1,135 @@
+{
+  "revision": "bb0325382291e9613a09cf46f57f86040e1244a1",
+  "dirty": false,
+  "group": "native",
+  "checks": [
+    {
+      "name": "runtime-build",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "/Users/runner/work/_temp/native-evidence/ci-native/mokusei-runtime",
+        "./cmd/mokusei-runtime"
+      ],
+      "status": "passed",
+      "log": "runtime-build.log",
+      "exit_code": 0,
+      "seconds": 5.887
+    },
+    {
+      "name": "settings",
+      "command": [
+        "go",
+        "run",
+        "-race",
+        "./tools/verification/settings",
+        "-runtime",
+        "/Users/runner/work/_temp/native-evidence/ci-native/mokusei-runtime",
+        "-artifacts",
+        "/Users/runner/work/_temp/native-evidence/ci-native/settings"
+      ],
+      "status": "passed",
+      "log": "settings.log",
+      "exit_code": 0,
+      "seconds": 44.833
+    },
+    {
+      "name": "note-exposure",
+      "command": [
+        "go",
+        "run",
+        "-race",
+        "./tools/verification/moku",
+        "-swift-note-exposure"
+      ],
+      "status": "passed",
+      "log": "note-exposure.log",
+      "exit_code": 0,
+      "seconds": 58.322
+    },
+    {
+      "name": "browser-dialogs",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--browser-dialogs"
+      ],
+      "status": "passed",
+      "log": "browser-dialogs.log",
+      "exit_code": 0,
+      "seconds": 42.25
+    },
+    {
+      "name": "application-navigation",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--application-navigation"
+      ],
+      "status": "passed",
+      "log": "application-navigation.log",
+      "exit_code": 0,
+      "seconds": 25.133
+    },
+    {
+      "name": "tag-glass-captures",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--tag-glass-captures"
+      ],
+      "status": "failed",
+      "log": "tag-glass-captures.log",
+      "exit_code": 1,
+      "seconds": 72.025
+    },
+    {
+      "name": "settings-transition",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--settings-transition"
+      ],
+      "status": "passed",
+      "log": "settings-transition.log",
+      "exit_code": 0,
+      "seconds": 36.987
+    },
+    {
+      "name": "isolated-input",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--isolated-input"
+      ],
+      "status": "passed",
+      "log": "isolated-input.log",
+      "exit_code": 0,
+      "seconds": 63.099
+    },
+    {
+      "name": "scrollbars",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/scrollbars/run.py"
+      ],
+      "status": "passed",
+      "log": "scrollbars.log",
+      "exit_code": 0,
+      "seconds": 15.897
+    },
+    {
+      "name": "model-selector",
+      "command": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "tools/verification/reading-presentation/run.py",
+        "--model-selector"
+      ],
+      "status": "passed",
+      "log": "model-selector.log",
+      "exit_code": 0,
+      "seconds": 30.607
+    }
+  ]
+}

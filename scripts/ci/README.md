@@ -40,9 +40,13 @@ does not create additional account capacity.
 
 ## Cache budget
 
-Every Go lane uses setup-go's built-in module/build cache. Linux no longer writes
-a second hand-maintained cache of the same directories under an incompatible key.
-Tests still use `-count=1`. Setup-node supplies Node without an npm cache because
+The Go checks lane retains its dedicated module/build cache; protocol replay and
+macOS lanes use setup-go's built-in cache. The hosted same-source comparison
+observed 139 seconds for the shared-cache Go checks lane versus 91 seconds with
+the dedicated cache. Restoring the dedicated cache is the second-round candidate;
+its new hosted measurement decides whether that difference persists. These stable
+dependency/toolchain keys do not create one archive per revision. Tests still use
+`-count=1`. Setup-node supplies Node without an npm cache because
 these replay jobs do not install npm dependencies or have a lockfile. Extended
 CLI lanes retain their pinned, precompiled platform packages and existing cache.
 There is no Cargo manifest or Rust source, so a Rust cache would have no consumer.
