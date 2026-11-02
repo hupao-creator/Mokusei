@@ -7,12 +7,15 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Five integration cases cover selection and Back scroll
+isolated AppKit host. Six integration cases cover selection and Back scroll
 retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
 inherited history, deletion, arriving successors and external result anchors.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
 hides/restores it through the existing overall execution visibility control.
+The running-state case covers both ordinary work rows and static summaries:
+the selected running execution keeps work visible without a collapse control,
+while historical visits and completion retain their own visibility behavior.
 A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
 locates an old turn outside the current window. This is a resource-demand check,
 not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long

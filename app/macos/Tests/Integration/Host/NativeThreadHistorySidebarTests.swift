@@ -96,8 +96,10 @@ private struct SidebarSurface: View {
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeThreadHistorySidebarTests {
-    @Test func runningExecutionKeepsWorkVisibleAcrossHistoryAndCompletion() async throws {
+    @Test(arguments: [false, true])
+    func runningExecutionKeepsWorkVisibleAcrossHistoryAndCompletion(summarized: Bool) async throws {
         let fixture = SidebarFixture()
+        fixture.summarizedWork = summarized
         let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 1000, height: 700, offscreen: true)
         defer { window.close() }
         try await fixture.ready()
@@ -105,6 +107,12 @@ struct NativeThreadHistorySidebarTests {
         fixture.runningID = "turn-4"
         try await SwiftUIReplay.wait { fixture.control("visibility.work") == nil && fixture.state("turn")?["visibleRowCount"] == .integer(2) }
         #expect(fixture.control("visibility.userMessages") != nil)
+        #expect(fixture.control("execution.group") == nil)
+        if summarized {
+            let content = try #require(window.contentView)
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: content).contains("执行过程 · 4 段思考 · 7 次工具调用") }
+            #expect(!SwiftUIReplay.text(in: content).contains("Execution details"))
+        }
         try await fixture.perform("history.open", value: .text("turn-2"))
         #expect(fixture.control("visibility.work") != nil)
         #expect(fixture.state("turn")?["visibleRowCount"] == .integer(1))

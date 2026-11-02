@@ -199,7 +199,7 @@ def main():
     count = (
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             5 if "--thread-sidebar" in sys.argv else
+             6 if "--thread-sidebar" in sys.argv else
              11 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
