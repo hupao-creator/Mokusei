@@ -326,7 +326,7 @@ struct NativeMokuLandingTests {
             fixture.window?.setContentSize(CGSize(width: 980, height: 700))
             try await SwiftUIReplay.wait { root.bounds.width == 980 && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
             let returnOrigin = fixture.presentation.canvas.displayedFrame(for: "child")
-            fixture.presentation.showOverview()
+            try closeAgentPanel(in: try #require(fixture.window))
             #expect(fixture.presentation.readingPanelSource == returnOrigin)
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             #expect(fixture.scene.overviewVisible && fixture.scene.dockRouteVisible)
@@ -335,9 +335,13 @@ struct NativeMokuLandingTests {
             // the same close route while their Harness loads the target.
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
                 executionID: "run-child", requestID: "panel-result", mode: .history, position: .result))
-            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil }
-            fixture.presentation.navigation?.onBack()
+            try await SwiftUIReplay.wait { fixture.presentation.navigation != nil && !fixture.presentation.messageMotion.active }
+            try closeAgentPanel(in: try #require(fixture.window))
+            try #require(fixture.presentation.messageMotion.active, "The icon-center click must start the real return")
+            fixture.window?.setContentSize(CGSize(width: 940, height: 680))
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil }
+            try await Task.sleep(for: .milliseconds(450))
+            #expect(fixture.presentation.selected == nil, "Layout updates must not restore the closed route")
         }
     }
 
@@ -387,6 +391,16 @@ struct NativeMokuLandingTests {
             try await fixture.install()
             try await SwiftUIReplay.wait { fixture.moku.landing && fixture.scene.inputOpen }
         }
+    }
+
+    private func closeAgentPanel(in window: NSWindow) throws {
+        let root = try #require(window.contentView)
+        let panel = try #require(readingPanel(in: root))
+        // The production Close circle has 14pt inset and 16pt radius. Measure
+        // its mounted panel, including any outer panel animation/transform.
+        let point = panel.convert(CGPoint(x: panel.bounds.maxX - 30,
+            y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
+        try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
     }
 
     private func faces(in view: NSView) -> [NativeMokuCharacterCanvas] {
