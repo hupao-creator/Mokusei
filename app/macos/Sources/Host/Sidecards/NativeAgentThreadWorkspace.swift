@@ -174,7 +174,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         }
-        .nativeReadingPanelViewport()
+        .nativeReadingPanelViewport(balancedVerticalInsets: true)
         .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))

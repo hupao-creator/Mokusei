@@ -30,7 +30,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
 
     private func panel(_ content: Content) -> some View {
         content
-            .nativeReadingPanelViewport()
+            .nativeReadingPanelViewport(balancedVerticalInsets: identifier == "report-reading-panel")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(NativePalette.thread.canvas.swiftUI)
             .background(NativeReadingPanelFrame(identifier: identifier))

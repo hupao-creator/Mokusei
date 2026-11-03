@@ -174,7 +174,7 @@ public struct ThreadDetailTurn: View {
                         .environment(\.threadFirstDetailRow, index == 0)
                         .nativeReadingScope("item." + nativeReadingInteractionKey(row.id))
                         .threadReadingAnchor(row.id)
-                        .padding(.bottom, !active && index == displayed.count - 1 ? 0 : row.kind == .user ? 26 : 16)
+                        .padding(.bottom, index == displayed.count - 1 ? 0 : row.kind == .user ? 26 : 16)
                 }
                 if displayed.isEmpty {
                     Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
