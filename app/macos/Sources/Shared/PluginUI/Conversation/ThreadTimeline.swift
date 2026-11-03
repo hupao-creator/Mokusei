@@ -207,9 +207,11 @@ public struct HarnessMessageTimeline: View {
                         Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
+                    .nativeLayoutLog("timeline.reading.column")
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
                     .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
+                    .nativeLayoutLog("timeline.document")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
                     .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
                 }

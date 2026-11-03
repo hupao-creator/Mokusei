@@ -17,6 +17,14 @@ The focusable history sidebar uses this route too: Escape first folds resident
 input, then a later Escape retains the existing return to the current document.
 Its Arrow/Return navigation and document-owned cancellation remain independent.
 
+Dev-only [layout logging](../../../build/layout-logging.md) combines window-wide
+AppKit frame/bounds observation and coalesced, budgeted discovery with semantic
+SwiftUI geometry hooks in shared
+readers, timeline columns/documents, composers and scroll containers. It does not
+sample animation presentation frames or read content/accessibility values.
+Individual timeline rows have no global geometry hook. IO failure stops collection
+and restores native observation flags without remounting focused product controls.
+
 Thread, execution Sidecard, Report, Git and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's

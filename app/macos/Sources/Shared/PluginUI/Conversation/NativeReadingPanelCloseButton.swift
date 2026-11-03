@@ -18,6 +18,7 @@ public struct NativeReadingPanelCloseButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(ReadingPanelCloseStyle())
+        .nativeLayoutLog("reading.close.target")
         .focusable()
         .focused($focused)
         .focusEffectDisabled()

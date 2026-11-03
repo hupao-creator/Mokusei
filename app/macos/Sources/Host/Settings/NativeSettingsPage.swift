@@ -107,6 +107,7 @@ struct NativeSettingsPreferredHeightKey: PreferenceKey {
                       value: settingsContentHeight + detailOverflow
                         + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
                         + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
+            .nativeLayoutLog("settings.page")
             .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             // Settings is the dark Moku expanded into a page. The scope keeps

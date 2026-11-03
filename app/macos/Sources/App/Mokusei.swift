@@ -67,6 +67,7 @@ private final class WorkspaceSession {
     private var performanceDirectory: URL?
     private var task: Task<Void, Never>?
     private var quitting = false
+    private var finishingQuit = false
     private var quitSavingSettings = false
     private var quitDeadline: Task<Void, Never>?
     private static let zoomRange = (log(0.25) / log(1.2))...(log(5) / log(1.2))
@@ -78,6 +79,8 @@ private final class WorkspaceSession {
             let lease = try RuntimeProfileClientLease(dataDirectory: options.dataDirectory)
             lease.retainForProcess()
             let profile = lease.profile
+            NativeLayoutDiagnostics.start(directory: profile.dataDirectory.appendingPathComponent("diagnostics/layout", isDirectory: true),
+                explicitDataDirectory: options.explicitDataDirectory)
             performanceDirectory = profile.dataDirectory.appendingPathComponent("diagnostics/performance", isDirectory: true)
             if let performanceDirectory { NativePerformance.configure(directory: performanceDirectory) }
             startup.attachToRecording()
@@ -129,7 +132,9 @@ private final class WorkspaceSession {
         }
     }
     func quit(discardSettings: Bool = false) {
-        guard !quitting else { finishQuit(); return }
+        guard !quitting else {
+            NativeDiagnosticExit.forceExit { exitCleanup?.prepareForExit() }
+        }
         quitting = true; busy = true
         quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
@@ -173,10 +178,22 @@ private final class WorkspaceSession {
             "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)") ?? error.localizedDescription
     }
     private func finishQuit() {
+        // A late runtime-cleanup completion must not cut short a drain already
+        // requested by the runtime deadline. Only an explicit second Quit forces.
+        guard !finishingQuit else { return }
+        finishingQuit = true
         quitDeadline?.cancel()
+        // Arm a separate background deadline before either diagnostics path.
+        // A second Quit bypasses drains, but still admits the Runtime helper.
+        let exitGate = NativeDiagnosticExit { NativeDiagnosticExit.terminateProcess(timedOut: $0) }
+        exitCleanup?.prepareForExit()
         interactionServer?.stop()
-        startup.cancel(); NativePerformance.finish()
-        exit(EXIT_SUCCESS)
+        startup.cancel()
+        NativeLayoutDiagnostics.finish { exitGate.completedDrain() }
+        DispatchQueue.global(qos: .utility).async {
+            NativePerformance.finish()
+            exitGate.completedDrain()
+        }
     }
     private struct SavedZoom: Codable { let level: Double }
 }
@@ -196,6 +213,7 @@ private struct WorkspaceWindow: View {
             .disabled(session.busy)
         }
         .modifier(NativeWorkspaceWindowSurface())
+        .nativeLayoutLog("workspace.window")
         .onAppear { session.start() }
         .onDisappear { session.quit() }
         .alert("Mokusei", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
@@ -215,6 +233,7 @@ private struct LaunchOptions {
     let dataDirectory: URL
     let launch: RuntimeLaunchConfiguration?
     let automationSocket: String?
+    let explicitDataDirectory: Bool
 
     init() throws {
         let arguments = Array(CommandLine.arguments.dropFirst())
@@ -231,6 +250,7 @@ private struct LaunchOptions {
             index += 2
         }
         automationSocket = options["--automation-socket"]
+        explicitDataDirectory = options["--data-dir"] != nil
         if automationSocket != nil, options["--data-dir"] == nil {
             throw NSError(domain: "MokuseiLaunch", code: 4,
                           userInfo: [NSLocalizedDescriptionKey: "Automation requires an explicit --data-dir."])

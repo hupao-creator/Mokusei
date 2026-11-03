@@ -1,0 +1,530 @@
+{
+  "date": "2026-11-03",
+  "scope": "Manual measurement and runtime observations; no tests or CI",
+  "integrationBaseline": "9a65b0f",
+  "originalReference": "359ca57",
+  "macOS": "26.5.1",
+  "architecture": "arm64",
+  "compilerFlags": [
+    "-O",
+    "-D DEBUG",
+    "-swift-version 6"
+  ],
+  "workload": {
+    "nativeLeaves": 1500,
+    "mainUpdateIntervalMs": 8,
+    "warmupTicks": 250,
+    "totalTicks": 1000,
+    "measuredTicks": 751,
+    "measuredWindowSeconds": 6,
+    "notes": "Accessory window, two marked SwiftUI surfaces, no user content. CPU via thread_info(main thread) and getrusage(process). No concurrent compiler during measurements. update latency excludes asynchronously scheduled discovery slices; main CPU includes them."
+  },
+  "sourceSHA256": {
+    "app/macos/Sources/Shared/PluginUI/Design/NativeLayoutLogWriter.swift": "cbf780c41d2260a181af3f77df6965ee792a2ee7274476841230ad9a781ec117",
+    "app/macos/Sources/Shared/PluginUI/Design/NativeLayoutDiagnostics.swift": "b7e448d5dd0da0261b5019e9e3a8535dc2af710bfde4c48838665a273f74019c",
+    "app/macos/Sources/App/NativeDiagnosticExit.swift": "d6d634433f3401a862af052952c0c9b9316417d7f82794bc7ebe9a0fddf92aa3",
+    "app/macos/Sources/Core/NativePerformance.swift": "e3a59de13c9446e76441ff4169cd942d258e612c50c23b9ed5cde1a573ad871a",
+    "app/macos/Sources/App/Mokusei.swift": "db819940fa12659fe5fd54d8a97904fae789434200235c41ed8b5292e771fe7e",
+    "app/macos/Sources/App/NativeRuntimeExitCleanup.swift": "74a3ec02038074050342f48f81ffc29c6bd3a5e7d2caaad3e8e6d8b7e6dc91b3"
+  },
+  "results": [
+    {
+      "scenario": "completed-io-failure",
+      "return": 0,
+      "elapsed": 4.381744124926627,
+      "summary": {
+        "disabledTick": 53,
+        "enabledAtFinish": false,
+        "exitTimedOut": false,
+        "exitWaitMs": 0.472959,
+        "flagsAt40": true,
+        "mainCPUSeconds": 0.23402100000000003,
+        "measurementOnMainThread": true,
+        "mode": "failure",
+        "nativeFlagsBeforeStop": [
+          false,
+          false
+        ],
+        "processCPUSeconds": 0.24483400000000005,
+        "sampleCount": 251,
+        "terminationOnMainThread": true,
+        "tickCount": 500,
+        "updateMaxMs": 3.899333,
+        "updateMeanMs": 0.09355197609561751,
+        "updateP95Ms": 0.14775,
+        "wallSeconds": 2.000432041
+      }
+    },
+    {
+      "scenario": "completed-off-idle",
+      "return": 0,
+      "elapsed": 9.520541125210002,
+      "summary": {
+        "disabledTick": 40,
+        "enabledAtFinish": false,
+        "exitTimedOut": false,
+        "exitWaitMs": 0.258,
+        "flagsAt40": false,
+        "mainCPUSeconds": 0.035443,
+        "measurementOnMainThread": true,
+        "mode": "idle",
+        "nativeFlagsBeforeStop": [
+          false,
+          false
+        ],
+        "processCPUSeconds": 0.048957,
+        "sampleCount": 751,
+        "terminationOnMainThread": true,
+        "tickCount": 1000,
+        "updateMaxMs": 0.135709,
+        "updateMeanMs": 0.019423390146471358,
+        "updateP95Ms": 0.028459,
+        "wallSeconds": 6.0000145
+      }
+    },
+    {
+      "scenario": "completed-on-idle",
+      "return": 0,
+      "elapsed": 8.317003291100264,
+      "summary": {
+        "disabledTick": 0,
+        "enabledAtFinish": true,
+        "exitTimedOut": false,
+        "exitWaitMs": 3.536042,
+        "flagsAt40": true,
+        "mainCPUSeconds": 0.10256300000000002,
+        "measurementOnMainThread": true,
+        "mode": "idle",
+        "nativeFlagsBeforeStop": [
+          true,
+          true
+        ],
+        "processCPUSeconds": 0.12359699999999998,
+        "sampleCount": 751,
+        "terminationOnMainThread": true,
+        "tickCount": 1000,
+        "updateMaxMs": 0.273292,
+        "updateMeanMs": 0.056256438082556544,
+        "updateP95Ms": 0.108792,
+        "wallSeconds": 5.999361375
+      }
+    },
+    {
+      "scenario": "completed-open-failure",
+      "return": 0,
+      "elapsed": 4.3365111669991165,
+      "summary": {
+        "disabledTick": 40,
+        "enabledAtFinish": false,
+        "exitTimedOut": false,
+        "exitWaitMs": 0.2155,
+        "flagsAt40": false,
+        "mainCPUSeconds": 0.141316,
+        "measurementOnMainThread": true,
+        "mode": "failure",
+        "nativeFlagsBeforeStop": [
+          false,
+          false
+        ],
+        "processCPUSeconds": 0.149599,
+        "sampleCount": 251,
+        "terminationOnMainThread": true,
+        "tickCount": 500,
+        "updateMaxMs": 5.582917,
+        "updateMeanMs": 0.08883533864541834,
+        "updateP95Ms": 0.116083,
+        "wallSeconds": 2.000152416
+      }
+    },
+    {
+      "scenario": "completed-slow-atexit",
+      "return": 0,
+      "elapsed": 3.091176750138402,
+      "summary": {
+        "disabledTick": 0,
+        "enabledAtFinish": true,
+        "exitTimedOut": true,
+        "exitWaitMs": 786.911208,
+        "flagsAt40": true,
+        "mainCPUSeconds": 0.00022400000000000198,
+        "measurementOnMainThread": true,
+        "mode": "slow-atexit",
+        "nativeFlagsBeforeStop": [
+          true,
+          true
+        ],
+        "processCPUSeconds": 0.00023100000000000898,
+        "sampleCount": 1,
+        "terminationOnMainThread": false,
+        "tickCount": 250,
+        "updateMaxMs": 0.103208,
+        "updateMeanMs": 0.103208,
+        "updateP95Ms": 0.103208,
+        "wallSeconds": 0.000137083
+      }
+    },
+    {
+      "scenario": "completed-slow-end",
+      "return": 0,
+      "elapsed": 3.1380772918928415,
+      "summary": {
+        "disabledTick": 0,
+        "enabledAtFinish": true,
+        "exitTimedOut": true,
+        "exitWaitMs": 786.716542,
+        "flagsAt40": true,
+        "mainCPUSeconds": 0.00010200000000001874,
+        "measurementOnMainThread": true,
+        "mode": "exit",
+        "nativeFlagsBeforeStop": [
+          true,
+          true
+        ],
+        "processCPUSeconds": 0.00010899999999999799,
+        "sampleCount": 1,
+        "terminationOnMainThread": false,
+        "tickCount": 250,
+        "updateMaxMs": 0.054042,
+        "updateMeanMs": 0.054042,
+        "updateP95Ms": 0.054042,
+        "wallSeconds": 7.4e-05
+      }
+    },
+    {
+      "scenario": "completed-slow-performance",
+      "return": 0,
+      "elapsed": 3.159157667076215,
+      "summary": {
+        "disabledTick": 0,
+        "enabledAtFinish": true,
+        "exitTimedOut": true,
+        "exitWaitMs": 785.906583,
+        "flagsAt40": true,
+        "mainCPUSeconds": 8.400000000000074e-05,
+        "measurementOnMainThread": true,
+        "mode": "slow-perf",
+        "nativeFlagsBeforeStop": [
+          true,
+          true
+        ],
+        "processCPUSeconds": 8.800000000000474e-05,
+        "sampleCount": 1,
+        "terminationOnMainThread": false,
+        "tickCount": 250,
+        "updateMaxMs": 0.041083,
+        "updateMeanMs": 0.041083,
+        "updateP95Ms": 0.041083,
+        "wallSeconds": 6.4542e-05
+      }
+    }
+  ],
+  "footerObservations": {
+    "completed-io-failure": {
+      "layout": {
+        "bytes": 405700,
+        "sessionEnd": false,
+        "records": 1565,
+        "dataLoss": 0,
+        "tailFlag": true
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-off-idle": {
+      "layout": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-on-idle": {
+      "layout": {
+        "bytes": 399061,
+        "sessionEnd": true,
+        "records": 1545,
+        "dataLoss": 0,
+        "tailFlag": true
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-open-failure": {
+      "layout": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-slow-atexit": {
+      "layout": {
+        "bytes": 399072,
+        "sessionEnd": true,
+        "records": 1545,
+        "dataLoss": 0,
+        "tailFlag": true
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-slow-end": {
+      "layout": {
+        "bytes": 399071,
+        "sessionEnd": false,
+        "records": 1544,
+        "dataLoss": 0,
+        "tailFlag": true
+      },
+      "performance": {
+        "bytes": 0,
+        "sessionEnd": false,
+        "records": 0,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    },
+    "completed-slow-performance": {
+      "layout": {
+        "bytes": 399056,
+        "sessionEnd": true,
+        "records": 1545,
+        "dataLoss": 0,
+        "tailFlag": true
+      },
+      "performance": {
+        "bytes": 352,
+        "sessionEnd": false,
+        "records": 2,
+        "dataLoss": 0,
+        "tailFlag": false
+      }
+    }
+  },
+  "originalIdleReference": {
+    "disabledTick": 0,
+    "enabledAtFinish": true,
+    "exitTimedOut": false,
+    "exitWaitMs": 0.8415,
+    "flagsAt40": true,
+    "mainCPUSeconds": 0.552164,
+    "measurementOnMainThread": true,
+    "mode": "idle",
+    "nativeFlagsBeforeStop": [
+      true,
+      true
+    ],
+    "processCPUSeconds": 0.566508,
+    "sampleCount": 751,
+    "tickCount": 1000,
+    "updateMaxMs": 4.185541,
+    "updateMeanMs": 0.7236260932090551,
+    "updateP95Ms": 1.062875,
+    "wallSeconds": 6.001212917
+  },
+  "earlierIdlePairs": [
+    {
+      "disabledTick": 40,
+      "enabledAtFinish": false,
+      "exitTimedOut": false,
+      "exitWaitMs": 0.320916,
+      "flagsAt40": false,
+      "mainCPUSeconds": 0.03859600000000002,
+      "measurementOnMainThread": true,
+      "mode": "idle",
+      "nativeFlagsBeforeStop": [
+        false,
+        false
+      ],
+      "processCPUSeconds": 0.05270600000000003,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 0.146042,
+      "updateMeanMs": 0.021780777629826904,
+      "updateP95Ms": 0.038417,
+      "wallSeconds": 5.998785416
+    },
+    {
+      "disabledTick": 0,
+      "enabledAtFinish": true,
+      "exitTimedOut": false,
+      "exitWaitMs": 0.811333,
+      "flagsAt40": true,
+      "mainCPUSeconds": 0.10445899999999997,
+      "measurementOnMainThread": true,
+      "mode": "idle",
+      "nativeFlagsBeforeStop": [
+        true,
+        true
+      ],
+      "processCPUSeconds": 0.12582600000000002,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 0.814417,
+      "updateMeanMs": 0.05809181358189078,
+      "updateP95Ms": 0.110125,
+      "wallSeconds": 5.999788
+    },
+    {
+      "disabledTick": 0,
+      "enabledAtFinish": true,
+      "exitTimedOut": false,
+      "exitWaitMs": 0.777375,
+      "flagsAt40": true,
+      "mainCPUSeconds": 0.10180299999999998,
+      "measurementOnMainThread": true,
+      "mode": "idle",
+      "nativeFlagsBeforeStop": [
+        true,
+        true
+      ],
+      "processCPUSeconds": 0.12348,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 1.027417,
+      "updateMeanMs": 0.06059992676431427,
+      "updateP95Ms": 0.1075,
+      "wallSeconds": 6.00809975
+    },
+    {
+      "disabledTick": 40,
+      "enabledAtFinish": false,
+      "exitTimedOut": false,
+      "exitWaitMs": 0.170792,
+      "flagsAt40": false,
+      "mainCPUSeconds": 0.04541500000000001,
+      "measurementOnMainThread": true,
+      "mode": "idle",
+      "nativeFlagsBeforeStop": [
+        false,
+        false
+      ],
+      "processCPUSeconds": 0.06124099999999999,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 0.725125,
+      "updateMeanMs": 0.028354118508655105,
+      "updateP95Ms": 0.0435,
+      "wallSeconds": 6.000016375
+    }
+  ],
+  "knownMotionObservation": {
+    "on": {
+      "disabledTick": 0,
+      "enabledAtFinish": true,
+      "exitTimedOut": false,
+      "exitWaitMs": 1.527958,
+      "flagsAt40": true,
+      "mainCPUSeconds": 0.503415,
+      "measurementOnMainThread": true,
+      "mode": "motion",
+      "nativeFlagsBeforeStop": [
+        true,
+        true
+      ],
+      "processCPUSeconds": 0.562412,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 4.603542,
+      "updateMeanMs": 0.12067407856191746,
+      "updateP95Ms": 0.207084,
+      "wallSeconds": 5.999808125
+    },
+    "off": {
+      "disabledTick": 40,
+      "enabledAtFinish": false,
+      "exitTimedOut": false,
+      "exitWaitMs": 2.232334,
+      "flagsAt40": false,
+      "mainCPUSeconds": 0.32603800000000005,
+      "measurementOnMainThread": true,
+      "mode": "motion",
+      "nativeFlagsBeforeStop": [
+        false,
+        false
+      ],
+      "processCPUSeconds": 0.347543,
+      "sampleCount": 751,
+      "tickCount": 1000,
+      "updateMaxMs": 1.505167,
+      "updateMeanMs": 0.061108103861517986,
+      "updateP95Ms": 0.085083,
+      "wallSeconds": 5.996707042
+    },
+    "scope": "Observer/writer collection paths identical; measured before final exit-actor handoff and numeric IO-error metadata changes. Not evidence for the final exit path."
+  },
+  "initialFailure": "A main-actor atexit callback trapped (SIGTRAP) when ordinary exit was called on a writer queue. Normal exit was moved to the main queue; completed-slow-atexit uses that same callback and was terminated by the independent hard deadline.",
+  "limitations": [
+    "Synthetic small native hierarchy, not a real loaded Thread or foreground optical frame-rate capture.",
+    "Original idle reference is one run, without counterbalanced old/new runs.",
+    "No physical slow disk, actual full volume or real blocked helper spawn; IO errors/stalls interposed only in the disposable manual process.",
+    "No real-app Quit/unsaved-Settings/second-Quit interaction replay, concurrent pruning, long-run rotation, mailbox overflow or full-screen/multi-display run."
+  ],
+  "unifiedLog": [
+    "Timestamp               Ty Process[PID:TID]",
+    "2026-11-03 18:44:00.808 E  mokusei-layout-review-manual[4633:5fd0e67] [com.mokusei.desktop:layout] Layout log IO failed domain=cocoa code=640; collection stopped; diagnostic tail may be lost",
+    "2026-11-03 18:44:07.523 E  mokusei-layout-review-manual[4634:5fd0e92] [com.mokusei.desktop:layout] Diagnostic exit deadline reached after 750ms; diagnostic tail may be lost; forcing exit without waiting for drain or atexit",
+    "2026-11-03 18:44:10.658 E  mokusei-layout-review-manual[4749:5fd10c4] [com.mokusei.desktop:layout] Diagnostic exit deadline reached after 750ms; diagnostic tail may be lost; forcing exit without waiting for drain or atexit",
+    "2026-11-03 18:44:13.746 E  mokusei-layout-review-manual[4766:5fd1132] [com.mokusei.desktop:layout] Diagnostic exit deadline reached after 750ms; diagnostic tail may be lost; forcing exit without waiting for drain or atexit",
+    "2026-11-03 18:44:14.043 E  mokusei-layout-review-manual[4801:5fd11c6] [com.mokusei.desktop:layout] Layout log IO failed domain=cocoa code=512; collection stopped; diagnostic tail may be lost"
+  ],
+  "initialFailureEvidence": {
+    "pid": 99172,
+    "exception": "EXC_BREAKPOINT/SIGTRAP",
+    "faultingThread": 3,
+    "stack": [
+      "__cxa_finalize_ranges",
+      "exit",
+      "closure in Manual.main",
+      "swift_task_isCurrentExecutorWithFlagsImpl",
+      "_swift_task_checkIsolatedSwift",
+      "dispatch_assert_queue",
+      "_dispatch_assert_queue_fail"
+    ],
+    "source": "Own manual process DiagnosticReports .ips; normal termination was subsequently dispatched to main and the same actor-isolated atexit delay reran successfully."
+  },
+  "applicationBuilds": {
+    "debug": {
+      "command": "xcrun swift build --package-path app/macos --configuration debug --product Mokusei --disable-sandbox",
+      "exit": 0,
+      "seconds": 9.9
+    },
+    "release": {
+      "command": "xcrun swift build --package-path app/macos --configuration release --product Mokusei --disable-sandbox",
+      "exit": 0,
+      "seconds": 177.89
+    },
+    "testsCIHooksRun": false
+  }
+}

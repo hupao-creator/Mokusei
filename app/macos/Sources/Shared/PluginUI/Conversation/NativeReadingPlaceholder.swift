@@ -21,6 +21,7 @@ public struct NativeReadingPlaceholder: View {
             .padding(.horizontal, placement == .surface ? 18 : 0)
             .frame(maxWidth: .infinity, maxHeight: placement == .surface ? .infinity : nil,
                    alignment: placement == .surface ? .center : .leading)
+            .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.
             .opacity(visible ? 1 : 0)

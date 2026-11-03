@@ -561,6 +561,7 @@ public struct NativeWorkspaceView: View {
         .environment(\.nativeOfflineDraftEditing, model.hasInitialContent && !model.runtimeAvailable && !model.stopping)
         .environment(\.nativeCanvasInputRegions, canvasInputRegions)
         .coordinateSpace(name: "workspace")
+        .nativeLayoutLog("workspace.surface")
         .preferredColorScheme(model.preferences.appearance == .system ? nil : model.preferences.appearance == .dark ? .dark : .light)
         .onChange(of: scenePhase, initial: true) { _, phase in presentation.setScenePhase(phase) }
         .focusedSceneValue(\.workspacePresentation, presentation)

@@ -172,6 +172,7 @@ public struct ThreadConversation: View {
                 readingLayout.nativeReadingScope(interactionScope)
             }
         }
+        .nativeLayoutLog("conversation.reader")
         .font(NativeTypography.inter(size: 16))
         .environment(\.nativeInteractionQuestionInDocument, true)
         .foregroundStyle(NativePalette.thread.ink.swiftUI)

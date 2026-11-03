@@ -50,6 +50,10 @@ and the `Mokusei Native Dev` profile. Production uses `com.mokusei.desktop`,
 binary is built at `.build/go/mokusei-runtime`. A raw Swift executable can use
 `--runtime /absolute/path/to/mokusei-runtime --data-dir /isolated/profile`.
 
+Dev applications automatically write bounded layout-change JSONL under their
+profile's `diagnostics/layout/`. See [layout logging](layout-logging.md) for
+enablement, file discovery, coordinate semantics, coverage and costs.
+
 Build and package do not install applications. `install` refuses to replace a
 running installed app, verifies a private staged copy, and restores the previous
 installation if publication fails. Specify `--destination` only when intending
