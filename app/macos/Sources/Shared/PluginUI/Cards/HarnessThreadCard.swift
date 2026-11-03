@@ -115,7 +115,11 @@ private struct ThreadCardIdentity: View {
             else if let state = identity.state { Text(state).font(NativeTypography.inter(size: 12, weight: 650)).padding(.bottom, 6).padding(.trailing, cornerClearance) }
             CardTitleSwap(text: identity.title)
                 .foregroundStyle(NativePalette.overview.ink.swiftUI)
-                .lineLimit(2).padding(.trailing, cornerClearance).help(identity.title)
+                // Generated titles can replace a two-line prompt with one line
+                // as the first reply arrives. Keep metadata and body anchored.
+                .lineLimit(2, reservesSpace: true)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.trailing, cornerClearance).help(identity.title)
             if identity.harness != nil || identity.model != nil || effort != nil || identity.fastMode {
                 HStack(spacing: 5) {
                     if let harnessLogo { harnessLogo.frame(width: 12, height: 12) }

@@ -353,6 +353,13 @@ Remote Markdown images use URLSession HTTP caching and revalidation, with no pro
 ## Cards, composer and forms
 
 Shared Harness card components keep task identity, usage, plan and extension layout consistent.
+The identity title reserves its existing two-line limit, including for short
+titles, and retains that height under vertical compression. A generated title
+replacing a wrapped prompt therefore does not pull model, runtime or body upward
+when the first reply arrives. This uses the measured font and available width;
+outer card sizes, body line limits, state content and accessibility labels remain
+owned by their existing components. Short titles leave the second title line
+empty rather than giving that space to the excerpt.
 `HarnessThreadCard` and the Overview semantic boundary supply
 `threadCardUsesFlatMaterials`: terminal badges and provider badges without an
 emoji use static palette fills, and the in-progress plan row uses the accent-soft
