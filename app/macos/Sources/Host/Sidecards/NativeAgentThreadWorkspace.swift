@@ -122,6 +122,7 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @FocusState private var focusedLauncher: JSONText?
+    @State private var launcherFrames: [JSONText: CGRect] = [:]
     @State private var handoffProgress: CGFloat = 0
     @State private var handoffOpacity: Double = 1
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
@@ -132,9 +133,6 @@ struct NativeSidecardWorkspaceLayout: View {
     private var dividerHitWidth: CGFloat {
         6
     }
-    private var launcherSize: CGSize {
-        CGSize(width: 32, height: 30)
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -142,36 +140,48 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
-            ZStack(alignment: .topLeading) {
-                mainConversation
-                    .frame(width: snapshot.handoff?.travelComplete == true ? panelSize.width : layout.mainWidth,
-                           height: snapshot.handoff?.travelComplete == true ? panelSize.height : layout.mainHeight, alignment: .topLeading)
-                    .background(NativePalette.thread.canvas.swiftUI)
-                    .background(NativeReadingPanelFrame())
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                    .accessibilityIdentifier("agent-reading-panel")
-                    .nativeLayoutLog("agent.reading.panel")
-                    .allowsHitTesting(snapshot.handoff == nil)
-                    .accessibilityHidden(snapshot.handoff != nil)
-                if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
-                    NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
-                        onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
-                        onDraggingChange: model.setDragging)
-                        .frame(width: dividerHitWidth, height: geometry.size.height)
-                        .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
-                        .zIndex(2)
-                        .accessibilityLabel(localize("调整卡片宽度", "Resize card"))
+            launchers
+                .position(x: panelSize.width + 38, y: panelSize.height / 2)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .backgroundPreferenceValue(NativeSidecardLauncherAnchors.self) { anchors in
+                    GeometryReader { proxy in
+                        let frames = anchors.mapValues { proxy[$0] }
+                        ZStack(alignment: .topLeading) {
+                            mainConversation
+                                .frame(width: snapshot.handoff?.travelComplete == true ? panelSize.width : layout.mainWidth,
+                                       height: snapshot.handoff?.travelComplete == true ? panelSize.height : layout.mainHeight, alignment: .topLeading)
+                                .background(NativePalette.thread.canvas.swiftUI)
+                                .background(NativeReadingPanelFrame())
+                                .clipShape(RoundedRectangle(cornerRadius: 22))
+                                .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+                                .accessibilityIdentifier("agent-reading-panel")
+                                .nativeLayoutLog("agent.reading.panel")
+                                .allowsHitTesting(snapshot.handoff == nil)
+                                .accessibilityHidden(snapshot.handoff != nil)
+                            if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
+                                NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
+                                    onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
+                                    onDraggingChange: model.setDragging)
+                                    .frame(width: dividerHitWidth, height: geometry.size.height)
+                                    .offset(x: layout.mainWidth + (16 - dividerHitWidth) / 2)
+                                    .zIndex(2)
+                                    .accessibilityLabel(localize("调整卡片宽度", "Resize card"))
+                            }
+                            // All sessions remain in this ForEach, including folded and
+                            // suppressed cards, so child Harness interaction state survives.
+                            ForEach(snapshot.cards) { card in
+                                sidecard(card, layout: layout, source: frames[card.id] ?? launcherFrames[card.id])
+                            }
+                        }
+                        .onChange(of: frames, initial: true) { _, current in
+                            // Retiring availability can remove the anchor before
+                            // its card finishes folding. Keep its last real seat.
+                            launcherFrames.merge(current, uniquingKeysWith: { _, next in next })
+                        }
+                    }
                 }
-                // All sessions remain in this ForEach, including folded and
-                // suppressed cards, so child Harness interaction state survives.
-                ForEach(snapshot.cards) { card in
-                    sidecard(card, layout: layout)
-                }
-                launchers.position(x: panelSize.width + 38, y: panelSize.height / 2)
-            }
-            .animation(animation, value: snapshot.selected)
-            .animation(animation, value: layout.stacked)
+                .animation(animation, value: snapshot.selected)
+                .animation(animation, value: layout.stacked)
         }
         .nativeReadingExitCommand {
             closeTopLevel()
@@ -243,33 +253,29 @@ struct NativeSidecardWorkspaceLayout: View {
         else { model.closeThread() }
     }
 
-    private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry) -> some View {
+    private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry, source: CGRect?) -> some View {
         let expanded = snapshot.selected == card.id
         let promoting = snapshot.handoff?.cardID == card.id
         let progress = promoting ? handoffProgress : 0
-        let availableIndex = snapshot.available.firstIndex(where: { $0.id == card.id }) ?? 0
-        let trailingLaunchers = max(0, snapshot.available.count - availableIndex - 1)
-        let foldedX = -6 - CGFloat(trailingLaunchers) * launcherSize.width
-        let foldedY: CGFloat = 6 - (layout.stacked ? layout.size.height / 2 : 0)
+        let destination = CGRect(
+            x: layout.surfaceX * (1 - progress), y: layout.surfaceY * (1 - progress),
+            width: layout.surfaceWidth + (layout.size.width - layout.surfaceWidth) * progress,
+            height: layout.surfaceHeight + (layout.size.height - layout.surfaceHeight) * progress)
         return Group {
             if preparing { Color.clear } else { card.view.content }
         }
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.
             .environment(\.nativeReadingNavigation, nil)
-            .frame(width: layout.surfaceWidth + (layout.size.width - layout.surfaceWidth) * progress,
-                   height: layout.surfaceHeight + (layout.size.height - layout.surfaceHeight) * progress, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-            .modifier(NativeSidecardFold(progress: expanded ? 1 : 0))
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16)) { content in
-                content.opacity(expanded ? (promoting ? handoffOpacity : 1) : 0)
-            }
-            .offset(x: layout.surfaceX * (1 - progress) + (expanded ? 0 : foldedX),
-                    y: layout.surfaceY * (1 - progress) + (expanded ? 0 : foldedY))
-            .zIndex(promoting ? 3 : 0)
+            .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source, destination: destination,
+                frameIdentifier: "sidecard-aperture-" + card.id.string))
+            .opacity(promoting ? handoffOpacity : 1)
+            .zIndex(promoting ? 3 : expanded ? 1 : 0)
             .allowsHitTesting(expanded && !snapshot.suppressed)
             // Native documents retain their suppression policy during travel;
             // the separate launcher remains available to reverse the choice.
@@ -299,6 +305,7 @@ struct NativeSidecardWorkspaceLayout: View {
                                 }
                             }
                     }
+                    .anchorPreference(key: NativeSidecardLauncherAnchors.self, value: .bounds) { [card.id: $0] }
                     .buttonStyle(.plain)
                     .glassEffect(.regular.tint(snapshot.selected == card.id ? .blue.opacity(0.18) : .clear).interactive(), in: .circle)
                     .focused($focusedLauncher, equals: card.id)
@@ -349,5 +356,12 @@ public struct NativeSidecardWorkspaceGeometry {
         surfaceHeight = max(0, stacked ? (size.height - 16) / 2 : size.height)
         surfaceX = max(0, size.width - surfaceWidth)
         surfaceY = stacked ? (size.height + 16) / 2 : 0
+    }
+}
+
+private struct NativeSidecardLauncherAnchors: PreferenceKey {
+    static let defaultValue: [JSONText: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [JSONText: Anchor<CGRect>], nextValue: () -> [JSONText: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
     }
 }
