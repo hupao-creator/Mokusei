@@ -20,7 +20,7 @@ enum NativeMokuCapsuleLayout {
 
     static func surface(in frame: CGRect, expanded: Bool, height: CGFloat, centered: Bool = false) -> CGRect {
         let width = expanded ? frame.width : min(idleSize.width, frame.width)
-        let height = expanded ? height : idleSize.height
+        let height = min(max(0, expanded ? height : idleSize.height), frame.height)
         return CGRect(x: frame.midX - width / 2, y: centered ? frame.midY - height / 2 : frame.maxY - height,
                       width: width, height: height)
     }

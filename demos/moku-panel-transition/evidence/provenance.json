@@ -1,0 +1,11 @@
+{
+  "baseCommit": "9e3a941e913fd6cc24ffc4a00f661b616f93a804",
+  "remoteMainInspected": "8ca887b832aae6dd788781bb36df0b080533ba7f",
+  "sources": {
+    "app/macos/Sources/Host/MokuScene/NativeMokuDock.swift": "175b12562d4116da5adeab2197ae09a696392cb3511cdd9556834209a263002b",
+    "app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift": "3ede5a7d2ac310cad485fc8314425a29435e330d08af97f56604dacf70595ce1",
+    "app/macos/Sources/Host/MokuScene/NativeMokuComposer.swift": "579d169080fc88fa89b7d0f7b03ad2da20b8cb066c6d667ef30a2be0b4f71cfe",
+    "demos/moku-panel-transition/main.swift": "6e053b8a44658f2a6b9294a3a25fc00fef9cf19b8b16703acd0e75a8a66fb78a",
+    "demos/moku-panel-transition/build.py": "c39cd565cedeb46b9ac0522f4750047bcada786d9c92fd8dbb897b4765c764a3"
+  }
+}

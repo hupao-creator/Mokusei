@@ -68,6 +68,19 @@ The native transition replay checks the mounted eye seat's window-space trajecto
 interrupted input transitions, plus its alignment with the actual editor during
 menu opening, filtering, Escape and rapid reversal in bottom and landing layouts.
 
+Input collapse fades the retained editor within 120ms of the close intent, even
+while `inputLeaving` keeps its native lifetime for 420ms. The shell and the single
+face seat share destination geometry in the same animation transaction; no
+delayed expansion fraction or intrinsic/fixed row switch drives the eyes.
+The shell is positioned by its bottom edge so height changes cannot first move
+AppKit text to a new row and then translate it back. Native editor internals lay
+out at their destination width while the shell reveals/clips them. Below 260pt
+of capsule width a persistent four-seat Layout gives text/attachment and
+eyes/actions separate rows, preserving the same native editor through resize.
+The surface height stays within the available viewport. Reduce Motion disables
+shell and ink animation. The [isolated panel preview](../../../../../demos/moku-panel-transition/README.md)
+records this repair's source-video evidence, local validation and limits.
+
 An initialized workspace with no globally eligible, unarchived conversation cards
 opens the same Dock at the visual center: 680×76 points, 16-point text and at least
 24-point horizontal viewport margins. Moku and its archived history do not count

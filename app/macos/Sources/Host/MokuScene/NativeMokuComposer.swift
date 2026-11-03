@@ -27,6 +27,51 @@ struct NativeMokuComposerCompletion: View {
     }
 }
 
+/// Reflows the four persistent seats without replacing the native editor at a
+/// width breakpoint; focus, selection and marked text belong to that same view.
+private struct NativeMokuComposerRowLayout: Layout {
+    var compact: Bool
+
+    private func sizes(_ subviews: Subviews, width: CGFloat) -> [CGSize] {
+        let eye = subviews[0].sizeThatFits(.unspecified)
+        let attachment = subviews[1].sizeThatFits(.unspecified)
+        let actions = subviews[3].sizeThatFits(.unspecified)
+        let editorWidth = max(0, width - attachment.width - (compact ? 0 : eye.width + actions.width))
+        let editor = subviews[2].sizeThatFits(.init(width: editorWidth, height: nil))
+        return [eye, attachment, CGSize(width: editorWidth, height: editor.height), actions]
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 560
+        let seats = sizes(subviews, width: width)
+        let height = compact ? max(seats[1].height, seats[2].height) + 40
+            : seats.map(\.height).max()!
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let seats = sizes(subviews, width: bounds.width)
+        if compact {
+            let upper = max(seats[1].height, seats[2].height)
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY + upper + 17),
+                anchor: .leading, proposal: .init(seats[0]))
+            subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.minY + upper / 2),
+                anchor: .leading, proposal: .init(seats[1]))
+            subviews[2].place(at: CGPoint(x: bounds.minX + seats[1].width, y: bounds.minY + upper / 2),
+                anchor: .leading, proposal: .init(seats[2]))
+            subviews[3].place(at: CGPoint(x: bounds.maxX, y: bounds.minY + upper + 17),
+                anchor: .trailing, proposal: .init(seats[3]))
+        } else {
+            var x = bounds.minX
+            for index in seats.indices {
+                subviews[index].place(at: CGPoint(x: x, y: bounds.midY),
+                    anchor: .leading, proposal: .init(seats[index]))
+                x += seats[index].width
+            }
+        }
+    }
+}
+
 /// The input row used by both the outside Dock and the permanently open history
 /// capsule. The scene supplies authority, draft lifetime and voice ownership.
 struct NativeMokuComposerInput: View {
@@ -40,6 +85,7 @@ struct NativeMokuComposerInput: View {
     var suppressInitialFocus = false
     var maxHeight: CGFloat = 126
     var landing = false
+    var compact = false
     var retainedText: String?
     var retainedAttachments: [NativeComposerAttachment]?
     var retainedDirectories: [NativeComposerDirectory]?
@@ -123,84 +169,13 @@ struct NativeMokuComposerInput: View {
                 containerRadius: NativeMokuCapsuleLayout.cornerRadius,
                 onRemove: { id in Task { await draft.removeAttachment(id) } }, onRemoveDirectory: draft.removeDirectory)
                 .disabled(unavailable || readOnly)
-            HStack(spacing: 0) {
-                // This leading seat belongs to Moku's eyes, which the Dock
-                // paints above the editor. Keep it non-interactive now that the
-                // old voice-reveal button is gone.
-                Color.clear.frame(width: 43, height: 34)
-                    .overlay {
-                        if showsEyes {
-                            NativeMokuBlinkingEyes(expression: .focus, focus: 1)
-                                .frame(width: 34, height: 25).offset(x: 4.5)
-                                .allowsHitTesting(false).accessibilityHidden(true)
-                        }
-                    }
-                    .allowsHitTesting(false)
+            NativeMokuComposerRowLayout(compact: compact) {
+                eyeSeat
                 attachmentButton
-                NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
-                    placeholder: placeholder, disabled: editingUnavailable, readOnly: readOnly,
-                    focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
-                    suppressInitialFocus: suppressInitialFocus,
-                    minHeight: landing ? 76 : 58, maxHeight: maxHeight,
-                    fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
-                    insets: .init(top: landing ? 26 : 19, left: 6, bottom: landing ? 26 : 19, right: 6),
-                    onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
-                    onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
-                    selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
-                        onEditorStateChange?(state)
-                    }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
-                    .overlay {
-                        NativeMokuLongPressVoiceMonitor(
-                            isActive: { threadTitle == nil && focusEnabled && !unavailable && !readOnly && !voiceModeActive },
-                            canStart: canStartVoice, start: startVoice)
-                            .allowsHitTesting(false)
-                    }
-                    .help(threadTitle == nil
-                        ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
-                        : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread"))
-                    .accessibilityActions {
-                        if threadTitle == nil {
-                            Button(localize("开始语音", "Start voice")) {
-                                if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
-                            }
-                        }
-                    }
-                // Keep the seat while it opens, without mounting an inactive
-                // voice entry. The workspace retains the media client itself.
-                ZStack {
-                    if voiceControlsVisible {
-                        activeVoiceControls.fixedSize(horizontal: true, vertical: true)
-                            .transition(.opacity)
-                    }
-                }
-                    .frame(width: voiceControlsVisible ? 34 : 0, height: 34)
-                    .clipped()
-                    .disabled(!voiceControlsVisible)
-                    .allowsHitTesting(voiceControlsVisible)
-                    .accessibilityHidden(!voiceControlsVisible)
-                if running && !voiceModeActive {
-                    Button(action: onCancel) {
-                        RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
-                            .frame(width: 32, height: 32).contentShape(Circle())
-                    }.buttonStyle(.plain).disabled(unavailable || readOnly)
-                        .help(stopLabel)
-                        .accessibilityLabel(stopLabel)
-                        .accessibilityIdentifier("moku-stop")
-                }
-                // Retain the editor's width when the first/last character
-                // changes, but mount no button or background for an empty draft.
-                ZStack {
-                    if hasInput {
-                        Button(action: onSend) {
-                            NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
-                                .background(Color.primary.opacity(0.18), in: Circle())
-                        }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly)
-                            .opacity(!unavailable && draft.canSubmit ? 1 : 0.3)
-                            .accessibilityLabel(localize("发送", "Send")).accessibilityIdentifier("moku-send")
-                    }
-                }.frame(width: 32, height: 32)
+                editor
+                HStack(spacing: 0) { actions }
             }.padding(.leading, 6).padding(.trailing, 13)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { editorRowHeight = $0 }
+                .onGeometryChange(for: CGFloat.self) { compact ? 34 : $0.size.height } action: { editorRowHeight = $0 }
                 .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
                 Text(composerLocalized(error, locale: locale)).font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
@@ -211,9 +186,89 @@ struct NativeMokuComposerInput: View {
             // Sizes are local to the row. Resolving an editor anchor through
             // an animating ancestor also includes its transient translation,
             // which must not be fed back into the face's bottom inset.
-            .onChange(of: editorRowHeight / 2 + errorHeight, initial: true) { _, inset in
+            .onChange(of: editorRowHeight / 2 + errorHeight + (compact ? 6 : 0), initial: true) { _, inset in
                 onEditorSeatChange(inset)
             }
+    }
+    // At high zoom/narrow widths the editor gets its own line. Fixed action
+    // seats must never consume its entire width or compress native text to zero.
+    private var eyeSeat: some View {
+        Color.clear.frame(width: 43, height: 34)
+            .overlay {
+                if showsEyes {
+                    NativeMokuBlinkingEyes(expression: .focus, focus: 1)
+                        .frame(width: 34, height: 25).offset(x: 4.5)
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                }
+            }
+            .allowsHitTesting(false)
+    }
+    private var editor: some View {
+        NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
+            placeholder: placeholder, disabled: editingUnavailable, readOnly: readOnly,
+            focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
+            suppressInitialFocus: suppressInitialFocus,
+            minHeight: compact ? 32 : (landing ? 76 : 58), maxHeight: compact ? max(32, maxHeight - 40) : maxHeight,
+            fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
+            insets: .init(top: compact ? 6 : (landing ? 26 : 19), left: 6,
+                         bottom: compact ? 6 : (landing ? 26 : 19), right: 6),
+            onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
+            onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
+            selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
+                onEditorStateChange?(state)
+            }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
+            .overlay {
+                NativeMokuLongPressVoiceMonitor(
+                    isActive: { threadTitle == nil && focusEnabled && !unavailable && !readOnly && !voiceModeActive },
+                    canStart: canStartVoice, start: startVoice)
+                    .allowsHitTesting(false)
+            }
+            .help(threadTitle == nil
+                ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
+                : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread"))
+            .accessibilityActions {
+                if threadTitle == nil {
+                    Button(localize("开始语音", "Start voice")) {
+                        if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
+                    }
+                }
+            }
+    }
+    @ViewBuilder private var actions: some View {
+        // Keep the seat while it opens, without mounting an inactive
+        // voice entry. The workspace retains the media client itself.
+        ZStack {
+            if voiceControlsVisible {
+                activeVoiceControls.fixedSize(horizontal: true, vertical: true)
+                    .transition(.opacity)
+            }
+        }
+            .frame(width: voiceControlsVisible ? 34 : 0, height: 34)
+            .clipped()
+            .disabled(!voiceControlsVisible)
+            .allowsHitTesting(voiceControlsVisible)
+            .accessibilityHidden(!voiceControlsVisible)
+        if running && !voiceModeActive {
+            Button(action: onCancel) {
+                RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
+                    .frame(width: 32, height: 32).contentShape(Circle())
+            }.buttonStyle(.plain).disabled(unavailable || readOnly)
+                .help(stopLabel)
+                .accessibilityLabel(stopLabel)
+                .accessibilityIdentifier("moku-stop")
+        }
+        // Retain the editor's width when the first/last character
+        // changes, but mount no button or background for an empty draft.
+        ZStack {
+            if hasInput {
+                Button(action: onSend) {
+                    NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
+                        .background(Color.primary.opacity(0.18), in: Circle())
+                }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly)
+                    .opacity(!unavailable && draft.canSubmit ? 1 : 0.3)
+                    .accessibilityLabel(localize("发送", "Send")).accessibilityIdentifier("moku-send")
+            }
+        }.frame(width: 32, height: 32)
     }
     private var attachmentButton: some View {
         Group {

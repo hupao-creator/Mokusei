@@ -1,0 +1,830 @@
+[
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "1.713860208 seconds",
+    "faces" : [
+      "{{483, 30}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "00-idle",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{505, 18.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{505, 18.5}, {406, 58}}"
+    ],
+    "elapsed" : "1.754032333 seconds",
+    "faces" : [
+      "{{483, 30}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-00",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{450.36949326679382, 22.402179052371821}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{450.36949326679382, 22.402179052371821}, {406, 58}}"
+    ],
+    "elapsed" : "1.824291 seconds",
+    "faces" : [
+      "{{413.87568535798403, 31.95108952618591}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-01",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{386.67751704061499, 26.951605925670378}, {405.99999999999994, 58}}"
+    ],
+    "editorViewports" : [
+      "{{386.67751704061499, 26.951605925670378}, {405.99999999999994, 58}}"
+    ],
+    "elapsed" : "1.894285 seconds",
+    "faces" : [
+      "{{333.28583788812506, 34.225802962835246}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-02",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{344.83947409346564, 29.940037564752402}, {406.00000000000006, 58}}"
+    ],
+    "editorViewports" : [
+      "{{344.83947409346564, 29.940037564752402}, {406.00000000000006, 58}}"
+    ],
+    "elapsed" : "1.967049666 seconds",
+    "faces" : [
+      "{{280.34790599581368, 35.720018782376201}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-03",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{325.88281086939276, 31.294084937900493}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{325.88281086939276, 31.294084937900493}, {406, 58}}"
+    ],
+    "elapsed" : "2.035402416 seconds",
+    "faces" : [
+      "{{256.36192395719081, 36.39704246895019}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-04",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{316.75601220272574, 31.945999128376684}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{316.75601220272574, 31.945999128376684}, {406, 58}}"
+    ],
+    "elapsed" : "2.101145666 seconds",
+    "faces" : [
+      "{{244.81372972589787, 36.722999564188285}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-05",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{312.5120067167054, 32.249142377378234}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{312.5120067167054, 32.249142377378234}, {406, 58}}"
+    ],
+    "elapsed" : "2.167782833 seconds",
+    "faces" : [
+      "{{239.44376360072931, 36.874571188689174}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-06",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{310.57666389957672, 32.387381150030251}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{310.57666389957672, 32.387381150030251}, {406, 58}}"
+    ],
+    "elapsed" : "2.233710833 seconds",
+    "faces" : [
+      "{{236.99496248517869, 36.943690575015125}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-07",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{309.7633833936311, 32.445472614740652}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{309.7633833936311, 32.445472614740652}, {406, 58}}"
+    ],
+    "elapsed" : "2.294672583 seconds",
+    "faces" : [
+      "{{235.76338339363107, 36.945472614740652}, {58.000000000000028, 49}}"
+    ],
+    "input" : true,
+    "name" : "01-open-08",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "2.837982958 seconds",
+    "faces" : [
+      "{{235, 37}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "02-open-settled",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "2.879314875 seconds",
+    "faces" : [
+      "{{235, 37}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-00",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{328.74856124953124, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{328.74856124953124, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "2.945426291 seconds",
+    "faces" : [
+      "{{259.98797545859054, 36.294694241088109}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-01",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{398.26815149954575, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{398.26815149954575, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "3.011142291 seconds",
+    "faces" : [
+      "{{347.95153863207833, 33.811851732159084}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-02",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{449.8125887600354, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{449.8125887600354, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "3.075344958 seconds",
+    "faces" : [
+      "{{413.17103067596315, 31.97097897285596}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-03",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{478.37212414631801, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{478.37212414631801, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "3.144103 seconds",
+    "faces" : [
+      "{{449.30758565452481, 30.950995566203005}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-04",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{492.60328576589461, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{492.60328576589461, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "3.209503125 seconds",
+    "faces" : [
+      "{{467.31436158133602, 30.442739794075123}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-05",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae1e00)"
+    ],
+    "editors" : [
+      "{{499.34302935913888, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{499.34302935913888, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "3.274748791 seconds",
+    "faces" : [
+      "{{475.8422004136043, 30.202034665745032}, {58.000000000000057, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-06",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "3.340171375 seconds",
+    "faces" : [
+      "{{479.77170949783465, 30.091121102883676}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-07",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "3.4072395 seconds",
+    "faces" : [
+      "{{481.55417402999353, 30.040809603992102}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "03-close-08",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "3.932069458 seconds",
+    "faces" : [
+      "{{483, 30}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "04-closed-settled",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{403.32585416505651, 25.762438988210306}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{403.32585416505651, 25.762438988210306}, {406, 58}}"
+    ],
+    "elapsed" : "4.09481975 seconds",
+    "faces" : [
+      "{{354.35108078027559, 33.631219494105153}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "05-reverse-open",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{457.59247503248417, 28.933933479259395}, {405.99999999999994, 58}}"
+    ],
+    "editorViewports" : [
+      "{{457.59247503248417, 28.933933479259395}, {405.99999999999994, 58}}"
+    ],
+    "elapsed" : "4.242685875 seconds",
+    "faces" : [
+      "{{423.01496840844936, 31.693125891696923}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "06-reverse-close",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{371.64170093020226, 31.699365456294572}, {405.99999999999994, 58}}"
+    ],
+    "editorViewports" : [
+      "{{371.64170093020226, 31.699365456294572}, {405.99999999999994, 58}}"
+    ],
+    "elapsed" : "4.386591708 seconds",
+    "faces" : [
+      "{{314.26092770760289, 34.762796395349937}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "07-reverse-reopen",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "4.978997791 seconds",
+    "faces" : [
+      "{{235, 37}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "08-reverse-settled",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{309, 32.5}, {406, 98}}"
+    ],
+    "editorViewports" : [
+      "{{309, 32.5}, {406, 98}}"
+    ],
+    "elapsed" : "5.221751291 seconds",
+    "faces" : [
+      "{{235, 57}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "09-multiline",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{432.33686116255478, 32.5}, {406, 98}}"
+    ],
+    "editorViewports" : [
+      "{{432.33686116255478, 32.5}, {406, 98}}"
+    ],
+    "elapsed" : "5.360770208 seconds",
+    "faces" : [
+      "{{391.05888555262038, 40.009718105158299}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "10-multiline-close",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{102.30532213568637, 22.839110968555133}, {218, 98}}"
+    ],
+    "editorViewports" : [
+      "{{102.18583860607788, 22.839110968555133}, {218, 98}}"
+    ],
+    "elapsed" : "6.537169 seconds",
+    "faces" : [
+      "{{28.18583860607788, 47.339110968555133}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "11-narrow",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{420, 300}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{63.410743539256487, 12.5}, {193.5, 130}}"
+    ],
+    "editorViewports" : [
+      "{{63.440088624143129, 49.074292287541894}, {206.63820735408507, 85.764223304399351}}"
+    ],
+    "elapsed" : "6.818194458 seconds",
+    "faces" : [
+      "{{27.021402760630849, 11.858834598226025}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "12-short",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{300, 190}"
+  },
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "7.390670125 seconds",
+    "faces" : [
+      "{{121, 21.5}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "13-short-closed",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{300, 190}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0a00)"
+    ],
+    "editors" : [
+      "{{58.04672661730222, -207.04138403295659}, {72, 310}}"
+    ],
+    "editorViewports" : [
+      "{{58, 64}, {85, 34}}"
+    ],
+    "elapsed" : "8.000612166 seconds",
+    "faces" : [
+      "{{27, 22.5}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "14-tiny",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{180, 140}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{309, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "8.634844375 seconds",
+    "faces" : [
+      "{{235, 37}, {58, 49}}"
+    ],
+    "input" : true,
+    "name" : "15-no-animation-open",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : true,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{505, 32.5}, {406, 58}}"
+    ],
+    "editorViewports" : [
+      "{{505, 32.5}, {406, 58}}"
+    ],
+    "elapsed" : "8.678283458 seconds",
+    "faces" : [
+      "{{483, 30}, {58, 49}}"
+    ],
+    "input" : false,
+    "name" : "16-no-animation-close",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : true,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{249.31470089990879, 286.58823512568796}, {558, 76}}"
+    ],
+    "editorViewports" : [
+      "{{249.66556548567971, 286.25513862637797}, {558, 76}}"
+    ],
+    "elapsed" : "9.290251166000001 seconds",
+    "faces" : [
+      "{{166.68896427228563, 292.17145829092425}, {75.953202426788266, 64.167360670907328}}"
+    ],
+    "input" : true,
+    "name" : "17-landing",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+      "ObjectIdentifier(0x000000085cae0000)"
+    ],
+    "editors" : [
+      "{{396.90646931130266, 284.98088175327194}, {631.00000000000011, 86}}"
+    ],
+    "editorViewports" : [
+      "{{396.87973093588357, 285.02852673766239}, {631.07123814092279, 85.952355015609555}}"
+    ],
+    "elapsed" : "9.432365166 seconds",
+    "faces" : [
+      "{{334.23546086594632, 289.47692590459837}, {73.132971762926331, 61.784752006610177}}"
+    ],
+    "input" : false,
+    "name" : "18-landing-close",
+    "selection" : [
+      "{0, 0}"
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  },
+  {
+    "editorIDs" : [
+
+    ],
+    "editors" : [
+
+    ],
+    "editorViewports" : [
+
+    ],
+    "elapsed" : "10.047737125 seconds",
+    "faces" : [
+      "{{474, 292.72413793103379}, {75.999999999997499, 64.20689655172481}}"
+    ],
+    "input" : false,
+    "name" : "19-landing-closed",
+    "selection" : [
+
+    ],
+    "systemReduceMotion" : false,
+    "transitionsDisabled" : false,
+    "window" : "{1024, 650}"
+  }
+]
