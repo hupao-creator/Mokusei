@@ -10,6 +10,27 @@ Hosts without these hooks retain the same navigation behavior. Overview uses the
 to coalesce hidden display work while retaining native controls and authoritative
 state reception.
 
+Panel opening freezes Overview display projection immediately. The panel's
+position, rounded aperture and closing fade run on Core Animation layers in
+[NativeReadingPanelTransition](Conversation/NativeReadingPanelTransition.swift),
+with the reading view kept unmounted until the opening completes. Projection,
+Markdown delivery and TextKit work therefore cannot consume panel animation
+ticks. The retained reader has one stable native hosting view after admission;
+its environment comes from the enclosing SwiftUI surface and its layout width
+stays at the destination width throughout return travel. Reversal samples native
+presentation layers, and generation-fenced completion cannot admit or close a
+replacement route. Resize, cancellation, reduced motion and inactive scenes
+settle through the reading stack's existing ownership. Vertical history and
+non-panel navigation retain their original driver. Returning refreshes the
+retained Overview before starting a settled panel's close.
+
+Codex reading validates and decodes each changed opaque state on its background
+actor before publishing its immutable typed result. Superseded and unmounted
+requests cancel delivery. Collapsed execution work also skips native row
+construction; errors, final replies, disclosure and canonical content keep their
+existing policies. See the [investigation and manual performance evidence](../../../../../design/thread-open-animation-investigation.md)
+for measured scope and limits; no tests or CI were run for this change.
+
 ## Scrollbars
 
 [NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;

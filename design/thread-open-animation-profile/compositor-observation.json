@@ -1,0 +1,95 @@
+{
+  "method": "ScreenCaptureKit currentProcess; desktopIndependentWindow; 960x620 nonactivating own window ordered behind existing windows; gray background; 1024x630 capture, no audio; main actor synchronous sleep; no other windows captured",
+  "framesDuringBlock": [
+    {
+      "status": 0,
+      "whiteCount": 0,
+      "whiteLeft": -1,
+      "whiteRight": -1,
+      "relativeDisplayMs": 8.341,
+      "relativeCallbackMs": 8.942
+    },
+    {
+      "status": 0,
+      "whiteCount": 378,
+      "whiteLeft": 119,
+      "whiteRight": 496,
+      "relativeDisplayMs": 74.816,
+      "relativeCallbackMs": 79.975
+    },
+    {
+      "status": 0,
+      "whiteCount": 557,
+      "whiteLeft": 102,
+      "whiteRight": 658,
+      "relativeDisplayMs": 108.115,
+      "relativeCallbackMs": 112.684
+    },
+    {
+      "status": 0,
+      "whiteCount": 694,
+      "whiteLeft": 89,
+      "whiteRight": 782,
+      "relativeDisplayMs": 141.092,
+      "relativeCallbackMs": 141.892
+    },
+    {
+      "status": 0,
+      "whiteCount": 755,
+      "whiteLeft": 84,
+      "whiteRight": 838,
+      "relativeDisplayMs": 171.562,
+      "relativeCallbackMs": 172.293
+    },
+    {
+      "status": 0,
+      "whiteCount": 775,
+      "whiteLeft": 82,
+      "whiteRight": 856,
+      "relativeDisplayMs": 189.223,
+      "relativeCallbackMs": 190.223
+    },
+    {
+      "status": 0,
+      "whiteCount": 789,
+      "whiteLeft": 81,
+      "whiteRight": 869,
+      "relativeDisplayMs": 207.146,
+      "relativeCallbackMs": 208.553
+    },
+    {
+      "status": 0,
+      "whiteCount": 800,
+      "whiteLeft": 80,
+      "whiteRight": 879,
+      "relativeDisplayMs": 224.442,
+      "relativeCallbackMs": 225.929
+    },
+    {
+      "status": 0,
+      "whiteCount": 808,
+      "whiteLeft": 79,
+      "whiteRight": 886,
+      "relativeDisplayMs": 242.519,
+      "relativeCallbackMs": 243.876
+    },
+    {
+      "status": 0,
+      "whiteCount": 813,
+      "whiteLeft": 79,
+      "whiteRight": 891,
+      "relativeDisplayMs": 259.106,
+      "relativeCallbackMs": 260.67
+    },
+    {
+      "status": 0,
+      "whiteCount": 818,
+      "whiteLeft": 78,
+      "whiteRight": 895,
+      "relativeDisplayMs": 276.42,
+      "relativeCallbackMs": 277.898
+    }
+  ],
+  "allFrameCount": 68,
+  "mainThreadBlockMs": 285.362
+}

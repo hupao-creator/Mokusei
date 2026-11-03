@@ -1,0 +1,56 @@
+[
+  {
+    "event": "opening before reversal",
+    "moving": true,
+    "open": true,
+    "relativeMs": 0.0
+  },
+  {
+    "event": "reversal settled",
+    "moving": false,
+    "open": false,
+    "relativeMs": 621.395
+  },
+  {
+    "event": "reader admitted",
+    "moving": false,
+    "open": true,
+    "relativeMs": 1312.828
+  },
+  {
+    "event": "resize during close settled",
+    "moving": false,
+    "open": false,
+    "relativeMs": 1687.524
+  },
+  {
+    "event": "replacement survives old completion",
+    "moving": false,
+    "open": true,
+    "relativeMs": 2422.692
+  },
+  {
+    "event": "accepted close cancellation completed",
+    "moving": false,
+    "open": false,
+    "relativeMs": 2681.799
+  },
+  {
+    "event": "disabled presentation open settled",
+    "moving": false,
+    "open": true,
+    "relativeMs": 2946.543
+  },
+  {
+    "event": "disabled presentation close settled",
+    "moving": false,
+    "open": false,
+    "relativeMs": 3053.384
+  },
+  {
+    "event": "explicit cancellation keeps open route",
+    "moving": false,
+    "open": true,
+    "relativeMs": 3670.013
+  }
+]

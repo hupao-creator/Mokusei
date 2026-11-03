@@ -11,7 +11,7 @@ public struct CodexThreadView: View {
     public let input: HarnessThreadInput
     public let actions: HarnessThreadActions
     public let context: HarnessRenderContext
-    @State private var stateCache = CodexStateCache()
+    @State private var stateCache = CodexReadingState()
     @State private var resolvedAnchor: (thread: JSONText, request: JSONText, anchor: JSONText)?
 
     public init(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) {
@@ -19,21 +19,23 @@ public struct CodexThreadView: View {
     }
 
     public var body: some View {
-        switch decoded {
-        case .success(let state):
-            if case .row(let key) = context.content {
-                if let turn = (state.forkHistory + state.turns).first(where: { $0.rowID == key }) {
-                    if codexTurnVisible(turn.executionId, context: context) { turnView(turn, state: state) }
-                } else { CodexContentFailure(message: "历史执行不可用") }
-            } else {
-                conversation(state)
+        Group {
+            switch stateCache.result {
+            case .success(let state):
+                if case .row(let key) = context.content {
+                    if let turn = (state.forkHistory + state.turns).first(where: { $0.rowID == key }) {
+                        if codexTurnVisible(turn.executionId, context: context) { turnView(turn, state: state) }
+                    } else { CodexContentFailure(message: "历史执行不可用") }
+                } else {
+                    conversation(state)
+                }
+            case .failure(let error): CodexContentFailure(message: error.localizedDescription)
+            case nil: CodexContentStatus()
             }
-        case .failure(let error): CodexContentFailure(message: error.localizedDescription)
         }
-    }
-
-    private var decoded: Result<CodexState, Error> {
-        stateCache.decode(input.thread.sessionState, createdAt: input.thread.createdAt)
+        .task(id: input.thread.sessionState) {
+            await stateCache.load(input.thread.sessionState, createdAt: input.thread.createdAt)
+        }
     }
 
     @ViewBuilder private func conversation(_ state: CodexState) -> some View {
@@ -143,24 +145,28 @@ private struct CodexLoadedTurnRow: View {
     let context: HarnessRenderContext
     let onAnchor: (JSONText, JSONText) -> Void
     let raw: JSONValue
-    @State private var stateCache = CodexStateCache()
+    @State private var stateCache = CodexReadingState()
     @ViewBuilder var body: some View {
-        if case .success(let state) = stateCache.decode(raw),
-           let turn = (state.forkHistory + state.turns).first(where: { $0.rowID == key }) {
-            let active = input.thread.observation.latestExecution?.status == .running &&
-                input.thread.observation.latestExecution?.executionID == turn.executionId && turn.status == "running"
-            if codexTurnVisible(turn.executionId, context: context) {
-                let anchor = codexMokuReplyAnchor(state: state.raw, message: input.readingTarget?.message)
-                CodexTurnRows(turn: turn, active: active, state: state,
-                              observation: input.thread.observation.json, actions: actions, context: context.row(key))
-                    .task(id: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor)) {
-                        guard !Task.isCancelled else { return }
-                        if let target = input.readingTarget, target.executionID == turn.executionId, let anchor {
-                            onAnchor(target.requestID, anchor)
+        Group {
+            if case .success(let state) = stateCache.result,
+               let turn = (state.forkHistory + state.turns).first(where: { $0.rowID == key }) {
+                let active = input.thread.observation.latestExecution?.status == .running &&
+                    input.thread.observation.latestExecution?.executionID == turn.executionId && turn.status == "running"
+                if codexTurnVisible(turn.executionId, context: context) {
+                    let anchor = codexMokuReplyAnchor(state: state.raw, message: input.readingTarget?.message)
+                    CodexTurnRows(turn: turn, active: active, state: state,
+                                  observation: input.thread.observation.json, actions: actions, context: context.row(key))
+                        .task(id: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor)) {
+                            guard !Task.isCancelled else { return }
+                            if let target = input.readingTarget, target.executionID == turn.executionId, let anchor {
+                                onAnchor(target.requestID, anchor)
+                            }
                         }
-                    }
-            }
-        } else { CodexContentFailure(message: "Codex sessionState 无效") }
+                }
+            } else if case .some = stateCache.result { CodexContentFailure(message: "Codex sessionState 无效") }
+            else { CodexContentStatus() }
+        }
+        .task(id: raw) { await stateCache.load(raw) }
     }
 
     private struct AnchorRequest: Hashable { let request: JSONText?; let anchor: JSONText? }

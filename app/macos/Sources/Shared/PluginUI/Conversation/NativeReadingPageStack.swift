@@ -42,6 +42,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress = 0.0
+    @State private var panelTransition: NativeReadingPanelTransition?
+    @State private var panelContentReady = false
     @State private var closing = false
     @State private var preparingClose = false
     @State private var replacing = false
@@ -97,7 +99,13 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         onDismiss: enabled && !motion.active ? onPanelOutsideClick : nil)
                         .accessibilityHidden(true)
                 }
-                if open {
+                if open && panel {
+                    NativeReadingPanelViewport(target: panelBounds, source: panelSource,
+                        open: panelContentReady || panelTransition != nil,
+                        transition: panelTransition, contentReady: panelContentReady,
+                        onCompletion: finishPanelTransition,
+                        content: front.id(identity))
+                } else if open {
                     ZStack {
                         front.id(identity)
                             .transition(axis == .vertical ? .asymmetric(
@@ -120,7 +128,6 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                             }
                         }
                         .modifier(ReadingPageSurface(progress: progress, active: !panel && motion.active && axis == .horizontal, axis: axis, clips: !panel))
-                        .modifier(ReadingPanelSurface(enabled: panel, progress: progress, source: panelSource, target: panelBounds))
                         .offset(x: !panel && axis == .horizontal ? bounds.size.width * (1 - progress) * direction : 0,
                                 y: axis == .vertical ? bounds.size.height * (1 - progress) * direction : 0)
                 }
@@ -217,6 +224,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             progress = open ? 1 : 0
+            panelTransition = nil
+            panelContentReady = open
             closing = false
             preparingClose = false
             replacing = false
@@ -241,11 +250,43 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         }
     }
 
+    private func finishPanelTransition(_ token: Int, _ wasClosing: Bool) {
+        guard generation == token, panelTransition?.generation == token else { return }
+        panelTransition = nil
+        motion.active = false
+        closing = false
+        if wasClosing { onClose() }
+        else {
+            panelContentReady = true
+            onParentPresentationChange?(false)
+        }
+    }
+
     private func animate(closing: Bool) {
-        onParentPresentationChange?(true)
+        // Freeze Overview's display projection before mounting a panel. Its
+        // authoritative catalog still receives updates, and return preparation
+        // refreshes the retained canvas before closing begins.
+        onParentPresentationChange?(!panel || closing)
         guard !reduceMotion, closing || direction != 0 else {
             settle()
             if closing { onClose() }
+            return
+        }
+        if panel {
+            animationTask?.cancel(); animationTask = nil
+            generation += 1
+            replacing = false
+            self.closing = closing
+            motion.active = true
+            if !closing { panelContentReady = false }
+            panelTransition = NativeReadingPanelTransition(generation: generation, closing: closing,
+                duration: duration, emphasized: !closing && emphasizedOpening)
+            // Only the backdrop uses SwiftUI interpolation; panel geometry and
+            // its completion belong to the native compositor, with no tick task.
+            withAnimation(!closing && emphasizedOpening
+                ? .timingCurve(0.76, 0, 0.24, 1, duration: duration) : curve) {
+                progress = closing ? 0 : 1
+            }
             return
         }
         let returningDuringOpening = closing && axis == .horizontal && motion.active && !self.closing && !replacing
@@ -443,32 +484,5 @@ public enum NativeReadingPanelGeometry {
         let top = min(58, max(12, size.height * 0.1))
         let bottom = min(88, max(12, size.height * 0.15))
         return CGRect(x: horizontal, y: top, width: max(1, size.width - 2 * horizontal), height: max(1, size.height - top - bottom))
-    }
-}
-
-private struct ReadingPanelSurface: ViewModifier {
-    let enabled: Bool
-    let progress: Double
-    let source: CGRect?
-    let target: CGRect
-    func body(content: Content) -> some View {
-        if enabled {
-            let origin = source ?? target.insetBy(dx: min(24, target.width / 4), dy: min(24, target.height / 4))
-            let frame = CGRect(x: origin.minX + (target.minX - origin.minX) * progress,
-                y: origin.minY + (target.minY - origin.minY) * progress,
-                width: origin.width + (target.width - origin.width) * progress,
-                height: origin.height + (target.height - origin.height) * progress)
-            content.opacity(min(1, max(0, (progress - 0.2) / 0.6)))
-                .frame(width: frame.width + 76, height: frame.height, alignment: .topLeading)
-                .background(NativePalette.thread.canvas.swiftUI.opacity(progress < 1 ? 1 : 0), in: RoundedRectangle(cornerRadius: 22))
-                // Keep one subtree through settling; the final aperture also
-                // admits the independent toolbar outside the panel's right edge.
-                .mask {
-                    RoundedRectangle(cornerRadius: progress < 1 ? 22 : 0)
-                        .frame(width: frame.width + (progress < 1 ? 0 : 76), height: frame.height)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .position(x: frame.midX + 38, y: frame.midY)
-        } else { content }
     }
 }

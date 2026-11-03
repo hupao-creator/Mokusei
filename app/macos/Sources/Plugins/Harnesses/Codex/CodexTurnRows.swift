@@ -6,6 +6,7 @@ import SwiftUI
 
 struct CodexTurnRows: View {
     @Environment(\.threadAgentDetail) private var agentDetail
+    @Environment(\.threadDetailVisibility) private var visibility
     let turn: CodexTurn
     let active: Bool
     let state: CodexState
@@ -53,6 +54,7 @@ struct CodexTurnRows: View {
     }
 
     private var rows: [ThreadDetailRow] {
+        let workVisible = visibility.work && (visibility.workTurnID == nil || visibility.workTurnID == turn.executionId)
         let messages = firstByID(turn.messages)
         let notices = Dictionary(turn.notices.map { ($0.codexIdentity("id"), $0) }, uniquingKeysWith: { first, _ in first })
         // Reader policy only. Error severity is an explicit exception to the
@@ -72,13 +74,14 @@ struct CodexTurnRows: View {
             }
         }
         let interactions = firstByID(turn.interactions)
-        let activities = firstByID(turn.activities)
+        let activities = workVisible ? firstByID(turn.activities) : [:]
         let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
         var result: [ThreadDetailRow] = []
         var index = 0
         while index < timeline.count {
             let item = timeline[index]
             if item.kind == "activity" {
+                if !workVisible { index += 1; continue }
                 var group: [CodexActivity] = []
                 var next = index
                 while next < timeline.count && timeline[next].kind == "activity" {
@@ -96,16 +99,19 @@ struct CodexTurnRows: View {
                 }
                 index = next; continue
             }
+            let kind: ThreadDetailRow.Kind
+            let failure = item.kind == "error" ||
+                (item.kind == "notice" && notices[item.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error") ||
+                (agentDetail && item.kind == "assistant" && item.status == "failed")
+            if item.kind == "user-message" { kind = .user }
+            else if (failure && (agentDetail || turn.status != "completed")) ||
+                (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
+            else if item.kind == "review" || (item.kind == "assistant" && (agentDetail || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }
+            else { kind = .work }
+            // Skip construction, trimming and closures for hidden work. The
+            // shared turn still owns disclosure policy for every admitted row.
+            if kind == .work && !workVisible { index += 1; continue }
             if let node = node(item, messages: messages, interactions: interactions, notices: notices) {
-                let kind: ThreadDetailRow.Kind
-                let failure = item.kind == "error" ||
-                    (item.kind == "notice" && notices[item.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error") ||
-                    (agentDetail && item.kind == "assistant" && item.status == "failed")
-                if item.kind == "user-message" { kind = .user }
-                else if (failure && (agentDetail || turn.status != "completed")) ||
-                    (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
-                else if item.kind == "review" || (item.kind == "assistant" && (agentDetail || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }
-                else { kind = .work }
                 result.append(ThreadDetailRow(id: item.id, kind: kind, node: node,
                     executionSummary: item.kind == "reasoning" && (!codexTrim(item.raw["content"]).codeUnits.isEmpty || executionPresence.contains(item.id, "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil,
                     finalReply: item.kind == "assistant" && index == lastAssistant))
@@ -118,8 +124,8 @@ struct CodexTurnRows: View {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":notice:".utf16) + notice.codexIdentity("id").codeUnits),
                 kind: .attention, node: AnyView(CodexContentFailure(message: notice["message"]?.stringValue ?? "", translatesMessage: false))))
         }
-        var referencedActivities = Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") })
-        for activity in turn.activities where agentDetail && referencedActivities.insert(activity.id).inserted {
+        var referencedActivities = workVisible ? Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") }) : []
+        for activity in turn.activities where workVisible && agentDetail && referencedActivities.insert(activity.id).inserted {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":activity:".utf16) + activity.id.codeUnits),
                 kind: .work,
                 node: AnyView(CodexActivityRow(activity: activity)), execution: .member,

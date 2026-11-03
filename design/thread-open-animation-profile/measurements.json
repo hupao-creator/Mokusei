@@ -1,0 +1,763 @@
+{
+  "baseline": {
+    "localMain": "0a56037e8ac2fed114b7478bbda18bbe959c9f6c",
+    "remoteMain": "8ca887b832aae6dd788781bb36df0b080533ba7f"
+  },
+  "method": "8 ms main-run-loop timer; offscreen nonactivating 2048x1260 window; no Runtime; production components; one fresh process, three open/close cycles per condition; these are callback gaps, not rendered frame times",
+  "conditions": {
+    "shell_debug": {
+      "gaps": {
+        "close0": {
+          "maxMs": 9.797291830182076,
+          "n": 113,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.588833199813962
+        },
+        "close1": {
+          "maxMs": 9.96570847928524,
+          "n": 118,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.524166584014893
+        },
+        "close2": {
+          "maxMs": 9.904999984428287,
+          "n": 118,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.640458272770047
+        },
+        "idle": {
+          "maxMs": 77.85050012171268,
+          "n": 132,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.687749901786447
+        },
+        "open0": {
+          "maxMs": 15.693875029683113,
+          "n": 170,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.453166741877794
+        },
+        "open1": {
+          "maxMs": 10.195083450525999,
+          "n": 171,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.332208428531885
+        },
+        "open2": {
+          "maxMs": 11.881000129505992,
+          "n": 170,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.407708421349525
+        }
+      },
+      "events": [
+        {
+          "event": "open0",
+          "relativeMs": 0.0
+        },
+        {
+          "event": "close0",
+          "relativeMs": 1360.833
+        },
+        {
+          "event": "open1",
+          "relativeMs": 2271.145
+        },
+        {
+          "event": "close1",
+          "relativeMs": 3632.438
+        },
+        {
+          "event": "open2",
+          "relativeMs": 4577.654
+        },
+        {
+          "event": "close2",
+          "relativeMs": 5940.477
+        },
+        {
+          "event": "finish",
+          "relativeMs": 6885.728
+        }
+      ],
+      "slowTicks": [
+        {
+          "phase": "idle",
+          "relativeMs": -1050.819,
+          "gapMs": 77.851,
+          "motion": false
+        }
+      ]
+    },
+    "reply_release": {
+      "gaps": {
+        "close0": {
+          "maxMs": 15.883166808634996,
+          "n": 118,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.737249929457903
+        },
+        "close1": {
+          "maxMs": 18.151666736230254,
+          "n": 114,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 10.40045847184956
+        },
+        "close2": {
+          "maxMs": 14.898875029757619,
+          "n": 113,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 10.727708227932453
+        },
+        "idle": {
+          "maxMs": 74.50250000692904,
+          "n": 134,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.667791659012437
+        },
+        "open0": {
+          "maxMs": 135.0795414764434,
+          "n": 129,
+          "over33": 2,
+          "over100": 2,
+          "p95Ms": 15.084166778251529
+        },
+        "open1": {
+          "maxMs": 22.503916639834642,
+          "n": 166,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 11.085666716098785
+        },
+        "open2": {
+          "maxMs": 23.634458193555474,
+          "n": 165,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 11.209249962121248
+        }
+      }
+    },
+    "codex_release_unsampled": {
+      "gaps": {
+        "close0": {
+          "maxMs": 17.027916852384806,
+          "n": 115,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 10.814541717991233
+        },
+        "close1": {
+          "maxMs": 17.342166742309928,
+          "n": 117,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.718416724354029
+        },
+        "close2": {
+          "maxMs": 13.551333220675588,
+          "n": 119,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.668083162978292
+        },
+        "idle": {
+          "maxMs": 98.21166656911373,
+          "n": 135,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.605374885722995
+        },
+        "open0": {
+          "maxMs": 164.04637484811246,
+          "n": 143,
+          "over33": 2,
+          "over100": 1,
+          "p95Ms": 11.74674998037517
+        },
+        "open1": {
+          "maxMs": 43.38920838199556,
+          "n": 163,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.759166510775685
+        },
+        "open2": {
+          "maxMs": 36.58070834353566,
+          "n": 165,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.971541818231344
+        }
+      },
+      "events": [
+        {
+          "event": "open0",
+          "relativeMs": 0.0
+        },
+        {
+          "event": "resource",
+          "relativeMs": 112.651
+        },
+        {
+          "event": "close0",
+          "relativeMs": 1367.582
+        },
+        {
+          "event": "open1",
+          "relativeMs": 2308.317
+        },
+        {
+          "event": "resource",
+          "relativeMs": 2319.138
+        },
+        {
+          "event": "close1",
+          "relativeMs": 3686.887
+        },
+        {
+          "event": "open2",
+          "relativeMs": 4634.579
+        },
+        {
+          "event": "resource",
+          "relativeMs": 4644.571
+        },
+        {
+          "event": "close2",
+          "relativeMs": 6017.326
+        },
+        {
+          "event": "finish",
+          "relativeMs": 6976.575
+        }
+      ],
+      "slowTicks": [
+        {
+          "phase": "idle",
+          "relativeMs": -1066.06,
+          "gapMs": 98.212,
+          "motion": false
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 162.617,
+          "gapMs": 164.046,
+          "motion": true
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 212.304,
+          "gapMs": 49.687,
+          "motion": true
+        },
+        {
+          "phase": "open1",
+          "relativeMs": 2351.597,
+          "gapMs": 43.389,
+          "motion": true
+        },
+        {
+          "phase": "open2",
+          "relativeMs": 4668.481,
+          "gapMs": 36.581,
+          "motion": true
+        }
+      ]
+    },
+    "codex_debug_unsampled": {
+      "gaps": {
+        "close0": {
+          "maxMs": 17.68645830452442,
+          "n": 110,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.793958393856883
+        },
+        "close1": {
+          "maxMs": 15.77900000847876,
+          "n": 112,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.751291712746024
+        },
+        "close2": {
+          "maxMs": 19.3123749922961,
+          "n": 118,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.619666496291757
+        },
+        "idle": {
+          "maxMs": 196.0571249946952,
+          "n": 128,
+          "over33": 1,
+          "over100": 1,
+          "p95Ms": 9.515583282336593
+        },
+        "open0": {
+          "maxMs": 200.9988750796765,
+          "n": 122,
+          "over33": 2,
+          "over100": 2,
+          "p95Ms": 11.953750159591436
+        },
+        "open1": {
+          "maxMs": 62.269499991089106,
+          "n": 160,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 11.69437519274652
+        },
+        "open2": {
+          "maxMs": 53.539583226665854,
+          "n": 160,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 11.788083240389824
+        }
+      },
+      "events": [
+        {
+          "event": "open0",
+          "relativeMs": 0.0
+        },
+        {
+          "event": "resource",
+          "relativeMs": 128.8
+        },
+        {
+          "event": "close0",
+          "relativeMs": 1352.308
+        },
+        {
+          "event": "open1",
+          "relativeMs": 2255.105
+        },
+        {
+          "event": "resource",
+          "relativeMs": 2267.711
+        },
+        {
+          "event": "close1",
+          "relativeMs": 3622.763
+        },
+        {
+          "event": "open2",
+          "relativeMs": 4524.678
+        },
+        {
+          "event": "resource",
+          "relativeMs": 4534.329
+        },
+        {
+          "event": "close2",
+          "relativeMs": 5884.139
+        },
+        {
+          "event": "finish",
+          "relativeMs": 6832.522
+        }
+      ],
+      "slowTicks": [
+        {
+          "phase": "idle",
+          "relativeMs": -1012.324,
+          "gapMs": 196.057,
+          "motion": false
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 200.36,
+          "gapMs": 200.999,
+          "motion": true
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 359.886,
+          "gapMs": 159.527,
+          "motion": true
+        },
+        {
+          "phase": "open1",
+          "relativeMs": 2311.21,
+          "gapMs": 62.269,
+          "motion": true
+        },
+        {
+          "phase": "open2",
+          "relativeMs": 4573.258,
+          "gapMs": 53.54,
+          "motion": true
+        }
+      ]
+    },
+    "body20x_debug": {
+      "gaps": {
+        "close0": {
+          "maxMs": 23.36749993264675,
+          "n": 113,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 11.417125118896365
+        },
+        "close1": {
+          "maxMs": 22.200333420187235,
+          "n": 114,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 12.134916614741087
+        },
+        "close2": {
+          "maxMs": 21.4884583838284,
+          "n": 112,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 10.851999977603555
+        },
+        "idle": {
+          "maxMs": 86.2275417894125,
+          "n": 133,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 9.504666551947594
+        },
+        "open0": {
+          "maxMs": 143.19287496618927,
+          "n": 128,
+          "over33": 2,
+          "over100": 2,
+          "p95Ms": 14.252541586756706
+        },
+        "open1": {
+          "maxMs": 108.27258345670998,
+          "n": 143,
+          "over33": 1,
+          "over100": 1,
+          "p95Ms": 15.106958337128162
+        },
+        "open2": {
+          "maxMs": 103.08174998499453,
+          "n": 142,
+          "over33": 1,
+          "over100": 1,
+          "p95Ms": 14.533583540469408
+        }
+      },
+      "events": [
+        {
+          "event": "open0",
+          "relativeMs": 0.0
+        },
+        {
+          "event": "close0",
+          "relativeMs": 1357.914
+        },
+        {
+          "event": "open1",
+          "relativeMs": 2306.536
+        },
+        {
+          "event": "close1",
+          "relativeMs": 3614.204
+        },
+        {
+          "event": "open2",
+          "relativeMs": 4570.845
+        },
+        {
+          "event": "close2",
+          "relativeMs": 5878.116
+        },
+        {
+          "event": "finish",
+          "relativeMs": 6816.896
+        }
+      ],
+      "slowTicks": [
+        {
+          "phase": "idle",
+          "relativeMs": -1066.601,
+          "gapMs": 86.228,
+          "motion": false
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 129.545,
+          "gapMs": 134.919,
+          "motion": true
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 280.606,
+          "gapMs": 143.193,
+          "motion": true
+        },
+        {
+          "phase": "open1",
+          "relativeMs": 2431.316,
+          "gapMs": 108.273,
+          "motion": true
+        },
+        {
+          "phase": "open2",
+          "relativeMs": 4687.916,
+          "gapMs": 103.082,
+          "motion": true
+        }
+      ]
+    },
+    "codex_release_sampled_PERTURBED": {
+      "gaps": {
+        "close0": {
+          "maxMs": 27.46866666711867,
+          "n": 108,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 13.041875092312694
+        },
+        "close1": {
+          "maxMs": 15.62199997715652,
+          "n": 117,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 9.81312501244247
+        },
+        "close2": {
+          "maxMs": 17.81179173849523,
+          "n": 117,
+          "over33": 0,
+          "over100": 0,
+          "p95Ms": 11.191041674464941
+        },
+        "idle": {
+          "maxMs": 152.9070835094899,
+          "n": 130,
+          "over33": 1,
+          "over100": 1,
+          "p95Ms": 9.739041794091463
+        },
+        "open0": {
+          "maxMs": 761.9686666876078,
+          "n": 9,
+          "over33": 2,
+          "over100": 2,
+          "p95Ms": 761.9686666876078
+        },
+        "open1": {
+          "maxMs": 50.41562509723008,
+          "n": 159,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 12.450624955818057
+        },
+        "open2": {
+          "maxMs": 37.75795828551054,
+          "n": 164,
+          "over33": 1,
+          "over100": 0,
+          "p95Ms": 10.814208537340164
+        }
+      },
+      "events": [
+        {
+          "event": "open0",
+          "relativeMs": 0.0
+        },
+        {
+          "event": "resource",
+          "relativeMs": 361.442
+        },
+        {
+          "event": "close0",
+          "relativeMs": 1304.192
+        },
+        {
+          "event": "open1",
+          "relativeMs": 2212.442
+        },
+        {
+          "event": "resource",
+          "relativeMs": 2226.27
+        },
+        {
+          "event": "close1",
+          "relativeMs": 3589.146
+        },
+        {
+          "event": "open2",
+          "relativeMs": 4539.41
+        },
+        {
+          "event": "resource",
+          "relativeMs": 4549.28
+        },
+        {
+          "event": "close2",
+          "relativeMs": 5911.754
+        },
+        {
+          "event": "finish",
+          "relativeMs": 6858.74
+        }
+      ],
+      "slowTicks": [
+        {
+          "phase": "idle",
+          "relativeMs": -1035.472,
+          "gapMs": 152.907,
+          "motion": false
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 441.676,
+          "gapMs": 449.884,
+          "motion": true
+        },
+        {
+          "phase": "open0",
+          "relativeMs": 1203.645,
+          "gapMs": 761.969,
+          "motion": true
+        },
+        {
+          "phase": "open1",
+          "relativeMs": 2262.803,
+          "gapMs": 50.416,
+          "motion": true
+        },
+        {
+          "phase": "open2",
+          "relativeMs": 4574.141,
+          "gapMs": 37.758,
+          "motion": true
+        }
+      ]
+    }
+  },
+  "goProjectionAndJSONEncodingMs": {
+    "iterations": 30,
+    "thread": {
+      "bytes": 4131,
+      "p50": 0.017,
+      "p95": 0.022,
+      "max": 0.29
+    },
+    "turn": {
+      "bytes": 136695,
+      "p50": 0.417,
+      "p95": 0.772,
+      "max": 0.792
+    },
+    "execution": {
+      "bytes": 605715,
+      "p50": 0.936,
+      "p95": 1.478,
+      "max": 1.564
+    }
+  },
+  "recording": {
+    "durationSeconds": 11.936666666666667,
+    "frames": 426,
+    "sizePixels": [
+      4096,
+      2520
+    ],
+    "sha256": "e90c393714121c5d2bbdd9cba704b94252d2337d38d2f441cc0e1202b7b2d261",
+    "maxPTSIntervalMs": 83.33333333333,
+    "frameIntervalsCount": {
+      "16.6667ms": 152,
+      "33.3333ms": 264,
+      "50ms": 4,
+      "66.6667ms": 3,
+      "83.3333ms": 2
+    }
+  },
+  "finalConditions": {
+    "debug": {
+      "opens": {
+        "open0": {
+          "maxGapIncludingContentMs": 212.02862495556474,
+          "maxGapWhileMotionActiveMs": 10.212208377197385,
+          "longGaps": [
+            {
+              "gapMs": 37.49775001779199,
+              "motionActive": false
+            },
+            {
+              "gapMs": 151.08704147860408,
+              "motionActive": false
+            },
+            {
+              "gapMs": 212.02862495556474,
+              "motionActive": false
+            },
+            {
+              "gapMs": 49.003166845068336,
+              "motionActive": false
+            }
+          ]
+        },
+        "open1": {
+          "maxGapIncludingContentMs": 21.74495835788548,
+          "maxGapWhileMotionActiveMs": 10.853083338588476,
+          "longGaps": []
+        },
+        "open2": {
+          "maxGapIncludingContentMs": 23.68533331900835,
+          "maxGapWhileMotionActiveMs": 10.062749963253736,
+          "longGaps": []
+        }
+      },
+      "resourceAdmissionAfterOpenMs": [
+        621.923,
+        455.091,
+        441.241
+      ]
+    },
+    "release": {
+      "opens": {
+        "open0": {
+          "maxGapIncludingContentMs": 110.70862505584955,
+          "maxGapWhileMotionActiveMs": 9.532333351671696,
+          "longGaps": [
+            {
+              "gapMs": 110.70862505584955,
+              "motionActive": false
+            },
+            {
+              "gapMs": 51.82745819911361,
+              "motionActive": false
+            }
+          ]
+        },
+        "open1": {
+          "maxGapIncludingContentMs": 13.502708170562983,
+          "maxGapWhileMotionActiveMs": 11.986833298578858,
+          "longGaps": []
+        },
+        "open2": {
+          "maxGapIncludingContentMs": 19.320791587233543,
+          "maxGapWhileMotionActiveMs": 8.821625029668212,
+          "longGaps": []
+        }
+      },
+      "resourceAdmissionAfterOpenMs": [
+        535.058,
+        451.381,
+        449.995
+      ]
+    }
+  }
+}

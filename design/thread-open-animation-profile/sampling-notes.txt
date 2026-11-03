@@ -1,0 +1,47 @@
+NOTE: sampled cold launch is perturbed; do not use these counts as uninstrumented latency.
+Original sample lines 2169-2193:
+479 protocol witness for NSViewRepresentable.updateNSView(_:context:) in conformance MarkdownSelectableText  (in manual) + 164  [0x102645ddc]  /<compiler-generated>:67
+479 MarkdownSelectableText.updateTextView(_:)  (in manual) + 1204  [0x102641ce4]  NativeMarkdownText.swift:77
+478 MarkdownTextView.setContent(_:build:)  (in manual) + 2156  [0x102644cdc]  NativeMarkdownText.swift:436
+478 MarkdownTextView.replaceContent(_:)  (in manual) + 240  [0x102647d80]  NativeMarkdownText.swift:455
+478 -[NSConcreteTextStorage replaceCharactersInRange:withAttributedString:]  (in UIFoundation) + 100  [0x18c03ea18]
+478 __NSConcreteTextStorageLockedForwarding  (in UIFoundation) + 88  [0x18c00faf4]
+478 -[NSTextStorage endEditing]  (in UIFoundation) + 84  [0x18c02eb10]
+468 -[NSTextStorage _notifyEdited:range:changeInLength:invalidatedRange:]  (in UIFoundation) + 128  [0x18c024490]
+467 -[NSLayoutManager textStorage:edited:range:changeInLength:invalidatedRange:]  (in UIFoundation) + 288  [0x18c00fdf4]
+452 -[NSTextView(NSSharing) setSelectedRanges:affinity:stillSelecting:]  (in AppKit) + 3220  [0x18aa485f0]
+452 -[NSTextView(NSTextView_WritingTools) updateWritingToolsSelection]  (in AppKit) + 132  [0x18b38707c]
+452 WritingToolsUILibraryCore  (in AppKit) + 156  [0x18b38c858]
+452 _sl_dlopen  (in SoftLinking) + 100  [0x19627463c]
+452 dyld4::APIs::dlopen_from(char const*, int, void*)  (in dyld) + 1116  [0x18604ffe4]
+446 dyld4::APIs::dlopen_from(char const*, int, void*)::$_0::operator()() const  (in dyld) + 796  [0x18605bcb8]
+446 dyld4::RuntimeLocks::withLoadersWriteLockAndProtectedStack<dyld4::APIs::dlopen_from(char const*, int, void*)::$_0::operator()() const::'lambda'()>(dyld4::APIs::dlopen_from(char const*, int, void*)::$_0::operator()() const::'lambda'())::'lambda'()::operator()() const  (in dyld) + 184  [0x18605ca4c]
+445 dyld4::APIs::dlopen_from(char const*, int, void*)::$_0::operator()() const::'lambda'()::operator()() const  (in dyld) + 2600  [0x18605d4e0]
+445 dyld4::RuntimeState::notifyDebuggerLoad(std::span<dyld4::Loader const*, 18446744073709551615ul> const&)  (in dyld) + 528  [0x18607443c]
+445 dyld4::ExternallyViewableState::addImages(lsl::Allocator&, lsl::Allocator&, std::span<dyld4::ExternallyViewableState::ImageInfo, 18446744073709551615ul> const&)  (in dyld) + 1084  [0x18607e3bc]
+445 dyld4::ExternallyViewableState::triggerNotifications(dyld_image_mode, unsigned int, dyld_image_info const*)  (in dyld) + 296  [0x18607dc60]
+445 dyld4::RemoteNotificationResponder::blockOnSynchronousEvent(unsigned int)  (in dyld) + 48  [0x1860ba6f4]
+445 dyld4::RemoteNotificationResponder::sendMessage(int, unsigned int, mach_msg_header_t*)  (in dyld) + 244  [0x1860ba368]
+445 mach_msg_overwrite  (in dyld) + 244  [0x1860d3a40]
+445 mach_msg2_internal  (in dyld) + 76  [0x1860d3898]
+445 mach_msg2_trap  (in dyld) + 8  [0x18604572c]
+Original sample lines 5289-5298:
+14 DynamicBody.updateValue()  (in SwiftUICore) + 1220  [0x2335602a0]
+14 closure #1 in DynamicBody.updateValue()  (in SwiftUICore) + 1076  [0x233560ae4]
+14 protocol witness for BodyAccessor.updateBody(of:changed:) in conformance ViewBodyAccessor<A>  (in SwiftUICore) + 16  [0x233404c00]
+14 ViewBodyAccessor.updateBody(of:changed:)  (in SwiftUICore) + 348  [0x2334045f0]
+14 closure #1 in ViewBodyAccessor.updateBody(of:changed:)  (in SwiftUICore) + 1152  [0x233404aa8]
+14 protocol witness for View.body.getter in conformance CodexLoadedTurnRow  (in manual) + 52  [0x10287beec]  /<compiler-generated>:0
+14 CodexLoadedTurnRow.body.getter  (in manual) + 120  [0x10287ad60]  CodexThreadView.swift:148
+14 CodexStateCache.decode(_:createdAt:)  (in manual) + 320  [0x1028e9ba8]  CodexStateCache.swift:14
+9 specialized CodexState.init(_:createdAt:)  (in manual) + 1944  [0x102902430]  CodexDTO.swift:29
+5 specialized CodexTurn.init(_:)  (in manual) + 1992  [0x1029017dc]  CodexDTO.swift:60
+Original sample lines 5839-5846:
+28 closure #1 in ViewBodyAccessor.updateBody(of:changed:)  (in SwiftUICore) + 1152  [0x233404aa8]
+22 ThreadConversation.body.getter  (in manual) + 3628  [0x102786f5c]  ThreadConversation.swift:165
+22 _dispatch_once_callout  (in libdispatch.dylib) + 32  [0x186269630]
+22 _dispatch_client_callout  (in libdispatch.dylib) + 16  [0x1862804b0]
+21 closure #1 in variable initialization expression of static NativeTypography.registration  (in manual) + 1288  [0x102732608]  NativeTypography.swift:24
+21 _CTFontManagerRegisterActionFontsForURL(__CFURL const*, CTFontManagerScope, Action, __CFError**)  (in CoreText) + 124  [0x18947d2c8]
+21 _CTFontManagerRegisterActionFontsForURLs(__CFArray const*, CTFontManagerScope, bool, Action, __CFArray const**)  (in CoreText) + 320  [0x18947d50c]
+15 XTRegisterFonts2  (in libFontRegistry.dylib) + 764  [0x190953e68]

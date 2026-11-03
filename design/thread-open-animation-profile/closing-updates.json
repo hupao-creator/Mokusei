@@ -1,0 +1,66 @@
+{
+  "modelPositionsDuringReactiveClose" : [
+    {
+      "moving" : true,
+      "revision" : 0,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 1,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 2,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 3,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 4,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 5,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 6,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 7,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 8,
+      "x" : 132,
+      "y" : 730
+    },
+    {
+      "moving" : true,
+      "revision" : 9,
+      "x" : 132,
+      "y" : 730
+    }
+  ],
+  "movingAtEnd" : false,
+  "openAtEnd" : false
+}

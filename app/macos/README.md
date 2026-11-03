@@ -64,6 +64,15 @@ when summaries are hidden. Lightweight Pi/OpenCode history retains interim
 replies without loading execution detail. Repeated native tool references render
 once by identity; separate calls with equal labels or output remain separate.
 
+Panel opening uses compositor-owned geometry and delays reader mounting until
+travel completes. Once submitted, panel travel no longer waits for main-actor
+animation ticks; initial reader mounting can still cause a later main-thread stall.
+Codex reader admission additionally validates/decodes changed opaque
+state off the main actor and skips construction of collapsed work rows. Native
+content and error admission policies remain owned by their existing boundaries.
+See the [manual investigation](../../design/thread-open-animation-investigation.md)
+for evidence and the limits of the isolated measurements.
+
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
 
 `make check` runs the complete `swift test` suite as well as building it. Native
