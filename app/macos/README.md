@@ -32,8 +32,8 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 Agent Thread detail admits assistant replies and execution records: reasoning,
 tools/activities, approvals/questions, review, context compaction, background work,
 execution status, author and usage. Errors are exempt from the content allowlist:
-explicit error records, error-level notices, failed messages/tools and execution
-failures remain readable, including after completion and with work collapsed.
+explicit error records, error-level notices, failed assistant messages and
+execution failures remain readable, including after completion and with work collapsed.
 Input messages (user, developer/system), ordinary info/warning notices and plan
 timeline entries are excluded. History headings and sidebar labels use execution
 timestamps instead of user prompts. Thread title/emoji remain catalog metadata.
@@ -44,9 +44,12 @@ OpenCode child sessions). Canonical history, transport, Overview, Moku, search
 and other conversation surfaces retain their data and policies. Adjacent
 execution entries remain grouped across hidden entries; assistant replies still
 separate summaries. Existing assistant streaming-disclosure rules are unchanged.
-Failed tools remain members of their execution summary and show their diagnostics
-under that summary, including when ordinary work is hidden. Failure status does
-not create another execution boundary. Repeated native tool references render
+Failed tools remain execution work: hiding work hides their rows and diagnostics
+as well. Showing execution work mounts the full tool/reasoning rows under each
+summary, acquiring scoped historical content only while visible. Failure status
+does not create another execution boundary or an independent error message.
+OpenCode child sessions retain independent assistant errors without revealing
+their sibling tools. Repeated native tool references render
 once by identity; separate calls with equal labels or output remain separate.
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).

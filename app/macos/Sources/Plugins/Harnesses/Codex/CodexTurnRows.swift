@@ -83,9 +83,6 @@ struct CodexTurnRows: View {
                 var next = index
                 while next < timeline.count && timeline[next].kind == "activity" {
                     if let activity = activities[timeline[next].raw.codexIdentity("activityId")] {
-                        // Keep failed records independent of hidden successful work.
-                        if agentDetail, let first = group.first,
-                           (first.status == "failed") != (activity.status == "failed") { break }
                         group.append(activity)
                     }
                     next += 1
@@ -93,7 +90,7 @@ struct CodexTurnRows: View {
                 if !group.isEmpty {
                     let count = Set(group.filter { $0.toolCall || ["command", "file", "tool", "search"].contains($0.kind) }.map(\.id)).count
                     let groupID = JSONText(codeUnits: turn.executionId.codeUnits + Array(":".utf16) + item.id.codeUnits + Array(":tools".utf16))
-                    result.append(ThreadDetailRow(id: item.id, kind: agentDetail && group.contains { $0.status == "failed" } ? .attention : .work,
+                    result.append(ThreadDetailRow(id: item.id, kind: .work,
                         node: AnyView(CodexToolActivityGroup(activities: group, groupID: groupID)),
                         executionSummary: ThreadExecutionSummary(toolCalls: count)))
                 }
@@ -121,10 +118,10 @@ struct CodexTurnRows: View {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":notice:".utf16) + notice.codexIdentity("id").codeUnits),
                 kind: .attention, node: AnyView(CodexContentFailure(message: notice["message"]?.stringValue ?? "", translatesMessage: false))))
         }
-        let referencedActivities = Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") })
-        for activity in turn.activities where agentDetail && !referencedActivities.contains(activity.id) {
+        var referencedActivities = Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") })
+        for activity in turn.activities where agentDetail && referencedActivities.insert(activity.id).inserted {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":activity:".utf16) + activity.id.codeUnits),
-                kind: activity.status == "failed" ? .attention : .work,
+                kind: .work,
                 node: AnyView(CodexActivityRow(activity: activity)), execution: .member,
                 executionSummary: ThreadExecutionSummary(toolCalls: activity.toolCall || ["command", "file", "tool", "search"].contains(activity.kind) ? 1 : 0)))
         }

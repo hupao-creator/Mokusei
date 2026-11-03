@@ -94,19 +94,10 @@ public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
         switch run {
         case .row(let row): return row
         case .execution(let id, let rows):
-            let failures = rows.filter { $0.kind == .attention }
             return ThreadDetailRow(
-                id: executionProcessID(id), kind: failures.isEmpty ? .work : .attention,
-                node: AnyView(VStack(alignment: .leading, spacing: 8) {
-                    ThreadExecutionProcess(groupID: id, rows: rows,
-                        reasoningUsage: index == lastExecution ? reasoningUsage : nil)
-                    // Errors belong to the process but remain readable without
-                    // acquiring deferred successful work or opening a summary.
-                    ForEach(failures) { row in
-                        row.node.threadReadingAnchor(row.id)
-                            .nativeReadingScope("item." + nativeReadingInteractionKey(row.id))
-                    }
-                }))
+                id: executionProcessID(id), kind: .work,
+                node: AnyView(ThreadExecutionProcess(groupID: id, rows: rows,
+                    reasoningUsage: index == lastExecution ? reasoningUsage : nil)))
         }
     }
 }
@@ -116,6 +107,7 @@ public struct ThreadExecutionProcess: View {
     public let rows: [ThreadDetailRow]
     public let reasoningUsage: ThreadReasoningUsage?
     @Environment(\.locale) private var locale
+    @Environment(\.threadExecutionLoader) private var loader
 
     public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil) {
         self.groupID = groupID
@@ -124,6 +116,16 @@ public struct ThreadExecutionProcess: View {
     }
 
     public var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            summaryRow
+            // The header's execution toggle owns disclosure. A historical row
+            // has only presence/counts until this group mounts its scoped lease.
+            if let loader { loader(groupID) }
+            else { ThreadExecutionMemberRows(rows: rows) }
+        }
+    }
+
+    private var summaryRow: some View {
         HStack(spacing: 7) {
             NativeIcon(name: "Wrench", size: 13)
                 .frame(width: 20)

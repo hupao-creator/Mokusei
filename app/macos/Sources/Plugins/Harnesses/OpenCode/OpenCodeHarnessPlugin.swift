@@ -47,6 +47,7 @@ private let ocEnglish: [String: String] = [
     "OpenCode 原生默认": "OpenCode native default", "自动批准权限请求（保留拒绝规则）": "Approve permission requests automatically (keep deny rules)",
     "按原生规则询问": "Ask according to native rules", "当前原生模型": "Current native model", "OpenCode 模型变体": "OpenCode model variant", "OpenCode Agent": "OpenCode agent",
     "OpenCode 状态不可用": "OpenCode state unavailable", "OpenCode 请求已失效": "This OpenCode request is no longer available",
+    "OpenCode 回复失败": "OpenCode reply failed",
     "正在读取 OpenCode 环境…": "Loading the OpenCode environment…", "正在刷新 OpenCode…": "Refreshing OpenCode…",
     "来自源 OpenCode 会话的分支历史": "History from the source OpenCode session", "OpenCode 分支历史（只读）": "OpenCode fork history (read-only)",
     "OpenCode 拒绝原因（可选）": "Reason for denying OpenCode (optional)", "OpenCode 子会话": "OpenCode child session", "打开 OpenCode 表单": "Open OpenCode form",

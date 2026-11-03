@@ -139,7 +139,11 @@ public struct ThreadDetailTurn: View {
     private var filteredRows: [ThreadDetailRow] {
         let workVisible = visibility.work && (visibility.workTurnID == nil || visibility.workTurnID == id)
         return rows.filter {
-            switch $0.kind {
+            // Tool failure is a fact within execution work, not an independent
+            // execution/system diagnostic. Membership owns disclosure even if
+            // a Harness supplies an attention style for the failed record.
+            if $0.execution != nil { return workVisible }
+            return switch $0.kind {
             case .content, .attention: true
             case .work: workVisible
             case .user: !agentDetail && visibility.userMessages

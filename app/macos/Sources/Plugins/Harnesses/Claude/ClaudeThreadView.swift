@@ -150,11 +150,9 @@ struct ClaudeTurnView: View {
             if item.claudeKind == "activity" {
                 var activities = [item["activity"]!]
                 while index < timeline.count, timeline[index].claudeKind == "activity", !starts.contains(timeline[index].claudeID("id")) {
-                    if agentDetail,
-                       (activities[0]["status"]?.stringValue == "failed") != (timeline[index]["activity"]?["status"]?.stringValue == "failed") { break }
                     activities.append(timeline[index]["activity"]!); index += 1
                 }
-                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: agentDetail && activities.contains { $0["status"]?.stringValue == "failed" } ? .attention : .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count)))
+                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count)))
             } else { rows.append(detail(item, final: item.claudeID("id") == final)) }
         }
         let kinds = Set(timeline.map(\.claudeKind))
@@ -221,7 +219,7 @@ func claudeRowKind(_ item: JSONValue, final: Bool, agentDetail: Bool = true) -> 
     switch item.claudeKind {
     case "user-message": .user
     case "assistant": agentDetail && item["status"]?.stringValue == "failed" ? .attention : final ? .content : .work
-    case "activity": agentDetail && item["activity"]?["status"]?.stringValue == "failed" ? .attention : .work
+    case "activity": .work
     case "interaction": item["interaction"]?["status"]?.stringValue == "pending" ? .attention : .work
     case "error": .attention
     case "notice": !agentDetail && item["notice"]?["level"]?.stringValue == "info" ? .work : .attention

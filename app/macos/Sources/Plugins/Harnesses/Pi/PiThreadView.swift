@@ -172,7 +172,7 @@ private struct PiTurn: View {
             let final = message.role == "assistant" && message.id == finalID
             if message.role == "assistant", let thinking = message.thinking,
                !piTrim(thinking).codeUnits.isEmpty || executionPresence.contains(message.id, "thinking") {
-                rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: agentDetail && message.status == "failed" ? .attention : .work,
+                rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: .work,
                     node: AnyView(ThreadSurfaceDisclosure(label: piLocalized("思考过程", locale)) {
                         NativeMarkdownView(text: thinking.string, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
                     }), execution: .member, executionSummary: ThreadExecutionSummary(reasoningSegments: 1)))
@@ -182,7 +182,7 @@ private struct PiTurn: View {
             if message.role == "assistant" && withholdingReplies && message.status == "streaming" { continue }
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
             let kind: ThreadDetailRow.Kind
-            if agentDetail && (message.isError || message.status == "failed") { kind = .attention }
+            if agentDetail && message.role != "tool" && (message.isError || message.status == "failed") { kind = .attention }
             else if message.role == "user" { kind = .user }
             else { kind = message.role == "tool" || !final ? .work : .content }
             rows.append(ThreadDetailRow(id: message.id, kind: kind,

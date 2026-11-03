@@ -152,11 +152,20 @@ public struct ThreadExecutionGroupContent: View {
         if let members = partitionExecutionRows(rows).compactMap({ run -> [ThreadDetailRow]? in
             if case let .execution(id, rows) = run, id == groupID { return rows }; return nil
         }).first {
-            ThreadActivityList(items: members.map { row in
-                ThreadActivitySlot(id: row.id, node: AnyView(row.node.threadReadingAnchor(row.id)
-                    .nativeReadingScope("item." + nativeReadingInteractionKey(row.id))))
-            })
-            .environment(\.threadExecutionGroup, nil)
+            ThreadExecutionMemberRows(rows: members)
         }
+    }
+}
+
+/// Already partitioned members must not be partitioned again: a diagnostic can
+/// split one source run into groups whose displayed IDs differ from that source.
+struct ThreadExecutionMemberRows: View {
+    let rows: [ThreadDetailRow]
+    var body: some View {
+        ThreadActivityList(items: rows.map { row in
+            ThreadActivitySlot(id: row.id, node: AnyView(row.node.threadReadingAnchor(row.id)
+                .nativeReadingScope("item." + nativeReadingInteractionKey(row.id))))
+        })
+        .environment(\.threadExecutionGroup, nil)
     }
 }
