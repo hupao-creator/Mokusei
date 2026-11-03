@@ -38,6 +38,10 @@ title/emoji; its label is localized as Execution/执行.
 ## Browser
 
 [Browser](Browser/) owns WKWebView navigation, URL policy, annotation and capture.
+Its shared navigation toolbar and WebKit session also serve the Host's Report
+link card through `NativeBrowserDocumentCard`. That document-owned surface has
+an ephemeral partition and no SidecardContext, annotation draft, attachment or
+send capability; Agent Sidecards retain their existing annotation behavior.
 
 Browser frames opt into the [shared trackless scrollbar policy](../../Shared/PluginUI/README.md#scrollbars).
 It decorates scrollbar parts without replacing native scrolling, selection or

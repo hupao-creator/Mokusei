@@ -24,6 +24,8 @@ public struct NativeApplicationHTMLSurface: View {
     private let onNativeNavigationChange: (Bool) -> Void
     private let onFailure: (ApplicationHTMLFailure) -> Void
     @Environment(\.nativeApplicationReadingPanel) private var panel
+    @Environment(\.nativeApplicationCloseLinkCard) private var closeLinkCard
+    @Environment(\.nativeApplicationOpenLinkCard) private var openLinkCard
     @Environment(\.nativeHTMLPreloader) private var preloader
 
     public init(source: ApplicationHTMLSource, thread: ApplicationThreadRef, theme: PluginTheme,
@@ -43,8 +45,8 @@ public struct NativeApplicationHTMLSurface: View {
     public var body: some View {
         HTMLDocumentSession(source: source, thread: thread, theme: theme, suppressed: suppressed, panel: panel,
             locale: locale, zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
-            readDocument: readDocument, openExternal: openExternal,
-            onBack: onBack, onSettings: onSettings,
+            readDocument: readDocument, openExternal: openExternal, openLinkCard: openLinkCard,
+            onBack: { if closeLinkCard?() != true { onBack() } }, onSettings: onSettings,
             onNativeNavigationChange: onNativeNavigationChange, onFailure: onFailure)
             .id(HTMLDocumentIdentity(source: source, thread: thread))
     }
@@ -67,6 +69,7 @@ private struct HTMLDocumentSession: View {
     let preloader: NativeApplicationHTMLPreloader?
     let readDocument: @MainActor (ApplicationHTMLSource) async throws -> ApplicationHTMLDocument
     let openExternal: @MainActor (URL) async throws -> Void
+    let openLinkCard: ((URL) -> Void)?
     let onBack: () -> Void
     let onSettings: () -> Void
     let onNativeNavigationChange: (Bool) -> Void
@@ -90,7 +93,7 @@ private struct HTMLDocumentSession: View {
             if let document {
                 HTMLWebDocument(document: document, thread: thread, theme: theme, suppressed: suppressed, panel: panel, locale: locale,
                     zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
-                    openExternal: openExternal, onReady: {
+                    openExternal: openExternal, openLinkCard: openLinkCard, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
@@ -231,6 +234,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
     let zoomPreferencesURL: URL?
     let preloader: NativeApplicationHTMLPreloader?
     let openExternal: @MainActor (URL) async throws -> Void
+    let openLinkCard: ((URL) -> Void)?
     let onReady: () -> Void
     let onFailure: (String) -> Void
     let onNavigation: (HTMLNavigationIntent) -> Void
@@ -388,6 +392,12 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             if action.targetFrame == nil {
                 decisionHandler(.cancel)
                 openNewWindowRequest(action.request)
+            } else if action.targetFrame?.isMainFrame == true, action.navigationType == .linkActivated,
+                      Self.isHTTP(url), (action.request.httpMethod ?? "GET").uppercased() == "GET",
+                      !Self.isSameDocument(url, webView.url),
+                      let openLinkCard = input.openLinkCard, !input.suppressed {
+                decisionHandler(.cancel)
+                openLinkCard(url)
             } else {
                 decisionHandler(HTMLDocumentScheme.matches(url, documentURL) || Self.isHTTP(url) ? .allow : .cancel)
             }
@@ -471,7 +481,8 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
                     : "此表单无法在新窗口中提交，表单数据尚未发送。")
                 return
             }
-            openExternal(url)
+            if let openLinkCard = input.openLinkCard { openLinkCard(url) }
+            else { openExternal(url) }
         }
 
         private func openExternal(_ url: URL) {
@@ -490,6 +501,13 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         }
 
         private static func isHTTP(_ url: URL) -> Bool { url.scheme == "http" || url.scheme == "https" }
+
+        private static func isSameDocument(_ target: URL, _ current: URL?) -> Bool {
+            guard let current, var target = URLComponents(url: target, resolvingAgainstBaseURL: false),
+                  var source = URLComponents(url: current, resolvingAgainstBaseURL: false) else { return false }
+            target.fragment = nil; source.fragment = nil
+            return target == source
+        }
 
         func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
             guard active, let view = message.webView, owns(view), message.frameInfo.isMainFrame,

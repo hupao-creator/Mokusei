@@ -39,7 +39,7 @@ let package = Package(
         .target(name: "MokuseiSidecardBrowser", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI"], path: "Sources/Plugins/Sidecards/Browser"),
         .target(name: "MokuseiSidecardVoice", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI"], path: "Sources/Plugins/Sidecards/Voice"),
         .target(name: "MokuseiVoice", dependencies: ["MokuseiCore", "MokuseiPluginAPI", .product(name: "LiveKitWebRTC", package: "webrtc-xcframework")], path: "Sources/Voice", exclude: ["README.md"]),
-        .target(name: "MokuseiUI", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiVoice", .product(name: "WebURL", package: "swift-url")], path: "Sources/Host", exclude: [
+        .target(name: "MokuseiUI", dependencies: ["MokuseiCore", "MokuseiPluginAPI", "MokuseiPluginUI", "MokuseiVoice", "MokuseiSidecardBrowser", .product(name: "WebURL", package: "swift-url")], path: "Sources/Host", exclude: [
             "Overview/README.md", "MokuScene/README.md", "Settings/README.md", "Onboarding/README.md",
             "WindowNavigation/README.md", "Interaction/README.md", "Git/README.md"
         ]),

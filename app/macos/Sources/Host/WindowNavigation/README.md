@@ -25,9 +25,20 @@ for native word movement, including editors hidden inside closed Shadow DOM.
 Escape stays with native form inputs, actual editable elements in the composed
 event path, and open HTML dialogs before the document's back action is considered.
 The Overview command remains available as the global return shortcut.
-New-window HTTP(S) GET links use the external browser. Non-GET new-window form
-requests are rejected with an in-document notice; the host never converts a
-request body into a URL-only GET.
+In a Report panel, main-frame HTTP(S) link clicks and new-window HTTP(S) GET
+links open a separate browser card, leaving the Report mounted with its reading
+position. The card shares Agent Browser navigation chrome, WebKit URL/download
+policy, dialogs, focused document commands and native viewport, but exposes no
+annotation controls, drafts or execution-send capability. Its partition belongs
+to the reading visit. Closing folds the retained page; the Browser launcher
+reopens it. Narrow workspaces stack the two panels and wide workspaces allow
+resizing with the shared divider. Escape from the Report or linked webpage folds an open card
+before closing the Report; editable elements and dialogs retain key priority.
+Same-document anchors (including HTTP pages) and non-link navigations retain WebKit behavior.
+Reduced Motion disables the workspace's folding and stacking animation.
+Outside a Report panel, new-window HTTP(S) GET links use the external browser.
+Non-GET new-window form requests are rejected with an in-document notice; the
+host never converts a request body into a URL-only GET.
 This restores the contract from `bfc2c9f4f`, whose synchronization calls were
 removed by the SwiftUI shell migration `310149f1d`; `ef0164c88` subsequently
 restored only fixed placement.
