@@ -469,12 +469,17 @@ eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
 input/hit-region ownership. Agent detail enters input mode by default, with a localized placeholder naming
 that Thread. The window owns a persisted draft (text, directory mentions and
-attachments) per Thread, separately from Moku history/Overview. Sending keeps the
-Agent editor open and calls the existing `thread:follow-up` capability with the
+attachments) per Thread, separately from Moku history/Overview. Sending folds the
+Agent capsule with Overview's retained-ink transition and calls `thread:follow-up` with the
 Thread identity captured before the first suspension; Runtime chooses steer or a
 successor execution. Stop uses that Thread's observed cancellation identity.
 Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
 late receipts consume only their original draft and cannot reopen another visit.
+The local send publishes a visit-scoped reveal request before admission, then
+attaches the exact execution receipt. Conversation opens once that same execution
+is observed running/waiting and qualifies for its Sidecard. A receipt alone cannot
+open it. Card choices, navigation, suppression and failed admission retire the
+request; a fresh send may reveal again even when steering the same execution.
 Navigation resets retained editor ink, selection and completion ownership before
 admitting the replacement draft. Returning to Overview, Report, Git or Moku history
 restores the existing Moku send route. No Overview card send entrance is added.

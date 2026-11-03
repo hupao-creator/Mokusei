@@ -12,12 +12,15 @@ public final class NativeWorkspacePresentation {
     public let settingsNavigation = NativeSettingsNavigation()
     public let canvas = NativeOverviewCanvasState()
     public let messageMotion = NativeReadingPageMotion()
+    public let threadIdentityRegistry = NativeThreadIdentityRegistry()
+    public private(set) var threadIdentityVisit: NativeThreadIdentityVisit?
     public let themeTransition = NativeThemeTransitionController()
     public let readingNavigation = NativeReadingNavigationState()
     public let readingInteractions = NativeReadingInteractions()
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
+    public private(set) var threadExecutionReveal: SidecardExecutionReveal?
     @ObservationIgnored private var threadDrafts: [JSONText: NativeComposerDraft] = [:]
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
@@ -201,6 +204,7 @@ public final class NativeWorkspacePresentation {
         } else if ref.typeID == "agent" {
             NativePerformance.event(.threadNavigate, context: performanceOperation)
         }
+        threadExecutionReveal = nil
         NativeReadingPageMotion.cancelAll(); scene.settle(); scene.setInputOpen(false)
         if scene.mokuOpen { scene.setMokuOpen(false); scene.settle() }
         if selected != ref {
@@ -213,6 +217,8 @@ public final class NativeWorkspacePresentation {
         if selected != ref {
             readingPanelSourceCardID = selected == nil ? sourceCardID ?? (ref.typeID == "git.worktree" ? nil : ref.threadID.string) : nil
             readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
+            threadIdentityVisit = ref.typeID == "agent" && target == nil
+                ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
         }
         selected = ref; readingTarget = target
         if ref.typeID == "agent" { persistSelection(ref.threadID) }
@@ -285,7 +291,7 @@ public final class NativeWorkspacePresentation {
     public func finishBack() {
         performanceVisit?.end(); performanceVisit = nil; performanceOperation = nil
         let previous = selected
-        selected = nil; readingTarget = nil; resetNavigation(); followUpVisible = false
+        selected = nil; readingTarget = nil; threadIdentityVisit = nil; resetNavigation(); followUpVisible = false
         nativeApplicationNavigation = false
         if let previous, previous.typeID == "agent" { workspace.voice.releaseThread(previous.threadID) }
         threadVoice = nil
@@ -322,6 +328,7 @@ public final class NativeWorkspacePresentation {
     }
 
     private func resetNavigation() {
+        threadExecutionReveal = nil
         navigation = nil
         mountedReadingThread = nil
         navigationRouteID = UUID()
@@ -420,9 +427,24 @@ public final class NativeWorkspacePresentation {
                 "此 Thread 当前无法接收输入，草稿已保留。", "This thread cannot accept input right now. Your draft has been kept."))
         }
         workspace.dismissOperationError()
+        let route = navigationRouteID, generation = scene.composerGeneration, request = UUID()
+        if selected == ApplicationThreadRef(threadID: id, typeID: "agent"), !scene.dockCovered {
+            threadExecutionReveal = SidecardExecutionReveal(id: request)
+        }
         await overview.recordUserAction(kind: "thread-input",
             thread: ApplicationThreadRef(threadID: id, typeID: "agent"), text: JSONText(submission.text))
-        _ = try await workspace.services.followUp(threadID: id, input: submission.input)
+        do {
+            let receipt = try await workspace.services.followUp(threadID: id, input: submission.input)
+            // Runtime admission belongs to the submitted draft. Presentation
+            // authority belongs only to the still-current reading visit.
+            if navigationRouteID == route, scene.composerGeneration == generation,
+               threadExecutionReveal?.id == request, !scene.dockCovered {
+                threadExecutionReveal = SidecardExecutionReveal(id: request, receipt: receipt)
+            }
+        } catch {
+            if threadExecutionReveal?.id == request { threadExecutionReveal = nil }
+            throw error
+        }
     }
 
     public func cancelMoku(observed thread: HarnessThread) {
@@ -684,6 +706,8 @@ public struct NativeWorkspaceView: View {
                 enabled: !presentation.scene.settingsOpen && !presentation.scene.mokuOpen && !presentation.scene.cameraActive,
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
                 panel: presentation.usesReadingPanel, panelSource: presentation.readingPanelSource,
+                panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
+                threadPanelMotion: presentation.selected?.typeID == "agent",
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
                     presentation.overview.setPresentationActive(active)
@@ -732,7 +756,8 @@ public struct NativeWorkspaceView: View {
                         onBack: { presentation.showOverview() },
                         onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
                         backLabel: model.preferences.locale.text("返回俯瞰", "Back to overview"),
-                        onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } })
+                        onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
+                        executionReveal: presentation.threadExecutionReveal)
                         .environment(\.nativeReadingNavigation, nil)
                         .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
                         .onChange(of: selected) { _, ref in if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = ref } }
@@ -745,6 +770,7 @@ public struct NativeWorkspaceView: View {
                 await model.harnessHost.prefetchReading(input: HarnessThreadInput(thread: thread, readingTarget: presentation.readingTarget),
                     performanceContext: presentation.performanceOperation)
             }
+            .environment(\.nativeThreadIdentityRegistry, presentation.threadIdentityRegistry)
             .environment(\.nativePerformanceOperation, presentation.performanceOperation)
             .environment(\.nativeReadingInteractions, presentation.readingInteractions)
             .environment(\.nativeReadingInteractionVisit, routeID)

@@ -110,6 +110,10 @@ private extension EnvironmentValues {
 }
 
 public struct ThreadDetailTurn: View {
+    @Environment(\.nativeThreadContentReveal) private var revealsContent
+    @Environment(\.accessibilityReduceMotion) private var reducedMotion
+    @State private var entrance = NativeThreadContentReveal()
+    @Environment(\.threadDetailFooterReveal) private var footerReveal
     @Environment(\.threadExecutionGroup) private var executionGroup
     public let id: JSONText
     public let author: JSONValue?
@@ -180,8 +184,16 @@ public struct ThreadDetailTurn: View {
                     Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                         .threadReadingAnchor(threadExecutionResultAnchor(id))
                 }
-                if !active { footer.padding(.top, displayed.last?.kind == .user ? 26 : 18) }
+                if !active { footer.opacity(footerReveal * (revealsContent && !entrance.footerVisible ? 0 : 1)).padding(.top, displayed.last?.kind == .user ? 26 : 18) }
             }
+            .environment(\.nativeThreadReveal, revealsContent ? entrance : nil)
+            .onAppear {
+                if revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
+                else { entrance.finish() }
+            }
+            .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
+            .onChange(of: reducedMotion) { _, value in if value { entrance.finish() } }
+            .onDisappear { entrance.finish() }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(localize("对话轮次"))

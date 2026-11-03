@@ -5,6 +5,7 @@ public struct NativeReadingPlaceholder: View {
     public enum Placement { case surface, inline }
 
     private let placement: Placement
+    @Environment(\.nativeThreadContentReveal) private var revealsContent
     @Environment(\.locale) private var locale
     @State private var visible = false
 
@@ -13,7 +14,11 @@ public struct NativeReadingPlaceholder: View {
     }
 
     public var body: some View {
-        Text(locale.language.languageCode?.identifier == "zh" ? "正在读取…" : "Loading…")
+        Group {
+            if revealsContent {
+                NativeThreadLoadingSkeleton().frame(maxWidth: NativeGeometry.readingWidth).padding(.horizontal, placement == .surface ? 32 : 0)
+            } else {
+                Text(locale.language.languageCode?.identifier == "zh" ? "正在读取…" : "Loading…")
             .font(NativeTypography.inter(size: 13))
             .foregroundStyle(NativePalette.thread.muted.swiftUI)
             .multilineTextAlignment(placement == .surface ? .center : .leading)
@@ -21,6 +26,8 @@ public struct NativeReadingPlaceholder: View {
             .padding(.horizontal, placement == .surface ? 18 : 0)
             .frame(maxWidth: .infinity, maxHeight: placement == .surface ? .infinity : nil,
                    alignment: placement == .surface ? .center : .leading)
+            }
+        }
             .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.
@@ -35,5 +42,21 @@ public struct NativeReadingPlaceholder: View {
                 visible = true
             }
             .onDisappear { visible = false }
+    }
+}
+
+
+/// Keep each Harness's compact spinner outside the main Agent reader.
+public struct NativeThreadLoadingIndicator: View {
+    @Environment(\.nativeThreadContentReveal) private var revealsContent
+    private let alignedLeading: Bool
+    public init(alignedLeading: Bool = false) { self.alignedLeading = alignedLeading }
+    public var body: some View {
+        if revealsContent { NativeReadingPlaceholder(placement: .inline) }
+        else {
+            ProgressView().controlSize(.small)
+                .frame(maxWidth: alignedLeading ? .infinity : nil, alignment: .leading)
+                .padding(.vertical, 16)
+        }
     }
 }

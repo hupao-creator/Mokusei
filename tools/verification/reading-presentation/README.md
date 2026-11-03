@@ -1,5 +1,35 @@
 # Reading-page background presentation replay
 
+## Thread send, execution entry and completion handoff
+
+```sh
+python3 tools/verification/reading-presentation/run.py --thread-send-feedback
+```
+
+Runs the production detail Dock, Sidecard model/Conversation plugin and Codex
+readers in an isolated AppKit app. Nine tests cover receipt/catalog/index
+ordering, failure, repeat sends/steering, card choices, covering/navigation,
+terminal/replaced executions, explicit current/result/history requests and
+single-execution sessions. Completion keeps the old reader through travel and
+waits for an intentionally delayed destination row (or mounted read error) before
+releasing it. Native accessibility frames must expand toward main and match
+main's final bounds; content identity and first responder are also asserted. Wide
+and stacked layouts, including Reduced Motion policy, retain source, travel,
+waiting and final AppKit-rendered snapshots.
+The fixture supplies native content resources and send receipts; it starts no
+Runtime or model-provider task. A graphical AppKit session is required. Set
+`MOKUSEI_THREAD_SEND_WINDOWSERVER=1` to request WindowServer captures instead;
+that explicit mode requires TCC screen-capture permission and fails if denied.
+AppKit caching can omit compositor-owned layers; these snapshots are diagnostic,
+not a pixel acceptance oracle or optical compositor/FPS evidence. This is bounded
+interaction evidence, not a real-provider latency claim. CI uses
+`--thread-send-feedback-native` for only the three native-owned methods; the six
+state/identity methods run in its ordinary suite.
+Real right-side launcher controls toggle Conversation, Browser and Voice without
+an independent card Close icon; switching launchers retains execution identity
+and never navigates back or starts voice media. Browser uses a loopback URL and
+Voice uses an inert capability, without external pages or microphone access.
+
 ## Thread history sidebar
 
 ```sh
@@ -736,8 +766,13 @@ the foreground requirement is checked again at input and still fails if absent.
 record. It checks source-card geometry, the measured native panel frame, resident
 Moku identity and input, Settings exclusion, same-thread result retargeting,
 resize/return and direct-result Back. A window capture is exported under
-`agent-panel/root.png`; its Harness is deliberately on the fixture loading path,
-so this image certifies shell/Dock geometry rather than live transcript delivery.
+`agent-panel/root.png`. The Agent fixture delivers current and historical Codex
+content through the Runtime client's ordered subscription stream. It verifies
+the active execution's automatic sidecard, real launcher clicks and icon pixels,
+Thread-owned input, and the production upper-left Close. The execution sidecard
+is read-only, so its open state is checked by panel geometry rather than the
+input-sidecard `followUpVisible` flag. Return/interruption input waits for both
+outer admission and automatic sidecard layout to settle.
 The standalone thread-panel demo exercises real Sidecard content and shared
 production split geometry with mock capabilities, including retained widths,
 rapid switching and narrow vertical splits.

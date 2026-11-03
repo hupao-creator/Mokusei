@@ -163,6 +163,7 @@ private struct CodexLoadedTurnRow: View {
                     let anchor = codexMokuReplyAnchor(state: state.raw, message: input.readingTarget?.message)
                     CodexTurnRows(turn: turn, active: active, state: state,
                                   observation: input.thread.observation.json, actions: actions, context: context.row(key))
+                        .nativeReadingContentReady()
                         .task(id: AnchorRequest(request: input.readingTarget?.requestID, anchor: anchor)) {
                             guard !Task.isCancelled else { return }
                             if let target = input.readingTarget, target.executionID == turn.executionId, let anchor {
@@ -208,6 +209,7 @@ struct CodexContentFailure: View {
             .overlay(alignment: .top) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }
             .padding(.vertical, 12)
             .accessibilityElement(children: .contain)
+            .nativeReadingContentReady()
     }
 }
 
@@ -229,6 +231,7 @@ private struct CodexContentError: View {
             }
         }.foregroundStyle(NativePalette.thread.muted.swiftUI).frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16).accessibilityElement(children: .contain)
+            .nativeReadingContentReady()
     }
 }
 

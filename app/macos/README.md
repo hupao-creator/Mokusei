@@ -125,3 +125,12 @@ failed saves expose an explicit continue-editing or quit-without-saving choice.
 The View menu routes Reload and Zoom through the focused Browser/Report document
 before changing the workspace. App zoom persists levels bounded to 0.25×…5×,
 so the first reverse step at either limit changes the visible scale.
+
+
+Agent panels now carry source title/emoji ink separately during deferred opening,
+show a scoped skeleton while loading, and reveal admitted native text top-down
+for completed executions or bottom-up for active executions. A per-execution
+presentation scope protects first paint and releases masks on change/cancellation.
+Closing retains native geometry travel with the confirmed 65% crossfade to the
+refreshed card. See the shared PluginUI and WindowNavigation documentation for
+lifecycle boundaries and the production fixture command.

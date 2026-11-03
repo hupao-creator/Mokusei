@@ -17,6 +17,16 @@ public struct SidecardSendReceipt: Hashable, Sendable {
     public init(executionID: JSONText) { self.executionID = executionID }
 }
 
+/// A detail-composer send requests one reveal, after its exact receipt is active.
+/// Identity survives admission so a user's intervening card choice wins.
+public struct SidecardExecutionReveal: Equatable, Sendable {
+    public let id: UUID
+    public let receipt: SidecardSendReceipt?
+    public init(id: UUID, receipt: SidecardSendReceipt? = nil) {
+        self.id = id; self.receipt = receipt
+    }
+}
+
 /// Semantic user requests are routed by the host independently of plugin IDs.
 /// Numeric request IDs retain JavaScript number semantics, including fractions.
 public struct SidecardIntent: Hashable, Sendable {
@@ -136,6 +146,9 @@ public struct SidecardContext {
     /// Host localization for display strings, shared with its other native views.
     public let translate: (String) -> String
     public let readingTarget: HarnessReadingTarget?
+    public let executionReveal: SidecardExecutionReveal?
+    /// The host retains this exact terminal execution during its move to main.
+    public let executionHandoff: JSONText?
     public let executionDisabled: Bool
     public let expanded: Bool
     public let transitioning: Bool
@@ -167,12 +180,15 @@ public struct SidecardContext {
                 stageAttachments: @escaping ([URL]) async throws -> [SidecardStagedAttachment],
                 discardAttachments: @escaping ([JSONText]) async throws -> Void,
                 backToOverview: @escaping () -> Void, translate: @escaping (String) -> String = { $0 },
-                draftStorageDirectory: URL? = nil, attachmentImport: SidecardAttachmentImport? = nil) {
+                draftStorageDirectory: URL? = nil, attachmentImport: SidecardAttachmentImport? = nil,
+                executionReveal: SidecardExecutionReveal? = nil, executionHandoff: JSONText? = nil) {
         self.thread = thread; self.conversationIndex = conversationIndex; self.actions = actions
         self.attachmentImport = attachmentImport
         self.draftStorageDirectory = draftStorageDirectory
         self.translate = translate
         self.readingTarget = readingTarget; self.executionDisabled = executionDisabled
+        self.executionReveal = executionReveal
+        self.executionHandoff = executionHandoff
         self.expanded = expanded; self.transitioning = transitioning; self.suppressed = suppressed
         self.conversation = conversation; self.voice = voice
         self.open = open; self.close = close

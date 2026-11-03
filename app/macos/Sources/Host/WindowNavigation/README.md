@@ -132,7 +132,8 @@ remembers the actual source card (the clicked Agent card for Git), and refreshes
 its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left with 48pt of fixed viewport
-clearance below the top edge, also used by the execution Sidecard. The button
+clearance below the top edge. Agent Sidecards use their right-side launcher as
+the open/close toggle and have no independent Close icon. The main panel button
 owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
@@ -166,3 +167,12 @@ with upper-left placement. The lower reservation matches it at either scroll
 limit, without covering the native scrollbar. This is card chrome, independent
 of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
 scroll offset or theme content is rewritten by this viewport adjustment.
+
+
+Agent panel entry captures only the source title/emoji text and native window
+geometry. Its lightweight compositor ink survives deferred reader mounting and
+hands off at actual heading anchors; source-less/direct-result routes skip that
+bridge. Agent closing uses the confirmed 65% content handoff within 420ms,
+scaling/fading the reader without separate closing identity travel. Other panel
+routes retain their previous fade policy. Route generations, refreshed parent
+layout, cancellation and resize completion remain owned by the reading stack.

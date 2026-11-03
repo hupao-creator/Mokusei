@@ -14,7 +14,7 @@ enum VoicePalette {
 }
 
 struct VoiceButtonStyle: ButtonStyle {
-    enum Kind { case close, start, mute, muted, end, jump }
+    enum Kind { case start, mute, muted, end, jump }
     let kind: Kind
     func makeBody(configuration: Configuration) -> some View {
         VoiceButtonBody(configuration: configuration, kind: kind)
@@ -39,10 +39,9 @@ private struct VoiceButtonBody: View {
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
             .onHover { hovered = $0 }
     }
-    private var radius: CGFloat { kind == .close ? 15 : kind == .jump ? 18 : 23 }
+    private var radius: CGFloat { kind == .jump ? 18 : 23 }
     private var foreground: Color {
         switch kind {
-        case .close: hovered ? NativePalette.thread.ink.swiftUI : NativePalette.thread.muted.swiftUI
         case .start: .white
         case .mute: NativePalette.thread.ink.swiftUI
         case .muted, .jump: VoicePalette.blue.swiftUI
@@ -51,7 +50,6 @@ private struct VoiceButtonBody: View {
     }
     private var background: Color {
         switch kind {
-        case .close: hovered ? VoicePalette.incoming.swiftUI : .clear
         case .start: hovered && enabled ? VoicePalette.startHover.swiftUI : VoicePalette.blue.swiftUI
         case .mute: VoicePalette.incoming.swiftUI
         case .muted: VoicePalette.mutedBackground.swiftUI

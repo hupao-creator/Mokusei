@@ -7,19 +7,27 @@ import SwiftUI
 public struct ConversationExecutionPane: View {
     private let presentation: ConversationSidecardPresentation
     @Environment(\.locale) private var locale
+    @State private var navigation: ThreadDetailBackAction
 
-    public init(presentation: ConversationSidecardPresentation) { self.presentation = presentation }
+    public init(presentation: ConversationSidecardPresentation) {
+        self.presentation = presentation
+        _navigation = State(initialValue: ThreadDetailBackAction(label: presentation.context.translate("收起卡片"),
+            onBack: { presentation.context.close() }))
+    }
 
     public var body: some View {
-        conversation
+        ThreadDetailFrame(navigation: navigation, onNavigationChange: { _ in }, isolatedNavigation: true) {
+            conversation
+        }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .nativeReadingPanelViewport()
-            .nativeReadingPanelClose(label: t("收起卡片"), identifier: "conversation-sidecard-close",
-                onClose: presentation.context.close)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(t("执行卡片"))
             .accessibilityIdentifier("conversation-sidecard")
             .nativeReadingExitCommand(perform: presentation.context.suppressed ? nil : presentation.context.close)
+            .onChange(of: locale.identifier) { _, _ in
+                navigation = ThreadDetailBackAction(label: t("收起卡片"), onBack: { presentation.context.close() })
+            }
     }
 
     @ViewBuilder

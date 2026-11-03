@@ -15,7 +15,7 @@ public struct ThreadCardProviderStatus: View {
     public var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Group {
-                if let emoji, !emoji.isEmpty { Text(emoji).font(.system(size: 21)) }
+                if let emoji, !emoji.isEmpty { Text(emoji).font(.system(size: 21)).threadIdentityElement("emoji", detail: false, text: emoji) }
                 else { NativeIcon(name: "MessageCircle", size: 20) }
             }.frame(width: Self.diameter, height: Self.diameter)
             if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }

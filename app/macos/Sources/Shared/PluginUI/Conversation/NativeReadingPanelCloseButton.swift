@@ -1,11 +1,18 @@
 import SwiftUI
 
+public extension EnvironmentValues {
+    @Entry var nativeReadingPanelClosing = false
+}
+
 /// Panel chrome only: callers retain their own route or Sidecard close action.
 public struct NativeReadingPanelCloseButton: View {
     private let label: String
     private let onClose: () -> Void
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reducedMotion
+    @Environment(\.nativeReadingPanelClosing) private var closing
+    @State private var appeared = false
 
     public init(label: String, onClose: @escaping () -> Void) {
         self.label = label; self.onClose = onClose
@@ -32,6 +39,9 @@ public struct NativeReadingPanelCloseButton: View {
                 .padding(-3).allowsHitTesting(false)
         }
         .help(label).accessibilityLabel(label)
+        .opacity(appeared && !closing ? 1 : 0)
+        .animation(reducedMotion ? nil : .easeOut(duration: closing ? 0.08 : 0.16), value: closing)
+        .onAppear { withAnimation(reducedMotion ? nil : .easeOut(duration: 0.16)) { appeared = true } }
     }
 }
 

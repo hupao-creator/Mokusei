@@ -886,8 +886,7 @@ public struct NativeMokuDock: View {
         if threadTitle == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, generation = state.composerGeneration
         submissionDraft = sendingDraft
-        if threadTitle == nil { state.setInputOpen(false) }
-        else { state.capsuleSealed = false }
+        state.setInputOpen(false)
         Task {
             // Capture both the draft and route before yielding. A late receipt
             // consumes only this draft and cannot reopen a replacement visit.

@@ -25,7 +25,7 @@ sample animation presentation frames or read content/accessibility values.
 Individual timeline rows have no global geometry hook. IO failure stops collection
 and restores native observation flags without remounting focused product controls.
 
-Thread, execution Sidecard, Report, Git and Moku history panels share
+Thread, Report, Git and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
 top-left edge. Pair it with `nativeReadingPanelViewport`: the fixed 48pt top
@@ -35,7 +35,9 @@ is not a close target. The button follows reading-palette light/dark colors,
 hover/press, disabled and increased-contrast states, with a visible keyboard
 focus ring and caller-owned localized help/accessibility labels. Callers keep
 their own close callback and Escape/navigation ownership; the button installs
-no global keyboard shortcut. Browser and Voice retain their activity toolbars.
+no global keyboard shortcut. Agent Sidecards use the corresponding right-side
+launcher as their open/close toggle and have no independent Close icon. Browser
+and Voice retain their activity toolbars and media/document actions.
 
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
@@ -350,6 +352,14 @@ Execution sidecards keep their single-execution presentation. They omit the
 decorative emoji and visible document title, use a compact 12pt timeline top inset,
 and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets.
+
+The Sidecard-to-main handoff uses `NativeReadingPageTiming.replacementAnimation`.
+`NativeReadingContentHandoff` scopes a readiness callback to the exact execution;
+`ThreadConversation` forwards it only through that row. Mounted production content
+and readable errors acknowledge readiness with `nativeReadingContentReady()`;
+placeholders do not. The retained source covers data acquisition and decoder
+loading at landing. This signal does not change reading destinations, scroll
+following, data ownership or keyboard/accessibility focus.
 
 A horizontal return requested during opening starts from the current AppKit
 viewport geometry when matching native anchors are available. The anchors belong
@@ -774,8 +784,8 @@ onboarding share native field bindings, catalogs and persistence.
 The shared reading stack can present Agent, Report, Git and Moku history routes
 as a bounded panel, using a source card frame where available. It retains the same route identity, explicit progress clock,
 close/cancel lifecycle and reduced-motion settling as page navigation. Panel
-content fades while its outer frame expands; title/emoji/author remain owned by
-the unchanged reader. The final aperture admits the host's independent toolbar
+content remains reader-owned; Agent title/emoji can use the window-local identity
+bridge described below while its outer frame expands. The final aperture admits the host's independent toolbar
 outside the panel. The front layout includes a 76pt trailing toolbar seat so
 native pointer input reaches those buttons; their labels expose a complete
 42pt circular hit region. Other application pages and vertical history transitions
@@ -873,3 +883,48 @@ TextKit views disable Writing Tools while retaining native selection, copy and
 links. No reader/view or scroll state is cached. See the
 [loading investigation](../../../../../design/thread-loading-performance-cache.md)
 for paired observations, variability and manual coverage limits.
+
+
+### Agent Thread admission and motion
+
+Agent Overview cards register window-local title/emoji anchors through
+`NativeThreadIdentityRegistry`. An ordinary card-open copies their text and
+geometry into one route visit. The compositor carries lightweight native ink
+while the reader remains deferred, then hands it to the mounted heading at its
+measured position. The bridge never retains card/reader/plugin instances;
+replacement, close, timeout and reduced motion retire its layers. Direct result
+navigation and entries without a visible source card retain their ordinary entry.
+
+Agent closing keeps the 420ms native panel return. The complete reader scales
+and fades over the first 80%; the shell exposes the refreshed Overview from 65%
+to the end. Closing has no independent title/emoji travel. Report, Git and nested
+history keep their existing motion policies. The panel Close appears only after
+reader admission and fades before return; its position and hit region remain
+owned by the production upper-left control.
+
+The main Agent workspace opts into `nativeThreadContentReveal`. Scoped loading
+uses the shared `NativeThreadLoadingSkeleton` after the existing 180ms grace
+period. Real Markdown parse completion (independent of optional document tokens)
+and native text attachment admit the first execution entrance. TextKit drawing
+is gated before first paint, then line masks and visibility commit together.
+Completed executions reveal top-down; active executions reveal bottom-up after
+normal follow positioning. The completion footer follows the last line.
+When a completed execution moves from its retained sidecard into the main
+reader, the destination skips this entrance: the handoff already presents the
+content and must not expose a second blank/reveal cycle. Content readiness still
+acknowledges the destination before the retained sidecard fades away.
+
+Each mounted execution owns weak text registrations, masks and cancellation;
+there is no window-wide text scan. Live text changes, actual width changes,
+Reduce Motion and disappearance retire masks and restore drawing. Streaming
+page admission and user scroll ownership remain unchanged. The entrance is
+bounded to 600ms of line staggering plus a 280ms fade; later disclosures and
+stream updates do not restart an execution entrance. Other Markdown consumers
+leave the presentation scope disabled.
+
+Run the [production fixture](../../../../../demos/thread-panel-transition/README.md)
+with `--production --verify`; it uses these production components with deterministic
+loaded/running data and checks source capture, measured handoff, first-paint
+protection, line direction, footer and mask cleanup, normal close and interrupted
+opening. Full-workspace navigation remains covered by the existing native reading
+and Moku landing integration replays.

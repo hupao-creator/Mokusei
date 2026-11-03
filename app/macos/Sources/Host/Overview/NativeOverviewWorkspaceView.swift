@@ -199,6 +199,7 @@ private struct NativeOverviewWorkspaceCard: View {
             case .harness(let snapshot):
                 let thread = snapshot.input.thread
                 snapshot.card(respond: { try await respond($0, thread: thread) }, openThread: { open(thread.id) })
+                    .environment(\.nativeThreadIdentityKey, thread.id.string)
                     .environment(\.openGitWorktree, { id in
                         guard model.canvasState.allowsActivation(cardID: item.id),
                               let current = model.workspace.catalog.thread(thread.id),

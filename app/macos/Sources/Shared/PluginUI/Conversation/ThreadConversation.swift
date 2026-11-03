@@ -67,6 +67,7 @@ public struct ThreadConversation: View {
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
     @Environment(\.locale) private var locale
+    @Environment(\.nativeReadingContentHandoff) private var contentHandoff
     @Environment(\.threadDetailNavigation) private var navigation
     @Environment(\.threadDetailRootNavigation) private var rootNavigation
     @State private var authors: [JSONText: JSONValue] = [:]
@@ -164,7 +165,7 @@ public struct ThreadConversation: View {
     public var body: some View {
         Group {
             if case let .row(id) = context?.content {
-                if let row = visibleRows.first(where: { $0.id == id }) { row.node }
+                if let row = visibleRows.first(where: { $0.id == id }) { row.node.nativeReadingContentReady() }
                 else if !rows.contains(where: { $0.id == id }) {
                     Text(localize("这轮对话已不可用。")).foregroundStyle(NativePalette.thread.danger.swiftUI)
                 }
@@ -288,11 +289,12 @@ public struct ThreadConversation: View {
     }
     private func heading(_ title: String, emoji: String) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(emoji).font(.system(size: 44)).accessibilityHidden(true)
+            Text(emoji).font(.system(size: 44)).threadIdentityElement("emoji", detail: true, text: emoji).accessibilityHidden(true)
             Text(title).font(NativeTypography.inter(size: 40, weight: 650))
                 .tracking(-0.8).lineLimit(2).truncationMode(.tail)
                 .foregroundStyle(NativePalette.thread.inkStrong.swiftUI)
                 .frame(maxWidth: .infinity, alignment: .leading).help(title)
+                .threadIdentityElement("title", detail: true, text: title)
                 .accessibilityAddTraits(.isHeader)
         }
     }
@@ -307,8 +309,11 @@ public struct ThreadConversation: View {
         }
     }
     private func content(_ row: ThreadConversationRow) -> AnyView {
-        if case .manifest = context?.content, let renderRow { return renderRow(row.id) }
-        return row.node
+        let content: AnyView
+        if case .manifest = context?.content, let renderRow { content = renderRow(row.id) }
+        else { content = AnyView(row.node.nativeReadingContentReady()) }
+        return AnyView(content.environment(\.nativeReadingContentReady,
+            row.execution?.id == contentHandoff?.executionID ? contentHandoff?.ready : nil))
     }
     private func historyPage() -> some View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
@@ -318,7 +323,7 @@ public struct ThreadConversation: View {
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
-                              focusHeading: destination == requestedDestination, onBack: closeHistory)
+                              focusHeading: destination == requestedDestination && contentHandoff == nil, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
         .nativeReadingActive(!pageMotion.active)

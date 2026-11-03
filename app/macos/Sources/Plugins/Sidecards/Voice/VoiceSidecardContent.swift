@@ -66,9 +66,6 @@ public struct VoiceSidecardContent: View {
                     .font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                     .lineLimit(1).truncationMode(.tail).help(presentation.context.thread.title.string)
             }.frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: presentation.close) { NativeIcon(name: "X", size: 18).frame(width: 30, height: 30) }
-                .buttonStyle(VoiceButtonStyle(kind: .close))
-                .accessibilityLabel(presentation.translate("收起卡片")).help(presentation.translate("收起卡片"))
         }
         .padding(.horizontal, 18).padding(.top, compact ? 10 : 18).padding(.bottom, compact ? 11 : 16)
         .overlay(alignment: .bottom) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }

@@ -15,6 +15,7 @@ public struct NativeAgentThreadWorkspace: View {
     private let sidecardsSuppressed: Bool
     private let enabledSidecardIDs: Set<JSONText>?
     private let services: NativeSidecardWorkspaceServices
+    private let executionReveal: SidecardExecutionReveal?
     private let onBack: () -> Void
     private let onFollowUpVisibilityChange: (Bool) -> Void
     private let backLabel: String?
@@ -28,13 +29,15 @@ public struct NativeAgentThreadWorkspace: View {
                 sidecardsSuppressed: Bool = false,
                 enabledSidecardIDs: Set<JSONText>? = nil, services: NativeSidecardWorkspaceServices,
                 onBack: @escaping () -> Void, onFollowUpVisibilityChange: @escaping (Bool) -> Void = { _ in },
-                backLabel: String? = nil, onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil) {
+                backLabel: String? = nil, onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil,
+                executionReveal: SidecardExecutionReveal? = nil) {
         self.harnessHost = harnessHost; self.thread = thread; self.registry = registry
         self.executionDisabled = executionDisabled; self.readingTarget = readingTarget
         self.sidecardsSuppressed = sidecardsSuppressed
         self.enabledSidecardIDs = enabledSidecardIDs; self.services = services
         self.onBack = onBack; self.onFollowUpVisibilityChange = onFollowUpVisibilityChange
         self.backLabel = backLabel; self.onNavigationChange = onNavigationChange
+        self.executionReveal = executionReveal
         _navigation = State(initialValue: ThreadDetailBackAction(label: backLabel ?? "返回俯瞰", onBack: onBack))
     }
 
@@ -46,7 +49,8 @@ public struct NativeAgentThreadWorkspace: View {
                 NativeThreadWorkspaceBody(harnessHost: harnessHost, thread: thread, registry: registry,
                     executionDisabled: executionDisabled, readingTarget: readingTarget,
                     sidecardsSuppressed: sidecardsSuppressed, enabledSidecardIDs: enabledSidecardIDs,
-                    services: services, onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
+                    services: services, executionReveal: executionReveal,
+                    onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
                     .environment(\.nativeAgentHasNestedNavigation, nestedNavigation.map { $0.id != navigation.id } ?? false)
                     .id([thread.id, thread.harnessID])
             }
@@ -70,15 +74,17 @@ private struct NativeThreadWorkspaceBody: View {
     let sidecardsSuppressed: Bool
     let enabledSidecardIDs: Set<JSONText>?
     let services: NativeSidecardWorkspaceServices
+    let executionReveal: SidecardExecutionReveal?
     let onBack: () -> Void
     let onFollowUpVisibilityChange: (Bool) -> Void
     @Environment(\.locale) private var locale
+    @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @State private var model: NativeSidecardWorkspaceModel?
 
     private var configuration: NativeSidecardWorkspaceConfiguration {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
-            locale: locale)
+            locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation)
     }
 
     var body: some View {
@@ -106,15 +112,21 @@ private struct NativeThreadWorkspaceBody: View {
 }
 
 @MainActor
-private struct NativeSidecardWorkspaceLayout: View {
+struct NativeSidecardWorkspaceLayout: View {
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
+    /// Previews/replays can supply the same policy without changing OS settings.
+    var motionReduced: Bool? = nil
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @FocusState private var focusedLauncher: JSONText?
+    @State private var handoffProgress: CGFloat = 0
+    @State private var handoffOpacity: Double = 1
+    private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
-        snapshot.dragging ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
+        snapshot.dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
     }
     private var dividerHitWidth: CGFloat {
         6
@@ -131,14 +143,17 @@ private struct NativeSidecardWorkspaceLayout: View {
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
             ZStack(alignment: .topLeading) {
                 mainConversation
-                    .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
+                    .frame(width: snapshot.handoff?.travelComplete == true ? panelSize.width : layout.mainWidth,
+                           height: snapshot.handoff?.travelComplete == true ? panelSize.height : layout.mainHeight, alignment: .topLeading)
                     .background(NativePalette.thread.canvas.swiftUI)
                     .background(NativeReadingPanelFrame())
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
                     .accessibilityIdentifier("agent-reading-panel")
                     .nativeLayoutLog("agent.reading.panel")
-                if snapshot.selected != nil && !layout.stacked {
+                    .allowsHitTesting(snapshot.handoff == nil)
+                    .accessibilityHidden(snapshot.handoff != nil)
+                if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
                     NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                         onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
                         onDraggingChange: model.setDragging)
@@ -161,8 +176,36 @@ private struct NativeSidecardWorkspaceLayout: View {
             closeTopLevel()
         }
         .onChange(of: snapshot.selected) { previous, selected in
-            if selected == nil { focusedLauncher = previous }
+            if selected == nil, snapshot.focusLauncherOnClose { focusedLauncher = previous }
             else { focusedLauncher = nil }
+        }
+        .onChange(of: snapshot.handoff?.id, initial: true) { _, id in
+            var transaction = Transaction(); transaction.disablesAnimations = true
+            withTransaction(transaction) { handoffProgress = 0; handoffOpacity = 1 }
+            guard let id else { return }
+            withAnimation(reduceMotion ? nil : NativeReadingPageTiming.replacementAnimation, completionCriteria: .removed) {
+                handoffProgress = 1
+            } completion: { model.completeHandoffTravel(id) }
+        }
+        .onChange(of: snapshot.handoff?.contentReady) { _, ready in
+            guard ready == true, let id = snapshot.handoff?.id else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16), completionCriteria: .removed) {
+                handoffOpacity = 0
+            } completion: { model.finishHandoff(id) }
+        }
+        .onChange(of: reduceMotion) { _, reduced in
+            guard reduced, let handoff = snapshot.handoff else { return }
+            var transaction = Transaction(); transaction.disablesAnimations = true
+            withTransaction(transaction) { handoffProgress = 1 }
+            model.completeHandoffTravel(handoff.id)
+            if handoff.contentReady { model.finishHandoff(handoff.id) }
+        }
+    }
+
+    private var contentHandoff: NativeReadingContentHandoff? {
+        guard let handoff = snapshot.handoff, handoff.travelComplete else { return nil }
+        return NativeReadingContentHandoff(id: handoff.id, executionID: handoff.executionID) {
+            model.receiveMainExecutionReady(handoff.executionID, handoffID: handoff.id)
         }
     }
 
@@ -171,10 +214,15 @@ private struct NativeSidecardWorkspaceLayout: View {
             NativeHarnessThreadView(host: model.harnessHost, input: snapshot.input,
                 presentation: .main(excludedExecutionIDs: snapshot.excludedExecutionIDs),
                 routes: model.routes, onIndexChange: model.receiveIndex)
+                .environment(\.nativeReadingContentHandoff, contentHandoff)
+                .environment(\.nativeReadingContentReady, contentHandoff?.ready)
                 .disabled(snapshot.executionDisabled)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         }
+        // A promoting sidecard already displays this execution. Do not blank it
+        // for a second entrance when the main reader takes ownership.
+        .environment(\.nativeThreadContentReveal, snapshot.handoff == nil)
         .nativeReadingPanelViewport(balancedVerticalInsets: true)
         .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         .accessibilityElement(children: .contain)
@@ -192,6 +240,8 @@ private struct NativeSidecardWorkspaceLayout: View {
 
     private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry) -> some View {
         let expanded = snapshot.selected == card.id
+        let promoting = snapshot.handoff?.cardID == card.id
+        let progress = promoting ? handoffProgress : 0
         let availableIndex = snapshot.available.firstIndex(where: { $0.id == card.id }) ?? 0
         let trailingLaunchers = max(0, snapshot.available.count - availableIndex - 1)
         let foldedX = -6 - CGFloat(trailingLaunchers) * launcherSize.width
@@ -200,20 +250,22 @@ private struct NativeSidecardWorkspaceLayout: View {
             // Only the main reading body may drive the window's navigation chrome.
             // Sidecards reuse timelines and can contain further nested reading views.
             .environment(\.nativeReadingNavigation, nil)
-            .frame(width: layout.surfaceWidth, height: layout.surfaceHeight, alignment: .topLeading)
+            .frame(width: layout.surfaceWidth + (layout.size.width - layout.surfaceWidth) * progress,
+                   height: layout.surfaceHeight + (layout.size.height - layout.surfaceHeight) * progress, alignment: .topLeading)
             .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
             .modifier(NativeSidecardFold(progress: expanded ? 1 : 0))
-            .animation(.easeInOut(duration: 0.16)) { content in
-                content.opacity(expanded ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16)) { content in
+                content.opacity(expanded ? (promoting ? handoffOpacity : 1) : 0)
             }
-            .offset(x: layout.surfaceX + (expanded ? 0 : foldedX),
-                    y: layout.surfaceY + (expanded ? 0 : foldedY))
+            .offset(x: layout.surfaceX * (1 - progress) + (expanded ? 0 : foldedX),
+                    y: layout.surfaceY * (1 - progress) + (expanded ? 0 : foldedY))
+            .zIndex(promoting ? 3 : 0)
             .allowsHitTesting(expanded && !snapshot.suppressed)
-            // The plugin suppresses its native document during movement, but
-            // its controls (especially Close) remain usable while opening.
+            // Native documents retain their suppression policy during travel;
+            // the separate launcher remains available to reverse the choice.
             .disabled(!expanded || snapshot.suppressed)
             .accessibilityHidden(!expanded || snapshot.suppressed)
             .accessibilityElement(children: .contain)
@@ -243,6 +295,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                     .buttonStyle(.plain)
                     .glassEffect(.regular.tint(snapshot.selected == card.id ? .blue.opacity(0.18) : .clear).interactive(), in: .circle)
                     .focused($focusedLauncher, equals: card.id)
+                    .accessibilityIdentifier("sidecard-toggle-" + card.id.string)
                     .help(card.view.label.string).accessibilityLabel(card.view.label.string)
                     .accessibilityValue(localize(snapshot.selected == card.id ? "已展开" : "已收起", snapshot.selected == card.id ? "Expanded" : "Collapsed"))
                 }

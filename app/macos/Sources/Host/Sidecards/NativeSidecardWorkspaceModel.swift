@@ -11,6 +11,16 @@ struct NativeSidecardWorkspaceConfiguration: Equatable {
     var suppressed: Bool
     var enabledIDs: Set<JSONText>?
     var locale: Locale
+    var executionReveal: SidecardExecutionReveal? = nil
+    var mainReadingHistory = false
+}
+
+struct NativeSidecardExecutionHandoff: Equatable, Identifiable {
+    let id = UUID()
+    let cardID: JSONText
+    let executionID: JSONText
+    var travelComplete = false
+    var contentReady = false
 }
 
 @MainActor
@@ -32,10 +42,17 @@ struct NativeSidecardWorkspaceSnapshot {
     let widths: [JSONText: CGFloat]
     let executionDisabled: Bool
     let suppressed: Bool
+    let handoff: NativeSidecardExecutionHandoff?
+    let focusLauncherOnClose: Bool
 
     var available: [NativeSidecardWorkspaceCard] { cards.filter { $0.view.available } }
     // Folding never gives the main view ownership of a sidecard's execution.
-    var excludedExecutionIDs: [JSONText] { cards.compactMap { $0.view.excludeExecutionID } }
+    var excludedExecutionIDs: [JSONText] {
+        cards.compactMap { card in
+            if handoff?.cardID == card.id, handoff?.travelComplete == true { return nil }
+            return card.view.excludeExecutionID
+        }
+    }
 }
 
 /// Updates happen outside View.body. Plugins may open/close during reconciliation;
@@ -67,6 +84,8 @@ final class NativeSidecardWorkspaceModel {
     @ObservationIgnored private var dispatchDepth = 0
     @ObservationIgnored private var observationGeneration = 0
     @ObservationIgnored private var transitionTask: Task<Void, Never>?
+    @ObservationIgnored private var handoff: NativeSidecardExecutionHandoff?
+    @ObservationIgnored private var focusLauncherOnClose = true
 
     init(harnessHost: NativeHarnessHost, registry: SidecardPluginRegistry,
          configuration: NativeSidecardWorkspaceConfiguration, services: NativeSidecardWorkspaceServices,
@@ -89,6 +108,26 @@ final class NativeSidecardWorkspaceModel {
     func update(configuration: NativeSidecardWorkspaceConfiguration, services: NativeSidecardWorkspaceServices,
                 onBack: @escaping () -> Void, onVisibilityChange: @escaping (Bool) -> Void) {
         guard !isReleased else { return }
+        let nextExecution = configuration.input.thread.observation.latestExecution
+        let sameReading = self.configuration.input.readingTarget == configuration.input.readingTarget
+            && self.configuration.input.thread.id == configuration.input.thread.id
+        let canHandoff = sameReading && !configuration.suppressed && !configuration.executionDisabled
+            && !configuration.mainReadingHistory && configuration.input.thread.archived != true
+        if let handoff, !canHandoff || nextExecution?.executionID != handoff.executionID
+            || configuration.input.thread.observation.isExecutionActive
+            || configuration.enabledIDs?.contains(handoff.cardID) == false {
+            self.handoff = nil
+        }
+        if handoff == nil, canHandoff, !dragging,
+           self.configuration.input.thread.observation.isExecutionActive,
+           !configuration.input.thread.observation.isExecutionActive,
+           let executionID = nextExecution?.executionID,
+           self.configuration.input.thread.observation.latestExecution?.executionID == executionID,
+           let card = snapshot?.cards.first(where: { $0.id == selected && $0.view.excludeExecutionID == executionID }),
+           configuration.enabledIDs?.contains(card.id) != false,
+           configuration.input.readingTarget.map({ $0.executionID == executionID }) ?? true {
+            handoff = NativeSidecardExecutionHandoff(cardID: card.id, executionID: executionID)
+        }
         self.configuration = configuration; self.services = services
         self.onBack = onBack; self.onVisibilityChange = onVisibilityChange
         reconcile()
@@ -104,6 +143,30 @@ final class NativeSidecardWorkspaceModel {
     }
 
     func closeThread() { onBack() }
+
+    func completeHandoffTravel(_ id: UUID) {
+        guard !isReleased, handoff?.id == id else { return }
+        handoff?.travelComplete = true
+        reconcile()
+    }
+
+    func receiveMainExecutionReady(_ executionID: JSONText, handoffID: UUID) {
+        // The mounted row reports readiness after data admission, never from
+        // an elapsed animation timer. A late row cannot finish another handoff.
+        Task { @MainActor [weak self] in
+            guard let self, !isReleased, handoff?.id == handoffID, handoff?.executionID == executionID,
+                  handoff?.travelComplete == true, handoff?.contentReady == false else { return }
+            handoff?.contentReady = true
+            reconcile()
+        }
+    }
+
+    func finishHandoff(_ id: UUID) {
+        guard !isReleased, handoff?.id == id, handoff?.travelComplete == true,
+              handoff?.contentReady == true else { return }
+        handoff = nil
+        _ = choose(nil, focusLauncherOnClose: false)
+    }
 
     func activate(_ id: JSONText) {
         guard snapshot?.available.contains(where: { $0.id == id }) == true else { return }
@@ -130,6 +193,7 @@ final class NativeSidecardWorkspaceModel {
     func release() {
         guard !isReleased else { return }
         isReleased = true; observationGeneration += 1
+        handoff = nil
         transitionTask?.cancel(); transitionTask = nil
         for session in sessions.values { session.release() }
         sessions.removeAll(); handlers.removeAll()
@@ -141,8 +205,10 @@ final class NativeSidecardWorkspaceModel {
     }
 
     @discardableResult
-    private func choose(_ id: JSONText?) -> Int {
+    private func choose(_ id: JSONText?, focusLauncherOnClose: Bool = true) -> Int {
         guard !isReleased else { return selectionRevision }
+        self.focusLauncherOnClose = focusLauncherOnClose
+        if selected != id || id == nil { handoff = nil }
         selectionRevision += 1
         if selected != id {
             selected = id
@@ -254,7 +320,9 @@ final class NativeSidecardWorkspaceModel {
             }, discardAttachments: discardAttachments,
             backToOverview: { [weak self] in self?.onBack() },
             translate: { [weak self] in self?.translate($0) ?? $0 },
-            draftStorageDirectory: harnessHost.client.storageDirectory, attachmentImport: services.attachmentImport)
+            draftStorageDirectory: harnessHost.client.storageDirectory, attachmentImport: services.attachmentImport,
+            executionReveal: configuration.suppressed ? nil : configuration.executionReveal,
+            executionHandoff: handoff?.cardID == id ? handoff?.executionID : nil)
     }
 
     private func retry(_ id: JSONText) {
@@ -323,7 +391,8 @@ final class NativeSidecardWorkspaceModel {
         snapshot = NativeSidecardWorkspaceSnapshot(input: configuration.input, cards: cards,
             selected: selected, lastSelected: lastSelected, selectionRevision: selectionRevision,
             transitioning: transitioning, dragging: dragging, widths: widths,
-            executionDisabled: configuration.executionDisabled, suppressed: configuration.suppressed)
+            executionDisabled: configuration.executionDisabled, suppressed: configuration.suppressed, handoff: handoff,
+            focusLauncherOnClose: focusLauncherOnClose)
         let visible = cards.contains { $0.id == selected && $0.view.acceptsInput == true }
         if lastVisibility != visible { lastVisibility = visible; onVisibilityChange(visible) }
     }
@@ -337,7 +406,6 @@ final class NativeSidecardWorkspaceModel {
                     Text("\(module.descriptor.displayName.string): \(failures[id] ?? "Sidecard unavailable")")
                         .foregroundStyle(NativePalette.thread.danger.swiftUI).textSelection(.enabled)
                     Button(translate("重试")) { [weak self] in self?.retry(id) }
-                    Button(translate("收起卡片")) { [weak self] in self?.close(id) }
                     Spacer(minLength: 0)
                 }.font(.system(size: 12)).padding(12))
             }

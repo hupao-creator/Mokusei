@@ -66,6 +66,8 @@ def main():
     glass_captures = "--tag-glass-captures" in sys.argv
     isolated_input = "--isolated-input" in sys.argv
     tag_glass = "--tag-glass" in sys.argv or glass_captures
+    thread_send_native = "--thread-send-feedback-native" in sys.argv
+    thread_send = "--thread-send-feedback" in sys.argv or thread_send_native
     suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
@@ -82,6 +84,7 @@ def main():
              "NativeMarkdownRegressionTests" if "--markdown" in sys.argv else
              "NativeMokuHistoryComposerTests" if "--moku-composer" in sys.argv else
              "NativeMokuLandingTests" if "--moku-landing" in sys.argv else
+             "NativeThreadSendFeedbackTests" if thread_send else
              "NativeComposerPasteTests" if "--composer-paste" in sys.argv else
              "NativeMokuExecutionLinkTests" if "--moku-execution-links" in sys.argv else
              "NativeMokuNoteTests" if "--moku-note-tests" in sys.argv else
@@ -97,12 +100,14 @@ def main():
     evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     provenance = None
     capture_evidence = [replay.workspace / "evidence" / name for name in ("excerpt", "native-decoration", "tag-first-frame")]
+    if thread_send:
+        capture_evidence = [replay.workspace / "evidence"]
     try:
         replay.acquire()
         if "NativeMokuHistoryComposerTests" in suites:
             args += compile_native_input_support(replay, repo)
         replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
-        if glass_captures:
+        if glass_captures or thread_send:
             # The merge tree and signed replay binary identify what produced the
             # pixels; a PR head label alone does not identify the tested build.
             def git(*args):
@@ -171,6 +176,8 @@ def main():
                     "NativeMokuExecutionLink" if "--moku-execution-links" in sys.argv else
                     "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
                     if "--rolling-numbers" in sys.argv else suite)
+        if thread_send_native:
+            selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons"
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests" or "--rolling-numbers" in sys.argv,
                             env=environment,
@@ -197,6 +204,7 @@ def main():
             replay.export(evidence)
             replay.close()
     count = (
+             3 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
              6 if "--thread-sidebar" in sys.argv else
@@ -207,6 +215,7 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              15 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
+             9 if thread_send else
              11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
@@ -220,6 +229,9 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if thread_send and any(marker not in result.stdout for marker in (
+            "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED", "THREAD_SIDECARD_TOGGLES_CONFIRMED")):
+        raise SystemExit("FAIL: thread send replay did not confirm both native boundaries")
     if "--moku-execution-links" in sys.argv and "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:

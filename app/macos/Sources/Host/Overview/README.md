@@ -275,3 +275,10 @@ settling remain owned by the shared reading stack.
 Reports expand from their own card. The optional Git activation callback also
 forwards the actual clicked Agent card, even when several tasks share a repository.
 The shell uses that identity to refresh the return frame after layout changes.
+
+
+Agent card title/emoji leaves register weak native anchors with the workspace's
+identity registry. Only an actual ordinary open captures text and geometry;
+this adds no projection cache or per-frame catalog publication. The destination
+reader owns the independent opening handoff, and return still uses the refreshed
+canvas frame and actual card content.

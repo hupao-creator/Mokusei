@@ -73,14 +73,14 @@ private struct ClaudeLazyRow: View {
         Group {
             if let resource {
                 switch resource.state {
-                case .loading: ProgressView().controlSize(.small).padding(.vertical, 16)
+                case .loading: NativeThreadLoadingIndicator()
                 case .error(let message): ClaudeFailure(message: message, retry: { try await resource.retry() })
                 case .ready(let raw):
                     ThreadDeferredExecutionContent(raw: raw, rowKey: key, context: context) { value in
                         ClaudeLoadedRow(key: key, input: input, actions: actions, context: context, onAnchor: onAnchor, raw: value)
                     }
                 }
-            } else { ProgressView().controlSize(.small).padding(.vertical, 16) }
+            } else { NativeThreadLoadingIndicator() }
         }.task(id: key) { resource = context.contentResource(.row(key)) }
             .onDisappear { let old = resource; old?.beginRelease(); resource = nil; Task { await old?.release() } }
     }

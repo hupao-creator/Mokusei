@@ -30,6 +30,8 @@ public struct NativeMarkdownView: View {
     @Environment(\.nativeReadingPageCapacity) private var pageCapacity
     @StateObject private var model = MarkdownViewModel()
     @State private var hasStreamed = false
+    @State private var revealDocument = UUID()
+    @Environment(\.nativeThreadReveal) private var threadReveal
     @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
@@ -87,11 +89,20 @@ public struct NativeMarkdownView: View {
             // whole-document parse replaces its final page.
             if value { hasStreamed = true }
         }
+        .onAppear { threadReveal?.beginDocument(revealDocument) }
         .task(id: MarkdownRevision(text: text, streaming: streaming, token: documentToken)) {
             model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation)
         }
-        .onChange(of: model.applied, initial: true) { _, applied in onDocumentApplied?(applied) }
-        .onDisappear { model.cancel() }
+        .onChange(of: model.applied, initial: true) { _, applied in
+            onDocumentApplied?(applied)
+        }
+        .onChange(of: model.hasParsedContent, initial: true) { _, value in
+            if value { threadReveal?.documentReady(revealDocument) }
+        }
+        .onChange(of: streaming, initial: true) { _, value in
+            if value { threadReveal?.documentReady(revealDocument) }
+        }
+        .onDisappear { threadReveal?.endDocument(revealDocument); model.cancel() }
     }
 }
 
@@ -109,6 +120,7 @@ struct MarkdownRevision: Equatable {
 private final class MarkdownViewModel: ObservableObject {
     @Published var blocks: [MarkdownBlock] = []
     @Published private(set) var applied: NativeMarkdownAppliedDocument?
+    @Published private(set) var hasParsedContent = false
     let anchorPrefix = UUID().uuidString
     let actions = MarkdownViewActions()
     private var pending: MarkdownRevision?
@@ -142,6 +154,7 @@ private final class MarkdownViewModel: ObservableObject {
                     // A parser result cannot replace a newer pending revision.
                     if pending == nil {
                         if blocks != document.blocks { blocks = document.blocks }
+                        if !hasParsedContent { hasParsedContent = true }
                         // The new identity must publish even when cached or
                         // textually identical blocks reused the old view tree.
                         applied = next.token.map { NativeMarkdownAppliedDocument(token: $0,
@@ -154,7 +167,7 @@ private final class MarkdownViewModel: ObservableObject {
         }
     }
 
-    func cancel() { workerGeneration = UUID(); worker?.cancel(); worker = nil; pending = nil; applied = nil }
+    func cancel() { workerGeneration = UUID(); worker?.cancel(); worker = nil; pending = nil; applied = nil; hasParsedContent = false }
 
 }
 

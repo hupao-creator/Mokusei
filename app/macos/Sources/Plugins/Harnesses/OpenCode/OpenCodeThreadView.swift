@@ -86,14 +86,14 @@ private struct OpenCodeLazyRow: View {
         Group {
             if let resource {
                 switch resource.state {
-                case .loading: ProgressView().controlSize(.small).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 16)
+                case .loading: NativeThreadLoadingIndicator(alignedLeading: true)
                 case .error(let error): OpenCodeFailure(message: error, retry: { try await resource.retry() })
                 case .ready(let raw):
                     ThreadDeferredExecutionContent(raw: raw, rowKey: key, context: context) { value in
                         OpenCodeLoadedRow(key: key, input: input, actions: actions, context: context, onAnchor: onAnchor, raw: value)
                     }
                 }
-            } else { ProgressView().controlSize(.small).padding(.vertical, 16) }
+            } else { NativeThreadLoadingIndicator(alignedLeading: true) }
         }
         .task(id: key) { resource = context.contentResource(.row(key)) }
         .onDisappear { let old = resource; old?.beginRelease(); resource = nil; Task { await old?.release() } }
@@ -348,6 +348,7 @@ struct OpenCodeFailure: View {
             Text(retryError ?? message).textSelection(.enabled)
             if let retry { Button(ocLocalized("重试", locale: locale)) { Task { do { try await retry(); retryError = nil } catch { retryError = error.localizedDescription } } }.buttonStyle(.plain) }
         }.font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
+            .nativeReadingContentReady()
     }
 }
 @MainActor private func ocExecutionVisible(_ id: JSONText, context: HarnessRenderContext) -> Bool {

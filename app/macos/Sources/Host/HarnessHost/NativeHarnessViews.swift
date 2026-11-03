@@ -71,6 +71,7 @@ struct NativeHarnessStatusView: View {
             if let retry { Button(isChinese ? "重试" : "Retry", action: retry).buttonStyle(.plain) }
         }
         .font(.system(size: 13)).foregroundStyle(.secondary)
+        .nativeReadingContentReady()
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)

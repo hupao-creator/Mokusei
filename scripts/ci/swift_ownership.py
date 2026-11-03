@@ -2,6 +2,15 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons(card:)": {
+        "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SIDECARD_TOGGLES_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/mountedProductionReadersHandOffAfterContentAdmission(width:mode:)": {
+        "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft(outcome:)": {
+        "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeMokuExecutionLinkTests/noteCapsulesWrapCopyAndRefreshTheirHarnessWithoutChangingTheNote(harness:)": {
         "group": "native", "check": "moku-execution-links", "marker": "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED",
     },

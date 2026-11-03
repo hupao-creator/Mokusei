@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--skip-build', action='store_true')
 parser.add_argument('--verify', action='store_true')
 parser.add_argument('--open', action='store_true')
+parser.add_argument('--production', action='store_true')
 options = parser.parse_args()
 output = repo / '.build/thread-panel-transition'
 output.mkdir(parents=True, exist_ok=True)
@@ -23,10 +24,10 @@ if not options.skip_build:
     subprocess.run(['xcrun', 'swift', 'build', '--package-path', str(repo / 'app/macos')], check=True)
 replay = NativeReplay(repo, 'ThreadPanelDemo', 'com.mokusei.thread-panel-demo')
 try:
-    replay.compile([source / 'Sidecards.swift', source / 'main.swift'])
+    replay.compile([source / 'Sidecards.swift', source / 'LineReveal.swift', source / 'main.swift'])
     if options.verify:
         replay.acquire()
-        status = replay.run(['--verify'], timeout=90)
+        status = replay.run(['--verify'] + (['--production'] if options.production else []), timeout=90)
         replay.export(output / 'evidence')
         report = json.loads((replay.root / 'result.json').read_text())
         if status or not report['ok']:
@@ -43,4 +44,4 @@ except subprocess.CalledProcessError as error:
 finally:
     replay.close()
 if options.open:
-    subprocess.run(['open', '-n', str(application)], check=True)
+    subprocess.run(['open', '-n', str(application)] + (['--args', '--production'] if options.production else []), check=True)

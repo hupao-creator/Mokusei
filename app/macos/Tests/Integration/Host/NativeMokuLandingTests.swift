@@ -19,6 +19,16 @@ import MokuseiSidecardConversation
 extension RuntimeClient {
     fileprivate func connectLandingFixture() { setStatus(.connected) }
     fileprivate func disconnectLandingFixture() { setStatus(.disconnected) }
+    fileprivate func landingContentSubscriptions() -> [(String, JSONText)] {
+        contentResources.map { ($0.key, $0.value.threadID) }
+    }
+    fileprivate func deliverLandingContent(_ state: JSONValue, subscription: String) {
+        guard contentResources[subscription] != nil else { return }
+        contentResources[subscription]?.value = state
+        // Use the workspace's ordered event stream, after subscribe's loading
+        // event, rather than racing a direct call into its Harness host.
+        emit(.threadContent(subscriptionId: subscription, state: .ready(state)))
+    }
 }
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
@@ -33,6 +43,7 @@ struct NativeMokuLandingTests {
         var submissions = 0
         var stops = 0
         var revision = 0
+        var contentPump: Task<Void, Never>?
         var scene: NativeMokuSceneState { presentation.scene }
         var overview: NativeOverviewWorkspaceModel { presentation.overview }
         var moku: NativeMokuWorkspacePresentation { presentation.moku }
@@ -91,6 +102,41 @@ struct NativeMokuLandingTests {
                          "Catalog installation failed: \(workspace.connectionError ?? "unknown")")
             #expect(overview.error == nil && workspace.runtimeAvailable)
         }
+        func provideReadingContent() {
+            contentPump = Task { @MainActor [weak self] in
+                var published: [String: JSONValue] = [:]
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    for (subscription, threadID) in await workspace.client.landingContentSubscriptions() {
+                        guard let thread = workspace.catalog.thread(threadID), thread.moku != true else { continue }
+                        let activeID = thread.observation.latestExecution?.executionID
+                        let ids = [JSONText("previous-" + threadID.string), JSONText("run-" + threadID.string)]
+                        let turns = ids.enumerated().map { index, id -> JSONValue in
+                            let active = thread.observation.isExecutionActive && activeID == id
+                            let text = index == 0 ? "Previous execution for panel navigation" : "Current execution for panel navigation"
+                            var turn: [JSONText: JSONValue] = ["executionId": .string(id),
+                                "status": .text(active ? "running" : "completed"),
+                                "createdAt": .integer(index + 1), "updatedAt": .integer(4),
+                                "answer": .text(text), "reasoning": .text(""),
+                                "messages": .array([.object(["id": .text(id.string + "-reply"), "role": .text("assistant"),
+                                    "kind": .text("answer"), "content": .text(text), "createdAt": .integer(3), "attachments": .array([])])]),
+                                "timeline": .array([.object(["id": .text(id.string + "-reply"), "kind": .text("assistant"),
+                                    "itemId": .text(id.string + "-native"), "content": .text(text), "status": .text("complete"), "createdAt": .integer(3)])]),
+                                "activities": .array([]), "interactions": .array([]), "plan": .array([]), "notices": .array([])]
+                            if !active { turn["finishedAt"] = .integer(4) }
+                            return .object(turn)
+                        }
+                        let state: JSONValue = .object(["schema": .text("mokusei.harness.codex.thread.v1"),
+                            "updatedAt": .integer(4), "backgroundTerminals": .array([]), "turns": .array(turns)])
+                        if published[subscription] != state {
+                            await workspace.client.deliverLandingContent(state, subscription: subscription)
+                            published[subscription] = state
+                        }
+                    }
+                    do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
+                }
+            }
+        }
         func mount(fullWorkspace: Bool = false, width: CGFloat = 900, height: CGFloat = 620) {
             // Match SwiftUIReplay.window's self-inspection prerequisite for the
             // production panel Close and native Escape focus boundary.
@@ -116,6 +162,7 @@ struct NativeMokuLandingTests {
             if rejectSubmission { throw PluginContractError("fixture admission failed") }
         }
         func close() async {
+            contentPump?.cancel(); await contentPump?.value
             window?.close()
             await presentation.release()
             try? await workspace.stop()
@@ -198,7 +245,8 @@ struct NativeMokuLandingTests {
             #expect(fixture.overview.items.map(\.id) == ["a"])
             fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
             let openingSource = fixture.presentation.readingPanelSource
-            try await SwiftUIReplay.wait { fixture.presentation.messageMotion.active && fixture.overview.presentationActive }
+            try await SwiftUIReplay.wait { fixture.presentation.messageMotion.active }
+            #expect(!fixture.overview.presentationActive, "Panel opening freezes Overview projection before deferred reader admission")
             fixture.presentation.showOverview()
             #expect(fixture.presentation.readingPanelSource == openingSource)
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
@@ -340,7 +388,10 @@ struct NativeMokuLandingTests {
         }
         try await withFixture { fixture in
             try fixture.workspace.preferences.setAppearance(.light)
-            try await fixture.install([fixture.thread(status: .completed)])
+            // The execution launcher requires an observed active execution and
+            // real loaded history. A completed catalog-only fixture has neither.
+            try await fixture.install([fixture.thread(status: .running)])
+            fixture.provideReadingContent()
             fixture.mount(fullWorkspace: true, width: 1100, height: 760)
             let root = try #require(fixture.window?.contentView)
             try await SwiftUIReplay.wait { fixture.presentation.canvas.allowsActivation(cardID: "child") && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
@@ -351,6 +402,17 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait {
                 fixture.presentation.mountedReadingThread?.threadID == "child" && !fixture.presentation.messageMotion.active
                     && readingPanel(in: root) != nil
+            }
+            // Active entry now opens its execution sidecard once. Fold it via
+            // the real launcher before testing the existing reopen/close cycle.
+            let initialPanel = NativeReadingPanelGeometry.frame(in: root.bounds.size)
+            try await SwiftUIReplay.wait {
+                (readingPanel(in: root)?.bounds.width ?? initialPanel.width) < initialPanel.width - 300
+            }
+            #expect(!fixture.presentation.followUpVisible, "The read-only execution sidecard does not own input visibility")
+            try click(CGPoint(x: initialPanel.maxX + 38, y: initialPanel.midY), window: try #require(fixture.window))
+            try await SwiftUIReplay.wait {
+                !fixture.presentation.followUpVisible && abs((readingPanel(in: root)?.bounds.width ?? 0) - initialPanel.width) < 1
             }
             let captureContent = try await SCShareableContent.currentProcess
             if let own = captureContent.windows.first(where: { $0.windowID == CGWindowID(fixture.window!.windowNumber) }) {
@@ -386,14 +448,17 @@ struct NativeMokuLandingTests {
             // invocation: it catches ancestor clipping of the external launcher.
             let toolbarPoint = CGPoint(x: expected.maxX + 38, y: expected.midY)
             try click(toolbarPoint, window: try #require(fixture.window))
-            try await SwiftUIReplay.wait { fixture.presentation.followUpVisible && (readingPanel(in: root)?.bounds.width ?? expected.width) < expected.width - 300 }
+            try await SwiftUIReplay.wait { (readingPanel(in: root)?.bounds.width ?? expected.width) < expected.width - 300 }
+            #expect(!fixture.presentation.followUpVisible, "Execution display must not advertise an input sidecard")
             try click(toolbarPoint, window: try #require(fixture.window))
             try await SwiftUIReplay.wait { !fixture.presentation.followUpVisible && abs((readingPanel(in: root)?.bounds.width ?? 0) - expected.width) < 1 }
             try fixture.presentation.performInteraction(.toggleMokuInput)
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
             let input = try #require(SwiftUIReplay.editor(in: root))
             input.insertText("Moku remains usable in the reading panel", replacementRange: NSRange(location: 0, length: 0))
-            try await SwiftUIReplay.wait { fixture.presentation.draft.text == "Moku remains usable in the reading panel" }
+            try await SwiftUIReplay.wait { fixture.presentation.dockDraft.text == "Moku remains usable in the reading panel" }
+            #expect(fixture.presentation.dockDraft !== fixture.presentation.draft,
+                "Agent input belongs to its Thread and must not overwrite the Overview draft")
             fixture.scene.setInputOpen(false)
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(
                 executionID: "run-child", requestID: "same-thread-result", mode: .history, position: .result))
@@ -424,6 +489,15 @@ struct NativeMokuLandingTests {
                         && readingPanel(in: root) != nil
                 }
                 let panel = try #require(readingPanel(in: root))
+                // An active execution opens its sidecard after reader admission;
+                // wait for that second layout transition before targeting Close.
+                var lastFrame = panel.convert(panel.bounds, to: root)
+                var stableSince = ContinuousClock.now
+                try await SwiftUIReplay.wait {
+                    let frame = panel.convert(panel.bounds, to: root)
+                    if frame != lastFrame { lastFrame = frame; stableSince = .now }
+                    return stableSince.duration(to: .now) > .milliseconds(450)
+                }
                 let settledFrame = panel.convert(panel.bounds, to: root)
                 try await Task.sleep(for: .milliseconds(100))
                 try #require(panel.convert(panel.bounds, to: root) == settledFrame, "Close target must be settled before input")
@@ -521,7 +595,7 @@ struct NativeMokuLandingTests {
                 try await SwiftUIReplay.wait { fixture.scene.inputOpen && SwiftUIReplay.editor(in: root) != nil }
                 fixture.scene.setInputOpen(false)
                 let panel = try #require(readingPanel(in: root, identifier: identifier))
-                let point = panel.convert(CGPoint(x: panel.bounds.maxX - 17,
+                let point = panel.convert(CGPoint(x: panel.bounds.minX + 30,
                     y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
                 try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
                 try #require(fixture.presentation.messageMotion.active)
@@ -617,7 +691,7 @@ struct NativeMokuLandingTests {
         let panel = try #require(readingPanel(in: root))
         // The production Close circle has 14pt inset and 16pt radius. Measure
         // its mounted panel, including any outer panel animation/transform.
-        let point = panel.convert(CGPoint(x: panel.bounds.maxX - 30,
+        let point = panel.convert(CGPoint(x: panel.bounds.minX + 30,
             y: panel.isFlipped ? 30 : panel.bounds.maxY - 30), to: root)
         try click(CGPoint(x: point.x, y: root.isFlipped ? point.y : root.bounds.height - point.y), window: window)
     }

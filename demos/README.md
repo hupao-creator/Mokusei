@@ -4,7 +4,7 @@
 
 | 入口 | 状态与用途 |
 | --- | --- |
-| [Agent Thread 面板转场](thread-panel-transition/README.md) | 独立原生提案；对称留白阅读面板与独立 Sidecard 分屏；复用生产详情、侧栏和拖动分隔线，Moku 常驻。 |
+| [Agent Thread 面板转场](thread-panel-transition/README.md) | 生产 compositor、身份交接和双向正文揭示的 fixture 回放；保留此前独立提案作对照，Moku 常驻。 |
 | [Overview / glass world](../tools/verification/overview-input/README.md) | 当前生产 Canvas、Harness/Report 卡片、Chrome 和 Moku Dock；含浅深色 × 材质开关的隔离截图。 |
 | [Tag morph](tag-filter-morph/README.md) | 当前生产 `NativeOverviewChrome` 标签回放。 |
 | [Overview 搜索](overview-thread-search/README.md) | 当前生产搜索、筛选与几何回放。 |

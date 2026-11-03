@@ -9,7 +9,7 @@ struct BrowserPageToolbar<AnnotationControl: View>: View {
     let active: Bool
     let translate: (String) -> String
     let onOpen: (URL) -> Void
-    let onClose: () -> Void
+    let onClose: (() -> Void)?
     @ViewBuilder var annotationControl: AnnotationControl
     @State private var addressDraft = ""
     @State private var addressError = ""
@@ -50,12 +50,14 @@ struct BrowserPageToolbar<AnnotationControl: View>: View {
                 .overlay(Capsule().stroke(palette.line, lineWidth: 1))
                 .help(address)
                 annotationControl
-                Button { onClose() } label: { NativeIcon(name: "X", size: 16).frame(width: 36, height: 36) }
-                    .buttonStyle(BrowserToolStyle(palette: palette)).background(palette.background, in: Circle())
-                    .allowsWindowActivationEvents()
-                    .overlay(Circle().stroke(palette.line, lineWidth: 1))
-                    .help(translate("收起网页")).accessibilityLabel(translate("收起网页"))
-                    .accessibilityIdentifier("browser-sidecard-close")
+                if let onClose {
+                    Button(action: onClose) { NativeIcon(name: "X", size: 16).frame(width: 36, height: 36) }
+                        .buttonStyle(BrowserToolStyle(palette: palette)).background(palette.background, in: Circle())
+                        .allowsWindowActivationEvents()
+                        .overlay(Circle().stroke(palette.line, lineWidth: 1))
+                        .help(translate("收起网页")).accessibilityLabel(translate("收起网页"))
+                        .accessibilityIdentifier("browser-sidecard-close")
+                }
             }
             .padding(10)
             if !addressError.isEmpty {

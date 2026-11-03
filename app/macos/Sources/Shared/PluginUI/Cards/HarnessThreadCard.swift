@@ -118,6 +118,7 @@ private struct ThreadCardIdentity: View {
                 // Prompt-derived and generated titles share one line in every state.
                 .lineLimit(1, reservesSpace: true).truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
+                .threadIdentityElement("title", detail: false, text: identity.title)
                 .padding(.trailing, cornerClearance).help(identity.title)
                 .accessibilityLabel(identity.title)
             if identity.harness != nil || identity.model != nil || effort != nil || identity.fastMode {

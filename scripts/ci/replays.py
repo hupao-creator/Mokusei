@@ -97,6 +97,7 @@ def main():
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name])
               for name in ["browser-dialogs", "application-navigation", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
+            ("thread-send-feedback", [sys.executable, "tools/verification/reading-presentation/run.py", "--thread-send-feedback-native"]),
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),
         ],
     }

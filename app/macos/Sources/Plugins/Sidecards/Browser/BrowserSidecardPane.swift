@@ -14,7 +14,7 @@ public struct BrowserSidecardPane: View {
                 BrowserPageToolbar(session: session, requestedURL: presentation.requestedURL,
                     active: presentation.context.expanded && !presentation.released,
                     translate: presentation.context.translate, onOpen: presentation.open,
-                    onClose: presentation.context.close) {
+                    onClose: nil) {
                     Button { presentation.annotate() } label: {
                         NativeIcon(name: "MessageSquarePlus", size: 16).frame(width: 28, height: 28)
                     }

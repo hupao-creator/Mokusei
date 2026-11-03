@@ -36,7 +36,7 @@ import MokuseiSidecardVoice
 
     init(thread: DemoThread, onBack: @escaping () -> Void) {
         self.thread = try! HarnessThread(id: JSONText(thread.id), harnessID: "codex", revision: 0,
-            sessionState: .null, observation: .init(), cwd: "/demo/Mokusei", settings: .object([:]),
+            sessionState: .null, observation: .init(latestExecution: try! .init(executionID: "demo-running-execution", status: .running, startedAt: 1793602800000)), cwd: "/demo/Mokusei", settings: .object([:]),
             createdAt: 0, updatedAt: 0, title: JSONText(thread.id), tags: [])
         self.onBack = onBack
         for module in modules { sessions[module.descriptor.id] = try! module.makeSession(context: context(module.descriptor.id)) }
@@ -50,7 +50,7 @@ import MokuseiSidecardVoice
     var snapshot: NativeSidecardWorkspaceSnapshot {
         .init(input: .init(thread: thread), cards: cards, selected: selected, lastSelected: lastSelected,
             selectionRevision: revision, transitioning: transitioning, dragging: dragging, widths: widths,
-            requestError: nil, executionDisabled: false, suppressed: false)
+            executionDisabled: false, suppressed: false, handoff: nil, focusLauncherOnClose: true)
     }
     func activate(_ id: JSONText) {
         choose(selected == id ? nil : id)
@@ -97,10 +97,11 @@ import MokuseiSidecardVoice
     private func context(_ id: JSONText) -> SidecardContext {
         let actions = HarnessThreadActions(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null },
             forkThread: { _ in "demo-fork" }, openExternal: { _ in }, openFollowUp: { _ in })
-        return SidecardContext(thread: thread, conversationIndex: .init(executionIDs: ["previous-execution", "current-execution"], hasInheritedHistory: false),
+        return SidecardContext(thread: thread, conversationIndex: .init(executionIDs: ["previous-execution", "current-execution", "demo-running-execution"], hasInheritedHistory: false),
             actions: actions, readingTarget: nil, executionDisabled: false, expanded: selected == id,
             transitioning: transitioning, suppressed: selected != id || transitioning || dragging,
-            conversation: { _, _ in AnyView(EmptyView()) }, voice: voice,
+            conversation: { _, _ in AnyView(ThreadMessage(id: "demo-execution", author: .assistant,
+                content: "正在整理交互细节。\n\n这是本地执行 fixture，不会提交真实任务。").padding(24)) }, voice: voice,
             open: { [weak self] in self?.choose(id); return self?.revision ?? 0 },
             close: { [weak self] in if self?.selected == id { self?.choose(nil) } },
             selectionRevision: { [weak self] in self?.revision ?? 0 },

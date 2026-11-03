@@ -8,10 +8,9 @@ struct ConversationExecutionState {
         thread.observation.isExecutionActive ? thread.observation.latestExecution?.executionID : nil
     }
 
-    func sidecardExecutionID(thread: HarnessThread, index: ThreadConversationIndex?, readingTarget: HarnessReadingTarget? = nil) -> JSONText? {
+    func sidecardExecutionID(thread: HarnessThread, index: ThreadConversationIndex?) -> JSONText? {
         guard thread.archived != true, let active = activeExecutionID(thread: thread),
               Self.hasHistoryBefore(index, executionID: active) else { return nil }
-        if readingTarget?.position == .result, readingTarget?.executionID == active { return nil }
         return active
     }
 
@@ -20,11 +19,11 @@ struct ConversationExecutionState {
         return index.hasInheritedHistory || index.executionIDs.contains { $0 != executionID }
     }
 
-    func update(thread: HarnessThread, index: ThreadConversationIndex?, readingTarget: HarnessReadingTarget?,
+    func update(thread: HarnessThread, index: ThreadConversationIndex?,
                 expanded: Bool, close: () -> Void) {
-        // Starting or navigating an execution only exposes the launcher. The
-        // user's show/hide choice must not be overridden by background updates.
-        if expanded, sidecardExecutionID(thread: thread, index: index, readingTarget: readingTarget) == nil {
+        // Availability alone does not request presentation. Entry and local
+        // detail-send owners apply their separate, one-shot reveal policies.
+        if expanded, sidecardExecutionID(thread: thread, index: index) == nil {
             close()
         }
     }

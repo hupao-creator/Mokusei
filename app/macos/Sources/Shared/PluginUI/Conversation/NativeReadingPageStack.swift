@@ -28,6 +28,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var stationaryParent: Bool
     public var panel: Bool
     public var panelSource: CGRect?
+    public var panelIdentity: NativeThreadIdentityVisit?
+    public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
     public var axis: Axis
@@ -54,7 +56,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, panel: Bool = false, panelSource: CGRect? = nil, duration: TimeInterval = NativeReadingPageTiming.duration,
+                emphasizedOpening: Bool = false, panel: Bool = false, panelSource: CGRect? = nil,
+                panelIdentity: NativeThreadIdentityVisit? = nil, threadPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -66,6 +69,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
+        self.panelIdentity = panelIdentity; self.threadPanelMotion = threadPanelMotion
         self.axis = axis
         self.direction = direction
         self.onParentPresentationChange = onParentPresentationChange; self.prepareParent = prepareParent
@@ -103,8 +107,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                     NativeReadingPanelViewport(target: panelBounds, source: panelSource,
                         open: panelContentReady || panelTransition != nil,
                         transition: panelTransition, contentReady: panelContentReady,
+                        identity: reduceMotion ? nil : panelIdentity,
                         onCompletion: finishPanelTransition,
-                        content: front.id(identity))
+                        content: front.id(identity)
+                            .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
+                            .environment(\.nativeReadingPanelClosing, closing))
                 } else if open {
                     ZStack {
                         front.id(identity)
@@ -214,6 +221,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     }
 
     private func settle(finishingClose: Bool = false) {
+        panelIdentity?.finish()
         // Layout/activation can interrupt the animation after Close was accepted.
         // Complete that visit's intent, but never close a replacement route or
         // turn an explicit cancellation into navigation.
@@ -280,7 +288,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             motion.active = true
             if !closing { panelContentReady = false }
             panelTransition = NativeReadingPanelTransition(generation: generation, closing: closing,
-                duration: duration, emphasized: !closing && emphasizedOpening)
+                duration: duration, emphasized: !closing && emphasizedOpening, thread: threadPanelMotion)
             // Only the backdrop uses SwiftUI interpolation; panel geometry and
             // its completion belong to the native compositor, with no tick task.
             withAnimation(!closing && emphasizedOpening

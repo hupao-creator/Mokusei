@@ -18,17 +18,20 @@ The host, execution pane and nested history route SwiftUI Escape through
 without replacing focused-child dispatch. Native editors/marked text, menus,
 transient controls and WebKit keep cancellation first; otherwise Escape folds
 open Moku input before folding the selected Sidecard or leaving the Thread.
-Explicit Close, browser address/annotation cancellation and non-Escape exit
+Launcher toggles, browser address/annotation cancellation and non-Escape exit
 commands retain their own routes. Covered/disabled cards cannot close a replacement.
 
+Agent Sidecards have no independent Close icon. The corresponding right-side
+launcher toggles open/closed and selecting another launcher switches activity.
+The main Thread's Close remains separate. Conversation, Browser and Voice retain
+their programmatic/Escape dismissal without ending execution, drafts or media.
 The host's animated
-[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) keeps a 60pt
-top chrome band visible while the document retains its right-origin unfolding. This includes the
-execution reader's upper-left Close and Browser/Voice's existing toolbar Close.
+[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) unfolds the
+document from the right without reserving a separate top chrome aperture.
 The same interpolated aperture bounds pointer hits, so masked document controls
 cannot receive clicks. The existing selected/suppressed gates still disable
 folded, retiring and covered cards; native document suppression, the short fade,
-offsets, resizing, stacking, sessions and Close callbacks keep their ownership.
+offsets, resizing, stacking, sessions and dismissal callbacks keep their ownership.
 
 ## Conversation
 
@@ -36,17 +39,21 @@ offsets, resizing, stacking, sessions and Close callbacks keep their ownership.
 draft, attachments, Send or Stop control; Agent input belongs to the Thread detail
 Moku bar. Follow-up suggestions from Harness/Application reading routes append
 to that Thread's Moku-bar draft and open its editor, preserving existing text and
-attachments. Compose intents and send receipts cannot open this Sidecard.
+attachments. Generic compose/send intents do not open it; the detail composer's
+explicit, visit-scoped reveal request correlates its receipt with observed execution.
 
 Availability requires an observed running/waiting execution and earlier/inherited
 history in the Harness's full turn index. A first active execution stays in the
-main reader. An exact execution-result request also keeps its target in the main
-reader. The Sidecard launcher only exists while the display qualifies; it can
+main reader. The Sidecard launcher only exists while the display qualifies; it can
 show/hide the current execution without focusing the Moku editor or a new input.
-Entering the Thread, starting another execution and reading requests do not
-automatically expand it; only the user's launcher action opens the display.
-Completion, interruption, failure, archive or loss of eligibility closes and
-removes it. Acknowledged input alone does not prove that an execution is active.
+Entering a Thread or explicitly opening its active execution (including a result
+link) expands it once when the full session index contains another execution or
+inherited history. A request for a different historical execution cannot reveal
+the current one. An active first execution stays in main; unrelated background
+starts do not create a new entry request. User fold/card choices win over delayed
+index/receipt delivery and ordinary streaming updates. New explicit reading
+requests and local detail sends may reveal again. Archive or loss of eligibility
+closes and removes it. Acknowledged input alone does not prove an execution is active.
 The host rejects stale launcher activations and retires unavailable selections
 before publishing the next snapshot. Folding retains the existing execution
 ownership policy and Harness response forms. The execution card has no decorative
@@ -118,9 +125,16 @@ Browser annotation imports and send receipts retain their existing independent
 capabilities and ownership. Removing the Conversation composer does not remove
 Browser annotation sending or the Runtime follow-up command.
 
-An execution-result reading request keeps its targeted active execution in the
-main reader instead of moving it into the Conversation sidecard. This preserves
-the same mounted reading visit and user-controlled following across completion.
-Other execution and composer behavior retains the normal sidecard policy.
+When the expanded execution terminates, the Host retains that same execution
+reader while it travels and expands into the main panel, using the shared
+reading replacement curve. At landing, main admits the matching execution; the
+source remains visible until that row or its readable error mounts, then fades
+out. Animation/readiness callbacks are fenced by handoff and execution identity.
+Folding, card choice, replacement execution, archive, covering routes, release or
+a different reading target cancels the old handoff. Main history navigation
+remains in place rather than being replaced by this animation. Reduced Motion
+removes travel/fade while retaining the content-readiness gate. The handoff
+never requests editor/content/launcher focus. Retained widths, stacked layout
+and input ownership keep their existing boundaries.
 
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
