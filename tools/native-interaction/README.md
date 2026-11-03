@@ -225,8 +225,9 @@ target within half a point, including repeated relative movement and both edges.
 This reading scope excludes composer send/interrupt, attachments, sidecards, Git,
 external links and media; page navigation alone does not test those features.
 
-Settings uses a horizontal header. Report/Tag inheritance is exposed through
-`<section>.inherit` and `<section>.independent` activation actions; independent
-Harness seats use `<section>.harness.<id>`. Inherited mode omits independent
-choices. Moku's model selection preferences switch (`moku.routingEnabled`) is
+Settings uses a horizontal header. Report/Tag modes are exposed through
+`<section>.off`, `<section>.inherit` and `<section>.independent` activation
+actions. Independent Harness seats use `<section>.harness.<id>`; inherited mode
+shows read-only execution fields, while off hides execution fields.
+Moku's model selection preferences switch (`moku.routingEnabled`) is
 directly visible; enabling it reveals the `moku.routingGuidance` editor.
