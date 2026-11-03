@@ -134,23 +134,24 @@ struct NativeMokuCapsuleGlass: View {
                 .glassEffect(regular ? .regular : interactive ? Glass.clear.interactive() : .clear,
                              in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
                 .overlay {
-                    if !regular {
-                        shape.fill(LinearGradient(stops: [
+                    // Keep these layers mounted through Note's morph. Inserting
+                    // them on close starts at the final small size while glass
+                    // still contracts, painting a detached pill above the eyes.
+                    shape.fill(LinearGradient(stops: [
                             .init(color: Color.black.opacity(0.99 * strength), location: 0),
                             .init(color: Color(red: 0.04, green: 0.035, blue: 0.03).opacity(0.96 * strength), location: 0.40),
                             .init(color: Color(red: 0.16, green: 0.13, blue: 0.10).opacity(0.70 * strength), location: 0.72),
                             .init(color: Color(red: 0.38, green: 0.33, blue: 0.26).opacity(0.12 * strength), location: 1),
                         ], startPoint: .top, endPoint: .bottom))
-                    }
+                        .opacity(regular ? 0 : 1)
                 }
                 .overlay {
-                    if !regular {
-                        shape.strokeBorder(LinearGradient(stops: [
+                    shape.strokeBorder(LinearGradient(stops: [
                             .init(color: .white.opacity(0.04 * strength), location: 0),
                             .init(color: .white.opacity(0.08 * strength), location: 0.55),
                             .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),
                         ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                    }
+                        .opacity(regular ? 0 : 1)
                 }
         }
     }

@@ -278,10 +278,19 @@ it does not clear the catalog note or change the composer draft.
 
 Note's Regular material is noninteractive; text selection, links, scrolling,
 history and dismissal retain their existing native targets. Returning to the
-collapsed Dock restores its clear interactive material. Reduce Transparency
+collapsed Dock restores its clear interactive material. The warm gradient and
+fine edge remain mounted at zero opacity while Note is open, then fade back
+on the same resizing shell. Inserting them only at dismissal would give them
+the final small layout while glass is still contracting, visibly separating
+the black pill from the eyes. The persistent layers follow opening, closing
+and interrupted reversals without a second shell or delayed completion.
+Reduce Motion removes the inherited geometry/opacity animation; Reduce Transparency
 uses the same opaque warm-black fill in both states. The targeted
 [performance investigation](../../../../../tools/verification/moku-note-performance/README.md)
 records measured layout savings and the limits of its offscreen evidence.
+The [Note transition preview](../../../../../demos/moku-note-transition/README.md)
+records the production Dock with synthetic notes, including intermediate frames,
+rapid reversals, narrow/centered layouts and a local no-animation fixture.
 
 ## Voice display
 

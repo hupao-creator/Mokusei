@@ -1,0 +1,848 @@
+{
+  "baseline": {
+    "build": {
+      "head": "e6f34d35e3c908a30d2da498f809d4e33800fdd6",
+      "sourceSHA256": "c61cccb85b67e7bf8a086e1a15e327bf6851fa6bfaf02cb0d22a0cbcda8d2319",
+      "previewSHA256": "9c9de75a2e1bb50c1cf34799f800c2ba36981a091b7d28732567737fdcdfedc6",
+      "binarySHA256": "7fd2d87f12696ce848d6964835d450d637c5dae06e8adc74eadb7e002177a390",
+      "productionDiff": ""
+    },
+    "observations": {
+      "draft": "Retained draft 草稿",
+      "events": [
+        {
+          "animationsDisabled": false,
+          "event": "long-open",
+          "open": true,
+          "seconds": 0.373730583,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "long-close",
+          "open": false,
+          "seconds": 1.260028083,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reopen",
+          "open": true,
+          "seconds": 1.922158625,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-opening",
+          "open": false,
+          "seconds": 2.052746,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-closing",
+          "open": true,
+          "seconds": 2.151116458,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "close-again",
+          "open": false,
+          "seconds": 2.838521291,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-note",
+          "open": false,
+          "seconds": 3.53386725,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-open",
+          "open": true,
+          "seconds": 3.533895041,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-close",
+          "open": false,
+          "seconds": 4.209349791,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-window",
+          "open": false,
+          "seconds": 4.916255166,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-open",
+          "open": true,
+          "seconds": 4.916268583,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "resize-open-note",
+          "open": true,
+          "seconds": 5.592872458,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-close",
+          "open": false,
+          "seconds": 6.286368333,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing",
+          "open": false,
+          "seconds": 6.951301208,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-open",
+          "open": true,
+          "seconds": 7.621153166,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-close",
+          "open": false,
+          "seconds": 8.315264458,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-5x",
+          "open": false,
+          "seconds": 9.000486541,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-open",
+          "open": true,
+          "seconds": 9.000517791,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-close",
+          "open": false,
+          "seconds": 9.677619208,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": true,
+          "event": "disable-animations-fixture",
+          "open": false,
+          "seconds": 10.334493291,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-open",
+          "open": true,
+          "seconds": 10.685264541,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close",
+          "open": false,
+          "seconds": 10.867374041,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-reopen",
+          "open": true,
+          "seconds": 11.05658875,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close-again",
+          "open": false,
+          "seconds": 11.238113416,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        }
+      ],
+      "foregroundUnchanged": true,
+      "note": "# 本地笔记 · 动画预览\n\n- 第 1 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 2 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 3 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 4 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 5 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 6 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 7 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 8 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 9 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 10 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。",
+      "scope": "Visual preview of production Dock with synthetic note; no Runtime, assertions, tests or live profile"
+    },
+    "recordingSHA256": "ddeb737f885e9aefab7a182bf457c4d464987ae06d95485c1da62152002babe5"
+  },
+  "candidate": {
+    "build": {
+      "head": "e6f34d35e3c908a30d2da498f809d4e33800fdd6",
+      "sourceSHA256": "543f6d4fb57b203b7ea207e56897d3da2463ba080e2d9d1ffa503525056d7afb",
+      "previewSHA256": "9c9de75a2e1bb50c1cf34799f800c2ba36981a091b7d28732567737fdcdfedc6",
+      "binarySHA256": "b9debd976c818ebc2d13f365a9233209013bf7cb50c2e4df494a5ef86156ec5e",
+      "productionDiff": "diff --git a/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift b/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\nindex ab9ec56..6f4721f 100644\n--- a/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\n+++ b/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\n@@ -134,23 +134,24 @@ struct NativeMokuCapsuleGlass: View {\n                 .glassEffect(regular ? .regular : interactive ? Glass.clear.interactive() : .clear,\n                              in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))\n                 .overlay {\n-                    if !regular {\n-                        shape.fill(LinearGradient(stops: [\n+                    // Keep these layers mounted through Note's morph. Inserting\n+                    // them on close starts at the final small size while glass\n+                    // still contracts, painting a detached pill above the eyes.\n+                    shape.fill(LinearGradient(stops: [\n                             .init(color: Color.black.opacity(0.99 * strength), location: 0),\n                             .init(color: Color(red: 0.04, green: 0.035, blue: 0.03).opacity(0.96 * strength), location: 0.40),\n                             .init(color: Color(red: 0.16, green: 0.13, blue: 0.10).opacity(0.70 * strength), location: 0.72),\n                             .init(color: Color(red: 0.38, green: 0.33, blue: 0.26).opacity(0.12 * strength), location: 1),\n                         ], startPoint: .top, endPoint: .bottom))\n-                    }\n+                        .opacity(regular ? 0 : 1)\n                 }\n                 .overlay {\n-                    if !regular {\n-                        shape.strokeBorder(LinearGradient(stops: [\n+                    shape.strokeBorder(LinearGradient(stops: [\n                             .init(color: .white.opacity(0.04 * strength), location: 0),\n                             .init(color: .white.opacity(0.08 * strength), location: 0.55),\n                             .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),\n                         ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)\n-                    }\n+                        .opacity(regular ? 0 : 1)\n                 }\n         }\n     }\ndiff --git a/app/macos/Sources/Host/MokuScene/README.md b/app/macos/Sources/Host/MokuScene/README.md\nindex b92402c..26e3910 100644\n--- a/app/macos/Sources/Host/MokuScene/README.md\n+++ b/app/macos/Sources/Host/MokuScene/README.md\n@@ -265,10 +265,19 @@ it does not clear the catalog note or change the composer draft.\n \n Note's Regular material is noninteractive; text selection, links, scrolling,\n history and dismissal retain their existing native targets. Returning to the\n-collapsed Dock restores its clear interactive material. Reduce Transparency\n+collapsed Dock restores its clear interactive material. The warm gradient and\n+fine edge remain mounted at zero opacity while Note is open, then fade back\n+on the same resizing shell. Inserting them only at dismissal would give them\n+the final small layout while glass is still contracting, visibly separating\n+the black pill from the eyes. The persistent layers follow opening, closing\n+and interrupted reversals without a second shell or delayed completion.\n+Reduce Motion removes the inherited geometry/opacity animation; Reduce Transparency\n uses the same opaque warm-black fill in both states. The targeted\n [performance investigation](../../../../../tools/verification/moku-note-performance/README.md)\n records measured layout savings and the limits of its offscreen evidence.\n+The [Note transition preview](../../../../../demos/moku-note-transition/README.md)\n+records the production Dock with synthetic notes, including intermediate frames,\n+rapid reversals, narrow/centered layouts and a local no-animation fixture.\n \n ## Voice display\n \n"
+    },
+    "observations": {
+      "draft": "Retained draft 草稿",
+      "events": [
+        {
+          "animationsDisabled": false,
+          "event": "long-open",
+          "open": true,
+          "seconds": 0.352139333,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "long-close",
+          "open": false,
+          "seconds": 1.254198875,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reopen",
+          "open": true,
+          "seconds": 1.943698583,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-opening",
+          "open": false,
+          "seconds": 2.079791958,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-closing",
+          "open": true,
+          "seconds": 2.175071708,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "close-again",
+          "open": false,
+          "seconds": 2.849835416,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-note",
+          "open": false,
+          "seconds": 3.532411083,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-open",
+          "open": true,
+          "seconds": 3.5324429999999998,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-close",
+          "open": false,
+          "seconds": 4.197529416,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-window",
+          "open": false,
+          "seconds": 4.926219166,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-open",
+          "open": true,
+          "seconds": 4.926244583,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "resize-open-note",
+          "open": true,
+          "seconds": 5.613790833,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-close",
+          "open": false,
+          "seconds": 6.277669958,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing",
+          "open": false,
+          "seconds": 6.93975525,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-open",
+          "open": true,
+          "seconds": 7.610903083,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-close",
+          "open": false,
+          "seconds": 8.302902666,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-5x",
+          "open": false,
+          "seconds": 8.972322208,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-open",
+          "open": true,
+          "seconds": 8.972346833,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-close",
+          "open": false,
+          "seconds": 9.657591458,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": true,
+          "event": "disable-animations-fixture",
+          "open": false,
+          "seconds": 10.330937041,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-open",
+          "open": true,
+          "seconds": 10.696072833,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close",
+          "open": false,
+          "seconds": 10.877440333,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-reopen",
+          "open": true,
+          "seconds": 11.069581583,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close-again",
+          "open": false,
+          "seconds": 11.254346583,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        }
+      ],
+      "foregroundUnchanged": true,
+      "note": "# 本地笔记 · 动画预览\n\n- 第 1 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 2 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 3 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 4 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 5 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 6 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 7 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 8 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 9 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 10 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。",
+      "scope": "Visual preview of production Dock with synthetic note; no Runtime, assertions, tests or live profile"
+    },
+    "recordingSHA256": "55e1972bc78f1505acece3d646d8a9bdd9563f202da2949944071129975514ff"
+  },
+  "layout": {
+    "build": {
+      "head": "e6f34d35e3c908a30d2da498f809d4e33800fdd6",
+      "sourceSHA256": "543f6d4fb57b203b7ea207e56897d3da2463ba080e2d9d1ffa503525056d7afb",
+      "previewSHA256": "57e53189661765155cebf38508caa7f887da906e87b9762a13a1bec9276940b9",
+      "binarySHA256": "c282baf6f6fa610ed8fcfec15640a90a3b0af0c7c0b562df483b81dd3ba9ae40",
+      "productionDiff": "diff --git a/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift b/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\nindex ab9ec56..6f4721f 100644\n--- a/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\n+++ b/app/macos/Sources/Host/MokuScene/NativeMokuCapsule.swift\n@@ -134,23 +134,24 @@ struct NativeMokuCapsuleGlass: View {\n                 .glassEffect(regular ? .regular : interactive ? Glass.clear.interactive() : .clear,\n                              in: .rect(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))\n                 .overlay {\n-                    if !regular {\n-                        shape.fill(LinearGradient(stops: [\n+                    // Keep these layers mounted through Note's morph. Inserting\n+                    // them on close starts at the final small size while glass\n+                    // still contracts, painting a detached pill above the eyes.\n+                    shape.fill(LinearGradient(stops: [\n                             .init(color: Color.black.opacity(0.99 * strength), location: 0),\n                             .init(color: Color(red: 0.04, green: 0.035, blue: 0.03).opacity(0.96 * strength), location: 0.40),\n                             .init(color: Color(red: 0.16, green: 0.13, blue: 0.10).opacity(0.70 * strength), location: 0.72),\n                             .init(color: Color(red: 0.38, green: 0.33, blue: 0.26).opacity(0.12 * strength), location: 1),\n                         ], startPoint: .top, endPoint: .bottom))\n-                    }\n+                        .opacity(regular ? 0 : 1)\n                 }\n                 .overlay {\n-                    if !regular {\n-                        shape.strokeBorder(LinearGradient(stops: [\n+                    shape.strokeBorder(LinearGradient(stops: [\n                             .init(color: .white.opacity(0.04 * strength), location: 0),\n                             .init(color: .white.opacity(0.08 * strength), location: 0.55),\n                             .init(color: Color(red: 1, green: 0.92, blue: 0.78).opacity(0.65 * strength), location: 1),\n                         ], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)\n-                    }\n+                        .opacity(regular ? 0 : 1)\n                 }\n         }\n     }\ndiff --git a/app/macos/Sources/Host/MokuScene/README.md b/app/macos/Sources/Host/MokuScene/README.md\nindex b92402c..26e3910 100644\n--- a/app/macos/Sources/Host/MokuScene/README.md\n+++ b/app/macos/Sources/Host/MokuScene/README.md\n@@ -265,10 +265,19 @@ it does not clear the catalog note or change the composer draft.\n \n Note's Regular material is noninteractive; text selection, links, scrolling,\n history and dismissal retain their existing native targets. Returning to the\n-collapsed Dock restores its clear interactive material. Reduce Transparency\n+collapsed Dock restores its clear interactive material. The warm gradient and\n+fine edge remain mounted at zero opacity while Note is open, then fade back\n+on the same resizing shell. Inserting them only at dismissal would give them\n+the final small layout while glass is still contracting, visibly separating\n+the black pill from the eyes. The persistent layers follow opening, closing\n+and interrupted reversals without a second shell or delayed completion.\n+Reduce Motion removes the inherited geometry/opacity animation; Reduce Transparency\n uses the same opaque warm-black fill in both states. The targeted\n [performance investigation](../../../../../tools/verification/moku-note-performance/README.md)\n records measured layout savings and the limits of its offscreen evidence.\n+The [Note transition preview](../../../../../demos/moku-note-transition/README.md)\n+records the production Dock with synthetic notes, including intermediate frames,\n+rapid reversals, narrow/centered layouts and a local no-animation fixture.\n \n ## Voice display\n \n"
+    },
+    "observations": {
+      "draft": "Retained draft 草稿",
+      "events": [
+        {
+          "animationsDisabled": false,
+          "event": "long-open",
+          "open": true,
+          "seconds": 0.369391375,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "long-close",
+          "open": false,
+          "seconds": 1.22671925,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reopen",
+          "open": true,
+          "seconds": 1.8874377500000001,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-opening",
+          "open": false,
+          "seconds": 2.016405042,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "reverse-closing",
+          "open": true,
+          "seconds": 2.11342875,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "close-again",
+          "open": false,
+          "seconds": 2.797272875,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-note",
+          "open": false,
+          "seconds": 3.4802992919999998,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-open",
+          "open": true,
+          "seconds": 3.480330959,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "short-close",
+          "open": false,
+          "seconds": 4.130578334,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-window",
+          "open": false,
+          "seconds": 4.81801375,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-open",
+          "open": true,
+          "seconds": 4.818029959,
+          "size": [
+            360,
+            380
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "resize-open-note",
+          "open": true,
+          "seconds": 5.583749959,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "narrow-close",
+          "open": false,
+          "seconds": 6.30335575,
+          "size": [
+            440,
+            300
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing",
+          "open": false,
+          "seconds": 6.982841625,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-open",
+          "open": true,
+          "seconds": 7.6469365,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "landing-close",
+          "open": false,
+          "seconds": 8.427736375,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-5x",
+          "open": false,
+          "seconds": 9.088731834,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-open",
+          "open": true,
+          "seconds": 9.08876175,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": false,
+          "event": "zoom-close",
+          "open": false,
+          "seconds": 9.896021709,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 5
+        },
+        {
+          "animationsDisabled": true,
+          "event": "disable-animations-fixture",
+          "open": false,
+          "seconds": 10.548262709,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-open",
+          "open": true,
+          "seconds": 10.916704667,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close",
+          "open": false,
+          "seconds": 11.101034459,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-reopen",
+          "open": true,
+          "seconds": 11.293017,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        },
+        {
+          "animationsDisabled": true,
+          "event": "reduced-close-again",
+          "open": false,
+          "seconds": 11.475058709,
+          "size": [
+            900,
+            720
+          ],
+          "zoom": 1
+        }
+      ],
+      "foregroundUnchanged": true,
+      "note": "# 本地笔记 · 动画预览\n\n- 第 1 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 2 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 3 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 4 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 5 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 6 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 7 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 8 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 9 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。\n- 第 10 项：收起、展开和快速往返只改变面板呈现，保留 Note 和输入草稿。",
+      "scope": "Visual preview of production Dock with synthetic note; no Runtime, assertions, tests or live profile"
+    },
+    "recordingSHA256": "c8e2a2a79e917f5977fc85faa963388b1d8c52e610930e82177f01d4586c9919"
+  }
+}
