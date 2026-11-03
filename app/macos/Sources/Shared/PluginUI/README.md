@@ -2,6 +2,14 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+`nativeReadingEscape` preserves native editor/IME, menu, sheet, popup and WebKit
+cancellation before reading navigation. Hosts can supply
+`nativeReadingInputCancellation` to fold resident input first when native reading
+owns Escape; returning `true` consumes that Escape without navigating the reader.
+The host's own input surface can use the same fallback after editor focus moves
+to its controls. The callback does not bypass viewport/focus or transient-control
+ownership checks and defaults to absent outside the host's scene.
+
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
 return. Opening/reversal remains immediate. Preparation shares the stack's route

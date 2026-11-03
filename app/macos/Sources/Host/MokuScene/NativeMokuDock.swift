@@ -434,15 +434,16 @@ public struct NativeMokuDock: View {
             ZStack {
                 NativeMokuOutsideClickMonitor(
                     exclusions: state.outsideClickExclusions,
-                    beginClick: { state.overviewState.clearAutoFocusSuppression() },
-                    isActive: { (state.inputOpen || state.notePanelOpen || foregroundTalkID != nil) && state.dockRouteVisible && !state.dockCovered && !navigationDisabled },
+                    beginClick: { state.beginOutsideClick() },
+                    isActive: { (state.inputOpen || (!navigationDisabled && (state.notePanelOpen || foregroundTalkID != nil))) && state.dockRouteVisible && !state.dockCovered },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
-                    preservesOwnedInteractions: landing && state.inputOpen,
+                    preservesOwnedInteractions: state.inputOpen,
                     outsideWindowClick: !state.notePanelOpen && foregroundTalkID != nil ? {
                         state.dismissTalk()
                     } : nil,
                     isInside: { point in
                         NativeMokuOutsideClick.isInside(point: point, dockRects: state.dockHitRects)
+                            || state.dockMentionHitRect?.contains(point) == true
                     },
                     click: { _ in
                         if state.notePanelOpen { state.setNotePanelOpen(false) }
@@ -466,6 +467,9 @@ public struct NativeMokuDock: View {
             }
             .allowsHitTesting(false)
         }
+        .nativeReadingEscape(perform: state.inputOpen && state.dockContentVisible && interaction == nil ? {
+            state.dismissInputForEscape()
+        } : nil)
         .onChange(of: landing, initial: true) { _, active in
             guard state.updateLanding(active) else { return }
             if active {

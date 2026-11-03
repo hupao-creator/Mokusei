@@ -509,6 +509,19 @@ private struct ThreadHistoryDocument: View {
     }
 }
 
+private struct NativeReadingInputCancellationKey: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Bool)? = nil
+}
+
+public extension EnvironmentValues {
+    /// The resident composer may fold before a reading route handles Escape.
+    /// Native editors, IME and transient controls still own cancellation first.
+    var nativeReadingInputCancellation: (@MainActor () -> Bool)? {
+        get { self[NativeReadingInputCancellationKey.self] }
+        set { self[NativeReadingInputCancellationKey.self] = newValue }
+    }
+}
+
 /// Result positioning can leave no SwiftUI focus target after scrolling. Only
 /// the mounted active document owns this fallback; sibling focus and native
 /// editing/menu cancellation must retain their existing handlers.
@@ -524,12 +537,17 @@ public extension View {
 private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
     let back: (() -> Void)?
     @Environment(\.isEnabled) private var enabled
-    func makeNSView(context: Context) -> EscapeView { EscapeView(back: back) }
-    func updateNSView(_ view: EscapeView, context: Context) { view.back = enabled ? back : nil }
+    @Environment(\.nativeReadingInputCancellation) private var cancelInput
+    func makeNSView(context: Context) -> EscapeView { EscapeView(back: enabled ? back : nil) }
+    func updateNSView(_ view: EscapeView, context: Context) {
+        view.back = enabled ? back : nil
+        view.cancelInput = cancelInput
+    }
     static func dismantleNSView(_ view: EscapeView, coordinator: ()) { view.dispose() }
 
     @MainActor final class EscapeView: NSView {
         var back: (() -> Void)?
+        var cancelInput: (@MainActor () -> Bool)?
         private var monitor: Any?
         private var observers: [NSObjectProtocol] = []
         private var menus = Set<ObjectIdentifier>()
@@ -585,7 +603,7 @@ private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
                             guard self.bounds.contains(self.convert(point, from: nil)) else { return false }
                         }
                     }
-                    back()
+                    if self.cancelInput?() != true { back() }
                     return true
                 }
                 return handled ? nil : event
@@ -596,7 +614,7 @@ private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
             if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
         }
         func dispose() {
-            back = nil
+            back = nil; cancelInput = nil
             removeMonitor()
             for observer in observers { NotificationCenter.default.removeObserver(observer) }
             observers.removeAll(); menus.removeAll()

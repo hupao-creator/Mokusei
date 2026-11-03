@@ -487,6 +487,21 @@ not expose Moku voice-start actions, transcripts or Talk; an existing workspace
 voice session is not stopped. The execution Sidecard stays usable beside an open
 Agent composer and owns no text/attachment input.
 
+Input dismissal is independent of execution availability: an archived or
+otherwise unavailable Thread can still fold its open composer. Native reading
+Escape asks the resident input to fold before navigating the reader, including
+after focus moves away from the text editor. The Dock uses the same native
+fallback for its own controls. Editable sibling fields, IME marked text, WebKit,
+native menus, sheets, popovers and explicit control cancellation retain priority;
+the editor still closes directory completion before folding input.
+The capsule, its controls and directory candidate region count as inside.
+An outside press that folds input cannot also close the reading panel on
+mouse-up; a subsequent press or Escape keeps the reader's usual close behavior.
+Explicit Close controls keep their action. Folding only changes presentation,
+retaining the Thread draft, attachments, directories and selection without
+starting/stopping voice or moving accessibility focus to another control.
+See the [routing investigation and manual limits](../../../../../design/thread-detail-input-dismissal.md).
+
 Sprint verification for this change uses the application build, architecture
 checks and isolated manual inspection; historical test suites are not run.
 

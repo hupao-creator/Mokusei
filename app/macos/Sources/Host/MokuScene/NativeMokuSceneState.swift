@@ -78,6 +78,7 @@ import MokuseiPluginUI
     public private(set) var windowVisible = false
     @ObservationIgnored var dockHitRects: [CGRect] = []
     @ObservationIgnored var dockMentionHitRect: CGRect?
+    @ObservationIgnored private(set) var inputDismissedForClick = false
     @ObservationIgnored var capsuleFrame = CGRect.zero
     private(set) var dockInteractionVisible = false
     private(set) var dockInteractionIsQuestion = false
@@ -193,9 +194,21 @@ import MokuseiPluginUI
     /// also run its automatic framing transition for the same press.
     @discardableResult
     public func dismissInputForOutsideClick() -> Bool {
-        guard inputOpen, !landingActive, dockRouteVisible, !dockCovered, !disabled else { return false }
+        guard inputOpen, !landingActive, dockRouteVisible, !dockCovered else { return false }
         setInputOpen(false)
+        inputDismissedForClick = true
         overviewState.suppressAutoFocusForThisClick()
+        return true
+    }
+    func beginOutsideClick() {
+        inputDismissedForClick = false
+        overviewState.clearAutoFocusSuppression()
+    }
+    /// Reading and the Dock share cancellation priority even after focus has
+    /// moved away from the editor. This retires presentation, never its draft.
+    func dismissInputForEscape() -> Bool {
+        guard inputOpen, dockContentVisible, !dockInteractionVisible else { return false }
+        setInputOpen(false)
         return true
     }
     public func receiveTalk(_ message: NativeMokuTalkMessage?) { talkPresentation.receive(message) }

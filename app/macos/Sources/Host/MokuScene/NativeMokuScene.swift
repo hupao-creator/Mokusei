@@ -58,6 +58,7 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
         }
         .modifier(NativeSettingsTransition(state: state))
         .environment(\.nativeCanvasInputRegions, state.canvasInputRegions)
+        .environment(\.nativeReadingInputCancellation, { state.dismissInputForEscape() })
         .onAppear { state.setWindowVisible(true) }
         .onDisappear { state.setWindowVisible(false) }
     }

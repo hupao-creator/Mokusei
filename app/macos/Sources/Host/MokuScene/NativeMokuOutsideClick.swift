@@ -100,6 +100,8 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         private var usesExclusions = true
         private var preservesOwnedInteractions = false
         private var menuObservers: [NSObjectProtocol] = []
+        private var popoverObserver: NSObjectProtocol?
+        private var popoverDismissalPress: TimeInterval?
         private var trackingMenus = Set<ObjectIdentifier>()
         private var outsideWindowClick: (() -> Void)?
         private var exclusions = NativeClickExclusions()
@@ -137,6 +139,16 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
                     }
                 })
             }
+            popoverObserver = NotificationCenter.default.addObserver(forName: NSPopover.willCloseNotification,
+                object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, let event = NSApp.currentEvent, event.window === self.window,
+                          event.type == .leftMouseDown else { return }
+                    // AppKit may remove the child window before forwarding the
+                    // popover's dismissing press to its owner.
+                    self.popoverDismissalPress = event.timestamp
+                }
+            }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
                 MainActor.assumeIsolated {
                     guard let self, let window = self.window,
@@ -149,6 +161,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
                     // A mark only covers the press that created it. Clear any
                     // earlier one before deciding whether this press dismisses.
                     self.beginClick()
+                    guard !self.preservesOwnedInteractions || self.popoverDismissalPress != event.timestamp else { return }
                     guard self.isActive() else { return }
                     let point = self.convert(event.locationInWindow, from: nil)
                     guard !self.isInside(point) else { return }
@@ -191,6 +204,8 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         }
 
         func stop() {
+            if let popoverObserver { NotificationCenter.default.removeObserver(popoverObserver); self.popoverObserver = nil }
+            popoverDismissalPress = nil
             for observer in menuObservers { NotificationCenter.default.removeObserver(observer) }
             menuObservers.removeAll(); trackingMenus.removeAll()
             if let globalMonitor { NSEvent.removeMonitor(globalMonitor); self.globalMonitor = nil }
