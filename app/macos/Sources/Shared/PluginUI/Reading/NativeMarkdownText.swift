@@ -43,6 +43,9 @@ struct MarkdownSelectableText: MarkdownPlatformRepresentable {
         view.performanceOperation = context
         view.ownedTextStorage = storage
         view.isEditable = false
+        // Read-only transcript storage must not initialize the rewriting
+        // machinery on its first programmatic content replacement.
+        view.writingToolsBehavior = .none
         view.isSelectable = true
         view.drawsBackground = false
         view.isRichText = true

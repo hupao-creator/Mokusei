@@ -792,3 +792,12 @@ return ownership. Native sheets/popovers keep priority over backdrop dismissal.
 Panel chrome can use `nativeReadingEscape` alongside HTML: the native fallback
 leaves a WebKit responder to its trusted DOM handler and respects inherited
 disabled state, native sheets and visible child windows.
+
+Thread opening now starts data-only prefetch outside the deferred front, while
+the native panel and reader admission keep their existing timing. Codex reuses
+successfully admitted immutable state by complete opaque input, with a bounded
+actor cache; new input cannot select an older revision. Read-only Markdown
+TextKit views disable Writing Tools while retaining native selection, copy and
+links. No reader/view or scroll state is cached. See the
+[loading investigation](../../../../../design/thread-loading-performance-cache.md)
+for paired observations, variability and manual coverage limits.

@@ -91,9 +91,11 @@ public final class AnyHarnessPlugin {
     private let moku: (HarnessThreadInput) throws -> HarnessMokuPresentation?
     private let usage: (HarnessThread, JSONText) throws -> HarnessExecutionTokenUsage?
     private let settings: (@escaping (Bool) async throws -> JSONValue, @escaping (Error) -> Void) -> HarnessSettingsSession
+    public let readingPrefetchScopes: (HarnessThreadInput) -> [HarnessContentScope]
     public let clearProjectionCache: () -> Void
 
     public init<P: HarnessPlugin>(_ plugin: P) {
+        readingPrefetchScopes = { plugin.readingPrefetchScopes(input: $0) }
         descriptor = plugin.descriptor; logoSource = plugin.logoSource; translations = plugin.translations
         logoBody = { size in AnyView(plugin.logo(size: size)) }
         let cache = HarnessProjectionCache(plugin)

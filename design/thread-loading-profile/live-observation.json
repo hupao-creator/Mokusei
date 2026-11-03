@@ -1,0 +1,275 @@
+[
+  {
+    "event": "connection",
+    "ms": 3.0109998770058155,
+    "status": "disconnected"
+  },
+  {
+    "event": "connection",
+    "ms": 3.072208259254694,
+    "status": "connecting"
+  },
+  {
+    "event": "connection",
+    "ms": 267.18408335000277,
+    "status": "connected"
+  },
+  {
+    "event": "connected",
+    "ms": 267.21158321015537
+  },
+  {
+    "event": "open",
+    "ms": 267.38612493500113,
+    "visit": 0
+  },
+  {
+    "event": "loading",
+    "id": "manifest-0",
+    "ms": 269.81479162350297
+  },
+  {
+    "event": "loading",
+    "id": "manifest-0",
+    "ms": 269.8717915918678
+  },
+  {
+    "event": "loading",
+    "id": "row-0",
+    "ms": 273.1408749241382
+  },
+  {
+    "event": "loading",
+    "id": "row-0",
+    "ms": 273.2530415523797
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "manifest-0",
+    "ms": 281.8685832899064
+  },
+  {
+    "bytes": 190986,
+    "digest": "e5093dd97882b208221b7e2ee30a84bad8fdf6f7b182fecd6678e1f7e061954c",
+    "event": "ready",
+    "id": "row-0",
+    "ms": 288.309708237648
+  },
+  {
+    "event": "close",
+    "ms": 494.41924993880093,
+    "visit": 0
+  },
+  {
+    "event": "open",
+    "ms": 595.6788333132863,
+    "visit": 1
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "manifest-1",
+    "ms": 595.8713332656771
+  },
+  {
+    "bytes": 190986,
+    "digest": "e5093dd97882b208221b7e2ee30a84bad8fdf6f7b182fecd6678e1f7e061954c",
+    "event": "ready",
+    "id": "row-1",
+    "ms": 597.0194998662919
+  },
+  {
+    "event": "close",
+    "ms": 797.6247498299927,
+    "visit": 1
+  },
+  {
+    "event": "prepare",
+    "ms": 905.7355832774192
+  },
+  {
+    "event": "loading",
+    "id": "2c22f0b6-ac9f-452d-aec8-510433568b3c",
+    "ms": 905.8149999473244
+  },
+  {
+    "event": "loading",
+    "id": "2c22f0b6-ac9f-452d-aec8-510433568b3c",
+    "ms": 905.8794581796974
+  },
+  {
+    "event": "loading",
+    "id": "91b2a2b6-c8d1-4f29-b5f2-f1aa33f6b459",
+    "ms": 905.9160416945815
+  },
+  {
+    "event": "loading",
+    "id": "91b2a2b6-c8d1-4f29-b5f2-f1aa33f6b459",
+    "ms": 905.9684998355806
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "2c22f0b6-ac9f-452d-aec8-510433568b3c",
+    "ms": 914.0818333253264
+  },
+  {
+    "bytes": 190986,
+    "digest": "e5093dd97882b208221b7e2ee30a84bad8fdf6f7b182fecd6678e1f7e061954c",
+    "event": "ready",
+    "id": "91b2a2b6-c8d1-4f29-b5f2-f1aa33f6b459",
+    "ms": 920.151291647926
+  },
+  {
+    "event": "open",
+    "ms": 1333.5713332053274,
+    "visit": 2
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "manifest-2",
+    "ms": 1333.7445831857622
+  },
+  {
+    "bytes": 190986,
+    "digest": "e5093dd97882b208221b7e2ee30a84bad8fdf6f7b182fecd6678e1f7e061954c",
+    "event": "ready",
+    "id": "row-2",
+    "ms": 1334.9090833216906
+  },
+  {
+    "event": "close",
+    "ms": 1543.9924167003483,
+    "visit": 2
+  },
+  {
+    "event": "expire.wait",
+    "ms": 1685.7204167172313
+  },
+  {
+    "event": "open",
+    "ms": 32798.59016649425,
+    "visit": 3
+  },
+  {
+    "event": "loading",
+    "id": "manifest-3",
+    "ms": 32798.721166560426
+  },
+  {
+    "event": "loading",
+    "id": "manifest-3",
+    "ms": 32798.760833218694
+  },
+  {
+    "event": "loading",
+    "id": "row-3",
+    "ms": 32800.87224999443
+  },
+  {
+    "event": "loading",
+    "id": "row-3",
+    "ms": 32801.05545837432
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "manifest-3",
+    "ms": 32809.633458266035
+  },
+  {
+    "bytes": 190986,
+    "digest": "e5093dd97882b208221b7e2ee30a84bad8fdf6f7b182fecd6678e1f7e061954c",
+    "event": "ready",
+    "id": "row-3",
+    "ms": 32819.29370830767
+  },
+  {
+    "event": "close",
+    "ms": 33021.25420817174,
+    "visit": 3
+  },
+  {
+    "event": "stop",
+    "ms": 33128.11516667716
+  },
+  {
+    "event": "connection",
+    "ms": 33132.17929168604,
+    "status": "stopped"
+  },
+  {
+    "event": "rewrote.isolated.completed.content",
+    "exit": 0,
+    "ms": 33223.58866664581
+  },
+  {
+    "event": "connection",
+    "ms": 33223.62620825879,
+    "status": "connecting"
+  },
+  {
+    "event": "connection",
+    "ms": 33443.55187495239,
+    "status": "connected"
+  },
+  {
+    "event": "reconnected",
+    "ms": 33443.556000012904
+  },
+  {
+    "event": "loading",
+    "id": "after-reconnect",
+    "ms": 33444.00041666813
+  },
+  {
+    "event": "loading",
+    "id": "after-reconnect",
+    "ms": 33444.038916612044
+  },
+  {
+    "event": "loading",
+    "id": "row-after-reconnect",
+    "ms": 33451.054708333686
+  },
+  {
+    "event": "loading",
+    "id": "row-after-reconnect",
+    "ms": 33452.40433327854
+  },
+  {
+    "bytes": 4241,
+    "digest": "c7c01277257568d1f38c7788860a455583825dc3c208d5bc9f8dee53547966d7",
+    "event": "ready",
+    "id": "after-reconnect",
+    "ms": 33454.474666621536
+  },
+  {
+    "bytes": 191021,
+    "digest": "64e4bfb0a4996d321807c6b6c5bb8c97fad48481c39b381864f506e6ab0ee727",
+    "event": "ready",
+    "id": "row-after-reconnect",
+    "ms": 33469.31516658515
+  },
+  {
+    "event": "connection",
+    "ms": 33673.930041491985,
+    "status": "stopped"
+  },
+  {
+    "event": "connection",
+    "ms": 33674.90549990907,
+    "status": "disconnected"
+  },
+  {
+    "event": "finish",
+    "ms": 33674.90820819512
+  }
+]

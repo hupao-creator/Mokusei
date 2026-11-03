@@ -113,6 +113,30 @@ public final class NativeHarnessHost {
         return surface
     }
 
+    /// Preparation owns no views or actions and never projects a conversation
+    /// on the main actor. The selected route's SwiftUI task owns cancellation.
+    public func prefetchReading(input: HarnessThreadInput, performanceContext: UInt64?) async {
+        guard !Task.isCancelled,
+              (try? authoritativeThread(threadID: input.thread.id, harnessID: input.thread.harnessID)) != nil,
+              let plugin = try? registry.require(input.thread.harnessID) else { return }
+        let scopes = [.thread] + Array(plugin.readingPrefetchScopes(input).prefix(1))
+        let client = client
+        await withTaskGroup(of: Void.self) { group in
+            for scope in scopes {
+                let runtimeScope: RuntimeContentScope
+                switch scope {
+                case .thread: runtimeScope = .thread
+                case .row(let key): runtimeScope = .turn(key: key)
+                case .execution(let key): runtimeScope = .execution(key: key)
+                }
+                group.addTask {
+                    await client.prefetchThreadContent(threadId: input.thread.id, scope: runtimeScope,
+                        performanceContext: performanceContext)
+                }
+            }
+        }
+    }
+
     /// The registry snapshot owns both envelope and native private view. Keep
     /// this object with a queued layout revision and render its card directly.
     public func overview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewSnapshot {
