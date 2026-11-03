@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import OSLog
 import Synchronization
 
 struct NativeLayoutGeometry: Encodable, Equatable, Sendable {
@@ -43,10 +44,12 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
         var sequence: UInt64 = 0
         var dropped = 0
         var closed = false
+        var finishing = false
     }
     private let pending = Mutex(Pending())
     private let queue = DispatchQueue(label: "com.mokusei.layout.writer", qos: .utility)
     private var timer: DispatchSourceTimer?
+    private let onFailure: @Sendable () -> Void
     // The following state is confined to queue.
     private var file: FileHandle?
     private var lease: Int32 = -1
@@ -62,7 +65,8 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
     private static let retainedSegments = 4
     private static let maximumPending = 4096
 
-    init(directory root: URL) {
+    init(directory root: URL, onFailure: @escaping @Sendable () -> Void) {
+        self.onFailure = onFailure
         directory = root.appendingPathComponent("layout-\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString)", isDirectory: true)
         queue.async { [self] in
             do {
@@ -72,13 +76,13 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
                 guard lease >= 0, flock(lease, LOCK_EX | LOCK_NB) == 0 else { throw CocoaError(.fileWriteUnknown) }
                 prune(root)
                 try openSegment()
-            } catch { fail() }
+                let timer = DispatchSource.makeTimerSource(queue: queue)
+                timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250), leeway: .milliseconds(50))
+                timer.setEventHandler { [weak self] in self?.drain() }
+                timer.resume()
+                self.timer = timer
+            } catch { fail(error) }
         }
-        let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250), leeway: .milliseconds(50))
-        timer.setEventHandler { [weak self] in self?.drain() }
-        timer.resume()
-        self.timer = timer
     }
 
     func append(_ record: NativeLayoutRecord) {
@@ -114,7 +118,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
                 data.append(try json(["kind": "dataLoss", "dropped": batch.1, "throughSequence": batch.2]))
             }
             try file?.write(contentsOf: data); bytes += data.count
-        } catch { fail() }
+        } catch { fail(error) }
     }
 
     private func json(_ value: [String: Any]) throws -> Data {
@@ -132,7 +136,7 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
             "segment": segment, "overwrittenSegments": max(0, segment - Self.retainedSegments + 1),
             "startedAt": ISO8601DateFormatter().string(from: Date()),
             "rectOrder": ["x", "y", "width", "height"], "units": "points",
-            "presentationSampling": false])
+            "presentationSampling": false, "tailMayBeLostUnlessSessionEnd": true])
         try file?.write(contentsOf: header); bytes = header.count
         if segment >= Self.retainedSegments { try FileManager.default.removeItem(at: segmentURL(segment - Self.retainedSegments)) }
     }
@@ -166,26 +170,45 @@ final class NativeLayoutLogWriter: @unchecked Sendable {
         }
     }
 
-    private func fail() {
+    private func fail(_ error: Error) {
         guard !failed else { return }
         failed = true
         pending.withLock { $0.closed = true; $0.records.removeAll() }
-        FileHandle.standardError.write(Data("[layout-log] file output failed; recording stopped\n".utf8))
+        timer?.cancel(); timer = nil
+        // Stop UI collection before any potentially slow close. Reporting uses
+        // unified logging, never the failed file or a possibly full stderr pipe.
+        onFailure()
+        let failure = error as NSError
+        let domain: String
+        switch failure.domain {
+        case NSCocoaErrorDomain: domain = "cocoa"
+        case NSPOSIXErrorDomain: domain = "posix"
+        default: domain = "other"
+        }
+        // Numeric failure metadata is useful without logging descriptions,
+        // userInfo or paths, which can contain caller-owned strings.
+        Logger(subsystem: "com.mokusei.desktop", category: "layout").error("Layout log IO failed domain=\(domain, privacy: .public) code=\(failure.code); collection stopped; diagnostic tail may be lost")
+        try? file?.close(); file = nil
+        if lease >= 0 { close(lease); lease = -1 }
     }
 
-    func finish() {
+    func finish(completion: @escaping @Sendable () -> Void) {
         let first = pending.withLock { state in
-            guard !state.closed else { return false }; state.closed = true; return true
+            guard !state.finishing else { return false }
+            state.closed = true; state.finishing = true; return true
         }
-        // Even an IO failure must release the session lease and file.
-        timer?.cancel(); timer = nil
-        queue.sync {
-            if first { drain() }
-            if !failed {
-                do { try file?.write(contentsOf: json(["kind": "sessionEnd", "segment": segment])) }
-                catch { fail() }
-            }
-            try? file?.close(); file = nil
+        // Closing admission is immediate. Never join this queue from the UI or
+        // the exit watchdog: a file write/close can remain blocked indefinitely.
+        queue.async { [self] in
+            defer { completion() }
+            guard first else { return }
+            timer?.cancel(); timer = nil
+            drain()
+            do {
+                if !failed { try file?.write(contentsOf: json(["kind": "sessionEnd", "segment": segment])) }
+                try file?.close()
+            } catch { fail(error) }
+            file = nil
             if lease >= 0 { close(lease); lease = -1 }
         }
     }

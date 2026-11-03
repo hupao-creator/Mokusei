@@ -59,3 +59,11 @@ message-anchor resolution.
 `HarnessPluginDescriptor.installationGuide` is an optional plugin-owned official
 installation URL. First-run discovery uses it for missing Agents, keeping the
 Host independent of Harness names and installation instructions.
+
+`HarnessPlugin.readingPrefetchScopes` supplies optional opaque reading scopes
+without constructing a view or interpreting another plugin's content. The outer
+Agent route prefetches the manifest and at most the first supplied scope while
+its panel travels. Codex chooses its target/latest execution row; other Harnesses
+default to manifest-only preparation. Cancellation belongs to the route visit.
+Runtime retention owns a live subscription independently of any view or action;
+each visible consumer still acquires and retires its own handle.

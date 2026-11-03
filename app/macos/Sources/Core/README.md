@@ -2,7 +2,13 @@
 
 [RuntimeClient.swift](RuntimeClient.swift) owns connection authority and public state. [RuntimeProtocol.swift](RuntimeProtocol.swift), [RuntimeCommands.swift](RuntimeCommands.swift), [RuntimeState.swift](RuntimeState.swift) and [JSONDelta.swift](JSONDelta.swift) mirror the [Go protocol](../../../../internal/platform/transport/README.md). [JSONValue.swift](JSONValue.swift) preserves integer tokens separately from floating-point values, including cursors and revisions sent to Go integer DTOs.
 
-Connection epochs and host identities fence callbacks. The client hydrates from a complete snapshot, applies valid deltas, and obtains a fresh snapshot after gaps. Catalog data is separate from [RuntimeContent](RuntimeContent.swift) subscriptions for full conversations, turns and execution bodies. Closing the last demand lease releases content; opening a reading view does not start an agent process.
+Connection epochs and host identities fence callbacks. The client hydrates from a complete snapshot, applies valid deltas, and obtains a fresh snapshot after gaps. Catalog data is separate from [RuntimeContent](RuntimeContent.swift) subscriptions for full conversations, turns and execution bodies. A released ready subscription may remain live for 30 seconds in the bounded
+[reading retention cache](RuntimeReadingRetention.swift) (four entries, 8MiB
+accounting budget); the consumer ID retires immediately and its live wire can
+transfer to a fresh reader. Idle entries continue receiving patches and expire on
+stream retirement/reset, errors, gaps or budget pressure. Pending reads never
+transfer. Connected reads await fresh snapshots; persisted content is an offline
+fallback. Route-owned prefetch uses the same production subscription path; opening a reading view does not start an agent process.
 
 [RuntimeSettingsReads](RuntimeSettingsReads.swift) admits settings presentation
 and single-Harness installation reads before they open HTTP connections. At most

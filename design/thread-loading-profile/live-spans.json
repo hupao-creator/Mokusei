@@ -1,0 +1,173 @@
+{
+  "scope": "Final Core attempt; cold 2, prefetch 2, expiry 2, reconnect 2; reuse does not issue content.ack",
+  "spans": [
+    {
+      "context": 1,
+      "durationMs": 2.669458,
+      "id": 2,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 286.745625,
+      "values": {}
+    },
+    {
+      "context": 3,
+      "durationMs": 3.076417,
+      "id": 4,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 290.099292,
+      "values": {}
+    },
+    {
+      "durationMs": 12.152583,
+      "id": 1,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 295.923042,
+      "values": {
+        "row": 0
+      }
+    },
+    {
+      "durationMs": 14.336583,
+      "id": 3,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 301.313417,
+      "values": {
+        "row": 1
+      }
+    },
+    {
+      "context": 5,
+      "durationMs": 1.589291,
+      "id": 6,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 921.665125,
+      "values": {}
+    },
+    {
+      "context": 7,
+      "durationMs": 2.93025,
+      "id": 8,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 923.063,
+      "values": {}
+    },
+    {
+      "durationMs": 7.901125,
+      "id": 5,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 927.955334,
+      "values": {
+        "row": 0
+      }
+    },
+    {
+      "durationMs": 13.1425,
+      "id": 7,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 933.258334,
+      "values": {
+        "row": 1
+      }
+    },
+    {
+      "context": 9,
+      "durationMs": 1.725083,
+      "id": 10,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 32814.715667,
+      "values": {}
+    },
+    {
+      "context": 11,
+      "durationMs": 1.965,
+      "id": 12,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 32816.734792,
+      "values": {}
+    },
+    {
+      "durationMs": 10.541959,
+      "id": 9,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 32823.469334,
+      "values": {
+        "row": 0
+      }
+    },
+    {
+      "durationMs": 17.097792,
+      "id": 11,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 32831.848792,
+      "values": {
+        "row": 1
+      }
+    },
+    {
+      "context": 13,
+      "durationMs": 6.849041,
+      "id": 14,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 33464.7085,
+      "values": {}
+    },
+    {
+      "durationMs": 10.423875,
+      "id": 13,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 33468.2665,
+      "values": {
+        "row": 0
+      }
+    },
+    {
+      "context": 15,
+      "durationMs": 4.914916,
+      "id": 16,
+      "kind": "end",
+      "metric": "content.ack",
+      "outcome": "completed",
+      "timeMs": 33469.66575,
+      "values": {}
+    },
+    {
+      "durationMs": 17.687375,
+      "id": 15,
+      "kind": "end",
+      "metric": "content.ready",
+      "outcome": "completed",
+      "timeMs": 33482.414917,
+      "values": {
+        "row": 1
+      }
+    }
+  ]
+}

@@ -82,3 +82,11 @@ deferred turn projection retains failed activity labels and details, including
 inherited history, so error visibility does not require loading ordinary work. The
 [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
 checks this boundary for active and terminal turns and inherited history.
+
+Lightweight deferred execution projections record nonempty activity `detail` by
+native activity ID before stripping its body. The native Agent reader uses that
+presence to distinguish completed no-output Hook bookkeeping from actual output;
+canonical activity state and full execution content remain unchanged.
+
+Inherited activities have no embedded activity id; deferred output presence uses
+the enclosing timeline item id so unrelated empty Hooks cannot share a marker.

@@ -171,9 +171,13 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 				}
 				for _, value := range stArray(projected["activities"]) {
 					activity := stMap(value)
-					// Failed records render outside the deferred work summary.
+					// Keep bounded failed diagnostics for full readers; Agent detail
+					// still classifies failed tools as execution work.
 					if activity["status"] == "failed" {
 						continue
+					}
+					if stActivityHasSummaryOutput(activity) {
+						nonempty = append(nonempty, Map{"id": activity["id"], "field": "detail"})
 					}
 					delete(activity, "detail")
 					activity["label"] = ""
@@ -220,6 +224,24 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 		}
 	}
 	return base
+}
+
+// Hook completion detail can be the native run's metadata rather than output.
+// Match the reader classifier, retaining unknown fields and all original data.
+func stActivityHasSummaryOutput(activity Map) bool {
+	detail := strings.TrimSpace(stString(activity["detail"]))
+	if detail == "" {
+		return false
+	}
+	if activity["kind"] != "hook" || activity["status"] != "completed" {
+		return true
+	}
+	var metadata Map
+	if json.Unmarshal([]byte(detail), &metadata) != nil || metadata["id"] != activity["id"] || metadata["status"] != "completed" || !stOnly(metadata, "id", "status", "name") {
+		return true
+	}
+	name, named := metadata["name"]
+	return named && name != "" && name != activity["label"]
 }
 
 func stFindTurn(turns []any, id string) Map {

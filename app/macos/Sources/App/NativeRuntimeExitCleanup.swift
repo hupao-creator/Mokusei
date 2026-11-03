@@ -8,6 +8,8 @@ import Synchronization
 /// Explicit Quit disarms it after the workspace has stopped successfully.
 final class NativeRuntimeExitCleanup: Sendable {
     private let completed = Mutex(false)
+    private let helperStarted = Mutex(false)
+    private let helperFinished = DispatchGroup()
     private let quittingEpoch = Mutex<String?>(nil)
     private let profile: RuntimeProfile
     private let executable: URL
@@ -15,7 +17,21 @@ final class NativeRuntimeExitCleanup: Sendable {
     init(profile: RuntimeProfile, executable: URL) {
         self.profile = profile; self.executable = executable
         atexit_b { [self] in
-            guard !completed.withLock({ $0 }) else { return }
+            prepareForExit()
+            // Ordinary exit retains helper-launch admission. The independent
+            // exit watchdog can still force _exit if this launch is stuck.
+            helperFinished.wait()
+        }
+    }
+    func prepareForExit() {
+        guard !completed.withLock({ $0 }) else { return }
+        let first = helperStarted.withLock { started in
+            guard !started else { return false }
+            started = true; helperFinished.enter(); return true
+        }
+        guard first else { return }
+        DispatchQueue.global(qos: .utility).async { [self] in
+            defer { helperFinished.leave() }
             let epoch = quittingEpoch.withLock { $0 } ?? (try? profile.readConnection())?.epoch ?? ""
             let process = Process()
             process.executableURL = executable

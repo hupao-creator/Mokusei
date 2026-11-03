@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Synchronization
 
 /// Dev-only, process-local geometry diagnostics. Never inspect text, accessibility
 /// labels/identifiers, window titles, URLs, model IDs or represented objects here.
@@ -7,10 +8,16 @@ import SwiftUI
 public enum NativeLayoutDiagnostics {
     private static var observer: LayoutWindowObserver?
     private static var writer: NativeLayoutLogWriter?
-    public static var isEnabled: Bool { writer != nil }
+    private nonisolated static let enabledID = Mutex<UUID?>(nil)
+    public nonisolated static var isEnabled: Bool { enabledID.withLock { $0 != nil } }
+    // Keep SwiftUI structural identity stable after an IO failure. Installed
+    // hooks become inert instead of remounting focused product controls.
+    fileprivate static var installsHooks = false
+    private static var recordingID: UUID?
 
     /// A Release build of the dev channel is still a dev application. Conversely,
-    /// DEBUG alone must never enable recording in a production bundle/profile.
+    /// DEBUG alone must never enable recording in a production bundle. A raw
+    /// opt-in's explicit data directory is caller-owned, not proof of isolation.
     public static func start(directory: URL, explicitDataDirectory: Bool = false) {
         guard writer == nil, ProcessInfo.processInfo.environment["MOKUSEI_LAYOUT_LOG"] != "0" else { return }
         var development = Bundle.main.bundleIdentifier == "com.mokusei.native.dev"
@@ -19,21 +26,37 @@ public enum NativeLayoutDiagnostics {
            ProcessInfo.processInfo.environment["MOKUSEI_LAYOUT_LOG"] == "1" { development = true }
         #endif
         guard development else { return }
-        let writer = NativeLayoutLogWriter(directory: directory)
+        let id = UUID()
+        recordingID = id
+        enabledID.withLock { $0 = id }
+        let writer = NativeLayoutLogWriter(directory: directory) {
+            enabledID.withLock { if $0 == id { $0 = nil } }
+            Task { @MainActor in
+                guard recordingID == id else { return }
+                observer?.stop(); observer = nil
+                self.writer = nil; recordingID = nil
+            }
+        }
         self.writer = writer
+        installsHooks = true
         FileHandle.standardError.write(Data("[layout-log] \(writer.directory.path)/events-*.jsonl\n".utf8))
         observer = LayoutWindowObserver()
         observer?.start()
     }
 
-    public static func finish() {
+    public static func finish(completion: @escaping @Sendable () -> Void) {
+        enabledID.withLock { $0 = nil }
         observer?.stop(); observer = nil
-        writer?.finish(); writer = nil
+        let previous = writer
+        writer = nil; recordingID = nil
+        if let previous { previous.finish(completion: completion) }
+        else { completion() }
     }
 
     fileprivate static func record(kind: String, source: String, component: String, role: String,
                                    window: String? = nil, parent: String? = nil, sibling: Int? = nil,
                                    flipped: Bool? = nil, before: NativeLayoutGeometry?, after: NativeLayoutGeometry?) {
+        guard isEnabled else { return }
         writer?.append(NativeLayoutRecord(time: Date(), uptimeNs: DispatchTime.now().uptimeNanoseconds,
             kind: kind, source: source, component: component, role: role,
             window: window, parent: parent, sibling: sibling, flipped: flipped, before: before, after: after))
@@ -58,6 +81,7 @@ private final class LayoutWindowObserver {
         var window: String = ""
         var parent: String = ""
         var sibling = 0
+        var seenGeneration = 0
         init(_ view: NSView, id: String) {
             self.view = view; self.id = id
             // Class names describe implementation, never user-controlled values.
@@ -76,16 +100,36 @@ private final class LayoutWindowObserver {
     private var views: [ObjectIdentifier: ViewEntry] = [:]
     private var tokens: [NSObjectProtocol] = []
     private var sequence = 0
-    private var scanning = false
+    private var running = false
+    private var discoveryWork: DispatchWorkItem?
+    private var lastDiscovery: UInt64 = 0
+    private var generation = 0
+    private final class DiscoveryNode {
+        weak var view: NSView?
+        let parent: String
+        let sibling: Int
+        let window: String
+        init(_ view: NSView, parent: String, sibling: Int, window: String) {
+            self.view = view; self.parent = parent; self.sibling = sibling; self.window = window
+        }
+    }
+    private var frontier: [DiscoveryNode] = []
+    private var removalKeys: [ObjectIdentifier] = []
+    private var removalIndex = 0
+    private var removing = false
+    private var passActive = false
+    private var requestedDuringPass = false
     private let closedWindows = NSHashTable<NSWindow>.weakObjects()
 
     func start() {
-        observe(NSApplication.didUpdateNotification) { [weak self] _, _ in self?.scan() }
+        running = true
+        observe(NSApplication.didUpdateNotification) { [weak self] _, _ in self?.requestDiscovery() }
         for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification, NSWindow.didUpdateNotification] {
             observe(name) { [weak self] window, _ in
                 guard let self, let window else { return }
                 guard !self.closedWindows.contains(window) else { return }
                 self.sampleWindow(window, source: name.rawValue)
+                self.requestDiscovery()
             }
         }
         observe(NSWindow.willCloseNotification) { [weak self] window, _ in
@@ -99,7 +143,7 @@ private final class LayoutWindowObserver {
                 self.sampleView(view, entry: entry, source: name.rawValue)
             }
         }
-        scan()
+        requestDiscovery()
     }
 
     private func observe(_ name: Notification.Name, action: @escaping @MainActor @Sendable (NSWindow?, NSView?) -> Void) {
@@ -108,7 +152,9 @@ private final class LayoutWindowObserver {
             // contain non-Sendable data and must not cross this isolation boundary.
             let window = note.object as? NSWindow
             let view = note.object as? NSView
-            MainActor.assumeIsolated { action(window, view) }
+            MainActor.assumeIsolated {
+                if NativeLayoutDiagnostics.isEnabled { action(window, view) }
+            }
         })
     }
 
@@ -140,13 +186,27 @@ private final class LayoutWindowObserver {
         entry.geometry = geometry
     }
 
-    private func scan() {
-        guard !scanning else { return }
-        scanning = true
-        defer { scanning = false }
-        var seen = Set<ObjectIdentifier>()
-        // Discovery observes the existing tree after application updates. It never
-        // forces layout, changes responders/hit regions, or samples presentation layers.
+    private func requestDiscovery() {
+        guard running, NativeLayoutDiagnostics.isEnabled else { return }
+        if passActive { requestedDuringPass = true; return }
+        guard discoveryWork == nil else { return }
+        let now = DispatchTime.now().uptimeNanoseconds
+        let elapsed = now - lastDiscovery
+        let delay = elapsed >= 500_000_000 ? 0 : 500_000_000 - elapsed
+        let work = DispatchWorkItem { [weak self] in self?.beginDiscovery() }
+        discoveryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .nanoseconds(Int(delay)), execute: work)
+    }
+
+    private func beginDiscovery() {
+        discoveryWork = nil
+        guard running, NativeLayoutDiagnostics.isEnabled else { return }
+        passActive = true; requestedDuringPass = false
+        removing = false
+        lastDiscovery = DispatchTime.now().uptimeNanoseconds
+        generation += 1
+        // Event-driven discovery starts at most twice a second, not at every
+        // application update. Weak frontier nodes do not retain detached readers.
         for window in NSApplication.shared.windows {
             if closedWindows.contains(window) {
                 guard window.isVisible else { continue }
@@ -156,23 +216,52 @@ private final class LayoutWindowObserver {
             guard let content = window.contentView else { continue }
             var root = content
             while let parent = root.superview { root = parent }
-            var stack: [(NSView, String, Int)] = [(root, owner.id, 0)]
-            while let (view, parent, sibling) = stack.popLast() {
+            frontier.append(DiscoveryNode(root, parent: owner.id, sibling: 0, window: owner.id))
+        }
+        discoverySlice()
+    }
+
+    private func discoverySlice() {
+        discoveryWork = nil
+        guard running, NativeLayoutDiagnostics.isEnabled else { return }
+        let started = DispatchTime.now().uptimeNanoseconds
+        var visited = 0
+        // Cooperative budget: a single framework call cannot be preempted. Yield
+        // between slices so a large tree cannot monopolize one main-loop turn.
+        while visited < 128 && DispatchTime.now().uptimeNanoseconds - started < 2_000_000 {
+            if let node = frontier.popLast() {
+                guard let view = node.view, let window = view.window, !closedWindows.contains(window) else { continue }
                 let key = ObjectIdentifier(view)
-                seen.insert(key)
                 let entry: ViewEntry
                 if let existing = views[key], existing.view === view { entry = existing }
                 else { entry = ViewEntry(view, id: nextID("v")); views[key] = entry }
-                let reparented = entry.window != owner.id || entry.parent != parent || entry.sibling != sibling
-                entry.window = owner.id; entry.parent = parent; entry.sibling = sibling
+                entry.seenGeneration = generation
+                let reparented = entry.window != node.window || entry.parent != node.parent || entry.sibling != node.sibling
+                entry.window = node.window; entry.parent = node.parent; entry.sibling = node.sibling
                 sampleView(view, entry: entry, source: "appkit.discovery", reparented: reparented)
-                for (index, child) in view.subviews.enumerated().reversed() { stack.append((child, entry.id, index)) }
+                for (index, child) in view.subviews.enumerated().reversed() {
+                    frontier.append(DiscoveryNode(child, parent: entry.id, sibling: index, window: node.window))
+                }
+                visited += 1
+            } else {
+                if !removing { removing = true; removalKeys = Array(views.keys); removalIndex = 0 }
+                guard removalIndex < removalKeys.count else { break }
+                let key = removalKeys[removalIndex]; removalIndex += 1
+                if let entry = views[key], entry.seenGeneration != generation {
+                    views[key] = nil; removeView(entry)
+                }
+                visited += 1
             }
         }
-        for key in Array(views.keys) where !seen.contains(key) {
-            if let entry = views.removeValue(forKey: key) { removeView(entry) }
+        if !frontier.isEmpty || !removing || removalIndex < removalKeys.count {
+            let work = DispatchWorkItem { [weak self] in self?.discoverySlice() }
+            discoveryWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(8), execute: work)
+        } else {
+            removalKeys.removeAll(); removalIndex = 0; passActive = false
+            for key in Array(windows.keys) where windows[key]?.window == nil { windows[key] = nil }
+            if requestedDuringPass { requestDiscovery() }
         }
-        for key in Array(windows.keys) where windows[key]?.window == nil { windows[key] = nil }
     }
 
     private func removeView(_ entry: ViewEntry) {
@@ -193,6 +282,9 @@ private final class LayoutWindowObserver {
     }
 
     func stop() {
+        running = false
+        discoveryWork?.cancel(); discoveryWork = nil
+        frontier.removeAll(); removalKeys.removeAll(); passActive = false
         tokens.forEach { NotificationCenter.default.removeObserver($0) }; tokens.removeAll()
         views.values.forEach { $0.restore() }; views.removeAll(); windows.removeAll()
     }
@@ -203,7 +295,7 @@ public extension View {
     /// Geometry callbacks describe resolved SwiftUI geometry, not all layout passes.
     @ViewBuilder
     func nativeLayoutLog(_ role: StaticString, file: StaticString = #fileID, line: UInt = #line) -> some View {
-        if NativeLayoutDiagnostics.isEnabled {
+        if NativeLayoutDiagnostics.installsHooks {
             modifier(LayoutGeometryLog(role: "\(role)", location: "\(file):\(line)"))
         } else { self }
     }
@@ -245,9 +337,11 @@ private struct LayoutGeometryLog: ViewModifier {
 
     func body(content: Content) -> some View {
         content.environment(\.nativeLayoutLogParent, observation.id)
-        .onGeometryChange(for: NativeLayoutGeometry.self) { proxy in
-            NativeLayoutGeometry(frame: proxy.frame(in: .global), bounds: CGRect(origin: .zero, size: proxy.size))
+        .onGeometryChange(for: NativeLayoutGeometry?.self) { proxy in
+            guard NativeLayoutDiagnostics.isEnabled else { return nil }
+            return NativeLayoutGeometry(frame: proxy.frame(in: .global), bounds: CGRect(origin: .zero, size: proxy.size))
         } action: { geometry in
+            guard let geometry else { return }
             observation.update(geometry, role: role, location: location, parent: parent)
         }
         .onAppear { observation.visibility(true, role: role, location: location, parent: parent) }

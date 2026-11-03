@@ -67,6 +67,7 @@ private final class WorkspaceSession {
     private var performanceDirectory: URL?
     private var task: Task<Void, Never>?
     private var quitting = false
+    private var finishingQuit = false
     private var quitSavingSettings = false
     private var quitDeadline: Task<Void, Never>?
     private static let zoomRange = (log(0.25) / log(1.2))...(log(5) / log(1.2))
@@ -131,7 +132,7 @@ private final class WorkspaceSession {
         }
     }
     func quit(discardSettings: Bool = false) {
-        guard !quitting else { finishQuit(); return }
+        guard !quitting else { NativeDiagnosticExit.terminateProcess(timedOut: true) }
         quitting = true; busy = true
         quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
@@ -175,11 +176,22 @@ private final class WorkspaceSession {
             "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)") ?? error.localizedDescription
     }
     private func finishQuit() {
+        // A late runtime-cleanup completion must not cut short a drain already
+        // requested by the runtime deadline. Only an explicit second Quit forces.
+        guard !finishingQuit else { return }
+        finishingQuit = true
         quitDeadline?.cancel()
+        // Arm a separate background deadline before either diagnostics path.
+        // A second Quit still exits immediately, even during a slow final drain.
+        let exitGate = NativeDiagnosticExit { NativeDiagnosticExit.terminateProcess(timedOut: $0) }
+        exitCleanup?.prepareForExit()
         interactionServer?.stop()
-        startup.cancel(); NativePerformance.finish()
-        NativeLayoutDiagnostics.finish()
-        exit(EXIT_SUCCESS)
+        startup.cancel()
+        NativeLayoutDiagnostics.finish { exitGate.completedDrain() }
+        DispatchQueue.global(qos: .utility).async {
+            NativePerformance.finish()
+            exitGate.completedDrain()
+        }
     }
     private struct SavedZoom: Codable { let level: Double }
 }

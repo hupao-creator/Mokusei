@@ -736,6 +736,12 @@ public struct NativeWorkspaceView: View {
                         .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
                 }
             }
+            .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
+                guard let selected = presentation.selected, selected.typeID == "agent",
+                      let thread = model.catalog.thread(selected.threadID) else { return }
+                await model.harnessHost.prefetchReading(input: HarnessThreadInput(thread: thread, readingTarget: presentation.readingTarget),
+                    performanceContext: presentation.performanceOperation)
+            }
             .environment(\.nativePerformanceOperation, presentation.performanceOperation)
             .environment(\.nativeReadingInteractions, presentation.readingInteractions)
             .environment(\.nativeReadingInteractionVisit, routeID)

@@ -7,12 +7,32 @@ identify the channel. Production bundles never enable this recorder, even with
 the process with `MOKUSEI_LAYOUT_LOG=0`.
 
 A raw Debug Swift executable can opt in with `MOKUSEI_LAYOUT_LOG=1` **and an
-explicit `--data-dir /absolute/isolated/profile`**. Raw Release executables do not
+explicit `--data-dir /absolute/profile`**. This is opt-in, **not isolation**:
+the path may be the production profile or a symlink to it. The caller must choose
+a separate temporary profile for demonstrations. Raw Release executables do not
 opt in. The runtime exit-cleanup helper does not record. Startup configures logging
 after acquiring the canonical profile lease; Reload retains the recording. Normal
-Quit removes observers, restores notification flags, drains the bounded mailbox
-and closes files/leases. Forced termination can lose buffered events (normally
-about 250 ms, longer with delayed IO) and does not write `sessionEnd`.
+Quit immediately stops collection/restores notification flags, then drains and
+closes files on the writer queue. It never joins that queue on the main thread.
+An independent background exit coordinator is armed before diagnostics cleanup:
+it schedules a 750 ms deadline for both layout and performance drains, then exits
+even if the main actor or either writer is blocked. This is an OS-scheduled
+deadline, not a hard real-time wall-clock guarantee. A second Quit still exits
+immediately without waiting for drain or helper launch; pending cleanup is best
+effort on that forced path. Late runtime-cleanup completion is idempotent and
+does not cut short an already requested drain. Normal exit is dispatched to the main actor to preserve AppKit/Swift
+actor assumptions in exit handlers. The watchdog remains armed through
+normal `exit()`/`atexit` too;
+the deadline path uses `_exit` so stdio or exit handlers cannot join a stuck
+writer. The existing epoch-fenced Runtime helper is prestarted when needed;
+ordinary exit waits for its launch, while the deadline can cut off a launch
+that has not completed. Timeout reports through unified logging (`com.mokusei.desktop`,
+category `layout`), not through the stalled file or stderr pipe. Every segment
+header sets `tailMayBeLostUnlessSessionEnd`; a missing final `sessionEnd` means
+the tail may be lost. A blocked disk cannot be guaranteed an on-disk timeout
+marker. Forced termination can also lose the buffered tail (normally about
+250 ms, longer with delayed IO). This diagnostic deadline is separate from the
+existing Settings/runtime cleanup gate and does not discard unsaved Settings.
 
 ## Files
 
@@ -40,6 +60,35 @@ Follow the next numbered file after rotation. Each segment starts with a `sessio
 header (schema, PID, segment, units and overwritten-segment count). Select the
 newest session by directory creation time; UUIDs/PIDs do not sort by age. Sort
 segments **numerically**.
+
+## Reconstructing important layout paths
+
+Start with a single session directory: IDs are session-local. Search `role` for
+`workspace.window`, `agent.reading.panel`, `agent.sidecard`, `report.reading.panel`,
+`moku.history.panel`, `timeline.document` or another container; retain that
+component ID, then follow `parent` / `window`, `initial`, `change`, `reparent`,
+visibility and removal events. `sequence` is the authoritative recording order;
+wall time is useful for searching, but can change with clock corrections.
+
+With jq, filter before sorting so the working set is only the chosen path:
+
+```sh
+log_session='/absolute/layout-pid-uuid'
+jq -c --arg component 'v42' 'select(.component == $component)' "$log_session"/events-*.jsonl \
+  | jq -s 'sort_by(.sequence)'
+jq -c --argjson start_ms 1793699205000 --argjson end_ms 1793699210000 \
+  'select(.sequence != null and .time >= $start_ms and .time <= $end_ms)' "$log_session"/events-*.jsonl \
+  | jq -s 'sort_by(.sequence)'
+```
+
+Use the coordinate rules below: an AppKit view's frame moves in its parent's
+space, while its bounds describes its own viewport. Compose parent/window
+changes when investigating a native path. Compare a SwiftUI component's history
+within its hosting root; the log does not automatically map separate hosting
+roots or SwiftUI IDs into the native window tree. Cross-host coordinate conversion
+and compositor-only travel cannot be fully reconstructed from these records.
+Only the highest numbered retained segment determines normal session completion;
+earlier segments can end at a rotation boundary without `sessionEnd`.
 
 ## Records and coordinates
 
@@ -90,17 +139,25 @@ different hosting roots.
 
 Discovery walks all current `NSApplication.windows`, including exposed native
 panels/sheets/popovers, from the content view's topmost ancestor (window chrome
-included), after application updates. It uses weak references, enables native
-frame/bounds notifications while attached, and reconciles geometry/new children
-without forcing layout. Known views' notifications are observed synchronously
+included). Application/window updates only request a coalesced pass: starts are
+limited to at most two per second, with no idle discovery polling timer. Each
+pass yields after 128 nodes or a cooperative 2 ms budget, then resumes after
+8 ms; cleanup is sliced too. A single AppKit call or a large child-array copy
+cannot be preempted, so this is not a hard real-time budget. Frontier nodes and
+registries hold weak view references. It enables native frame/bounds
+notifications while attached and reconciles geometry/new children without
+forcing layout. Known views' notifications are observed synchronously
 at delivery. `source` distinguishes native notifications/window callbacks from
 `appkit.discovery`. Detached trees release metadata and restore notification flags.
 
 Marked SwiftUI surfaces: workspace window/surface, Overview canvas and each
 semantic card, Agent panel/Sidecards, Moku history and application panels
 (Report/Git), shared Close target, Moku Dock viewport/capsule/interaction panel/Note/Settings seat, Settings
-page, onboarding panel, shared reading placeholders/conversation reader, timeline reading column/document/each loaded
-row, composer and every shared `NativeScrollView`. New surfaces can use
+page, onboarding panel, shared reading placeholders/conversation reader, timeline
+reading column/document, composer and every shared `NativeScrollView`. Individual
+timeline rows have **no global SwiftUI geometry observer**; native backing views
+can still be observed after discovery. The shared Close implementation owns its
+log hook; the 9a65b0f Thread/Report insets and cache ownership are retained. New surfaces can use
 `.nativeLayoutLog("literal.role")`. Instrumentation adds no hit-test view, focus
 target, padding, animation, content read or cache acquisition. Parallel Thread
 padding, Moku focus, Close geometry/animation and loading/cache changes retain
@@ -109,7 +166,14 @@ their behavior ownership; this observes their resolved geometry.
 This is **not every view or every layout callback**. SwiftUI flattens views;
 unmarked leaves, TextKit glyph/line layout, WebKit DOM, Metal, layer-only geometry
 and other processes' windows are not traversed. Native children created/removed
-between discoveries and their pre-discovery first layout can be missed. AppKit
+between discoveries and their pre-discovery first layout can be missed.
+Coalescing and slicing increase this discovery delay: 500 ms plus queued/sliced
+work under load, with no strict upper bound if the main actor is busy. A pass
+is not an atomic tree snapshot; reparent/remove/reinsert between visits may be
+merged, omitted or seen with temporarily stale ancestry. Only delivered changes
+from already discovered views are immediate. No complete per-change coverage
+is claimed, including for row layout now observed only through native backing
+views and their containers. AppKit
 can coalesce notifications; components that disable notification flags lose
 immediate callbacks (discovery still reconciles). Equal callbacks, undelivered
 intermediate values and pure opacity changes are absent.
@@ -132,9 +196,14 @@ absolute developer paths.
 One utility queue encodes/writes batches approximately every 250 ms. Producers
 append typed events with value-type CGRect snapshots under a mutex; unchanged
 geometry comparisons allocate no rectangle arrays. Layout callbacks perform no
-JSON encoding or disk IO. Directory/file creation also happens on the utility queue. Quit waits
-for the bounded final drain; slow storage can delay it. IO failure prints one
-stderr diagnostic and stops recording, without a crash/retry storm/unbounded queue.
+JSON encoding or disk IO. Directory/file creation and final close also happen
+on the utility queue. IO failure closes producer admission, cancels the writer
+timer, reports once through unified logging (allowlisted domain/numeric code,
+without error descriptions/userInfo/paths) and asks the main actor to remove
+all AppKit observers/cancel discovery/restore flags. SwiftUI hooks keep structural
+identity to avoid remounting focused controls, but become inert (no proxy/frame
+reads or collection); their residual cost is a disabled check when SwiftUI
+reevaluates geometry. No failed-file retry or continuing tree scan is scheduled.
 
 Private session directories/files use `0700`/`0600`. Each session retains four
 roughly 8 MiB segments (~32 MiB plus small header/loss/end records). Startup keeps
@@ -144,15 +213,23 @@ generations. Normally eight sessions cost at most ~256 MiB; concurrent active
 processes add their own ~32 MiB budgets. OS locks release on crashes. Pruning
 runs at later startups, not periodically. The quota is per profile, not global.
 
-Main-thread cost is O(current AppKit views) per application update, plus constant
-comparison/append per notification. SwiftUI resolves geometry for each marked
-surface/loaded row; scroll/resize/layout animation can produce many events.
+Main-thread request cost is O(1) per application update. Discovery remains
+O(current AppKit views) per pass, rate-limited and sliced as above; public AppKit
+API does not expose a universal deep-child mutation notification to eliminate
+this reconciliation safely. Known notifications have constant comparison/append
+cost. SwiftUI resolves geometry for marked containers/cards, not every timeline
+row; scroll/resize/layout animation can still produce many events.
 This can noticeably affect CPU/disk/timing on large documents; use the disable
 flag for uninstrumented performance baselines. Overflow trades explicit data loss
 for bounded producer memory. Non-dev builds install no observer/writer/timer or
 geometry modifiers; call sites perform only the disabled branch check.
 
-## Verification: 2026-11-03 sprint
+## Historical verification: 359ca57
+
+The observations below belong to the original implementation and do not certify
+the corrected exit/discovery implementation. See the review evidence below.
+
+### Original sprint observations
 
 The application was built with `xcrun swift build --package-path app/macos
 --configuration debug|release --product Mokusei --disable-sandbox` (each
@@ -197,3 +274,67 @@ displays, rotation under sustained load, mailbox overflow, concurrent pruning,
 disk-full/permission failure and force-kill recovery were not exercised. Their
 implementation/compatibility was statically reviewed; this sprint does not claim
 those runtime or performance scenarios passed.
+
+## Review corrections and evidence (baseline 9a65b0f)
+
+This correction is built in the detached worktree with the specified baseline.
+The shared Close implementation owns the sole Close geometry hook. Thread/Report
+balanced insets, cache/loading/focus behavior and both README contributions are
+preserved; per-row global geometry hooks have been removed. Scope is important
+windows, reading panels, Sidecards and containers, not universal leaf coverage.
+
+[Raw manual measurements and source hashes](../../../design/dev-layout-logging-review-evidence.json)
+retain the workload, individual runs, footer observations and unified-log
+messages. Temporary source/interposer/output files remain under
+`/private/tmp/mokusei-layout-review-pqsvafuh`. They are manual demonstrations,
+not repository test targets; no tests, CI or hooks were added/run.
+
+The optimized manual workload (`-O -D DEBUG`, macOS arm64) used 1,500 native
+leaves, two marked SwiftUI surfaces, 8ms application-update requests, a 250-tick
+warmup and 751 measured ticks over about six seconds. There was no concurrent
+compiler during the paired measurements. `thread_info` measures main-thread CPU;
+`getrusage` measures process CPU. This is not a foreground real Thread benchmark,
+optical frame-rate measurement or a general latency bound.
+
+| Six-second idle-update workload | Main CPU seconds | Process CPU seconds | update-call p95 ms |
+| --- | ---: | ---: | ---: |
+| Logging off, final source | 0.0354 | 0.0490 | 0.0285 |
+| Logging on, final source | 0.1026 | 0.1236 | 0.1088 |
+| Original 359ca57 logging on, one reference run | 0.5522 | 0.5665 | 1.0629 |
+
+The update-call interval excludes asynchronously scheduled discovery slices;
+main CPU includes them. Earlier reversed-order off/on pairs are retained to show
+variability. The original reference is one run, not a counterbalanced old/new
+benchmark. The observations support lower discovery cost on this workload, not
+complete coverage or a promise of low overhead for all documents/animations.
+
+Final lifecycle observations: normal completion returned to the main thread
+and wrote `sessionEnd` (~3.5ms final drain in the on-idle run). Manual write
+interposition returned ENOSPC after initial discovery: flags were enabled by
+tick 40, collection disabled at tick 53, and flags were restored false/false
+before exit. Subsequent updates continued until tick 500 without collection.
+The file ended without `sessionEnd`; unified logging reported cocoa code 640.
+A separate directory-creation failure also disabled collection (code 512).
+
+Blocking the final layout footer, the real production performance footer, or a
+main-actor `atexit` handler for 10 seconds each resulted in a background hard exit
+at approximately 786–787ms, without waiting for the blocked operation. The layout
+footer was absent only for the blocked layout writer; performance's footer was
+absent for its blocked writer. With blocked `atexit`, diagnostics had already
+finished, but the independent watchdog still forced exit. The deadline includes
+OS scheduling/report overhead and is not hard real-time.
+
+An initial manual `atexit` case trapped on `_dispatch_assert_queue_fail` / Swift
+executor isolation when ordinary exit ran on a writer thread. Normal exit now
+hops to main, while timeout bypasses exit handlers with `_exit`; the same manual
+case completed under the watchdog after that fix. The failure/handling and exact
+final-source hashes are retained in the evidence JSON.
+
+Unverified: full-app Quit/unsaved-Settings/second-Quit interaction replay, actual
+blocked helper launch, physical slow/full disks (faults were process-local
+interposition), real loaded Thread/Sidecard/Report interactions, optical animation,
+long-run rotation, mailbox overflow and concurrent pruning. Runtime helper
+prelaunch/admission and late cleanup completion were reviewed statically and
+compiled in the application. Final Debug and Release application builds passed
+without warnings (9.90s incremental Debug, 177.89s Release); diff/JSON/local-link
+review also completed. No test suite, CI, hook, push or PR ran.

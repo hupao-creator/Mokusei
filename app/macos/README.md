@@ -73,8 +73,13 @@ for the regression source, verification scope and remaining limits.
 Panel opening uses compositor-owned geometry and delays reader mounting until
 travel completes. Once submitted, panel travel no longer waits for main-actor
 animation ticks; initial reader mounting can still cause a later main-thread stall.
-Codex reader admission additionally validates/decodes changed opaque
-state off the main actor and skips construction of collapsed work rows. Native
+Data-only route prefetch overlaps content acquisition with travel; a bounded
+short-lived cache transfers continuously subscribed ready data between readers.
+Codex reader admission validates/decodes changed opaque state off the main actor,
+reuses only exact immutable inputs and skips construction of collapsed work rows.
+Read-only transcript TextKit views disable Writing Tools. Reader/view, history
+requests and scroll state remain scoped to their existing lifetimes. See the
+[loading/cache investigation](../../design/thread-loading-performance-cache.md). Native
 content and error admission policies remain owned by their existing boundaries.
 See the [manual investigation](../../design/thread-open-animation-investigation.md)
 for evidence and the limits of the isolated measurements.
@@ -107,7 +112,11 @@ before retaining any profile-local state. Fresh rotation uses the same
 cross-process admission and lifetime locks; offline preferences and drafts
 therefore remain protected independently of the runtime service's ownership.
 
-Quit remains available during Reload and never requires successful runtime or voice cleanup. It gives local cleanup up to three seconds, then exits; a second Quit exits immediately. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
+Quit remains available during Reload and never requires successful runtime or voice cleanup. It gives local cleanup up to three seconds before requesting process exit; a second Quit exits immediately. Errors go to profile diagnostics, and the existing epoch-fenced exit helper continues cooperative service cleanup. Workspace teardown releases local clients even when service shutdown reports an error. Reopening waits for a retiring service and starts a fresh owner without clearing saved data.
+Once exit is accepted, diagnostic writers drain asynchronously under a separate
+750ms background deadline; a slow writer cannot hold process exit indefinitely.
+Timeout can lose the diagnostic tail and is reported through unified logging.
+A second Quit continues to exit immediately.
 
 Before Runtime teardown, Quit flushes pending valid Settings edits. Invalid or
 failed saves expose an explicit continue-editing or quit-without-saving choice.

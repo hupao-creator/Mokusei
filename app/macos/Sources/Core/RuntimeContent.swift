@@ -5,6 +5,8 @@ struct ContentResource {
     let threadID: JSONText
     let scope: RuntimeContentScope
     var wireID: String?
+    var acknowledged = false
+    var retentionID: UUID?
     var value: JSONValue?
     var revision: Int?
     var failure: String?
@@ -16,23 +18,41 @@ struct ContentResource {
 }
 
 extension RuntimeClient {
-    /// A visible surface owns one handle. Releasing it drops local bytes and server demand.
+    /// Handles remain independently owned. A released, current subscription can
+    /// stay live briefly for another reader; no view/navigation state is retained.
     @discardableResult
     public func subscribeThreadContent(threadId: JSONText, scope: RuntimeContentScope,
                                        subscriptionId: String = UUID().uuidString.lowercased(),
                                        performanceContext: UInt64? = nil) async throws -> String {
-        try assertOpen()
+        try assertOpen(); try Task.checkCancellation()
         try validateIdentity(threadId); try validateIdentity(JSONText(subscriptionId))
         switch scope {
         case .turn(let key), .execution(let key): try validateIdentity(key)
         case .thread: break
         }
-        let previous = contentResources.removeValue(forKey: subscriptionId)
+        let previous = takeIdleContent(subscriptionId) ?? contentResources.removeValue(forKey: subscriptionId)
         previous?.timer?.cancel()
         previous?.measurement?.end(.cancelled)
+        // Reuse only a continuously subscribed snapshot from this stream. Never
+        // treat persisted reading bytes as a fresh connected response.
+        if let id = idleContent.last(where: {
+            guard let cached = contentResources[$0] else { return false }
+            return status == .connected && cached.threadID == threadId && cached.scope == scope &&
+                cached.revision != nil && cached.acknowledged && cached.wireID != nil && !cached.isRecovering
+        }), var cached = takeIdleContent(id) {
+            cached.retentionID = nil
+            cached.performanceContext = performanceContext
+            contentResources[subscriptionId] = cached
+            emit(.threadContent(subscriptionId: subscriptionId, state: cached.value.map(RuntimeContentState.ready) ?? .loading))
+            if let wire = previous?.wireID { await releaseWireContent(wire) }
+            return subscriptionId
+        }
+        // Foreground demand takes priority over speculative/idle demand.
+        if contentResources.count >= 28 { await evictIdleContent() }
+        try assertOpen(); try Task.checkCancellation()
         guard contentResources.count < 32 else { throw RuntimeError("CONTENT_CAPACITY", "Too many open content subscriptions") }
         var resource = ContentResource(threadID: threadId, scope: scope)
-        resource.value = offlineStore.content(thread: threadId, scope: scope)
+        if clientID == nil { resource.value = offlineStore.content(thread: threadId, scope: scope) }
         resource.performanceContext = performanceContext
         resource.measurement = NativePerformance.begin(.contentReady, context: performanceContext,
             values: ["row": { if case .thread = scope { return 0.0 }; return 1.0 }()])
@@ -49,7 +69,37 @@ extension RuntimeClient {
 
     public func releaseThreadContent(_ subscriptionId: String) async {
         flushReadingCache()
-        guard let resource = contentResources.removeValue(forKey: subscriptionId) else { return }
+        guard var resource = contentResources[subscriptionId] else { return }
+        if status == .connected, resource.revision != nil, resource.wireID != nil, resource.acknowledged,
+           resource.failure == nil, !resource.isRecovering, let value = resource.value {
+            // Only a ready resource moves between owners: its acknowledgement
+            // and timeout have finished, so neither can revoke a later owner.
+            let duplicate = idleContent.first {
+                $0 != subscriptionId && contentResources[$0]?.threadID == resource.threadID && contentResources[$0]?.scope == resource.scope
+            }
+            let replaced = duplicate.flatMap { takeIdleContent($0) }
+            // Retire the consumer ID synchronously. Cache ownership has a
+            // separate identity, so an old retry/release cannot affect reuse.
+            let retainedID = UUID().uuidString.lowercased()
+            let retention = UUID()
+            resource.retentionID = retention
+            contentResources.removeValue(forKey: subscriptionId)
+            contentResources[retainedID] = resource
+            idleContent.append(retainedID)
+            idleContentCosts[retainedID] = value.readingRetentionCost
+            idleContentExpiry[retainedID] = Task {
+                do {
+                    try await Task.sleep(for: .seconds(30))
+                    try Task.checkCancellation()
+                    guard self.contentResources[retainedID]?.retentionID == retention else { return }
+                    await self.evictIdleContent(retainedID)
+                } catch { }
+            }
+            await trimIdleContent()
+            if let wire = replaced?.wireID { await releaseWireContent(wire) }
+            return
+        }
+        contentResources.removeValue(forKey: subscriptionId)
         resource.timer?.cancel()
         resource.measurement?.end(.cancelled)
         if let wireID = resource.wireID { await releaseWireContent(wireID) }
@@ -58,6 +108,8 @@ extension RuntimeClient {
     public func clearThreadContentSubscriptions() async {
         flushReadingCache()
         let released = Array(contentResources.values)
+        for task in idleContentExpiry.values { task.cancel() }
+        idleContent.removeAll(); idleContentCosts.removeAll(); idleContentExpiry.removeAll()
         contentResources.removeAll()
         for resource in released { resource.timer?.cancel(); resource.measurement?.end(.cancelled) }
         for resource in released { if let wire = resource.wireID { await releaseWireContent(wire) } }
@@ -65,12 +117,13 @@ extension RuntimeClient {
 
     public func retryThreadContent(_ subscriptionId: String) async throws {
         try assertOpen()
-        guard contentResources[subscriptionId] != nil else { throw RuntimeError("CONTENT_UNAVAILABLE", "Content surface has been released") }
+        guard contentResources[subscriptionId] != nil, idleContentCosts[subscriptionId] == nil else { throw RuntimeError("CONTENT_UNAVAILABLE", "Content surface has been released") }
         contentResources[subscriptionId]?.recoveries = 0
         try await beginContent(subscriptionId)
     }
 
     func beginContent(_ id: String) async throws {
+        if idleContentCosts[id] != nil { await evictIdleContent(id); return }
         guard var resource = contentResources[id], clientID != nil else { return }
         resource.timer?.cancel()
         let oldWire = resource.wireID
@@ -80,9 +133,10 @@ extension RuntimeClient {
                 values: ["row": { if case .thread = resource.scope { return 0.0 }; return 1.0 }()])
         }
         let wire = UUID().uuidString.lowercased()
-        // Keep the last reading bytes while refreshing, but revoke their wire
-        // revision so no new patch can apply until a fresh snapshot arrives.
-        resource.wireID = wire; resource.revision = nil; resource.failure = nil
+        // A new stream/retry must deliver a fresh snapshot before connected
+        // reading resumes; retained bytes are only an offline fallback.
+        resource.wireID = wire; resource.revision = nil; resource.failure = nil; resource.acknowledged = false
+        resource.value = nil
         resource.isRecovering = false
         resource.timer = Task {
             do {
@@ -102,6 +156,7 @@ extension RuntimeClient {
                 "subscriptionId": .text(wire), "target": runtimeObject(["threadId": .string(resource.threadID), "scope": resource.scope.json])
             ])
             acknowledgement?.end()
+            if contentResources[id]?.wireID == wire { contentResources[id]?.acknowledged = true }
             // A close/replacement can beat acknowledgement; revoke the accepted add again.
             if contentResources[id]?.wireID != wire { await releaseWireContent(wire) }
         } catch {
@@ -115,6 +170,13 @@ extension RuntimeClient {
     func receiveContent(_ event: JSONValue) async throws {
         guard let type = event["type"]?.stringValue else { throw RuntimeError("INVALID_EVENT", "Content event has no type") }
         if type == "reset" {
+            // Revoke freshness before a wire-release await can admit another
+            // reader or let a departing reader repopulate the idle cache.
+            for id in contentResources.keys {
+                contentResources[id]?.revision = nil
+                contentResources[id]?.acknowledged = false
+            }
+            await evictIdleContent()
             for id in Array(contentResources.keys) {
                 contentResources[id]?.recoveries = 0
                 Task { try? await self.beginContent(id) }
@@ -137,7 +199,11 @@ extension RuntimeClient {
             resource.value = value; resource.revision = revision; resource.failure = nil
             contentResources[id] = resource
             readingContentDirty.insert(id); scheduleReadingCache()
-            emit(.threadContent(subscriptionId: id, state: .ready(value)))
+            if idleContentCosts[id] == nil { emit(.threadContent(subscriptionId: id, state: .ready(value))) }
+            if idleContentCosts[id] != nil {
+                idleContentCosts[id] = value.readingRetentionCost
+                await trimIdleContent()
+            }
         case "patch":
             guard let value = resource.value, let current = resource.revision,
                   let revision = event["revision"]?.intValue, event["baseRevision"]?.intValue == current,
@@ -150,12 +216,17 @@ extension RuntimeClient {
                 resource.value = result; resource.revision = revision; resource.recoveries = 0; resource.failure = nil
                 contentResources[id] = resource
                 readingContentDirty.insert(id); scheduleReadingCache()
-                emit(.threadContent(subscriptionId: id, state: .ready(result)))
+                if idleContentCosts[id] == nil { emit(.threadContent(subscriptionId: id, state: .ready(result))) }
+                if idleContentCosts[id] != nil {
+                    idleContentCosts[id] = result.readingRetentionCost
+                    await trimIdleContent()
+                }
             } catch { await recoverContent(id) }
         default: throw RuntimeError("INVALID_EVENT", "Runtime sent an unknown content event")
         }
     }
     private func recoverContent(_ id: String) async {
+        if idleContentCosts[id] != nil { await evictIdleContent(id); return }
         guard contentResources[id] != nil, contentResources[id]?.isRecovering == false else { return }
         contentResources[id]?.isRecovering = true
         contentResources[id]?.recoveries += 1
@@ -170,6 +241,7 @@ extension RuntimeClient {
         }
     }
     private func failContent(_ id: String, message: String) async {
+        if idleContentCosts[id] != nil { await evictIdleContent(id); return }
         guard var resource = contentResources[id] else { return }
         resource.measurement?.end(.failed); resource.measurement = nil
         let wire = resource.wireID
@@ -180,7 +252,7 @@ extension RuntimeClient {
         emit(.threadContent(subscriptionId: id, state: .error(message)))
         if let wire { await releaseWireContent(wire) }
     }
-    private func releaseWireContent(_ wire: String) async {
+    func releaseWireContent(_ wire: String) async {
         let previousStream = streamID
         do {
             _ = try await sessionPost("/thread-content/subscription", fields: ["subscriptionId": .text(wire), "target": .null])
