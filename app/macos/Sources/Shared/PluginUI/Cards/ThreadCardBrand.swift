@@ -77,7 +77,7 @@ private struct ThreadCardProviderStatusBody: View {
             }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .modifier(ThreadCardBadgeMaterial(interactive: action != nil))
+        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, interactive: action != nil))
         .contentShape(Circle()).onHover { hovered = $0 }
         .focusable(action == nil).focused($focused)
         .overlay(Circle().stroke(focused ? NativePalette.overview.ink.swiftUI : .clear, lineWidth: 1).padding(-3))
@@ -94,11 +94,14 @@ private struct ThreadCardProviderStatusBody: View {
     }
 }
 private struct ThreadCardBadgeMaterial: ViewModifier {
+    let hasEmoji: Bool
     let interactive: Bool
     @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder func body(content: Content) -> some View {
-        if flatMaterials {
+        // Emoji keeps its glass when it swaps to Send; other card surfaces stay flat.
+        if flatMaterials && (!hasEmoji || reduceTransparency) {
             content
                 .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
                 .overlay(Circle().stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)

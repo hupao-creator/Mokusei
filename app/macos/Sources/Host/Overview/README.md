@@ -21,8 +21,10 @@ The same rebuild also normalizes each distinct tag/label once and supplies those
 All Overview cards, including Agent Threads and Report, use opaque palette
 surfaces and a soft border. Completed cards retain a static completion tint.
 Shell and semantic planes contain no Liquid Glass containers. The card boundary
-supplies the shared flat-material policy to emoji/Follow-up badges, terminal
-marks and plan highlights, removing their glass and backdrop Material nodes.
+supplies the shared flat-material policy to provider badges without emoji,
+terminal marks and plan highlights. Agent Thread emoji badges use native regular
+Liquid Glass, including their Send state; Reduce Transparency retains the existing
+static palette fill and border. Card shells and all other card surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan, hover, focus, input and spatial-animation ownership are unchanged.

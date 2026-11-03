@@ -270,11 +270,14 @@ Remote Markdown images use URLSession HTTP caching and revalidation, with no pro
 
 Shared Harness card components keep task identity, usage, plan and extension layout consistent.
 `HarnessThreadCard` and the Overview semantic boundary supply
-`threadCardUsesFlatMaterials`: emoji/Follow-up and terminal badges use static
-palette fills, and the in-progress plan row uses the accent-soft surface without
-a glass container or effect. Empty plans render no section. The shared controls
-keep their original materials outside a card; this internal renderer policy is
-not a preference and does not identify plugins by name. Native focus, hover,
+`threadCardUsesFlatMaterials`: terminal badges and provider badges without an
+emoji use static palette fills, and the in-progress plan row uses the accent-soft
+surface without a glass container or effect. The 44pt emoji badge uses native
+regular Liquid Glass, retaining the same material when hover/focus reveals Send;
+Reduce Transparency restores its static palette fill and border. The emoji stays
+21pt and all hit regions and actions are unchanged. Empty plans render no section.
+The shared controls keep their original materials outside a card; this internal
+renderer policy is not a preference and does not identify plugins by name. Native focus, hover,
 actions, completion drawing and plan geometry remain unchanged. Loading-cloud
 palette is supplied by the Harness rather than selected by identity inside the renderer.
 

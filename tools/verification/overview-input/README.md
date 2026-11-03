@@ -198,7 +198,8 @@ those facts and resolved palette references; `inspection.json` retains all
 pixel regions and measurements. Files are copied to the requested output only
 after replay and independent inspection succeed. ScreenCaptureKit may require
 Screen Recording consent. Review all four images for text/control legibility,
-flat badge/plan appearance, rounded corners and cloud color.
+emoji glass and Send readability, static terminal/plan appearance, rounded corners
+and cloud color.
 
 These static captures do not prove moving native decorations. The existing
 `reading-presentation/run.py --tag-glass-captures` owner includes
