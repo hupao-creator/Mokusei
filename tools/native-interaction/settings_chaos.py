@@ -134,9 +134,6 @@ def smoke(driver):
     d.settle(lambda s: "moku.codex.model" in controls(s) and len(controls(s)["moku.codex.model"]["options"]) > 1, timeout=60)
     d.persisted(lambda s: "codex" in s["moku"]["executionHarnesses"], "initial Codex execution profile")
     # All edits travel through the mounted native editor and its delegates.
-    state = d.client.snapshot()
-    if "moku.routingEnabled" not in controls(state):
-        d.control("moku.advanced", "activate")
     d.control("moku.routingEnabled", "set", True)
     d.control("moku.routingGuidance", "set", "  Chaos 中文 🚀\nsecond line  ")
     d.control("moku.routingGuidance", "blur")
@@ -147,9 +144,6 @@ def smoke(driver):
     d.control("moku.routingEnabled", "set", False)
     d.persisted(lambda s: s["moku"]["routingGuidance"] is None, "routing disabled")
     # UTF-16 boundary, astral text and invalid-field close gate.
-    state = d.client.snapshot()
-    if "moku.routingEnabled" not in controls(state):
-        d.control("moku.advanced", "activate")
     d.control("moku.routingEnabled", "set", True)
     d.control("moku.routingGuidance", "set", "🚀" * 6000)
     d.control("moku.routingGuidance", "blur")

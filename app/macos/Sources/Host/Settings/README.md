@@ -200,12 +200,12 @@ text-field notifications cannot clear another editor's close/save gate.
 
 Saves carry expected settings revision. Success adopts the normalized response as the new base while retaining later local edits. Conflicts reconcile against the returned latest state; an obsolete failed save does not discard or block a newer ready draft. Current failures remain visible. Local appearance/language persistence has its own path and works without a connected Runtime. General → Interface preferences saves `DesktopPreferences` directly without entering a Runtime draft. `desktop-preferences.json` stores `preferences.appearance` and `preferences.locale`; updates retain selection and onboarding state. Atomic write failures retain the prior observed value and show the existing preference error notice. Interaction snapshots expose the saved values as `settings.appearance` and `settings.locale`.
 
-Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku routing guidance remains editable under Advanced settings; an existing enabled editor is expanded on entry, and invalid-field focus also expands it. The routing switch supplies the sole visible heading; its editor retains its own accessible name and announced validation errors. There is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
+Moku displays its concrete saved execution profile. Background editors select inherited Moku configuration or an independent snapshot; switching back to inheritance retains the independent choice for later reuse. Moku, Report and Tag use their built-in system instructions; settings do not expose full system-prompt replacement. Moku's “Model selection preferences” (模型选择偏好) switch is directly visible below its execution fields, without an Advanced disclosure. Enabling it reveals guidance for choosing models for delegated tasks, such as favoring speed or reasoning ability. The saved `moku.routingGuidance` field, enable/disable behavior, normalization and autosave are unchanged. The switch supplies the sole visible heading; its editor retains its own accessible name, invalid-field focus and announced validation errors. There is no additional system-prompt setting. A running execution/batch retains its admitted profile. Plugin availability still limits application sections and the Moku Harness roster;
 Settings no longer exposes plugin enablement or service-restart instructions.
 
 The [landing setup demo](../../../../../demos/landing-setup/README.md) mounts the
 same Moku coordination map with an in-memory settings model. Its `.compact`
-presentation omits map labels. Settings also uses this map presentation and retains advanced routing guidance in a disclosure. Both presentations
+presentation omits map labels and model selection preferences. Settings also uses this map presentation and shows the model selection preferences switch directly. Both presentations
 use the historical circular avatar (`8f3548f`) with the same selection, handoff
 and target feedback; the Settings page retains its native execution editors and saved values.
 
@@ -262,7 +262,7 @@ and cancels its animation; inactive/hidden windows settle an interrupted playbac
 to the final frame without replaying on activation. Reduce Motion shows the
 completed composition without deferred playback. Tag pauses SpriteKit after
 rendering its final frame. Settings has no onboarding progress
-or admission steps. Onboarding alone omits advanced routing. `draft.flush()`
+or admission steps. Onboarding alone omits model selection preferences. `draft.flush()`
 awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.
 Harness editors report acquisition and incomplete local model choices through

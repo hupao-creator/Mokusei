@@ -236,7 +236,6 @@ private struct Failure: Error { let message: String }
             throw Failure(message: "Map host and target actions did not retain their draft bindings")
         }
         try await activateMapControl("moku.host.codex")
-        try await activateMapControl("moku.advanced")
         guard let routing = mapControls().first(where: { $0["id"] == .text("moku.routingEnabled") }),
               let handle = routing["handle"]?.stringValue else {
             throw Failure(message: "Routing switch is not mounted")
@@ -246,7 +245,7 @@ private struct Failure: Error { let message: String }
         try await capture("settings-routing-guidance")
         guard mapControls().contains(where: {
             $0["id"] == .text("moku.routingGuidance") &&
-            $0["label"] == .text("输入 Moku 选择模型时应遵循的规则")
+            $0["label"] == .text("告诉 Moku 如何为派发的任务选择模型，例如简单任务优先速度、复杂任务优先推理能力。")
         }) else { throw Failure(message: "Routing editor lost its accessible name") }
         window.setContentSize(.init(width: 540, height: 780))
         try await capture("settings-routing-guidance-compact")

@@ -228,4 +228,5 @@ external links and media; page navigation alone does not test those features.
 Settings uses a horizontal header. Report/Tag inheritance is exposed through
 `<section>.inherit` and `<section>.independent` activation actions; independent
 Harness seats use `<section>.harness.<id>`. Inherited mode omits independent
-choices. Moku's collapsed routing editor is opened with `moku.advanced`.
+choices. Moku's model selection preferences switch (`moku.routingEnabled`) is
+directly visible; enabling it reveals the `moku.routingGuidance` editor.
