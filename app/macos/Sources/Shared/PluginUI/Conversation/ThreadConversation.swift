@@ -35,9 +35,10 @@ public struct ThreadConversationReadingTarget: Hashable, Sendable {
     public let executionId: JSONText
     public let anchorId: JSONText?
     public let follow: Bool
+    public let hasMessageTarget: Bool
     public let position: HarnessReadingTarget.Position
-    public init(requestId: JSONText, mode: Mode, executionId: JSONText, anchorId: JSONText? = nil, position: HarnessReadingTarget.Position = .start, follow: Bool = false) {
-        self.requestId = requestId; self.mode = mode; self.executionId = executionId; self.anchorId = anchorId; self.position = position; self.follow = follow
+    public init(requestId: JSONText, mode: Mode, executionId: JSONText, anchorId: JSONText? = nil, position: HarnessReadingTarget.Position = .start, follow: Bool = false, hasMessageTarget: Bool = false) {
+        self.requestId = requestId; self.mode = mode; self.executionId = executionId; self.anchorId = anchorId; self.position = position; self.follow = follow; self.hasMessageTarget = hasMessageTarget
     }
 }
 
@@ -146,10 +147,18 @@ public struct ThreadConversation: View {
     private var entryRoute: Bool {
         requestedDestination != nil && destination == requestedDestination && rootNavigation != nil
     }
+    private var runningStartVisit: Bool {
+        agentDetail && running && effectiveRunningID != nil && readingTarget?.executionId == effectiveRunningID
+            && readingTarget?.position == .start && readingTarget?.hasMessageTarget == false && readingTarget?.anchorId == nil
+    }
     private var scrollTarget: ThreadTimelineReadingTarget? {
-        guard destination == requestedDestination, let consumedRequest, let acceptedAnchor else { return nil }
-        return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: acceptedAnchor,
-            follow: readingTarget?.position == .result && readingTarget?.follow == true)
+        guard destination == requestedDestination, let consumedRequest else { return nil }
+        // A default execution link has no message anchor. Register its row while
+        // the scoped body loads, then keep following all subsequent layout growth.
+        let anchor = runningStartVisit ? visibleRows.first { $0.execution?.id == effectiveRunningID }?.id : acceptedAnchor
+        guard let anchor else { return nil }
+        return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: anchor,
+            follow: runningStartVisit || (readingTarget?.position == .result && readingTarget?.follow == true))
     }
     public var body: some View {
         Group {
@@ -219,12 +228,15 @@ public struct ThreadConversation: View {
                 HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
                     contentTopInset: executionCard ? 12 : nil,
-                    suspended: readingPage, followOutput: true, followKey: effectiveRunningID,
+                    suspended: readingPage, followOutput: true,
+                    opensAtBottom: agentDetail && running && effectiveRunningID != nil && requestedDestination == nil,
+                    followKey: effectiveRunningID,
                     followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
                     onJumpToLatest: {
                         destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
                     }, showOlderRows: false, pinnedRowId: inlineRow,
-                    readingTarget: readingPage ? nil : scrollTarget, locatedRequestId: locatedRequest,
+                    readingTarget: readingPage ? nil : scrollTarget,
+                    readingVisitId: destination == requestedDestination ? consumedRequest : nil, locatedRequestId: locatedRequest,
                     onLocated: { locatedRequest = $0 })
                     .environment(\.threadDetailVisibility, visibility)
                     .environment(\.threadAuthorInHeader, true)
@@ -304,7 +316,9 @@ public struct ThreadConversation: View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
-                              result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
+                              result: resultVisit, readingTarget: scrollTarget,
+                              readingVisitId: destination == requestedDestination ? consumedRequest : nil,
+                              locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
                               focusHeading: destination == requestedDestination, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
@@ -432,6 +446,7 @@ private struct ThreadHistoryDocument: View {
     let running: Bool
     let result: Bool
     let readingTarget: ThreadTimelineReadingTarget?
+    let readingVisitId: JSONText?
     let locatedRequestId: JSONText?
     let onLocated: (JSONText) -> Void
     let backLabel: String
@@ -449,8 +464,8 @@ private struct ThreadHistoryDocument: View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
-            followOutput: result, followKey: active ? page?.execution?.id : nil,
-            readingTarget: readingTarget, locatedRequestId: locatedRequestId, onLocated: onLocated)
+            followOutput: result || (running && readingTarget?.follow == true), followKey: active ? page?.execution?.id : nil,
+            readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }

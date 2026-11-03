@@ -106,7 +106,7 @@ private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
 }
 
 
-/// Bounded history window with explicit following. Opening a document starts at its heading.
+/// Bounded history window with explicit following. Documents start at their heading unless the caller opens at the live bottom.
 public struct HarnessMessageTimeline: View {
     public let timelineKey: JSONText
     public let rows: [ThreadTimelineRow]
@@ -115,12 +115,14 @@ public struct HarnessMessageTimeline: View {
     public var contentTopInset: CGFloat?
     public var suspended: Bool
     public var followOutput: Bool
+    public var opensAtBottom: Bool
     public var followKey: JSONText?
     public var followPaused: Bool
     public var onJumpToLatest: (() -> Void)?
     public var showOlderRows: Bool
     public var pinnedRowId: JSONText?
     public var readingTarget: ThreadTimelineReadingTarget?
+    public var readingVisitId: JSONText?
     public var locatedRequestId: JSONText?
     public var onLocated: ((JSONText) -> Void)?
     @Environment(\.locale) private var locale
@@ -132,6 +134,7 @@ public struct HarnessMessageTimeline: View {
     @State private var tailLength = 0
     @State private var following = false
     @State private var showLatest = false
+    @State private var userPositioned = false
     @State private var userScrolling = false
     @State private var geometry = TimelineGeometry(contentOffset: 0, insetTop: 0, height: 0, viewport: 0)
     @State private var anchors: [JSONText: CGFloat] = [:]
@@ -145,17 +148,17 @@ public struct HarnessMessageTimeline: View {
 
     public init(timelineKey: JSONText, rows: [ThreadTimelineRow], toolbar: AnyView? = nil,
                 emptyState: AnyView? = nil, contentTopInset: CGFloat? = nil,
-                suspended: Bool = false, followOutput: Bool = false,
+                suspended: Bool = false, followOutput: Bool = false, opensAtBottom: Bool = false,
                 followKey: JSONText? = nil, followPaused: Bool = false, onJumpToLatest: (() -> Void)? = nil,
                 showOlderRows: Bool = true, pinnedRowId: JSONText? = nil,
-                readingTarget: ThreadTimelineReadingTarget? = nil, locatedRequestId: JSONText? = nil,
+                readingTarget: ThreadTimelineReadingTarget? = nil, readingVisitId: JSONText? = nil, locatedRequestId: JSONText? = nil,
                 onLocated: ((JSONText) -> Void)? = nil) {
         self.timelineKey = timelineKey; self.rows = rows; self.toolbar = toolbar; self.emptyState = emptyState
         self.contentTopInset = contentTopInset
-        self.suspended = suspended; self.followOutput = followOutput; self.followKey = followKey
+        self.suspended = suspended; self.followOutput = followOutput; self.opensAtBottom = opensAtBottom; self.followKey = followKey
         self.followPaused = followPaused; self.onJumpToLatest = onJumpToLatest
         self.showOlderRows = showOlderRows; self.pinnedRowId = pinnedRowId; self.readingTarget = readingTarget
-        self.locatedRequestId = locatedRequestId; self.onLocated = onLocated
+        self.readingVisitId = readingVisitId; self.locatedRequestId = locatedRequestId; self.onLocated = onLocated
         _tailLength = State(initialValue: rows.count)
     }
     private var orderedRows: [ThreadTimelineRow] {
@@ -216,7 +219,7 @@ public struct HarnessMessageTimeline: View {
                 .accessibilityLabel(localize("消息时间线"))
                 .onScrollPhaseChange { _, phase in
                     userScrolling = phase == .interacting || phase == .decelerating
-                    if userScrolling { clampedRequest = nil }
+                    if userScrolling { userPositioned = true; clampedRequest = nil }
                     if userScrolling && !suspended && geometry.distance > 1 { following = false }
                 }
                 .onScrollGeometryChange(for: TimelineGeometry.self) {
@@ -237,7 +240,7 @@ public struct HarnessMessageTimeline: View {
                         else if new.distance <= 1 { following = !followPaused }
                     }
                     showLatest = new.distance >= 64
-                    if new.height != old.height && following && !followPaused && followOutput && prependSnapshot == nil {
+                    if (new.height != old.height || new.viewport != old.viewport) && following && !followPaused && followOutput && prependSnapshot == nil {
                         position.scrollTo(edge: .bottom)
                     }
                     locate()
@@ -248,20 +251,41 @@ public struct HarnessMessageTimeline: View {
                 }
                 .onPreferenceChange(ThreadFocusPreference.self) { focusAnchors = $0 }
                 .onChange(of: readingTarget) { _, _ in locate() }
+                .onChange(of: readingVisitId ?? readingTarget?.requestId) { _, _ in
+                    // A visit exists before its message/row anchor is projected.
+                    // Anchor readiness alone must never undo a user's scroll.
+                    userPositioned = false
+                    locate()
+                }
                 .onChange(of: timelineKey, initial: true) { _, _ in
-                    visibleCount = 120; tailLength = rows.count
+                    visibleCount = 120; tailLength = rows.count; userPositioned = false
                     if readingTarget?.requestId != locatedRequestId || locatedRequestId == nil {
-                        following = false; locatedRequest = nil; clampedRequest = nil
-                        position.scrollTo(y: 0)
+                        following = opensAtBottom && !followPaused; locatedRequest = nil; clampedRequest = nil
+                        if following { position.scrollTo(edge: .bottom) }
+                        else { position.scrollTo(y: 0) }
                         locate()
                     }
                 }
                 .onChange(of: followKey) { old, new in
-                    if new != nil && new != old && !followPaused && !suspended { follow(proxy) }
+                    if new != nil && new != old && !followPaused && !suspended && readingTarget == nil && readingVisitId == nil {
+                        if opensAtBottom { openBottom() }
+                        else { follow(proxy) }
+                    }
+                }
+                .onChange(of: opensAtBottom) { _, new in
+                    if new { openBottom() }
                 }
                 .onChange(of: followPaused) { old, new in
                     if new { following = false }
-                    else if old && !suspended { follow(proxy) }
+                    else if old && !suspended {
+                        // A requested message may still be resolving its anchor.
+                        // Generic follow must not take that visit's position.
+                        if readingTarget != nil || readingVisitId != nil { locate() }
+                        else if opensAtBottom {
+                            userPositioned = false
+                            openBottom()
+                        } else { follow(proxy) }
+                    }
                 }
                 .onChange(of: suspended) { _, new in
                     reportReading()
@@ -269,7 +293,13 @@ public struct HarnessMessageTimeline: View {
                         suspendedSnapshot = (geometry.top, following)
                         following = false
                     } else {
-                        if let previous = suspendedSnapshot {
+                        if opensAtBottom && readingTarget == nil {
+                            // Returning from a different execution is a new visit;
+                            // growth while hidden must not restore an obsolete offset.
+                            userPositioned = false
+                            openBottom()
+                            suspendedSnapshot = nil
+                        } else if let previous = suspendedSnapshot {
                             position.scrollTo(y: previous.top)
                             following = previous.following && geometry.height - previous.top - geometry.viewport <= 1
                             showLatest = geometry.height - previous.top - geometry.viewport >= 64
@@ -315,11 +345,17 @@ public struct HarnessMessageTimeline: View {
                 throw NativeReadingControlError("invalid_request", "Scroll offset must be a finite number within 10000000 points")
             }
             let offset = operation == "scrollBy" ? Double(geometry.top) + amount : amount
-            following = false; clampedRequest = nil
+            userPositioned = true; following = false; clampedRequest = nil
             position.scrollTo(y: min(max(0, geometry.height - geometry.viewport), max(0, CGFloat(offset))))
         }
     }
+    private func openBottom() {
+        guard opensAtBottom, followOutput, !followPaused, !suspended, !userPositioned, readingTarget == nil else { return }
+        following = true; showLatest = false
+        position.scrollTo(edge: .bottom)
+    }
     private func loadEarlier() {
+        userPositioned = true; following = false
         prependSnapshot = geometry
         visibleCount += 100 + max(0, rows.count - tailLength)
         tailLength = rows.count
@@ -346,7 +382,7 @@ public struct HarnessMessageTimeline: View {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)
     }
     private func locate() {
-        guard !suspended, let target = readingTarget,
+        guard !suspended, let target = readingTarget, !(target.follow && userPositioned),
               (locatedRequest != target.requestId && locatedRequestId != target.requestId) || clampedRequest == target.requestId,
               geometry.height > 0, geometry.viewport > 0, let top = anchors[target.anchorId] else { return }
         following = target.follow && followOutput && !followPaused

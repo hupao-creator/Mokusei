@@ -55,7 +55,7 @@ struct PiThreadView: View {
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID,
                 anchorId: piMokuAnchor(state, target.message) ?? (anchor?.request == target.requestID ? anchor?.id : nil), position: target.position,
-                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID, hasMessageTarget: target.message != nil)
         }
     }
 }

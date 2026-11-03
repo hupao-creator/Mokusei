@@ -47,7 +47,7 @@ public struct OpenCodeThreadView: View {
             ThreadConversationReadingTarget(requestId: target.requestID, mode: target.mode == .current ? .current : .history,
                 executionId: target.executionID, anchorId: ocMokuReplyAnchor(state, target: target.message)
                     ?? (resolvedAnchor?.request == target.requestID ? resolvedAnchor?.anchor : nil), position: target.position,
-                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID, hasMessageTarget: target.message != nil)
         }
         return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : ocDocumentTitle(input.thread, state: state), icon: ocEmoji(input.thread.metadataState),
             rows: rows, readingTarget: target, running: latest?.status == .running,

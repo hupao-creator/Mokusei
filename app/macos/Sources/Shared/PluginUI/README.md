@@ -131,6 +131,22 @@ reference remains unperformed when only headless execution is allowed.
 
 ## Reading and execution disclosure
 
+Ordinary Agent Thread opens at the latest content bottom when its execution is
+running, including a default execution link and returning from the history TOC.
+Completed/history executions keep their existing heading or requested position;
+explicit message links keep their message anchor. The four Harness adapters carry
+message-target presence independently of asynchronously resolved anchors.
+`ThreadConversation` owns this navigation policy; `HarnessMessageTimeline` owns
+initial placement and follows content/viewport geometry through scoped row loading,
+projection and Markdown layout. Native scrolling or reading scroll controls take
+over from automatic following; later content cannot pull an upward reader back.
+Returning to the running document or choosing “jump to latest” enables following
+again. Explicit reading visits retain position ownership while their anchors
+resolve, including when an inline historical execution stops pausing follow.
+Generic execution changes cannot supersede that visit. This does not change
+reading-stack motion or projection/resource ownership.
+
+
 Ordinary Agent Thread detail withholds assistant reply bodies while their native
 message status is `streaming`. Each settled message renders its complete Markdown
 even if the execution continues; a later streaming reply does not replace the
@@ -217,8 +233,10 @@ Accessible names include the ordinal and prompt, and the selected/current states
 are exposed separately.
 Selecting history uses the existing scoped document without a dedicated upper-left
 Back button. Escape and the history close action restore the retained current scroll
-position; TOC selection remains available. This shared behavior applies to Codex,
-Claude, Pi and OpenCode, including unavailable history documents. Thread history
+position for completed or non-Agent reading; returning to a running Agent
+execution resumes at the latest content bottom. TOC selection remains available.
+This shared behavior applies to Codex, Claude, Pi and OpenCode, including
+unavailable history documents. Thread history
 switches vertically according to TOC order:
 earlier targets enter from above, later targets from below, including history-to-history
 replacement and return to the current document. Both pages travel one viewport

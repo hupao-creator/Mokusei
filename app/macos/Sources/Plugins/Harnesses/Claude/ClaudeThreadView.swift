@@ -40,7 +40,7 @@ public struct ClaudeThreadView: View {
         let anchor = claudeReplyAnchor(state, message: input.readingTarget?.message) ?? (resolvedAnchor?.request == input.readingTarget?.requestID ? resolvedAnchor?.anchor : nil)
         return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : claudeDocumentTitle(input.thread, state: state), icon: claudeEmoji(input.thread), rows: rows,
             readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor, position: $0.position,
-                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == $0.executionID) },
+                follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == $0.executionID, hasMessageTarget: $0.message != nil) },
             running: input.thread.observation.latestExecution?.status == .running,
             runningTurnId: runningID(state), context: context,
             renderRow: context.content == .manifest ? { key in
