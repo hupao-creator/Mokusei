@@ -21,6 +21,8 @@ import MokuseiPluginUI
     private var landingActive = false
     public private(set) var inputOpen = false
     public private(set) var inputLeaving = false
+    public private(set) var composerGeneration = UUID()
+    @ObservationIgnored private var composerIdentity: ObjectIdentifier?
     public private(set) var talkPresentation = NativeMokuTalkState()
     public private(set) var settingsOpen = false
     public private(set) var settingsClosing = false
@@ -139,6 +141,23 @@ import MokuseiPluginUI
         guard dockRouteVisible else { return }
         if mokuOpen || cameraActive { setMokuOpen(false); setInputOpen(true) }
         else { setInputOpen(!inputOpen) }
+    }
+    /// Draft ownership changes synchronously with navigation. Retiring ink and
+    /// editor selection must never cross from Moku or one Thread to another.
+    public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool) {
+        let identity = ObjectIdentifier(draft)
+        guard composerIdentity != identity else { return }
+        composerIdentity = identity
+        composerGeneration = UUID()
+        capsuleTask?.cancel(); capsuleTask = nil
+        inputOpen = false; inputLeaving = false; capsuleSealed = false
+        retainedSelection = nil
+        retainDraft(draft)
+        setInputOpen(opensInput)
+        command?(.position)
+    }
+    func ownsComposer(_ draft: NativeComposerDraft) -> Bool {
+        composerIdentity == nil || composerIdentity == ObjectIdentifier(draft)
     }
     public func setInputOpen(_ open: Bool) {
         guard !settingsOpen else { return }

@@ -424,8 +424,28 @@ reading-panel eligibility without admitting Settings or Note on a reading route.
 The composer, Talk, voice visuals and pending interventions use that shared
 eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
-input/hit-region ownership. The mounted landing replay also covers Agent entry,
-continued Moku input, the panel close route and direct execution-result return.
+input/hit-region ownership. Agent detail enters input mode by default, with a localized placeholder naming
+that Thread. The window owns a persisted draft (text, directory mentions and
+attachments) per Thread, separately from Moku history/Overview. Sending keeps the
+Agent editor open and calls the existing `thread:follow-up` capability with the
+Thread identity captured before the first suspension; Runtime chooses steer or a
+successor execution. Stop uses that Thread's observed cancellation identity.
+Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
+late receipts consume only their original draft and cannot reopen another visit.
+Navigation resets retained editor ink, selection and completion ownership before
+admitting the replacement draft. Returning to Overview, Report, Git or Moku history
+restores the existing Moku send route. No Overview card send entrance is added.
+
+Escape and outside clicks may fold Agent input; clicking the capsule or
+Cmd+Shift+B reopens it. Entering another Thread, returning from an application
+panel or closing Moku history opens that Thread's composer again. Existing Moku
+interventions retain priority, then release the Agent editor. Agent input does
+not expose Moku voice-start actions, transcripts or Talk; an existing workspace
+voice session is not stopped. The execution Sidecard stays usable beside an open
+Agent composer and owns no text/attachment input.
+
+Sprint verification for this change uses the application build, architecture
+checks and isolated manual inspection; historical test suites are not run.
 
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell

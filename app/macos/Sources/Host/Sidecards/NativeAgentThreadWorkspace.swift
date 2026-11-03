@@ -12,7 +12,6 @@ public struct NativeAgentThreadWorkspace: View {
     private let registry: SidecardPluginRegistry
     private let executionDisabled: Bool
     private let readingTarget: HarnessReadingTarget?
-    private let followUpRequest: NativeSidecardFollowUpRequest?
     private let sidecardsSuppressed: Bool
     private let enabledSidecardIDs: Set<JSONText>?
     private let services: NativeSidecardWorkspaceServices
@@ -26,13 +25,13 @@ public struct NativeAgentThreadWorkspace: View {
 
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, registry: SidecardPluginRegistry,
                 executionDisabled: Bool = false, readingTarget: HarnessReadingTarget? = nil,
-                followUpRequest: NativeSidecardFollowUpRequest? = nil, sidecardsSuppressed: Bool = false,
+                sidecardsSuppressed: Bool = false,
                 enabledSidecardIDs: Set<JSONText>? = nil, services: NativeSidecardWorkspaceServices,
                 onBack: @escaping () -> Void, onFollowUpVisibilityChange: @escaping (Bool) -> Void = { _ in },
                 backLabel: String? = nil, onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil) {
         self.harnessHost = harnessHost; self.thread = thread; self.registry = registry
         self.executionDisabled = executionDisabled; self.readingTarget = readingTarget
-        self.followUpRequest = followUpRequest; self.sidecardsSuppressed = sidecardsSuppressed
+        self.sidecardsSuppressed = sidecardsSuppressed
         self.enabledSidecardIDs = enabledSidecardIDs; self.services = services
         self.onBack = onBack; self.onFollowUpVisibilityChange = onFollowUpVisibilityChange
         self.backLabel = backLabel; self.onNavigationChange = onNavigationChange
@@ -45,7 +44,7 @@ public struct NativeAgentThreadWorkspace: View {
             nestedNavigation = action; onNavigationChange?(action)
         }) {
                 NativeThreadWorkspaceBody(harnessHost: harnessHost, thread: thread, registry: registry,
-                    executionDisabled: executionDisabled, readingTarget: readingTarget, followUpRequest: followUpRequest,
+                    executionDisabled: executionDisabled, readingTarget: readingTarget,
                     sidecardsSuppressed: sidecardsSuppressed, enabledSidecardIDs: enabledSidecardIDs,
                     services: services, onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
                     .environment(\.nativeAgentHasNestedNavigation, nestedNavigation.map { $0.id != navigation.id } ?? false)
@@ -74,7 +73,6 @@ private struct NativeThreadWorkspaceBody: View {
     let registry: SidecardPluginRegistry
     let executionDisabled: Bool
     let readingTarget: HarnessReadingTarget?
-    let followUpRequest: NativeSidecardFollowUpRequest?
     let sidecardsSuppressed: Bool
     let enabledSidecardIDs: Set<JSONText>?
     let services: NativeSidecardWorkspaceServices
@@ -86,7 +84,7 @@ private struct NativeThreadWorkspaceBody: View {
     private var configuration: NativeSidecardWorkspaceConfiguration {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
-            followUpRequest: followUpRequest, locale: locale)
+            locale: locale)
     }
 
     var body: some View {
@@ -180,11 +178,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                 routes: model.routes, onIndexChange: model.receiveIndex)
                 .disabled(snapshot.executionDisabled)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let message = snapshot.requestError {
-                Text(message).font(.system(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI)
-                    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel(message)
-            }
+
         }
         .overlay(alignment: .topTrailing) {
             NativeReadingPanelCloseButton(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)

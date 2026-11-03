@@ -21,7 +21,7 @@ selector; the Runtime rejects execution, settings changes and unarchive attempts
 and retained overrides. Missing values decode as true; false round-trips with
 both modes, and changing a mode/profile preserves the switch.
 
-[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment and voice capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. A voice capability exposes a private read-only discussion, not a send action against the source task.
+[SidecardPlugin.swift](SidecardPlugin.swift) defines descriptors, thread-bound context, lifetime, intent routing, file/attachment and voice capabilities. Plugins return content while the host owns outer size, suppression and transitions. `openURL`, compose and send notifications are semantic intents; sibling plugins do not call one another by identity. The built-in Conversation display accepts no compose/send intent; reading follow-up routes open the Host-owned detail Moku composer. Availability changes retire an expanded Sidecard before the next Host snapshot. A voice capability exposes a private read-only discussion, not a send action against the source task.
 
 [Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
 
@@ -45,7 +45,7 @@ unmounting a global editor keeps its typed presentation cached. Source changes
 invalidate pending results, while disconnect/reload or scope removal releases
 the resource. Thread settings sessions still belong to their mounted editor.
 
-[SidecardAttachmentImport.swift](SidecardAttachmentImport.swift) provides lifetime-bound device-local file/byte staging plus the runtime attachment policy. Returned typed metadata is shared with the Conversation composer's attachment presentation and submission; the existing URL-only staging capability remains used by Browser annotations.
+[SidecardAttachmentImport.swift](SidecardAttachmentImport.swift) provides lifetime-bound device-local file/byte staging plus the runtime attachment policy. Browser annotations retain the existing URL-only staging capability. Agent detail input uses the Host-owned Moku composer and its attachment service; Conversation is an execution display.
 
 `ApplicationExecutionLink` admits only the internal `mokusei://execution` URL
 with exactly one nonblank `threadId` and `executionId` query parameter, without

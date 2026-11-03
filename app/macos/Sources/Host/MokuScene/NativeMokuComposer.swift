@@ -33,6 +33,7 @@ struct NativeMokuComposerInput: View {
     let draft: NativeComposerDraft
     var cwd: JSONText = ""
     var disabled = false
+    var threadTitle: String?
     var readOnly = false
     var focusEnabled = true
     var focusRequestKey = 0
@@ -81,6 +82,9 @@ struct NativeMokuComposerInput: View {
             || !(retainedDirectories ?? draft.directories).isEmpty
     }
     private var placeholder: String {
+        if let threadTitle {
+            return localize("发送给「\(threadTitle)」…", "Message \(threadTitle)…")
+        }
         let directories = retainedDirectories ?? draft.directories
         guard let first = directories.first else {
             return localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak")
@@ -147,13 +151,19 @@ struct NativeMokuComposerInput: View {
                     }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
                     .overlay {
                         NativeMokuLongPressVoiceMonitor(
-                            isActive: { focusEnabled && !unavailable && !readOnly && !voiceModeActive },
+                            isActive: { threadTitle == nil && focusEnabled && !unavailable && !readOnly && !voiceModeActive },
                             canStart: canStartVoice, start: startVoice)
                             .allowsHitTesting(false)
                     }
-                    .help(localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking"))
-                    .accessibilityAction(named: Text(localize("开始语音", "Start voice"))) {
-                        if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
+                    .help(threadTitle == nil
+                        ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
+                        : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread"))
+                    .accessibilityActions {
+                        if threadTitle == nil {
+                            Button(localize("开始语音", "Start voice")) {
+                                if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
+                            }
+                        }
                     }
                 // Keep the seat while it opens, without mounting an inactive
                 // voice entry. The workspace retains the media client itself.
@@ -173,8 +183,8 @@ struct NativeMokuComposerInput: View {
                         RoundedRectangle(cornerRadius: 1).fill(.foreground).frame(width: 10, height: 10)
                             .frame(width: 32, height: 32).contentShape(Circle())
                     }.buttonStyle(.plain).disabled(unavailable || readOnly)
-                        .help(localize("停止 Moku", "Stop Moku"))
-                        .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
+                        .help(stopLabel)
+                        .accessibilityLabel(stopLabel)
                         .accessibilityIdentifier("moku-stop")
                 }
                 // Retain the editor's width when the first/last character
@@ -228,6 +238,9 @@ struct NativeMokuComposerInput: View {
     private var attachmentIcon: some View {
         NativeIcon(name: "Plus", size: 16).frame(width: 28, height: 32)
             .contentShape(Rectangle())
+    }
+    private var stopLabel: String {
+        threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread")
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }

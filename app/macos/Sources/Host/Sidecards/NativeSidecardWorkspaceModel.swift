@@ -10,7 +10,6 @@ struct NativeSidecardWorkspaceConfiguration: Equatable {
     var executionDisabled: Bool
     var suppressed: Bool
     var enabledIDs: Set<JSONText>?
-    var followUpRequest: NativeSidecardFollowUpRequest?
     var locale: Locale
 }
 
@@ -31,7 +30,6 @@ struct NativeSidecardWorkspaceSnapshot {
     let transitioning: Bool
     let dragging: Bool
     let widths: [JSONText: CGFloat]
-    let requestError: String?
     let executionDisabled: Bool
     let suppressed: Bool
 
@@ -61,9 +59,7 @@ final class NativeSidecardWorkspaceModel {
     @ObservationIgnored private var widths: [JSONText: CGFloat] = [:]
     @ObservationIgnored private var dragging = false
     @ObservationIgnored private var transitioning = false
-    @ObservationIgnored private var requestError: String?
     @ObservationIgnored private var requestSequence = 0.0
-    @ObservationIgnored private var handledFollowUp: Int?
     @ObservationIgnored private var lastVisibility = false
     @ObservationIgnored private var isReleased = false
     @ObservationIgnored private var reconciling = false
@@ -80,7 +76,10 @@ final class NativeSidecardWorkspaceModel {
     }
 
     var routes: NativeHarnessThreadRoutes {
-        NativeHarnessThreadRoutes(openFollowUp: { [weak self] in self?.compose($0) },
+        NativeHarnessThreadRoutes(openFollowUp: { [weak self] draft in
+            guard let self, !isReleased else { return }
+            services.compose(configuration.input.thread.id, draft)
+        },
             openExternal: { [weak self] url in
                 guard let self else { throw CancellationError() }
                 try await openExternal(url)
@@ -93,10 +92,6 @@ final class NativeSidecardWorkspaceModel {
         self.configuration = configuration; self.services = services
         self.onBack = onBack; self.onVisibilityChange = onVisibilityChange
         reconcile()
-        if let request = configuration.followUpRequest, request.requestKey != handledFollowUp {
-            handledFollowUp = request.requestKey
-            compose(request.initialDraft)
-        }
     }
 
     func receiveIndex(_ index: ThreadConversationIndex) {
@@ -111,6 +106,7 @@ final class NativeSidecardWorkspaceModel {
     func closeThread() { onBack() }
 
     func activate(_ id: JSONText) {
+        guard snapshot?.available.contains(where: { $0.id == id }) == true else { return }
         dispatchDepth += 1
         _ = choose(selected == id ? nil : id)
         if selected == id { _ = dispatch(.activate, target: id) }
@@ -162,13 +158,6 @@ final class NativeSidecardWorkspaceModel {
         needsReconciliation = true
         if !reconciling && dispatchDepth == 0 { reconcile() }
         return selectionRevision
-    }
-
-    private func compose(_ draft: JSONText?) {
-        guard !isReleased, configuration.input.thread.archived != true else { return }
-        let accepted = dispatch(.compose(initialDraft: draft))
-        requestError = accepted ? nil : translate("没有已启用的 Sidecard 可以输入消息。")
-        reconcile()
     }
 
     private func openExternal(_ url: JSONText) async throws {
@@ -277,13 +266,8 @@ final class NativeSidecardWorkspaceModel {
     private func translate(_ source: String) -> String {
         let chinese = configuration.locale.language.languageCode?.identifier == "zh"
         guard !chinese else { return source }
-        return ["没有已启用的 Sidecard 可以输入消息。": "No enabled Sidecard can compose messages.",
-                "重试": "Retry", "收起卡片": "Collapse card", "输入与执行": "Input and execution",
-                "输入与执行卡片": "Input and execution card", "需要回应": "Response needed",
-                "输入消息": "Message", "错误": "Error", "停止当前轮": "Stop current turn",
-                "补充到当前轮": "Add to current turn", "发送消息": "Send message",
-                "此 Thread 已归档": "This thread is archived", "等待回应…": "Waiting for a response…",
-                "补充…": "Add more…", "输入消息…": "Type a message…"][source]
+        return ["重试": "Retry", "收起卡片": "Collapse card", "执行": "Execution",
+                "执行卡片": "Execution card", "需要回应": "Response needed"][source]
             ?? NativePluginLocalization.localize(source, locale: configuration.locale)
     }
 
@@ -329,10 +313,16 @@ final class NativeSidecardWorkspaceModel {
                     reconcile()
                 }
             }
+            // A plugin can lose availability without a user action (execution
+            // completion, archive or reading-target change). Retire selection
+            // before publishing so no unavailable card remains interactive.
+            if let selected, !cards.contains(where: { $0.id == selected && $0.view.available }) {
+                _ = choose(nil)
+            }
         } while needsReconciliation && passes < 16
         snapshot = NativeSidecardWorkspaceSnapshot(input: configuration.input, cards: cards,
             selected: selected, lastSelected: lastSelected, selectionRevision: selectionRevision,
-            transitioning: transitioning, dragging: dragging, widths: widths, requestError: requestError,
+            transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: configuration.executionDisabled, suppressed: configuration.suppressed)
         let visible = cards.contains { $0.id == selected && $0.view.acceptsInput == true }
         if lastVisibility != visible { lastVisibility = visible; onVisibilityChange(visible) }

@@ -63,11 +63,12 @@ struct NativeMokuNoteActionStack<Content: View>: View {
 }
 
 /// One glass capsule. Production composer, transcript and interaction ownership stay in the scene.
-/// The draft object is the same one supplied to NativeMokuThreadView.
+/// Moku history shares its draft; Agent detail supplies its own Thread draft.
 public struct NativeMokuDock: View {
     public let state: NativeMokuSceneState
     public let draft: NativeComposerDraft
     public let cwd: JSONText
+    public var threadTitle: String?
     public var landing: Bool
     public var mode: MokuCharacterMode
     public var running: Bool
@@ -103,7 +104,7 @@ public struct NativeMokuDock: View {
     @State private var capsuleHeight: CGFloat = 58
     @State private var completionHeight: CGFloat = 0
     @State private var capsuleFraction: CGFloat = 0
-    @State private var submitting = false
+    @State private var submissionDraft: NativeComposerDraft?
     @State private var focusReady = false
     @State private var focusRequest = 0
     @State private var directoryMentions = NativeMokuDirectoryMentions()
@@ -125,7 +126,7 @@ public struct NativeMokuDock: View {
     @State private var retainedReasoningGlyphs: [MokuReasoningGlyph] = []
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
-                landing: Bool = false,
+                landing: Bool = false, threadTitle: String? = nil,
                 mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
                 talk: String? = nil,
                 reply: NativeMokuDockReply? = nil, disabled: Bool = false,
@@ -147,6 +148,7 @@ public struct NativeMokuDock: View {
         self.state = state; self.draft = draft; self.cwd = cwd; self.mode = mode; self.running = running
         self.reasoning = reasoning
         self.landing = landing
+        self.threadTitle = threadTitle
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
         self.interactionIsQuestion = interactionIsQuestion; self.voiceControls = voiceControls
         self.voiceBackground = voiceBackground
@@ -160,6 +162,7 @@ public struct NativeMokuDock: View {
         self.loadMentionDirectories = loadMentionDirectories
     }
     private var retaining: Bool { state.inputLeaving || state.capsuleSealed }
+    private var submitting: Bool { submissionDraft === draft || draft.submitting }
     private var inputPresent: Bool {
         !state.settingsOpen && !state.notePanelOpen && (state.inputOpen || state.inputLeaving) && !voiceModeActive && interaction == nil
             && (state.inputOpen || displayedMessage == nil)
@@ -181,7 +184,7 @@ public struct NativeMokuDock: View {
         return NativeMokuTalkMessage(id: JSONText(talk), text: talk)
     }
     private var visibleTalk: NativeMokuTalkMessage? {
-        guard !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
+        guard threadTitle == nil, !state.inputOpen, interaction == nil, !state.dockCovered, state.dockRouteVisible,
               state.windowVisible, !disabled, !submitting, !draft.submitting else { return nil }
         return state.talkPresentation.message
     }
@@ -304,7 +307,7 @@ public struct NativeMokuDock: View {
             trailingInset: talkTrailing(width: width), maximumHeight: maximumHeight, scrollbarStyle: talkScrollbarStyle))
     }
     private var residentPresenting: Bool {
-        !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
+        threadTitle == nil && !state.dockCovered && state.dockRouteVisible && state.windowVisible && !state.inputOpen &&
         !submitting && !draft.submitting && interaction == nil && displayedMessage == nil
     }
     private var completionVisible: Bool { inputPresent && !retaining && directoryMentions.isOpen }
@@ -323,7 +326,7 @@ public struct NativeMokuDock: View {
             && !disabled && (presentation?.workspace.runtimeAvailable ?? true)
     }
     private var incomingReasoning: MokuReasoningContent? {
-        guard running else { return nil }
+        guard threadTitle == nil, running else { return nil }
         if let presentation { return presentation.reasoning }
         return reasoning
     }
@@ -417,6 +420,7 @@ public struct NativeMokuDock: View {
             .onChange(of: interaction != nil, initial: true) { _, visible in
                 state.setDockInteractionVisible(state.dockRouteVisible && visible, question: interactionIsQuestion)
                 if visible && state.dockRouteVisible && !state.settingsOpen { state.setInputOpen(false) }
+                else if !visible, threadTitle != nil, !state.dockCovered { state.setInputOpen(true) }
             }
             .onChange(of: interactionIsQuestion) { _, value in
                 state.setDockInteractionVisible(state.dockRouteVisible && interaction != nil, question: value)
@@ -462,7 +466,7 @@ public struct NativeMokuDock: View {
             guard state.updateLanding(active) else { return }
             if active {
                 if landingInputAvailable && !running && incomingTalk == nil { state.setInputOpen(true) }
-            } else {
+            } else if threadTitle == nil {
                 state.retainDraft(draft)
                 state.setInputOpen(false)
             }
@@ -480,6 +484,11 @@ public struct NativeMokuDock: View {
                     state.retainDraft(draft)
                 }
             }
+        }
+        .onChange(of: ObjectIdentifier(draft)) { _, _ in
+            focusReady = false
+            directoryMentions = NativeMokuDirectoryMentions()
+            voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
         }
         .onChange(of: state.settingsOpen) { _, open in
             if open { state.retainDraft(draft) }
@@ -556,7 +565,7 @@ public struct NativeMokuDock: View {
             state.dockMentionHitRect = nil
             hoverTask?.cancel(); hoverTask = nil
         }
-        .task(id: state.dockRouteVisible && state.inputOpen && !state.dockCovered) {
+        .task(id: "\(state.composerGeneration):\(state.dockRouteVisible && state.inputOpen && !state.dockCovered)") {
             guard state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
             do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
             guard !Task.isCancelled, state.dockRouteVisible, state.inputOpen else { return }
@@ -589,7 +598,7 @@ public struct NativeMokuDock: View {
         .sheet(item: $dispatchDetail) { selected in
             NativeMokuDispatchSheet(selected: selected, presentation: presentation)
         }
-        .task(id: mentionsEnabled) { await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories) }
+        .task(id: "\(state.composerGeneration):\(mentionsEnabled)") { await directoryMentions.load(enabled: mentionsEnabled, using: loadMentionDirectories) }
         // Keep the override local: a preferredColorScheme would also recolor
         // the containing workspace window and its other application surfaces.
         .environment(\.colorScheme, .dark)
@@ -761,8 +770,8 @@ public struct NativeMokuDock: View {
                         .focused($stopFocused)
                         .accessibilityFocused($stopAccessibilityFocused)
                         .allowsHitTesting(stopVisible)
-                        .help(localize("停止 Moku", "Stop Moku"))
-                        .accessibilityLabel(localize("停止 Moku", "Stop Moku"))
+                        .help(threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
+                        .accessibilityLabel(threadTitle == nil ? localize("停止 Moku", "Stop Moku") : localize("停止此 Thread", "Stop this thread"))
                         .accessibilityIdentifier("moku-stop")
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("native-moku-dock")) } action: { stopControlsFrame = $0 }
                 } else if voiceControlVisible && (!inputPresent || voiceModeActive) {
@@ -811,6 +820,7 @@ public struct NativeMokuDock: View {
     }
     private func composer(room: CGFloat) -> some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
+            threadTitle: threadTitle,
             readOnly: state.inputLeaving, focusEnabled: state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing,
             retainedText: retaining ? state.retainedText : nil,
@@ -823,29 +833,37 @@ public struct NativeMokuDock: View {
             selectionRequest: directoryMentions.selectionRequest,
             initialSelection: state.retainedSelection,
             onEditorStateChange: { editor in
+                guard state.ownsComposer(draft) else { return }
                 if state.inputOpen, !editor.composing { state.retainSelection(editor.selection) }
                 directoryMentions.update(editor)
             },
-            onKeyDown: { directoryMentions.handle($0, draft: draft) },
+            onKeyDown: { state.ownsComposer(draft) && directoryMentions.handle($0, draft: draft) },
             onEditorSeatChange: {
                 // The retiring editor remains mounted inside a shrinking capsule.
                 // Its new anchor would redirect the eyes mid-collapse; keep the
                 // last open seat until live editing resumes.
-                if state.inputOpen { editorBottomInset = $0 }
+                if state.ownsComposer(draft), state.inputOpen { editorBottomInset = $0 }
             },
-            onEscape: { state.setInputOpen(false) }, onSend: send)
+            onEscape: { if state.ownsComposer(draft) { state.setInputOpen(false) } }, onSend: send)
+            .id(ObjectIdentifier(draft))
     }
 
     private func send() {
-        guard !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
+        guard state.ownsComposer(draft), !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
         state.retainDraft(draft, seal: true)
-        state.dismissTalk()
-        submitting = true
-        state.setInputOpen(false)
+        if threadTitle == nil { state.dismissTalk() }
+        let sendingDraft = draft, send = onSend, generation = state.composerGeneration
+        submissionDraft = sendingDraft
+        if threadTitle == nil { state.setInputOpen(false) }
+        else { state.capsuleSealed = false }
         Task {
-            await draft.submit(onSend)
-            submitting = false
-            if draft.error != nil, !state.mokuOpen { state.setInputOpen(true) }
+            // Capture both the draft and route before yielding. A late receipt
+            // consumes only this draft and cannot reopen a replacement visit.
+            await sendingDraft.submit(send)
+            if submissionDraft === sendingDraft { submissionDraft = nil }
+            if state.composerGeneration == generation, sendingDraft.error != nil, !state.mokuOpen {
+                state.setInputOpen(true)
+            }
         }
     }
     private func acknowledgePresentation() {

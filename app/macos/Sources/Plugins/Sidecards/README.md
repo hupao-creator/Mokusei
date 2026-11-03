@@ -15,10 +15,25 @@ its independent Close returns to Overview.
 
 ## Conversation
 
-[Conversation](Conversation/) owns its draft and active-execution presentation. Its history qualification comes from the Harness's complete public turn index, not whichever lazy body is loaded. A first running/waiting turn remains in the main reading area. With earlier/inherited history, the active process can be shown in the execution card. Send intents and receipts coordinate with other cards through the host; plugins do not import siblings.
-The execution card uses a compact, title-free conversation: no decorative emoji,
-with the resolved author above the execution content. The host card label and
-message/action accessibility remain available; full detail pages retain titles.
+[Conversation](Conversation/) is an execution display. It owns no composer,
+draft, attachments, Send or Stop control; Agent input belongs to the Thread detail
+Moku bar. Follow-up suggestions from Harness/Application reading routes append
+to that Thread's Moku-bar draft and open its editor, preserving existing text and
+attachments. Compose intents and send receipts cannot open this Sidecard.
+
+Availability requires an observed running/waiting execution and earlier/inherited
+history in the Harness's full turn index. A first active execution stays in the
+main reader. An exact execution-result request also keeps its target in the main
+reader. The Sidecard launcher only exists while the display qualifies; it can
+show/hide the current execution without focusing the Moku editor or a new input.
+Entering the Thread, starting another execution and reading requests do not
+automatically expand it; only the user's launcher action opens the display.
+Completion, interruption, failure, archive or loss of eligibility closes and
+removes it. Acknowledged input alone does not prove that an execution is active.
+The host rejects stale launcher activations and retires unavailable selections
+before publishing the next snapshot. Folding retains the existing execution
+ownership policy and Harness response forms. The execution card has no decorative
+title/emoji; its label is localized as Execution/执行.
 
 ## Browser
 
@@ -82,9 +97,10 @@ navigation/cancellation cases. The annotation mouse-input and focused responder-
 chain cases explicitly require this native replay capability; a display alone
 cannot establish AppKit event-loop/key-window ownership.
 
-The Conversation input uses the shared composer's focused paste handling for PNG/TIFF clipboard images and local file URLs, including accompanying text. Its attachment chips, import limits/errors, pending removal and attachment-only submission reuse `NativeComposerDraft`. Each deliberate paste imports one batch; plain text remains a native editor action. Folding retains staged attachments in the plugin session; releasing that session persists imported attachments in a profile/thread-scoped draft alongside the independently revisioned text draft. Reopening restores the chips; removal discards staged files and an accepted send consumes its exact attachment identities, including after release and after a successor adds files. New files, in-flight imports and new text survive late receipts. The host injects device-local imports and policy through `SidecardAttachmentImport`; send receipts retain successfully submitted files.
-
-Replay: `xcrun swift test --no-parallel --package-path app/macos --filter 'NativeSidecardAttachmentPasteTests|NativeComposerPasteTests|NativeSidecardNavigationTests'` (requires a graphical macOS session).
+The detail Moku bar owns text and attachment persistence per profile and Thread.
+Browser annotation imports and send receipts retain their existing independent
+capabilities and ownership. Removing the Conversation composer does not remove
+Browser annotation sending or the Runtime follow-up command.
 
 An execution-result reading request keeps its targeted active execution in the
 main reader instead of moving it into the Conversation sidecard. This preserves

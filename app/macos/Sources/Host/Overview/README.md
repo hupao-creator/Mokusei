@@ -37,8 +37,8 @@ actions. Permission/question responses remain available; those are bound to a
 current pending interaction. There is no per-card message editor, text/file drop
 target or send shortcut. Canvas drag/scroll/pinch, search, Return-to-open and
 card activation keep their navigation behavior. The independent Moku composer,
-reading-page Conversation/Browser send flows and general Runtime APIs remain
-owned by their existing boundaries; Moku operation decorations are observations,
+Thread-detail Moku input, Browser annotation sends and general Runtime APIs
+remain owned by their existing boundaries; Moku operation decorations are observations,
 not card send controls.
 
 ## Card update isolation
