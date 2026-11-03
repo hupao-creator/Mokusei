@@ -233,7 +233,8 @@ def verify_swift_ownership(root, repo, environment):
     launcher.parent.mkdir(parents=True)
     launcher.write_text("import json, os, sys\nfrom pathlib import Path\n"
                         "logs = json.loads(os.environ['CI_NATIVE_LOGS'])\n"
-                        "selected = [argument for argument in sys.argv[1:] if argument in logs]\n"
+                        "arguments = [\"--thread-send-feedback\" if argument == \"--thread-send-feedback-native\" else argument for argument in sys.argv[1:]]\n"
+                        "selected = [argument for argument in arguments if argument in logs]\n"
                         "assert len(selected) == 1, 'Expected exactly one native check'\n"
                         "print(Path(logs[selected[0]]).read_text(), end='')\n")
     ordinary = root / "ordinary.log"

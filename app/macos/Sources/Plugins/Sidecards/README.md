@@ -26,12 +26,25 @@ launcher toggles open/closed and selecting another launcher switches activity.
 The main Thread's Close remains separate. Conversation, Browser and Voice retain
 their programmatic/Escape dismissal without ending execution, drafts or media.
 The host's animated
-[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) unfolds the
-document from the right without reserving a separate top chrome aperture.
-The same interpolated aperture bounds pointer hits, so masked document controls
-cannot receive clicks. The existing selected/suppressed gates still disable
-folded, retiring and covered cards; native document suppression, the short fade,
-offsets, resizing, stacking, sessions and dismissal callbacks keep their ownership.
+[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) resolves the
+corresponding launcher's actual bounds through SwiftUI layout anchors. One
+interpolated presentation step moves the rounded paint and pointer aperture from
+that button to the panel and back, including stacked layouts, retained widths
+and workspace scaling. The source follows current launcher layout; if a button
+loses availability during return, its last real bounds remain the destination.
+The document stays mounted at panel size rather than stretching its text through
+the launcher. The shell remains visible until the final part of folding.
+Reduced Motion and divider dragging settle geometry without travel.
+The existing selected/suppressed gates disable folded, retiring and covered
+cards; native document suppression, resizing, sessions and dismissal callbacks
+keep their ownership. Completion handoff still promotes the retained execution
+reader into the main panel.
+
+The `--thread-send-feedback-native` replay samples mounted native aperture
+frames in the production layout for all three launcher positions, opening and
+closing in wide/stacked layouts, quick reversals and switching, button availability
+changes, resize during opening and retained width. Existing production
+Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 
 ## Conversation
 

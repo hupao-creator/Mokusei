@@ -38,6 +38,38 @@ private struct SendFeedbackLayout: View {
     }
 }
 
+@MainActor @Observable private final class FoldProbeState {
+    var available: Set<JSONText> = ["a", "b", "c"]
+    var presses = 0
+    var size: CGSize?
+}
+
+private struct FoldProbeLayout: View {
+    let model: NativeSidecardWorkspaceModel
+    let state: FoldProbeState
+    let width: CGFloat
+    var body: some View {
+        SendFeedbackLayout(model: model, reduceMotion: false)
+            .frame(width: state.size?.width ?? width, height: state.size?.height ?? 620)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct FoldProbeCard: SidecardPlugin {
+    let id: JSONText
+    let state: FoldProbeState
+    var descriptor: SidecardPluginDescriptor { .init(id: id, displayName: id) }
+    var icon: some View { Text(id.string) }
+    func makePresentation(context: SidecardContext, lifetime: PluginLifetime) -> SendFeedbackOtherPresentation { .init() }
+    func sidecard(context: SidecardContext, presentation: SendFeedbackOtherPresentation) throws -> SidecardView<some View> {
+        try SidecardView(available: state.available.contains(id), label: id, preferredWidth: 0.4) {
+            Color(red: 1, green: 0, blue: 1).overlay {
+                Button("Probe action") { state.presses += 1 }
+            }
+        }
+    }
+}
+
 private struct SendFeedbackOtherCard: SidecardPlugin {
     let descriptor = SidecardPluginDescriptor(id: "other", displayName: "Other")
     var icon: some View { Text("O") }
@@ -62,7 +94,7 @@ struct NativeThreadSendFeedbackTests {
         var destinationError = false
         var sourceSubscriptions: Set<String> = []
 
-        init(execution: JSONText = "old", status: PublicExecution.Status = .completed, allCards: Bool = false) throws {
+        init(execution: JSONText = "old", status: PublicExecution.Status = .completed, allCards: Bool = false, foldProbe: FoldProbeState? = nil) throws {
             client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
             let thread = try Self.thread(execution, status: status)
             let owner = SendFeedbackThreadOwner(thread)
@@ -75,9 +107,12 @@ struct NativeThreadSendFeedbackTests {
                 callbacks: .init(openExternal: { _ in }, openFollowUp: { _, _ in }, onError: { _ in }))
             configuration = .init(input: .init(thread: thread), executionDisabled: false, suppressed: false,
                 enabledIDs: nil, locale: Locale(identifier: "en-US"))
+            let modules = foldProbe.map { state in
+                ["a", "b", "c"].map { AnySidecardPlugin(FoldProbeCard(id: JSONText($0), state: state)) }
+            } ?? ([AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(SendFeedbackOtherCard())]
+                + (allCards ? [AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(NativeVoiceSidecard())] : []))
             model = NativeSidecardWorkspaceModel(harnessHost: host,
-                registry: try SidecardPluginRegistry([AnySidecardPlugin(NativeConversationSidecard()), AnySidecardPlugin(SendFeedbackOtherCard())]
-                    + (allCards ? [AnySidecardPlugin(NativeBrowserSidecard()), AnySidecardPlugin(NativeVoiceSidecard())] : [])),
+                registry: try SidecardPluginRegistry(modules),
                 configuration: configuration, services: services, onBack: { owner.backs += 1 }, onVisibilityChange: { _ in })
             update()
         }
@@ -427,6 +462,148 @@ struct NativeThreadSendFeedbackTests {
         #expect(fixture.configuration.input.thread.observation.isExecutionActive)
         #expect(fixture.services.voice?.state.phase == .closed)
         print("THREAD_SIDECARD_TOGGLES_CONFIRMED card=\(card)")
+        await fixture.close()
+    }
+
+    @Test(.requiresDisplay, arguments: [1180.0, 800.0])
+    func sidecardApertureTravelsBetweenItsActualLauncherAndPanel(width: CGFloat) async throws {
+        let probe = FoldProbeState()
+        let fixture = try Fixture(foldProbe: probe)
+        defer { fixture.model.release() }
+        let window = SwiftUIReplay.window(FoldProbeLayout(model: fixture.model, state: probe, width: width), width: width, height: 620)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { accessibilityFrame("sidecard-toggle-c", in: root) != nil }
+        let press = NSSelectorFromString("accessibilityPerformPress")
+        func toggle(_ id: String) throws {
+            let button = try #require(element("sidecard-toggle-" + id, in: root))
+            _ = button.perform(press)
+        }
+        func launcher(_ id: String) throws -> CGRect {
+            let screen = try #require(accessibilityFrame("sidecard-toggle-" + id, in: root))
+            let local = root.convert(window.convertFromScreen(screen), from: nil)
+            return root.isFlipped ? local : CGRect(x: local.minX, y: root.bounds.height - local.maxY, width: local.width, height: local.height)
+        }
+        var observedCard = "a"
+        // The production aperture owns this noninteractive native frame marker.
+        // Sample its mounted layout through actual SwiftUI animation ticks;
+        // AppKit cacheDisplay cannot capture SwiftUI compositor layers reliably.
+        func aperture() -> CGRect? {
+            func find(_ view: NSView) -> NSView? {
+                if view.identifier?.rawValue == "sidecard-aperture-" + observedCard + "-frame" { return view }
+                return view.subviews.lazy.compactMap(find).first
+            }
+            guard let view = find(root) else { return nil }
+            let rect = root.convert(view.bounds, from: view)
+            return root.isFlipped ? rect : CGRect(x: rect.minX, y: root.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+        }
+        func expectFolded(at source: CGRect) throws {
+            let frame = try #require(aperture())
+            #expect(abs(frame.midX - source.midX) < 2 && abs(frame.midY - source.midY) < 2, "Folded \(observedCard): \(frame), source \(source)")
+            #expect(abs(frame.width - source.width) < 2 && abs(frame.height - source.height) < 2)
+        }
+        func destination() throws -> CGRect {
+            let snapshot = try #require(fixture.model.snapshot)
+            let size = probe.size ?? CGSize(width: width, height: 620)
+            let geometry = NativeSidecardWorkspaceGeometry(size: .init(width: size.width - 76, height: size.height), snapshot: snapshot)
+            return CGRect(x: geometry.surfaceX, y: geometry.surfaceY, width: geometry.surfaceWidth, height: geometry.surfaceHeight)
+        }
+        func intermediate(source: CGRect, target: CGRect, name: String) async throws {
+            let deadline = ContinuousClock.now + .seconds(2)
+            var observed = false
+            var samples: [CGRect] = []
+            while ContinuousClock.now < deadline {
+                if let frame = aperture() {
+                    if samples.count < 10 { samples.append(frame) }
+                    let fraction = (frame.width - source.width) / (target.width - source.width)
+                    if fraction > 0.08 && fraction < 0.92 {
+                        // An aperture travelling between two frames
+                        // must stay on their line, for every launcher and layout.
+                        let expectedY = source.midY + (target.midY - source.midY) * fraction
+                        let expectedX = source.midX + (target.midX - source.midX) * fraction
+                        #expect(abs(frame.midY - expectedY) < 12, "\(name): aperture \(frame), launcher \(source), panel \(target)")
+                        #expect(abs(frame.midX - expectedX) < 12)
+                        observed = true
+                        try await capture(window, name: name)
+                        break
+                    }
+                }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            if !observed { try await capture(window, name: name + "-failure") }
+            print("FOLD_APERTURE_SAMPLES name=\(name) source=\(source) target=\(target) frames=\(samples)")
+            try #require(observed, "No intermediate native aperture observed: \(name)")
+        }
+        for id in ["a", "b", "c"] {
+            observedCard = id
+            let source = try launcher(id)
+            try toggle(id)
+            let target = try destination()
+            try await intermediate(source: source, target: target, name: "fold-\(Int(width))-\(id)-open")
+            try await Task.sleep(for: .milliseconds(420))
+            let settled = try #require(aperture())
+            #expect(abs(settled.minX - target.minX) < 4 && abs(settled.minY - target.minY) < 4)
+            try toggle(id)
+            try await intermediate(source: source, target: target, name: "fold-\(Int(width))-\(id)-close")
+            try await Task.sleep(for: .milliseconds(420))
+            try expectFolded(at: source)
+        }
+        // Reverse and switch before travel completes. Plugin sessions survive.
+        try toggle("a")
+        try await Task.sleep(for: .milliseconds(40))
+        try toggle("a")
+        try toggle("c")
+        observedCard = "c"
+        try await Task.sleep(for: .milliseconds(420))
+        #expect(fixture.model.snapshot?.selected == "c")
+        // Removing an earlier button moves c. Its next return must use the new
+        // real bounds rather than its old index or cached original window size.
+        probe.available.remove("a")
+        try await SwiftUIReplay.wait { fixture.model.snapshot?.available.count == 2 }
+        try await Task.sleep(for: .milliseconds(100))
+        let movedSource = try launcher("c")
+        let target = try destination()
+        try toggle("c")
+        try await intermediate(source: movedSource, target: target, name: "fold-\(Int(width))-relayout-close")
+        try await Task.sleep(for: .milliseconds(420))
+        try expectFolded(at: movedSource)
+        // Resize during opening, including the wide-to-stacked breakpoint,
+        // then retain a divider width and return using the resized button.
+        try toggle("c")
+        try await Task.sleep(for: .milliseconds(40))
+        probe.size = CGSize(width: width == 1180 ? 800 : 700, height: 500)
+        try await Task.sleep(for: .milliseconds(450))
+        fixture.model.resize(360, maximum: 600)
+        try await Task.sleep(for: .milliseconds(80))
+        let resizedSource = try launcher("c")
+        let resizedTarget = try destination()
+        try toggle("c")
+        try await intermediate(source: resizedSource, target: resizedTarget, name: "fold-\(Int(width))-resize-close")
+        try await Task.sleep(for: .milliseconds(420))
+        try expectFolded(at: resizedSource)
+        if width == 1180 {
+            probe.size = nil
+            try await Task.sleep(for: .milliseconds(420))
+            let restoredSource = try launcher("c")
+            try toggle("c")
+            let retainedTarget = try destination()
+            #expect(retainedTarget.width == 360)
+            try await intermediate(source: restoredSource, target: retainedTarget, name: "fold-1180-retained-width-open")
+            try await Task.sleep(for: .milliseconds(420))
+            try toggle("c")
+            try await Task.sleep(for: .milliseconds(420))
+            try expectFolded(at: restoredSource)
+        }
+        try toggle("b")
+        try await Task.sleep(for: .milliseconds(420))
+        observedCard = "b"
+        let retiringSource = try launcher("b")
+        probe.available.remove("b")
+        try await SwiftUIReplay.wait { fixture.model.snapshot?.selected == nil }
+        try await Task.sleep(for: .milliseconds(420))
+        try expectFolded(at: retiringSource)
+        #expect(fixture.owner.backs == 0 && probe.presses == 0)
+        print("THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED width=\(width)")
         await fixture.close()
     }
 

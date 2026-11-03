@@ -5,8 +5,8 @@ protocol replays on Linux alongside one native verification job on macOS 26
 arm64. The native job builds once and runs the complete ordinary Swift suite,
 Go/Swift interop and graphical replays serially in the same session. There are
 no test shards, placement weights or cross-runner build/fixture transfers.
-The `thread-send-feedback` native owner runs the three mounted Dock/handoff/toggle
-methods; their state/identity cases run in the ordinary Swift suite. Handoff
+The `thread-send-feedback` native owner runs four mounted methods for Dock,
+handoff, toggles and folding; their state/identity cases run in the ordinary Swift suite. Handoff
 captures cover wide/stacked layouts and Reduced Motion, with delayed destination
 content admission. Missing native markers or unexpected skips fail coverage.
 

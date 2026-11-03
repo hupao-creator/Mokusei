@@ -7,7 +7,7 @@ python3 tools/verification/reading-presentation/run.py --thread-send-feedback
 ```
 
 Runs the production detail Dock, Sidecard model/Conversation plugin and Codex
-readers in an isolated AppKit app. Nine tests cover receipt/catalog/index
+readers in an isolated AppKit app. Ten tests cover receipt/catalog/index
 ordering, failure, repeat sends/steering, card choices, covering/navigation,
 terminal/replaced executions, explicit current/result/history requests and
 single-execution sessions. Completion keeps the old reader through travel and
@@ -23,12 +23,22 @@ that explicit mode requires TCC screen-capture permission and fails if denied.
 AppKit caching can omit compositor-owned layers; these snapshots are diagnostic,
 not a pixel acceptance oracle or optical compositor/FPS evidence. This is bounded
 interaction evidence, not a real-provider latency claim. CI uses
-`--thread-send-feedback-native` for only the three native-owned methods; the six
+`--thread-send-feedback-native` for only the four native-owned methods; the six
 state/identity methods run in its ordinary suite.
 Real right-side launcher controls toggle Conversation, Browser and Voice without
 an independent card Close icon; switching launchers retains execution identity
 and never navigates back or starts voice media. Browser uses a loopback URL and
 Voice uses an inert capability, without external pages or microphone access.
+
+The native subset also checks sidecard fold geometry using colored fixture
+plugins inside `NativeSidecardWorkspaceLayout`. Native aperture bounds must
+travel between the actual AX launcher frame and panel in both directions for the
+top, middle and bottom buttons at 1180pt and 800pt widths. It covers reversal/switching, removing
+an earlier launcher, selected-card unavailability, resizing during travel across
+the stacking breakpoint and retained divider width. Captures use `fold-*` names;
+`THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED` is required alongside the existing three
+native markers. The fixture supplies content only; folding is the production
+modifier and layout, with normal motion enabled.
 
 ## Thread history sidebar
 

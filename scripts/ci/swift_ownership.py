@@ -2,6 +2,9 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/sidecardApertureTravelsBetweenItsActualLauncherAndPanel(width:)": {
+        "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons(card:)": {
         "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SIDECARD_TOGGLES_CONFIRMED",
     },
