@@ -20,6 +20,8 @@ python3 demos/thread-panel-transition/build.py --production --verify --open
 
 `--production --verify` 检查实际来源锚点、加载中和已有正文时的一次到位（真实标题交接偏差小于 1pt）、正文首帧绘制门禁、
 完成/运行状态的行方向、页脚显示和遮罩释放、正常关闭和打开中途关闭；原生 presentation layer 断言检查外壳到位前保持不透明、缩放完成后才交接卡片。
+另覆盖录屏中的宽窗口、无侧栏场景：标题与正文列必须保持居中，加载前后标题坐标一致。
+`production-05-wide-loading.png` 和 `production-06-wide-ready.png` 保存这两个阶段。
 `production-*.png` 与 `production-identity.json` 保存在
 `.build/thread-panel-transition/evidence/`；独立 app 路径写入同目录上级的 `app-path.txt`。
 失败记录保存在 `.build/thread-panel-transition/failures/`。

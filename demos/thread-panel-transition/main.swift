@@ -236,7 +236,7 @@ private struct PanelDemo: View {
                     if state.loaded { reading(thread) } else { NativeReadingPlaceholder() }
                 }
                     .environment(\.nativeThreadContentReveal, true)
-                    .environment(\.nativeThreadStableOrigin, true)
+                    .environment(\.nativeThreadReservesHistoryRail, true)
                     .nativeReadingPanelViewport(balancedVerticalInsets: true)
                     .nativeReadingPanelClose(label: "关闭 Thread", onClose: state.close)
                     .nativeReadingEscape(perform: state.close)
@@ -468,6 +468,32 @@ private struct PanelDemo: View {
             state.close()
             try await Task.sleep(for: .seconds(1))
             guard state.selected == nil else { throw DemoFailure(message: "Production interrupted open did not retire") }
+            // The user's recording exposed a wide pane with no sidecard: a
+            // left-locked column could pass the narrower split-pane fixture.
+            window.setContentSize(CGSize(width: 1500, height: 900))
+            try await Task.sleep(for: .milliseconds(250))
+            state.open(state.threads[0]); state.sidecards?.choose(nil)
+            try await Task.sleep(for: .milliseconds(650))
+            guard let wideVisit = state.identityVisit, wideVisit.usedMeasuredDestination,
+                  wideVisit.handoffDistance < 1, let root = window.contentView,
+                  let loadingTitle = wideVisit.measuredTargets["title"] else {
+                throw DemoFailure(message: "Wide loading header did not complete its single flight")
+            }
+            let mainFrame = NativeReadingPanelGeometry.frame(in: state.viewport)
+            let loadingFrame = root.convert(loadingTitle.frame, from: nil)
+            guard abs(loadingFrame.midX - (mainFrame.midX + 24)) < 1 else {
+                throw DemoFailure(message: "Wide loading column is not centered: \(loadingFrame), pane=\(mainFrame)")
+            }
+            try await capture("production-05-wide-loading", window: window)
+            try await verifyProductionText(window, bottomUp: false)
+            guard let loadedTitle = wideVisit.measuredTargets["title"],
+                  abs(loadedTitle.frame.minX - loadingTitle.frame.minX) < 1,
+                  abs(loadedTitle.frame.minY - loadingTitle.frame.minY) < 1 else {
+                throw DemoFailure(message: "Wide loaded title moved away from its centered loading position")
+            }
+            try await capture("production-06-wide-ready", window: window)
+            state.close()
+            try await Task.sleep(for: .seconds(1))
             finish(true, "PASS: production compositor, source identity capture, reader handoff, completed/running content, close and interrupted open")
         } catch { finish(false, String(describing: error)) }
     }

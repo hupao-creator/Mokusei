@@ -414,12 +414,11 @@ struct NativeMokuLandingTests {
             let identityVisit = try #require(fixture.presentation.threadIdentityVisit)
             try await SwiftUIReplay.wait { identityVisit.usedMeasuredDestination }
             try await Task.sleep(for: .milliseconds(450))
-            for element in ["title", "emoji"] {
-                let planned = try #require(identityVisit.openingTarget[element])
-                let actual = try #require(identityVisit.measuredTargets[element])
-                #expect(abs(planned.frame.minX - actual.frame.minX) < 1 && abs(planned.frame.minY - actual.frame.minY) < 1,
-                    "Automatic sidecard must not displace \(element): \(planned.frame) -> \(actual.frame)")
-            }
+            let mainPanel = try #require(readingPanel(in: root))
+            let panelFrame = mainPanel.convert(mainPanel.bounds, to: root)
+            let titleFrame = root.convert(try #require(identityVisit.measuredTargets["title"]).frame, from: nil)
+            #expect(abs(titleFrame.midX - (panelFrame.midX + 24)) < 1,
+                "The reading column must center in the pane after automatic sidecard layout")
             #expect(identityVisit.openingFinished && identityVisit.handoffDistance < 1,
                 "Production heading must arrive during panel travel, including automatic execution sidecard layout; delta=\(identityVisit.handoffDistance)")
             #expect(!fixture.presentation.followUpVisible, "The read-only execution sidecard does not own input visibility")
@@ -427,6 +426,17 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait {
                 !fixture.presentation.followUpVisible && abs((readingPanel(in: root)?.bounds.width ?? 0) - initialPanel.width) < 1
             }
+            // The pane's model width updates before its SwiftUI layout
+            // animation finishes. Observe the heading's actual settled frame.
+            try await SwiftUIReplay.wait {
+                guard let title = identityVisit.measuredTargets["title"], let pane = readingPanel(in: root) else { return false }
+                return abs(root.convert(title.frame, from: nil).midX - (pane.convert(pane.bounds, to: root).midX + 24)) < 1
+            }
+            let foldedTitle = root.convert(try #require(identityVisit.measuredTargets["title"]).frame, from: nil)
+            let foldedPanel = try #require(readingPanel(in: root))
+            let foldedFrame = foldedPanel.convert(foldedPanel.bounds, to: root)
+            #expect(abs(foldedTitle.midX - (foldedFrame.midX + 24)) < 1,
+                "Folding the sidecard must restore the centered reading column")
             let captureContent = try await SCShareableContent.currentProcess
             if let own = captureContent.windows.first(where: { $0.windowID == CGWindowID(fixture.window!.windowNumber) }) {
                 let config = SCStreamConfiguration(); config.width = 1100; config.height = 760; config.ignoreShadowsSingleWindow = true

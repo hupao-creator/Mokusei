@@ -225,9 +225,9 @@ struct NativeSidecardWorkspaceLayout: View {
         // A promoting sidecard already displays this execution. Do not blank it
         // for a second entrance when the main reader takes ownership.
         .environment(\.nativeThreadContentReveal, snapshot.handoff == nil)
-        // Sidecards can become available after their execution index arrives.
-        // Keep the reading origin stable while only its available width changes.
-        .environment(\.nativeThreadStableOrigin, true)
+        // Reserve the history rail across initial loading. The reading column
+        // still centers itself inside the current main pane when it resizes.
+        .environment(\.nativeThreadReservesHistoryRail, true)
         .nativeReadingPanelViewport(balancedVerticalInsets: true)
         .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         .accessibilityElement(children: .contain)

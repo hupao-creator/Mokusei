@@ -126,7 +126,6 @@ public struct HarnessMessageTimeline: View {
     public var readingVisitId: JSONText?
     public var locatedRequestId: JSONText?
     public var onLocated: ((JSONText) -> Void)?
-    @Environment(\.nativeThreadStableOrigin) private var stableOrigin
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingNavigation) private var readingNavigation
     @Environment(\.nativePerformanceOperation) private var performanceOperation
@@ -209,9 +208,8 @@ public struct HarnessMessageTimeline: View {
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
                     .nativeLayoutLog("timeline.reading.column")
-                    .padding(.horizontal, stableOrigin ? 32 : bounds.size.width <= 540 ? 18 : 32)
-                    .padding(.vertical, readingVerticalInset(bounds.size.width))
-                    .frame(maxWidth: .infinity, alignment: stableOrigin ? .leading : .center)
+                    .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
+                    .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
                     .nativeLayoutLog("timeline.document")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
@@ -378,7 +376,7 @@ public struct HarnessMessageTimeline: View {
     }
 
     private func readingVerticalInset(_ width: CGFloat) -> CGFloat {
-        contentTopInset ?? (stableOrigin ? 44 : readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44)
+        contentTopInset ?? (readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44)
     }
     private func reportReading() {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)

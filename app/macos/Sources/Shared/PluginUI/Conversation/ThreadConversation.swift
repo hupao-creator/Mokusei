@@ -66,7 +66,7 @@ public struct ThreadConversation: View {
     public let actions: AnyView?
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
-    @Environment(\.nativeThreadStableOrigin) private var stableOrigin
+    @Environment(\.nativeThreadReservesHistoryRail) private var reservesHistoryRail
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingContentHandoff) private var contentHandoff
     @Environment(\.threadDetailNavigation) private var navigation
@@ -214,7 +214,7 @@ public struct ThreadConversation: View {
                         .nativeReadingScope("sidebar")
                         .zIndex(1)
                 }
-                if !executionCard && stableOrigin && !(tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
+                if !executionCard && reservesHistoryRail && !(tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
                     Color.clear.frame(width: 48)
                 }
                 pageStack

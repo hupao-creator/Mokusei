@@ -7,7 +7,7 @@ public extension EnvironmentValues {
     @Entry var nativeThreadIdentityRegistry: NativeThreadIdentityRegistry? = nil
     @Entry var nativeThreadIdentityKey: String? = nil
     @Entry var nativeThreadPreparing = false
-    @Entry var nativeThreadStableOrigin = false
+    @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
 

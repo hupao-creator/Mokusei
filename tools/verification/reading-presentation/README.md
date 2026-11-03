@@ -775,9 +775,11 @@ input-sidecard `followUpVisible` flag. Return/interruption input waits for both
 outer admission and automatic sidecard layout to settle.
 The card-identity case includes generated emoji metadata and waits for real
 source anchors. It requires title/emoji to finish their travel with the panel
-and compares the mounted heading against its preflight position after the
-execution sidecard opens; this catches data-driven recentering as well as a
-second explicit identity animation.
+and checks the mounted heading stays centered in its current reading viewport
+when the execution sidecard opens and folds. Do not assert a frozen screen
+position across a viewport resize: that previously encouraged a left-aligned
+layout regression. The production demo additionally tests a wide pane without
+sidecards, requiring centered loading and loaded headings with no second flight.
 The standalone thread-panel demo exercises real Sidecard content and shared
 production split geometry with mock capabilities, including retained widths,
 rapid switching and narrow vertical splits.

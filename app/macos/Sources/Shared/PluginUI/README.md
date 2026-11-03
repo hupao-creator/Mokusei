@@ -891,10 +891,13 @@ Agent Overview cards register window-local title/emoji anchors through
 `NativeThreadIdentityRegistry`. An ordinary card-open copies their text and
 geometry into one route visit. Before travel, the workspace prepares its sidecard
 geometry and a row-free `ThreadConversation` using the same heading layout.
-The main Agent reader reserves its 48pt history rail and a stable leading/top
-reading origin, including loading and single-execution content. An automatic
-sidecard can change the column width after its index arrives, but cannot recenter
-or move the heading. Other reading surfaces retain their existing layout.
+The main Agent reader reserves its 48pt history rail across loading. Its bounded
+reading column remains centered in the available reading viewport, with the
+existing responsive insets. A real sidecard open/close resizes that viewport and
+recenters the entire column normally; it does not start another identity flight.
+Do not lock the reading origin to the panel's left edge to prevent this reflow:
+that breaks wide-window composition. Loading and loaded headings use the same
+layout at a given viewport size.
 Harness documents and sidecard bodies remain deferred. The compositor animates
 native title/emoji ink to that measured destination with the panel's own curve
 and duration. Loaded content only takes ownership at that position; there is no
