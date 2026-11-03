@@ -421,6 +421,7 @@ private struct MarkdownTableView: View {
     let alignments: [MarkdownAlignment]
     let options: MarkdownViewOptions
     @State private var availableWidth: CGFloat = NativeGeometry.readingWidth
+    @State private var scrollerStyle = NSScroller.preferredScrollerStyle
 
     var body: some View {
         let columnWidths = widths
@@ -444,6 +445,15 @@ private struct MarkdownTableView: View {
             }
             // Keep wrapped rows at their intrinsic height inside the horizontal viewport.
             .fixedSize(horizontal: false, vertical: true)
+            // SwiftUI sizes the horizontal viewport to its content, but AppKit
+            // subtracts the persistent scroller from that height. Reserve its
+            // native mini gutter inside the measured content to keep the last
+            // row visible; overlay scrollers consume no layout space.
+            .padding(.bottom, scrollerStyle == .legacy
+                ? NSScroller.scrollerWidth(for: .mini, scrollerStyle: scrollerStyle) : 0)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
+            scrollerStyle = NSScroller.preferredScrollerStyle
         }
         .background(GeometryReader { geometry in
             Color.clear.onAppear { availableWidth = geometry.size.width }
