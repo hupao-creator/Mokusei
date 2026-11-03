@@ -6,6 +6,7 @@ public struct NativeReadingPlaceholder: View {
 
     private let placement: Placement
     @Environment(\.nativeThreadContentReveal) private var revealsContent
+    @Environment(\.nativeThreadIdentityVisit) private var identityVisit
     @Environment(\.locale) private var locale
     @State private var visible = false
 
@@ -15,7 +16,9 @@ public struct NativeReadingPlaceholder: View {
 
     public var body: some View {
         Group {
-            if revealsContent {
+            if revealsContent && placement == .surface && identityVisit != nil {
+                NativeThreadOpeningContent(showsLoading: visible)
+            } else if revealsContent {
                 NativeThreadLoadingSkeleton().frame(maxWidth: NativeGeometry.readingWidth).padding(.horizontal, placement == .surface ? 32 : 0)
             } else {
                 Text(locale.language.languageCode?.identifier == "zh" ? "正在读取…" : "Loading…")
@@ -31,7 +34,7 @@ public struct NativeReadingPlaceholder: View {
             .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.
-            .opacity(visible ? 1 : 0)
+            .opacity(visible || (revealsContent && placement == .surface && identityVisit != nil) ? 1 : 0)
             .accessibilityHidden(!visible)
             .allowsHitTesting(false)
             .task {

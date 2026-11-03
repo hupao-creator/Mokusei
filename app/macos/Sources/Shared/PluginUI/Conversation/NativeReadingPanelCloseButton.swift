@@ -12,6 +12,7 @@ public struct NativeReadingPanelCloseButton: View {
     @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reducedMotion
     @Environment(\.nativeReadingPanelClosing) private var closing
+    @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
 
     public init(label: String, onClose: @escaping () -> Void) {
@@ -39,7 +40,8 @@ public struct NativeReadingPanelCloseButton: View {
                 .padding(-3).allowsHitTesting(false)
         }
         .help(label).accessibilityLabel(label)
-        .opacity(appeared && !closing ? 1 : 0)
+        .opacity(appeared && !closing && !preparing ? 1 : 0)
+        .animation(reducedMotion ? nil : .easeOut(duration: 0.16), value: preparing)
         .animation(reducedMotion ? nil : .easeOut(duration: closing ? 0.08 : 0.16), value: closing)
         .onAppear { withAnimation(reducedMotion ? nil : .easeOut(duration: 0.16)) { appeared = true } }
     }

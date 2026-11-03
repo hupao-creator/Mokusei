@@ -25,10 +25,12 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     func makeNSView(context: Context) -> ReadingPanelView { ReadingPanelView() }
 
     func updateNSView(_ view: ReadingPanelView, context: Context) {
+        var environment = context.environment
+        environment.nativeThreadPreparing = !contentReady && identity != nil
         view.configure(target: target, source: source, open: open, transition: transition,
             contentReady: contentReady, identity: identity,
             paperColor: NativePalette.thread.canvas.swiftUI.resolve(in: context.environment).cgColor,
-            content: AnyView(content.environment(\.self, context.environment)),
+            content: AnyView(content.environment(\.self, environment)),
             onCompletion: onCompletion)
     }
 
@@ -50,6 +52,8 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private var acceptsInput = false
     private var identity: NativeThreadIdentityVisit?
     private var flight: NativeThreadIdentityFlight?
+    private var preparation: Task<Void, Never>?
+    private var prepared = false
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { false }
@@ -71,7 +75,11 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     func configure(target: CGRect, source: CGRect?, open: Bool,
                    transition: NativeReadingPanelTransition?, contentReady: Bool, identity: NativeThreadIdentityVisit? = nil,
                    paperColor: CGColor, content: AnyView, onCompletion: @escaping (Int, Bool) -> Void) {
-        if self.identity !== identity { flight?.retire(); flight = nil; self.identity = identity }
+        if self.identity !== identity {
+            preparation?.cancel(); preparation = nil; prepared = false
+            flight?.retire(); flight = nil; self.identity = identity
+            identity?.onOpeningTargetsChange = { [weak self] in self?.prepareOpening() }
+        }
         if identity?.pending != true { flight?.retire(); flight = nil }
         let resized = self.target != target
         self.target = target
@@ -88,7 +96,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         }
         paper.frame = CGRect(origin: .zero, size: target.size)
         paper.backgroundColor = paperColor
-        if contentReady {
+        if contentReady || identity?.pending == true {
             if let hosting { hosting.rootView = content }
             else {
                 let view = NSHostingView(rootView: content)
@@ -101,8 +109,11 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             hosting?.frame = surface.bounds
         }
         if transition?.closing != true {
-            hosting?.layer?.opacity = 1
+            hosting?.layer?.opacity = contentReady ? 1 : 0
             hosting?.layer?.transform = CATransform3DIdentity
+        }
+        if transition?.closing == false, identity?.pending == true, startedGeneration == nil {
+            surface.layer?.opacity = 0
         }
         CATransaction.commit()
         if let transition {
@@ -132,12 +143,29 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); startIfReady() }
     override func layout() { super.layout(); startIfReady() }
 
+    private func prepareOpening() {
+        guard startedGeneration == nil, identity?.openingTarget["title"] != nil,
+              identity?.openingTarget["emoji"] != nil else { return }
+        preparation?.cancel()
+        preparation = Task { @MainActor [weak self] in
+            // Let the lightweight sidecard layout settle, without mounting any
+            // Harness document or waiting for its data.
+            do { try await Task.sleep(for: .milliseconds(48)) } catch { return }
+            guard let self else { return }
+            prepared = true; startIfReady()
+        }
+    }
+
     private func startIfReady() {
         guard window != nil, bounds.width > 0, bounds.height > 0,
               let command, startedGeneration != command.generation, let layer = surface.layer else { return }
         if command.closing { flight?.retire(); flight = nil }
         else if flight == nil, let identity, identity.pending {
-            flight = NativeThreadIdentityFlight(visit: identity, surface: surface, source: source)
+            guard prepared else { return }
+            identity.freezeOpeningTargets()
+            flight = NativeThreadIdentityFlight(visit: identity, surface: surface, source: source,
+                duration: command.duration, timing: command.emphasized ? NativeReadingPageTiming.emphasizedOpening
+                    : CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1))
         }
         let wasMoving = startedGeneration != nil
         let fromPosition = wasMoving ? layer.presentation()?.position ?? layer.position : (command.closing ? target.origin : source.origin)
@@ -157,21 +185,24 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         aperture.removeAllAnimations()
         layer.mask = aperture
         paper.isHidden = false
+        if !command.closing { layer.opacity = 1 }
         layer.position = destination.origin
         aperture.path = path(destination.size)
         CATransaction.commit()
 
+        let phasedReturn = command.closing && command.thread && hosting?.layer != nil
+        let movementDuration = command.duration * (phasedReturn ? 0.86 : 1)
         let travel = CABasicAnimation(keyPath: "position")
         travel.fromValue = NSValue(point: fromPosition)
         travel.toValue = NSValue(point: layer.position)
-        travel.duration = command.duration
+        travel.duration = movementDuration
         travel.timingFunction = timing
         travel.setValue(command.generation, forKey: "generation")
-        travel.delegate = self
+        travel.delegate = phasedReturn ? nil : self
         let clip = CABasicAnimation(keyPath: "path")
         clip.fromValue = fromPath
         clip.toValue = aperture.path
-        clip.duration = command.duration
+        clip.duration = movementDuration
         clip.timingFunction = timing
         if command.closing, let contentLayer = hosting?.layer {
             let fade = CAKeyframeAnimation(keyPath: "opacity")
@@ -195,19 +226,29 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
                 let shrink = CABasicAnimation(keyPath: "transform")
                 shrink.fromValue = NSValue(caTransform3D: fromTransform)
                 shrink.toValue = NSValue(caTransform3D: transform)
-                shrink.duration = command.duration; shrink.timingFunction = timing
+                shrink.duration = movementDuration; shrink.timingFunction = timing
                 contentLayer.add(shrink, forKey: "reading.content.scale")
-                // The retained Overview is already refreshed. Expose its card
-                // from 65% of travel instead of holding an empty white shell.
+                // Keep the carrier opaque until it has reached the source
+                // card. Only then crossfade to the refreshed Overview content.
+                // The handoff owns completion; travel must not unmount it early.
                 let handoff = CAKeyframeAnimation(keyPath: "opacity")
                 handoff.values = [fromSurfaceOpacity, fromSurfaceOpacity, 0]
-                handoff.keyTimes = [0, 0.65, 1]; handoff.duration = command.duration
+                handoff.keyTimes = [0, 0.86, 1]; handoff.duration = command.duration
                 handoff.timingFunction = CAMediaTimingFunction(name: .linear)
+                handoff.setValue(command.generation, forKey: "generation")
+                handoff.delegate = self
                 layer.add(handoff, forKey: "reading.card.handoff")
             }
         }
         layer.add(travel, forKey: "reading.travel")
         aperture.add(clip, forKey: "reading.aperture")
+    }
+
+    /// Native presentation geometry for the existing transition replay.
+    var returnPresentation: (frame: CGRect, opacity: Float, source: CGRect)? {
+        guard command?.closing == true, let layer = surface.layer?.presentation(),
+              let bounds = aperture.presentation()?.path?.boundingBoxOfPath else { return nil }
+        return (CGRect(origin: layer.position, size: bounds.size), layer.opacity, source)
     }
 
     // Delegate delivery may be delayed by unrelated main-thread work. Only this
@@ -233,6 +274,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     }
 
     func retire() {
+        preparation?.cancel(); preparation = nil
         command = nil
         flight?.retire(); flight = nil; identity = nil
         onCompletion = nil

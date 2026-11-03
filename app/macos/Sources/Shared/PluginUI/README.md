@@ -889,15 +889,24 @@ for paired observations, variability and manual coverage limits.
 
 Agent Overview cards register window-local title/emoji anchors through
 `NativeThreadIdentityRegistry`. An ordinary card-open copies their text and
-geometry into one route visit. The compositor carries lightweight native ink
-while the reader remains deferred, then hands it to the mounted heading at its
-measured position. The bridge never retains card/reader/plugin instances;
-replacement, close, timeout and reduced motion retire its layers. Direct result
+geometry into one route visit. Before travel, the workspace prepares its sidecard
+geometry and a row-free `ThreadConversation` using the same heading layout.
+The main Agent reader reserves its 48pt history rail and a stable leading/top
+reading origin, including loading and single-execution content. An automatic
+sidecard can change the column width after its index arrives, but cannot recenter
+or move the heading. Other reading surfaces retain their existing layout.
+Harness documents and sidecard bodies remain deferred. The compositor animates
+native title/emoji ink to that measured destination with the panel's own curve
+and duration. Loaded content only takes ownership at that position; there is no
+post-opening title animation or data-loading timeout. The bridge never retains
+card/reader/plugin instances; replacement, close and reduced motion retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
 
-Agent closing keeps the 420ms native panel return. The complete reader scales
-and fades over the first 80%; the shell exposes the refreshed Overview from 65%
-to the end. Closing has no independent title/emoji travel. Report, Git and nested
+Agent closing keeps the 420ms native panel return. The complete reader fades
+over the first 80%; scaling and shell travel reach the source card at 86%.
+The shell stays opaque until arrival, then crossfades to the refreshed Overview
+through the final 14%. This final handoff owns transition completion so the
+carrier cannot disappear before reaching the card. Closing has no independent title/emoji travel. Report, Git and nested
 history keep their existing motion policies. The panel Close appears only after
 reader admission and fades before return; its position and hit region remain
 owned by the production upper-left control.

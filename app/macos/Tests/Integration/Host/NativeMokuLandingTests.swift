@@ -59,12 +59,13 @@ struct NativeMokuLandingTests {
             workspace.start()
         }
         func thread(_ id: JSONText = "child", status: PublicExecution.Status? = .running,
-                    archived: Bool = false, history: Bool = false) throws -> HarnessThread {
+                    archived: Bool = false, history: Bool = false, identity: Bool = false) throws -> HarnessThread {
             let execution = try status.map { try PublicExecution(executionID: JSONText("run-\(id.string)"), status: $0,
                 startedAt: 1, finishedAt: $0 == .running || $0 == .waitingForUser ? nil : 2) }
             return try HarnessThread(id: id, harnessID: "codex", revision: revision + 1, sessionState: .null,
                 observation: .init(latestExecution: execution), cwd: JSONText(directory.path), settings: .object([:]),
                 createdAt: 1, updatedAt: Double(revision + 2), title: JSONText("Task \(id.string)"), tags: ["Work"],
+                metadataState: identity ? .object(["kind": .text("generated-thread-metadata"), "emoji": .text("🌱")]) : nil,
                 archived: archived, mokuHistory: history, tagEmojis: ["Work": "🛠️"],
                 directoryTag: "Fixture", directoryScope: JSONText(directory.path))
         }
@@ -390,11 +391,12 @@ struct NativeMokuLandingTests {
             try fixture.workspace.preferences.setAppearance(.light)
             // The execution launcher requires an observed active execution and
             // real loaded history. A completed catalog-only fixture has neither.
-            try await fixture.install([fixture.thread(status: .running)])
+            try await fixture.install([fixture.thread(status: .running, identity: true)])
             fixture.provideReadingContent()
             fixture.mount(fullWorkspace: true, width: 1100, height: 760)
             let root = try #require(fixture.window?.contentView)
             try await SwiftUIReplay.wait { fixture.presentation.canvas.allowsActivation(cardID: "child") && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
+            try await SwiftUIReplay.wait { fixture.presentation.threadIdentityRegistry.capture("child") != nil }
             let origin = try #require(fixture.presentation.canvas.displayedFrame(for: "child"))
             let face = try #require(faces(in: root).first)
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
@@ -409,6 +411,17 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait {
                 (readingPanel(in: root)?.bounds.width ?? initialPanel.width) < initialPanel.width - 300
             }
+            let identityVisit = try #require(fixture.presentation.threadIdentityVisit)
+            try await SwiftUIReplay.wait { identityVisit.usedMeasuredDestination }
+            try await Task.sleep(for: .milliseconds(450))
+            for element in ["title", "emoji"] {
+                let planned = try #require(identityVisit.openingTarget[element])
+                let actual = try #require(identityVisit.measuredTargets[element])
+                #expect(abs(planned.frame.minX - actual.frame.minX) < 1 && abs(planned.frame.minY - actual.frame.minY) < 1,
+                    "Automatic sidecard must not displace \(element): \(planned.frame) -> \(actual.frame)")
+            }
+            #expect(identityVisit.openingFinished && identityVisit.handoffDistance < 1,
+                "Production heading must arrive during panel travel, including automatic execution sidecard layout; delta=\(identityVisit.handoffDistance)")
             #expect(!fixture.presentation.followUpVisible, "The read-only execution sidecard does not own input visibility")
             try click(CGPoint(x: initialPanel.maxX + 38, y: initialPanel.midY), window: try #require(fixture.window))
             try await SwiftUIReplay.wait {

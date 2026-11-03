@@ -66,6 +66,7 @@ public struct ThreadConversation: View {
     public let actions: AnyView?
     public let emptyState: AnyView?
     public let renderRow: ((JSONText) -> AnyView)?
+    @Environment(\.nativeThreadStableOrigin) private var stableOrigin
     @Environment(\.locale) private var locale
     @Environment(\.nativeReadingContentHandoff) private var contentHandoff
     @Environment(\.threadDetailNavigation) private var navigation
@@ -213,6 +214,9 @@ public struct ThreadConversation: View {
                         .nativeReadingScope("sidebar")
                         .zIndex(1)
                 }
+                if !executionCard && stableOrigin && !(tocRows.count > 1 || tocRows.contains(where: \.history) || readingPage) {
+                    Color.clear.frame(width: 48)
+                }
                 pageStack
             }
             .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
@@ -288,16 +292,9 @@ public struct ThreadConversation: View {
         }
     }
     private func heading(_ title: String, emoji: String) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text(emoji).font(.system(size: 44)).threadIdentityElement("emoji", detail: true, text: emoji).accessibilityHidden(true)
-            Text(title).font(NativeTypography.inter(size: 40, weight: 650))
-                .tracking(-0.8).lineLimit(2).truncationMode(.tail)
-                .foregroundStyle(NativePalette.thread.inkStrong.swiftUI)
-                .frame(maxWidth: .infinity, alignment: .leading).help(title)
-                .threadIdentityElement("title", detail: true, text: title)
-                .accessibilityAddTraits(.isHeader)
-        }
+        NativeThreadHeading(title: title, emoji: emoji)
     }
+
     private var documentRows: [ThreadTimelineRow] {
         let historical = historicalIDs
         // The sidebar owns history navigation. Do not keep empty historical

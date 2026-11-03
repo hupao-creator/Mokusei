@@ -63,7 +63,10 @@ for the mounted production-page regression.
 
 The outer workspace reading stack also owns the retained Overview presentation
 gate. Panel opening pauses display projection immediately and admits its reader
-only after compositor-driven travel completes. The outer Agent route starts
+only after compositor-driven travel completes. Card identity flights first mount
+a lightweight workspace layout with a row-free conversation heading; this fixes
+the destination before travel without mounting Harness documents. The real
+reader takes over without a second title movement. The outer Agent route starts
 data-only manifest/target-row prefetch during travel, owned by the route visit
 and target execution; cancellation cannot publish into a replacement reader.
 This does not mount TextKit or a hidden conversation view. Non-panel opening and return keep

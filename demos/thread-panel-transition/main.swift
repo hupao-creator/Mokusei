@@ -232,7 +232,11 @@ private struct PanelDemo: View {
             let panel = CGRect(origin: .zero, size: CGSize(width: max(1, bounds.size.width - 76), height: bounds.size.height))
             let split = DemoSplitLayout(bounds: panel, snapshot: sides.snapshot)
             ZStack(alignment: .topLeading) {
-                reading(thread)
+                NativeThreadPreparedReader {
+                    if state.loaded { reading(thread) } else { NativeReadingPlaceholder() }
+                }
+                    .environment(\.nativeThreadContentReveal, true)
+                    .environment(\.nativeThreadStableOrigin, true)
                     .nativeReadingPanelViewport(balancedVerticalInsets: true)
                     .nativeReadingPanelClose(label: "关闭 Thread", onClose: state.close)
                     .nativeReadingEscape(perform: state.close)
@@ -396,22 +400,68 @@ private struct PanelDemo: View {
                 .write(to: evidence.appendingPathComponent("production-identity.json"))
             try await Task.sleep(for: .milliseconds(220))
             try await capture("production-01-opening", window: window)
-            try await Task.sleep(for: .seconds(2))
+            try await Task.sleep(for: .milliseconds(430))
+            guard !state.loaded, visit.openingFinished, visit.usedMeasuredDestination,
+                  visit.handoffDistance < 1, !state.productionMotion.active else {
+                throw DemoFailure(message: "Loading heading did not arrive in one flight: finished=\(visit.openingFinished), measured=\(visit.usedMeasuredDestination), delta=\(visit.handoffDistance), loaded=\(state.loaded), planned=\(visit.openingTarget.keys), actual=\(visit.target.keys), pending=\(visit.pending)")
+            }
+            try await capture("production-01b-heading-loading", window: window)
             guard state.identityVisit?.usedMeasuredDestination == true, !state.productionMotion.active else {
                 throw DemoFailure(message: "Production identity did not hand off to the mounted header")
             }
             try await verifyProductionText(window, bottomUp: false)
+            for element in ["title", "emoji"] {
+                guard let planned = visit.openingTarget[element], let actual = visit.measuredTargets[element],
+                      abs(planned.frame.minX - actual.frame.minX) < 1,
+                      abs(planned.frame.minY - actual.frame.minY) < 1 else {
+                    throw DemoFailure(message: "Loaded \(element) moved from its loading destination")
+                }
+            }
             try await capture("production-02-ready", window: window)
             state.close()
             try await Task.sleep(for: .milliseconds(280))
+            func panel(in view: NSView) -> ReadingPanelView? {
+                if let value = view as? ReadingPanelView { return value }
+                return view.subviews.lazy.compactMap { panel(in: $0) }.first
+            }
+            guard let returning = window.contentView.flatMap({ panel(in: $0) }),
+                  let mid = returning.returnPresentation, mid.opacity > 0.99 else {
+                throw DemoFailure(message: "Return carrier disappeared before reaching the card")
+            }
             try await capture("production-03-return", window: window)
+            // Capture can cross the final handoff; sample native geometry on the
+            // next visit below rather than infer duration from screenshot cost.
             try await Task.sleep(for: .seconds(1))
             guard state.selected == nil else { throw DemoFailure(message: "Production close did not retire") }
             state.open(state.threads[1])
-            try await Task.sleep(for: .seconds(2))
+            state.loaded = true
+            try await Task.sleep(for: .milliseconds(650))
+            guard state.identityVisit?.openingFinished == true else {
+                throw DemoFailure(message: "Existing content delayed identity travel")
+            }
+            try await Task.sleep(for: .seconds(1))
             try await verifyProductionText(window, bottomUp: true)
             try await capture("production-04-running", window: window)
             state.close()
+            try await Task.sleep(for: .seconds(1))
+            state.open(state.threads[0])
+            state.loaded = true
+            try await Task.sleep(for: .milliseconds(650))
+            guard let loadedVisit = state.identityVisit, loadedVisit.usedMeasuredDestination,
+                  loadedVisit.handoffDistance < 1 else {
+                throw DemoFailure(message: "Existing heading jumped after opening: \(state.identityVisit?.handoffDistance ?? -1)")
+            }
+            state.close()
+            try await Task.sleep(for: .milliseconds(385))
+            guard let returning = window.contentView.flatMap({ panel(in: $0) }),
+                  let landed = returning.returnPresentation,
+                  abs(landed.frame.width - landed.source.width) < 1,
+                  abs(landed.frame.height - landed.source.height) < 1,
+                  abs(landed.frame.minX - landed.source.minX) < 1,
+                  abs(landed.frame.minY - landed.source.minY) < 1,
+                  landed.opacity > 0 && landed.opacity < 1 else {
+                throw DemoFailure(message: "Return must finish scaling before its final card crossfade")
+            }
             try await Task.sleep(for: .seconds(1))
             state.open(state.threads[0])
             try await Task.sleep(for: .milliseconds(100))
