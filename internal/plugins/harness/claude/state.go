@@ -676,11 +676,13 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				}
 				return ""
 			}
-			hideActivity := func(activity map[string]any) {
-				// Failed records render outside the deferred work summary.
+			hideActivity := func(activity map[string]any, id string) {
+				// Keep bounded failed diagnostics for full readers; Agent detail
+				// still classifies failed tools as execution work.
 				if activity["status"] == "failed" {
 					return
 				}
+				hide(id, "detail", str(activity["detail"]))
 				delete(activity, "detail")
 				activity["label"] = ""
 			}
@@ -689,14 +691,15 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				turn.Reasoning = hide(turn.ExecutionID, "reasoning", turn.Reasoning)
 				turn.Foreground = nil
 				for _, activity := range turn.Activities {
-					hideActivity(activity)
+					hideActivity(activity, str(activity["id"]))
 				}
 				for _, item := range turn.Timeline {
 					if str(item["kind"]) == "reasoning" {
 						item["content"] = hide(str(item["id"]), "content", str(item["content"]))
 					}
 					if str(item["kind"]) == "activity" {
-						hideActivity(obj(item["activity"]))
+						activity := obj(item["activity"])
+						hideActivity(activity, str(activity["id"]))
 					}
 				}
 			}
@@ -707,7 +710,9 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 						item["content"] = hide(str(item["id"]), "content", str(item["content"]))
 					}
 					if str(item["kind"]) == "activity" {
-						hideActivity(obj(item["activity"]))
+						// Inherited activities have no embedded id; their timeline
+						// item is the stable native history identity.
+						hideActivity(obj(item["activity"]), str(item["id"]))
 					}
 				}
 			}

@@ -40,6 +40,9 @@ public actor RuntimeClient {
     var settingsDiagnosticsQueue: [JSONValue] = []
     var settingsDiagnosticsTask: Task<Void, Never>?
     var contentResources: [String: ContentResource] = [:]
+    var idleContent: [String] = []
+    var idleContentCosts: [String: Int] = [:]
+    var idleContentExpiry: [String: Task<Void, Never>] = [:]
     var overviewContext: JSONValue?
     var retiredContexts = Set<JSONText>()
     var overviewRequest: JSONValue?
@@ -77,7 +80,7 @@ public actor RuntimeClient {
         // content handles survive that observer, so replay their authoritative
         // values too; otherwise a dropped final ready/error event stays loading
         // forever although the transport has already completed the request.
-        for (subscriptionID, resource) in contentResources {
+        for (subscriptionID, resource) in contentResources where idleContentCosts[subscriptionID] == nil {
             let current: RuntimeContentState
             if let failure = resource.failure { current = .error(failure) }
             else if let value = resource.value { current = .ready(value) }
@@ -187,6 +190,13 @@ public actor RuntimeClient {
         hydration?.cancel(); hydration = nil; hydrationID = nil
         if wasHydrating { emit(.synchronizing(false)) }
         bufferedMutations.removeAll(); bufferedMutationBytes = 0
+        // Idle entries are useful only while this exact stream keeps them current.
+        for id in idleContent {
+            idleContentExpiry[id]?.cancel()
+            contentResources.removeValue(forKey: id)
+            readingContentDirty.remove(id)
+        }
+        idleContent.removeAll(); idleContentCosts.removeAll(); idleContentExpiry.removeAll()
         for id in contentResources.keys {
             contentResources[id]?.timer?.cancel()
             contentResources[id]?.wireID = nil

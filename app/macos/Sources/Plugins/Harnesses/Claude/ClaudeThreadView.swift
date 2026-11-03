@@ -153,7 +153,7 @@ struct ClaudeTurnView: View {
                 while index < timeline.count, timeline[index].claudeKind == "activity", !starts.contains(timeline[index].claudeID("id")) {
                     activities.append(timeline[index]["activity"]!); index += 1
                 }
-                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count)))
+                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count, hasContent: activities.contains { claudeActivityHasContent($0, presence: executionPresence) })))
             } else { rows.append(detail(item, final: item.claudeID("id") == final)) }
         }
         let kinds = Set(timeline.map(\.claudeKind))
@@ -181,12 +181,12 @@ struct ClaudeTurnView: View {
             for activity in remaining {
                 let row = detail(syntheticID(JSONText(codeUnits: Array("activity:".utf16) + activity.claudeID("id").codeUnits), kind: "activity", fields: ["activity": activity]), final: false)
                 rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: .member,
-                    executionSummary: ThreadExecutionSummary(toolCalls: activity["toolName"] == nil ? 0 : 1)))
+                    executionSummary: ThreadExecutionSummary(toolCalls: activity["toolName"] == nil ? 0 : 1, hasContent: claudeActivityHasContent(activity, presence: executionPresence))))
             }
         } else if !remaining.isEmpty {
             rows.append(ThreadDetailRow(id: synthetic("activities", kind: "activity").claudeID("id"), kind: .work,
                 node: AnyView(ClaudeActivities(activities: remaining)), execution: .member,
-                executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count)))
+                executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count, hasContent: remaining.contains { claudeActivityHasContent($0, presence: executionPresence) })))
         }
         for (kind, values) in [("interaction",turn.interactions),("notice",turn.notices.filter { !agentDetail || $0["level"]?.stringValue == "error" })] {
             let referenced = Set(timeline.filter { $0.claudeKind == kind }.map { $0[kind]!.claudeID("id") })
@@ -205,7 +205,7 @@ struct ClaudeTurnView: View {
     private func detail(_ item: JSONValue, final: Bool) -> ThreadDetailRow {
         ThreadDetailRow(id: item.claudeID("id"), kind: claudeRowKind(item, final: final, agentDetail: agentDetail, executionActive: turn.status == "running", messageAnchorID: visibility.messageAnchorID),
             node: AnyView(ClaudeTimelineEntry(item: item, turn: turn, active: active, publicInteractions: publicInteractions, actions: actions, context: context)),
-            executionSummary: item.claudeKind == "reasoning" && (!claudeTrim(item["content"]).isEmpty || executionPresence.contains(item.claudeID("id"), "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil, finalReply: final && item.claudeKind == "assistant")
+            executionSummary: claudeExecutionSummary(item, presence: executionPresence), finalReply: final && item.claudeKind == "assistant")
     }
 }
 // Shared by current turns, legacy fallbacks and inherited transcripts. Keep

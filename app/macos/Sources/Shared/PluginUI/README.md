@@ -13,6 +13,21 @@ ownership checks and defaults to absent outside the host's scene.
 focused-child exit route (including execution Sidecards and nested history),
 using the shared native editor/marked-text/transient-control boundary. It does
 not install another global key monitor or replace editor-specific exit actions.
+The focusable history sidebar uses this route too: Escape first folds resident
+input, then a later Escape retains the existing return to the current document.
+Its Arrow/Return navigation and document-owned cancellation remain independent.
+
+Thread, execution Sidecard, Report, Git and Moku history panels share
+[`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
+`nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
+top-left edge. Pair it with `nativeReadingPanelViewport`: the fixed 48pt top
+clearance keeps both scrolling content and native scrollers below Close, while
+the horizontal/bottom insets clear rounded corners. Spacing outside the circle
+is not a close target. The button follows reading-palette light/dark colors,
+hover/press, disabled and increased-contrast states, with a visible keyboard
+focus ring and caller-owned localized help/accessibility labels. Callers keep
+their own close callback and Escape/navigation ownership; the button installs
+no global keyboard shortcut. Browser and Voice retain their activity toolbars.
 
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
@@ -59,6 +74,16 @@ and resets visibility; errors and retry controls appear immediately. The shared
 semantic palette and locale follow the reader. This is presentation state only:
 content acquisition, decoding, caching and resource release are unchanged.
 See the [recording review and validation limits](../../../../../design/reading-placeholder-alignment.md).
+
+Agent execution summaries suppress a group only when every member explicitly
+reports no summary content and no positive reasoning usage is reported for that
+group. Empty reasoning and completed Hooks without output qualify; tool calls,
+other activity kinds, running/failed/cancelled Hooks, interactions and unknown
+rows remain admitted. Classification follows content and native identity rather
+than position or zero counts. Lightweight Codex/Claude history carries output
+presence independently of stripped detail. Full/Moku readers retain the original
+disclosures and detail loading. See the [investigation](../../../../../design/empty-execution-summary.md)
+for the reported Hook group, asynchronous behavior and sprint validation limits.
 
 ## Scrollbars
 
@@ -750,8 +775,10 @@ keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
-48pt above and 22pt below for the Agent and application reading panels (Report, Git and
-Moku history). The entire viewport sits inside this frame, so persistent and
+48pt above and 22pt below by default for application reading panels (Git and
+Moku history). Agent Thread and Report panels opt into
+`balancedVerticalInsets: true`, reserving 48pt at both ends. The entire viewport
+sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
 edge. The top clears Close's complete 14pt inset + 32pt hit region, including
 when an overlay scroller expands on hover. Close remains anchored to the outer
@@ -764,6 +791,53 @@ The inset belongs to the reading card: Moku history's separate input capsule
 keeps its own layout and dark appearance. Nonpanel application pages and Browser
 Sidecards keep their existing frames; no DOM style or scroll-offset translation
 is added. Readers derive their available width/height from the inset viewport.
+
+### Thread document spacing
+
+`HarnessMessageTimeline` uses one vertical document inset for both ends, including
+history/unavailable pages and execution presentations. The existing top-inset
+selection is retained: explicit `contentTopInset` (12pt for execution), otherwise
+94pt under reading navigation, or 24/28/44pt for widths >=1024 / <=540 / between.
+Despite its name, the explicit top override now applies to both document edges.
+The streaming Markdown page capacity subtracts this inset twice from the current
+viewport height; resize, sidebar changes and content growth use the same layout
+proposal rather than a cached height.
+
+Measure spacing from the **layout bounds**, not emoji/font ink: at scroll start,
+from the viewport top to the first document element (normally the heading emoji);
+at scroll end, from the final element (including completion/status/usage) to the
+viewport bottom. Zero-height scroll anchors add no trailing pixel. The final
+turn row has no trailing inter-row gap, including while active; footer separation
+belongs inside the document. The cat empty state's own vertical inset is 48pt
+on both sides. Other supplied empty/error/loading views keep their own content
+layout and receive the same outer document inset.
+
+The Agent panel additionally has symmetric fixed 48pt viewport chrome and the
+conversation's existing 12pt page-stack inset on both sides. Thus a typical
+44pt document inset gives 104pt from either outer panel edge to the corresponding
+document boundary at its scroll limit. The close control remains in the fixed
+upper safety region throughout scrolling. Short documents remain top aligned;
+unused viewport height below them is not padding and is not forcibly filled or
+centered. At an explicit result/message visit the targeted scroll position can
+start mid-document; equality describes the document's two scroll limits.
+
+This spacing change leaves placeholder delay/placement, content acquisition and
+cache ownership unchanged. It composes with `3736c2a` (upper-left reading close
+buttons): retain the Agent and Report balanced viewport arguments when integrating
+the adjacent close-control changes. Its new execution-card viewport keeps the default
+48/22pt chrome; balancing that separate card's shell is outside this Thread fix.
+Git/Moku viewport defaults are unchanged.
+
+Report balances the **card-to-WebKit viewport** distance at 48pt on each end,
+including both document scroll limits. Its webpage background begins and ends
+at these viewport boundaries, and WebKit's scrollbar stays inside that viewport;
+no overlay masks or indicator-hiding rules are added. Short reports retain
+WebKit's normal document/viewport sizing. Window resize and theme changes do not
+introduce another inset. The webpage's own padding, the existing HTML safe-area
+contract (including the 60pt panel top clearance), CSS, zoom and authored
+backgrounds remain independent and unchanged: the first and last text glyphs
+need not be equidistant from the card edge. This deliberately fixes the shell
+asymmetry shown in the supplied Report screenshot without rewriting its report.
 
 Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
 to complete an accepted return for its current visit. Default cancellation still
@@ -782,3 +856,12 @@ return ownership. Native sheets/popovers keep priority over backdrop dismissal.
 Panel chrome can use `nativeReadingEscape` alongside HTML: the native fallback
 leaves a WebKit responder to its trusted DOM handler and respects inherited
 disabled state, native sheets and visible child windows.
+
+Thread opening now starts data-only prefetch outside the deferred front, while
+the native panel and reader admission keep their existing timing. Codex reuses
+successfully admitted immutable state by complete opaque input, with a bounded
+actor cache; new input cannot select an older revision. Read-only Markdown
+TextKit views disable Writing Tools while retaining native selection, copy and
+links. No reader/view or scroll state is cached. See the
+[loading investigation](../../../../../design/thread-loading-performance-cache.md)
+for paired observations, variability and manual coverage limits.

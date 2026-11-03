@@ -73,8 +73,13 @@ for the regression source, verification scope and remaining limits.
 Panel opening uses compositor-owned geometry and delays reader mounting until
 travel completes. Once submitted, panel travel no longer waits for main-actor
 animation ticks; initial reader mounting can still cause a later main-thread stall.
-Codex reader admission additionally validates/decodes changed opaque
-state off the main actor and skips construction of collapsed work rows. Native
+Data-only route prefetch overlaps content acquisition with travel; a bounded
+short-lived cache transfers continuously subscribed ready data between readers.
+Codex reader admission validates/decodes changed opaque state off the main actor,
+reuses only exact immutable inputs and skips construction of collapsed work rows.
+Read-only transcript TextKit views disable Writing Tools. Reader/view, history
+requests and scroll state remain scoped to their existing lifetimes. See the
+[loading/cache investigation](../../design/thread-loading-performance-cache.md). Native
 content and error admission policies remain owned by their existing boundaries.
 See the [manual investigation](../../design/thread-open-animation-investigation.md)
 for evidence and the limits of the isolated measurements.

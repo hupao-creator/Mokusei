@@ -21,6 +21,15 @@ open Moku input before folding the selected Sidecard or leaving the Thread.
 Explicit Close, browser address/annotation cancellation and non-Escape exit
 commands retain their own routes. Covered/disabled cards cannot close a replacement.
 
+The host's animated
+[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) keeps a 60pt
+top chrome band visible while the document retains its right-origin unfolding. This includes the
+execution reader's upper-left Close and Browser/Voice's existing toolbar Close.
+The same interpolated aperture bounds pointer hits, so masked document controls
+cannot receive clicks. The existing selected/suppressed gates still disable
+folded, retiring and covered cards; native document suppression, the short fade,
+offsets, resizing, stacking, sessions and Close callbacks keep their ownership.
+
 ## Conversation
 
 [Conversation](Conversation/) is an execution display. It owns no composer,

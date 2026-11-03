@@ -23,6 +23,11 @@ public struct CodexHarnessPlugin: HarnessPlugin {
     public var harnessSettingsCodec: PluginValueCodec<CodexHarnessSettings> { CodexHarnessSettings.codec }
     public var settingsPresentationCodec: PluginValueCodec<CodexSettingsPresentationData> { CodexSettingsPresentationData.codec }
 
+    public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] {
+        guard let execution = input.readingTarget?.executionID ?? input.thread.observation.latestExecution?.executionID else { return [] }
+        return [.row(JSONText(codeUnits: JSONText("turn:").codeUnits + execution.codeUnits))]
+    }
+
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<CodexOverviewView> {
         try projectCodexOverview(input: input, availableColumns: availableColumns)
     }

@@ -112,6 +112,7 @@ public struct HarnessMessageTimeline: View {
     public let rows: [ThreadTimelineRow]
     public var toolbar: AnyView?
     public var emptyState: AnyView?
+    /// Historical name: an explicit inset now applies to both document edges.
     public var contentTopInset: CGFloat?
     public var suspended: Bool
     public var followOutput: Bool
@@ -203,12 +204,11 @@ public struct HarnessMessageTimeline: View {
                             }
                         }.accessibilityElement(children: .contain)
                             .accessibilityLabel(localize("已加载消息"))
-                        Color.clear.frame(height: 1).id(TimelineEdge.bottom)
+                        Color.clear.frame(height: 0).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
-                    .padding(.top, readingTopInset(bounds.size.width))
-                    .padding(.bottom, readingBottomInset).frame(maxWidth: .infinity)
+                    .padding(.vertical, readingVerticalInset(bounds.size.width)).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
                     .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
@@ -367,15 +367,13 @@ public struct HarnessMessageTimeline: View {
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
 
     /// One page is the content height actually visible under the timeline's
-    /// fixed insets. Keep the top inset in step with the padding above; a page
-    /// taller than this would not be visible as a whole when it flushes.
+    /// symmetric document insets. A taller page would not be visible as a
+    /// whole when it flushes; resizing must update padding and capacity together.
     private func readingPageCapacity(_ size: CGSize) -> CGFloat {
-        max(0, size.height - readingTopInset(size.width) - readingBottomInset)
+        max(0, size.height - 2 * readingVerticalInset(size.width))
     }
 
-    private var readingBottomInset: CGFloat { 36 }
-
-    private func readingTopInset(_ width: CGFloat) -> CGFloat {
+    private func readingVerticalInset(_ width: CGFloat) -> CGFloat {
         contentTopInset ?? (readingNavigation != nil ? 94 : width >= 1024 ? 24 : width <= 540 ? 28 : 44)
     }
     private func reportReading() {

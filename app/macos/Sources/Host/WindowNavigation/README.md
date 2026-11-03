@@ -63,7 +63,10 @@ for the mounted production-page regression.
 
 The outer workspace reading stack also owns the retained Overview presentation
 gate. Panel opening pauses display projection immediately and admits its reader
-only after compositor-driven travel completes. Non-panel opening and return keep
+only after compositor-driven travel completes. The outer Agent route starts
+data-only manifest/target-row prefetch during travel, owned by the route visit
+and target execution; cancellation cannot publish into a replacement reader.
+This does not mount TextKit or a hidden conversation view. Non-panel opening and return keep
 projection active, and settled-detail return awaits refreshed canvas layout
 before sampling the return frame. Preparation belongs to the current route
 generation: replacement or
@@ -128,7 +131,9 @@ Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card (the clicked Agent card for Git), and refreshes
 its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
-The Close button's label owns its 32pt circular background and hit shape, so
+The shared Close sits at the panel's upper-left with 48pt of fixed viewport
+clearance below the top edge, also used by the execution Sidecard. The button
+owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
 
@@ -154,3 +159,10 @@ cancellation policy, so recovery cannot revive a cancelled return or close a
 new visit. The full-workspace replay clicks the settled panel's icon before
 injecting these events, including control cases for ordinary mutations and
 same-authority snapshots.
+
+Report reading cards reserve 48pt above and below the entire WebKit viewport.
+The upper reservation clears the complete Close hit region and remains compatible
+with upper-left placement. The lower reservation matches it at either scroll
+limit, without covering the native scrollbar. This is card chrome, independent
+of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
+scroll offset or theme content is rewritten by this viewport adjustment.

@@ -138,6 +138,7 @@ public protocol HarnessPlugin {
     var settingsPresentationCodec: PluginValueCodec<SettingsPresentation> { get }
     func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<Overview>
     func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage?
+    func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope]
     func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation?
     @ViewBuilder func threadView(input: HarnessThreadInput, actions: HarnessThreadActions,
                                  context: HarnessRenderContext) -> ThreadBody
@@ -151,6 +152,7 @@ public protocol HarnessPlugin {
 }
 
 extension HarnessPlugin {
+    public func readingPrefetchScopes(input: HarnessThreadInput) -> [HarnessContentScope] { [] }
     public var translations: HarnessTranslationCatalog { [:] }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? { nil }
     public func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation? { nil }

@@ -119,3 +119,51 @@ disabled/被遮盖卡片不取得退出所有权，历史的 SwiftUI 入口也�
 
 仍未实机验证真实 IME 候选窗口的转发/提交/取消语义、独立 NSPopover、实时语音或 VoiceOver。
 这些限制保留；没有用 API 合成组合状态替代真实输入法验收，也没有把未运行的检查记为通过。
+
+## 复审追加：可聚焦历史目录与指定基线整合
+
+`ThreadConversation.readingLayout` 的 HStack 曾用 `onKeyPress(.escape)`
+直接调用 `closeHistory()`。历史正文的 native monitor 不涵盖兄弟目录，
+Host 的主阅读 fallback 又在内部历史拥有返回动作时退出，不能依赖它们保证该焦点路径的顺序。
+现在 HStack 使用现有 `nativeReadingExitCommand`，仅在 `readingPage` 时安装原
+`closeHistory()` 动作；输入取消、编辑器/marked text、菜单/弹层归属由同一个共享边界判断。
+未改变目录的 Arrow/Return 导航、历史动画、历史完成后的目录焦点恢复或显式返回动作。
+
+本轮只在此 detached worktree 合入指定 `9a65b0f031f8debce0155c5dda0ba5fd573aa9c4`，
+未移动共享 main 引用。三个冲突的处理：
+
+- `ConversationExecutionPane.swift` 采用 main 的共享左上 Close 和 viewport，
+  保留 `presentation.context.suppressed ? nil : presentation.context.close` 的
+  `nativeReadingExitCommand`。相对指定基线，该文件只有这一取消入口不同。
+- 两个 README 保留双方的取消契约与 main 的阅读布局/动画说明。
+- `NativeAgentThreadWorkspace` 保留 main 的 balanced vertical viewport、
+  `NativeSidecardFold` paint/hit aperture 和原 Close 回调，同时保留本分支的共享取消入口。
+  `NativeSidecardFold.swift` 与 `NativeReadingPanelViewport.swift` 对指定基线没有差异。
+  缓存、内容保留和 native paint/hit aperture 的实现来自该指定提交，没有重新实现。
+
+实际构建与手工观察：
+
+- 首轮 Swift 构建失败：直接把 `closeHistory` 方法引用放进可选回调表达式时，Swift
+  对 `readingLayout` 报 `failed to produce diagnostic for expression`。
+  改为显式 `{ closeHistory() }` 后，同一产品构建通过（42.37s）。失败及成功日志分别是
+  `/tmp/moku-history-sidebar-build.log`、`/tmp/moku-history-sidebar-build-fixed.log`。
+- 临时窗口链接最终生产模块，复用 `ThreadConversation`、真实 `ThreadHistorySidebar`、
+  `ThreadDetailFrame`、Moku Scene/Dock 和三个固定执行行。Dock 在组件底部的 150pt 席位内，
+  避免全窗口 Dock fallback 掩盖目录自身的 SwiftUI 退出路径。无 Runtime、无模型调用。
+- 已观察到：输入 open，释放编辑焦点后 Tab 聚焦 Close，再 Tab 聚焦真实目录，
+  ↑/Return 进入上一轮历史；输入仍 open，导航为 Back to current conversation。
+  第一次 Escape 只使输入 closed，历史和 Thread 保留；第二次 Escape 完成原历史返回，
+  显示 CURRENT DOCUMENT，导航恢复 Close thread，Thread 仍 open。
+- 已观察到：重新进入历史并打开输入，以键盘 Tab 聚焦历史正文的回应 TextField；
+  Escape 保留 `response stays`、展开输入和历史导航，没有提升成面板退出。
+- 已另外用整合后生产 `NativeAgentThreadWorkspace` 与 `ConversationExecutionPane`
+  复核：左上共享 Close 可见且只收起对应卡片；卡片普通控件持有焦点时，连续两次 Escape
+  依次收起输入、收起卡片，Thread 保留。源复用 `/tmp/moku-sidecard-manual.swift`；
+  窗口为 `/private/tmp/mokusei-native-replay-history-integration/MokuHistoryIntegration.app`。
+- 手工源与隔离窗口位于 `/tmp/moku-history-sidebar-manual.swift` 和
+  `/private/tmp/mokusei-native-replay-history-sidebar/MokuHistorySidebarManual.app`。
+  只调用组件编译辅助程序，没有调用测试或 replay runner。
+
+真实 IME/输入法候选、独立弹层和动画中间帧本轮没有重新实机验证；前述限制继续有效。
+本轮未运行或新增测试、CI、hooks；未运行 Go 检查或完整打包，也不把指定基线原有验证结果
+当作本轮执行结果。构建结果仅指合并后当前源码的 Swift `Mokusei` 产品构建。

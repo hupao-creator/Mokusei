@@ -1,0 +1,18 @@
+{
+  "baseline": "bace0f05ce80265214d0b5ff992b418da3faacc9",
+  "videoSHA256": "c42105d248e388fd7cdc1afcf789062d6f8cc9f979d1d6ce103b0c016998bf27",
+  "videoFrames": 587,
+  "videoDurationSeconds": 12.758333333333333,
+  "videoSize": [
+    4096,
+    2502
+  ],
+  "projectionGo30Observations": [
+    "thread bytes 4185 p50Ms 0.017 p95Ms 0.022 maxMs 0.101",
+    "turn bytes 188233 p50Ms 0.951 p95Ms 2.412 maxMs 2.466",
+    "execution bytes 737869 p50Ms 2.109 p95Ms 6.591 maxMs 6.826"
+  ],
+  "finalSwiftBuild": "swift build --package-path app/macos --scratch-path /tmp/thread-loading-profile/build --disable-sandbox --skip-update --product Mokusei -c release",
+  "finalSwiftBuildSeconds": 27.71,
+  "manualScope": "Production modules; no tests, CI or test hooks; no interaction with user app; isolated Runtime with all Harness execution disabled; stopped after observation"
+}

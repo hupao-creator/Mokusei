@@ -110,6 +110,7 @@ struct ClaudeActivityGlyph: View {
     }
 }
 struct ClaudeForkHistory: View {
+    @Environment(\.threadExecutionPresence) private var executionPresence
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionGroup) private var executionGroup
     let items: [JSONValue]
@@ -123,7 +124,7 @@ struct ClaudeForkHistory: View {
         } else {
             VStack(alignment: .leading, spacing: 16) {
                 HStack { NativeIcon(name: "GitBranch", size: 13); Text(claudeLocalized("来自源 Claude 会话的分支历史", locale: locale)); Text(claudeLocalized("只读历史 · 不属于当前 Execution", locale: locale)).foregroundStyle(NativePalette.thread.muted.swiftUI) }.font(NativeTypography.inter(size: 11))
-                ForEach(groupThreadExecutionRows(rows)) { row in row.node.threadReadingAnchor(row.id) }
+                ForEach(groupThreadExecutionRows(rows, summaryOnly: agentDetail)) { row in row.node.threadReadingAnchor(row.id) }
             }.padding(.vertical, 16)
         }
     }
@@ -140,7 +141,7 @@ struct ClaudeForkHistory: View {
             guard !agentDetail || claudeDetailIncludes(item) else { return nil }
             let kind = claudeRowKind(item, final: final.contains(item.claudeID("id")), agentDetail: agentDetail, messageAnchorID: visibility.messageAnchorID)
             guard (kind != .user || !agentDetail && visibility.userMessages), (kind != .work || visibility.work && visibility.workTurnID == nil) else { return nil }
-            return ThreadDetailRow(id: item.claudeID("id"), kind: kind, node: AnyView(ClaudeTimelineEntry(item: item, actions: actions, context: context)), executionSummary: item.claudeKind == "reasoning" ? ThreadExecutionSummary(reasoningSegments: 1) : item["activity"]?["toolName"] != nil ? ThreadExecutionSummary(toolCalls: 1) : nil)
+            return ThreadDetailRow(id: item.claudeID("id"), kind: kind, node: AnyView(ClaudeTimelineEntry(item: item, actions: actions, context: context)), executionSummary: claudeExecutionSummary(item, presence: executionPresence))
         }
         let interimReplies = Set(rows.filter { agentDetail && $0.kind == .work }.map(\.id))
         return bindThreadExecutionSource(rows: rows, source: agentDetail ? selected.filter(claudeDetailIncludes) : items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) || $0.claudeKind == "assistant" && interimReplies.contains($0.claudeID("id")) })
@@ -196,4 +197,23 @@ func claudeEmoji(_ thread: HarnessThread) -> String? { nativeGeneratedThreadEmoj
 func claudeDocumentTitle(_ thread: HarnessThread, state: ClaudeState) -> String {
     let prompt: JSONText? = state.turns.first?.visiblePrompts.first.map { if case .string(let text) = $0 { text } else { JSONText("") } }
     return nativeGeneratedThreadDocumentTitle(metadata: thread.metadataState, title: thread.title, initialPrompt: prompt)
+}
+
+// Activity identity survives lightweight history; stripped output is not empty output.
+func claudeActivityHasContent(_ activity: JSONValue, presence: ThreadExecutionPresence, historyID: JSONText? = nil) -> Bool {
+    activity.claudeKind != "hook" || activity["toolName"] != nil || activity["status"]?.stringValue != "completed" ||
+        !claudeTrim(activity["detail"]).isEmpty || presence.contains(historyID ?? activity.claudeID("id"), "detail")
+}
+
+func claudeExecutionSummary(_ item: JSONValue, presence: ThreadExecutionPresence) -> ThreadExecutionSummary? {
+    if item.claudeKind == "reasoning" {
+        let content = !claudeTrim(item["content"]).isEmpty || presence.contains(item.claudeID("id"), "content")
+        return ThreadExecutionSummary(reasoningSegments: content ? 1 : 0, hasContent: content)
+    }
+    if let activity = item["activity"], item.claudeKind == "activity" {
+        return ThreadExecutionSummary(toolCalls: activity["toolName"] == nil ? 0 : 1,
+            hasContent: claudeActivityHasContent(activity, presence: presence,
+                historyID: activity["id"] == nil ? item.claudeID("id") : nil))
+    }
+    return nil
 }

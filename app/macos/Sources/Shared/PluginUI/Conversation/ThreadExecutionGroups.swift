@@ -87,17 +87,23 @@ public func partitionExecutionRows(_ rows: [ThreadDetailRow]) -> [ThreadExecutio
 
 @MainActor
 public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
-                                     reasoningUsage: ThreadReasoningUsage? = nil) -> [ThreadDetailRow] {
+                                     reasoningUsage: ThreadReasoningUsage? = nil,
+                                     summaryOnly: Bool = false) -> [ThreadDetailRow] {
     let runs = partitionExecutionRows(rows)
     let lastExecution = runs.lastIndex { if case .execution = $0 { true } else { false } }
-    return runs.enumerated().map { index, run in
+    return runs.enumerated().compactMap { index, run in
         switch run {
         case .row(let row): return row
         case .execution(let id, let rows):
+            let usage = index == lastExecution ? reasoningUsage : nil
+            // Classify by native content, never by row position or zero tool counts.
+            // Full readers keep their original rows, disclosures and detail leases.
+            guard !summaryOnly || rows.contains(where: { $0.executionSummary?.hasContent != false }) ||
+                (usage?.hasValidTokens == true && (usage?.tokens ?? 0) > 0) else { return nil }
             return ThreadDetailRow(
                 id: executionProcessID(id), kind: .work,
                 node: AnyView(ThreadExecutionProcess(groupID: id, rows: rows,
-                    reasoningUsage: index == lastExecution ? reasoningUsage : nil)))
+                    reasoningUsage: usage)))
         }
     }
 }
@@ -158,8 +164,7 @@ public struct ThreadExecutionProcess: View {
             parts.append(localize(tools == 1 ? "1 次工具调用" : "{count} 次工具调用")
                 .replacingOccurrences(of: "{count}", with: tools.formatted(.number.locale(locale))))
         }
-        if let reasoningUsage, reasoningUsage.tokens.isFinite, reasoningUsage.tokens >= 0,
-           reasoningUsage.tokens.rounded() == reasoningUsage.tokens, reasoningUsage.tokens <= 9_007_199_254_740_991 {
+        if let reasoningUsage, reasoningUsage.hasValidTokens {
             let label: String
             switch reasoningUsage.scope {
             case .turn: label = "本轮思考 {count} tokens"
@@ -179,4 +184,10 @@ public struct ThreadExecutionProcess: View {
 
 private func executionProcessID(_ source: JSONText) -> JSONText {
     JSONText(codeUnits: Array("execution-process:".utf16) + source.codeUnits)
+}
+
+private extension ThreadReasoningUsage {
+    var hasValidTokens: Bool {
+        tokens.isFinite && tokens >= 0 && tokens.rounded() == tokens && tokens <= 9_007_199_254_740_991
+    }
 }

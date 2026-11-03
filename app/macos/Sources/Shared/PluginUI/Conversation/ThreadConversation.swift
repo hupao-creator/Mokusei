@@ -213,11 +213,7 @@ public struct ThreadConversation: View {
                 }
                 pageStack
             }
-            .onKeyPress(.escape) {
-                guard readingPage else { return .ignored }
-                closeHistory()
-                return .handled
-            }
+            .nativeReadingExitCommand(perform: readingPage ? { closeHistory() } : nil)
         }
     }
     private var pageStack: some View {
@@ -434,7 +430,7 @@ public struct ThreadDetailEmptyState: View {
         """)
         .font(.system(size: 14, design: .monospaced)).lineSpacing(3)
         .foregroundStyle(NativePalette.thread.muted.swiftUI).frame(maxWidth: .infinity)
-        .padding(.top, 48).padding(.bottom, 60)
+        .padding(.vertical, 48)
         .accessibilityLabel(NativePluginLocalization.localize("一只小猫坐在电脑后面，等待新的想法。", locale: locale))
     }
 }
