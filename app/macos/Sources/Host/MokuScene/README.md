@@ -18,7 +18,10 @@ and Report reading: shared margins, rounded surface, border, dimmed/blurred
 retained background and panel-owned Close. The current/archived-session menu
 has a 60pt header seat with trailing clearance for Close, independent of window
 traffic lights. The turn index, session switching, transcript, composer and
-voice routes remain owned by the existing reader.
+voice routes remain owned by the existing reader. The reading card and the
+current-session input capsule are separate siblings, with a 12pt gap and the
+same horizontal center; the card alone owns the rounded reading surface and
+Close. Archived sessions remain read-only without an input capsule.
 
 Close, the surrounding blank margin and Cmd+B return through the shared motion
 lifetime; native Escape first returns from an internally selected historical
@@ -36,11 +39,13 @@ Agent composer motion are independent of this migration.
 
 ## Dock and composer
 
-Moku always uses its existing dark appearance, independently of the system and
-workspace appearance preference. This covers the Dock (idle, landing, composer,
-Talk, dispatch and note), interaction panel, dispatch details, and the current and
-archived Moku conversation reader with its history composer. The override is a
-local SwiftUI environment, not a window/application appearance preference.
+Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
+panel, dispatch details and history input capsule keep their existing dark
+appearance independently of the system and workspace preference.
+The current and archived Moku conversation reading cards inherit the workspace
+appearance: light, dark or system. No local reader override or separate theme
+state masks the window preference. The dark capsule override is a local SwiftUI
+environment, not a window/application appearance preference.
 The Settings page and its regular-glass shell are always dark, including in a
 light workspace. The page scopes `\.colorScheme` to `.dark`, so SwiftUI tokens,
 hosted AppKit popups/editors, scrollers and native controls resolve the dark

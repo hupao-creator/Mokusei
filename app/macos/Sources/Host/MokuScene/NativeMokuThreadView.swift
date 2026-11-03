@@ -67,33 +67,46 @@ public struct NativeMokuThreadView: View {
             nestedNavigation = action
             onNavigationChange?(action)
         }) {
-            VStack(spacing: 0) {
-                if !archiveThreads.isEmpty {
-                    HStack {
-                        Menu {
-                            Button(localize("当前对话", "Current conversation")) { archiveID = nil }
-                            Divider()
-                            ForEach(archiveThreads, id: \.id) { previous in
-                                Button("\(previous.title.string) · \(Date(timeIntervalSince1970: previous.updatedAt / 1000).formatted(date: .abbreviated, time: .shortened))") { archiveID = previous.id }
-                            }
-                        } label: {
-                            Text(archiveID == nil ? localize("当前对话", "Current conversation") : localize("先前对话（只读）", "Previous conversation (read-only)"))
-                        }.accessibilityIdentifier("moku-history-sessions")
-                        Spacer()
-                    }.padding(.leading, 24).padding(.trailing, 60)
-                        .frame(minHeight: 60)
+            VStack(spacing: 12) {
+                VStack(spacing: 0) {
+                    if !archiveThreads.isEmpty {
+                        HStack {
+                            Menu {
+                                Button(localize("当前对话", "Current conversation")) { archiveID = nil }
+                                Divider()
+                                ForEach(archiveThreads, id: \.id) { previous in
+                                    Button("\(previous.title.string) · \(Date(timeIntervalSince1970: previous.updatedAt / 1000).formatted(date: .abbreviated, time: .shortened))") { archiveID = previous.id }
+                                }
+                            } label: {
+                                Text(archiveID == nil ? localize("当前对话", "Current conversation") : localize("先前对话（只读）", "Previous conversation (read-only)"))
+                            }.accessibilityIdentifier("moku-history-sessions")
+                            Spacer()
+                        }.padding(.leading, 24).padding(.trailing, 60)
+                            .frame(minHeight: 60)
+                    }
+                    if let archive = archiveThreads.first(where: { $0.id == archiveID }) {
+                        NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: archive),
+                            routes: NativeHarnessThreadRoutes(openExternal: externalRoute))
+                            .id(archive.id).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
+                            routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
+                                draft.text = initialDraft.string
+                                focusRequest &+= 1
+                            }, openExternal: externalRoute))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    if let message = displayError, !message.isEmpty, draft.error == nil {
+                        Text(message).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.danger.swiftUI)
+                            .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
+                    }
                 }
-                if let archive = archiveThreads.first(where: { $0.id == archiveID }) {
-                    NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: archive),
-                        routes: NativeHarnessThreadRoutes(openExternal: externalRoute))
-                        .id(archive.id).frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
-                        routes: NativeHarnessThreadRoutes(interrupt: { onCancel() }, openFollowUp: { initialDraft in
-                            draft.text = initialDraft.string
-                            focusRequest &+= 1
-                        }, openExternal: externalRoute))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .modifier(NativeApplicationReadingPanel(enabled: true, suppressed: !focusEnabled,
+                    escapeEnabled: nestedNavigation.map { $0.id == navigation.id } ?? true,
+                    identifier: "moku-reading-panel", onClose: onBack))
+                // Keep the draft outside the reading surface, aligned with its
+                // center rather than the shared panel's trailing toolbar seat.
+                if archiveThreads.first(where: { $0.id == archiveID }) == nil {
                     NativeMokuHistoryComposer(draft: draft, cwd: thread.cwd, disabled: disabled,
                         running: running || thread.observation.isExecutionActive,
                         focusEnabled: focusEnabled, focusRequestKey: focusRequest,
@@ -102,19 +115,11 @@ public struct NativeMokuThreadView: View {
                         loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel,
                         canStartVoice: canStartVoice, startVoice: startVoice)
                         .frame(maxWidth: 560)
-                        .padding(.horizontal, 24).padding(.top, 12).padding(.bottom, 28)
+                        .padding(.horizontal, 24).padding(.trailing, 76)
                 }
-                if let message = displayError, !message.isEmpty, draft.error == nil {
-                    Text(message).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.danger.swiftUI)
-                        .textSelection(.enabled).padding(.horizontal, 24).padding(.bottom, 12)
-                }
-            }.background(NativePalette.thread.canvas.swiftUI)
+            }
         }
-        .modifier(NativeApplicationReadingPanel(enabled: true, suppressed: !focusEnabled,
-            escapeEnabled: nestedNavigation.map { $0.id == navigation.id } ?? true,
-            identifier: "moku-reading-panel", onClose: onBack))
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
-        .environment(\.colorScheme, .dark)
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
     private var externalRoute: ((JSONText) async throws -> Void)? {

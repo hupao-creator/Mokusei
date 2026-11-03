@@ -15,6 +15,7 @@
 | [Moku Note 收起](moku-note-transition/README.md) | 当前 Release 生产 Dock 的隔离视觉预览；合成笔记、连续收起帧、快速往返、窄窗口/居中布局与禁动画 fixture。 |
 | [Moku mention transition](moku-mention-transition/README.md) | 当前生产 Dock 与已确认原型的菜单/眼睛过渡对照，支持真实输入及自动回放。 |
 | [Moku landing](moku-landing/README.md) | 当前生产 Dock/composer 的原生视觉回放；fixture 驱动派发与归档，全局状态接入另有生产页面集成回放。 |
+| [Moku 历史布局与主题](moku-history-theme/README.md) | 生产历史页、Codex reader、Dock 与 Note 的隔离预览；浅/深/系统主题与三档尺寸，不运行测试。 |
 | [Moku 输入胶囊转场](moku-panel-transition/README.md) | 当前生产 Scene/Dock/原生编辑器的隔离交互预览；包含用户录屏定位、展开收起中间帧、反向操作与窄窗口记录，不运行测试。 |
 | [Landing setup](landing-setup/README.md) | 新用户五步设置的原生交互提案；模拟 Agent 发现与配置，最后进入共用的生产 landing 回放，不接入生产首次启动。 |
 | [Tag glass morph](tag-glass-morph/README.md) | 接入前的独立参数实验；保留实验源码与参数，不同步成生产副本。 |
