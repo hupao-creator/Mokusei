@@ -130,3 +130,11 @@ diagnostics already discarded by earlier versions cannot be reconstructed by the
 reader; no history rewrite is performed.
 The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
 checks active, terminal and inherited turns without a native CLI or model call.
+
+Lightweight deferred execution projections record meaningful activity `detail` by
+native activity ID before stripping its body. The native Agent reader uses that
+presence to distinguish completed no-output Hook bookkeeping from actual output;
+canonical activity state and full execution content remain unchanged.
+
+Matching id/status/name-only successful Hook JSON is lifecycle metadata, not
+summary output; unknown fields remain conservative and full detail is retained.

@@ -31,10 +31,14 @@ public struct ThreadDetailRow: Identifiable {
 public struct ThreadExecutionSummary: Sendable {
     public let reasoningSegments: Int
     public let toolCalls: Int
+    /// False only for positively identified empty bodies or settled Hook bookkeeping.
+    /// Unknown execution kinds keep the conservative default.
+    public let hasContent: Bool
 
-    public init(reasoningSegments: Int = 0, toolCalls: Int = 0) {
+    public init(reasoningSegments: Int = 0, toolCalls: Int = 0, hasContent: Bool = true) {
         self.reasoningSegments = reasoningSegments
         self.toolCalls = toolCalls
+        self.hasContent = hasContent
     }
 }
 
@@ -158,7 +162,7 @@ public struct ThreadDetailTurn: View {
         if let executionGroup {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
-            let displayed = groupThreadExecutionRows(filteredRows, reasoningUsage: reasoningUsage)
+            let displayed = groupThreadExecutionRows(filteredRows, reasoningUsage: reasoningUsage, summaryOnly: agentDetail)
             // Harnesses identify the final reply, including its first text part.
             // Resolve only after the body loads; review/status rows can follow it.
             let result = completedAt != nil ? displayed.first(where: \.finalReply)?.id ?? displayed.last?.id : displayed.last?.id

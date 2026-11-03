@@ -48,6 +48,16 @@ semantic palette and locale follow the reader. This is presentation state only:
 content acquisition, decoding, caching and resource release are unchanged.
 See the [recording review and validation limits](../../../../../design/reading-placeholder-alignment.md).
 
+Agent execution summaries suppress a group only when every member explicitly
+reports no summary content and no positive reasoning usage is reported for that
+group. Empty reasoning and completed Hooks without output qualify; tool calls,
+other activity kinds, running/failed/cancelled Hooks, interactions and unknown
+rows remain admitted. Classification follows content and native identity rather
+than position or zero counts. Lightweight Codex/Claude history carries output
+presence independently of stripped detail. Full/Moku readers retain the original
+disclosures and detail loading. See the [investigation](../../../../../design/empty-execution-summary.md)
+for the reported Hook group, asynchronous behavior and sprint validation limits.
+
 ## Scrollbars
 
 [NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;

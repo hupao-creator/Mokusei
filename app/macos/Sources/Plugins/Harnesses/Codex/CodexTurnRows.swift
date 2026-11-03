@@ -96,7 +96,7 @@ struct CodexTurnRows: View {
                     let groupID = JSONText(codeUnits: turn.executionId.codeUnits + Array(":".utf16) + item.id.codeUnits + Array(":tools".utf16))
                     result.append(ThreadDetailRow(id: item.id, kind: .work,
                         node: AnyView(CodexToolActivityGroup(activities: group, groupID: groupID)),
-                        executionSummary: ThreadExecutionSummary(toolCalls: count)))
+                        executionSummary: ThreadExecutionSummary(toolCalls: count, hasContent: group.contains(where: activityHasContent))))
                 }
                 index = next; continue
             }
@@ -117,7 +117,8 @@ struct CodexTurnRows: View {
             if kind == .work && !workVisible { index += 1; continue }
             if let node = node(item, messages: messages, interactions: interactions, notices: notices) {
                 result.append(ThreadDetailRow(id: item.id, kind: kind, node: node,
-                    executionSummary: item.kind == "reasoning" && (!codexTrim(item.raw["content"]).codeUnits.isEmpty || executionPresence.contains(item.id, "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil,
+                    executionSummary: item.kind == "reasoning" ? ThreadExecutionSummary(
+                        reasoningSegments: reasoningHasContent(item) ? 1 : 0, hasContent: reasoningHasContent(item)) : nil,
                     finalReply: item.kind == "assistant" && index == lastAssistant))
             }
             index += 1
@@ -133,13 +134,37 @@ struct CodexTurnRows: View {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":activity:".utf16) + activity.id.codeUnits),
                 kind: .work,
                 node: AnyView(CodexActivityRow(activity: activity)), execution: .member,
-                executionSummary: ThreadExecutionSummary(toolCalls: activity.toolCall || ["command", "file", "tool", "search"].contains(activity.kind) ? 1 : 0)))
+                executionSummary: ThreadExecutionSummary(toolCalls: activity.toolCall || ["command", "file", "tool", "search"].contains(activity.kind) ? 1 : 0, hasContent: activityHasContent(activity))))
         }
         if agentDetail, !timeline.contains(where: { $0.kind == "error" }), let error = turn.error, !error.isEmpty {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":error".utf16)),
                 kind: .attention, node: AnyView(CodexContentFailure(message: error, translatesMessage: false))))
         }
         return bindThreadExecutionSource(rows: result, source: timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" || interimReplies.contains($0.id) })
+    }
+
+    private func reasoningHasContent(_ item: CodexTimelineItem) -> Bool {
+        !codexTrim(item.raw["content"]).codeUnits.isEmpty || executionPresence.contains(item.id, "content")
+    }
+
+    private func activityHasContent(_ activity: CodexActivity) -> Bool {
+        // A completed no-output Hook reports lifecycle bookkeeping. Tools and
+        // running/failed/cancelled Hooks remain execution facts, even without text.
+        activity.kind != "hook" || activity.toolCall || activity.raw["toolName"] != nil || activity.status != "completed" ||
+            activityHasOutput(activity) || executionPresence.contains(activity.id, "detail")
+    }
+
+    private func activityHasOutput(_ activity: CodexActivity) -> Bool {
+        guard !codexTrim(activity.raw["detail"]).codeUnits.isEmpty else { return false }
+        // Codex serializes hook/completed's run object as detail. Matching
+        // lifecycle metadata is not output; unknown fields remain conservative.
+        guard let detail = activity.detail,
+              let metadata = try? JSONValue(data: Data(detail.utf8)), let fields = metadata.objectValue,
+              metadata["id"] == .string(activity.id), metadata["status"] == .text("completed"),
+              fields.keys.allSatisfy({ ["id", "status", "name"].contains($0.string) }),
+              metadata["name"] == nil || metadata["name"] == .text("") || metadata["name"] == .text(activity.label)
+        else { return true }
+        return false
     }
 
     private func node(_ item: CodexTimelineItem, messages: [JSONText: CodexMessage], interactions: [JSONText: CodexInteraction], notices: [JSONText: JSONValue]) -> AnyView? {
