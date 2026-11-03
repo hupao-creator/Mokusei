@@ -248,7 +248,9 @@ public struct NativeApplicationBackgroundEditor: View {
             case (.independent, .inherit(let independent)): mode = .override(try independent ?? savedMokuSettings())
             default: mode = value.mode
             }
-            change(.init(mode: mode, enabled: choice != .off))
+            NativeSettingsChangeContext.withDiscreteChange {
+                change(.init(mode: mode, enabled: choice != .off))
+            }
         } catch { workspace.report(error) }
     }
 

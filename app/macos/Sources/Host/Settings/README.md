@@ -23,6 +23,8 @@ preserves both the underlying source mode and retained independent settings.
 Selecting either enabled choice updates enablement and source in one draft
 change; the first independent choice copies saved Moku settings only when no
 independent settings have been retained. Selecting the current choice is a no-op.
+Mode choices use the discrete-change save path rather than the text debounce,
+while preserving composition and pending-save gates.
 The save revokes active work and pauses automatic processing without removing
 existing reports, tags or pending work. Re-enabling resumes after native cleanup.
 The workspace does not prefetch execution resources for disabled roles. A
