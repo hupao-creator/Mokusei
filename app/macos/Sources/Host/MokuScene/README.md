@@ -329,7 +329,8 @@ for the production note-to-reader replay across all four Harnesses.
 ## Settings expansion
 
 Settings occupies the resident Dock's existing glass capsule, with a stable
-viewport-bounded centered 780×680-point target. Its full panel uses untinted
+viewport-bounded centered surface with a 780-point preferred width and a
+900-point minimum preferred height that grows with its active form. Its full panel uses untinted
 regular glass and keeps the persistent face mounted: the same eye view leaves
 the composer row for `NativeSettingsHeaderLayout.faceCenter` in the page's
 leading header column and returns as the shell contracts, so the character is
@@ -414,3 +415,12 @@ eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
 input/hit-region ownership. The mounted landing replay also covers Agent entry,
 continued Moku input, the panel close route and direct execution-result return.
+
+Settings starts with a 900-point preferred height and grows to the active tab's
+natural document height (including header and form insets). The shared Dock shell
+keeps its 780-point preferred width and caps both dimensions to the workspace
+viewport with 24-point margins. General, Moku, Tag and Report use this same sizing,
+including inherited and independent Harness forms. Smaller windows, app zoom,
+expanded editors and notices retain native scrolling; extreme zoom also scrolls
+the whole shell so navigation remains accessible. No scrollbar is hidden to fit
+content.

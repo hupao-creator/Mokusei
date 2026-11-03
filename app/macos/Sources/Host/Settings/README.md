@@ -104,8 +104,9 @@ neither lightens the page nor shows a light shell around it. The appearance
 preference still governs the window and every surface outside Settings.
 
 Settings is an Overview-only modal expansion of the resident Moku Dock. The
-same capsule grows toward a centered 780×680-point target, bounded by 24-point
-horizontal and 56-point vertical viewport margins. Its expanded surface uses
+same capsule grows toward a centered 780-point-wide surface, starting at a
+900-point preferred height and growing with the active form, bounded by 24-point
+viewport margins. Its expanded surface uses
 untinted system regular glass without separate sidebar/content fills; Reduce
 Transparency supplies a solid fallback. The resident character remains mounted
 and moves to the header instead of being hidden: `NativeSettingsHeaderLayout`
@@ -275,3 +276,12 @@ awaits accepted writes and rejects incomplete/composing/failed edits before a
 step can finish. `flushForQuit()` retains its retired-draft semantics.
 Harness editors report acquisition and incomplete local model choices through
 `NativeSettingsReadiness`; the Host does not inspect provider fields.
+
+Settings starts with a 900-point preferred height and grows to the active tab's
+natural document height (including header and form insets). The shared Dock shell
+keeps its 780-point preferred width and caps both dimensions to the workspace
+viewport with 24-point margins. General, Moku, Tag and Report use this same sizing,
+including inherited and independent Harness forms. Smaller windows, app zoom,
+expanded editors and notices retain native scrolling; extreme zoom also scrolls
+the whole shell so navigation remains accessible. No scrollbar is hidden to fit
+content.

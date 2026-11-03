@@ -22,6 +22,15 @@ enum NativeSettingsHeaderLayout {
     }
 }
 
+/// The scroll document reports its natural height, independent of the clipped
+/// viewport. The Dock can fit every tab without changing the form's design.
+struct NativeSettingsPreferredHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 @MainActor public struct NativeSettingsPage: View {
     public let model: NativeSettingsModel
     public let preferences: DesktopPreferences
@@ -94,7 +103,11 @@ enum NativeSettingsHeaderLayout {
                 panel(width: geometry.size.width)
                     .environment(\.nativeSettingsViewportWidth, geometry.size.width)
             }
-        }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
+        }.preference(key: NativeSettingsPreferredHeightKey.self,
+                      value: settingsContentHeight + detailOverflow
+                        + NativeSettingsHeaderLayout.topInset + NativeSettingsHeaderLayout.rowHeight
+                        + NativeSettingsHeaderLayout.bottomInset + 18 + 36)
+            .font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
             .tint(NativeAppKitPalette.settings.accent.swiftUI)
             // Settings is the dark Moku expanded into a page. The scope keeps
             // SwiftUI tokens and hosted AppKit controls dark at every window

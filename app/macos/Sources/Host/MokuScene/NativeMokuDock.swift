@@ -109,6 +109,7 @@ public struct NativeMokuDock: View {
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
     @State private var noteContentHeight: CGFloat = 0
+    @State private var settingsPreferredHeight: CGFloat = 900
     @State private var historyActionWidth: CGFloat = 110
     @State private var voiceActionWidth: CGFloat = 34
     @State private var voiceControlsFrame = CGRect.zero
@@ -351,7 +352,7 @@ public struct NativeMokuDock: View {
             let viewport = state.dockViewport(in: geometry.size)
             let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
-            let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(680, max(0, viewport.height - 112)))
+            let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(settingsPreferredHeight, max(0, viewport.height - 48)))
             let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(560, baseFrame.width) : frame.width
             let rowHeight = state.settingsExpanded ? NativeMokuCapsuleLayout.idleSize.height
                 : (rowExpanded ? surfaceHeight(width: width) : NativeMokuCapsuleLayout.idleSize.height) + noteHistoryBand(width: width)
@@ -397,6 +398,11 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
+            .onPreferenceChange(NativeSettingsPreferredHeightKey.self) { height in
+                // Keep a generous default and grow for longer Harness forms.
+                // The viewport cap leaves scrolling available on small/zoomed windows.
+                settingsPreferredHeight = max(900, ceil(height))
+            }
             .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil && !state.settingsOpen, noteButton: noteButtonRect), initial: true) { _, layout in
                 guard state.dockRouteVisible else {
                     state.dockHitRects = []
