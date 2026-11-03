@@ -17,9 +17,12 @@ closes files on the writer queue. It never joins that queue on the main thread.
 An independent background exit coordinator is armed before diagnostics cleanup:
 it schedules a 750 ms deadline for both layout and performance drains, then exits
 even if the main actor or either writer is blocked. This is an OS-scheduled
-deadline, not a hard real-time wall-clock guarantee. A second Quit still exits
-immediately without waiting for drain or helper launch; pending cleanup is best
-effort on that forced path. Late runtime-cleanup completion is idempotent and
+deadline, not a hard real-time wall-clock guarantee. A second Quit skips pending Settings/service/drain waits, but first arms an
+independent hard deadline and prepares the Runtime helper. It takes ordinary
+`exit()` so the existing atexit admission waits for actual helper launch, rather
+than enqueueing a helper immediately before `_exit`. If helper launch itself,
+stdio or exit handlers block past the deadline, `_exit` still bounds the wait;
+Runtime cleanup is then best effort. Late runtime-cleanup completion is idempotent and
 does not cut short an already requested drain. Normal exit is dispatched to the main actor to preserve AppKit/Swift
 actor assumptions in exit handlers. The watchdog remains armed through
 normal `exit()`/`atexit` too;
@@ -275,7 +278,7 @@ disk-full/permission failure and force-kill recovery were not exercised. Their
 implementation/compatibility was statically reviewed; this sprint does not claim
 those runtime or performance scenarios passed.
 
-## Review corrections and evidence (baseline 9a65b0f)
+## Historical review evidence: 0d651bd (baseline 9a65b0f)
 
 This correction is built in the detached worktree with the specified baseline.
 The shared Close implementation owns the sole Close geometry hook. Thread/Report
@@ -338,3 +341,33 @@ prelaunch/admission and late cleanup completion were reviewed statically and
 compiled in the application. Final Debug and Release application builds passed
 without warnings (9.90s incremental Debug, 177.89s Release); diff/JSON/local-link
 review also completed. No test suite, CI, hook, push or PR ran.
+
+
+## Follow-up: second-Quit Runtime helper admission
+
+The second-Quit branch now calls the production `forceExit` boundary: arm an
+independent 750ms watchdog, prepare the epoch-fenced helper, then use ordinary
+exit. The existing atexit handler waits for the helper's actual Process.run
+completion. Hard exit is reserved for the deadline; this is not enqueue-then-_exit.
+The first Quit's Settings/service path and normal diagnostic drain are unchanged.
+
+Debug and Release application builds passed without warnings (10.69s / 13.12s).
+A temporary headless executable directly linked the production Core objects,
+exit coordinator and Runtime helper; no helper preparation occurred before the
+force-exit call. With a real isolated Runtime, normal and 300ms delayed
+posix_spawn cases launched the helper and stopped the Runtime. The final delayed
+case observed spawn success before parent exit (~395ms from force entry,
+including observation overhead). A 1MiB stderr write into an unread pipe blocked
+a real exit logger at 64KiB: the watchdog ended the parent after ~823ms from force
+entry, while the helper launched and the Runtime stopped successfully.
+
+When posix_spawn itself was blocked for 10s, the deadline ended the parent before
+spawn could return. Runtime cleanup cannot be guaranteed in that hard-failure
+case; its isolated Runtime was then stopped manually. This is the unavoidable
+bounded-exit limit, rather than skipping helper launch on every early second Quit.
+Raw summaries, spawn/child markers, source hashes and unified logs are retained
+at `/private/tmp/mokusei-second-quit-z8z92_kr`.
+
+Not exercised: complete SwiftUI repeated-Quit/unsaved-Settings interactions,
+physical slow disks or a replacement-epoch race. The existing epoch fence was
+not changed. No tests, CI, hooks, push, PR or system preference changes ran.

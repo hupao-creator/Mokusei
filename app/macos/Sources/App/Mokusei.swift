@@ -132,7 +132,9 @@ private final class WorkspaceSession {
         }
     }
     func quit(discardSettings: Bool = false) {
-        guard !quitting else { NativeDiagnosticExit.terminateProcess(timedOut: true) }
+        guard !quitting else {
+            NativeDiagnosticExit.forceExit { exitCleanup?.prepareForExit() }
+        }
         quitting = true; busy = true
         quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
@@ -182,7 +184,7 @@ private final class WorkspaceSession {
         finishingQuit = true
         quitDeadline?.cancel()
         // Arm a separate background deadline before either diagnostics path.
-        // A second Quit still exits immediately, even during a slow final drain.
+        // A second Quit bypasses drains, but still admits the Runtime helper.
         let exitGate = NativeDiagnosticExit { NativeDiagnosticExit.terminateProcess(timedOut: $0) }
         exitCleanup?.prepareForExit()
         interactionServer?.stop()

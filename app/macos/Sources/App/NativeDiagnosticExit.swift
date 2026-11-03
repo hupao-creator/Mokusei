@@ -40,4 +40,14 @@ final class NativeDiagnosticExit: Sendable {
         if timedOut { _exit(EXIT_SUCCESS) }
         exit(EXIT_SUCCESS)
     }
+
+    @MainActor
+    static func forceExit(prepareForExit: () -> Void) -> Never {
+        // Arm before preparation/atexit. Ordinary exit waits for the existing
+        // Runtime helper's launch acknowledgement; _exit would skip that wait
+        // and could kill a helper merely queued by prepareForExit().
+        _ = NativeDiagnosticExit { terminateProcess(timedOut: $0) }
+        prepareForExit()
+        terminateProcess(timedOut: false)
+    }
 }
