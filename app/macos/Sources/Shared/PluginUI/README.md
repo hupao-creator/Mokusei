@@ -183,6 +183,9 @@ selection. Its accessible Button routes through the document-owned current link
 action. Attachments remeasure at actual container widths and retire their native
 hosts when the corresponding source disappears. Other Markdown surfaces and
 ordinary web links retain their existing text behavior.
+The attachment seat reserves vertical space around the compact glass capsule;
+TextKit includes that space in line layout and pointer targeting, including for
+wrapped titles, while the capsule remains aligned with the surrounding baseline.
 
 Repeated native layout/selection notifications retain a capsule's SwiftUI glass
 root when attachment, selection, locale and appearance are unchanged; its action

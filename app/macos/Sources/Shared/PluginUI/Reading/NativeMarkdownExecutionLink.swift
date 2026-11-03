@@ -15,11 +15,13 @@ final class MarkdownExecutionAttachment: NSTextAttachment {
     let harness: AnyHarnessPlugin?
     let fontSize: CGFloat
     let size: CGSize
+    let verticalInset: CGFloat
 
     @MainActor init(title: String, url: URL, harness: AnyHarnessPlugin?, fontSize: CGFloat, width: CGFloat) {
         self.title = title; self.url = url; self.harness = harness; self.fontSize = fontSize
         let font = NativeTypography.interPlatformFont(size: fontSize)
         let scale = fontSize / 13
+        verticalInset = 4 * scale
         let chrome = 57 * scale
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 3 * scale
@@ -75,8 +77,8 @@ private struct MarkdownExecutionCapsule: View {
                 Image(systemName: "arrow.up.right").font(.system(size: 10 * scale, weight: .medium))
                     .foregroundStyle(NativePalette.thread.muted.swiftUI).accessibilityHidden(true)
             }
-            .padding(.horizontal, 10 * scale).padding(.vertical, 7 * scale)
-            .frame(width: attachment.size.width, height: attachment.size.height)
+            .padding(.horizontal, 10 * scale).padding(.vertical, 3 * scale)
+            .frame(width: attachment.size.width, height: attachment.size.height - 2 * attachment.verticalInset)
             .contentShape(RoundedRectangle(cornerRadius: 15 * scale))
         }
         .buttonStyle(.plain)
@@ -137,7 +139,10 @@ extension MarkdownTextView {
             let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
             rect.origin.x += textContainerOrigin.x; rect.origin.y += textContainerOrigin.y
-            let frame = CGRect(origin: rect.origin, size: attachment.size)
+            // The seat includes breathing room so adjacent TextKit lines cannot
+            // touch the glass, including when a long title wraps inside it.
+            let frame = CGRect(x: rect.minX, y: rect.minY + attachment.verticalInset,
+                               width: attachment.size.width, height: attachment.size.height - 2 * attachment.verticalInset)
             if host.frame != frame { host.frame = frame }
             host.update(attachment, selected: NSIntersectionRange(selectedRange(), range).length > 0, locale: executionLocale,
                         dark: effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua) { [weak self] in
