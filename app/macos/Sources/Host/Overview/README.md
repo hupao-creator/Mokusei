@@ -247,7 +247,12 @@ and the reading presentation preparation cases exercise these production paths.
 Opening an Agent Thread captures its displayed card frame from the stable layout
 and live camera transform. The shared reading stack expands that shell into an
 opaque panel with equal horizontal margins, while retaining the Overview camera
-and cards beneath it. Filters and Settings collapse out of the background.
+and cards beneath it. The retained Filters and Settings chrome slides upward by
+its full height and fades out over 200ms without scaling its labels or changing
+canvas clearance, including in the narrow two-row layout. Closing reverses the
+same transition; interrupted openings retarget the mounted chrome. Hidden chrome
+remains excluded from hit testing and accessibility. Reduce Motion switches its
+visibility immediately without translation or fading.
 The production conversation content fades in unchanged; title, emoji and author
 have no separate morph. Closing refreshes the source position after viewport
 changes when available. Direct/restored entries without an eligible card use a

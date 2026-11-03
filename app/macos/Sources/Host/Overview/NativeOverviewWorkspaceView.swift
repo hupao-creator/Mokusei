@@ -45,6 +45,7 @@ public struct NativeOverviewWorkspaceView: View {
     public var clickExclusions: NativeClickExclusions
     public var chromeVisible: Bool
     public var landing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeCanvasInputRegions) private var sharedInputRegions
     @State private var localInputRegions = NativeCanvasInputRegions()
     @State private var callbackStore: NativeOverviewWorkspaceCallbackStore
@@ -127,9 +128,11 @@ public struct NativeOverviewWorkspaceView: View {
                     onSettingsFrameChange: callbacks.onSettingsFrameChange,
                     clickExclusions: clickExclusions, interactions: model.chromeInteractions)
                     .opacity(chromeVisible ? 1 : 0)
-                    .scaleEffect(x: 1, y: chromeVisible ? 1 : 0.1, anchor: .top)
+                    // Translate the retained chrome without compressing its labels or
+                    // changing the canvas clearance, including the narrow two-row layout.
+                    .offset(y: chromeVisible || reduceMotion ? 0 : -OverviewTagMetrics.chromeHeight)
                     .allowsHitTesting(chromeVisible).accessibilityHidden(!chromeVisible)
-                    .animation(.easeOut(duration: 0.2), value: chromeVisible)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: chromeVisible)
             }
         }
         .environment(\.nativeCanvasInputRegions, inputRegions)
