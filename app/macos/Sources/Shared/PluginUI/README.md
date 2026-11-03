@@ -22,8 +22,9 @@ AppKit's independent knob fading. AppKit's preferred style preserves Always,
 When Scrolling and Automatically based on input device, including live
 preference/device changes.
 Overlay knobs appear during scrolling and hide afterward, remaining available
-during native hover/drag tracking. A persistent (legacy) system style keeps its
-scroller resident so its native gutter stays reserved at every content height:
+during native hover/drag tracking. In AppKit-owned viewports and the scoped
+TextEditor/List adapter, a persistent (legacy) system style keeps its scroller
+resident so its native gutter stays reserved at every content height:
 crossing the overflow threshold neither narrows the viewport nor shifts centered
 content or rewraps text. The trackless slot and AppKit's empty knob paint nothing
 until scrolling is possible. Accessibility and device preferences take priority
@@ -31,6 +32,31 @@ over automatic hiding. No global appearance, swizzling,
 window-wide traversal, wheel monitor, preference write or replacement scroll-position model
 is involved. Light/dark, Increase Contrast, Reduce Transparency and Reduce Motion
 stay on the native rendering path; this component adds no animation.
+
+`NativeScrollView` leaves `autohidesScrollers` with SwiftUI, while still installing
+the trackless mini scrollers and following the preferred native style. SwiftUI
+must own both indicator visibility and the document-width proposal: forcing a
+resident AppKit gutter while its initial document is empty can leave loaded
+content measured at full width until the first scroll. In legacy mode its gutter
+is allocated when content becomes scrollable, rather than reserved for short
+content. Content loading can therefore change the available width; scrolling an
+already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
+The AppKit subclass and scoped control adapter retain their resident-gutter policy.
+
+The first-load investigation used a temporary visible window containing the
+production wrapper, an initially empty document, delayed message rows and a
+centered 680pt reading column. In a fresh 900pt legacy-mode window, forcing
+autohiding off left the document at 900pt until the first native wheel scroll,
+then narrowed it to 883pt and moved the column from x=110 to x=101.5. The native
+clip width stayed 887pt throughout: the scrollbar was already resident. With
+SwiftUI retaining autohiding, the loaded document measured 883pt before scrolling
+and the column stayed at x=101.5 afterward. A 420pt window retained x=18 and a
+process-local When Scrolling override retained x=110 with a 900pt overlay viewport.
+An additional local TextField retained focus and its draft across wheel scrolling
+and accepted further typing; nested explicitly hidden indicators stayed hidden.
+These were isolated manual observations, without Runtime or profile data, not a
+full fresh-app Thread Detail, composer/IME, physical-device or live-preference
+acceptance run. No tests were added or run for this investigation.
 
 The SwiftUI adapter is a noninteractive background **inside its own content**.
 Do not attach it outside a viewport: nested code/table panes must configure their

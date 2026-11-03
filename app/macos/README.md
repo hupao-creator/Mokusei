@@ -6,8 +6,9 @@ App-owned viewports and Browser frames use the
 [trackless scrollbar policy](Sources/Shared/PluginUI/README.md#scrollbars);
 Report HTML uses native thin WebKit scrollbars with automatic system colors.
 AppKit controls retain scrolling, drag tracking and accessibility; transient
-hiding follows system preferences, and persistent modes reserve their native
-gutter at every content height and keep a knob whenever scrolling is possible.
+hiding follows system preferences. AppKit-owned viewports reserve a persistent
+native gutter; SwiftUI-owned viewports retain SwiftUI's indicator visibility and
+gutter measurement, with a persistent knob whenever scrolling is possible.
 
 | Location | Responsibility |
 | --- | --- |

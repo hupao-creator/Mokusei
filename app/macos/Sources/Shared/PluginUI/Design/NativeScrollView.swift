@@ -15,7 +15,7 @@ import SwiftUI
         style == .overlay
     }
 
-    public static func apply(to scroll: NSScrollView) {
+    public static func apply(to scroll: NSScrollView, managesAutohiding: Bool = true) {
         // Install once, before selecting the style. AppKit wires the new controls
         // to its native scrolling actions; subsequent configuration keeps them.
         if let scroller = scroll.verticalScroller, !(scroller is NativeTracklessScroller) {
@@ -28,8 +28,10 @@ import SwiftUI
         // Forcing overlay here would ignore the user's persistent-scrollbar choice.
         let style = NSScroller.preferredScrollerStyle
         if scroll.scrollerStyle != style { scroll.scrollerStyle = style }
-        let autohides = autohidesScrollers(for: style)
-        if scroll.autohidesScrollers != autohides { scroll.autohidesScrollers = autohides }
+        if managesAutohiding {
+            let autohides = autohidesScrollers(for: style)
+            if scroll.autohidesScrollers != autohides { scroll.autohidesScrollers = autohides }
+        }
         for scroller in [scroll.verticalScroller, scroll.horizontalScroller].compactMap({ $0 }) {
             if scroller.controlSize != .mini { scroller.controlSize = .mini }
         }
@@ -165,7 +167,12 @@ private struct ScrollbarConfiguration: NSViewRepresentable {
     override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); configure() }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); configure() }
     @objc func configure() {
-        if let scroll = enclosingScrollView { NativeScrollbarStyle.apply(to: scroll) }
+        if let scroll = enclosingScrollView {
+            // SwiftUI owns indicator visibility and its content-width proposal.
+            // Forcing a resident gutter while the initial document is empty
+            // leaves that proposal stale until the first scroll bounds update.
+            NativeScrollbarStyle.apply(to: scroll, managesAutohiding: false)
+        }
     }
 }
 
