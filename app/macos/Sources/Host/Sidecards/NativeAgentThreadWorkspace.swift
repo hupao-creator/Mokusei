@@ -174,6 +174,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         }
+        .nativeReadingPanelViewport()
         .overlay(alignment: .topTrailing) {
             NativeReadingPanelCloseButton(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         }

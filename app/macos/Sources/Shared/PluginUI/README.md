@@ -664,6 +664,22 @@ native pointer input reaches those buttons; their labels expose a complete
 keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
+`nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
+48pt above and 22pt below for the Agent and application reading panels (Report, Git and
+Moku history). The entire viewport sits inside this frame, so persistent and
+overlay indicators, their hit regions and both scroll limits clear the rounded
+edge. The top clears Close's complete 14pt inset + 32pt hit region, including
+when an overlay scroller expands on hover. Close remains anchored to the outer
+panel. The frame reduces available
+content width by only 16pt; native gutter ownership remains as described above.
+Report uses the same host inset without rewriting document layout, overflow or
+external webpage/frame styles. Panel chrome uses the application canvas color;
+an authored Report background remains inside its viewport.
+The inset belongs to the reading card: Moku history's separate input capsule
+keeps its own layout and dark appearance. Nonpanel application pages and Browser
+Sidecards keep their existing frames; no DOM style or scroll-offset translation
+is added. Readers derive their available width/height from the inset viewport.
+
 Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
 to complete an accepted return for its current visit. Default cancellation still
 preserves the page, and recovery never revives a previously cancelled return.
