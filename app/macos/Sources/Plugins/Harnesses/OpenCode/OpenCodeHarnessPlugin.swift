@@ -29,8 +29,8 @@ public struct OpenCodeHarnessPlugin: HarnessPlugin {
     public func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View {
         OpenCodeThreadView(input: input, actions: actions, context: context).environment(\.threadAgentDetail, input.thread.moku != true && !input.thread.mokuHistory).id(input.thread.id)
     }
-    public func overviewCard(input: HarnessThreadInput, projection: OpenCodeOverviewView, actions: HarnessThreadActions, openThread: @escaping () -> Void) -> some View {
-        OpenCodeOverviewCard(input: input, projection: projection, actions: actions, openThread: openThread)
+    public func overviewCard(input: HarnessThreadInput, projection: OpenCodeOverviewView, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) -> some View {
+        OpenCodeOverviewCard(input: input, projection: projection, respond: respond, openThread: openThread)
     }
     public func threadSettings(input: HarnessThreadInput, resource: HarnessSettingsResource<OpenCodeSettingsPresentationData>, update: @escaping (OpenCodeThreadSettingsUpdate) async throws -> Void) -> some View {
         OpenCodeThreadSettingsView(input: input, resource: resource, update: update)

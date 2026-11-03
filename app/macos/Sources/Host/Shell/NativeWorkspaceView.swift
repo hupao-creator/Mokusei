@@ -630,7 +630,6 @@ public struct NativeWorkspaceView: View {
                         openThread: { id, target in presentation.open(ApplicationThreadRef(threadID: id, typeID: "agent"), target: target) },
                         openApplication: { presentation.open($0, target: $1) },
                         onSettings: { presentation.openSettings() },
-                        onFollowUp: { presentation.openFollowUp($0, draft: $1) },
                         openGitWorktree: { presentation.open(.init(threadID: $0, typeID: "git.worktree"), sourceCardID: $1) }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,

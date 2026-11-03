@@ -190,8 +190,8 @@ private struct NativeApplicationConversationCard: View {
     let openThread: () -> Void
     var body: some View {
         if let host, !lifetime.isCancelled {
-            snapshot.card(actions: host.workspace.harnessHost.actions(for: snapshot.input.thread, source: source,
-                routes: .init(openFollowUp: { host.navigation.followUp(snapshot.input.thread.id, $0) })), openThread: openThread)
+            snapshot.card(respond: host.workspace.harnessHost.actions(for: snapshot.input.thread, source: source).respond,
+                openThread: openThread)
         }
     }
 }

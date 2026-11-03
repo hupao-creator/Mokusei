@@ -39,13 +39,13 @@ public func codexExecutionTokenUsage(thread: HarnessThread, executionID: JSONTex
 public struct CodexOverviewCard: View {
     public let input: HarnessThreadInput
     public let projection: CodexOverviewView
-    public let actions: HarnessThreadActions
+    public let respondToInteraction: (HarnessRespondRequest) async throws -> Void
     public let openThread: () -> Void
     @Environment(\.locale) private var locale
 
     public init(input: HarnessThreadInput, projection: CodexOverviewView,
-                actions: HarnessThreadActions, openThread: @escaping () -> Void) {
-        self.input = input; self.projection = projection; self.actions = actions; self.openThread = openThread
+                respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) {
+        self.input = input; self.projection = projection; self.respondToInteraction = respond; self.openThread = openThread
     }
 
     public var body: some View {
@@ -70,7 +70,7 @@ public struct CodexOverviewCard: View {
                 case .strings(let texts): .multiple(texts)
                 }
             }
-            try await actions.respond(HarnessRespondRequest(interactionID: interactionID,
+            try await respondToInteraction(HarnessRespondRequest(interactionID: interactionID,
                 actionID: request.actionId, answers: answers))
         }
     }

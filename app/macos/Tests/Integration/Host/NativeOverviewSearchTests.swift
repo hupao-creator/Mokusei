@@ -28,7 +28,7 @@ import MokuseiPluginUI
         .init(footprint: .init(columns: 1, rows: 1), structureKey: "fixture", excerpt: "", view: input.thread.title.string)
     }
     func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View { EmptyView() }
-    func overviewCard(input: HarnessThreadInput, projection: String, actions: HarnessThreadActions,
+    func overviewCard(input: HarnessThreadInput, projection: String, respond: @escaping (HarnessRespondRequest) async throws -> Void,
                       openThread: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(projection).font(.system(size: 18, weight: .semibold))

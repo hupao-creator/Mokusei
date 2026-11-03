@@ -129,7 +129,7 @@ struct LandingSurface: View {
                             harness: .init(brandKey: fixture.dispatchHarness.descriptor.id.string,
                                 label: fixture.dispatchHarness.descriptor.displayName.string, logoSource: fixture.dispatchHarness.logoSource),
                             model: fixture.dispatchModel, effort: "High", excerpt: fixture.prompt),
-                            presentation: fixture.card, onFollowUp: { fixture.scene.setInputOpen(true) },
+                            presentation: fixture.card,
                             status: .init(kind: .running, label: "进行中"), emoji: "🌱",
                             harnessLogo: fixture.dispatchHarness.logo(size: 12))
                     }

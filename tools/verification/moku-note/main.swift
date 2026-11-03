@@ -85,7 +85,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
         .init(footprint: .init(columns: 1, rows: 1), structureKey: "fixture", excerpt: "", view: "")
     }
     func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View { EmptyView() }
-    func overviewCard(input: HarnessThreadInput, projection: String, actions: HarnessThreadActions, openThread: @escaping () -> Void) -> some View { EmptyView() }
+    func overviewCard(input: HarnessThreadInput, projection: String, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) -> some View { EmptyView() }
     func threadSettings(input: HarnessThreadInput, resource: HarnessSettingsResource<JSONValue>, update: @escaping (JSONValue) async throws -> Void) -> some View { EmptyView() }
     func harnessSettings(props: HarnessSettingsProps<JSONValue, JSONValue>) -> some View { EmptyView() }
 }

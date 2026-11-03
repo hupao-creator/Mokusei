@@ -125,9 +125,9 @@ struct CardMaterialsSurface: View {
                          completed: Bool, plan: Bool = false, logo: AnyView, cloudPalette: NativeCloudPalette) -> some View {
         HarnessThreadCard(identity: .init(title: title, harness: brand, model: model, effort: "High",
             runtime: .init(startedAt: 0, endedAt: 362_000),
-            excerpt: completed ? "Completed work stays visible. Emoji, completion mark and follow-up remain production controls."
+            excerpt: completed ? "Completed work stays visible. Emoji and completion marks remain production status content."
                                : "Running work keeps its semantic content, cloud and controls on a static card surface."),
-            presentation: plan ? fixture.plan : fixture.standard, onFollowUp: {},
+            presentation: plan ? fixture.plan : fixture.standard,
             status: completed ? .init(kind: .completed, label: "Completed", terminal: .completed)
                               : .init(kind: .running, label: "Running"),
             emoji: emoji, harnessLogo: logo)

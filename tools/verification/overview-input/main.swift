@@ -263,7 +263,7 @@ private struct ReplaySurface: View {
                 .background { NativeCloudLoading(palette: .blueIndigo, isAnimating: !replay.detail) }
                 .overlay(alignment: .topTrailing) {
                     ThreadCardProviderStatus(label: "Completed conversation", brandKey: "codex", emoji: "📏",
-                                             terminal: .completed, onFollowUp: { replay.detail = true })
+                                             terminal: .completed)
                         .padding(.top, 12).padding(.trailing, 17)
                 }
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("replay-canvas")) } action: { replay.frames[item.id] = $0; replay.frameTimes[item.id] = ProcessInfo.processInfo.systemUptime }

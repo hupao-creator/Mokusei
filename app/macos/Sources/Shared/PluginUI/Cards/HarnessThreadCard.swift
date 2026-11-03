@@ -6,7 +6,6 @@ public struct HarnessThreadCard: View {
     public let presentation: ThreadCardPresentation
     private let onRespond: ThreadCardInterventionHandler?
     private let onOpen: (() -> Void)?
-    private let onFollowUp: (() -> Void)?
     private let slots: [String: AnyView]
     private let interventionDetails: AnyView?
     private let interventionActionLabel: ((ThreadCardDecisionAction) -> String)?
@@ -17,18 +16,17 @@ public struct HarnessThreadCard: View {
     private let harnessLogo: AnyView?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var cloudAnimationsEnabled
-    @State private var hovered = false
 
     public init(identity: ThreadCardIdentityView, presentation: ThreadCardPresentation,
                 onRespond: ThreadCardInterventionHandler? = nil, onOpen: (() -> Void)? = nil,
-                onFollowUp: (() -> Void)? = nil, slots: [String: AnyView] = [:],
+                slots: [String: AnyView] = [:],
                 interventionDetails: AnyView? = nil,
                 interventionActionLabel: ((ThreadCardDecisionAction) -> String)? = nil,
                 status: ThreadCardStatusProjection? = nil, emoji: String? = nil,
                 providerStatus: AnyView? = nil, state: AnyView? = nil, harnessLogo: AnyView? = nil,
                 onInterventionResponse: ThreadCardInterventionHandler? = nil, onOpenThread: (() -> Void)? = nil) {
         self.identity = identity; self.presentation = presentation; self.onRespond = onInterventionResponse ?? onRespond
-        self.onOpen = onOpenThread ?? onOpen; self.onFollowUp = onFollowUp; self.slots = slots
+        self.onOpen = onOpenThread ?? onOpen; self.slots = slots
         self.interventionDetails = interventionDetails; self.interventionActionLabel = interventionActionLabel
         self.status = status; self.emoji = emoji; self.providerStatus = providerStatus; self.state = state
         self.harnessLogo = harnessLogo
@@ -44,7 +42,7 @@ public struct HarnessThreadCard: View {
                 ThreadCardIdentity(identity: identity, projection: presentation.projection.identity,
                                    expanded: presentation.composition.identitySize.rows > 1,
                                    status: status, emoji: emoji, providerStatus: providerStatus, state: state,
-                                   harnessLogo: harnessLogo, onFollowUp: onFollowUp)
+                                   harnessLogo: harnessLogo)
                     .frame(width: span(presentation.composition.identitySize.cols, cell.width),
                            height: span(presentation.composition.identitySize.rows, cell.height), alignment: .topLeading)
                 switch presentation.composition {
@@ -77,9 +75,7 @@ public struct HarnessThreadCard: View {
             ThreadCardCloud(running: status?.kind == .running)
                 .environment(\.threadCardCloudAnimationsEnabled, cloudAnimationsEnabled && !(identity.initialResponse != nil && reduceMotion))
         }
-        .environment(\.threadCardHovered, hovered)
         .environment(\.threadCardUsesFlatMaterials, true)
-        .onHover { hovered = $0 }
         .animation(.easeOut(duration: 0.22), value: presentation.key)
     }
     private func span(_ count: Int, _ cell: CGFloat) -> CGFloat { CGFloat(count) * cell + CGFloat(max(0, count - 1)) * 16 }
@@ -109,7 +105,6 @@ private struct ThreadCardIdentity: View {
     let providerStatus: AnyView?
     let state: AnyView?
     let harnessLogo: AnyView?
-    let onFollowUp: (() -> Void)?
     @Environment(\.locale) private var locale
     @Environment(\.threadCardProviderColor) private var providerColor
     private var cornerClearance: CGFloat { ThreadCardProviderStatus.diameter + 8 }
@@ -170,11 +165,11 @@ private struct ThreadCardIdentity: View {
                 if let providerStatus { providerStatus }
                 else if let status {
                     ThreadCardProviderStatus(label: status.providerLabel(identity.harness?.label, locale: locale), brandKey: identity.harness?.brandKey ?? "", emoji: emoji,
-                                             terminal: status.terminal, onFollowUp: onFollowUp)
+                                             terminal: status.terminal)
                 } else if let providerStatus = identity.providerStatus {
-                    ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji, onFollowUp: onFollowUp)
-                } else if emoji != nil || onFollowUp != nil {
-                    ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji, onFollowUp: onFollowUp)
+                    ThreadCardProviderStatus(label: providerStatus, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
+                } else if emoji != nil {
+                    ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
                 }
             }.padding(.top, 12).padding(.trailing, 17)
         }
@@ -319,14 +314,6 @@ public struct ThreadCardUsage: View {
             }
         }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.muted.swiftUI)
             .fixedSize(horizontal: true, vertical: false)
-    }
-}
-
-private struct ThreadCardHoveredKey: EnvironmentKey { static let defaultValue = false }
-extension EnvironmentValues {
-    var threadCardHovered: Bool {
-        get { self[ThreadCardHoveredKey.self] }
-        set { self[ThreadCardHoveredKey.self] = newValue }
     }
 }
 

@@ -17,7 +17,7 @@ public struct ClaudeHarnessPlugin: HarnessPlugin {
     public func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation? { claudeMoku(try ClaudeState(input.thread.sessionState)) }
     public func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View { ClaudeThreadView(input: input, actions: actions, context: context)
             .environment(\.threadAgentDetail, input.thread.moku != true && !input.thread.mokuHistory) }
-    public func overviewCard(input: HarnessThreadInput, projection: ClaudeOverviewView, actions: HarnessThreadActions, openThread: @escaping () -> Void) -> some View { ClaudeOverviewCard(input: input, projection: projection, actions: actions, openThread: openThread) }
+    public func overviewCard(input: HarnessThreadInput, projection: ClaudeOverviewView, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) -> some View { ClaudeOverviewCard(input: input, projection: projection, respond: respond, openThread: openThread) }
     public func threadSettings(input: HarnessThreadInput, resource: HarnessSettingsResource<ClaudeSettingsPresentationData>, update: @escaping (ClaudeThreadSettingsUpdate) async throws -> Void) -> some View { ClaudeThreadSettingsView(input: input, resource: resource, update: update) }
     public func harnessSettings(props: HarnessSettingsProps<ClaudeHarnessSettings, ClaudeSettingsPresentationData>) -> some View { ClaudeHarnessSettingsView(props: props) }
 }

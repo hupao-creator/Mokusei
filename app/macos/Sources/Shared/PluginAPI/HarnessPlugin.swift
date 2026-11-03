@@ -141,8 +141,10 @@ public protocol HarnessPlugin {
     func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation?
     @ViewBuilder func threadView(input: HarnessThreadInput, actions: HarnessThreadActions,
                                  context: HarnessRenderContext) -> ThreadBody
+    /// Overview may answer an existing interaction, but never originate task input.
     @ViewBuilder func overviewCard(input: HarnessThreadInput, projection: Overview,
-                                   actions: HarnessThreadActions, openThread: @escaping () -> Void) -> OverviewBody
+                                   respond: @escaping (HarnessRespondRequest) async throws -> Void,
+                                   openThread: @escaping () -> Void) -> OverviewBody
     @ViewBuilder func threadSettings(input: HarnessThreadInput, resource: HarnessSettingsResource<SettingsPresentation>,
                                      update: @escaping (ThreadSettingsUpdate) async throws -> Void) -> ThreadSettingsBody
     @ViewBuilder func harnessSettings(props: HarnessSettingsProps<HarnessSettings, SettingsPresentation>) -> HarnessSettingsBody

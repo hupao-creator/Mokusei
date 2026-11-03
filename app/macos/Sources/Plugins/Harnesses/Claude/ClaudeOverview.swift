@@ -177,16 +177,16 @@ private func claudeCardProjection(turn: ClaudeTurn?, tasks: [JSONValue], pending
 public struct ClaudeOverviewCard: View {
     let input: HarnessThreadInput
     let projection: ClaudeOverviewView
-    let actions: HarnessThreadActions
+    let respondToInteraction: (HarnessRespondRequest) async throws -> Void
     let openThread: () -> Void
     @Environment(\.locale) private var locale
-    public init(input: HarnessThreadInput, projection: ClaudeOverviewView, actions: HarnessThreadActions, openThread: @escaping () -> Void) { self.input = input; self.projection = projection; self.actions = actions; self.openThread = openThread }
+    public init(input: HarnessThreadInput, projection: ClaudeOverviewView, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) { self.input = input; self.projection = projection; self.respondToInteraction = respond; self.openThread = openThread }
     public var body: some View {
         HarnessThreadCard(identity: projection.identity, presentation: projection.presentation, onRespond: { response in
             let state = try ClaudeState(input.thread.sessionState)
             guard let interaction = projection.pendingPublicInteraction,
                   claudePublicInteractions(state, input.thread.observation).values.contains(interaction), interaction.actions.contains(where: { $0.id == response.actionId }) else { throw PluginContractError(claudeLocalized("该请求已失效。", locale: locale)) }
-            try await actions.respond(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId, answers: response.answers?.mapValues { value in
+            try await respondToInteraction(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId, answers: response.answers?.mapValues { value in
                 switch value { case .string(let text): .text(text); case .strings(let texts): .multiple(texts) }
             }))
         }, onOpen: openThread, slots: workflowSlots,

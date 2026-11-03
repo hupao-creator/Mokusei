@@ -56,19 +56,18 @@ public struct ThreadCardStatus: View {
     public let brandKey: String
     public let label: String
     public let emoji: String?
-    public let onFollowUp: (() -> Void)?
     @Environment(\.locale) private var locale
     public init(observation: ThreadPublicObservation, brandKey: String, label: String,
-                emoji: String? = nil, onFollowUp: (() -> Void)? = nil) {
+                emoji: String? = nil) {
         self.observation = observation; self.brandKey = brandKey; self.label = label
-        self.emoji = emoji; self.onFollowUp = onFollowUp
+        self.emoji = emoji
     }
     public var body: some View {
         let status = threadCardStatus(observation)
         HStack(alignment: .top, spacing: 8) {
             if status.showsState { ThreadCardTaskState(status: status) }
             ThreadCardProviderStatus(label: status.providerLabel(label, locale: locale), brandKey: brandKey, emoji: emoji,
-                                     terminal: status.terminal, onFollowUp: onFollowUp)
+                                     terminal: status.terminal)
         }
     }
 }

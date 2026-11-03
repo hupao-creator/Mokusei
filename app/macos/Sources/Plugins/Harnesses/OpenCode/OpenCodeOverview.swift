@@ -89,12 +89,12 @@ private func ocOverviewMessage(_ messages: [OpenCodeMessage], sessionID: JSONTex
 public struct OpenCodeOverviewCard: View {
     public let input: HarnessThreadInput
     public let projection: OpenCodeOverviewView
-    public let actions: HarnessThreadActions
+    public let respondToInteraction: (HarnessRespondRequest) async throws -> Void
     public let openThread: () -> Void
     @Environment(\.locale) private var locale
     @State private var failure: String?
-    public init(input: HarnessThreadInput, projection: OpenCodeOverviewView, actions: HarnessThreadActions, openThread: @escaping () -> Void) {
-        self.input = input; self.projection = projection; self.actions = actions; self.openThread = openThread
+    public init(input: HarnessThreadInput, projection: OpenCodeOverviewView, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) {
+        self.input = input; self.projection = projection; self.respondToInteraction = respond; self.openThread = openThread
     }
     public var body: some View {
         let execution = input.thread.observation.latestExecution
@@ -117,7 +117,7 @@ public struct OpenCodeOverviewCard: View {
                   let interaction = current.interactions.first(where: { $0.id == projection.pendingInteractionID }) else { throw OpenCodeError.expiredInteraction }
             if projection.openForm && response.actionId == "open-native-form" { openThread(); return }
             guard interaction.actions.contains(where: { $0.id == response.actionId }) else { throw OpenCodeError.expiredInteraction }
-            try await actions.respond(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId,
+            try await respondToInteraction(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId,
                 answers: response.answers.map { answers in answers.mapValues { switch $0 { case .string(let value): .text(value); case .strings(let values): .multiple(values) } } }))
         } catch { failure = error.localizedDescription; throw error }
     }

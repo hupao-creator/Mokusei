@@ -134,7 +134,7 @@ struct ThreadCardInitialResponseTests {
                 let cardWidth = 360 * CGFloat(snapshot.envelope.footprint.columns) + 16 * CGFloat(snapshot.envelope.footprint.columns - 1)
                 let cardHeight = 200 * CGFloat(snapshot.envelope.footprint.rows) + 16 * CGFloat(snapshot.envelope.footprint.rows - 1)
                 for dark in [false, true] {
-                    let window = FirstResponseNative.window(snapshot.card(actions: Self.actions, openThread: {})
+                    let window = FirstResponseNative.window(snapshot.card(respond: { _ in }, openThread: {})
                         .frame(width: cardWidth, height: cardHeight)
                         .background(NativePalette.overview.surface.swiftUI)
                         .environment(\.locale, Locale(identifier: dark ? "zh-Hans" : "en"))
@@ -186,10 +186,6 @@ struct ThreadCardInitialResponseTests {
             if let directory { try FirstResponseNative.capture(visibleRoot, to: URL(fileURLWithPath: directory).appendingPathComponent(name + ".png")) }
         }
         #expect(FirstResponseNative.text(visibleRoot).joined().contains("AGENT_CONTENT_TAKES_OVER"))
-    }
-    private static var actions: HarnessThreadActions {
-        .init(interrupt: {}, respond: { _ in }, invokeHarnessExtension: { _, _ in .null }, forkThread: { _ in "fork" },
-              openExternal: { _ in }, openFollowUp: { _ in })
     }
 }
 

@@ -1,87 +1,29 @@
 import ImageIO
 import SwiftUI
 
-private struct ThreadCardFollowUpKey: EnvironmentKey {
-    static let defaultValue: (@MainActor () -> Void)? = nil
-}
-public extension EnvironmentValues {
-    var threadCardFollowUp: (@MainActor () -> Void)? {
-        get { self[ThreadCardFollowUpKey.self] }
-        set { self[ThreadCardFollowUpKey.self] = newValue }
-    }
-}
-/// The host owns follow-up eligibility and routing; the corner owns its affordance.
-public struct ThreadCardFollowUpProvider<Content: View>: View {
-    private let onOpen: (@MainActor () -> Void)?
-    private let content: Content
-    public init(onOpen: (@MainActor () -> Void)?, @ViewBuilder content: () -> Content) {
-        self.onOpen = onOpen; self.content = content()
-    }
-    public var body: some View { content.environment(\.threadCardFollowUp, onOpen) }
-}
-
 public struct ThreadCardProviderStatus: View {
     static let diameter: CGFloat = 44
     public let label: String
     public let brandKey: String
     public let emoji: String?
     public let terminal: ThreadCardTerminalStatus?
-    public let onFollowUp: (() -> Void)?
-    public init(label: String, brandKey: String, emoji: String? = nil,
-                terminal: ThreadCardTerminalStatus? = nil, onFollowUp: (() -> Void)? = nil) {
-        self.label = label; self.brandKey = brandKey; self.emoji = emoji; self.terminal = terminal; self.onFollowUp = onFollowUp
-    }
-    public var body: some View {
-        ThreadCardProviderStatusBody(label: label, brandKey: brandKey,
-            emoji: emoji, terminal: terminal, onFollowUp: onFollowUp)
-            .frame(width: Self.diameter, height: Self.diameter)
-    }
-}
-
-private struct ThreadCardProviderStatusBody: View {
-    private static let diameter = ThreadCardProviderStatus.diameter
-    public let label: String
-    public let brandKey: String
-    public let emoji: String?
-    public let terminal: ThreadCardTerminalStatus?
-    public let onFollowUp: (() -> Void)?
-    @Environment(\.threadCardFollowUp) private var inheritedFollowUp
-    @Environment(\.locale) private var locale
-    @Environment(\.threadCardHovered) private var cardHovered
     @Environment(\.threadCardProviderColor) private var providerColor
-    @State private var hovered = false
-    @FocusState private var focused: Bool
     public init(label: String, brandKey: String, emoji: String? = nil,
-                terminal: ThreadCardTerminalStatus? = nil, onFollowUp: (() -> Void)? = nil) {
-        self.label = label; self.brandKey = brandKey; self.emoji = emoji; self.terminal = terminal; self.onFollowUp = onFollowUp
+                terminal: ThreadCardTerminalStatus? = nil) {
+        self.label = label; self.brandKey = brandKey; self.emoji = emoji; self.terminal = terminal
     }
-    private var action: (() -> Void)? { onFollowUp ?? inheritedFollowUp }
     public var body: some View {
-        ZStack {
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if let emoji, !emoji.isEmpty { Text(emoji).font(.system(size: 21)) }
-                    else { NativeIcon(name: "MessageCircle", size: 20) }
-                }.frame(width: Self.diameter, height: Self.diameter)
-                if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }
-            }
-            .opacity(action != nil && (hovered || focused || cardHovered) ? 0 : 1)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(label)
-            if let action {
-                Button(action: action) { NativeIcon(name: "Send", size: 16).frame(width: Self.diameter, height: Self.diameter) }
-                    .buttonStyle(.plain).focused($focused)
-                    .opacity(hovered || focused || cardHovered ? 1 : 0)
-                    .accessibilityLabel(cardLocalized("发送消息", locale))
-                    .help(cardLocalized("发送消息", locale))
-            }
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let emoji, !emoji.isEmpty { Text(emoji).font(.system(size: 21)) }
+                else { NativeIcon(name: "MessageCircle", size: 20) }
+            }.frame(width: Self.diameter, height: Self.diameter)
+            if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, interactive: action != nil))
-        .contentShape(Circle()).onHover { hovered = $0 }
-        .focusable(action == nil).focused($focused)
-        .overlay(Circle().stroke(focused ? NativePalette.overview.ink.swiftUI : .clear, lineWidth: 1).padding(-3))
-        .animation(.easeInOut(duration: 0.14), value: hovered || focused || cardHovered)
+        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
         .help(label)
     }
     private var tone: Color {
@@ -95,19 +37,23 @@ private struct ThreadCardProviderStatusBody: View {
 }
 private struct ThreadCardBadgeMaterial: ViewModifier {
     let hasEmoji: Bool
-    let interactive: Bool
     @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder func body(content: Content) -> some View {
-        // Emoji keeps its glass when it swaps to Send; other card surfaces stay flat.
-        if flatMaterials && (!hasEmoji || reduceTransparency) {
+        if flatMaterials && hasEmoji {
+            if reduceTransparency {
+                content.background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+            } else {
+                content.glassEffect(.clear, in: Circle())
+            }
+        } else if flatMaterials {
             content
                 .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
                 .overlay(Circle().stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)
                     .allowsHitTesting(false).accessibilityHidden(true))
         } else {
-            content.glassEffect(.regular.interactive(interactive), in: Circle())
+            content.glassEffect(.regular, in: Circle())
         }
     }
 }

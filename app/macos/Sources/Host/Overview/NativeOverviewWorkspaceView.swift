@@ -13,17 +13,16 @@ public struct NativeOverviewWorkspaceCallbacks {
     /// Settings bounds in the logical client viewport, with a top-left origin.
     public let onSettingsWithOrigin: ((CGRect) -> Void)?
     public let onSettingsFrameChange: ((CGRect?) -> Void)?
-    public let onFollowUp: ((JSONText, JSONText) -> Void)?
     public let onRestart: (() -> Void)?
     public init(openThread: @escaping (JSONText, HarnessReadingTarget?) -> Void,
                 openApplication: @escaping (ApplicationThreadRef, HarnessReadingTarget?) -> Void,
-                onSettings: @escaping () -> Void, onFollowUp: ((JSONText, JSONText) -> Void)? = nil,
+                onSettings: @escaping () -> Void,
                 onRestart: (() -> Void)? = nil,
                 onSettingsWithOrigin: ((CGRect) -> Void)? = nil,
                 onSettingsFrameChange: ((CGRect?) -> Void)? = nil,
                 openGitWorktree: ((JSONText, String) -> Void)? = nil) {
         self.openThread = openThread; self.openApplication = openApplication; self.openGitWorktree = openGitWorktree
-        self.onSettings = onSettings; self.onFollowUp = onFollowUp; self.onRestart = onRestart
+        self.onSettings = onSettings; self.onRestart = onRestart
         self.onSettingsWithOrigin = onSettingsWithOrigin; self.onSettingsFrameChange = onSettingsFrameChange
     }
 }
@@ -196,7 +195,7 @@ private struct NativeOverviewWorkspaceCard: View {
             switch model.snapshot(for: item) {
             case .harness(let snapshot):
                 let thread = snapshot.input.thread
-                snapshot.card(actions: actions(thread), openThread: { open(thread.id) })
+                snapshot.card(respond: { try await respond($0, thread: thread) }, openThread: { open(thread.id) })
                     .environment(\.openGitWorktree, { id in
                         guard model.canvasState.allowsActivation(cardID: item.id),
                               let current = model.workspace.catalog.thread(thread.id),
@@ -244,19 +243,10 @@ private struct NativeOverviewWorkspaceCard: View {
         callbacks.current.openThread(id, nil)
         Task { await model.recordUserAction(kind: "open-thread", thread: .init(threadID: id, typeID: JSONText("agent"))) }
     }
-    private func actions(_ thread: HarnessThread) -> HarnessThreadActions {
-        let actions = model.workspace.harnessHost.actions(for: thread)
-        return .init(interrupt: actions.interrupt, respond: { request in
-            model.canvasState.beginInteraction(cardID: item.id)
-            defer { model.canvasState.endInteraction(cardID: item.id) }
-            try await actions.respond(request)
-        }, invokeHarnessExtension: actions.invokeHarnessExtension, forkThread: actions.forkThread,
-        openExternal: actions.openExternal, openFollowUp: { draft in
-            guard model.canvasState.allowsActivation(cardID: item.id),
-                  let current = model.workspace.catalog.thread(thread.id), current.archived != true else { return }
-            if let onFollowUp = callbacks.current.onFollowUp { onFollowUp(thread.id, draft) }
-            else { actions.openFollowUp(draft) }
-        })
+    private func respond(_ request: HarnessRespondRequest, thread: HarnessThread) async throws {
+        model.canvasState.beginInteraction(cardID: item.id)
+        defer { model.canvasState.endInteraction(cardID: item.id) }
+        try await model.workspace.harnessHost.actions(for: thread).respond(request)
     }
     private func applicationCard(plugin: AnyApplicationThreadPlugin, snapshot: ApplicationOverviewSnapshot) -> AnyView {
         do {

@@ -9,13 +9,13 @@ public final class HarnessOverviewSnapshot {
     public let input: HarnessThreadInput
     public let availableColumns: Int
     public let envelope: HarnessOverviewEnvelope
-    private let render: (HarnessThreadActions, @escaping () -> Void) -> AnyView
+    private let render: (@escaping (HarnessRespondRequest) async throws -> Void, @escaping () -> Void) -> AnyView
     fileprivate init(input: HarnessThreadInput, availableColumns: Int, envelope: HarnessOverviewEnvelope,
-                     render: @escaping (HarnessThreadActions, @escaping () -> Void) -> AnyView) {
+                     render: @escaping (@escaping (HarnessRespondRequest) async throws -> Void, @escaping () -> Void) -> AnyView) {
         self.input = input; self.availableColumns = availableColumns; self.envelope = envelope; self.render = render
     }
-    public func card(actions: HarnessThreadActions, openThread: @escaping () -> Void) -> AnyView {
-        render(actions, openThread)
+    public func card(respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) -> AnyView {
+        render(respond, openThread)
     }
 }
 
@@ -65,8 +65,8 @@ private final class HarnessProjectionCache<Plugin: HarnessPlugin> {
               !projection.envelope.structureKey.codeUnits.isEmpty else {
             throw PluginContractError("Harness produced an invalid overview footprint")
         }
-        let snapshot = HarnessOverviewSnapshot(input: input, availableColumns: columns, envelope: projection.envelope) { [plugin] actions, open in
-            AnyView(plugin.overviewCard(input: input, projection: projection.view, actions: actions, openThread: open))
+        let snapshot = HarnessOverviewSnapshot(input: input, availableColumns: columns, envelope: projection.envelope) { [plugin] respond, open in
+            AnyView(plugin.overviewCard(input: input, projection: projection.view, respond: respond, openThread: open))
         }
         // Keep at most one revision per width and bounded recent threads. Old
         // choreography snapshots survive only while their owning host retains them.

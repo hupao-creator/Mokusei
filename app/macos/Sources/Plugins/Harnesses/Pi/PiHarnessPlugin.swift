@@ -37,8 +37,8 @@ public struct PiHarnessPlugin: HarnessPlugin {
     public func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View {
         PiThreadView(input: input, actions: actions, context: context).environment(\.threadAgentDetail, input.thread.moku != true && !input.thread.mokuHistory).id(input.thread.id)
     }
-    public func overviewCard(input: HarnessThreadInput, projection: PiOverviewView, actions: HarnessThreadActions, openThread: @escaping () -> Void) -> some View {
-        PiOverviewCard(input: input, projection: projection, actions: actions, openThread: openThread)
+    public func overviewCard(input: HarnessThreadInput, projection: PiOverviewView, respond: @escaping (HarnessRespondRequest) async throws -> Void, openThread: @escaping () -> Void) -> some View {
+        PiOverviewCard(input: input, projection: projection, respondToInteraction: respond, openThread: openThread)
     }
     public func threadSettings(input: HarnessThreadInput, resource: HarnessSettingsResource<JSONValue>, update: @escaping (JSONValue) async throws -> Void) -> some View {
         PiThreadSettingsView(input: input, resource: resource, update: update).id(input.thread.id)

@@ -2,6 +2,12 @@
 
 [HarnessPlugin.swift](HarnessPlugin.swift) and [HarnessRegistry.swift](HarnessRegistry.swift) define native Harness registration and presentation. [HarnessThread.swift](HarnessThread.swift) carries public thread state/actions; each plugin interprets its own serialized projection. Shared hosts do not parse another Harness's private timeline.
 
+Overview cards receive only a responder for already-pending permission/question
+interactions and a callback to open the reading page. They do not receive
+`HarnessThreadActions` or a follow-up draft route, so Overview cannot originate
+steer/send input for a selected Thread. Reading surfaces retain the full thread
+action contract; Sidecard and Runtime message capabilities are independent.
+
 Moku's `ThreadNote` projection includes a text revision, an independent `readingRevision` CAS counter and at most one server-authored `lastExposure` with the exact earlier text. The strict decoder rejects malformed or inconsistent evidence. An exposure means the UI completed eligible foreground viewport coverage; it is not user approval or proof of understanding. The Host derives its update indicator from this projection, never from a local seen file.
 
 `HarnessThread.mokuHistory` identifies a previous Moku conversation retained

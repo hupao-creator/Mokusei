@@ -100,9 +100,7 @@ struct RollingNumberCellTests {
 private struct ProjectedUsageHost: View {
     let probe: ProjectedUsageProbe
     var body: some View {
-        probe.snapshot.card(actions: HarnessThreadActions(interrupt: {}, respond: { _ in },
-            invokeHarnessExtension: { _, _ in .null }, forkThread: { _ in "unused" },
-            openExternal: { _ in }, openFollowUp: { _ in }), openThread: {})
+        probe.snapshot.card(respond: { _ in }, openThread: {})
             .onAppear { probe.appearances += 1 }
             .environment(\.threadCardTextRasterScale, 2)
             .frame(width: 360, height: 200)

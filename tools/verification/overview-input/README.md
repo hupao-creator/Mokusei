@@ -23,10 +23,11 @@ For a Computer Use launch, compile with `--build-only` and open the resulting
 app path printed by the runner (or stored in `app-path.txt`). Add `--interactive` to leave the
 fixture open for manual input and rendering checks. The fixture includes the
 production canvas, camera, flat card surfaces, cloud shader, reading stack and multiline editor.
-Its card includes the production emoji badge, completion mark and Send
-action. Check that the circle is visible above the card material and remains
-visible when hovering reveals Send; click Send to open detail. In interactive
-mode, Command-Shift-D toggles light/dark appearance without system changes.
+Its card includes the production emoji badge and completion mark. Check that
+the clear glass circle and emoji remain readable without an added border;
+hovering leaves the emoji visible and exposes no Send action. Use Open conversation
+to open detail. In interactive mode, Command-Shift-D toggles light/dark appearance
+without system changes.
 
 The build driver still reads this checkout and uses its SwiftPM cache. The GUI
 fixture uses copied resources and an embedded WebRTC framework, with a relative
@@ -171,8 +172,8 @@ preference is created or simulated.
 The capture mode takes four full, lossless WindowServer PNGs:
 light/dark appearance × two deliberately different fixed backdrops. Its 1200×760
 own-process window includes production Codex, Claude, Pi and OpenCode
-`HarnessThreadCard` content/logos, Report, plan, completion marks, emoji/Follow-up
-controls, Chrome and the actual bottom-centered `NativeMokuDock`. Fixture data
+`HarnessThreadCard` content/logos, Report, plan, completion marks, emoji badges,
+Chrome and the actual bottom-centered `NativeMokuDock`. Fixture data
 is deterministic and no Runtime starts. Cloud motion is paused and the Dock's
 scene phase is inactive; their rendering remains present.
 
@@ -198,7 +199,7 @@ those facts and resolved palette references; `inspection.json` retains all
 pixel regions and measurements. Files are copied to the requested output only
 after replay and independent inspection succeed. ScreenCaptureKit may require
 Screen Recording consent. Review all four images for text/control legibility,
-emoji glass and Send readability, static terminal/plan appearance, rounded corners
+borderless clear emoji glass, static terminal/plan appearance, rounded corners
 and cloud color.
 
 These static captures do not prove moving native decorations. The existing

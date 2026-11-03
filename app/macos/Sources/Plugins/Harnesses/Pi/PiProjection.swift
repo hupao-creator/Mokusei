@@ -136,7 +136,7 @@ func piMokuAnchor(_ state: PiState, _ value: JSONValue?) -> JSONText? {
 struct PiOverviewCard: View {
     let input: HarnessThreadInput
     let projection: PiOverviewView
-    let actions: HarnessThreadActions
+    let respondToInteraction: (HarnessRespondRequest) async throws -> Void
     let openThread: () -> Void
     @State private var failure: String?
     var body: some View {
@@ -168,7 +168,7 @@ struct PiOverviewCard: View {
             let answers = response.answers?.mapValues { answer -> HarnessResponseAnswer in
                 switch answer { case .string(let value): .text(value); case .strings(let values): .multiple(values) }
             }
-            try await actions.respond(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId, answers: answers))
+            try await respondToInteraction(HarnessRespondRequest(interactionID: interaction.id, actionID: response.actionId, answers: answers))
         } catch { failure = error.localizedDescription }
     }
 }

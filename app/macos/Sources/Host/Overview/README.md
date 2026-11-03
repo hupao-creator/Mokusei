@@ -22,12 +22,24 @@ All Overview cards, including Agent Threads and Report, use opaque palette
 surfaces and a soft border. Completed cards retain a static completion tint.
 Shell and semantic planes contain no Liquid Glass containers. The card boundary
 supplies the shared flat-material policy to provider badges without emoji,
-terminal marks and plan highlights. Agent Thread emoji badges use native regular
-Liquid Glass, including their Send state; Reduce Transparency retains the existing
-static palette fill and border. Card shells and all other card surfaces stay flat.
+terminal marks and plan highlights. Agent Thread emoji badges use native clear
+Liquid Glass without an added border; Reduce Transparency retains only the static
+palette fill. Card shells and all other card surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
-scan, hover, focus, input and spatial-animation ownership are unchanged.
+scan and spatial-animation ownership are unchanged.
+
+Overview cannot originate steer/send input for a specified Thread. Emoji badges
+are status content: they have no Send swap, button, keyboard focus stop or draft
+callback. The Harness overview renderer receives only an existing-interaction
+response callback plus ordinary reading navigation, rather than full thread
+actions. Permission/question responses remain available; those are bound to a
+current pending interaction. There is no per-card message editor, text/file drop
+target or send shortcut. Canvas drag/scroll/pinch, search, Return-to-open and
+card activation keep their navigation behavior. The independent Moku composer,
+reading-page Conversation/Browser send flows and general Runtime APIs remain
+owned by their existing boundaries; Moku operation decorations are observations,
+not card send controls.
 
 ## Card update isolation
 

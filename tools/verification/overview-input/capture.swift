@@ -42,7 +42,7 @@ private struct Surface: View {
             NativeOverviewCanvas(items: fixture.items, sceneKey: fixture.selection, state: fixture.state,
                                  selectionID: fixture.selection) { item in
                 HarnessThreadCard(identity: .init(title: "真实卡片 \(item.id)", model: "GPT-6", excerpt: "卡片、角标和文字应当一起消失。\nProduction card transition regression."),
-                    presentation: fixture.presentation, onFollowUp: {},
+                    presentation: fixture.presentation,
                     status: .init(kind: .completed, label: "已完成", terminal: .completed), emoji: "📏")
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("capture")) } action: { fixture.recordFrame(item.id, $0) }
                     .onAppear { fixture.appearances[item.id, default: 0] += 1 }
