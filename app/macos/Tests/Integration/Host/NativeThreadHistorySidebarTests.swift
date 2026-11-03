@@ -106,7 +106,7 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.state("turn")?["visibleRowCount"] == .integer(1))
         fixture.runningID = "turn-4"
         try await SwiftUIReplay.wait { fixture.control("visibility.work") == nil && fixture.state("turn")?["visibleRowCount"] == .integer(2) }
-        #expect(fixture.control("visibility.userMessages") != nil)
+        #expect(fixture.control("visibility.userMessages") == nil)
         #expect(fixture.control("execution.group") == nil)
         if summarized {
             let content = try #require(window.contentView)
@@ -149,8 +149,7 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.appearances["turn-2"] == appearances)
         #expect(fixture.mounted == ["turn-2", "turn-4"])
         try await fixture.perform("visibility.work")
-        try await fixture.perform("visibility.userMessages")
-        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(3))
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
         let summary = "执行过程 · 4 段思考 · 7 次工具调用"
         let content = try #require(window.contentView)
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: content).contains(summary) }
@@ -158,7 +157,7 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.control("execution.group") == nil)
         try await fixture.perform("visibility.work")
         try await SwiftUIReplay.wait { !SwiftUIReplay.text(in: content).contains(summary) }
-        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
+        #expect(fixture.state("turn")?["visibleRowCount"] == .integer(1))
         try await fixture.perform("visibility.work")
         try await SwiftUIReplay.wait { SwiftUIReplay.text(in: content).contains(summary) }
         try await fixture.perform("history.close")
@@ -249,11 +248,11 @@ struct NativeThreadHistorySidebarTests {
             try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.hasPrefix("Author:") } }
             #expect(SwiftUIReplay.text(in: root).contains("检查历史轮次与目录导航"))
             #expect(fixture.control("visibility.work")?["enabled"] == .bool(true))
-            #expect(fixture.control("visibility.userMessages")?["enabled"] == .bool(true))
+            #expect(fixture.control("visibility.userMessages") == nil)
             if fixture.longAuthor {
                 #expect(SwiftUIReplay.text(in: root).contains { $0.contains(String(repeating: "long-runtime-model-", count: 12)) })
             }
-            try await fixture.perform("visibility.userMessages")
+            try await fixture.perform("visibility.work")
             #expect(fixture.state("turn")?["visibleRowCount"] == .integer(2))
             try await fixture.perform("history.open", value: .text("turn-2"))
             try await fixture.perform("history.close")
@@ -281,9 +280,9 @@ struct NativeThreadHistorySidebarTests {
             let text = SwiftUIReplay.text(in: cardRoot)
             #expect(!text.contains("检查历史轮次与目录导航"))
             #expect(!text.contains("📝"))
-            #expect(text.contains("User prompt"))
+            #expect(!text.contains("User prompt"))
             #expect(text.contains("Execution details"))
-            #expect(execution.state("turn")?["visibleRowCount"] == .integer(3))
+            #expect(execution.state("turn")?["visibleRowCount"] == .integer(2))
             #expect(execution.control("visibility.work") == nil)
             #expect(execution.control("visibility.userMessages") == nil)
             #expect(execution.state("turn.author")?["model"] == .text(execution.longAuthor

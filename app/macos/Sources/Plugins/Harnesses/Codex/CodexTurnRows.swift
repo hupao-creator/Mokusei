@@ -5,6 +5,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 struct CodexTurnRows: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let turn: CodexTurn
     let active: Bool
     let state: CodexState
@@ -52,12 +53,20 @@ struct CodexTurnRows: View {
     }
 
     private var rows: [ThreadDetailRow] {
-        let timeline = turn.timeline.filter { $0.kind != "plan" }
         let messages = firstByID(turn.messages)
+        let notices = Dictionary(turn.notices.map { ($0.codexIdentity("id"), $0) }, uniquingKeysWith: { first, _ in first })
+        // Reader policy only. Error severity is an explicit exception to the
+        // allowlist, including rejected follow-ups after a completed execution.
+        let timeline = turn.timeline.filter {
+            if !agentDetail { return $0.kind != "plan" }
+            return switch $0.kind {
+            case "assistant", "reasoning", "activity", "interaction", "review", "context-compaction", "error": true
+            case "notice": notices[$0.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error"
+            default: false
+            }
+        }
         let interactions = firstByID(turn.interactions)
         let activities = firstByID(turn.activities)
-        var notices: [JSONText: JSONValue] = [:]
-        for notice in turn.notices where notices[notice.codexIdentity("id")] == nil { notices[notice.codexIdentity("id")] = notice }
         let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
         var result: [ThreadDetailRow] = []
         var index = 0
@@ -67,13 +76,18 @@ struct CodexTurnRows: View {
                 var group: [CodexActivity] = []
                 var next = index
                 while next < timeline.count && timeline[next].kind == "activity" {
-                    if let activity = activities[timeline[next].raw.codexIdentity("activityId")] { group.append(activity) }
+                    if let activity = activities[timeline[next].raw.codexIdentity("activityId")] {
+                        // Keep failed records independent of hidden successful work.
+                        if agentDetail, let first = group.first,
+                           (first.status == "failed") != (activity.status == "failed") { break }
+                        group.append(activity)
+                    }
                     next += 1
                 }
                 if !group.isEmpty {
                     let count = Set(group.filter { $0.toolCall || ["command", "file", "tool", "search"].contains($0.kind) }.map(\.id)).count
                     let groupID = JSONText(codeUnits: turn.executionId.codeUnits + Array(":".utf16) + item.id.codeUnits + Array(":tools".utf16))
-                    result.append(ThreadDetailRow(id: item.id, kind: .work,
+                    result.append(ThreadDetailRow(id: item.id, kind: agentDetail && group.contains { $0.status == "failed" } ? .attention : .work,
                         node: AnyView(CodexToolActivityGroup(activities: group, groupID: groupID)),
                         executionSummary: ThreadExecutionSummary(toolCalls: count)))
                 }
@@ -81,8 +95,11 @@ struct CodexTurnRows: View {
             }
             if let node = node(item, messages: messages, interactions: interactions, notices: notices) {
                 let kind: ThreadDetailRow.Kind
+                let failure = item.kind == "error" ||
+                    (item.kind == "notice" && notices[item.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error") ||
+                    (agentDetail && item.kind == "assistant" && item.status == "failed")
                 if item.kind == "user-message" { kind = .user }
-                else if (turn.status != "completed" && (item.kind == "error" || (item.kind == "notice" && notices[item.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error"))) ||
+                else if (failure && (agentDetail || turn.status != "completed")) ||
                     (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
                 else if item.kind == "review" || (item.kind == "assistant" && turn.status != "waiting-input" && index == lastAssistant) { kind = .content }
                 else { kind = .work }
@@ -91,6 +108,21 @@ struct CodexTurnRows: View {
                     finalReply: item.kind == "assistant" && index == lastAssistant))
             }
             index += 1
+        }
+        // Older snapshots can retain diagnostics without their timeline marker.
+        let referencedNotices = Set(timeline.filter { $0.kind == "notice" }.map { $0.raw.codexIdentity("noticeId") })
+        for notice in turn.notices where agentDetail && notice["level"]?.stringValue == "error" && !referencedNotices.contains(notice.codexIdentity("id")) {
+            result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":notice:".utf16) + notice.codexIdentity("id").codeUnits),
+                kind: .attention, node: AnyView(CodexContentFailure(message: notice["message"]?.stringValue ?? "", translatesMessage: false))))
+        }
+        let referencedActivities = Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") })
+        for activity in turn.activities where agentDetail && activity.status == "failed" && !referencedActivities.contains(activity.id) {
+            result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":activity:".utf16) + activity.id.codeUnits),
+                kind: .attention, node: AnyView(CodexActivityRow(activity: activity))))
+        }
+        if agentDetail, !timeline.contains(where: { $0.kind == "error" }), let error = turn.error, !error.isEmpty {
+            result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":error".utf16)),
+                kind: .attention, node: AnyView(CodexContentFailure(message: error, translatesMessage: false))))
         }
         return bindThreadExecutionSource(rows: result, source: timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" })
     }
@@ -117,7 +149,7 @@ struct CodexTurnRows: View {
                 respond: { actionID, answers in respond(interaction: interaction, actionID: actionID, answers: answers) }))
         case "notice":
             guard let notice = notices[item.raw.codexIdentity("noticeId")] else { return nil }
-            return AnyView(CodexNotice(message: notice["message"]?.stringValue ?? ""))
+            return agentDetail ? AnyView(CodexContentFailure(message: notice["message"]?.stringValue ?? "", translatesMessage: false)) : AnyView(CodexNotice(message: notice["message"]?.stringValue ?? ""))
         case "review":
             guard let review = turn.review, !review.isEmpty else { return nil }
             return AnyView(CodexReviewDisclosure {

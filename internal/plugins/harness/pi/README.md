@@ -14,6 +14,10 @@ The native Moku settings model menu retains the exact provider/model tuple in a
 length-prefixed selection identity. Slashes inside either native identifier do
 not collide or select another provider.
 
+Deferred turn projections retain failed assistant and error-tool payloads so
+errors remain readable when ordinary execution work is hidden. Canonical
+history and full/execution projections retain their existing data.
+
 ## Native ownership
 
 - RPC framing and native event decoding remain ordered, with an 8 MiB record

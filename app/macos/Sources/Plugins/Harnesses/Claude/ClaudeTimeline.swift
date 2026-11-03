@@ -5,6 +5,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 struct ClaudeTimelineEntry: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let item: JSONValue
     var turn: ClaudeTurn?
     var active = false
@@ -15,7 +16,7 @@ struct ClaudeTimelineEntry: View {
     @State private var reviewExpanded = true
     var body: some View {
         switch item.claudeKind {
-        case "user-message": userMessage
+        case "user-message": if !agentDetail { userMessage }
         case "assistant": VStack(alignment:.leading,spacing:8) {
             if turn == nil { Text("Mokusei").font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
             markdown(item["content"]?.stringValue ?? "")
@@ -71,6 +72,7 @@ struct ClaudeTimelineEntry: View {
 }
 struct ClaudeActivities: View {
     let activities: [JSONValue]
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.locale) private var locale
     var body: some View {
         if activities.count == 1 { ClaudeActivity(activity: activities[0]) }
@@ -78,7 +80,7 @@ struct ClaudeActivities: View {
             HarnessToolActivityGroup(groupID: JSONText(codeUnits: Array("claude-activities:".utf16) + first.claudeID("id").codeUnits),
                 items: activities.map { ThreadActivitySlot(id: $0.claudeID("id"), node: AnyView(ClaudeActivity(activity: $0)), running: $0["status"]?.stringValue == "running") },
                 summary: AnyView(Text(claudeLocalized("执行活动", locale: locale))), summaryLabel: summaryLabel,
-                summaryState: AnyView(ClaudeActivityGlyph(status: groupStatus)), defaultExpanded: activities.contains { $0["status"]?.stringValue == "running" })
+                summaryState: AnyView(ClaudeActivityGlyph(status: groupStatus)), defaultExpanded: activities.contains { $0["status"]?.stringValue == "running" || agentDetail && $0["status"]?.stringValue == "failed" })
         }
     }
     private var groupStatus: String { ["running","failed","cancelled"].first(where: { status in activities.contains { $0["status"]?.stringValue == status } }) ?? "completed" }
@@ -108,6 +110,7 @@ struct ClaudeActivityGlyph: View {
     }
 }
 struct ClaudeForkHistory: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionGroup) private var executionGroup
     let items: [JSONValue]
     let actions: HarnessThreadActions
@@ -134,20 +137,25 @@ struct ClaudeForkHistory: View {
         }
         if let lastAssistant { final.insert(lastAssistant) }
         let rows: [ThreadDetailRow] = selected.compactMap { item in
-            let kind = claudeRowKind(item, final: final.contains(item.claudeID("id")))
-            guard (kind != .user || visibility.userMessages), (kind != .work || visibility.work && visibility.workTurnID == nil) else { return nil }
+            guard !agentDetail || claudeDetailIncludes(item) else { return nil }
+            let kind = claudeRowKind(item, final: final.contains(item.claudeID("id")), agentDetail: agentDetail)
+            guard (kind != .user || !agentDetail && visibility.userMessages), (kind != .work || visibility.work && visibility.workTurnID == nil) else { return nil }
             return ThreadDetailRow(id: item.claudeID("id"), kind: kind, node: AnyView(ClaudeTimelineEntry(item: item, actions: actions, context: context)), executionSummary: item.claudeKind == "reasoning" ? ThreadExecutionSummary(reasoningSegments: 1) : item["activity"]?["toolName"] != nil ? ThreadExecutionSummary(toolCalls: 1) : nil)
         }
-        return bindThreadExecutionSource(rows: rows, source: items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
+        return bindThreadExecutionSource(rows: rows, source: agentDetail ? selected.filter(claudeDetailIncludes) : items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
     }
 }
 struct ClaudeBackgroundTasks: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let tasks: [JSONValue]
     @Environment(\.threadDetailVisibility) private var visibility
     @Environment(\.locale) private var locale
-    var body: some View { if visibility.work {
-        DisclosureGroup(claudeLocalized("后台任务", locale: locale)) {
-            ForEach(Array(tasks.enumerated()), id: \.offset) { _, task in
+    private var visibleTasks: [JSONValue] {
+        visibility.work ? tasks : tasks.filter { agentDetail && $0["status"]?.stringValue == "failed" }
+    }
+    var body: some View { if !visibleTasks.isEmpty {
+        DisclosureGroup(claudeLocalized("后台任务", locale: locale) + (agentDetail && visibleTasks.contains { $0["status"]?.stringValue == "failed" } ? " · " + claudeLocalized("失败", locale: locale) : "")) {
+            ForEach(Array(visibleTasks.enumerated()), id: \.offset) { _, task in
                 HStack { Text(task["description"]?.stringValue ?? ""); Spacer(); Text(task["status"]?.stringValue ?? "").foregroundStyle(NativePalette.thread.muted.swiftUI) }
             }
         }.font(NativeTypography.inter(size: 12)).padding(.vertical, 16)

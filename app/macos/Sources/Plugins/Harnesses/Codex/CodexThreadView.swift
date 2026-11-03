@@ -7,6 +7,7 @@ import SwiftUI
 /// Thread scope is a directory. Only visible opaque rows acquire their complete
 /// native content; neither overview previews nor manifests become transcript.
 public struct CodexThreadView: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     public let input: HarnessThreadInput
     public let actions: HarnessThreadActions
     public let context: HarnessRenderContext
@@ -46,7 +47,7 @@ public struct CodexThreadView: View {
                     readable: ownIDs.contains(turn.executionId)), node: AnyView(turnView(turn, state: state)))
         } + supplementalRows(state)
         ThreadConversation(threadId: input.thread.id,
-            title: codexDocumentTitle(input.thread, state: state), icon: codexDocumentEmoji(input.thread),
+            title: agentDetail ? input.thread.title.string : codexDocumentTitle(input.thread, state: state), icon: codexDocumentEmoji(input.thread),
             rows: rows, readingTarget: readingTarget(state),
             running: input.thread.observation.latestExecution?.status == .running,
             runningTurnId: runningTurnID(state), context: context,

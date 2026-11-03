@@ -38,6 +38,7 @@ struct ThreadAuthorLabel: View {
 }
 
 struct ThreadReadingHeader: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let author: JSONValue?
     var showsAuthor = true
     var showsFilters = true
@@ -67,8 +68,8 @@ struct ThreadReadingHeader: View {
     }
     private var filters: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) { if showsWorkFilter { workButton }; usersButton }.fixedSize()
-            VStack(alignment: .leading, spacing: 4) { if showsWorkFilter { workButton }; usersButton }
+            HStack(spacing: 10) { if showsWorkFilter { workButton }; if !agentDetail { usersButton } }.fixedSize()
+            VStack(alignment: .leading, spacing: 4) { if showsWorkFilter { workButton }; if !agentDetail { usersButton } }
         }
     }
     private var workButton: some View {

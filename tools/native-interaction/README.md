@@ -199,7 +199,7 @@ controls reject operations.
 | `history.sidebar` | TOC selected/current/focused row identities and total entry count |
 | `history.open`, `history.current`, `history.close` | Mounted TOC entry, current-turn and document Back callbacks |
 | `turn.author` | Resolved author shown below the active document title |
-| `visibility.userMessages`, `visibility.work` | Current document's independent visibility values and toggles |
+| `visibility.work` | Current document's execution visibility value and toggle; Agent detail never offers a user-message toggle |
 | `loadEarlier`, `jumpLatest` | Mounted earlier-window and latest buttons |
 | `timeline` | Top, content height, viewport, following, visible row IDs/count, first index and total count |
 | `execution.group`, `activity`, `disclosure` | Nested execution/tool/thinking disclosure values and toggles |

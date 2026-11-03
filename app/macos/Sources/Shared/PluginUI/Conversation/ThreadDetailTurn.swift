@@ -50,6 +50,16 @@ public struct ThreadReasoningUsage: Sendable {
     }
 }
 
+private struct ThreadAgentDetailKey: EnvironmentKey { static let defaultValue = true }
+public extension EnvironmentValues {
+    /// Moku's current/archived conversations reuse the Harness reader without
+    /// adopting the ordinary Agent detail content policy.
+    var threadAgentDetail: Bool {
+        get { self[ThreadAgentDetailKey.self] }
+        set { self[ThreadAgentDetailKey.self] = newValue }
+    }
+}
+
 public struct ThreadDetailVisibility: Sendable, Equatable {
     public var userMessages: Bool
     public var work: Bool
@@ -107,6 +117,7 @@ public struct ThreadDetailTurn: View {
 
     @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.locale) private var locale
 
     public init(id: JSONText, author: JSONValue? = nil, rows: [ThreadDetailRow],
@@ -128,7 +139,11 @@ public struct ThreadDetailTurn: View {
     private var filteredRows: [ThreadDetailRow] {
         let workVisible = visibility.work && (visibility.workTurnID == nil || visibility.workTurnID == id)
         return rows.filter {
-            ($0.kind != .user || visibility.userMessages) && ($0.kind != .work || workVisible)
+            switch $0.kind {
+            case .content, .attention: true
+            case .work: workVisible
+            case .user: !agentDetail && visibility.userMessages
+            }
         }
     }
 
@@ -162,7 +177,7 @@ public struct ThreadDetailTurn: View {
             .nativeReadingObservation("turn", role: "turn", value: .object([
                 "executionId": .string(id), "state": .text("ready"), "rowCount": .integer(rows.count),
                 "visibleRowCount": .integer(filteredRows.count), "status": .text(status),
-                "userMessages": .bool(visibility.userMessages), "work": .bool(visibility.work)
+                "userMessages": .bool(!agentDetail && visibility.userMessages), "work": .bool(visibility.work)
             ]))
             .preference(key: ThreadAuthorPreference.self, value: [id: author ?? .null])
             .id(id)

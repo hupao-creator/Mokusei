@@ -676,7 +676,14 @@ func (StateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 				}
 				return ""
 			}
-			hideActivity := func(activity map[string]any) { delete(activity, "detail"); activity["label"] = "" }
+			hideActivity := func(activity map[string]any) {
+				// Failed records render outside the deferred work summary.
+				if activity["status"] == "failed" {
+					return
+				}
+				delete(activity, "detail")
+				activity["label"] = ""
+			}
 			for _, turn := range turns {
 				hide(turn.ExecutionID+":unreferenced:reasoning", "content", turn.Reasoning)
 				turn.Reasoning = hide(turn.ExecutionID, "reasoning", turn.Reasoning)

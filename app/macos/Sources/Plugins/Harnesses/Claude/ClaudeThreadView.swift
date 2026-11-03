@@ -5,6 +5,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 public struct ClaudeThreadView: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let input: HarnessThreadInput
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
@@ -37,7 +38,7 @@ public struct ClaudeThreadView: View {
         }
         if !state.tasks.isEmpty { rows.append(ThreadConversationRow(id: "native-background-tasks", createdAt: input.thread.updatedAt, node: AnyView(ClaudeBackgroundTasks(tasks: state.tasks)))) }
         let anchor = claudeReplyAnchor(state, message: input.readingTarget?.message) ?? (resolvedAnchor?.request == input.readingTarget?.requestID ? resolvedAnchor?.anchor : nil)
-        return ThreadConversation(threadId: input.thread.id, title: claudeDocumentTitle(input.thread, state: state), icon: claudeEmoji(input.thread), rows: rows,
+        return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : claudeDocumentTitle(input.thread, state: state), icon: claudeEmoji(input.thread), rows: rows,
             readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor, position: $0.position,
                 follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == $0.executionID) },
             running: input.thread.observation.latestExecution?.status == .running,
@@ -116,6 +117,7 @@ private struct ClaudeLoadedRow: View {
     switch context.presentation { case .main(let excluded): !excluded.contains(id); case .execution(let execution): execution == id }
 }
 struct ClaudeTurnView: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionPresence) private var executionPresence
     let turn: ClaudeTurn
     let active: Bool
@@ -137,7 +139,7 @@ struct ClaudeTurnView: View {
                 cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active)
     }
     private var rows: [ThreadDetailRow] {
-        let timeline = claudeProjectTimeline(turn).filter { $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)
+        let timeline = claudeProjectTimeline(turn).filter { agentDetail ? claudeDetailIncludes($0) : $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)
         let final = waiting ? nil : timeline.last(where: { $0.claudeKind == "assistant" && $0["status"]?.stringValue != "streaming" && !claudeTrim($0["content"]).isEmpty })?.claudeID("id")
         var rows: [ThreadDetailRow] = [], index = 0
         while index < timeline.count {
@@ -148,15 +150,19 @@ struct ClaudeTurnView: View {
             if item.claudeKind == "activity" {
                 var activities = [item["activity"]!]
                 while index < timeline.count, timeline[index].claudeKind == "activity", !starts.contains(timeline[index].claudeID("id")) {
+                    if agentDetail,
+                       (activities[0]["status"]?.stringValue == "failed") != (timeline[index]["activity"]?["status"]?.stringValue == "failed") { break }
                     activities.append(timeline[index]["activity"]!); index += 1
                 }
-                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count)))
+                rows.append(ThreadDetailRow(id: item.claudeID("id"), kind: agentDetail && activities.contains { $0["status"]?.stringValue == "failed" } ? .attention : .work, node: AnyView(ClaudeActivities(activities: activities)), executionSummary: ThreadExecutionSummary(toolCalls: activities.filter { $0["toolName"] != nil }.count)))
             } else { rows.append(detail(item, final: item.claudeID("id") == final)) }
         }
         let kinds = Set(timeline.map(\.claudeKind))
-        let referencedPrompts = Set(timeline.filter { $0.claudeKind == "user-message" }.compactMap { $0["promptIndex"]?.intValue })
-        for (index, _) in turn.prompts.enumerated() where !referencedPrompts.contains(index) && !turn.internalIndexes.contains(index) {
-            rows.append(detail(synthetic("prompt:\(index)", kind: "user-message", fields: ["promptIndex": .integer(index)]), final: false))
+        if !agentDetail {
+            let referencedPrompts = Set(timeline.filter { $0.claudeKind == "user-message" }.compactMap { $0["promptIndex"]?.intValue })
+            for (index, _) in turn.prompts.enumerated() where !referencedPrompts.contains(index) && !turn.internalIndexes.contains(index) {
+                rows.append(detail(synthetic("prompt:\(index)", kind: "user-message", fields: ["promptIndex": .integer(index)]), final: false))
+            }
         }
         func appendFallback(_ fallbackKinds: [String]) {
         for kind in fallbackKinds where !kinds.contains(kind) {
@@ -172,13 +178,23 @@ struct ClaudeTurnView: View {
         appendFallback(["reasoning","assistant"])
         let activityIDs = Set(timeline.filter { $0.claudeKind == "activity" }.map { $0["activity"]!.claudeID("id") })
         let remaining = turn.activities.filter { !activityIDs.contains($0.claudeID("id")) }
-        if !remaining.isEmpty { rows.append(ThreadDetailRow(id: synthetic("activities", kind: "activity").claudeID("id"), kind: .work, node: AnyView(ClaudeActivities(activities: remaining)), execution: .member, executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count))) }
-        for (kind, values) in [("interaction",turn.interactions),("notice",turn.notices)] {
+        if agentDetail {
+            for activity in remaining {
+                let row = detail(syntheticID(JSONText(codeUnits: Array("activity:".utf16) + activity.claudeID("id").codeUnits), kind: "activity", fields: ["activity": activity]), final: false)
+                rows.append(ThreadDetailRow(id: row.id, kind: row.kind, node: row.node, execution: .member,
+                    executionSummary: ThreadExecutionSummary(toolCalls: activity["toolName"] == nil ? 0 : 1)))
+            }
+        } else if !remaining.isEmpty {
+            rows.append(ThreadDetailRow(id: synthetic("activities", kind: "activity").claudeID("id"), kind: .work,
+                node: AnyView(ClaudeActivities(activities: remaining)), execution: .member,
+                executionSummary: ThreadExecutionSummary(toolCalls: remaining.filter { $0["toolName"] != nil }.count)))
+        }
+        for (kind, values) in [("interaction",turn.interactions),("notice",turn.notices.filter { !agentDetail || $0["level"]?.stringValue == "error" })] {
             let referenced = Set(timeline.filter { $0.claudeKind == kind }.map { $0[kind]!.claudeID("id") })
             for value in values where !referenced.contains(value.claudeID("id")) { rows.append(detail(syntheticID(JSONText(codeUnits: Array((kind + ":").utf16) + value.claudeID("id").codeUnits), kind: kind, fields: [kind:value]), final: false)) }
         }
         appendFallback(["error","review","context-compaction"])
-        return bindThreadExecutionSource(rows: rows, source: turn.timeline.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
+        return bindThreadExecutionSource(rows: rows, source: agentDetail ? timeline : turn.timeline.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
     }
     private func synthetic(_ id: String, kind: String, fields: [String: JSONValue] = [:]) -> JSONValue {
         syntheticID(JSONText(id), kind: kind, fields: fields)
@@ -187,18 +203,28 @@ struct ClaudeTurnView: View {
         claudeObject(fields.merging(["id": .string(JSONText(codeUnits: turn.id.codeUnits + Array(":unreferenced:".utf16) + id.codeUnits)), "kind": .text(kind), "createdAt": .number(turn.createdAt)], uniquingKeysWith: { _, new in new }))
     }
     private func detail(_ item: JSONValue, final: Bool) -> ThreadDetailRow {
-        ThreadDetailRow(id: item.claudeID("id"), kind: claudeRowKind(item, final: final),
+        ThreadDetailRow(id: item.claudeID("id"), kind: claudeRowKind(item, final: final, agentDetail: agentDetail),
             node: AnyView(ClaudeTimelineEntry(item: item, turn: turn, active: active, publicInteractions: publicInteractions, actions: actions, context: context)),
             executionSummary: item.claudeKind == "reasoning" && (!claudeTrim(item["content"]).isEmpty || executionPresence.contains(item.claudeID("id"), "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil, finalReply: final && item.claudeKind == "assistant")
     }
 }
-func claudeRowKind(_ item: JSONValue, final: Bool) -> ThreadDetailRow.Kind {
+// Shared by current turns, legacy fallbacks and inherited transcripts. Keep
+// this at the reader boundary; notices remain available to other consumers.
+func claudeDetailIncludes(_ item: JSONValue) -> Bool {
+    switch item.claudeKind {
+    case "assistant", "reasoning", "activity", "interaction", "review", "context-compaction", "error": true
+    case "notice": item["notice"]?["level"]?.stringValue == "error"
+    default: false
+    }
+}
+func claudeRowKind(_ item: JSONValue, final: Bool, agentDetail: Bool = true) -> ThreadDetailRow.Kind {
     switch item.claudeKind {
     case "user-message": .user
-    case "assistant": final ? .content : .work
+    case "assistant": agentDetail && item["status"]?.stringValue == "failed" ? .attention : final ? .content : .work
+    case "activity": agentDetail && item["activity"]?["status"]?.stringValue == "failed" ? .attention : .work
     case "interaction": item["interaction"]?["status"]?.stringValue == "pending" ? .attention : .work
     case "error": .attention
-    case "notice": item["notice"]?["level"]?.stringValue == "info" ? .work : .attention
+    case "notice": !agentDetail && item["notice"]?["level"]?.stringValue == "info" ? .work : .attention
     case "review": .content
     default: .work
     }

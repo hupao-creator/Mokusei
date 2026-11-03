@@ -161,7 +161,7 @@ class ReadingDriver:
         return after
 
     def stale_probe(self):
-        control = self.control("visibility.userMessages")
+        control = self.control("visibility.work")
         self.trace.write({"kind": "reading.stale-probe", "controlId": control["id"]})
         action = {"name": "reading.control", "controlId": control["id"], "handle": control["handle"],
                   "operation": "activate", "value": None}
@@ -179,7 +179,6 @@ class ReadingDriver:
         initial = self.wait()
         if not self.controls(initial, "conversation"):
             raise AssertionError("No production conversation state is mounted")
-        self.toggle("visibility.userMessages", True)
         self.toggle("visibility.work", True)
         self.expand()
         self.settings_rejected()
@@ -191,7 +190,6 @@ class ReadingDriver:
                 raise AssertionError("Historical row opened the wrong destination")
             if self.value(after, "history.sidebar")["selectedRow"] != entry["value"]:
                 raise AssertionError("Sidebar selection did not follow the opened turn")
-            self.toggle("visibility.userMessages", True)
             self.toggle("visibility.work", True)
             self.expand()
             self.settings_rejected()

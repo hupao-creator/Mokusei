@@ -5,6 +5,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 public struct OpenCodeThreadView: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionPresence) private var executionPresence
     @Environment(\.threadExecutionGroup) private var executionGroup
     public let input: HarnessThreadInput
@@ -48,7 +49,7 @@ public struct OpenCodeThreadView: View {
                     ?? (resolvedAnchor?.request == target.requestID ? resolvedAnchor?.anchor : nil), position: target.position,
                 follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == target.executionID)
         }
-        return ThreadConversation(threadId: input.thread.id, title: ocDocumentTitle(input.thread, state: state), icon: ocEmoji(input.thread.metadataState),
+        return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : ocDocumentTitle(input.thread, state: state), icon: ocEmoji(input.thread.metadataState),
             rows: rows, readingTarget: target, running: latest?.status == .running,
             runningTurnId: input.thread.observation.isExecutionActive ? latest?.executionID : nil, context: context,
             renderRow: context.content == .manifest ? { key in
@@ -65,7 +66,7 @@ public struct OpenCodeThreadView: View {
                 if executionGroup == nil {
                     Text(ocLocalized("来自源 OpenCode 会话的分支历史", locale: locale)).font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                 }
-                ThreadDetailTurn(id: key, rows: ocMessageRows(inherited, sessionID: session, finalReplies: ocFinalReplyIDs(inherited, sessionID: session, splitTurns: true, presence: executionPresence), actions: actions, context: context, locale: locale, presence: executionPresence),
+                ThreadDetailTurn(id: key, rows: ocMessageRows(inherited, sessionID: session, finalReplies: ocFinalReplyIDs(inherited, sessionID: session, splitTurns: true, presence: executionPresence), actions: actions, context: context, locale: locale, presence: executionPresence, agentDetail: agentDetail),
                     createdAt: input.thread.createdAt, updatedAt: input.thread.createdAt, status: ocLocalized("OpenCode 分支历史（只读）", locale: locale), active: false)
             }
         } else if let execution = state.executions.first(where: { $0.executionID == key }), ocExecutionVisible(key, context: context) {
@@ -124,6 +125,7 @@ private struct OpenCodeLoadedRow: View {
     private struct AnchorRequest: Hashable { let request: JSONText?; let anchor: JSONText? }
 }
 private struct OpenCodeTurn: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionPresence) private var executionPresence
     let execution: PublicExecution
     let state: OpenCodeState
@@ -138,7 +140,7 @@ private struct OpenCodeTurn: View {
         let waiting = current && latest?.status == .waitingForUser
         let usage = ocExecutionUsage(messages, auxiliary: state.auxiliary.filter { $0.ocText("executionId") == execution.executionID })
         var rows = ocMessageRows(messages, sessionID: state.nativeSessionID,
-            finalReplies: waiting ? [] : ocFinalReplyIDs(messages, sessionID: state.nativeSessionID, splitTurns: false, presence: executionPresence), actions: actions, context: context, locale: locale, presence: executionPresence)
+            finalReplies: waiting ? [] : ocFinalReplyIDs(messages, sessionID: state.nativeSessionID, splitTurns: false, presence: executionPresence), actions: actions, context: context, locale: locale, presence: executionPresence, agentDetail: agentDetail)
         if execution.status == .failed, let error = execution.error {
             rows.append(.init(id: ocJoinedID([execution.executionID, ":error"]), kind: .attention, node: AnyView(OpenCodeFailure(message: error.string))))
         }
@@ -176,9 +178,9 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
     }
     if let reply { replies.insert(reply) }; return replies
 }
-@MainActor private func ocMessageRows(_ messages: [OpenCodeMessage], sessionID: JSONText?, finalReplies: Set<JSONText>, actions: HarnessThreadActions, context: HarnessRenderContext, locale: Locale, presence: ThreadExecutionPresence = .init()) -> [ThreadDetailRow] {
+@MainActor private func ocMessageRows(_ messages: [OpenCodeMessage], sessionID: JSONText?, finalReplies: Set<JSONText>, actions: HarnessThreadActions, context: HarnessRenderContext, locale: Locale, presence: ThreadExecutionPresence = .init(), agentDetail: Bool = true) -> [ThreadDetailRow] {
     let tools = Dictionary(uniqueKeysWithValues: messages.filter { $0.role == "tool" }.map { ($0.id, $0) })
-    let placedTools = Set(messages.flatMap { message in message.parts.filter { $0["type"]?.stringValue == "tool" }.map { ocJoinedID([message.id, ":tool:", $0.ocID("toolCallId")]) } })
+    let placedTools = Set(messages.filter { !agentDetail || $0.role == "assistant" }.flatMap { message in message.parts.filter { $0["type"]?.stringValue == "tool" }.map { ocJoinedID([message.id, ":tool:", $0.ocID("toolCallId")]) } })
     var children: [JSONText: [OpenCodeMessage]] = [:]
     for message in messages { if let native = message.nativeSessionID, let sessionID, native != sessionID {
         children[ocJSONStringID([.string(message.executionID), .string(native)]), default: []].append(message)
@@ -190,15 +192,16 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
             let id = ocJSONStringID([.string(message.executionID), .string(native)])
             guard placedSessions.insert(id).inserted else { continue }
             let session = children[id] ?? []
-            let rows = ocMessageRows(session, sessionID: native, finalReplies: ocFinalReplyIDs(session, sessionID: native, splitTurns: false, presence: presence), actions: actions, context: context, locale: locale, presence: presence)
+            let rows = ocMessageRows(session, sessionID: native, finalReplies: ocFinalReplyIDs(session, sessionID: native, splitTurns: false, presence: presence), actions: actions, context: context, locale: locale, presence: presence, agentDetail: agentDetail)
             guard !rows.isEmpty else { continue }
-            result.append(.init(id: ocJoinedID(["opencode-child-session:", id]), kind: .work,
-                node: AnyView(ThreadSurfaceDisclosure(label: ocLocalized("OpenCode 子会话", locale: locale) + " · " + native.string,
+            let failed = agentDetail && rows.contains { $0.kind == .attention }
+            result.append(.init(id: ocJoinedID(["opencode-child-session:", id]), kind: failed ? .attention : .work,
+                node: AnyView(ThreadSurfaceDisclosure(label: ocLocalized("OpenCode 子会话", locale: locale) + " · " + native.string + (failed ? " · " + ocLocalized("失败", locale: locale) : ""),
                     live: session.contains { $0.status == "streaming" }) { ThreadActivityList(items: rows.map { ThreadActivitySlot(id: $0.id, node: $0.node) }, spacing: 12) }),
                 execution: .member, executionSummary: .init(reasoningSegments: rows.reduce(0) { $0 + ($1.executionSummary?.reasoningSegments ?? 0) }, toolCalls: rows.reduce(0) { $0 + ($1.executionSummary?.toolCalls ?? 0) })))
             continue
         }
-        if message.role == "user" {
+        if !agentDetail && message.role == "user" {
             let annotations = (message.raw["annotations"]?.arrayValue ?? []).map { annotation in
                 ThreadMessageAnnotation(id: annotation.ocID("id"), url: annotation["url"]?.stringValue ?? "", title: annotation["title"]?.stringValue,
                     comment: annotation["comment"]?.stringValue ?? "", screenshotId: annotation.ocText("screenshotId"))
@@ -211,7 +214,8 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
                 resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment))))
             continue
         }
-        if message.role == "tool" { if !placedTools.contains(message.id) { result.append(ocToolRow(message, locale: locale)) }; continue }
+        if message.role == "tool" { if !placedTools.contains(message.id) { result.append(ocToolRow(message, locale: locale, agentDetail: agentDetail)) }; continue }
+        guard message.role == "assistant" else { continue }
         var parts = message.parts
         if parts.isEmpty {
             if let thinking = message.raw["thinking"], (thinking.stringValue?.isEmpty == false || presence.contains(message.id, "thinking")) { parts.append(.object(["type": .text("reasoning"), "ordinal": .number(-1), "text": thinking])) }
@@ -219,11 +223,12 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
         }
         for part in parts {
             let type = part["type"]?.stringValue ?? ""
+            guard !agentDetail || ["text", "reasoning", "tool"].contains(type) else { continue }
             // Text, reasoning and tools share a native message. Withhold only
             // its reply parts, preserving live execution records and requests.
             if type == "text" && message.status == "streaming" { continue }
             if type == "tool" {
-                if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])] { result.append(ocToolRow(tool, locale: locale)) }; continue
+                if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])] { result.append(ocToolRow(tool, locale: locale, agentDetail: agentDetail)) }; continue
             }
             let text = part["text"]?.stringValue ?? ""
             let field = message.parts.isEmpty ? (type == "text" ? "text" : "thinking") : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
@@ -237,15 +242,15 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
                 })
             } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text,
                 openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)) }
-            result.append(.init(id: id, kind: reply ? .content : .work, node: body,
+            result.append(.init(id: id, kind: agentDetail && (message.status == "failed" || message.raw["isError"] == .bool(true)) ? .attention : reply ? .content : .work, node: body,
                 execution: reply ? nil : .member, executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))
         }
     }
     return result
 }
-@MainActor private func ocToolRow(_ message: OpenCodeMessage, locale: Locale) -> ThreadDetailRow {
-    let failed = message.raw["isError"] == .bool(true)
-    return .init(id: message.id, kind: .work, node: AnyView(ThreadSurfaceDisclosure(
+@MainActor private func ocToolRow(_ message: OpenCodeMessage, locale: Locale, agentDetail: Bool) -> ThreadDetailRow {
+    let failed = message.raw["isError"] == .bool(true) || (agentDetail && message.status == "failed")
+    return .init(id: message.id, kind: agentDetail && failed ? .attention : .work, node: AnyView(ThreadSurfaceDisclosure(
         label: (message.raw["toolName"]?.stringValue ?? ocLocalized("工具", locale: locale)) + (failed ? " · " + ocLocalized("失败", locale: locale) : ""), live: message.status == "streaming") {
         VStack(alignment: .leading, spacing: 4) {
             if message.raw["arguments"] != nil {

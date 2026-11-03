@@ -171,6 +171,10 @@ func ProjectRenderer(state Map, scopes ...Map) Map {
 				}
 				for _, value := range stArray(projected["activities"]) {
 					activity := stMap(value)
+					// Failed records render outside the deferred work summary.
+					if activity["status"] == "failed" {
+						continue
+					}
 					delete(activity, "detail")
 					activity["label"] = ""
 				}

@@ -78,5 +78,7 @@ Turn-scoped reader projections omit plan steps, explanations and timeline marker
 including inherited history, before native transport encoding. Canonical state,
 overview, context and full/execution projections retain those facts. Required
 empty plan arrays keep the native state contract valid. The
+deferred turn projection retains failed activity labels and details, including
+inherited history, so error visibility does not require loading ordinary work. The
 [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
 checks this boundary for active and terminal turns and inherited history.

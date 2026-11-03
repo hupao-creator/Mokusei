@@ -252,8 +252,24 @@ handle, even when the retained current document and result render the same row;
 closing one cannot revoke the other's content.
 
 [ThreadReadingHeader.swift](Conversation/ThreadReadingHeader.swift) places the
-mounted turn's resolved author under the title, beside execution/user-message
-visibility controls. Narrow widths wrap the controls and truncate the visible
+mounted turn's resolved author under the title, beside the execution visibility
+control. Agent detail has no user-message visibility toggle, including historical
+and execution-card visits. Harness readers explicitly admit assistant replies and
+execution records, plus errors (including error-level notices); general warnings
+and input messages do not become work rows. Failed tools/messages and error
+diagnostics stay visible when work is collapsed. Deferred reading projections retain
+failed tool/activity and failed assistant payloads, including child sessions;
+failed activities do not share a visibility group with successful activities.
+Empty filtered turns retain their execution status and result anchor; filtering
+happens before grouping and rendering, so hidden events create no row gaps or scroll destinations. The
+timeline's existing follow/pause, geometry-driven growth and jump-to-latest
+behavior remains unchanged. Historical titles, previews and accessibility labels
+use execution timestamps rather than raw prompts; thread title/emoji remain
+catalog metadata. Each Harness entry sets `threadAgentDetail` from the public
+thread's Moku/current-history identity; Moku conversations keep their original
+input visibility controls, prompts and notices. No stored history or other
+surface is filtered.
+Narrow widths wrap the control and truncate the visible
 author while preserving its complete accessible label, tooltip and text selection.
 For the selected running execution, work stays visible and its visibility control
 is absent; completion restores the previous visibility behavior. Historical and

@@ -118,5 +118,7 @@ Turn-scoped reader projections omit plan steps, explanations and timeline marker
 before encoding and copying them to native clients. Canonical, overview, context
 and full/execution projections retain those facts. Empty required plan arrays
 preserve native decoding, and surviving timeline identities/order remain intact.
+Deferred turn projections retain failed activity labels and details so errors
+remain readable without loading or showing ordinary execution work.
 The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
 checks active, terminal and inherited turns without a native CLI or model call.

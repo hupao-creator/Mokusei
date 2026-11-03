@@ -318,7 +318,8 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 			nonempty := []model.Object{}
 			for index := range out.Messages {
 				row := &out.Messages[index]
-				if row.Role == "user" {
+				// Error bodies must remain readable without opening deferred work.
+				if row.Role == "user" || row.IsError || row.Status == "failed" {
 					continue
 				}
 				row.Todos = nil

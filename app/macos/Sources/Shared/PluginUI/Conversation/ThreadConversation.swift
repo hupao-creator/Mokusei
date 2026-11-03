@@ -71,6 +71,7 @@ public struct ThreadConversation: View {
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
+    @Environment(\.threadAgentDetail) private var agentDetail
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -123,7 +124,7 @@ public struct ThreadConversation: View {
     }
     private var work: Bool { executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil)) }
     private var visibility: ThreadDetailVisibility {
-        ThreadDetailVisibility(userMessages: executionCard || userMessages, work: work,
+        ThreadDetailVisibility(userMessages: !agentDetail && (executionCard || userMessages), work: work,
                                workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID)
     }
     private var inlineRow: JSONText? {
@@ -245,7 +246,7 @@ public struct ThreadConversation: View {
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),
                 "historyRow": selectedPage.map { .string($0.id) } ?? .null,
                 "selectedRow": selectedRowID.map(JSONValue.string) ?? .null,
-                "userMessages": .bool(userMessages), "work": .bool(work),
+                "userMessages": .bool(!agentDetail && userMessages), "work": .bool(work),
                 "rowCount": .integer(visibleRows.count), "historicalCount": .integer(historicalIDs.count),
                 "transitioning": .bool(pageMotion.active)
             ]))
@@ -438,6 +439,7 @@ private struct ThreadHistoryDocument: View {
     let focusHeading: Bool
     let onBack: () -> Void
     @Environment(\.locale) private var locale
+    @Environment(\.threadAgentDetail) private var agentDetail
     @State private var users = false
     @State private var authors: [JSONText: JSONValue] = [:]
     @State private var manualWork: Bool?
@@ -450,7 +452,7 @@ private struct ThreadHistoryDocument: View {
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
             followOutput: result, followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, locatedRequestId: locatedRequestId, onLocated: onLocated)
-            .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: users, work: work))
+            .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
             .overlay(alignment: .topLeading) {
@@ -464,28 +466,32 @@ private struct ThreadHistoryDocument: View {
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
                 "rowId": page.map { .string($0.id) } ?? .null,
-                "userMessages": .bool(users), "work": .bool(work)
+                "userMessages": .bool(!agentDetail && users), "work": .bool(work)
             ]))
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 18) {
             if let page { Text(emoji(page.id)).font(.system(size: 44)).accessibilityHidden(true) }
-            Text(page.map { $0.execution?.prompt ?? localize("历史对话") } ?? localize("历史执行不可用"))
+            Text(historyTitle)
                 .font(NativeTypography.inter(size: 40, weight: 650)).tracking(-0.8)
                 .lineLimit(2).truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .help(page?.execution?.prompt ?? localize("历史执行不可用"))
+                .help(historyTitle)
                 .foregroundStyle(NativePalette.thread.inkStrong.swiftUI).accessibilityAddTraits(.isHeader)
                 .focusable().focusEffectDisabled().focused($headingFocused)
             if page != nil {
                 ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] }, showsAuthor: page?.execution != nil,
-                    showsWorkFilter: !running, users: users, work: work, toggleUsers: toggleUsers, toggleWork: toggleWork)
+                    showsWorkFilter: !running, users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
         }.padding(.bottom, 28)
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
-    private func toggleUsers() { users.toggle() }
+    private var historyTitle: String {
+        guard let page else { return localize("历史执行不可用") }
+        if !agentDetail { return page.execution?.prompt ?? localize("历史对话") }
+        return page.execution == nil ? localize("历史对话") : formatThreadTimestamp(page.createdAt)
+    }
     private func toggleWork() { manualWork = !work }
     private func emoji(_ id: JSONText) -> String {
         let emojis = ["🌿", "🪐", "🧩", "🎨", "🦊", "🌊", "🍋", "🪁", "💡", "🌻", "🐳", "🏕️"]

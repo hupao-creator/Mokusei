@@ -5,6 +5,7 @@ import MokuseiPluginUI
 import SwiftUI
 
 struct PiThreadView: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     let input: HarnessThreadInput
     let actions: HarnessThreadActions
     let context: HarnessRenderContext
@@ -39,7 +40,7 @@ struct PiThreadView: View {
         }
         let latest = input.thread.observation.latestExecution
         return ThreadConversation(threadId: input.thread.id,
-            title: nativeGeneratedThreadDocumentTitle(metadata: input.thread.metadataState, title: input.thread.title,
+            title: agentDetail ? input.thread.title.string : nativeGeneratedThreadDocumentTitle(metadata: input.thread.metadataState, title: input.thread.title,
                 initialPrompt: state.messages.first { $0.role == "user" }?.text),
             icon: nativeGeneratedThreadEmoji(metadata: input.thread.metadataState), rows: rows,
             readingTarget: readingTarget(state), running: latest?.status == .running,
@@ -122,6 +123,7 @@ private struct PiLoadedRow: View {
 }
 
 private struct PiTurn: View {
+    @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionPresence) private var executionPresence
     let input: HarnessThreadInput
     let state: PiState
@@ -166,11 +168,11 @@ private struct PiTurn: View {
         let withholdingReplies = [.running, .waitingForUser].contains(execution.status)
         let finalID = waiting ? nil : messages.last { $0.role == "assistant" && (!withholdingReplies || $0.status != "streaming") && !piTrim($0.text).codeUnits.isEmpty }?.id
         var rows: [ThreadDetailRow] = []
-        for message in messages {
+        for message in messages where !agentDetail || message.role == "assistant" || message.role == "tool" {
             let final = message.role == "assistant" && message.id == finalID
             if message.role == "assistant", let thinking = message.thinking,
                !piTrim(thinking).codeUnits.isEmpty || executionPresence.contains(message.id, "thinking") {
-                rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: .work,
+                rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: agentDetail && message.status == "failed" ? .attention : .work,
                     node: AnyView(ThreadSurfaceDisclosure(label: piLocalized("思考过程", locale)) {
                         NativeMarkdownView(text: thinking.string, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
                     }), execution: .member, executionSummary: ThreadExecutionSummary(reasoningSegments: 1)))
@@ -179,12 +181,16 @@ private struct PiTurn: View {
             // Release that retained text once the execution is no longer active.
             if message.role == "assistant" && withholdingReplies && message.status == "streaming" { continue }
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
-            rows.append(ThreadDetailRow(id: message.id, kind: message.role == "user" ? .user : message.role == "tool" || !final ? .work : .content,
+            let kind: ThreadDetailRow.Kind
+            if agentDetail && (message.isError || message.status == "failed") { kind = .attention }
+            else if message.role == "user" { kind = .user }
+            else { kind = message.role == "tool" || !final ? .work : .content }
+            rows.append(ThreadDetailRow(id: message.id, kind: kind,
                 node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final) ? .member : nil,
                 executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {
-            rows.append(ThreadDetailRow(id: "execution-error", kind: .content, node: AnyView(PiFailure(message: error.string))))
+            rows.append(ThreadDetailRow(id: "execution-error", kind: .attention, node: AnyView(PiFailure(message: error.string))))
         }
         if waiting {
             for interaction in input.thread.observation.latestExecution?.interactions ?? [] {
@@ -201,7 +207,8 @@ private struct PiTurn: View {
     }
     @ViewBuilder private func messageView(_ message: PiMessage) -> some View {
         if message.role == "tool" {
-            ThreadSurfaceDisclosure(label: message.toolName?.codeUnits.isEmpty == false ? message.toolName!.string : piLocalized("工具", locale)) {
+            let label = message.toolName?.codeUnits.isEmpty == false ? message.toolName!.string : piLocalized("工具", locale)
+            ThreadSurfaceDisclosure(label: label + (agentDetail && message.isError ? " · " + piLocalized("失败", locale) : "")) {
                 Text(message.text.string).font(NativeTypography.mono(size: 11)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(message.isError ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)

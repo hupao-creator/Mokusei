@@ -145,7 +145,9 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 	}
 	projected := make([]Object, 0, len(messages))
 	for _, message := range messages {
-		if !deferred {
+		// Error bodies, including child-session errors, are visible even when
+		// execution work is collapsed and no full execution resource is loaded.
+		if !deferred || message.IsError || message.Status == "failed" {
 			projected = append(projected, rendererProjectedMessage(message, source))
 			continue
 		}
