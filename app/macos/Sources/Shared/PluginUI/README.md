@@ -58,9 +58,26 @@ Inventory and integration boundaries:
 | Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
 | Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper; Browser comment TextEditor also uses the control-scoped adapter |
 | Harness interactions | Codex JSON elicitation, Claude permission/elicitation/reply and OpenCode permission/custom-answer editors | Control-scoped TextEditor adapter; form state, validation and actions stay with each Harness |
-| WebKit Browser and Report HTML | Main document, subframes, textarea and page-owned overflow | Shared `NativeWebScrollbarStyle` user script in every frame; transparent tracks, native scrolling and unchanged scrollbar dimensions |
+| WebKit Browser | Main document, subframes, textarea and page-owned overflow | `NativeWebScrollbarStyle.script` in every frame; transparent tracks and page-contrast thumb colors |
+| Report HTML | Panel and full-page document, subframes, textarea and page-owned overflow | `NativeWebScrollbarStyle.reportScript` in every frame; native thin scrollbars with automatic system colors |
 
-[NativeWebScrollbarStyle](Design/NativeWebScrollbarStyle.swift) uses standard
+Report's `reportScript` uses standard `scrollbar-width: thin` and
+`scrollbar-color: auto`. WebKit owns both axes, knob contrast, hover, fading,
+hit testing and live system display preferences. Non-auto standard width takes
+precedence over authored WebKit pseudo-element decoration, so ordinary report
+rules that hide or enlarge scrollbars no longer replace native controls. This
+also covers dynamically inserted overflow elements without DOM traversal or
+color observers. Constructed stylesheets retain restrictive-CSP support.
+Document/workspace zoom, overflow, scroll position, text selection and page color
+scheme stay with the existing reader. Native thin WebKit metrics and persistent
+tracks can differ from AppKit's mini trackless scrollers; Report deliberately
+uses WebKit's native control rather than emulating an AppKit thumb in CSS.
+Higher-priority authored important rules, shadow roots and page-script/canvas
+scrollbars remain page-owned boundaries. The expanded Overview relations list
+already uses `NativeScrollView`; the collapsed card is a clipped preview, and
+the onboarding Report illustration has no scrolling document.
+
+Browser's [NativeWebScrollbarStyle](Design/NativeWebScrollbarStyle.swift) uses standard
 `scrollbar-color` on supporting WebKit versions
 ([Safari 26.2 onward](https://webkit.org/blog/17640/webkit-features-for-safari-26-2/)),
 retaining native fade, hit testing and live system scrollbar preferences. Thumb
@@ -109,7 +126,7 @@ preference-notification isolation. Mounted, windowless SwiftUI TextEditor/List f
 controls, nested/sibling isolation, editor bindings, native row/text selection,
 offset retention, preference notifications, control replacement and List viewport
 width across its own overflow threshold. Windowless
-WebKit checks actual script injection, subframes, dynamic overflow, restrictive
+WebKit checks of the Browser policy cover actual script injection, subframes, dynamic overflow, restrictive
 CSP, geometry, both axes, textarea selection and dark/light foregrounds without
 color-scheme, including body theme changes, real view resizes, stylesheet
 insertion/edit/removal and deferred local CSS loading. Instrumented calls to the
