@@ -328,7 +328,7 @@ public struct ThreadConversation: View {
     }
     private var effectiveEmptyState: AnyView {
         if let emptyState { return emptyState }
-        if executionCard { return AnyView(Text(localize("正在读取") + "…").foregroundStyle(NativePalette.thread.muted.swiftUI).padding(.vertical, 16)) }
+        if executionCard { return AnyView(NativeReadingPlaceholder(placement: .inline)) }
         return AnyView(ThreadDetailEmptyState())
     }
     private func closeHistory() {

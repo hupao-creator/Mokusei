@@ -31,6 +31,23 @@ construction; errors, final replies, disclosure and canonical content keep their
 existing policies. See the [investigation and manual performance evidence](../../../../../design/thread-open-animation-investigation.md)
 for measured scope and limits; no tests or CI were run for this change.
 
+## Reading placeholders
+
+[NativeReadingPlaceholder](Conversation/NativeReadingPlaceholder.swift) separates
+whole-surface loading from inline loading. Host resource admission and Codex's
+initial state decode center their placeholder within the available reader
+viewport; scoped turn loading stays inside the timeline's existing reading
+column. Inline placeholders reserve only their text/padding height, independent
+of eventual short or overflowing content. Neither form imposes a fixed width.
+
+Loading text appears after a cancellable 180ms grace period, without animation,
+focus changes or pointer interception. Its layout is reserved during the delay,
+and it is absent from accessibility until visible. Unmounting cancels the delay
+and resets visibility; errors and retry controls appear immediately. The shared
+semantic palette and locale follow the reader. This is presentation state only:
+content acquisition, decoding, caching and resource release are unchanged.
+See the [recording review and validation limits](../../../../../design/reading-placeholder-alignment.md).
+
 ## Scrollbars
 
 [NativeScrollView](Design/NativeScrollView.swift) is the opt-in SwiftUI viewport;

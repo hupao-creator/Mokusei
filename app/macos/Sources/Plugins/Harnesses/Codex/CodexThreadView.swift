@@ -30,12 +30,19 @@ public struct CodexThreadView: View {
                     conversation(state)
                 }
             case .failure(let error): CodexContentFailure(message: error.localizedDescription)
-            case nil: CodexContentStatus()
+            case nil:
+                NativeReadingPlaceholder(placement: loadingPlacement)
+                    .id(input.thread.id)
             }
         }
         .task(id: input.thread.sessionState) {
             await stateCache.load(input.thread.sessionState, createdAt: input.thread.createdAt)
         }
+    }
+
+    private var loadingPlacement: NativeReadingPlaceholder.Placement {
+        if case .row = context.content { return .inline }
+        return .surface
     }
 
     @ViewBuilder private func conversation(_ state: CodexState) -> some View {
@@ -107,14 +114,14 @@ private struct CodexLazyTurnRow: View {
         Group {
             if let resource {
                 switch resource.state {
-                case .loading: CodexContentStatus()
-                case .error(let message): CodexContentStatus(message: message, retry: { try await resource.retry() })
+                case .loading: NativeReadingPlaceholder(placement: .inline).id(key)
+                case .error(let message): CodexContentError(message: message, retry: { try await resource.retry() })
                 case .ready(let raw):
                     ThreadDeferredExecutionContent(raw: raw, rowKey: key, context: context) { value in
                         CodexLoadedTurnRow(key: key, input: input, actions: actions, context: context, onAnchor: onAnchor, raw: value)
                     }
                 }
-            } else { CodexContentStatus() }
+            } else { NativeReadingPlaceholder(placement: .inline).id(key) }
         }
         .nativeReadingObservation("load", role: "row.load", value: loadState)
         .task(id: key) {
@@ -164,7 +171,7 @@ private struct CodexLoadedTurnRow: View {
                         }
                 }
             } else if case .some = stateCache.result { CodexContentFailure(message: "Codex sessionState 无效") }
-            else { CodexContentStatus() }
+            else { NativeReadingPlaceholder(placement: .inline).id(key) }
         }
         .task(id: raw) { await stateCache.load(raw) }
     }
@@ -204,24 +211,22 @@ struct CodexContentFailure: View {
     }
 }
 
-private struct CodexContentStatus: View {
-    var message: String?
+private struct CodexContentError: View {
+    let message: String
     var retry: (() async throws -> Void)?
     @State private var retryError: String?
     @Environment(\.locale) private var locale
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let message {
-                Text(codexLocalized("读取对话内容失败。", locale: locale) + " " + codexLocalized(retryError ?? message, locale: locale))
-                if let retry {
-                    Button(codexLocalized("重试", locale: locale)) {
-                        Task { do { try await retry() } catch { retryError = error.localizedDescription } }
-                    }.buttonStyle(.plain).padding(.horizontal, 9).padding(.vertical, 5)
-                        .foregroundStyle(NativePalette.thread.ink.swiftUI)
-                        .background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 4))
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(NativePalette.thread.line.swiftUI, lineWidth: 1))
-                }
-            } else { Text(codexLocalized("正在读取", locale: locale) + "…") }
+            Text(codexLocalized("读取对话内容失败。", locale: locale) + " " + codexLocalized(retryError ?? message, locale: locale))
+            if let retry {
+                Button(codexLocalized("重试", locale: locale)) {
+                    Task { do { try await retry() } catch { retryError = error.localizedDescription } }
+                }.buttonStyle(.plain).padding(.horizontal, 9).padding(.vertical, 5)
+                    .foregroundStyle(NativePalette.thread.ink.swiftUI)
+                    .background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(NativePalette.thread.line.swiftUI, lineWidth: 1))
+            }
         }.foregroundStyle(NativePalette.thread.muted.swiftUI).frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16).accessibilityElement(children: .contain)
     }

@@ -1,5 +1,6 @@
 import MokuseiCore
 import MokuseiPluginAPI
+import MokuseiPluginUI
 import SwiftUI
 
 /// Stable thread identity preserves plugin interaction state across revisions.
@@ -57,27 +58,21 @@ struct NativeHarnessStatusView: View {
     @Environment(\.locale) private var locale
     let message: String
     let english: String
-    /// Loading replaces the whole reading surface, so it centers on the same
-    /// column as the conversation instead of hanging off the detail's left edge.
-    var centered = false
     var detail: String?
     var retry: (() -> Void)?
     private var isChinese: Bool { locale.language.languageCode?.identifier == "zh" }
 
-    static var loading: NativeHarnessStatusView {
-        NativeHarnessStatusView(message: "正在读取…", english: "Loading…", centered: true)
-    }
+    static var loading: some View { NativeReadingPlaceholder() }
 
     var body: some View {
-        VStack(alignment: centered ? .center : .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(isChinese ? message : english)
             if let detail { Text(detail).textSelection(.enabled) }
             if let retry { Button(isChinese ? "重试" : "Retry", action: retry).buttonStyle(.plain) }
         }
         .font(.system(size: 13)).foregroundStyle(.secondary)
         .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: centered ? .infinity : nil,
-               alignment: centered ? .center : .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
     }
 }
