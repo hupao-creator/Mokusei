@@ -75,8 +75,9 @@ struct CodexTurnRows: View {
         }
         let interactions = firstByID(turn.interactions)
         let activities = workVisible ? firstByID(turn.activities) : [:]
-        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
+        let lastAssistant = timeline.lastIndex(where: { $0.kind == "assistant" && $0.status != "streaming" && (!agentDetail || $0.status != "failed") && !codexTrim($0.raw["content"]).codeUnits.isEmpty })
         var result: [ThreadDetailRow] = []
+        var interimReplies = Set<JSONText>()
         var index = 0
         while index < timeline.count {
             let item = timeline[index]
@@ -106,8 +107,11 @@ struct CodexTurnRows: View {
             if item.kind == "user-message" { kind = .user }
             else if (failure && (agentDetail || turn.status != "completed")) ||
                 (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
-            else if item.kind == "review" || (item.kind == "assistant" && (agentDetail || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }
+            else if item.kind == "review" || (item.kind == "assistant" && (agentDetail && (turn.active || item.id == visibility.messageAnchorID) || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }
             else { kind = .work }
+            // Message settlement is not execution settlement. Keep live replies
+            // readable, then fold terminal interim text into summary-only work.
+            if agentDetail && item.kind == "assistant" && kind == .work { interimReplies.insert(item.id) }
             // Skip construction, trimming and closures for hidden work. The
             // shared turn still owns disclosure policy for every admitted row.
             if kind == .work && !workVisible { index += 1; continue }
@@ -135,7 +139,7 @@ struct CodexTurnRows: View {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":error".utf16)),
                 kind: .attention, node: AnyView(CodexContentFailure(message: error, translatesMessage: false))))
         }
-        return bindThreadExecutionSource(rows: result, source: timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" })
+        return bindThreadExecutionSource(rows: result, source: timeline, id: { $0.id }, isExecution: { $0.kind == "reasoning" || $0.kind == "activity" || interimReplies.contains($0.id) })
     }
 
     private func node(_ item: CodexTimelineItem, messages: [JSONText: CodexMessage], interactions: [JSONText: CodexInteraction], notices: [JSONText: JSONValue]) -> AnyView? {

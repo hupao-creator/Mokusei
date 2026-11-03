@@ -126,7 +126,8 @@ public struct ThreadConversation: View {
     private var work: Bool { executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil)) }
     private var visibility: ThreadDetailVisibility {
         ThreadDetailVisibility(userMessages: !agentDetail && (executionCard || userMessages), work: work,
-                               workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID)
+                               workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID,
+                               messageAnchorID: destination == requestedDestination ? acceptedAnchor : nil)
     }
     private var inlineRow: JSONText? {
         if case let .document(inline) = destination { return inline }; return nil
@@ -466,7 +467,7 @@ private struct ThreadHistoryDocument: View {
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
             followOutput: result || (running && readingTarget?.follow == true), followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)
-            .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work))
+            .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
             .nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }

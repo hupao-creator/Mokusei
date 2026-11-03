@@ -125,6 +125,7 @@ private struct PiLoadedRow: View {
 private struct PiTurn: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.threadExecutionPresence) private var executionPresence
+    @Environment(\.threadDetailVisibility) private var visibility
     let input: HarnessThreadInput
     let state: PiState
     let execution: PublicExecution
@@ -166,7 +167,7 @@ private struct PiTurn: View {
     private var rows: [ThreadDetailRow] {
         let waiting = current && input.thread.observation.latestExecution?.status == .waitingForUser
         let withholdingReplies = [.running, .waitingForUser].contains(execution.status)
-        let finalID = waiting ? nil : messages.last { $0.role == "assistant" && (!withholdingReplies || $0.status != "streaming") && !piTrim($0.text).codeUnits.isEmpty }?.id
+        let finalID = waiting && withholdingReplies ? nil : messages.last { $0.role == "assistant" && (!withholdingReplies || $0.status != "streaming") && (!agentDetail || !$0.isError && $0.status != "failed") && !piTrim($0.text).codeUnits.isEmpty }?.id
         var rows: [ThreadDetailRow] = []
         for message in messages where !agentDetail || message.role == "assistant" || message.role == "tool" {
             let final = message.role == "assistant" && message.id == finalID
@@ -187,11 +188,10 @@ private struct PiTurn: View {
             let kind: ThreadDetailRow.Kind
             if agentDetail && message.role != "tool" && (message.isError || message.status == "failed") { kind = .attention }
             else if message.role == "user" { kind = .user }
-            else if agentDetail && message.role == "assistant" { kind = .content }
+            else if agentDetail && message.role == "assistant" && (withholdingReplies || final || message.id == visibility.messageAnchorID) { kind = .content }
             else { kind = message.role == "tool" || !final ? .work : .content }
-            // Interim assistant replies are conversation text, not execution details.
             rows.append(ThreadDetailRow(id: message.id, kind: kind,
-                node: AnyView(messageView(message)), execution: message.role == "tool" || (!agentDetail && message.role == "assistant" && !final && kind != .attention) ? .member : nil,
+                node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && kind == .work) ? .member : nil,
                 executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {

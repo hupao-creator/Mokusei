@@ -64,11 +64,14 @@ public struct ThreadDetailVisibility: Sendable, Equatable {
     public var userMessages: Bool
     public var work: Bool
     public var workTurnID: JSONText?
+    /// A message visit admits only its target reply through collapsed work.
+    public var messageAnchorID: JSONText?
 
-    public init(userMessages: Bool = false, work: Bool = false, workTurnID: JSONText? = nil) {
+    public init(userMessages: Bool = false, work: Bool = false, workTurnID: JSONText? = nil, messageAnchorID: JSONText? = nil) {
         self.userMessages = userMessages
         self.work = work
         self.workTurnID = workTurnID
+        self.messageAnchorID = messageAnchorID
     }
 }
 

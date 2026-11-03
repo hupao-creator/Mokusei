@@ -133,16 +133,17 @@ struct ClaudeForkHistory: View {
         let selected = items.enumerated().filter { index, item in !["diff","usage","plan"].contains(item.claudeKind) && (last[item.claudeKind] == nil || last[item.claudeKind] == index) }.map(\.element)
         for item in selected {
             if item.claudeKind == "user-message" { if let lastAssistant { final.insert(lastAssistant) }; lastAssistant = nil }
-            else if item.claudeKind == "assistant" { lastAssistant = item.claudeID("id") }
+            else if item.claudeKind == "assistant", !agentDetail || item["status"]?.stringValue != "streaming" && item["status"]?.stringValue != "failed" && !claudeTrim(item["content"]).isEmpty { lastAssistant = item.claudeID("id") }
         }
         if let lastAssistant { final.insert(lastAssistant) }
         let rows: [ThreadDetailRow] = selected.compactMap { item in
             guard !agentDetail || claudeDetailIncludes(item) else { return nil }
-            let kind = claudeRowKind(item, final: final.contains(item.claudeID("id")), agentDetail: agentDetail)
+            let kind = claudeRowKind(item, final: final.contains(item.claudeID("id")), agentDetail: agentDetail, messageAnchorID: visibility.messageAnchorID)
             guard (kind != .user || !agentDetail && visibility.userMessages), (kind != .work || visibility.work && visibility.workTurnID == nil) else { return nil }
             return ThreadDetailRow(id: item.claudeID("id"), kind: kind, node: AnyView(ClaudeTimelineEntry(item: item, actions: actions, context: context)), executionSummary: item.claudeKind == "reasoning" ? ThreadExecutionSummary(reasoningSegments: 1) : item["activity"]?["toolName"] != nil ? ThreadExecutionSummary(toolCalls: 1) : nil)
         }
-        return bindThreadExecutionSource(rows: rows, source: agentDetail ? selected.filter(claudeDetailIncludes) : items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) })
+        let interimReplies = Set(rows.filter { agentDetail && $0.kind == .work }.map(\.id))
+        return bindThreadExecutionSource(rows: rows, source: agentDetail ? selected.filter(claudeDetailIncludes) : items.filter { $0.claudeKind != "plan" }, id: { $0.claudeID("id") }, isExecution: { ["reasoning","activity"].contains($0.claudeKind) || $0.claudeKind == "assistant" && interimReplies.contains($0.claudeID("id")) })
     }
 }
 struct ClaudeBackgroundTasks: View {

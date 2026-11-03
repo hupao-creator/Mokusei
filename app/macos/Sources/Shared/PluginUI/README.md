@@ -169,9 +169,16 @@ reading-stack motion or projection/resource ownership.
 
 
 Ordinary Agent Thread detail withholds assistant reply bodies while their native
-message status is `streaming`. Each settled message renders its complete Markdown
-even if the execution continues; a later streaming reply does not replace the
-last settled reply. Failed/cancelled messages retain their available text. Pi
+message status is `streaming`. While an execution is running or waiting for the
+user, each settled message renders its complete Markdown; a later streaming reply does not replace the
+last settled reply. Once the execution terminates, intermediate ordinary replies
+join execution work: hiding work removes them, and showing work includes them
+only in the shared summary. The last non-error reply, pending interactions and
+independent errors stay readable. A message visit carries its resolved anchor
+through current and historical readers and admits that target reply without
+revealing sibling work. Native lifecycle, rather than reader focus or footer
+timestamps, determines this transition. Failed/cancelled messages retain their
+available text. Pi
 also releases retained text when its owning execution terminates, because that
 Harness can leave a message marked streaming after settlement. OpenCode applies
 the gate to reply text parts, including child sessions, without hiding reasoning
@@ -320,9 +327,12 @@ error diagnostics stay visible when work is collapsed. Failed tools and reasonin
 remain work, sharing visibility with successful execution records. Deferred reading
 projections may retain failure payloads, but their presence does not authorize mounting
 tool rows in Agent detail, even while work summaries are visible. Settled ordinary
-assistant text stays outside execution membership and the work visibility filter
-across all four Harnesses. Lightweight Pi/OpenCode turn projections retain interim
-replies (including OpenCode child replies), so omitting a detail lease cannot erase historical conversation. OpenCode child sessions group their
+assistant text stays readable while its execution is running/waiting. After
+termination only the last non-error reply and an explicitly targeted message
+remain ordinary content; intermediate replies join summary-only execution work.
+Lightweight Pi/OpenCode turn projections retain interim replies for explicit
+message visits without a detail lease. A targeted OpenCode child reply retains
+all its text parts without exposing sibling replies or tools. OpenCode child sessions group their
 execution rows into the same summaries and expose independent errors without
 exposing sibling tools. An OpenCode assistant failure with no reply text
 retains an independent failure-status message; a failed tool alone cannot create it.

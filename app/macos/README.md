@@ -43,8 +43,11 @@ This is a native reader policy shared by Codex, Claude, Pi and OpenCode across
 live, loaded historical, inherited/fork and deferred execution content (including
 OpenCode child sessions). Canonical history, transport, Overview, Moku, search
 and other conversation surfaces retain their data and policies. Adjacent
-execution entries remain grouped across hidden entries; assistant replies still
-separate summaries. Existing assistant streaming-disclosure rules are unchanged.
+execution entries remain grouped across hidden entries. Running/waiting
+executions retain settled assistant replies and existing streaming disclosure.
+After termination, intermediate ordinary replies belong to summary-only execution
+work; only the last non-error reply, independent errors, pending interactions
+and an explicitly targeted reply remain separate from summaries.
 Failed tools remain execution work: hiding work hides their rows and diagnostics
 as well. Showing execution work in Agent Thread detail displays only the shared
 reasoning/tool-count summary and reported reasoning usage. Tool-group titles
@@ -58,11 +61,14 @@ hides those summaries too. Other conversation surfaces retain full execution dis
 Failure status does not create another execution boundary or an independent
 error message.
 OpenCode child sessions retain independent assistant errors without revealing
-their sibling tools, even when execution summaries are visible. Settled ordinary
-assistant messages remain separate from execution summaries and stay visible
-when summaries are hidden. Lightweight Pi/OpenCode history retains interim
-replies without loading execution detail. Repeated native tool references render
+their sibling tools, even when execution summaries are visible. Lightweight
+Pi/OpenCode history retains interim
+reply data for explicit message visits without loading execution detail; the
+reader applies the same terminal-execution policy to live settlement, loaded
+history and inherited turns. Repeated native tool references render
 once by identity; separate calls with equal labels or output remain separate.
+See the [terminal reply investigation](../../design/terminal-assistant-disclosure.md)
+for the regression source, verification scope and remaining limits.
 
 Panel opening uses compositor-owned geometry and delays reader mounting until
 travel completes. Once submitted, panel travel no longer waits for main-actor
