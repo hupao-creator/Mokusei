@@ -43,6 +43,10 @@ OpenCode child sessions). Canonical history, transport, Overview, Moku, search
 and other conversation surfaces retain their data and policies. Adjacent
 execution entries remain grouped across hidden entries; assistant replies still
 separate summaries. Existing assistant streaming-disclosure rules are unchanged.
+Failed tools remain members of their execution summary and show their diagnostics
+under that summary, including when ordinary work is hidden. Failure status does
+not create another execution boundary. Repeated native tool references render
+once by identity; separate calls with equal labels or output remain separate.
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
 

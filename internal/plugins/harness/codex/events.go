@@ -35,7 +35,8 @@ func DecodeNotification(method string, p Map) []Map {
 		if r["status"] == "failed" {
 			status = "failed"
 		}
-		return []Map{{"type": "activity-end", "activityId": r["id"], "status": status, "detail": compact(r)}}
+		return []Map{{"type": "activity-end", "activityId": r["id"], "status": status, "detail": compact(r),
+			"activity": Map{"id": r["id"], "kind": "hook", "label": first(str(r["name"]), "运行 Hook")}}}
 	case "thread/tokenUsage/updated":
 		u := obj(p["tokenUsage"])
 		last := obj(u["last"])
@@ -106,28 +107,41 @@ func ParseActivity(i Map) Map {
 	return r
 }
 func CompletedActivity(i Map) Map {
-	if ParseActivity(i) == nil {
+	activity := ParseActivity(i)
+	if activity == nil {
 		return nil
 	}
 	status := "completed"
 	if i["status"] == "cancelled" || i["status"] == "interrupted" {
 		status = "cancelled"
-	} else if i["status"] == "failed" || i["status"] == "declined" || i["success"] == false || i["error"] != nil {
+	} else if i["status"] == "failed" || i["status"] == "declined" || i["success"] == false || i["error"] != nil ||
+		(i["type"] == "commandExecution" && i["exitCode"] != nil && num(i["exitCode"]) != 0) ||
+		obj(i["result"])["isError"] == true {
 		status = "failed"
 	}
 	detail := compact(i)
 	switch i["type"] {
 	case "commandExecution":
 		detail = tail(str(i["aggregatedOutput"]), 32*1024)
+		if status == "failed" && detail == "" {
+			detail = compact(present(i, "exitCode", "error"))
+		} else if i["error"] != nil {
+			detail = tail(detail+"\n"+compact(i["error"]), 32*1024)
+		}
 	case "fileChange":
 		detail = compact(i["changes"])
+		if i["error"] != nil {
+			detail = compact(present(i, "changes", "error"))
+		}
 	case "mcpToolCall", "dynamicToolCall":
 		detail = compact(i["result"])
-		if detail == "" {
-			detail = compact(i["error"])
+		if i["error"] != nil {
+			// Keep the diagnostic at the tail so a large partial result cannot
+			// evict it from the bounded persisted detail.
+			detail = tail(detail+"\n"+compact(i["error"]), 32*1024)
 		}
 	}
-	event := Map{"type": "activity-end", "activityId": str(i["id"]), "status": status, "detail": detail}
+	event := Map{"type": "activity-end", "activityId": str(i["id"]), "status": status, "detail": detail, "activity": activity}
 	if i["type"] == "fileChange" {
 		event["filePaths"] = activityFilePaths(i)
 	}

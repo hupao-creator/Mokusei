@@ -186,6 +186,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
         children[ocJSONStringID([.string(message.executionID), .string(native)]), default: []].append(message)
     } }
     var placedSessions = Set<JSONText>()
+    var renderedTools = Set<JSONText>()
     var result: [ThreadDetailRow] = []
     for message in messages {
         if let native = message.nativeSessionID, let sessionID, native != sessionID {
@@ -214,7 +215,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
                 resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment))))
             continue
         }
-        if message.role == "tool" { if !placedTools.contains(message.id) { result.append(ocToolRow(message, locale: locale, agentDetail: agentDetail)) }; continue }
+        if message.role == "tool" { if !placedTools.contains(message.id), renderedTools.insert(message.id).inserted { result.append(ocToolRow(message, locale: locale, agentDetail: agentDetail)) }; continue }
         guard message.role == "assistant" else { continue }
         var parts = message.parts
         if parts.isEmpty {
@@ -228,7 +229,7 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
             // its reply parts, preserving live execution records and requests.
             if type == "text" && message.status == "streaming" { continue }
             if type == "tool" {
-                if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])] { result.append(ocToolRow(tool, locale: locale, agentDetail: agentDetail)) }; continue
+                if let tool = tools[ocJoinedID([message.id, ":tool:", part.ocID("toolCallId")])], renderedTools.insert(tool.id).inserted { result.append(ocToolRow(tool, locale: locale, agentDetail: agentDetail)) }; continue
             }
             let text = part["text"]?.stringValue ?? ""
             let field = message.parts.isEmpty ? (type == "text" ? "text" : "thinking") : "parts:\(type):\(part["ordinal"]?.intValue ?? 0)"
@@ -242,8 +243,10 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
                 })
             } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text,
                 openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)) }
-            result.append(.init(id: id, kind: agentDetail && (message.status == "failed" || message.raw["isError"] == .bool(true)) ? .attention : reply ? .content : .work, node: body,
-                execution: reply ? nil : .member, executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))
+            let failed = agentDetail && (message.status == "failed" || message.raw["isError"] == .bool(true))
+            result.append(.init(id: id, kind: failed ? .attention : reply ? .content : .work, node: body,
+                execution: reply || type == "text" && failed ? nil : .member,
+                executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))
         }
     }
     return result

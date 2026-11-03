@@ -186,7 +186,7 @@ private struct PiTurn: View {
             else if message.role == "user" { kind = .user }
             else { kind = message.role == "tool" || !final ? .work : .content }
             rows.append(ThreadDetailRow(id: message.id, kind: kind,
-                node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final) ? .member : nil,
+                node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final && kind != .attention) ? .member : nil,
                 executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {
@@ -208,10 +208,11 @@ private struct PiTurn: View {
     @ViewBuilder private func messageView(_ message: PiMessage) -> some View {
         if message.role == "tool" {
             let label = message.toolName?.codeUnits.isEmpty == false ? message.toolName!.string : piLocalized("工具", locale)
-            ThreadSurfaceDisclosure(label: label + (agentDetail && message.isError ? " · " + piLocalized("失败", locale) : "")) {
+            let failed = message.isError || (agentDetail && message.status == "failed")
+            ThreadSurfaceDisclosure(label: label + (agentDetail && failed ? " · " + piLocalized("失败", locale) : "")) {
                 Text(message.text.string).font(NativeTypography.mono(size: 11)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(message.isError ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)
+                    .foregroundStyle(failed ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)
             }
         } else {
             ThreadMessage(id: message.id, author: message.role == "user" ? .user : .assistant, content: message.text.string,

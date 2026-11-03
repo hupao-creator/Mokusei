@@ -239,34 +239,14 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 	case "context-compacted":
 		turn["contextCompacted"], turn["timeline"] = true, stMarker(timeline, "context-compaction", timestamp, true)
 	case "activity-start":
-		incoming := stMap(event["activity"])
-		activities := stArray(turn["activities"])
-		id := stString(incoming["id"])
-		index := stIndex(activities, "id", id)
-		activity := Map{"id": id, "kind": incoming["kind"], "label": stTail(stString(incoming["label"]), stMaxDetail), "status": "running"}
-		if value, exists := incoming["toolCall"]; exists {
-			activity["toolCall"] = value
-		}
-		if paths, exists := incoming["filePaths"]; exists {
-			activity["filePaths"] = paths
-		}
-		if index >= 0 {
-			activity["status"] = stMap(activities[index])["status"]
-		}
-		if stString(incoming["kind"]) == "tool" {
-			if name, exists := incoming["toolName"]; exists {
-				activity["toolName"] = stTail(stString(name), 1024)
-				if index < 0 {
-					turn["foreground"] = stForeground(stMap(turn["foreground"]), Map{"kind": "tool-call", "callId": id, "toolName": stHeadPoints(stString(name), 64)}, false)
-				}
-			}
-		}
-		turn["activities"] = stUpsert(activities, activity)
-		if index < 0 {
-			turn["timeline"] = stReference(timeline, "activity", id, timestamp)
-		}
+		stStartActivity(turn, stMap(event["activity"]), timestamp)
 	case "activity-update": // Raw inputs and progress are deliberately not persisted.
 	case "activity-end":
+		// A completion can be the first observed frame after native recovery.
+		// It carries identity/label facts so it is never silently discarded.
+		if incoming := stMap(event["activity"]); incoming != nil && incoming["id"] == event["activityId"] {
+			stStartActivity(turn, incoming, timestamp)
+		}
 		for _, value := range stArray(turn["activities"]) {
 			activity := stMap(value)
 			if activity["id"] != event["activityId"] {
@@ -281,7 +261,7 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 				}
 			}
 			delete(activity, "detail")
-			if stString(activity["kind"]) == "command" && stString(event["detail"]) != "" {
+			if (activity["kind"] == "command" || event["status"] == "failed") && stString(event["detail"]) != "" {
 				activity["detail"] = stTail(stString(event["detail"]), stMaxDetail)
 			}
 		}
@@ -587,6 +567,31 @@ func stMessage(input Map, id, kind string, at int64) Map {
 		message["internal"] = true
 	}
 	return message
+}
+
+// Starts and completion-only recovery share the same bounded identity facts.
+// Replayed starts must not erase a completed result or its diagnostic.
+func stStartActivity(turn, incoming Map, at int64) {
+	activities := stArray(turn["activities"])
+	id := stString(incoming["id"])
+	if stIndex(activities, "id", id) >= 0 {
+		return
+	}
+	activity := Map{"id": id, "kind": incoming["kind"], "label": stTail(stString(incoming["label"]), stMaxDetail), "status": "running"}
+	if value, exists := incoming["toolCall"]; exists {
+		activity["toolCall"] = value
+	}
+	if paths, exists := incoming["filePaths"]; exists {
+		activity["filePaths"] = paths
+	}
+	if incoming["kind"] == "tool" {
+		if name, exists := incoming["toolName"]; exists {
+			activity["toolName"] = stTail(stString(name), 1024)
+			turn["foreground"] = stForeground(stMap(turn["foreground"]), Map{"kind": "tool-call", "callId": id, "toolName": stHeadPoints(stString(name), 64)}, false)
+		}
+	}
+	turn["activities"] = append(activities, activity)
+	turn["timeline"] = stReference(stArray(turn["timeline"]), "activity", id, at)
 }
 
 func stReference(timeline []any, kind, id string, at int64) []any {

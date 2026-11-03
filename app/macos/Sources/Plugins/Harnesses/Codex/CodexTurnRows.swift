@@ -57,7 +57,13 @@ struct CodexTurnRows: View {
         let notices = Dictionary(turn.notices.map { ($0.codexIdentity("id"), $0) }, uniquingKeysWith: { first, _ in first })
         // Reader policy only. Error severity is an explicit exception to the
         // allowlist, including rejected follow-ups after a completed execution.
+        var activityIDs = Set<JSONText>()
+        var noticeIDs = Set<JSONText>()
         let timeline = turn.timeline.filter {
+            // Native references may be repeated during history reconciliation.
+            // Deduplicate identities, never equal labels or output text.
+            if $0.kind == "activity", !activityIDs.insert($0.raw.codexIdentity("activityId")).inserted { return false }
+            if $0.kind == "notice", !noticeIDs.insert($0.raw.codexIdentity("noticeId")).inserted { return false }
             if !agentDetail { return $0.kind != "plan" }
             return switch $0.kind {
             case "assistant", "reasoning", "activity", "interaction", "review", "context-compaction", "error": true
@@ -116,9 +122,11 @@ struct CodexTurnRows: View {
                 kind: .attention, node: AnyView(CodexContentFailure(message: notice["message"]?.stringValue ?? "", translatesMessage: false))))
         }
         let referencedActivities = Set(timeline.filter { $0.kind == "activity" }.map { $0.raw.codexIdentity("activityId") })
-        for activity in turn.activities where agentDetail && activity.status == "failed" && !referencedActivities.contains(activity.id) {
+        for activity in turn.activities where agentDetail && !referencedActivities.contains(activity.id) {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":activity:".utf16) + activity.id.codeUnits),
-                kind: .attention, node: AnyView(CodexActivityRow(activity: activity))))
+                kind: activity.status == "failed" ? .attention : .work,
+                node: AnyView(CodexActivityRow(activity: activity)), execution: .member,
+                executionSummary: ThreadExecutionSummary(toolCalls: activity.toolCall || ["command", "file", "tool", "search"].contains(activity.kind) ? 1 : 0)))
         }
         if agentDetail, !timeline.contains(where: { $0.kind == "error" }), let error = turn.error, !error.isEmpty {
             result.append(ThreadDetailRow(id: JSONText(codeUnits: turn.executionId.codeUnits + Array(":error".utf16)),
@@ -224,8 +232,10 @@ private struct CodexToolActivityGroup: View {
 
 private struct CodexActivityRow: View {
     let activity: CodexActivity
+    @Environment(\.locale) private var locale
     var body: some View {
-        ThreadActivityRow(id: activity.id, state: state, label: AnyView(Text(activity.label)),
+        ThreadActivityRow(id: activity.id, state: state,
+            label: AnyView(Text(activity.label + (activity.status == "failed" ? " · " + codexLocalized("失败", locale: locale) : ""))),
             detail: activity.detail.map { AnyView(Text($0).font(.system(size: 12, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)) })
     }
     private var state: AnyView {

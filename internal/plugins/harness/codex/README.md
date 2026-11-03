@@ -119,6 +119,14 @@ before encoding and copying them to native clients. Canonical, overview, context
 and full/execution projections retain those facts. Empty required plan arrays
 preserve native decoding, and surviving timeline identities/order remain intact.
 Deferred turn projections retain failed activity labels and details so errors
-remain readable without loading or showing ordinary execution work.
+remain readable without loading or showing ordinary execution work. Failed tools
+retain bounded completion diagnostics as well as command output. Diagnostics
+take priority over large partial results within the retained bound. Completion
+classification uses explicit native failure/cancellation, command exit codes and
+tool-result `isError`; output text is never a status heuristic. A completion-only
+frame carries enough activity identity to survive recovery without a start frame,
+and a repeated start cannot erase a completed diagnostic. Existing stored
+diagnostics already discarded by earlier versions cannot be reconstructed by the
+reader; no history rewrite is performed.
 The [reader projection replay](../../../../tools/verification/thread-detail-performance/README.md)
 checks active, terminal and inherited turns without a native CLI or model call.
