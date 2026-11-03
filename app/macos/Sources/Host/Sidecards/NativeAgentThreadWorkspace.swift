@@ -175,9 +175,7 @@ private struct NativeSidecardWorkspaceLayout: View {
 
         }
         .nativeReadingPanelViewport()
-        .overlay(alignment: .topTrailing) {
-            NativeReadingPanelCloseButton(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
-        }
+        .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
         // History owns its own Escape. Keep this fallback out of Sidecards so
@@ -205,7 +203,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-            .mask(NativeSidecardFoldMask(progress: expanded ? 1 : 0))
+            .modifier(NativeSidecardFold(progress: expanded ? 1 : 0))
             .animation(.easeInOut(duration: 0.16)) { content in
                 content.opacity(expanded ? 1 : 0)
             }
@@ -289,16 +287,5 @@ public struct NativeSidecardWorkspaceGeometry {
         surfaceHeight = max(0, stacked ? (size.height - 16) / 2 : size.height)
         surfaceX = max(0, size.width - surfaceWidth)
         surfaceY = stacked ? (size.height + 16) / 2 : 0
-    }
-}
-
-private struct NativeSidecardFoldMask: Shape {
-    var progress: CGFloat
-    var animatableData: CGFloat { get { progress } set { progress = newValue } }
-    func path(in rect: CGRect) -> Path {
-        let width = 32 + (rect.width - 32) * progress
-        let height = 30 + (rect.height - 30) * progress
-        return Path(roundedRect: CGRect(x: rect.maxX - width, y: 0, width: max(0, width), height: max(0, height)),
-                    cornerRadius: 21)
     }
 }

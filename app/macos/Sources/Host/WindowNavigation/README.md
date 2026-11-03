@@ -128,7 +128,9 @@ Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card (the clicked Agent card for Git), and refreshes
 its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
-The Close button's label owns its 32pt circular background and hit shape, so
+The shared Close sits at the panel's upper-left with 48pt of fixed viewport
+clearance below the top edge, also used by the execution Sidecard. The button
+owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
 

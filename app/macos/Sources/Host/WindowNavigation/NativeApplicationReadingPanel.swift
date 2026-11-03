@@ -8,21 +8,6 @@ extension EnvironmentValues {
     @Entry var nativeApplicationCloseLinkCard: (() -> Bool)?
 }
 
-struct NativeReadingPanelCloseButton: View {
-    let label: String
-    let onClose: () -> Void
-
-    var body: some View {
-        Button(action: onClose) {
-            NativeIcon(name: "X", size: 17).frame(width: 32, height: 32)
-                .background(.quaternary.opacity(0.5), in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain).padding(14)
-        .help(label).accessibilityLabel(label)
-    }
-}
-
 struct NativeApplicationReadingPanel: ViewModifier {
     let enabled: Bool
     var suppressed = false
@@ -51,10 +36,8 @@ struct NativeApplicationReadingPanel: ViewModifier {
             .background(NativeReadingPanelFrame(identifier: identifier))
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-            .overlay(alignment: .topTrailing) {
-                NativeReadingPanelCloseButton(label: locale.language.languageCode?.identifier == "zh" ? "关闭面板" : "Close panel",
-                    onClose: onClose)
-            }
+            .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭面板" : "Close panel",
+                onClose: onClose)
             .accessibilityIdentifier(identifier)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
     }

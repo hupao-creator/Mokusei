@@ -2,6 +2,18 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+Thread, execution Sidecard, Report, Git and Moku history panels share
+[`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
+`nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
+top-left edge. Pair it with `nativeReadingPanelViewport`: the fixed 48pt top
+clearance keeps both scrolling content and native scrollers below Close, while
+the horizontal/bottom insets clear rounded corners. Spacing outside the circle
+is not a close target. The button follows reading-palette light/dark colors,
+hover/press, disabled and increased-contrast states, with a visible keyboard
+focus ring and caller-owned localized help/accessibility labels. Callers keep
+their own close callback and Escape/navigation ownership; the button installs
+no global keyboard shortcut. Browser and Voice retain their activity toolbars.
+
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
 return. Opening/reversal remains immediate. Preparation shares the stack's route

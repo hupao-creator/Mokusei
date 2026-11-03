@@ -13,6 +13,15 @@ Only their shells change; plugin forms, browser behavior and voice ownership rem
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
 
+The host's animated
+[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) keeps a 60pt
+top chrome band visible while the document retains its right-origin unfolding. This includes the
+execution reader's upper-left Close and Browser/Voice's existing toolbar Close.
+The same interpolated aperture bounds pointer hits, so masked document controls
+cannot receive clicks. The existing selected/suppressed gates still disable
+folded, retiring and covered cards; native document suppression, the short fade,
+offsets, resizing, stacking, sessions and Close callbacks keep their ownership.
+
 ## Conversation
 
 [Conversation](Conversation/) is an execution display. It owns no composer,
