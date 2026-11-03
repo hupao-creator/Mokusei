@@ -9,7 +9,7 @@ import SwiftUI
 public struct NativeVoiceSidecard: SidecardPlugin {
     public let descriptor = SidecardPluginDescriptor(id: "voice", displayName: "语音讨论")
     public init() {}
-    public var icon: some View { NativeIcon(name: "AudioLines", size: 18, strokeWidth: 1.7) }
+    public var icon: some View { NativeIcon(name: "Phone", size: 18, strokeWidth: 1.7) }
     public func makePresentation(context: SidecardContext, lifetime: PluginLifetime) -> VoiceSidecardPresentation {
         VoiceSidecardPresentation(context: context, lifetime: lifetime)
     }
