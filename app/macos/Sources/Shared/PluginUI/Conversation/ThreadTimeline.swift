@@ -116,6 +116,7 @@ public struct HarnessMessageTimeline: View {
     public var contentTopInset: CGFloat?
     public var suspended: Bool
     public var followOutput: Bool
+    public var allowsJumpToLatest: Bool
     public var opensAtBottom: Bool
     public var followKey: JSONText?
     public var followPaused: Bool
@@ -149,7 +150,7 @@ public struct HarnessMessageTimeline: View {
 
     public init(timelineKey: JSONText, rows: [ThreadTimelineRow], toolbar: AnyView? = nil,
                 emptyState: AnyView? = nil, contentTopInset: CGFloat? = nil,
-                suspended: Bool = false, followOutput: Bool = false, opensAtBottom: Bool = false,
+                suspended: Bool = false, followOutput: Bool = false, allowsJumpToLatest: Bool = true, opensAtBottom: Bool = false,
                 followKey: JSONText? = nil, followPaused: Bool = false, onJumpToLatest: (() -> Void)? = nil,
                 showOlderRows: Bool = true, pinnedRowId: JSONText? = nil,
                 readingTarget: ThreadTimelineReadingTarget? = nil, readingVisitId: JSONText? = nil, locatedRequestId: JSONText? = nil,
@@ -157,6 +158,7 @@ public struct HarnessMessageTimeline: View {
         self.timelineKey = timelineKey; self.rows = rows; self.toolbar = toolbar; self.emptyState = emptyState
         self.contentTopInset = contentTopInset
         self.suspended = suspended; self.followOutput = followOutput; self.opensAtBottom = opensAtBottom; self.followKey = followKey
+        self.allowsJumpToLatest = allowsJumpToLatest
         self.followPaused = followPaused; self.onJumpToLatest = onJumpToLatest
         self.showOlderRows = showOlderRows; self.pinnedRowId = pinnedRowId; self.readingTarget = readingTarget
         self.readingVisitId = readingVisitId; self.locatedRequestId = locatedRequestId; self.onLocated = onLocated
@@ -318,7 +320,7 @@ public struct HarnessMessageTimeline: View {
                 .onDisappear { previousReadingNavigation?.remove(source: readingSource) }
                 .background(interactionRegistration)
                 .overlay(alignment: .bottom) {
-                    if followOutput && showLatest && !suspended {
+                    if allowsJumpToLatest && followOutput && showLatest && !suspended {
                         Button { jumpToLatest() } label: {
                             HStack(spacing: 5) { NativeIcon(name: "ChevronDown", size: 13); Text(localize("回到最新")) }
                                 .font(NativeTypography.inter(size: 11)).padding(.vertical, 6).padding(.horizontal, 10)

@@ -694,7 +694,7 @@ while execution remains running, retains that reply while a successor message
 streams, and checks full successor text after completion. Terminal cases retain
 failed/cancelled reply text, including Pi's stale streaming marker after execution
 settlement. The generic Markdown streaming path remains available to other readers.
-The eleven tests include mounted `ThreadDetailFrame` and window Back controls:
+The twelve tests include mounted `ThreadDetailFrame` and window Back controls:
 application execution callbacks and explicit start-position reading requests to
 old, current and missing executions return to Overview in one action, including
 archived threads. Note deep links establish a successor before entry and reopen
@@ -712,8 +712,13 @@ For window-free Host routing and content-handle lifetime verification, run
 `MOKUSEI_TEST_HEADLESS=1 swift test --package-path app/macos --filter NativeMokuExecutionLinkRoutingTests`.
 These two tests cover 12 route cases and three content scopes. They do not
 certify the mounted window Back control, Escape delivery or return animation;
-the other nine tests require a graphical session and explicitly skip headless.
-The eleven-method replay also mounts the production clear-glass execution capsules
+the other ten tests require a graphical session and explicitly skip headless.
+The lifecycle case checks current and result timelines across completed, running,
+waiting for input and completed states for all four Harnesses. Jump to latest
+is absent for completed executions, disappears on completion without scrolling,
+and stays absent when a successor starts. The existing running-link case verifies
+that activating the mounted action resumes following.
+The twelve-method replay also mounts the production clear-glass execution capsules
 for all four Harnesses. It checks narrow long-title geometry, native accessible
 activation, ordinary-link styling, full-title Copy and neutral/unknown/rehydrated
 brands without changing the note incarnation or revision. That capsule method

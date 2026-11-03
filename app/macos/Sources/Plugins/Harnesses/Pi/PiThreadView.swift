@@ -45,6 +45,7 @@ struct PiThreadView: View {
             icon: nativeGeneratedThreadEmoji(metadata: input.thread.metadataState), rows: rows,
             readingTarget: readingTarget(state), running: latest?.status == .running,
             runningTurnId: latest.map { [.running, .waitingForUser].contains($0.status) ? $0.executionID : nil } ?? nil,
+            activeExecutionId: input.thread.observation.isExecutionActive ? latest?.executionID : nil,
             context: context, renderRow: context.content == .manifest ? { key in
                 AnyView(PiLazyRow(key: key, input: input, actions: actions, context: context,
                     onAnchor: { request, id in anchor = (request, id) }))

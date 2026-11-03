@@ -42,7 +42,9 @@ public struct ClaudeThreadView: View {
             readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor, position: $0.position,
                 follow: input.thread.observation.isExecutionActive && input.thread.observation.latestExecution?.executionID == $0.executionID, hasMessageTarget: $0.message != nil) },
             running: input.thread.observation.latestExecution?.status == .running,
-            runningTurnId: runningID(state), context: context,
+            runningTurnId: runningID(state),
+            activeExecutionId: input.thread.observation.isExecutionActive ? input.thread.observation.latestExecution?.executionID : nil,
+            context: context,
             renderRow: context.content == .manifest ? { key in
                 if key == "native-background-tasks" { return AnyView(ClaudeBackgroundTasks(tasks: state.tasks)) }
                 return AnyView(ClaudeLazyRow(key: key, input: input, actions: actions, context: context, onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))

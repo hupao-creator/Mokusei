@@ -59,7 +59,9 @@ public struct CodexThreadView: View {
             title: agentDetail ? input.thread.title.string : codexDocumentTitle(input.thread, state: state), icon: codexDocumentEmoji(input.thread),
             rows: rows, readingTarget: readingTarget(state),
             running: input.thread.observation.latestExecution?.status == .running,
-            runningTurnId: runningTurnID(state), context: context,
+            runningTurnId: runningTurnID(state),
+            activeExecutionId: input.thread.observation.isExecutionActive ? input.thread.observation.latestExecution?.executionID : nil,
+            context: context,
             renderRow: context.content == .manifest ? { key in
                 if allTurns.contains(where: { $0.rowID == key }) {
                     return AnyView(CodexLazyTurnRow(key: key, input: input, actions: actions, context: context,

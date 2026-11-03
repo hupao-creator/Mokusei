@@ -602,6 +602,54 @@ struct NativeMokuExecutionLinkTests {
         window.close(); await fixture.close()
     }
 
+    @Test(arguments: ["codex", "claude", "pi", "opencode"], [false, true])
+    func jumpLatestTracksExecutionLifecycle(harness: String, result: Bool) async throws {
+        let fixture = try ExecutionLinkFixture(harness)
+        @MainActor func scroll() -> JSONValue? {
+            if result { return fixture.scroll }
+            return fixture.controls.snapshot(visit: fixture.visit).first {
+                $0["role"] == .text("timeline") && $0["id"]?.stringValue?.contains(".current.") == true
+            }
+        }
+        let text = String(repeating: "A settled reply long enough to scroll.\n\n", count: 180)
+        try fixture.update(text: text)
+        fixture.load()
+        if result {
+            fixture.presentation.openNoteExecution(.init(thread: .init(threadID: "ordinary", typeID: "agent"), executionID: "target"))
+        } else {
+            fixture.presentation.open(.init(threadID: "ordinary", typeID: "agent"))
+        }
+        let window = SwiftUIReplay.window(ExecutionLinkSurface(fixture: fixture), width: 700, height: 640, offscreen: true)
+        defer { window.close() }
+        if result { try await ready(fixture) }
+        try await SwiftUIReplay.wait { fixture.conversation?["transitioning"] == .bool(false) }
+        for status in [PublicExecution.Status.completed, .running, .waitingForUser, .completed] {
+            try fixture.update(status: status, text: text, messageStatus: "complete")
+            if status == .completed {
+                // Completion must revoke the mounted action without another scroll.
+                try await SwiftUIReplay.wait {
+                    !fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("jumpLatest") }
+                }
+            }
+            try await SwiftUIReplay.wait { (scroll()?["value"]?["height"]?.numberValue ?? 0) > 1000 }
+            try fixture.perform(#require(scroll()), "scrollTo", .number(0))
+            try await SwiftUIReplay.wait {
+                scroll()?["value"]?["showLatest"] == .bool(true)
+                    && scroll()?["pending"] == .bool(false)
+            }
+            try await SwiftUIReplay.wait {
+                fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("jumpLatest") }
+                    == (status != .completed)
+            }
+        }
+        if result {
+            try fixture.update(text: text, successor: true)
+            try await SwiftUIReplay.wait { fixture.conversation?["rowCount"] == .integer(3) }
+            #expect(!fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("jumpLatest") })
+        }
+        window.close(); await fixture.close()
+    }
+
     @Test(arguments: ["codex", "claude", "pi", "opencode"])
     func runningLinkFollowsUntilUserScrollsAndJumpLatestRestoresIt(harness: String) async throws {
         let fixture = try ExecutionLinkFixture(harness)

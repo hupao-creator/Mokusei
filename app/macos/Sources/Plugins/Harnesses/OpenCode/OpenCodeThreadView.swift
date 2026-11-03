@@ -52,7 +52,8 @@ public struct OpenCodeThreadView: View {
         }
         return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : ocDocumentTitle(input.thread, state: state), icon: ocEmoji(input.thread.metadataState),
             rows: rows, readingTarget: target, running: latest?.status == .running,
-            runningTurnId: input.thread.observation.isExecutionActive ? latest?.executionID : nil, context: context,
+            runningTurnId: input.thread.observation.isExecutionActive ? latest?.executionID : nil,
+            activeExecutionId: input.thread.observation.isExecutionActive ? latest?.executionID : nil, context: context,
             renderRow: context.content == .manifest ? { key in
                 AnyView(OpenCodeLazyRow(key: key, input: input, actions: actions, context: context,
                     onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))

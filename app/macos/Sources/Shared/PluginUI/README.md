@@ -720,6 +720,11 @@ status messages. Once a body is loaded, its final reply (from its first text par
 or latest visible row/status when absent) mounts the result anchor; manifests do not claim
 a content location. Running result visits enable the existing output following.
 Upward user scrolling stops it immediately, and Jump to latest restores it.
+Conversation timelines allow Jump to latest only while their execution is running
+(including waiting for user input). Completed executions hide the button and its
+reading action immediately, even when the scroll position has not changed or a
+successor is running. This eligibility is separate from output following so final
+content layout and result-anchor positioning keep their existing behavior.
 Internal execution URLs are admitted by the shared Markdown parser but dispatched
 only through an explicitly supplied typed execution callback, currently the Moku
 note. They never fall through to external navigation.

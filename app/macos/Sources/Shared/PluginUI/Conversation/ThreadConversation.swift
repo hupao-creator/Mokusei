@@ -62,6 +62,9 @@ public struct ThreadConversation: View {
     public let readingTarget: ThreadConversationReadingTarget?
     public let running: Bool
     public let runningTurnId: JSONText?
+    /// Includes waiting for input, which must retain the scroll action without
+    /// changing the running-only work visibility and opening behavior.
+    public let activeExecutionId: JSONText?
     public let context: HarnessRenderContext?
     public let actions: AnyView?
     public let emptyState: AnyView?
@@ -88,10 +91,11 @@ public struct ThreadConversation: View {
 
     public init(threadId: JSONText, title: String, icon: String? = nil, rows: [ThreadConversationRow],
                 readingTarget: ThreadConversationReadingTarget? = nil, running: Bool = false,
-                runningTurnId: JSONText? = nil, context: HarnessRenderContext? = nil,
+                runningTurnId: JSONText? = nil, activeExecutionId: JSONText? = nil, context: HarnessRenderContext? = nil,
                 actions: AnyView? = nil, emptyState: AnyView? = nil, renderRow: ((JSONText) -> AnyView)? = nil) {
         self.threadId = threadId; self.title = title; self.icon = icon; self.rows = rows
         self.readingTarget = readingTarget; self.running = running; self.runningTurnId = runningTurnId
+        self.activeExecutionId = activeExecutionId ?? runningTurnId
         self.context = context; self.actions = actions; self.emptyState = emptyState; self.renderRow = renderRow
     }
     private var executionCard: Bool {
@@ -124,6 +128,11 @@ public struct ThreadConversation: View {
     }
     private var selectedIsRunning: Bool {
         running && effectiveRunningID != nil && visibleRows.first { $0.id == selectedRowID }?.execution?.id == effectiveRunningID
+    }
+    private var allowsJumpToLatest: Bool {
+        guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }
+        if case let .execution(id) = context?.presentation, id != activeExecutionId { return false }
+        return true
     }
     private var work: Bool { executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil)) }
     private var visibility: ThreadDetailVisibility {
@@ -232,6 +241,7 @@ public struct ThreadConversation: View {
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
                     contentTopInset: executionCard ? 12 : nil,
                     suspended: readingPage, followOutput: true,
+                    allowsJumpToLatest: allowsJumpToLatest,
                     opensAtBottom: agentDetail && running && effectiveRunningID != nil && requestedDestination == nil,
                     followKey: effectiveRunningID,
                     followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
@@ -316,6 +326,7 @@ public struct ThreadConversation: View {
         ThreadHistoryDocument(threadId: threadId, page: selectedPage, rowContent: selectedPage.map(content),
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
+                              allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
                               result: resultVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
@@ -444,6 +455,7 @@ private struct ThreadHistoryDocument: View {
     let rowContent: AnyView?
     let active: Bool
     let running: Bool
+    let allowsJumpToLatest: Bool
     let result: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let readingVisitId: JSONText?
@@ -464,7 +476,8 @@ private struct ThreadHistoryDocument: View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
-            followOutput: result || (running && readingTarget?.follow == true), followKey: active ? page?.execution?.id : nil,
+            followOutput: result || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
+            followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
