@@ -114,6 +114,21 @@ animation, reduced-motion settling, rounded surfaces and the full-circle Close t
 The Close button's label owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
+
+Agent, Report and Git panels also close on a completed click in the surrounding
+blank workspace margin. The shared reading stack owns a separate backdrop hit
+region, excluding the panel's complete rectangle (including internal whitespace,
+Sidecards and their divider). Front controls, including the Sidecard toolbar and
+Moku, remain above it. The backdrop is inactive during reading motion or covering
+Moku interactions, and native sheets/popovers keep their dismissing press.
+Outside dismissal uses the panel's existing Close route: an application opened
+from an Agent returns to that Agent rather than dropping its reading target.
+Escape in the current Agent document now has the same native fallback as history
+and Git; nested history and Sidecards retain their existing cancellation order.
+Application panel chrome also accepts Escape while loaded WebKit content keeps
+its trusted DOM editor/dialog handling. Native editors, IME, menus, sheets,
+popovers and sibling Moku focus take precedence over reading cancellation.
+
 Snapshot rehydration, disconnection and appearance changes stop reading motion
 with `finishingClose: true`: an already accepted Close completes its current
 visit even when the target was settled before the click. Ordinary updates do

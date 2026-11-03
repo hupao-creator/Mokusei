@@ -22,6 +22,7 @@ struct NativeReadingPanelCloseButton: View {
 
 struct NativeApplicationReadingPanel: ViewModifier {
     let enabled: Bool
+    var suppressed = false
     let identifier: String
     let onClose: () -> Void
     @Environment(\.locale) private var locale
@@ -39,6 +40,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
                         onClose: onClose)
                 }
                 .accessibilityIdentifier(identifier)
+                .nativeReadingEscape(perform: suppressed ? nil : onClose)
                 // Match the Agent panel's layout seat for its external toolbar.
                 .padding(.trailing, 76)
         } else { content }

@@ -48,6 +48,7 @@ public struct NativeAgentThreadWorkspace: View {
                     executionDisabled: executionDisabled, readingTarget: readingTarget, followUpRequest: followUpRequest,
                     sidecardsSuppressed: sidecardsSuppressed, enabledSidecardIDs: enabledSidecardIDs,
                     services: services, onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
+                    .environment(\.nativeAgentHasNestedNavigation, nestedNavigation.map { $0.id != navigation.id } ?? false)
                     .id([thread.id, thread.harnessID])
             }
             .overlay(alignment: .topLeading) {
@@ -60,6 +61,10 @@ public struct NativeAgentThreadWorkspace: View {
                 navigation = ThreadDetailBackAction(label: label, onBack: onBack)
             }
     }
+}
+
+private extension EnvironmentValues {
+    @Entry var nativeAgentHasNestedNavigation = false
 }
 
 @MainActor
@@ -113,6 +118,7 @@ private struct NativeSidecardWorkspaceLayout: View {
     let model: NativeSidecardWorkspaceModel
     let snapshot: NativeSidecardWorkspaceSnapshot
     @Environment(\.locale) private var locale
+    @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @FocusState private var focusedLauncher: JSONText?
 
     private var animation: Animation? {
@@ -159,9 +165,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             .animation(animation, value: layout.stacked)
         }
         .nativeOnExitCommand {
-            guard !snapshot.suppressed else { return }
-            if let selected = snapshot.selected { model.close(selected) }
-            else { model.closeThread() }
+            closeTopLevel()
         }
         .onChange(of: snapshot.selected) { previous, selected in
             if selected == nil { focusedLauncher = previous }
@@ -187,6 +191,15 @@ private struct NativeSidecardWorkspaceLayout: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
+        // History owns its own Escape. Keep this fallback out of Sidecards so
+        // their browser, annotation and nested conversation handlers act first.
+        .nativeReadingEscape(perform: snapshot.suppressed || hasNestedNavigation ? nil : { closeTopLevel() })
+    }
+
+    private func closeTopLevel() {
+        guard !snapshot.suppressed else { return }
+        if let selected = snapshot.selected { model.close(selected) }
+        else { model.closeThread() }
     }
 
     private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry) -> some View {

@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import MokuseiCore
 import MokuseiPluginAPI
+import WebKit
 
 public struct ThreadConversationExecution: Hashable, Sendable {
     public let id: JSONText
@@ -507,8 +508,9 @@ public extension View {
 
 private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
     let back: (() -> Void)?
+    @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> EscapeView { EscapeView(back: back) }
-    func updateNSView(_ view: EscapeView, context: Context) { view.back = back }
+    func updateNSView(_ view: EscapeView, context: Context) { view.back = enabled ? back : nil }
     static func dismantleNSView(_ view: EscapeView, coordinator: ()) { view.dispose() }
 
     @MainActor final class EscapeView: NSView {
@@ -540,6 +542,7 @@ private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
                 let handled = MainActor.assumeIsolated { () -> Bool in
                     guard let self, let back = self.back, let window = self.window,
                           event.window === window, !self.isHiddenOrHasHiddenAncestor, self.menus.isEmpty,
+                          window.attachedSheet == nil, NSApp.modalWindow == nil,
                           event.keyCode == 53, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
                           (window.firstResponder as? NSTextInputClient)?.hasMarkedText() != true,
                           (window.firstResponder as? NSTextView)?.isEditable != true else { return false }
@@ -547,9 +550,13 @@ private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
                     // in a sibling surface. Its explicit cancellation owner acts first.
                     var responder = window.firstResponder
                     while let current = responder, current !== window {
+                        // Only the trusted DOM handler can determine whether a
+                        // WebKit editor or HTML dialog owns this Escape.
+                        if current is WKWebView { return false }
                         if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return true }
                         responder = current.nextResponder
                     }
+                    guard !(window.childWindows ?? []).contains(where: { $0.isVisible }) else { return false }
                     if let responder = window.firstResponder as? NSView, responder !== window.contentView {
                         let point = responder.convert(CGPoint(x: responder.bounds.midX, y: responder.bounds.midY), to: nil)
                         guard self.bounds.contains(self.convert(point, from: nil)) else { return false }

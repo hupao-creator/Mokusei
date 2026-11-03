@@ -619,6 +619,11 @@ public struct NativeWorkspaceView: View {
                     presentation.overview.setPresentationActive(active)
                 },
                 prepareParent: { await presentation.prepareOverviewReturn() },
+                onPanelOutsideClick: applicationSuppressed ? nil : {
+                    guard presentation.navigationRouteID == routeID else { return }
+                    if presentation.selected?.typeID == "agent" { presentation.showOverview() }
+                    else { presentation.closeApplication() }
+                },
                 onClose: { presentation.finishBack() }) {
                 NativeOverviewWorkspaceView(model: presentation.overview,
                     callbacks: NativeOverviewWorkspaceCallbacks(
@@ -639,6 +644,7 @@ public struct NativeWorkspaceView: View {
                             onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
                             onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
                         .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
+                            suppressed: applicationSuppressed,
                             identifier: selected.typeID == "report.document" ? "report-reading-panel" : "git-reading-panel",
                             onClose: { presentation.closeApplication() }))
                         .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)

@@ -35,6 +35,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var onClose: () -> Void
     public var onParentPresentationChange: ((Bool) -> Void)?
     public var prepareParent: (() async -> Void)?
+    public var onPanelOutsideClick: (() -> Void)?
     private let parent: Parent
     private let front: Front
 
@@ -56,6 +57,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
                 prepareParent: (() async -> Void)? = nil,
+                onPanelOutsideClick: (() -> Void)? = nil,
                 onClose: @escaping () -> Void,
                 @ViewBuilder parent: () -> Parent, @ViewBuilder front: () -> Front) {
         self.open = open; self.identity = identity; self.motion = motion; self.enabled = enabled
@@ -65,6 +67,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.axis = axis
         self.direction = direction
         self.onParentPresentationChange = onParentPresentationChange; self.prepareParent = prepareParent
+        self.onPanelOutsideClick = onPanelOutsideClick
         self.onClose = onClose; self.parent = parent(); self.front = front()
     }
     public var body: some View {
@@ -89,6 +92,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                     // must keep its keyboard input gate closed throughout.
                     .disabled(open && (axis == .horizontal || progress == 1 && !openingOrClosing))
                     .accessibilityHidden(open)
+                if panel && open {
+                    NativeReadingPanelBackdrop(panel: panelBounds,
+                        onDismiss: enabled && !motion.active ? onPanelOutsideClick : nil)
+                        .accessibilityHidden(true)
+                }
                 if open {
                     ZStack {
                         front.id(identity)

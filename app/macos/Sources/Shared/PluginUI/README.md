@@ -624,3 +624,13 @@ preserves the page, and recovery never revives a previously cancelled return.
 `nativeReadingEscape` shares the conversation reader’s native viewport-scoped
 Escape owner with Git panels. It rejects events owned by editing/IME, menus or
 sibling surfaces. HTML panels keep their isolated trusted DOM key boundary.
+
+The shared stack's optional `onPanelOutsideClick` installs a separate native
+backdrop beneath the front controls, outside the panel rectangle. It consumes a
+completed blank-margin click without forwarding it to Overview; panel whitespace
+and Sidecard dividers are excluded. Motion and covering interactions disable the
+callback. Hosts supply the existing route Close action, preserving application
+return ownership. Native sheets/popovers keep priority over backdrop dismissal.
+Panel chrome can use `nativeReadingEscape` alongside HTML: the native fallback
+leaves a WebKit responder to its trusted DOM handler and respects inherited
+disabled state, native sheets and visible child windows.
