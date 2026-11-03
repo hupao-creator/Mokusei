@@ -63,6 +63,8 @@ struct NativeRoleConfigurationPanel<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(role.title(locale)).font(.system(size: 25, weight: .medium)).tracking(-0.5)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
             Text(role.subtitle).font(.system(size: 13)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center).frame(maxWidth: .infinity)

@@ -84,6 +84,14 @@ before Runtime teardown; invalid or failed saves offer Keep Editing and Quit
 Without Saving. The existing bounded cleanup deadline and repeated Quit remain
 available.
 The horizontal header includes General, Moku, Tag and Report in that order, followed by any other enabled application sections. Native tab semantics, a selected underline and roving keyboard focus are shared at every width; the header scrolls when its tabs no longer fit.
+Switching sections scrolls the whole padded form to its top, retaining the same
+18-point title inset whether the selected form fits or overflows. At extreme
+zoom the outer shell scrolls back to its top as well. Form width follows the
+panel rather than SwiftUI's overflow-dependent scroller proposal, keeping its
+560-point column centered on the same axis with or without overflow. Horizontal
+padding keeps controls clear of the native gutter. The title and subtitle wrap
+to their natural height in narrow windows and either language; they remain part
+of the scrolling content.
 Unavailable selections, including the removed archive and plugin management
 sections, fall back to General and normalize when the available sections change or the page mounts.
 Thread archive data and commands remain independent of Settings.

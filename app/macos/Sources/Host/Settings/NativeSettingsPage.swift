@@ -85,10 +85,13 @@ enum NativeSettingsHeaderLayout {
             if geometry.size.height < 220 {
                 // At extreme app zoom, fixed chrome can consume the viewport.
                 // Scroll the whole shell as well, retaining every real control.
-                NativeScrollView { panel.frame(minHeight: 360) }
-                    .environment(\.nativeSettingsViewportWidth, geometry.size.width)
+                ScrollViewReader { reader in
+                    NativeScrollView {
+                        panel(width: geometry.size.width).frame(minHeight: 360).id("settings-shell-top")
+                    }.onChange(of: activeSection) { _, _ in reader.scrollTo("settings-shell-top", anchor: .top) }
+                }.environment(\.nativeSettingsViewportWidth, geometry.size.width)
             } else {
-                panel
+                panel(width: geometry.size.width)
                     .environment(\.nativeSettingsViewportWidth, geometry.size.width)
             }
         }.font(.system(size: 13)).foregroundStyle(NativeAppKitPalette.settings.text.swiftUI)
@@ -149,13 +152,12 @@ enum NativeSettingsHeaderLayout {
             }
     }
 
-    private var panel: some View {
+    private func panel(width: CGFloat) -> some View {
         VStack(spacing: 0) {
             header
             ScrollViewReader { reader in
                 NativeScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        Color.clear.frame(height: 0).id("top")
                         if !model.runtimeAvailable {
                             SettingsNotice(locale.text("连接后台服务后可修改 Agent 配置。界面偏好仍可使用。", "Connect to the runtime service to edit Agent configuration. Interface preferences remain available."))
                         }
@@ -182,6 +184,14 @@ enum NativeSettingsHeaderLayout {
                         .padding(.bottom, detailOverflow)
                         .frame(maxWidth: 560, alignment: .leading).frame(maxWidth: .infinity, alignment: .top)
                         .padding(.horizontal, 30).padding(.top, 18).padding(.bottom, 36)
+                        // SwiftUI otherwise subtracts a scroller width only for
+                        // overflowing forms, shifting the centered title. The
+                        // horizontal padding keeps controls clear of the gutter.
+                        .frame(width: width)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        // Include the top inset in the scroll target. An anchor
+                        // inside it discards 18pt only when the form overflows.
+                        .id("top")
                 }.onChange(of: activeSection) { _, _ in reader.scrollTo("top", anchor: .top) }
                     .onChange(of: model.draft.error) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
                     .onChange(of: model.operationError) { _, error in if error != nil { reader.scrollTo("notice", anchor: .top) } }
@@ -275,8 +285,12 @@ enum NativeSettingsHeaderLayout {
         if activeSection == "general" {
             VStack(spacing: 0) {
                 Text(locale.text("通用", "General")).font(.system(size: 25, weight: .medium)).tracking(-0.5)
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader).padding(.bottom, 8)
                 Text(locale.text("界面偏好与本地 Agent", "Interface preferences and local Agents"))
+                    .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                    .fixedSize(horizontal: false, vertical: true)
                     .font(.system(size: 13)).foregroundStyle(.secondary).padding(.bottom, 48)
                 general
             }
