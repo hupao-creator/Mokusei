@@ -4,7 +4,9 @@ This module owns derived keyword-search text, background indexing and ranking.
 Harness and Application adapters supply public text; search does not open native
 conversations, discover credentials, download models or perform inference.
 The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
-visible thread scope and immediate folded metadata matches.
+global eligible thread scope and immediate folded metadata matches, independent
+of its active browsing tag. This includes directory-only documents and tasks
+covered by reports; hidden and archived owners remain excluded.
 
 ## Documents and queries
 

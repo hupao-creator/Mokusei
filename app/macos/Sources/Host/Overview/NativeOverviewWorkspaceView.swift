@@ -148,9 +148,9 @@ public struct NativeOverviewWorkspaceView: View {
     }
 
     private var emptyDetail: String {
-        if model.isSearching {
-            return locale.text("试试其他关键词、清空搜索，或切换标签范围。",
-                               "Try another keyword, clear the search, or change the tag scope.")
+        if model.isSearching && !NativeOverviewSearch(model.searchQuery).terms.isEmpty {
+            return locale.text("试试其他关键词，或清空搜索。",
+                               "Try another keyword, or clear the search.")
         }
         return locale.text("切换标签筛选以查看其他 Thread。", "Switch tag filters to see other threads.")
     }
@@ -172,7 +172,7 @@ public struct NativeOverviewWorkspaceView: View {
         if locale == .english {
             strings.all = "All"; strings.returnToAuto = "Return to automatic view"
             strings.settings = "Settings"; strings.restart = "Restart development app"; strings.actions = "Overview actions"
-            strings.search = "Search conversations"; strings.searchIn = "Search in"; strings.closeSearch = "Close search (Esc)"
+            strings.search = "Search all conversations"; strings.closeSearch = "Close search (Esc)"
             strings.closeFilter = "Close child tag menu"
             strings.filter = "Filter by tag"; strings.directoryPrefix = "Working directory: "; strings.aliasPrefix = "; aliases: "
         }

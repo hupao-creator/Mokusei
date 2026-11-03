@@ -223,23 +223,10 @@ public struct NativeOverviewChrome: View {
         setHoveredScope(nil)
     }
 
-    private var selectedDisplayTag: String {
-        (presentedFilters + presentedFilters.flatMap(\.children)).first {
-            $0.matches(selectedTag, kind: selectedKind, scope: selectedScope)
-        }?.displayTag ?? selectedTag
-    }
-
     private func searchContents(focusReady: Bool) -> some View {
         HStack(spacing: 8) {
-            if !selectedTag.isEmpty {
-                Text(selectedDisplayTag).font(NativeTypography.inter(size: 10.5, weight: 620))
-                    .lineLimit(1).truncationMode(.middle).frame(maxWidth: 90)
-                    .foregroundStyle(.secondary)
-                    .help("\(strings.searchIn) \(selectedDisplayTag)")
-                Divider().frame(height: 16)
-            }
             OverviewThreadSearchField(text: searchQuery,
-                placeholder: selectedTag.isEmpty ? strings.search : "",
+                placeholder: strings.search,
                 focusRequest: focusReady ? searchFocusRequest : 0, onChange: onSearchChange, onExit: onSearchExit)
                 .frame(minWidth: 40, maxWidth: .infinity).frame(height: OverviewTagMetrics.buttonHeight)
             Button(action: onSearchExit) {
@@ -718,8 +705,7 @@ public struct NativeOverviewChromeStrings: Sendable {
     public var settings = "设置"
     public var restart = "重启开发应用"
     public var actions = "俯瞰视图操作"
-    public var search = "搜索会话"
-    public var searchIn = "搜索范围："
+    public var search = "搜索全部会话"
     public var closeSearch = "退出搜索（Esc）"
     public var filter = "按标签筛选"
     public var closeFilter = "关闭子标签菜单"

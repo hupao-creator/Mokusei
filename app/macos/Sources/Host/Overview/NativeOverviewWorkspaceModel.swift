@@ -346,14 +346,21 @@ public final class NativeOverviewWorkspaceModel {
             }
             // Scene identity belongs to the retained presentation too. Advancing
             // it while hidden could bookmark the old camera under a new selection.
-            let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
-            sceneKey = browseSceneKey
             let search = NativeOverviewSearch(isSearching ? searchQuery : "")
-            // Empty search is the same canvas scene: opening/closing the chrome
-            // must not replace cards, refit the camera or replay a tag flight.
-            if !search.terms.isEmpty { sceneKey += "\u{0}search:" + search.sceneKey }
-            let scope = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
-                ?? (selectedTags.isEmpty ? resolve(allMembers) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
+            let scope: NativeOverviewCollection
+            if search.terms.isEmpty {
+                // Empty search keeps the browsing scene, tag membership and camera.
+                sceneKey = browseSceneKey
+                let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
+                scope = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
+                    ?? (selectedTags.isEmpty ? resolve(allMembers) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
+            } else {
+                // Search every eligible owner, including directory-only documents
+                // and tasks covered by reports. Browsing tags and report coverage
+                // must not hide metadata or body matches from the query request.
+                sceneKey = "\u{0}global-search:" + search.sceneKey
+                scope = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)
+            }
             let keyword = search.filter(scope, directoryTags: directoryTags.values)
             scheduleContentSearch(scope: scope, keyword: keyword)
             let keywordIDs = Set(keyword.threads.map { $0.id.string } + keyword.applications.map { $0.entry.ref.threadID.string })

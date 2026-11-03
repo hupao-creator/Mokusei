@@ -3,8 +3,8 @@ import MokuseiCore
 import MokuseiPluginAPI
 import SwiftUI
 
-/// Searches public catalog metadata only, after Overview's visibility and merge
-/// rules. Every whitespace-delimited term must match at least one field.
+/// Searches public catalog metadata in the supplied eligible collection.
+/// Every whitespace-delimited term must match at least one field.
 struct NativeOverviewSearch {
     let terms: [String]
     init(_ query: String) { terms = query.split(whereSeparator: \.isWhitespace).map(String.init) }
