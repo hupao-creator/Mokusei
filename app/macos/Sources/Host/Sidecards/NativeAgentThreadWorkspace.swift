@@ -50,12 +50,6 @@ public struct NativeAgentThreadWorkspace: View {
                     .environment(\.nativeAgentHasNestedNavigation, nestedNavigation.map { $0.id != navigation.id } ?? false)
                     .id([thread.id, thread.harnessID])
             }
-            .overlay(alignment: .topLeading) {
-                if let action = nestedNavigation, action.id != navigation.id {
-                    Button(action: action.onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 32) }
-                        .buttonStyle(.plain).padding(12).help(action.label).accessibilityLabel(action.label)
-                }
-            }
             .task(id: [thread.id, JSONText(label)]) {
                 navigation = ThreadDetailBackAction(label: label, onBack: onBack)
             }

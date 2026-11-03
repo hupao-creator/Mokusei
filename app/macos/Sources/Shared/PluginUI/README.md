@@ -224,8 +224,11 @@ entry. One stable keyboard
 responder survives entry recycling, and Escape retains the document Back action.
 Accessible names include the ordinal and prompt, and the selected/current states
 are exposed separately.
-Selecting history uses the existing scoped document and Back restores the retained
-current scroll position. Thread history switches vertically according to TOC order:
+Selecting history uses the existing scoped document without a dedicated upper-left
+Back button. Escape and the history close action restore the retained current scroll
+position; TOC selection remains available. This shared behavior applies to Codex,
+Claude, Pi and OpenCode, including unavailable history documents. Thread history
+switches vertically according to TOC order:
 earlier targets enter from above, later targets from below, including history-to-history
 replacement and return to the current document. Both pages travel one viewport
 height with the same curve, meeting edge to edge on one plane; this vertical

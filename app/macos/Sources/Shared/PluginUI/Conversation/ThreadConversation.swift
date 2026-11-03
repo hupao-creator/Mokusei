@@ -306,7 +306,7 @@ public struct ThreadConversation: View {
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               result: resultVisit, readingTarget: scrollTarget, locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
                               backLabel: (entryRoute ? rootNavigation?.label : nil) ?? localize("返回当前会话"),
-                              showBack: navigation == nil, focusHeading: destination == requestedDestination, onBack: closeHistory)
+                              focusHeading: destination == requestedDestination, onBack: closeHistory)
         .id(HistoryVisitID(row: selectedPage?.id, request: consumedRequest, revision: navigationRevision))
         .nativeReadingScope("history")
         .nativeReadingActive(!pageMotion.active)
@@ -435,7 +435,6 @@ private struct ThreadHistoryDocument: View {
     let locatedRequestId: JSONText?
     let onLocated: (JSONText) -> Void
     let backLabel: String
-    let showBack: Bool
     let focusHeading: Bool
     let onBack: () -> Void
     @Environment(\.locale) private var locale
@@ -455,13 +454,7 @@ private struct ThreadHistoryDocument: View {
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
-            .overlay(alignment: .topLeading) {
-                if showBack { Button(action: onBack) { NativeIcon(name: "ArrowLeft", size: 17).frame(width: 32, height: 30) }
-                    .buttonStyle(.plain).background(NativePalette.thread.surface.swiftUI, in: RoundedRectangle(cornerRadius: 7))
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(NativePalette.thread.line.swiftUI))
-                    .padding(16).help(backLabel).accessibilityLabel(backLabel)
-                }
-            }.nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
+            .nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
             .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
