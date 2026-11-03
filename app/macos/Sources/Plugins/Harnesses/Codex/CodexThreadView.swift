@@ -224,13 +224,16 @@ private struct CodexContentStatus: View {
 private struct CodexBackgroundTerminals: View {
     let terminals: [JSONValue]
     @Environment(\.locale) private var locale
+    @Environment(\.threadAgentDetail) private var agentDetail
+    @Environment(\.threadDetailVisibility) private var visibility
     var body: some View {
+        if !agentDetail || visibility.work {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 NativeIcon(name: "Terminal", size: 14)
-                Text(codexLocalized("后台终端", locale: locale)).fontWeight(.medium)
+                Text(codexLocalized("后台终端", locale: locale) + (agentDetail ? " · \(terminals.count.formatted(.number.locale(locale)))" : "")).fontWeight(.medium)
             }.foregroundStyle(NativePalette.thread.muted.swiftUI)
-            ForEach(Array(terminals.enumerated()), id: \.offset) { _, terminal in
+            if !agentDetail { ForEach(Array(terminals.enumerated()), id: \.offset) { _, terminal in
                 HStack(alignment: .top, spacing: 8) {
                     CodexStatusSpinner(size: 12)
                     VStack(alignment: .leading, spacing: 4) {
@@ -238,9 +241,10 @@ private struct CodexBackgroundTerminals: View {
                         Text(terminal["cwd"]?.stringValue ?? "").foregroundStyle(NativePalette.thread.muted.swiftUI).lineLimit(1)
                     }
                 }
-            }
+            } }
         }.font(NativeTypography.inter(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 16).overlay(alignment: .top) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }.padding(.top, 24)
+        }
     }
 }
 

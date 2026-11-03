@@ -14,8 +14,11 @@ The native Moku settings model menu retains the exact provider/model tuple in a
 length-prefixed selection identity. Slashes inside either native identifier do
 not collide or select another provider.
 
-Deferred turn projections retain failed assistant and error-tool payloads so
-errors remain readable when ordinary execution work is hidden. Canonical
+Deferred turn projections retain all assistant reply text, including interim
+replies, so summary-only Agent readers do not need an execution-detail lease
+to show conversation content. Reasoning and successful tool output remain
+deferred. Failed-tool payload retention does not authorize showing it in an
+Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
 ## Native ownership

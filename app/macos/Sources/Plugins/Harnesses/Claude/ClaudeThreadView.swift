@@ -218,7 +218,7 @@ func claudeDetailIncludes(_ item: JSONValue) -> Bool {
 func claudeRowKind(_ item: JSONValue, final: Bool, agentDetail: Bool = true) -> ThreadDetailRow.Kind {
     switch item.claudeKind {
     case "user-message": .user
-    case "assistant": agentDetail && item["status"]?.stringValue == "failed" ? .attention : final ? .content : .work
+    case "assistant": agentDetail && item["status"]?.stringValue == "failed" ? .attention : agentDetail || final ? .content : .work
     case "activity": .work
     case "interaction": item["interaction"]?["status"]?.stringValue == "pending" ? .attention : .work
     case "error": .attention

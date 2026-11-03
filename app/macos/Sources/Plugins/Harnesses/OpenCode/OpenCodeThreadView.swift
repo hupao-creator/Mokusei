@@ -246,8 +246,9 @@ func ocFinalReplyIDs(_ messages: [OpenCodeMessage], sessionID: JSONText?, splitT
             } else { body = AnyView(ThreadMessage(id: id, author: .assistant, content: text,
                 openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia)) }
             let failed = agentDetail && (message.status == "failed" || message.raw["isError"] == .bool(true))
-            result.append(.init(id: id, kind: failed ? .attention : reply ? .content : .work, node: body,
-                execution: reply || type == "text" && failed ? nil : .member,
+            // Settled conversation text must survive summary-only execution reading.
+            result.append(.init(id: id, kind: failed ? .attention : reply || (agentDetail && type == "text") ? .content : .work, node: body,
+                execution: reply || (agentDetail && type == "text") ? nil : .member,
                 executionSummary: type == "reasoning" ? .init(reasoningSegments: 1) : nil, finalReply: reply))
         }
         // A native assistant failure can contain only reasoning/tool parts.
@@ -264,13 +265,15 @@ private struct OpenCodeChildSessionContent: View {
     let rows: [ThreadDetailRow]
     let executionID: JSONText
     @Environment(\.threadDetailVisibility) private var visibility
+    @Environment(\.threadAgentDetail) private var agentDetail
 
     var body: some View {
         let workVisible = visibility.work && (visibility.workTurnID == nil || visibility.workTurnID == executionID)
         // A child-session error remains reachable without revealing sibling
         // tools. Tool failures alone never promote the whole child session.
         let visible = workVisible ? rows : rows.filter { $0.kind == .attention && $0.execution == nil }
-        ThreadActivityList(items: visible.map { ThreadActivitySlot(id: $0.id, node: $0.node) }, spacing: 12)
+        let displayed = agentDetail ? groupThreadExecutionRows(visible) : visible
+        ThreadActivityList(items: displayed.map { ThreadActivitySlot(id: $0.id, node: $0.node) }, spacing: 12)
     }
 }
 

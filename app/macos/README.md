@@ -46,11 +46,22 @@ and other conversation surfaces retain their data and policies. Adjacent
 execution entries remain grouped across hidden entries; assistant replies still
 separate summaries. Existing assistant streaming-disclosure rules are unchanged.
 Failed tools remain execution work: hiding work hides their rows and diagnostics
-as well. Showing execution work mounts the full tool/reasoning rows under each
-summary, acquiring scoped historical content only while visible. Failure status
-does not create another execution boundary or an independent error message.
+as well. Showing execution work in Agent Thread detail displays only the shared
+reasoning/tool-count summary and reported reasoning usage. Tool-group titles
+(such as Used tools), Hooks, commands, reasoning bodies and failed-tool
+diagnostics are execution details and never mount here; deferred detail content
+is not acquired. This applies while running, streaming, waiting for an interaction
+and after completion; pending permissions/questions remain actionable.
+Background terminal/task sections expose only static counts
+and status, without commands, task descriptions or disclosures; hiding work
+hides those summaries too. Other conversation surfaces retain full execution disclosure.
+Failure status does not create another execution boundary or an independent
+error message.
 OpenCode child sessions retain independent assistant errors without revealing
-their sibling tools. Repeated native tool references render
+their sibling tools, even when execution summaries are visible. Settled ordinary
+assistant messages remain separate from execution summaries and stay visible
+when summaries are hidden. Lightweight Pi/OpenCode history retains interim
+replies without loading execution detail. Repeated native tool references render
 once by identity; separate calls with equal labels or output remain separate.
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).

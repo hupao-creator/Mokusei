@@ -104,7 +104,7 @@ struct CodexTurnRows: View {
                 if item.kind == "user-message" { kind = .user }
                 else if (failure && (agentDetail || turn.status != "completed")) ||
                     (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
-                else if item.kind == "review" || (item.kind == "assistant" && turn.status != "waiting-input" && index == lastAssistant) { kind = .content }
+                else if item.kind == "review" || (item.kind == "assistant" && (agentDetail || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }
                 else { kind = .work }
                 result.append(ThreadDetailRow(id: item.id, kind: kind, node: node,
                     executionSummary: item.kind == "reasoning" && (!codexTrim(item.raw["content"]).codeUnits.isEmpty || executionPresence.contains(item.id, "content")) ? ThreadExecutionSummary(reasoningSegments: 1) : nil,

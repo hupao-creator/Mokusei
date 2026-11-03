@@ -10,9 +10,11 @@ Go owns process startup/shutdown, authenticated HTTP, reconnecting SSE, durable 
 reconciliation, session identity reservation, state projections, execution admission,
 steering, permissions/forms, tools, model validation and provider/account policy.
 The installed external `opencode serve --stdio` process remains the model/tool engine.
-Deferred turn projections retain error and failed-message payloads, including
-child sessions, so errors remain readable without loading ordinary execution
-work. Canonical history and full/execution projections retain their existing data.
+Deferred turn projections retain all assistant reply text, including interim
+and child-session replies, without acquiring execution-detail content. Reasoning and tool
+output keep their deferred presentation. Error
+and failed-message payloads, including child sessions, remain available for
+independent diagnostics; retained tool failures do not bypass Agent summaries. Canonical history and full/execution projections retain their existing data.
 An HTTP prompt receipt admits input; terminal native execution facts settle it.
 New executions retain their input before dispatch. Follow-up input is retained and
 acknowledged only after its native prompt receipt; a rejected steer leaves the

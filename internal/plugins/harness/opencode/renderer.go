@@ -118,24 +118,6 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 	if history && state.ForkSource != nil && state.ForkSource.SessionID != "" {
 		primary = state.ForkSource.SessionID
 	}
-	finalIDs := make(map[string]bool)
-	final := ""
-	for _, message := range messages {
-		if message.NativeSessionID != "" && primary != "" && message.NativeSessionID != primary {
-			continue
-		}
-		if history && message.Role == "user" {
-			if final != "" {
-				finalIDs[final] = true
-			}
-			final = ""
-		} else if message.Role == "assistant" && rendererNativeNonempty(message.Text) {
-			final = message.ID
-		}
-	}
-	if final != "" {
-		finalIDs[final] = true
-	}
 	nonempty := make([]Object, 0)
 	hide := func(id, field, text string) string {
 		if rendererNativeNonempty(text) {
@@ -160,7 +142,9 @@ func rendererExecution(state *State, base Object, scope model.RendererScope, sou
 		for _, key := range []string{"arguments", "result", "metadata", "todos", "annotations", "attachments"} {
 			delete(body, key)
 		}
-		reading := message.Role == "assistant" && !child && finalIDs[message.ID]
+		// Assistant replies, including those accompanying a child-session error,
+		// remain readable without a full work lease. Tool/reasoning bodies do not.
+		reading := message.Role == "assistant"
 		if !reading {
 			body["text"] = hide(message.ID, "text", message.Text)
 		}

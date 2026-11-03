@@ -309,12 +309,6 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 			}
 		}
 		if deferred {
-			final := -1
-			for index, row := range out.Messages {
-				if row.Role == "assistant" && strings.TrimSpace(row.Text) != "" {
-					final = index
-				}
-			}
 			nonempty := []model.Object{}
 			for index := range out.Messages {
 				row := &out.Messages[index]
@@ -323,7 +317,9 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 					continue
 				}
 				row.Todos = nil
-				if index != final {
+				// Reply text is conversation content even before the final model
+				// call. Summary-only readers never acquire the detail resource.
+				if row.Role != "assistant" {
 					if strings.TrimSpace(row.Text) != "" {
 						nonempty = append(nonempty, model.Object{"id": row.ID, "field": "text"})
 					}

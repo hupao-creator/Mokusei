@@ -108,6 +108,7 @@ public struct ThreadExecutionProcess: View {
     public let reasoningUsage: ThreadReasoningUsage?
     @Environment(\.locale) private var locale
     @Environment(\.threadExecutionLoader) private var loader
+    @Environment(\.threadAgentDetail) private var agentDetail
 
     public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil) {
         self.groupID = groupID
@@ -118,10 +119,12 @@ public struct ThreadExecutionProcess: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             summaryRow
-            // The header's execution toggle owns disclosure. A historical row
-            // has only presence/counts until this group mounts its scoped lease.
-            if let loader { loader(groupID) }
-            else { ThreadExecutionMemberRows(rows: rows) }
+            // Agent reading stops at the summary, including for failed tools.
+            // Do not acquire historical detail leases for this presentation.
+            if !agentDetail {
+                if let loader { loader(groupID) }
+                else { ThreadExecutionMemberRows(rows: rows) }
+            }
         }
     }
 

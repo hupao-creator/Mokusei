@@ -151,14 +151,24 @@ struct ClaudeBackgroundTasks: View {
     @Environment(\.threadDetailVisibility) private var visibility
     @Environment(\.locale) private var locale
     private var visibleTasks: [JSONValue] {
-        visibility.work ? tasks : tasks.filter { agentDetail && $0["status"]?.stringValue == "failed" }
+        // Task notifications describe execution work, not a Harness-level error.
+        visibility.work ? tasks : []
     }
     var body: some View { if !visibleTasks.isEmpty {
-        DisclosureGroup(claudeLocalized("后台任务", locale: locale) + (agentDetail && visibleTasks.contains { $0["status"]?.stringValue == "failed" } ? " · " + claudeLocalized("失败", locale: locale) : "")) {
+        if agentDetail {
+            let failed = visibleTasks.filter { $0["status"]?.stringValue == "failed" }.count
+            let count = visibleTasks.count.formatted(.number.locale(locale))
+            let failureCount = failed.formatted(.number.locale(locale))
+            let failure = failed > 0 ? " · " + claudeLocalized("失败", locale: locale) + " " + failureCount : ""
+            Text("\(claudeLocalized("后台任务", locale: locale)) · \(count)\(failure)")
+                .font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.muted.swiftUI).padding(.vertical, 16)
+        } else {
+        DisclosureGroup(claudeLocalized("后台任务", locale: locale)) {
             ForEach(Array(visibleTasks.enumerated()), id: \.offset) { _, task in
                 HStack { Text(task["description"]?.stringValue ?? ""); Spacer(); Text(task["status"]?.stringValue ?? "").foregroundStyle(NativePalette.thread.muted.swiftUI) }
             }
         }.font(NativeTypography.inter(size: 12)).padding(.vertical, 16)
+        }
     } }
 }
 struct ClaudeFailure: View {

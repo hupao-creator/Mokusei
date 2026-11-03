@@ -197,7 +197,7 @@ See the [Note performance measurements](../../../../../tools/verification/moku-n
 for the isolated production-control comparison and its visual limitations.
 
 
-[Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a static summary with reasoning/tool counts and reported reasoning usage. The reading header's execution visibility control owns both the summary and its complete tool/reasoning rows, including failed tools. Visible historical groups acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift); hiding them releases that demand. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures retain their existing behavior.
+[Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a static summary with reasoning/tool counts and reported reasoning usage. In Agent Thread detail, the reading header's execution visibility control shows only this summary: nested Used tools group titles, Hooks, tool calls, commands, reasoning bodies and failed-tool diagnostics are details and never mount. Agent-only background terminal/task sections likewise show static counts/status rather than commands or descriptions, and hide with work; task failure is not a standalone Harness error. Summary-only historical groups do not acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift). Other conversation surfaces retain full member rows and scoped historical demand while visible. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures on other conversation surfaces retain their existing behavior.
 
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
@@ -280,8 +280,12 @@ and input messages do not become work rows. Failed assistant messages and indepe
 error diagnostics stay visible when work is collapsed. Failed tools and reasoning
 remain work, sharing visibility with successful execution records. Deferred reading
 projections may retain failure payloads, but their presence does not authorize mounting
-tool rows while work is hidden. OpenCode child sessions expose independent errors
-without exposing sibling tools. An OpenCode assistant failure with no reply text
+tool rows in Agent detail, even while work summaries are visible. Settled ordinary
+assistant text stays outside execution membership and the work visibility filter
+across all four Harnesses. Lightweight Pi/OpenCode turn projections retain interim
+replies (including OpenCode child replies), so omitting a detail lease cannot erase historical conversation. OpenCode child sessions group their
+execution rows into the same summaries and expose independent errors without
+exposing sibling tools. An OpenCode assistant failure with no reply text
 retains an independent failure-status message; a failed tool alone cannot create it.
 The same policy applies to live, completed, loaded
 historical and inherited content across the four Harnesses.

@@ -170,11 +170,14 @@ private struct PiTurn: View {
         var rows: [ThreadDetailRow] = []
         for message in messages where !agentDetail || message.role == "assistant" || message.role == "tool" {
             let final = message.role == "assistant" && message.id == finalID
-            if message.role == "assistant", let thinking = message.thinking,
-               !piTrim(thinking).codeUnits.isEmpty || executionPresence.contains(message.id, "thinking") {
+            if message.role == "assistant",
+               message.thinking.map({ !piTrim($0).codeUnits.isEmpty }) == true || executionPresence.contains(message.id, "thinking") {
+                // Lightweight history omits empty fields after stripping the body.
+                // Its presence marker still contributes a reasoning segment.
+                let thinking = message.thinking?.string ?? ""
                 rows.append(ThreadDetailRow(id: JSONText(codeUnits: message.id.codeUnits + Array(":thinking".utf16)), kind: .work,
                     node: AnyView(ThreadSurfaceDisclosure(label: piLocalized("思考过程", locale)) {
-                        NativeMarkdownView(text: thinking.string, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
+                        NativeMarkdownView(text: thinking, streaming: message.status == "streaming", openExternal: openExternal, resolveMedia: context.resolveMedia)
                     }), execution: .member, executionSummary: ThreadExecutionSummary(reasoningSegments: 1)))
             }
             // Pi may terminate an execution without settling its last message.
@@ -184,9 +187,11 @@ private struct PiTurn: View {
             let kind: ThreadDetailRow.Kind
             if agentDetail && message.role != "tool" && (message.isError || message.status == "failed") { kind = .attention }
             else if message.role == "user" { kind = .user }
+            else if agentDetail && message.role == "assistant" { kind = .content }
             else { kind = message.role == "tool" || !final ? .work : .content }
+            // Interim assistant replies are conversation text, not execution details.
             rows.append(ThreadDetailRow(id: message.id, kind: kind,
-                node: AnyView(messageView(message)), execution: message.role == "tool" || (message.role == "assistant" && !final && kind != .attention) ? .member : nil,
+                node: AnyView(messageView(message)), execution: message.role == "tool" || (!agentDetail && message.role == "assistant" && !final && kind != .attention) ? .member : nil,
                 executionSummary: message.role == "tool" && message.toolCallID != nil ? ThreadExecutionSummary(toolCalls: 1) : nil, finalReply: final))
         }
         if execution.status == .failed, let error = execution.error, !error.codeUnits.isEmpty {
