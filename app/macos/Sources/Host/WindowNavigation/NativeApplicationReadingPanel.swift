@@ -18,7 +18,9 @@ struct NativeReadingPanelCloseButton: View {
                 .background(.quaternary.opacity(0.5), in: Circle())
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain).padding(14)
+        .buttonStyle(.plain)
+        .nativeLayoutLog("reading.close.target")
+        .padding(14)
         .help(label).accessibilityLabel(label)
     }
 }
@@ -30,6 +32,15 @@ struct NativeApplicationReadingPanel: ViewModifier {
     let identifier: String
     let onClose: () -> Void
     @Environment(\.locale) private var locale
+
+    private var layoutRole: StaticString {
+        switch identifier {
+        case "moku-reading-panel": "moku.history.panel"
+        case "report-reading-panel": "report.reading.panel"
+        case "git-reading-panel": "git.reading.panel"
+        default: "application.reading.panel"
+        }
+    }
 
     func body(content: Content) -> some View {
         if enabled {
@@ -56,6 +67,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
                     onClose: onClose)
             }
             .accessibilityIdentifier(identifier)
+            .nativeLayoutLog(layoutRole)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
     }
 }

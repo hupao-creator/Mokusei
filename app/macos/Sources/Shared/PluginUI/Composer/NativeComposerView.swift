@@ -92,6 +92,7 @@ public struct NativeComposerView: View {
             }
         }
         .frame(maxWidth: 820)
+        .nativeLayoutLog("composer")
         .padding(.bottom, 12)
     }
 

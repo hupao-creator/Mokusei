@@ -103,6 +103,7 @@ struct NativeMokuNoteContent: View {
         }
         // Reading content stays above the retained row and the history action.
         .frame(width: width, height: height, alignment: .top)
+        .nativeLayoutLog("moku.note.panel")
         .clipped()
         .onChange(of: contentHeight, initial: true) { _, height in
             if height > 0 { onContentHeightChange?(height + headerHeight) }

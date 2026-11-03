@@ -137,6 +137,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
                     .accessibilityIdentifier("agent-reading-panel")
+                    .nativeLayoutLog("agent.reading.panel")
                 if snapshot.selected != nil && !layout.stacked {
                     NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                         onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
@@ -202,6 +203,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             // Sidecards reuse timelines and can contain further nested reading views.
             .environment(\.nativeReadingNavigation, nil)
             .frame(width: layout.surfaceWidth, height: layout.surfaceHeight, alignment: .topLeading)
+            .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))

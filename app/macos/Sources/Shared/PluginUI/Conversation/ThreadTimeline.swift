@@ -199,6 +199,7 @@ public struct HarnessMessageTimeline: View {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(visibleRows) { row in
                                 row.node.threadReadingAnchor(row.id)
+                                    .nativeLayoutLog("timeline.row")
                                     .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
                             }
                         }.accessibilityElement(children: .contain)
@@ -206,10 +207,12 @@ public struct HarnessMessageTimeline: View {
                         Color.clear.frame(height: 1).id(TimelineEdge.bottom)
                     }
                     .frame(maxWidth: NativeGeometry.readingWidth, alignment: .leading)
+                    .nativeLayoutLog("timeline.reading.column")
                     .padding(.horizontal, bounds.size.width <= 540 ? 18 : 32)
                     .padding(.top, readingTopInset(bounds.size.width))
                     .padding(.bottom, readingBottomInset).frame(maxWidth: .infinity)
                     .coordinateSpace(name: "thread-timeline-content")
+                    .nativeLayoutLog("timeline.document")
                     .environment(\.nativeReadingPageCapacity, readingPageCapacity(bounds.size))
                     .background(TimelineDiagnosticsAttachment(active: !suspended, operation: performanceOperation).allowsHitTesting(false))
                 }

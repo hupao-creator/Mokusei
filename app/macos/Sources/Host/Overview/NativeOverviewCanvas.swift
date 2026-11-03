@@ -295,6 +295,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             .environment(\.nativeCanvasInputRegions, navigationInput.regions)
             .coordinateSpace(name: ownership)
+            .nativeLayoutLog("overview.canvas")
             // A new filter first lays out every card at its frozen start pose.
             // Acknowledging that layout keeps expensive first construction out
             // of the animation's clock, without guessing a mount-time delay.
@@ -881,6 +882,7 @@ private struct OverviewSwiftUICard<Content: View>: View, Equatable {
     var body: some View {
         let coordinateSpace = coordinateSpace, viewport = viewport
         content(item).environment(\.threadCardAnimationVisibility, animationVisibility)
+            .nativeLayoutLog("overview.card")
             .onGeometryChange(for: Bool.self) { proxy in
                 proxy.frame(in: .named(coordinateSpace)).intersects(CGRect(origin: .zero, size: viewport))
             } action: { value in inViewport = value; animationVisibility.isVisible = visible && value }

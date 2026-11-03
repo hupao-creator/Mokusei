@@ -78,6 +78,8 @@ private final class WorkspaceSession {
             let lease = try RuntimeProfileClientLease(dataDirectory: options.dataDirectory)
             lease.retainForProcess()
             let profile = lease.profile
+            NativeLayoutDiagnostics.start(directory: profile.dataDirectory.appendingPathComponent("diagnostics/layout", isDirectory: true),
+                explicitDataDirectory: options.explicitDataDirectory)
             performanceDirectory = profile.dataDirectory.appendingPathComponent("diagnostics/performance", isDirectory: true)
             if let performanceDirectory { NativePerformance.configure(directory: performanceDirectory) }
             startup.attachToRecording()
@@ -176,6 +178,7 @@ private final class WorkspaceSession {
         quitDeadline?.cancel()
         interactionServer?.stop()
         startup.cancel(); NativePerformance.finish()
+        NativeLayoutDiagnostics.finish()
         exit(EXIT_SUCCESS)
     }
     private struct SavedZoom: Codable { let level: Double }
@@ -196,6 +199,7 @@ private struct WorkspaceWindow: View {
             .disabled(session.busy)
         }
         .modifier(NativeWorkspaceWindowSurface())
+        .nativeLayoutLog("workspace.window")
         .onAppear { session.start() }
         .onDisappear { session.quit() }
         .alert("Mokusei", isPresented: Binding(get: { session.error != nil && session.model != nil }, set: { if !$0 { session.error = nil } })) {
@@ -215,6 +219,7 @@ private struct LaunchOptions {
     let dataDirectory: URL
     let launch: RuntimeLaunchConfiguration?
     let automationSocket: String?
+    let explicitDataDirectory: Bool
 
     init() throws {
         let arguments = Array(CommandLine.arguments.dropFirst())
@@ -231,6 +236,7 @@ private struct LaunchOptions {
             index += 2
         }
         automationSocket = options["--automation-socket"]
+        explicitDataDirectory = options["--data-dir"] != nil
         if automationSocket != nil, options["--data-dir"] == nil {
             throw NSError(domain: "MokuseiLaunch", code: 4,
                           userInfo: [NSLocalizedDescriptionKey: "Automation requires an explicit --data-dir."])

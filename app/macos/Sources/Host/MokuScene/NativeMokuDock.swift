@@ -398,6 +398,7 @@ public struct NativeMokuDock: View {
                 if let interaction, !state.settingsOpen {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
+                        .nativeLayoutLog("moku.interaction.panel")
                         .nativeCanvasNavigationRegion()
                         .background { NativeMokuCapsuleGlass(interactive: false) }
                         .environment(\.colorScheme, .dark)
@@ -405,6 +406,7 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
+            .nativeLayoutLog("moku.dock.viewport")
             .onPreferenceChange(NativeSettingsPreferredHeightKey.self) { height in
                 // Keep a generous default and grow for longer Harness forms.
                 // The viewport cap leaves scrolling available on small/zoomed windows.
@@ -643,9 +645,11 @@ public struct NativeMokuDock: View {
             reduceMotion: reduceMotion, dark: true)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
+        .nativeLayoutLog("moku.capsule")
         .overlay(alignment: .bottomLeading) {
             if composerMounted {
                 composer(room: room, compact: width < 260)
+                .nativeLayoutLog("moku.composer")
                     // Native text and controls lay out at their destination width.
                     // Only the enclosing shell reveals them. Keep the enclosing
                     // placement animated: clearing this entire transaction makes
@@ -724,6 +728,7 @@ public struct NativeMokuDock: View {
             if state.settingsOpen {
                 settingsContent
                     .frame(width: settingsSize.width, height: settingsSize.height)
+                    .nativeLayoutLog("moku.settings.seat")
                     // Settle the page layout during the capsule morph without
                     // suppressing animations initiated later by its children.
                     .transaction(value: state.settingsExpanded) { $0.animation = nil }

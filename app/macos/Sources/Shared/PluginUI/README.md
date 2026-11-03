@@ -2,6 +2,11 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+Dev-only [layout logging](../../../build/layout-logging.md) combines window-wide
+AppKit frame/bounds observation with semantic SwiftUI geometry hooks in shared
+readers, timeline columns/rows, composers and scroll containers. It does not
+sample animation presentation frames or read content/accessibility values.
+
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page
 return. Opening/reversal remains immediate. Preparation shares the stack's route
