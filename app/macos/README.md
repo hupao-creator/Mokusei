@@ -2,9 +2,10 @@
 
 [Package.swift](Package.swift) builds the macOS application and its Swift modules. SwiftUI presents shared UI/state, with AppKit handling native text, input and window behavior.
 
-App-owned viewports and Browser frames use the
+App-owned viewports use the
 [trackless scrollbar policy](Sources/Shared/PluginUI/README.md#scrollbars);
-Report HTML uses native thin WebKit scrollbars with automatic system colors.
+Report HTML uses thin, trackless WebKit scrollbars. External Browser pages and
+embedded external frames retain their own styles.
 AppKit controls retain scrolling, drag tracking and accessibility; transient
 hiding follows system preferences. AppKit-owned viewports reserve a persistent
 native gutter; SwiftUI-owned viewports retain SwiftUI's indicator visibility and

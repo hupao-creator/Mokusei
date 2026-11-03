@@ -62,7 +62,9 @@ The SwiftUI adapter is a noninteractive background **inside its own content**.
 Do not attach it outside a viewport: nested code/table panes must configure their
 own scroll view rather than the surrounding timeline. Existing `ScrollPosition`,
 `ScrollViewReader`, geometry callbacks, bounce policies and enabled axes remain
-at their callers. Explicitly hidden navigation/chip indicators stay hidden.
+at their callers. Each wrapper refreshes its own scroller after layout, since
+SwiftUI may install or replace it as content grows. Nested viewports remain
+independently scoped. Explicitly hidden navigation/chip indicators stay hidden.
 
 `nativeControlScrollbars()` opts in a SwiftUI `TextEditor` or `List` that owns
 its own internal viewport. Apply it directly to that control; an enclosing
@@ -76,7 +78,7 @@ Inventory and integration boundaries:
 
 | Owner | Scrollable surfaces | Integration |
 | --- | --- | --- |
-| Shared conversation | Timeline, activities, Markdown code and tables | SwiftUI wrapper; timeline diagnostics remain timeline-owned |
+| Shared conversation / execution Sidecard | Timeline, activities, Markdown code and tables | SwiftUI wrapper; timeline diagnostics remain timeline-owned |
 | Shared composer | Native multiline editor, attachment strip, host file picker | AppKit subclass and control-scoped List adapter; attachment indicators remain hidden |
 | Settings and shared selects | Main form, section strip, agent/error detail, native textareas, option and model menus | Wrapper/subclass only; bindings, validation and menu focus unchanged |
 | Moku | Note (including short viewport), directory completion, Talk, dispatch details and interaction bodies | Wrapper; completion uses native drag/accessibility instead of its old custom thumb |
@@ -84,56 +86,20 @@ Inventory and integration boundaries:
 | Git | Worktree/file list, diff reader and synchronized horizontal code panes | Wrapper/subclass; line selection and horizontal synchronization remain owned by Git |
 | Plugins | Report relations, OpenCode process, Browser annotation list and Voice transcript | Wrapper; Browser comment TextEditor also uses the control-scoped adapter |
 | Harness interactions | Codex JSON elicitation, Claude permission/elicitation/reply and OpenCode permission/custom-answer editors | Control-scoped TextEditor adapter; form state, validation and actions stay with each Harness |
-| WebKit Browser | Main document, subframes, textarea and page-owned overflow | `NativeWebScrollbarStyle.script` in every frame; transparent tracks and page-contrast thumb colors |
-| Report HTML | Panel and full-page document, subframes, textarea and page-owned overflow | `NativeWebScrollbarStyle.reportScript` in every frame; native thin scrollbars with automatic system colors |
+| WebKit Browser | External documents, frames and page-owned overflow | WebKit and the page own scrollbar styling |
+| Report HTML | App-owned custom-scheme documents, textarea and nested overflow | `NativeWebScrollbarStyle.reportScript`; thin, trackless native controls; external frames remain page-owned |
 
-Report's `reportScript` uses standard `scrollbar-width: thin` and
-`scrollbar-color: auto`. WebKit owns both axes, knob contrast, hover, fading,
-hit testing and live system display preferences. Non-auto standard width takes
-precedence over authored WebKit pseudo-element decoration, so ordinary report
-rules that hide or enlarge scrollbars no longer replace native controls. This
-also covers dynamically inserted overflow elements without DOM traversal or
-color observers. Constructed stylesheets retain restrictive-CSP support.
-Document/workspace zoom, overflow, scroll position, text selection and page color
-scheme stay with the existing reader. Native thin WebKit metrics and persistent
-tracks can differ from AppKit's mini trackless scrollers; Report deliberately
-uses WebKit's native control rather than emulating an AppKit thumb in CSS.
-Higher-priority authored important rules, shadow roots and page-script/canvas
-scrollbars remain page-owned boundaries. The expanded Overview relations list
-already uses `NativeScrollView`; the collapsed card is a clipped preview, and
-the onboarding Report illustration has no scrolling document.
-
-Browser's [NativeWebScrollbarStyle](Design/NativeWebScrollbarStyle.swift) uses standard
-`scrollbar-color` on supporting WebKit versions
-([Safari 26.2 onward](https://webkit.org/blog/17640/webkit-features-for-safari-26-2/)),
-retaining native fade, hit testing and live system scrollbar preferences. Thumb
-color uses each element's actual `currentColor` without reducing its opacity.
-This preserves text-level contrast on dark pages that omit `color-scheme`, where
-`CanvasText` can still be black. The viewport uses the body's foreground because
-pages commonly put their canvas colors on body rather than html. Root/body
-class/style changes, body replacement and system color-scheme changes refresh
-that viewport foreground. Viewport resize refreshes width/height media-query
-changes; a scoped head observer handles stylesheet insertion/removal, text edits
-and relevant link/style attributes. Captured stylesheet load events refresh
-after resources (including delayed links and styles outside head) actually apply.
-These signals share one pending 50ms refresh, without idle polling or an observer
-over the entire body subtree. Unrelated head/body content changes do not read
-computed style; unchanged colors do not write CSS, and the policy's own root
-custom-property write does not schedule another read.
-This tracks text contrast, not arbitrary image or
-translucent-background contrast, and does not preserve a page's exact authored
-thumb hue. A
-constructed stylesheet works with restrictive inline-style CSPs and applies to
-new overflow elements without walking their DOM. No overflow, wheel/key handler,
-scroll offset, scrollbar width or page color scheme is changed. Page-authored
-track backgrounds, borders and shadows are cleared. Older WebKit receives
-transparent pseudo tracks and a visible fallback thumb; native overlay fading
-is not guaranteed for that custom rendering path. Page-specific higher-priority
-rules and shadow-root styles remain WebKit/page-owned boundaries.
-The policy covers ordinary document/overflow CSS in each injected frame; it
-does not force overrides into arbitrary shadow trees, canvas-drawn scrollbars or
-higher-priority page rules. CSSOM-only rule edits, edits/removals of styles outside
-head that emit no load event, and animated colors are not continuously sampled.
+Report's `reportScript` selects thin WebKit scrollbars with transparent tracks
+and foreground-based thumbs in app-owned documents. A custom-scheme ownership
+guard excludes external pages even after main-frame navigation; app-owned frames
+use the same policy. Existing navigation continues to reject blank/srcdoc URLs.
+WebKit retains scrolling,
+tracking, fading and system display preferences. The viewport foreground follows
+body styling, and nested overflow uses its own text color. Constructed stylesheets
+support restrictive CSPs; shadow roots, custom canvas scrollbars and external
+frames remain document-owned. The Browser does not inject scrollbar styles into
+external pages. The expanded Overview relations list uses `NativeScrollView`;
+the collapsed card is clipped and the onboarding illustration does not scroll.
 
 Settings, the general model selector, Thread Detail TOC and Note are parallel
 work areas. Changes here are limited to viewport construction and removal of
@@ -151,13 +117,9 @@ crosses the overflow threshold on both axes, empty-knob invisibility and
 preference-notification isolation. Mounted, windowless SwiftUI TextEditor/List fixtures check overflowing
 controls, nested/sibling isolation, editor bindings, native row/text selection,
 offset retention, preference notifications, control replacement and List viewport
-width across its own overflow threshold. Windowless
-WebKit checks of the Browser policy cover actual script injection, subframes, dynamic overflow, restrictive
-CSP, geometry, both axes, textarea selection and dark/light foregrounds without
-color-scheme, including body theme changes, real view resizes, stylesheet
-insertion/edit/removal and deferred local CSS loading. Instrumented calls to the
-real isolated-world `getComputedStyle` verify coalescing and that unrelated
-content mutations do not trigger reads. It never
+width across its own overflow threshold. The existing WebKit fixture exercises the shared styling script, including
+CSP, dynamic overflow and color changes; its historical Browser injection scope
+does not certify the current Report ownership guard or Browser exclusion. It never
 opens a window or changes system preferences. Headless Swift tests use
 `MOKUSEI_TEST_HEADLESS=1`; display cases report skips, not passes. These checks
 cannot certify rendered WebKit/overlay thumb pixels, hover/fade timing, actual

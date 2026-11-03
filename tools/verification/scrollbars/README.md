@@ -32,7 +32,7 @@ paint only while scrolling is possible (legacy) or stay blank at rest (overlay).
 This checks the actual SwiftUI/AppKit adapter boundary, without a popover,
 window or input injection.
 
-The windowless WKWebView fixture checks the production user script in the main
+The windowless WKWebView fixture checks the shared styling script in the main
 document and a child frame, page-authored tracks, dynamic overflow, restrictive
 inline-style CSP, unchanged viewport geometry, both scroll axes and textarea
 selection. A black-body/white-text page with no color-scheme must retain a white
@@ -47,7 +47,9 @@ network server). Real computed-style calls are counted in the script's isolated
 world: ordinary content/meta mutations must cause zero reads; one synchronous
 resize/style burst must cause one read, including after the resulting root write.
 These are computed-style assertions, not final composited-pixel claims. The
-fixture uses nonpersistent data and local HTML, without network pages.
+fixture uses nonpersistent data and local HTML, without network pages. Its
+all-frame injection does not verify the production Report document-ownership guard
+or the absence of styling in external Browser pages.
 WebKit still needs access to its system XPC services; a sandbox denial or timeout
 is incomplete execution, not a pass. Run with the environment's normal WebKit
 service access while retaining the no-window constraint.

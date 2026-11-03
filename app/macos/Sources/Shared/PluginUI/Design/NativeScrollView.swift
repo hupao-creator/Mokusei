@@ -157,6 +157,7 @@ private struct ScrollbarConfiguration: NSViewRepresentable {
 }
 
 @MainActor private final class ScrollbarConfigurationView: NSView {
+    private var refreshScheduled = false
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         NotificationCenter.default.addObserver(self, selector: #selector(configure),
@@ -166,6 +167,18 @@ private struct ScrollbarConfiguration: NSViewRepresentable {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); configure() }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); configure() }
+    override func layout() {
+        super.layout()
+        guard !refreshScheduled else { return }
+        refreshScheduled = true
+        // SwiftUI can install or replace its scroller during layout as a
+        // viewport fills. Wait until that layout finishes before styling it.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.refreshScheduled = false
+            self.configure()
+        }
+    }
     @objc func configure() {
         if let scroll = enclosingScrollView {
             // SwiftUI owns indicator visibility and its content-width proposal.

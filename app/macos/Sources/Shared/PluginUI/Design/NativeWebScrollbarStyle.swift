@@ -1,36 +1,24 @@
 import WebKit
 
-/// Scrollbar policies for app-owned Report documents and external Browser frames.
+/// Scrollbar policy for app-owned Report documents.
 /// Keep WebKit's native scroll model, hit testing, fading and system preference
 /// handling. Select native metrics rather than pixel dimensions or custom overflow.
 @MainActor public enum NativeWebScrollbarStyle {
     /// Authored Reports belong to the app reader. A non-auto standard width
     /// takes precedence over WebKit pseudo-element decoration, including an
     /// authored zero-width/custom thumb, without replacing native scrolling.
-    /// Browser keeps its separate page-contrast policy below.
+    /// External pages retain their own styling, even after main-frame navigation.
     public static var reportScript: WKUserScript {
         WKUserScript(source: reportSource, injectionTime: .atDocumentEnd,
                      forMainFrameOnly: false, in: .world(name: "Mokusei.Scrollbars"))
     }
 
-    public static let reportSource = #"""
-    (() => {
-      if (globalThis.__mokuseiReportScrollbarSheet) return;
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(`
-        /* Thin selects WebKit's native narrow control on both axes and disables
-           page-authored ::-webkit-scrollbar painting. Auto colors leave knob
-           contrast, hover, fading and system display preferences with WebKit. */
-        :root, * {
-          scrollbar-width: thin !important;
-          scrollbar-color: auto !important;
-        }
-      `);
-      // Constructed sheets also apply under an inline-style-restricting CSP.
-      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-      globalThis.__mokuseiReportScrollbarSheet = sheet;
-    })();
-    """#
+    public static var reportSource: String {
+        // A Report can navigate away or embed an external document. The reader
+        // admits its custom-scheme documents and HTTP(S); only the former are
+        // app-owned. Check each loaded frame, including after main-frame POSTs.
+        "if (location.protocol === 'mokusei-html:') {\n" + source + "\n}"
+    }
 
     public static var script: WKUserScript {
         WKUserScript(source: source, injectionTime: .atDocumentEnd,
@@ -47,7 +35,7 @@ import WebKit
         /* Standard colors retain native overlay fading and scrollbar metrics. */
         /* CanvasText can stay black on a black page without color-scheme. Use
            the actual foreground, without reducing its contrast through alpha. */
-        * { scrollbar-color: currentColor transparent !important; }
+        * { scrollbar-width: thin !important; scrollbar-color: currentColor transparent !important; }
         :root { scrollbar-color: var(--mokusei-viewport-scrollbar-thumb, currentColor) transparent !important; }
         @supports not (scrollbar-color: black transparent) {
           ::-webkit-scrollbar { background: transparent !important; }
