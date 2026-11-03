@@ -35,7 +35,7 @@ public struct ConversationExecutionPane: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(t("执行卡片"))
         .accessibilityIdentifier("conversation-sidecard")
-        .nativeOnExitCommand(perform: presentation.context.close)
+        .nativeReadingExitCommand(perform: presentation.context.suppressed ? nil : presentation.context.close)
     }
 
     @ViewBuilder

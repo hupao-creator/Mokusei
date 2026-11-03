@@ -13,6 +13,14 @@ Only their shells change; plugin forms, browser behavior and voice ownership rem
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
 
+The host, execution pane and nested history route SwiftUI Escape through
+`nativeReadingExitCommand`, sharing resident-input priority with native reading
+without replacing focused-child dispatch. Native editors/marked text, menus,
+transient controls and WebKit keep cancellation first; otherwise Escape folds
+open Moku input before folding the selected Sidecard or leaving the Thread.
+Explicit Close, browser address/annotation cancellation and non-Escape exit
+commands retain their own routes. Covered/disabled cards cannot close a replacement.
+
 ## Conversation
 
 [Conversation](Conversation/) is an execution display. It owns no composer,

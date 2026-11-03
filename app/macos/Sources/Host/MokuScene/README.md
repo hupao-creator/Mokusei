@@ -500,6 +500,10 @@ mouse-up; a subsequent press or Escape keeps the reader's usual close behavior.
 Explicit Close controls keep their action. Folding only changes presentation,
 retaining the Thread draft, attachments, directories and selection without
 starting/stopping voice or moving accessibility focus to another control.
+While the first responder has native marked text, a local press is delivered
+without folding input or closing the reading panel. AppKit/input methods may
+commit or retain composition; no forced unmark/discard or delayed collapse is
+added. A later action after composition ends uses the ordinary dismissal route.
 See the [routing investigation and manual limits](../../../../../design/thread-detail-input-dismissal.md).
 
 Sprint verification for this change uses the application build, architecture

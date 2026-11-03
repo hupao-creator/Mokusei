@@ -72,6 +72,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     var isActive: () -> Bool
     var usesExclusions = true
     var preservesOwnedInteractions = false
+    var composingClick: () -> Void = {}
     var outsideWindowClick: (() -> Void)? = nil
     var isInside: (CGPoint) -> Bool
     var click: (CGPoint) -> Void
@@ -80,6 +81,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         let view = MonitorView()
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
                     usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
+                    composingClick: composingClick,
                     outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
         return view
@@ -88,6 +90,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     func updateNSView(_ view: MonitorView, context: Context) {
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
                     usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
+                    composingClick: composingClick,
                     outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
     }
@@ -109,6 +112,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         private var isActive: () -> Bool = { false }
         private var isInside: (CGPoint) -> Bool = { _ in true }
         private var click: (CGPoint) -> Void = { _ in }
+        private var composingClick: () -> Void = {}
 
         // Match the flipped SwiftUI scene rather than AppKit's bottom-left origin.
         override var isFlipped: Bool { true }
@@ -116,12 +120,14 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
 
         func update(exclusions: NativeClickExclusions, beginClick: @escaping () -> Void,
                     isActive: @escaping () -> Bool, usesExclusions: Bool, preservesOwnedInteractions: Bool,
+                    composingClick: @escaping () -> Void,
                     outsideWindowClick: (() -> Void)?, isInside: @escaping (CGPoint) -> Bool,
                     click: @escaping (CGPoint) -> Void) {
             self.exclusions = exclusions; self.beginClick = beginClick; self.isActive = isActive
             self.isInside = isInside; self.click = click
             self.usesExclusions = usesExclusions; self.outsideWindowClick = outsideWindowClick
             self.preservesOwnedInteractions = preservesOwnedInteractions
+            self.composingClick = composingClick
             syncGlobalMonitor()
         }
 
@@ -153,14 +159,23 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
                 MainActor.assumeIsolated {
                     guard let self, let window = self.window,
                           !self.isHiddenOrHasHiddenAncestor else { return }
+                    if event.window === window {
+                        // A mark only covers this press, including one owned by
+                        // composition that AppKit may commit during delivery.
+                        self.beginClick()
+                        if self.preservesOwnedInteractions, self.isActive(),
+                           (window.firstResponder as? NSTextInputClient)?.hasMarkedText() == true {
+                            // Check before transient windows: an IME candidate
+                            // window can disappear while forwarding this press.
+                            self.composingClick()
+                            return
+                        }
+                    }
                     guard !self.ownsAuxiliaryInteraction(in: window) else { return }
                     guard event.window === window else {
                         self.clickOutsideWindow()
                         return
                     }
-                    // A mark only covers the press that created it. Clear any
-                    // earlier one before deciding whether this press dismisses.
-                    self.beginClick()
                     guard !self.preservesOwnedInteractions || self.popoverDismissalPress != event.timestamp else { return }
                     guard self.isActive() else { return }
                     let point = self.convert(event.locationInWindow, from: nil)

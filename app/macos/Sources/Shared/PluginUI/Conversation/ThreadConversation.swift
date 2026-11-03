@@ -470,7 +470,7 @@ private struct ThreadHistoryDocument: View {
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
-            .nativeOnExitCommand(perform: onBack).onAppear { if focusHeading { headingFocused = true } }
+            .nativeReadingExitCommand(perform: readingActive ? onBack : nil).onAppear { if focusHeading { headingFocused = true } }
             .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
@@ -532,6 +532,55 @@ public extension View {
     func nativeReadingEscape(perform action: (() -> Void)?) -> some View {
         background(ThreadHistoryEscapeHandler(back: action))
     }
+
+    /// Keep SwiftUI's focused-child cancellation order while sharing the
+    /// resident input priority used by the native reading fallback.
+    func nativeReadingExitCommand(perform action: (() -> Void)?) -> some View {
+        modifier(NativeReadingExitCommand(action: action))
+    }
+}
+
+private struct NativeReadingExitCommand: ViewModifier {
+    let action: (() -> Void)?
+    @Environment(\.nativeReadingInputCancellation) private var cancelInput
+    @Environment(\.isEnabled) private var enabled
+    func body(content: Content) -> some View {
+        content.onExitCommand(perform: action.map { action in
+            {
+                guard enabled else { return }
+                // This is a responder-scoped fallback after native/menu dispatch,
+                // not another window-wide key monitor. Preserve other exit commands.
+                if let event = NSApp.currentEvent, event.type == .keyDown,
+                   event.keyCode != 53 || !event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty {
+                    action(); return
+                }
+                guard let window = NSApp.currentEvent?.window ?? NSApp.keyWindow else { return }
+                switch NativeReadingCancellation.owner(in: window) {
+                case .native, .handled: return
+                case .reading: if cancelInput?() != true { action() }
+                }
+            }
+        })
+    }
+}
+
+/// Both native monitoring and SwiftUI exit delivery cross the input boundary.
+/// Editors and native transient controls must keep cancellation at either entry.
+private enum NativeReadingCancellation {
+    enum Owner { case native, handled, reading }
+    @MainActor static func owner(in window: NSWindow) -> Owner {
+        guard window.attachedSheet == nil, NSApp.modalWindow == nil,
+              (window.firstResponder as? NSTextInputClient)?.hasMarkedText() != true,
+              (window.firstResponder as? NSTextView)?.isEditable != true else { return .native }
+        var responder = window.firstResponder
+        while let current = responder, current !== window {
+            // WebKit's trusted DOM handler owns its editors and HTML dialogs.
+            if current is WKWebView { return .native }
+            if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return .handled }
+            responder = current.nextResponder
+        }
+        return (window.childWindows ?? []).contains { $0.isVisible } ? .native : .reading
+    }
 }
 
 private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
@@ -575,21 +624,14 @@ private struct ThreadHistoryEscapeHandler: NSViewRepresentable {
                 let handled = MainActor.assumeIsolated { () -> Bool in
                     guard let self, let back = self.back, let window = self.window,
                           event.window === window, !self.isHiddenOrHasHiddenAncestor, self.menus.isEmpty,
-                          window.attachedSheet == nil, NSApp.modalWindow == nil,
-                          event.keyCode == 53, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
-                          (window.firstResponder as? NSTextInputClient)?.hasMarkedText() != true,
-                          (window.firstResponder as? NSTextView)?.isEditable != true else { return false }
+                          event.keyCode == 53, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty else { return false }
                     // Transient popovers can keep events addressed to an anchor
                     // in a sibling surface. Its explicit cancellation owner acts first.
-                    var responder = window.firstResponder
-                    while let current = responder, current !== window {
-                        // Only the trusted DOM handler can determine whether a
-                        // WebKit editor or HTML dialog owns this Escape.
-                        if current is WKWebView { return false }
-                        if (current as? NativeSettingsEscapeCancelling)?.cancelSettingsPresentation() == true { return true }
-                        responder = current.nextResponder
+                    switch NativeReadingCancellation.owner(in: window) {
+                    case .native: return false
+                    case .handled: return true
+                    case .reading: break
                     }
-                    guard !(window.childWindows ?? []).contains(where: { $0.isVisible }) else { return false }
                     if let responder = window.firstResponder as? NSView, responder !== window.contentView {
                         let point = responder.convert(CGPoint(x: responder.bounds.midX, y: responder.bounds.midY), to: nil)
                         guard self.bounds.contains(self.convert(point, from: nil)) else { return false }

@@ -78,7 +78,7 @@ import MokuseiPluginUI
     public private(set) var windowVisible = false
     @ObservationIgnored var dockHitRects: [CGRect] = []
     @ObservationIgnored var dockMentionHitRect: CGRect?
-    @ObservationIgnored private(set) var inputDismissedForClick = false
+    @ObservationIgnored private(set) var inputHandledOutsideClick = false
     @ObservationIgnored var capsuleFrame = CGRect.zero
     private(set) var dockInteractionVisible = false
     private(set) var dockInteractionIsQuestion = false
@@ -196,13 +196,18 @@ import MokuseiPluginUI
     public func dismissInputForOutsideClick() -> Bool {
         guard inputOpen, !landingActive, dockRouteVisible, !dockCovered else { return false }
         setInputOpen(false)
-        inputDismissedForClick = true
+        inputHandledOutsideClick = true
         overviewState.suppressAutoFocusForThisClick()
         return true
     }
     func beginOutsideClick() {
-        inputDismissedForClick = false
+        inputHandledOutsideClick = false
         overviewState.clearAutoFocusSuppression()
+    }
+    func preserveInputForCompositionClick() {
+        // The native input session may commit or keep composing on delivery.
+        // Its press must not also retire the reading route on mouse-up.
+        inputHandledOutsideClick = true
     }
     /// Reading and the Dock share cancellation priority even after focus has
     /// moved away from the editor. This retires presentation, never its draft.

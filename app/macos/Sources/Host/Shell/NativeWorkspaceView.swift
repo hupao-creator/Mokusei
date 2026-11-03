@@ -690,9 +690,9 @@ public struct NativeWorkspaceView: View {
                 prepareParent: { await presentation.prepareOverviewReturn() },
                 onPanelOutsideClick: applicationSuppressed ? nil : {
                     guard presentation.navigationRouteID == routeID else { return }
-                    // The Dock observes mouse-down without swallowing it. Its
-                    // dismissing press must not also close this panel on mouse-up.
-                    guard !presentation.scene.inputDismissedForClick else { return }
+                    // The Dock observes mouse-down without swallowing it. A press
+                    // folding input or owned by its IME cannot also close this panel.
+                    guard !presentation.scene.inputHandledOutsideClick else { return }
                     if presentation.selected?.typeID == "agent" { presentation.showOverview() }
                     else { presentation.closeApplication() }
                 },

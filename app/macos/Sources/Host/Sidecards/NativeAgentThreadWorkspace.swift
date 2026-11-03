@@ -156,7 +156,7 @@ private struct NativeSidecardWorkspaceLayout: View {
             .animation(animation, value: snapshot.selected)
             .animation(animation, value: layout.stacked)
         }
-        .nativeOnExitCommand {
+        .nativeReadingExitCommand {
             closeTopLevel()
         }
         .onChange(of: snapshot.selected) { previous, selected in
@@ -224,7 +224,7 @@ private struct NativeSidecardWorkspaceLayout: View {
                     .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
                     .offset(x: layout.surfaceX, y: layout.surfaceY)
             }
-            .nativeOnExitCommand { if expanded { model.close(card.id) } }
+            .nativeReadingExitCommand(perform: expanded && !snapshot.suppressed ? { model.close(card.id) } : nil)
     }
 
     private var launchers: some View {

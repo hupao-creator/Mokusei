@@ -438,6 +438,7 @@ public struct NativeMokuDock: View {
                     isActive: { (state.inputOpen || (!navigationDisabled && (state.notePanelOpen || foregroundTalkID != nil))) && state.dockRouteVisible && !state.dockCovered },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
                     preservesOwnedInteractions: state.inputOpen,
+                    composingClick: { state.preserveInputForCompositionClick() },
                     outsideWindowClick: !state.notePanelOpen && foregroundTalkID != nil ? {
                         state.dismissTalk()
                     } : nil,

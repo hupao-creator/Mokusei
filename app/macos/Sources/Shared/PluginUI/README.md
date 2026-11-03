@@ -9,6 +9,10 @@ owns Escape; returning `true` consumes that Escape without navigating the reader
 The host's own input surface can use the same fallback after editor focus moves
 to its controls. The callback does not bypass viewport/focus or transient-control
 ownership checks and defaults to absent outside the host's scene.
+`nativeReadingExitCommand` applies the same resident-input priority to SwiftUI's
+focused-child exit route (including execution Sidecards and nested history),
+using the shared native editor/marked-text/transient-control boundary. It does
+not install another global key monitor or replace editor-specific exit actions.
 
 `NativeReadingPageStack` optionally reports whether its retained parent is
 participating in presentation and awaits host preparation before a settled-page

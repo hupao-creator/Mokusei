@@ -68,3 +68,54 @@ marked text 先交给 AppKit，目录候选先处理按键，最后才调用 Doc
 独立 NSPopover 转发按压、实时语音/麦克风/播放、真实 VoiceOver 操作或物理手势验证。
 这些边界的优先级来自现有生产 guard 和调用路径审查，不能写成实机通过。
 没有查询或触发托管 CI，也不把本地构建当作合并门禁通过。
+
+## 独立审查后的追加修复：Sidecard 焦点与 marked-text 按压
+
+上一提交只给原生阅读 fallback 注入了输入取消优先级。
+`NativeAgentThreadWorkspace` 外层与单张卡片、`ConversationExecutionPane` 以及
+`ThreadHistoryDocument` 仍存在直接调用关闭/返回的 SwiftUI `onExitCommand` 路由。
+执行卡片不主动聚焦 Moku，用户也能通过键盘进入卡片控件；输入展开与卡片焦点共存可达。
+因此不能依赖 Dock 的原生 monitor 总能在 SwiftUI 子树取消前处理 Escape。
+
+这些面板退出入口现在使用 `nativeReadingExitCommand`：继续沿 SwiftUI 聚焦子树传递，
+不新增全窗口监听，不把显式 Close、地址编辑/批注取消或所有 `nativeOnExitCommand`
+一概替换。只有面板级 Escape 先询问 resident input，再执行对应面板原来的返回动作。
+原生 fallback 和 SwiftUI 入口共用原生编辑器/marked text、sheet/modal/child window、
+WebKit 和控件弹层取消的归属判断。编辑器内的 Escape 不提升为折叠输入或关闭面板；
+disabled/被遮盖卡片不取得退出所有权，历史的 SwiftUI 入口也遵守原有 reading-active 门禁。
+非 Escape 的现有 exit command 路由保留。
+
+此前外部点击只保护菜单/弹窗，没有检查 `NSTextInputClient.hasMarkedText()`。
+点击前若仍有组合状态，现在保留原事件并让 AppKit/input method 处理，
+不在 mouse-down 提前禁用、折叠或销毁编辑器，不强制 unmark/discard，也不延迟补一次折叠。
+该按压同时标记为输入优先，阻止阅读背景在 mouse-up 连带关闭面板。
+检查先于 transient-window 判断，避免输入法候选窗口在事件转发时消失造成漏判。
+组合结束后的下一次操作继续普通退出策略。
+
+追加修复的实际验证（同样没有新增或运行测试、CI、hooks）：
+
+- 最终 `Mokusei` 产品构建通过，命令同上；日志
+  `/tmp/moku-sidecard-followup-delivery-build.log`，该次构建 16.63s。
+- 临时手工窗口链接该构建的生产 `NativeMokuScene`、`NativeMokuDock`、
+  `NativeAgentThreadWorkspace`、`ConversationExecutionPane` 和 `NativeReadingPageStack`。
+  注入固定的运行执行/历史索引及焦点控件、回应 TextField；不启动 Runtime、不发送任务。
+  主 Harness 未注册，主阅读区显示 unavailable 属于该 fixture 的已知限制，
+  不能声称完整 Harness reader 或端到端使用通过。
+- 已观察到输入 open、执行卡片 open 且键盘焦点位于执行卡片普通按钮。
+  首次 Escape 只使输入 closed；第二次只使卡片 closed，Thread 保持 open。
+- 已观察到焦点进入回应 TextField 后，Escape 保留字段文字、输入及卡片。
+  原生文本右键菜单先消费 Escape，未折叠输入或关闭卡片；目录候选也先消费 Escape。
+- 已通过临时手工控件调用生产 NSTextView 的 `setMarkedText` API，并观察
+  `ComposerTextView marked=true`。在真实阅读背景空白处点击后，marked=true、
+  文字 `marked-ni`、输入、执行卡片和 Thread 均保留。点击回应字段时，事件仍正常交给
+  原生焦点切换；回到原文本菜单时仍观察到 marked=true。随后普通折叠/重新打开保留草稿。
+- 这里的 API 构造组合状态不是实际输入法会话。用当前已配置输入源逐键输入 `ni`
+  并尝试系统切换快捷键后，未观察到真实输入法组合候选，不能认证真实 IME。
+  API 合成 mark 的 Escape 只能说明输入未被面板取消路由折叠，不能认证真实输入法的
+  提交/取消文字语义；该合成情况下曾观察到 Escape 控制字符替换 mark，不能当作真实 IME 通过。
+- 最终手工源为 `/tmp/moku-sidecard-manual.swift`，隔离窗口为
+  `/private/tmp/mokusei-native-replay-sidecard-input-delivery/MokuSidecardDelivery.app`。
+  手工编译只调用 `NativeReplay.compile`，没有调用 runner 或添加断言。
+
+仍未实机验证真实 IME 候选窗口的转发/提交/取消语义、独立 NSPopover、实时语音或 VoiceOver。
+这些限制保留；没有用 API 合成组合状态替代真实输入法验收，也没有把未运行的检查记为通过。
