@@ -1,0 +1,23 @@
+{
+  "baseline": {
+    "head": "61e424ba347006524cbadf25ebe559892ae3be7a",
+    "sourceSHA256": "c9ad0ec19b5b6783e284f2bb109281800bf3813619666b035701be27a8686818",
+    "probeSHA256": "a9dcba60a9dccfa92dffa1c8190f740c38805e5487c26e7828333c5a461e44a1",
+    "binarySHA256": "dd14a0bdbc995f2a3fafce1b66e29c8c732fc54e3ec434a5af12f45618ea16f5",
+    "toolchain": "Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n"
+  },
+  "final": {
+    "head": "61e424ba347006524cbadf25ebe559892ae3be7a",
+    "sourceSHA256": "4c2479175e9fcf6482c74500efec64ee728b183b95e6a2b650c8126b06a4c077",
+    "probeSHA256": "a9dcba60a9dccfa92dffa1c8190f740c38805e5487c26e7828333c5a461e44a1",
+    "binarySHA256": "166c38461f54dc9513a8826080a0c3293c1290a3261ccd1c2a650c2eb78c8061",
+    "toolchain": "Apple Swift version 6.3.2 (swiftlang-6.3.2.1.108 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n"
+  },
+  "scope": "Release windowless production controls, four serial AB/BA pairs; ms; no profiler/build/capture during paired timing. No optical FPS/GPU/energy claim.",
+  "captures": {
+    "method": "ScreenCaptureKit.currentProcess, desktopIndependentWindow; background nonactivating mouse-ignoring diagnostic window, synthetic backgrounds; foreground unchanged for all captures",
+    "opaque": "Production forceOpaque preview branch, not an OS accessibility-preference toggle",
+    "sourceSHA256": "017794a47782207a3bf05037248d1eff599f24a6634454040564d104c3cccda3"
+  },
+  "os": "macOS 26.5.1 (25F80), arm64"
+}

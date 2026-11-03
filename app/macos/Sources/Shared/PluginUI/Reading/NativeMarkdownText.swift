@@ -407,8 +407,11 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     private var measuredSize: CGFloat = 0
     private var measuredScale: CGFloat = 0
     private struct Measurement: Equatable { let width: CGFloat; let scale: CGFloat; let height: CGFloat }
+    // Heights belong to the input revision, not to the temporarily rendered
+    // attachment width. Keep the bounded proposal cache across width probes.
     private var measurements: [Measurement] = []
     private var renderedWidth: CGFloat = -1
+    private var widthDependent = false
     private var content = NSAttributedString(string: "")
 
     override var intrinsicContentSize: CGSize {
@@ -423,6 +426,12 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         guard input != next else { return }
         input = next
         buildText = build
+        // An opted-in Note also contains ordinary prose. Only actual attachments
+        // encode the proposed width in their attributed content.
+        widthDependent = !next.images.isEmpty || (next.executionHarnesses != nil && next.spans.contains {
+            MarkdownURLPolicy.url($0.link).flatMap(ApplicationExecutionLink.parse) != nil
+        })
+        measurements.removeAll(keepingCapacity: true)
         renderedWidth = -1
         applyText(width: bounds.width > 0 ? bounds.width : NativeGeometry.readingWidth)
     }
@@ -430,7 +439,7 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     private func applyText(width: CGFloat) {
         // Image and execution attachments encode available width in their content.
         // Ordinary text needs a new container layout, never a new attributed string.
-        guard renderedWidth < 0 || ((input?.images.isEmpty == false || input?.executionHarnesses != nil) && renderedWidth != width),
+        guard renderedWidth < 0 || (widthDependent && renderedWidth != width),
               let next = buildText?(width) else { return }
         renderedWidth = width
         replaceContent(next)
@@ -451,7 +460,6 @@ final class MarkdownTextView: MarkdownPlatformTextView {
             }
             selectedRanges = clamped
             measuredWidth = -1
-            measurements.removeAll(keepingCapacity: true)
             invalidateMarkdownLayout()
             invalidateIntrinsicContentSize()
         }
@@ -460,18 +468,20 @@ final class MarkdownTextView: MarkdownPlatformTextView {
     func measuredHeight(width: CGFloat) -> CGFloat {
         let scale = markdownDisplayScale
         let width = max(1, floor(width * scale) / scale)
-        applyText(width: width)
+        let height: CGFloat
         if let cached = measurements.first(where: { $0.width == width && $0.scale == scale }) {
             NativePerformance.event(.textCache, context: performanceOperation, values: ["hit": 1])
-            return cached.height
+            height = cached.height
+        } else {
+            NativePerformance.event(.textCache, context: performanceOperation, values: ["hit": 0])
+            applyText(width: width)
+            height = layoutHeight(width: width, scale: scale)
         }
-        NativePerformance.event(.textCache, context: performanceOperation, values: ["hit": 0])
-        let height = layoutHeight(width: width, scale: scale)
         // A measurement proposal must not leave the displayed text container at
         // an ideal/probe width. SwiftUI need not call layout again when the final
         // frame is unchanged. Restore the real geometry before returning.
         let actual = max(1, floor(bounds.width * scale) / scale)
-        if bounds.width > 0, actual != width {
+        if bounds.width > 0 {
             applyText(width: actual)
             _ = layoutHeight(width: actual, scale: scale)
         }

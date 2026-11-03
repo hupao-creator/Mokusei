@@ -775,7 +775,7 @@ public struct NativeMokuDock: View {
         .animation(surfaceAnimation, value: voiceControlVisible && (!inputPresent || voiceModeActive))
         .background {
             ZStack {
-                NativeMokuCapsuleGlass().opacity(state.settingsExpanded ? 0 : 1)
+                NativeMokuCapsuleGlass(regular: state.notePanelOpen).opacity(state.settingsExpanded ? 0 : 1)
                 if state.settingsOpen {
                     NativeSettingsPanelGlass().opacity(state.settingsExpanded ? 1 : 0)
                 }

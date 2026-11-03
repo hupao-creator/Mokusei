@@ -95,6 +95,15 @@ private struct MarkdownExecutionCapsule: View {
 /// Pointer events stay with TextKit, including drag selection beginning on a
 /// capsule. The hosted Button remains keyboard/AX activatable independently.
 final class MarkdownExecutionHost: NSHostingView<AnyView> {
+    private struct Presentation: Equatable {
+        let attachment: ObjectIdentifier
+        let selected: Bool
+        let locale: Locale
+        let dark: Bool
+    }
+    private var presentation: Presentation?
+    private var openAction: (() -> Void)?
+
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     required init(rootView: AnyView) {
         super.init(rootView: rootView)
@@ -103,7 +112,14 @@ final class MarkdownExecutionHost: NSHostingView<AnyView> {
     required init?(coder: NSCoder) { nil }
 
     func update(_ attachment: MarkdownExecutionAttachment, selected: Bool, locale: Locale, dark: Bool, open: @escaping () -> Void) {
-        rootView = AnyView(MarkdownExecutionCapsule(attachment: attachment, selected: selected, open: open)
+        // Layout and selection notifications often repeat with identical input.
+        // Replacing rootView each time invalidates a separate SwiftUI/glass graph
+        // for every capsule. Navigation still receives the current callback.
+        openAction = open
+        let next = Presentation(attachment: ObjectIdentifier(attachment), selected: selected, locale: locale, dark: dark)
+        guard presentation != next else { return }
+        presentation = next
+        rootView = AnyView(MarkdownExecutionCapsule(attachment: attachment, selected: selected, open: { [weak self] in self?.openAction?() })
             .environment(\.locale, locale).environment(\.colorScheme, dark ? .dark : .light))
     }
 }
@@ -121,7 +137,8 @@ extension MarkdownTextView {
             let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
             var rect = layout.boundingRect(forGlyphRange: glyphs, in: container)
             rect.origin.x += textContainerOrigin.x; rect.origin.y += textContainerOrigin.y
-            host.frame = CGRect(origin: rect.origin, size: attachment.size)
+            let frame = CGRect(origin: rect.origin, size: attachment.size)
+            if host.frame != frame { host.frame = frame }
             host.update(attachment, selected: NSIntersectionRange(selectedRange(), range).length > 0, locale: executionLocale,
                         dark: effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua) { [weak self] in
                 guard let self else { return }

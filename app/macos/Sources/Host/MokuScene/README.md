@@ -34,8 +34,12 @@ theme preference still owns the window and every other surface. Moku's face
 keeps its existing ink when it moves into the page's header, because that panel
 is now the same dark surface as the capsule.
 
-All Moku capsule surfaces use the approved warm-black gradient over native clear
-glass, fading toward the bottom with a fine warm edge. Production density is 85%.
+The collapsed Dock, composer, Talk and dispatch use the approved warm-black
+gradient over native clear glass, fading toward the bottom with a fine warm
+edge. Production density is 85%. Expanded Note uses dark Regular Liquid Glass
+without the clear surface's fading gradient, keeping text readable over light
+and detailed backgrounds. The same glass node changes material as the capsule
+expands/contracts; Note does not add a second shell or a window.
 Reduce Transparency uses the existing opaque warm-black fill. Content ink, eyes,
 voice cloud and reasoning feedback use their existing dark palette.
 The material does not change layout, clipping, voice ownership or motion clocks.
@@ -258,6 +262,13 @@ on dismissal, before the 420ms glass contraction carries the header through the
 eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
 removes both animations. Closing only dismisses this read-only presentation;
 it does not clear the catalog note or change the composer draft.
+
+Note's Regular material is noninteractive; text selection, links, scrolling,
+history and dismissal retain their existing native targets. Returning to the
+collapsed Dock restores its clear interactive material. Reduce Transparency
+uses the same opaque warm-black fill in both states. The targeted
+[performance investigation](../../../../../tools/verification/moku-note-performance/README.md)
+records measured layout savings and the limits of its offscreen evidence.
 
 ## Voice display
 

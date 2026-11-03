@@ -1,0 +1,22 @@
+{
+  "accessibilityButtonFound" : false,
+  "applicationActive" : false,
+  "freshCallbackInvocations" : 0,
+  "initialHeight" : 77,
+  "narrowHeight" : 134,
+  "plainCopyText" : "Before 整合详情，带有可以换行的完整标题。 After",
+  "removedLinkHosts" : true,
+  "replacementHeight" : 68.5,
+  "replacementText" : "Replacement paragraph.",
+  "routedLinks" : [
+    "mokusei:\/\/execution?threadId=diagnostic&executionId=execution"
+  ],
+  "unchanged" : {
+    "containerRestored" : true,
+    "heightRetained" : true,
+    "nativeHostRetained" : true,
+    "pointerPassthrough" : true,
+    "selectionRetained" : true
+  },
+  "visibleWindows" : 0
+}

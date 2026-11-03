@@ -179,6 +179,15 @@ action. Attachments remeasure at actual container widths and retire their native
 hosts when the corresponding source disappears. Other Markdown surfaces and
 ordinary web links retain their existing text behavior.
 
+Repeated native layout/selection notifications retain a capsule's SwiftUI glass
+root when attachment, selection, locale and appearance are unchanged; its action
+still forwards to the current callback. Width/scale measurements are bounded to
+eight entries per text input revision and checked before constructing attributed
+content. Probes restore the actual displayed container width, and plain prose
+does not become width-dependent merely because its document enables capsules.
+See the [Note performance measurements](../../../../../tools/verification/moku-note-performance/README.md)
+for the isolated production-control comparison and its visual limitations.
+
 
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows as a static summary with reasoning/tool counts and reported reasoning usage. The summary has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action, and does not mount deferred execution details. The reading header's overall execution visibility control remains available. [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift) retains the scoped execution-resource infrastructure; other activity disclosures and pending interactions keep their existing behavior.
 

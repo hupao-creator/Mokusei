@@ -1,0 +1,9 @@
+foregroundUnchanged true
+light shell (170.0, 490.5, 560.0, 253.5) active false visible true draft Retained draft 草稿
+light closed (366.0, 700.0, 168.0, 44.0) note false
+foregroundUnchanged true
+complex shell (170.0, 490.5, 560.0, 253.5) active false visible true draft Retained draft 草稿
+complex closed (366.0, 700.0, 168.0, 44.0) note false
+foregroundUnchanged true
+complex-opaque shell (0.0, 0.0, 0.0, 0.0) active false visible true draft Retained draft 草稿
+complex-opaque closed (0.0, 0.0, 0.0, 0.0) note false

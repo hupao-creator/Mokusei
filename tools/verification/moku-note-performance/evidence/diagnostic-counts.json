@@ -1,0 +1,98 @@
+{
+  "baseline": {
+    "markdown.parse": {
+      "count": 3,
+      "totalMs": 7.831874999999999,
+      "maxMs": 5.647917
+    },
+    "markdown.delivery": {
+      "count": 7,
+      "totalMs": 8.812706,
+      "maxMs": 5.732041
+    },
+    "text.create": {
+      "count": 43,
+      "totalMs": 116.615255,
+      "maxMs": 112.032042
+    },
+    "text.attributed": {
+      "count": 2373,
+      "totalMs": 2390.736551,
+      "maxMs": 45.667542
+    },
+    "text.replace": {
+      "count": 2274,
+      "totalMs": 1674.764072,
+      "maxMs": 5.639375
+    },
+    "text.layout": {
+      "count": 2332,
+      "totalMs": 1328.491321,
+      "maxMs": 2.535625
+    }
+  },
+  "cache-only": {
+    "markdown.parse": {
+      "count": 3,
+      "totalMs": 8.112833,
+      "maxMs": 5.91575
+    },
+    "markdown.delivery": {
+      "count": 7,
+      "totalMs": 13.818871999999999,
+      "maxMs": 6.06175
+    },
+    "text.create": {
+      "count": 43,
+      "totalMs": 8.978005,
+      "maxMs": 3.045375
+    },
+    "text.attributed": {
+      "count": 126,
+      "totalMs": 139.421087,
+      "maxMs": 30.011334
+    },
+    "text.replace": {
+      "count": 126,
+      "totalMs": 93.27664,
+      "maxMs": 13.00325
+    },
+    "text.layout": {
+      "count": 157,
+      "totalMs": 55.080421,
+      "maxMs": 2.79475
+    }
+  },
+  "final": {
+    "markdown.parse": {
+      "count": 3,
+      "totalMs": 10.529291,
+      "maxMs": 5.886459
+    },
+    "markdown.delivery": {
+      "count": 7,
+      "totalMs": 12.464374999999999,
+      "maxMs": 6.021584
+    },
+    "text.create": {
+      "count": 43,
+      "totalMs": 9.129252,
+      "maxMs": 3.884667
+    },
+    "text.attributed": {
+      "count": 124,
+      "totalMs": 133.22421,
+      "maxMs": 31.383459
+    },
+    "text.replace": {
+      "count": 124,
+      "totalMs": 87.822292,
+      "maxMs": 13.977833
+    },
+    "text.layout": {
+      "count": 153,
+      "totalMs": 51.307667,
+      "maxMs": 2.893417
+    }
+  }
+}
