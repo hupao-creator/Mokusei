@@ -29,8 +29,8 @@ public struct NativeMokuThreadView: View {
     public let onSend: (NativeComposerSubmission) async throws -> Void
     public let onCancel: () -> Void
     @Environment(\.locale) private var locale
-    @Environment(\.nativeWindowContentScale) private var contentScale
     @State private var navigation: ThreadDetailBackAction
+    @State private var nestedNavigation: ThreadDetailBackAction?
     @State private var focusRequest = 0
     @State private var archiveID: JSONText?
 
@@ -63,7 +63,10 @@ public struct NativeMokuThreadView: View {
     }
     public var body: some View {
         let label = backLabel ?? (locale.language.languageCode?.identifier == "zh" ? "返回俯瞰" : "Back to overview")
-        ThreadDetailFrame(navigation: navigation, onNavigationChange: onNavigationChange) {
+        ThreadDetailFrame(navigation: navigation, onNavigationChange: { action in
+            nestedNavigation = action
+            onNavigationChange?(action)
+        }) {
             VStack(spacing: 0) {
                 if !archiveThreads.isEmpty {
                     HStack {
@@ -77,10 +80,8 @@ public struct NativeMokuThreadView: View {
                             Text(archiveID == nil ? localize("当前对话", "Current conversation") : localize("先前对话（只读）", "Previous conversation (read-only)"))
                         }.accessibilityIdentifier("moku-history-sessions")
                         Spacer()
-                    }.padding(.horizontal, 24)
-                        // The window controls stay fixed in physical points as
-                        // workspace content zooms, so their clearance must too.
-                        .padding(.top, NativeWindowNavigationGeometry.safeAreaTop / contentScale)
+                    }.padding(.leading, 24).padding(.trailing, 60)
+                        .frame(minHeight: 60)
                 }
                 if let archive = archiveThreads.first(where: { $0.id == archiveID }) {
                     NativeHarnessThreadView(host: harnessHost, input: HarnessThreadInput(thread: archive),
@@ -109,6 +110,9 @@ public struct NativeMokuThreadView: View {
                 }
             }.background(NativePalette.thread.canvas.swiftUI)
         }
+        .modifier(NativeApplicationReadingPanel(enabled: true, suppressed: !focusEnabled,
+            escapeEnabled: nestedNavigation.map { $0.id == navigation.id } ?? true,
+            identifier: "moku-reading-panel", onClose: onBack))
         .task(id: [thread.id, JSONText(label)]) { navigation = ThreadDetailBackAction(label: label, onBack: onBack) }
         .environment(\.colorScheme, .dark)
     }

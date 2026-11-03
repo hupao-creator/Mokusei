@@ -17,6 +17,8 @@ import MokuseiPluginUI
     /// over the capsule must retain control ownership on touch and pointer.
     let canvasInputRegions = NativeCanvasInputRegions()
     public private(set) var mokuOpen = false
+    public let historyMotion = NativeReadingPageMotion()
+    public private(set) var historyVisit = UUID()
     public private(set) var cameraActive = false
     private var landingActive = false
     public private(set) var inputOpen = false
@@ -117,11 +119,16 @@ import MokuseiPluginUI
         // Publish mounting admission before the route. Host callbacks may
         // synchronously derive workspaceMounted from these two values.
         cameraActive = false
+        if open && !mokuOpen { historyVisit = UUID() }
         mokuOpen = open
         command?(.camera(open, overviewVisible && !settingsOpen))
         onMokuOpenChange?(open)
     }
-    public func toggleMoku() { setMokuOpen(!mokuOpen) }
+    public func closeHistory() { historyMotion.close() }
+    public func toggleMoku() {
+        if mokuOpen { closeHistory() }
+        else { setMokuOpen(true) }
+    }
     public func setSearchActive(_ active: Bool) {
         guard searchActive != active else { return }
         searchActive = active

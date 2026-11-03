@@ -646,8 +646,8 @@ onboarding share native field bindings, catalogs and persistence.
 
 ## Reading-panel presentation
 
-The shared reading stack can present Agent, Report and Git routes as a bounded panel using a
-source card frame. It retains the same route identity, explicit progress clock,
+The shared reading stack can present Agent, Report, Git and Moku history routes
+as a bounded panel, using a source card frame where available. It retains the same route identity, explicit progress clock,
 close/cancel lifecycle and reduced-motion settling as page navigation. Panel
 content fades while its outer frame expands; title/emoji/author remain owned by
 the unchanged reader. The final aperture admits the host's independent toolbar

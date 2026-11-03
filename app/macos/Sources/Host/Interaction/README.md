@@ -22,6 +22,11 @@ and return both report `transitioning`; return keeps the Settings route mounted
 until the capsule finishes contracting. `settings.open` is available only on a
 loaded Overview; other routes reject it without navigation.
 
+Moku history reports its shared reading-panel motion as `transitioning`, stays
+mounted until Close completes, and uses a separate navigation action from its
+retained parent. `navigation.back` first follows internal historical-turn
+navigation, then closes history without losing the parent's reading target.
+
 Direct Swift callers can use, on the main actor:
 
 ```swift

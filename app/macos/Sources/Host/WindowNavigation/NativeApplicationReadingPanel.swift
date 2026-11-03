@@ -26,6 +26,7 @@ struct NativeReadingPanelCloseButton: View {
 struct NativeApplicationReadingPanel: ViewModifier {
     let enabled: Bool
     var suppressed = false
+    var escapeEnabled = true
     let identifier: String
     let onClose: () -> Void
     @Environment(\.locale) private var locale
@@ -54,7 +55,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
                     onClose: onClose)
             }
             .accessibilityIdentifier(identifier)
-            .nativeReadingEscape(perform: suppressed || identifier == "report-reading-panel" ? nil : onClose)
+            .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
     }
 }
 

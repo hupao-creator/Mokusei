@@ -68,7 +68,7 @@ public extension NativeWorkspacePresentation {
         let section = sections.contains(settingsNavigation.section) ? settingsNavigation.section : "general"
         let draft = workspace.settingsModel.draft
         let pageMounted = onboarding.blocksWorkspace ? onboarding.mounted : scene.settingsOpen ? settingsNavigation.mounted
-            : scene.mokuOpen ? navigation != nil
+            : scene.mokuOpen ? mokuNavigation != nil
             : selected == nil || mountedReadingThread == selected
         let settings: JSONValue = .object([
                 "controls": .array(onboarding.blocksWorkspace && onboarding.mounted ? onboarding.interactions.snapshot(context: onboarding.context)
@@ -82,7 +82,7 @@ public extension NativeWorkspacePresentation {
             ])
         return .object([
             "page": .text(interactionPage), "mounted": .bool(interactionReady && pageMounted),
-            "transitioning": .bool(messageMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
+            "transitioning": .bool(messageMotion.active || scene.historyMotion.active || scene.cameraActive || scene.flightActive || scene.settingsTransitioning
                 || (onboarding.blocksWorkspace && onboarding.step == .landing)),
             "onboarding": .object(["step": .integer(onboarding.step.rawValue), "canContinue": .bool(onboarding.canAdvance),
                 "editorReady": .bool(onboarding.editorReady), "admitted": .bool(onboarding.admitted),
@@ -146,6 +146,10 @@ public extension NativeWorkspacePresentation {
             showOverview()
         case .back:
             if scene.settingsOpen { try closeSettingsForInteraction() }
+            else if scene.mokuOpen {
+                if let mokuNavigation { mokuNavigation.onBack() }
+                else { scene.closeHistory() }
+            }
             else if let navigation { navigation.onBack() }
             else if selected != nil, nativeApplicationNavigation { closeApplication() }
             else { scene.setMokuOpen(false) }

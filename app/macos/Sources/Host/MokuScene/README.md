@@ -13,10 +13,26 @@ The Settings content suppresses inherited animation only for changes to the
 expanded state, so its final layout remains stable during the shell morph while
 subsequent child-owned animations retain their own transactions.
 
-The history session picker sits below the shared window-navigation safe area.
-Its top clearance stays fixed in window points through workspace zoom, so the
-current/archived-session menu cannot overlap the traffic lights or Back control.
-The turn index and session-switching actions are unchanged.
+Moku history uses the same bounded reading stack and panel shell as Agent, Git
+and Report reading: shared margins, rounded surface, border, dimmed/blurred
+retained background and panel-owned Close. The current/archived-session menu
+has a 60pt header seat with trailing clearance for Close, independent of window
+traffic lights. The turn index, session switching, transcript, composer and
+voice routes remain owned by the existing reader.
+
+Close, the surrounding blank margin and Cmd+B return through the shared motion
+lifetime; native Escape first returns from an internally selected historical
+turn, then closes the panel. Editors, IME, menus and popovers keep priority.
+Resize, scene deactivation and recovery complete an accepted Close. The parent
+stays mounted with its route identity and navigation intact, preserving Agent,
+Git or Report reading on return. History has a separate navigation visit and
+does not publish scroll-driven traffic-light navigation. Its panel geometry
+adapts to narrow windows using the existing shared contract.
+
+Entering history from Note keeps the existing Note-dismissal behavior. History
+covers the outside Dock and owns its existing current-session composer; archived
+Moku sessions remain read-only. Note layout/closing motion, scrollbar policy and
+Agent composer motion are independent of this migration.
 
 ## Dock and composer
 

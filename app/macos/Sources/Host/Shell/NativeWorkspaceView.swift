@@ -31,6 +31,9 @@ public final class NativeWorkspacePresentation {
         return type == "agent" || type == "report.document" || type == "git.worktree"
     }
     public var navigation: ThreadDetailBackAction?
+    // History overlays a retained route; its nested Back must not replace the
+    // underlying reader's navigation or remount that reader on return.
+    public var mokuNavigation: ThreadDetailBackAction?
     @ObservationIgnored var navigationRouteID = UUID()
     public var nativeApplicationNavigation = false
     public private(set) var followUpVisible = false
@@ -83,9 +86,9 @@ public final class NativeWorkspacePresentation {
         state.readingPanelVisible = usesReadingPanel
         state.overviewVisible = selected == nil
         configureDockInput(in: state)
-        state.onMokuOpenChange = { [weak self] _ in
+        state.onMokuOpenChange = { [weak self] open in
             NativeReadingPageMotion.cancelAll()
-            self?.resetNavigation()
+            if !open { self?.mokuNavigation = nil }
             self?.publishPresence()
         }
         state.onSettingsOpenChange = { [weak self] value in
@@ -580,11 +583,11 @@ public struct NativeWorkspaceView: View {
     }
 
     private var workspaceScene: some View {
-        let routeID = presentation.navigationRouteID
+        let historyVisit = presentation.scene.historyVisit
         return NativeMokuScene(state: presentation.scene) {
             NativeRuntimeSurface(model: model, showsConnectionNotice: false) {
                 if presentation.onboarding.blocksWorkspace { Color.clear }
-                else if !presentation.scene.mokuOpen || presentation.scene.cameraActive { outside }
+                else { outside }
             }
         } thread: {
             if (presentation.scene.mokuOpen || presentation.scene.cameraActive), let thread = model.catalog.moku {
@@ -602,12 +605,14 @@ public struct NativeWorkspaceView: View {
                         ? model.preferences.locale.text("返回俯瞰", "Back to overview")
                         : model.preferences.locale.text("返回上一会话", "Back to previous conversation"),
                     focusEnabled: presentation.scene.mokuOpen && !presentation.scene.cameraActive && !presentation.scene.settingsOpen,
-                    onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }, error: model.localizedOperationError,
+                    onNavigationChange: {
+                        if presentation.scene.mokuOpen, presentation.scene.historyVisit == historyVisit { presentation.mokuNavigation = $0 }
+                    }, error: model.localizedOperationError,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
-                    onBack: { presentation.scene.setMokuOpen(false) },
+                    onBack: { presentation.scene.closeHistory() },
                     onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) },
                     canStartVoice: { canStartMokuVoice }, startVoice: startMokuVoice)
-                    .environment(\.nativeReadingNavigation, presentation.readingNavigation)
+                    .environment(\.nativeReadingNavigation, nil)
             }
         } dock: {
             if presentation.onboarding.mountDock, let thread = model.catalog.moku {
@@ -646,6 +651,10 @@ public struct NativeWorkspaceView: View {
             }
         } onCloseSettings: {
             presentation.settingsNavigation.requestClose(model: model.settingsModel) { _ in presentation.scene.closeSettings() }
+        } prepareHistoryReturn: {
+            if presentation.selected == nil { await presentation.prepareOverviewReturn() }
+        } onHistoryParentPresentationChange: { active in
+            if presentation.selected == nil { presentation.overview.setPresentationActive(active) }
         } settings: {
             if presentation.scene.settingsOpen { settings }
         }
@@ -656,7 +665,7 @@ public struct NativeWorkspaceView: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.nativeApplicationNavigation || (presentation.usesReadingPanel && !presentation.scene.mokuOpen),
+            NativeWindowNavigationView(action: presentation.navigation, hidden: presentation.scene.mokuOpen || presentation.nativeApplicationNavigation || presentation.usesReadingPanel,
                 suspended: presentation.scene.cameraActive || presentation.scene.settingsOpen,
                 managesNativeButtons: !presentation.nativeApplicationNavigation || applicationSuppressed,
                 reading: presentation.readingNavigation)

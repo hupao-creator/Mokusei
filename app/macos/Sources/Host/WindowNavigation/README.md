@@ -110,25 +110,27 @@ handle; the surviving document remains loaded. Execution disclosure groups still
 share demand within their owning row, and retiring a surface releases all its
 remaining handles.
 
-Agent, Report and Git reading use a panel-owned Close rather than a Back control beside the
+Agent, Report, Git and Moku history reading use a panel-owned Close rather than a Back control beside the
 traffic lights. Agent history executions have no dedicated upper-left Back button,
 including when the shared history document has no navigation host. History retains
 TOC navigation, Escape and its close action with the existing route-visit fence.
-Moku history and other application navigation
-retain their own window-navigation behavior. Report panel HTML keeps its trusted
+Other application navigation retains its own window-navigation behavior.
+Moku history retains the underlying route and owns a separate nested navigation
+scope; its current/archived session picker reserves space inside the panel for
+Close, and its transcript does not drive window navigation. Report panel HTML keeps its trusted
 DOM Escape/editing/dialog handling without installing the scroll-driven window
 navigation portal; scrolling never moves the traffic lights. Git reuses the
 conversation reader’s viewport-scoped native Escape cancellation, preserving
 menu, IME and sibling Moku input ownership. Opening either application from an
 Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card (the clicked Agent card for Git), and refreshes
-its return frame after resize. All three routes share panel margins, source-frame
+its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
 The Close button's label owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
 
-Agent, Report and Git panels also close on a completed click in the surrounding
+Agent, Report, Git and Moku history panels also close on a completed click in the surrounding
 blank workspace margin. The shared reading stack owns a separate backdrop hit
 region, excluding the panel's complete rectangle (including internal whitespace,
 Sidecards and their divider). Front controls, including the Sidecard toolbar and
