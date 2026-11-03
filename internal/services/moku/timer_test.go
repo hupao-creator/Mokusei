@@ -5,16 +5,41 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
+func communicationToolFixture(t *testing.T) (*model.ThreadRecord, *Coordinator) {
+	t.Helper()
+	record := &model.ThreadRecord{ID: "moku", Moku: true}
+	record.Observation.LatestExecution = &model.PublicExecution{ExecutionID: "execution", Status: "running"}
+	var mu sync.Mutex
+	c := &Coordinator{
+		running: true, ctx: context.Background(), id: record.ID,
+		scopes: map[string]executionScope{"execution": {threadID: record.ID, ctx: context.Background()}},
+		config: Configuration{
+			Thread: func(string) (model.ThreadRecord, error) {
+				mu.Lock()
+				defer mu.Unlock()
+				return *record, nil
+			},
+			UpdateThread: func(_ context.Context, _ string, update func(*model.ThreadRecord) error) error {
+				mu.Lock()
+				defer mu.Unlock()
+				return update(record)
+			},
+		},
+	}
+	return record, c
+}
+
 func TestTimerRegisteredBindingAndAudit(t *testing.T) {
 	for _, name := range []string{"timer", "talk"} {
 		t.Run(name, func(t *testing.T) {
-			_, record, coordinator := clipboardToolFixture(t, nil)
+			record, coordinator := communicationToolFixture(t)
 			var binding plugin.ToolBinding
 			for _, candidate := range coordinator.tools(record.ID, ThreadCreationDescription{}) {
 				if candidate.Name == name {
@@ -67,7 +92,7 @@ func TestTimerRegisteredBindingAndAudit(t *testing.T) {
 }
 
 func TestTimerDoesNotReportSuccessWhenAuditFails(t *testing.T) {
-	_, record, coordinator := clipboardToolFixture(t, nil)
+	record, coordinator := communicationToolFixture(t)
 	var binding plugin.ToolBinding
 	for _, candidate := range coordinator.tools(record.ID, ThreadCreationDescription{}) {
 		if candidate.Name == "timer" {

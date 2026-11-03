@@ -64,27 +64,7 @@ func (c *Coordinator) completeTool(ctx context.Context, threadID, executionID, c
 			}
 			matches++
 			item["completedAt"] = max(time.Now().UnixMilli(), record.UpdatedAt)
-			if item["name"] == "read_clipboard" {
-				// Never persist clipboard text, including unexpected error payloads.
-				// The original result still goes back to the calling model.
-				audit := map[string]any{"redacted": true}
-				if !isError {
-					var metadata struct {
-						OK         bool `json:"ok"`
-						Empty      bool `json:"empty"`
-						Truncated  bool `json:"truncated"`
-						Characters int  `json:"characters"`
-					}
-					if err := json.Unmarshal(result, &metadata); err != nil {
-						return errors.New("invalid clipboard result metadata")
-					}
-					audit["ok"], audit["empty"] = metadata.OK, metadata.Empty
-					audit["truncated"], audit["characters"] = metadata.Truncated, metadata.Characters
-				}
-				item["result"] = audit
-			} else {
-				item["result"] = result
-			}
+			item["result"] = result
 			if isError {
 				item["isError"] = true
 			}
@@ -129,11 +109,7 @@ func (c *Coordinator) settleExecution(ctx context.Context, record model.ThreadRe
 			if item["type"] == "tool-operation" {
 				if _, done := item["completedAt"]; !done {
 					item["completedAt"] = max(time.Now().UnixMilli(), current.UpdatedAt)
-					audit := map[string]any{"error": "Moku execution terminated before tool completion"}
-					if item["name"] == "read_clipboard" {
-						audit["redacted"] = true
-					}
-					item["result"] = audit
+					item["result"] = map[string]any{"error": "Moku execution terminated before tool completion"}
 					item["isError"] = true
 					changed = true
 				}
@@ -423,11 +399,7 @@ func (c *Coordinator) settleStaleTranscript(ctx context.Context, record model.Th
 			if item["type"] == "tool-operation" {
 				if _, done := item["completedAt"]; !done {
 					item["completedAt"] = at
-					audit := map[string]any{"error": "Moku execution was interrupted during restart"}
-					if item["name"] == "read_clipboard" {
-						audit["redacted"] = true
-					}
-					item["result"] = audit
+					item["result"] = map[string]any{"error": "Moku execution was interrupted during restart"}
 					item["isError"] = true
 					changed = true
 				}

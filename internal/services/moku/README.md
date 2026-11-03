@@ -26,71 +26,7 @@ Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
 validated at creation admission.
 
-[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `read_clipboard`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
-
-### Local clipboard text
-
-`read_clipboard` is read-only and must be called only when the user explicitly
-requests it. Its description warns that clipboard content may contain secrets
-and will be sent to the model. There is currently **no per-tool UI confirmation**;
-this instruction is model guidance, not an enforced approval mechanism. macOS
-may independently show a pasteboard access prompt. Never retry automatically to
-bypass a permission choice.
-
-Input is an object with only optional integer `maxCharacters` (minimum 1,
-default 4000, maximum 20000); unknown properties are rejected by the existing
-tool schema boundary. Output is
-`{"ok":true,"text":"hello","empty":false,"truncated":false,"characters":5}`.
-`characters` counts returned Unicode code points, including whitespace, rather
-than bytes or grapheme clusters. A confirmed empty plain-text value returns
-`{"ok":true,"text":"","empty":true,"truncated":false,"characters":0}`.
-
-[clipboard.go](clipboard.go) applies a two-second deadline linked to the existing
-tool/owner cancellation scope. The reader returns at most `maxCharacters * 4`
-UTF-8 bytes, plus one fixed protocol byte; Unicode truncation preserves complete
-code points and reports either byte or character truncation. Invalid UTF-8 in
-the returned text fails rather than silently replacing bytes. The macOS helper
-is killed on cancellation/timeout, has a bounded stdout writer, discards stderr,
-and does not include process output or clipboard text in errors.
-
-[clipboard_darwin.go](clipboard_darwin.go) uses the macOS-provided
-`/usr/bin/osascript -l JavaScript` AppKit bridge to request only
-`public.utf8-plain-text`. It does not read HTML, RTF, EPS, images or the file-URL
-pasteboard type, and does not coerce those types into text. A plain-text string
-that happens to contain a URL is still text. `pbpaste` was rejected because its
-own manual documents that even `-Prefer txt` falls back to RTF/EPS and cannot
-restrict reads to one type. This alternative adds an operating-system JXA/AppKit
-dependency, no third-party package, Swift client change or compiled helper.
-AppKit may materialize the full pasteboard NSData inside the short-lived helper;
-the byte bound limits its output and Go-side retention, not pasteboard-server or
-helper peak memory.
-
-A nil/unavailable plain-text value (including no such type, an actually empty
-pasteboard with no declared text type, denial, or a pasteboard failure) is
-**indeterminate**, never reported as empty. Only a successfully obtained zero-byte
-plain-text value proves empty. The helper makes one data request without retries.
-Non-macOS builds return an explicit unsupported error through
-[clipboard_other.go](clipboard_other.go).
-
-Data flows from the OS clipboard through the bounded helper to the tool result
-and native model. [transcript.go](transcript.go)'s `completeTool` branches on the
-persisted operation name: `read_clipboard` success records only `ok`, `empty`,
-`truncated`, `characters` and `redacted:true`; errors record only
-`redacted:true` with the ordinary `isError` flag. Raw text and error payloads
-never enter that tool-result audit row. Termination and startup recovery also
-mark pending clipboard results `redacted:true`, retaining their fixed lifecycle
-error and `isError` flag. Other tools keep their existing audit
-behavior. Native Harness/provider history and subsequent model messages may
-still retain or quote returned text; this change does not redact those owners.
-
-Tests inject a reader per Coordinator, exercise the registered binding and
-transcript update, and run the real JXA bridge against synthetic NSData without
-accessing the system clipboard. Run the non-darwin implementation test on macOS
-by explicitly selecting source files (Go ignores file build constraints in this
-mode):
-`./scripts/go.sh test internal/services/moku/clipboard.go internal/services/moku/clipboard_other.go internal/services/moku/clipboard_other_test.go`.
-This verifies the unsupported source implementation, not a Linux runtime.
-Real interactive clipboard permission behavior requires separate manual testing.
+[tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 
 Moku guidance defaults to managed `worktree:true` for tasks in a committed Git workspace, even without parallel tasks. It reserves `false` for tasks without an eligible Git workspace, explicit requests for the existing checkout, or tasks requiring its uncommitted changes or live state. Moku creates the managed worktree through `create_thread` rather than delegating worktree creation to the Agent. This is model guidance, not an enforced boolean default.
 

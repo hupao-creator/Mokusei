@@ -132,22 +132,6 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 	}
 	encode := func(value any) (json.RawMessage, error) { return json.Marshal(value) }
 	switch name {
-	case "read_clipboard":
-		maxCharacters := clipboardDefaultCharacters
-		if value, present := object["maxCharacters"]; present {
-			// The installed binding has already validated the integer and bounds.
-			number, _ := value.(json.Number).Float64()
-			maxCharacters = int(number)
-		}
-		reader := c.readClipboardText
-		if reader == nil {
-			reader = readSystemClipboardText
-		}
-		value, err := readClipboard(ctx, maxCharacters, reader)
-		if err != nil {
-			return nil, err
-		}
-		return encode(value)
 	case "list_threads":
 		records, err := c.config.Threads()
 		if err != nil {

@@ -35,7 +35,6 @@ type coordinatorEvent struct {
 	lifetime   context.Context
 }
 type Coordinator struct {
-	readClipboardText      clipboardReader
 	lifecycleMu            sync.Mutex
 	config                 Configuration
 	mu                     sync.Mutex
