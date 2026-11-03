@@ -35,42 +35,52 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
+    private enum AgentChoice: String {
+        case off, inherit, independent
+    }
+
+    private var selectedChoice: AgentChoice {
+        value.enabled ? (inherited ? .inherit : .independent) : .off
+    }
+
+    private var choiceDescription: String {
+        switch selectedChoice {
+        case .off:
+            locale.text("停止当前 Agent 并暂停自动处理。保留已有数据、待处理任务和运行配置，重新开启后继续处理。",
+                        "Stops this Agent and pauses automatic processing. Existing data, pending work and execution settings are kept; enabling resumes pending work.")
+        case .inherit:
+            locale.text("使用下方 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置；保留已有的单独配置。",
+                        "Uses Moku’s saved settings shown below. Changes to Moku apply to the next task. Your separate settings are kept.")
+        case .independent:
+            locale.text("独立保存运行配置，修改从下个任务开始生效。切换到跟随 Moku 或关闭 Agent 后，仍保留此配置。",
+                        "Saves execution settings independently. Changes apply to the next task. These settings are kept when using Moku or turning the Agent off.")
+        }
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            NativeSettingsRow(label: locale.text("启用 Agent", "Enable Agent"), description: locale.text(
-                "关闭后停止当前 Agent，暂停自动处理；保留已有数据和运行配置，重新开启后继续处理。",
-                "Turning off stops this Agent and pauses automatic processing. Existing data and execution settings are kept; turning on resumes pending work."), inlineControl: true) {
-                NativeSettingsToggle(value: Binding(get: { value.enabled }, set: {
-                    change(.init(mode: value.mode, enabled: $0))
-                })).nativeSettingsControl("enabled")
+            GlassEffectContainer {
+                HStack(spacing: 12) {
+                    modeChoice(locale.text("关闭 Agent", "Agent off"), choice: .off)
+                    modeChoice(locale.text("跟随 Moku", "Use Moku"), choice: .inherit)
+                    modeChoice(locale.text("单独配置", "Configure separately"), choice: .independent)
+                }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(locale.text("Agent 运行方式", "Agent mode"))
+            Text(choiceDescription)
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10).padding(.bottom, 18)
             if value.enabled { configuration }
             else {
-                Text(locale.text("Agent 已停用", "Agent is off"))
-                    .font(.system(size: 12)).foregroundStyle(.secondary).padding(.vertical, 8)
-                    .nativeSettingsEditorReady(true)
+                Color.clear.frame(height: 0).nativeSettingsEditorReady(true)
             }
         }
     }
 
     private var configuration: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if onboarding {
-                GlassEffectContainer {
-                    HStack(spacing: 12) {
-                        modeChoice(locale.text("跟随 Moku", "Use Moku"), inherited: true)
-                        modeChoice(locale.text("单独配置", "Configure separately"), inherited: false)
-                    }
-                }.padding(.bottom, 18)
-            } else {
-                NativeSettingsRow(label: locale.text("跟随 Moku 配置", "Use Moku settings"), description: inherited
-                ? locale.text("以下为 Moku 当前保存的配置。修改 Moku 后，从下个任务开始采用新配置。",
-                              "Moku’s saved settings are shown below. Changes to Moku apply to the next task.")
-                : locale.text("独立保存运行配置，修改从下个任务开始生效。",
-                              "Execution settings are saved independently. Changes apply to the next task."), inlineControl: true) {
-                NativeSettingsToggle(value: Binding(get: { inherited }, set: { setInherited($0) })).nativeSettingsControl("inherit")
-                }
-            }
             switch Result(catching: { try effectiveSettings(value) }) {
             case .success(let effective):
                 if onboarding {
@@ -87,19 +97,22 @@ public struct NativeApplicationBackgroundEditor: View {
         }
     }
 
-    private func modeChoice(_ title: String, inherited next: Bool) -> some View {
-        Button { setInherited(next) } label: {
+    private func modeChoice(_ title: String, choice: AgentChoice) -> some View {
+        let selected = selectedChoice == choice
+        return Button { selectChoice(choice) } label: {
             HStack(spacing: 7) {
-                Text(title)
-                if inherited == next { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)) }
+                Text(title).multilineTextAlignment(.center)
+                if selected { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)) }
             }
-            .font(.system(size: 12, weight: inherited == next ? .medium : .regular))
-            .frame(maxWidth: .infinity).frame(height: 42)
+            .font(.system(size: 12, weight: selected ? .medium : .regular))
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity).frame(minHeight: 42)
             .glassEffect(.regular.interactive(), in: .capsule)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .nativeSettingsAction(next ? "inherit" : "independent", label: title, selected: inherited == next) { setInherited(next) }
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .nativeSettingsAction(choice.rawValue, label: title, selected: selected) { selectChoice(choice) }
     }
 
     @ViewBuilder private func onboardingFields(_ effective: ApplicationBackgroundExecutionSettings.Overrides) -> some View {
@@ -224,15 +237,18 @@ public struct NativeApplicationBackgroundEditor: View {
         return (try effectiveSettings(saved), inherited)
     }
 
-    private func setInherited(_ next: Bool) {
+    private func selectChoice(_ choice: AgentChoice) {
+        guard choice != selectedChoice else { return }
         do {
+            // Off preserves the underlying mode. Enabling and choosing a source
+            // share one draft update, so no intermediate configuration is saved.
             let mode: ApplicationBackgroundExecutionSettings.Mode
-            switch (next, value.mode) {
-            case (true, .override(let overrides)): mode = .inherit(independent: overrides)
-            case (false, .inherit(let independent)): mode = .override(try independent ?? savedMokuSettings())
-            default: return
+            switch (choice, value.mode) {
+            case (.inherit, .override(let overrides)): mode = .inherit(independent: overrides)
+            case (.independent, .inherit(let independent)): mode = .override(try independent ?? savedMokuSettings())
+            default: mode = value.mode
             }
-            change(.init(mode: mode, enabled: value.enabled))
+            change(.init(mode: mode, enabled: choice != .off))
         } catch { workspace.report(error) }
     }
 

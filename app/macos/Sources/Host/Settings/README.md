@@ -14,16 +14,19 @@ selection, Undo, label activation and the draft close/save gate.
 | General | Appearance/language popups, Agent/install buttons, cancel and destructive clear buttons |
 | Local Agent details | Harness defaults switches, fields, catalog menus and CLI refresh/retry buttons |
 | Moku | Transparent coordinating Agent and dispatch-target icon buttons, execution fields, routing switch and text editor |
-| Report and Tag | Onboarding inheritance/independent glass choices, Harness seats, native execution fields and live capability animations |
+| Report and Tag | Off/inherited/independent glass choices, Harness seats, native execution fields and live capability animations |
 
-Report and Tag each expose an independent Enable Agent switch, enabled by
-default. A disabled role hides its execution fields while preserving its saved
-inheritance and independent choices; its switch remains available for recovery.
+Report and Tag each expose three mutually exclusive choices: Agent off, Use
+Moku and Configure separately, in both Settings and onboarding. A contextual
+explanation remains visible below the choices. Off hides execution fields and
+preserves both the underlying source mode and retained independent settings.
+Selecting either enabled choice updates enablement and source in one draft
+change; the first independent choice copies saved Moku settings only when no
+independent settings have been retained. Selecting the current choice is a no-op.
 The save revokes active work and pauses automatic processing without removing
 existing reports, tags or pending work. Re-enabling resumes after native cleanup.
-The workspace does not prefetch execution resources for disabled roles. The
-shared onboarding editor exposes the same control, and a disabled role is ready
-to continue without requiring an available execution profile.
+The workspace does not prefetch execution resources for disabled roles. A
+disabled role is ready to continue without an available execution profile.
 
 Report and Tag show the saved Moku execution profile beside the inherited Agent
 in both Settings and onboarding. The read-only details reuse the Harness's native
@@ -44,7 +47,8 @@ visit without playing. Onboarding retains its own step lifetime.
 All controls keep their existing bindings, availability and pending/save/error
 gates. System menu items carry option indexes separately from titles, preserving
 duplicate display names and opaque UTF-16 option IDs. The interaction registry
-keeps the same descriptors and discrete-change semantics.
+preserves discrete-change semantics. Agent mode choices register as selected
+actions (`off`, `inherit`, `independent`) rather than a separate enabled switch.
 
 The shared role editor's inheritance and Harness choices define a capsule hit
 shape inside each plain button label, after its full-width frame and glass.
@@ -249,8 +253,8 @@ Settings keeps its existing page Escape handler; embedded model popovers retain
 The production [onboarding panel](../Onboarding/README.md) and Settings mount
 the same `NativeRoleConfigurationPanel`, map, Harness fields and typed application
 background editor. `nativeSettingsCompactPresentation` suppresses group explanations
-and selects the inheritance/independent glass controls. Tag and Report keep their
-production animations while configuration stays immediately available. Each tab
+while the background editor keeps its three mode choices and contextual
+explanation. Tag and Report keep their production animations while configuration stays immediately available. Each tab
 visit plays once and retains its completed composition. Leaving the tab unmounts
 and cancels its animation; inactive/hidden windows settle an interrupted playback
 to the final frame without replaying on activation. Reduce Motion shows the
