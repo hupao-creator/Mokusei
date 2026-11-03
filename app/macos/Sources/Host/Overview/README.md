@@ -190,6 +190,19 @@ Geometry reuse applies only after presentation has settled. Recovery that cancel
 
 [NativeOverviewChrome](NativeOverviewChrome.swift) owns the tag and action controls. Semantic tag identity remains a plain name with separately validated emoji. Each scope exposes up to five semantic tags, including singly assigned tags and separate names with equal membership. Directory filters use persistent scope identity for membership and exclude managed temporary roots. Labels are presentation only: a symlink alias or linked checkout with another label remains in its canonical directory’s All view, and same-named directories stay separate.
 
+The tag bar omits a directory's sole semantic child when its actual selected
+Agent Thread ID set and application thread reference set both equal the
+directory's sets. This uses eligible catalog membership after the ordinary
+visibility/archive and report-coverage rules, before search; equal badge counts
+alone are insufficient. Untagged members or directory-only documents that change
+those sets keep the child visible. Multiple semantic names (including a name
+equal to the directory label) prevent this omission. Inbox tags are unaffected.
+Catalog membership changes recompute the decision. Canonical filters, navigation,
+published context and stored tags remain intact. An already selected semantic
+child stays visible and selected even if it becomes redundant, preserving its
+filtering meaning when later threads arrive; selecting its directory then omits
+the redundant child. Global search and its return-to-browsing behavior are unchanged.
+
 Selected tags use background-adaptive capsule fill and contrasting text. Directory menus use native glass composition and independent hover/hit regions. Selecting a child closes the menu; the directory chip keeps its current title until the glass exit transaction is removed, then shows the directory and child name separated by a short vertical divider. The selected child’s emoji replaces the folder prefix, without repeating it in the child name; a child without an emoji keeps the folder. The divider is absent without a selected child. Reopening invalidates an older close completion; the latest selection supplies the eventual title. There is no separate hierarchy caption above the bar. Archived records are excluded from Overview; restoration is in Settings. Tag-bar transitions explicitly read Reduce Motion; see the [shared UI motion boundaries](../../Shared/PluginUI/README.md#motion-and-materials).
 
 Menu opening uses a 220ms smooth spring with zero extra bounce, both after initial measurement and when retargeting a mounted menu. Closing retains its existing timing. Menu closure morphs each mounted child capsule back into the measured parent capsule over 320ms. Position and size interpolate continuously; labels retire earlier than the glass, and the surface only disappears as it overlaps the parent. Reopening retargets the same mounted identities from their current presentation. Removed children remain in their old row slots during the return, then surviving children reflow smoothly. A removed directory fades its whole menu envelope because its return destination no longer exists. Retiring controls cannot receive clicks or accessibility actions. After menu exit, title, divider and prefix changes use a 280ms smooth, non-bouncing transition. Reopening still invalidates the earlier close completion. The measured scroll width carries its resize transaction across the layout boundary so the centered bar follows the chips. Initial measurements and Reduce Motion updates are immediate.

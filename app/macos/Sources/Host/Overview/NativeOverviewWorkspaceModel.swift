@@ -56,7 +56,18 @@ public final class NativeOverviewWorkspaceModel {
     public private(set) var selectedScope = ""
     public private(set) var selectedFilter: NativeOverviewFilter?
     public private(set) var filters: [NativeOverviewFilter] = []
-    public var visibleFilters: [NativeOverviewFilter] { filters.filter { $0.count > 0 } }
+    public var visibleFilters: [NativeOverviewFilter] {
+        filters.filter { $0.count > 0 }.map { filter in
+            var visible = filter
+            visible.children.removeAll { child in
+                // Retain an active semantic selection: promoting it to the
+                // directory would silently broaden future catalog updates.
+                redundantSemanticFilterKeys.contains(child.selectionKey)
+                    && tagSelection.map { child.matches($0.tag, kind: $0.kind, scope: $0.scope) } != true
+            }
+            return visible
+        }
+    }
     public private(set) var sceneKey = "\u{0}default"
     public private(set) var items: [NativeOverviewItem] = []
     /// Global eligible cards, before tags/search and report coverage. Nil means
@@ -92,6 +103,7 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var membershipFacts: NativeOverviewMembershipFacts?
     @ObservationIgnored private(set) var filterContextFacts: [JSONValue] = []
     @ObservationIgnored private var filterMembers: [String: NativeOverviewMembership] = [:]
+    private var redundantSemanticFilterKeys = Set<String>()
     @ObservationIgnored private var allMembers = NativeOverviewMembership()
     @ObservationIgnored private var globalThreadIDs = Set<JSONText>()
     @ObservationIgnored private var overviewEntries: [ApplicationThreadRef: (JSONValue, NativeOverviewApplicationEntry)] = [:]
@@ -465,6 +477,7 @@ public final class NativeOverviewWorkspaceModel {
     private func rebuildMembership() {
         membershipBuildCount += 1
         filterMembers.removeAll(keepingCapacity: true)
+        redundantSemanticFilterKeys.removeAll(keepingCapacity: true)
         allMembers = NativeOverviewMembership(collection(tags: [], kind: nil))
         let candidates = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)
         globalConversationCount = workspace.catalog.revision >= 0 ? candidates.count : nil
@@ -503,6 +516,23 @@ public final class NativeOverviewWorkspaceModel {
                 filterMembers[child.selectionKey] = NativeOverviewMembership(selected)
                 child.count = selected.count
                 filter.children[childIndex] = child
+            }
+            if filter.isDirectory, let child = filter.children.first, filter.children.count == 1 {
+                // Count all semantic names, including one equal to the directory
+                // label (which the ordinary menu already omits).
+                let semanticNames = (threadsByScope[filter.scope] ?? []).flatMap { $0.tags.map(\.string) }
+                    + candidates.applications.filter { $0.entry.scope?.string == filter.scope }
+                        .flatMap { $0.entry.tags.semanticTags.map(\.string) }
+                let semanticKeys = Set(semanticNames.map(normalized).filter { !$0.isEmpty })
+                let childMembers = filterMembers[child.selectionKey]!
+                let directoryMembers = filterMembers[filter.selectionKey]!
+                // Compare the actual post-coverage identities, not badge counts
+                // or search results. Agent and application identities stay distinct.
+                if semanticKeys.count == 1,
+                   Set(directoryMembers.threads) == Set(childMembers.threads),
+                   Set(directoryMembers.applications) == Set(childMembers.applications) {
+                    redundantSemanticFilterKeys.insert(child.selectionKey)
+                }
             }
             filters[index] = filter
         }
@@ -639,7 +669,7 @@ public final class NativeOverviewWorkspaceModel {
         try? await workspace.client.updateOverviewContext(nil)
         content.stop()
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
-        membershipFacts = nil; filterMembers.removeAll(); allMembers = .init(); applicationsByRef.removeAll()
+        membershipFacts = nil; filterMembers.removeAll(); redundantSemanticFilterKeys.removeAll(); allMembers = .init(); applicationsByRef.removeAll()
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
     }
 }
