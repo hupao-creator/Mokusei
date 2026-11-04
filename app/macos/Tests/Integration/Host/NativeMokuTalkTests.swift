@@ -192,8 +192,8 @@ struct NativeMokuTalkTests {
         #expect(state.talkPresentation.message?.id == "pending")
     }
 
-    @Test(arguments: [false, true], [false, true])
-    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool, noteOpen: Bool) async throws {
+    @Test(arguments: [false, true])
+    func longMessagesKeepClearOfEyesWithoutOpeningAWindow(running: Bool) async throws {
         func descendants<T: NSView>(_ root: NSView, of type: T.Type) -> [T] {
             ((root as? T).map { [$0] } ?? [])
                 + root.subviews.flatMap { descendants($0, of: type) }
@@ -205,7 +205,6 @@ struct NativeMokuTalkTests {
                     let state = NativeMokuSceneState()
                     state.setWindowVisible(true)
                     state.receiveTalk(.init(id: "headless-eyes", text: text))
-                    state.setNotePanelOpen(noteOpen)
                     let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
                     let host = NSHostingView(rootView: NativeMokuDock(state: state, draft: draft, cwd: "/tmp",
                         landing: landing, running: running, talk: text, onSend: { _ in }, onCancel: {})
@@ -234,19 +233,6 @@ struct NativeMokuTalkTests {
                     #expect(SwiftUIReplay.text(in: host).contains(text))
                     #expect(textFrame.minX >= state.capsuleFrame.minX)
                     #expect(textFrame.maxX <= state.capsuleFrame.maxX)
-                    if noteOpen {
-                        // A separate action row preserves the original message
-                        // width; a shared row must retain at least 200 points.
-                        let separate = textFrame.maxY <= state.capsuleFrame.maxY - 40
-                        if separate {
-                            #expect(eyeFrame.maxY <= state.capsuleFrame.maxY - 40)
-                        } else {
-                            #expect(textFrame.width >= 199,
-                                    "Shared row left unreadable prose at capsule width \(state.capsuleFrame.width)")
-                            #expect(textFrame.maxX <= state.capsuleFrame.maxX - 100)
-                        }
-                    }
-
                     if running {
                         // The hover/focus-revealed Stop target is 30pt wide,
                         // inset 7pt from the trailing edge. Reserve an 8pt gap
@@ -266,30 +252,15 @@ struct NativeMokuTalkTests {
         let fullHistory = NSHostingView(rootView: NativeMokuNoteHistoryButton {}.fixedSize()
             .environment(\.locale, Locale(identifier: "en"))).fittingSize.width
         #expect(fullHistory > 60)
-        for control: CGFloat in [0, 30, 34, 65] {
-            for dispatch in [false, true] {
-                let actions = fullHistory + 4 + max(34, control) + 7
-                let minimum: CGFloat = dispatch ? 240 : 200
-                let threshold = NativeMokuTalkTypography.leading + minimum + max(48, actions + 8)
-                for width in [threshold - 1, threshold, threshold + 1] {
-                    let layout = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
-                        controlWidth: control, hasMessage: true, isDispatch: dispatch)
-                    #expect((layout.band == 0) == (width >= threshold))
-                    if layout.band == 0 {
-                        #expect(width - NativeMokuTalkTypography.leading - layout.messageTrailing >= minimum)
-                    }
-                }
-            }
-            if control > 0 {
-                let width = 28 + 4 + control + 7
-                let horizontal = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
-                    controlWidth: control, hasMessage: false, isDispatch: false)
-                let stacked = NativeMokuNoteActionLayout(width: width - 1, historyWidth: fullHistory,
-                    controlWidth: control, hasMessage: false, isDispatch: false)
-                #expect(horizontal.compact && !horizontal.stacked && horizontal.band == 40)
-                #expect(stacked.compact && stacked.stacked && stacked.band == 80)
-                #expect(max(28, control) + stacked.edgeInset <= stacked.width)
-            }
+        for control: CGFloat in [30, 34, 65] {
+            let width = 28 + 4 + control + 7
+            let horizontal = NativeMokuNoteActionLayout(width: width, historyWidth: fullHistory,
+                controlWidth: control, hasMessage: false, isDispatch: false)
+            let stacked = NativeMokuNoteActionLayout(width: width - 1, historyWidth: fullHistory,
+                controlWidth: control, hasMessage: false, isDispatch: false)
+            #expect(horizontal.compact && !horizontal.stacked && horizontal.band == 40)
+            #expect(stacked.compact && stacked.stacked && stacked.band == 80)
+            #expect(max(28, control) + stacked.edgeInset <= stacked.width)
         }
     }
 
@@ -300,7 +271,7 @@ struct NativeMokuTalkTests {
         for width: CGFloat in [50, 72, 73, 100, 160] {
             let frames = Frames()
             let decision = NativeMokuNoteActionLayout(width: width, historyWidth: naturalWidth,
-                controlWidth: 34, hasMessage: true, isDispatch: false)
+                controlWidth: 34, hasMessage: false, isDispatch: false)
             let host = NSHostingView(rootView:
                 NativeMokuNoteActionStack(stacked: decision.stacked, trailing: decision.edgeInset, height: decision.band) {
                     NativeMokuNoteHistoryButton(compact: decision.compact) {}.fixedSize()

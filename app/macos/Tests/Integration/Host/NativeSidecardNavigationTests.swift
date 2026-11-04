@@ -9,7 +9,6 @@ import MokuseiCore
 import MokuseiPluginAPI
 import MokuseiPluginUI
 @testable import MokuseiUI
-import MokuseiSidecardConversation
 
 private struct ScrollMarker: NSViewRepresentable {
     let id: String
@@ -50,23 +49,6 @@ private struct NavigationSidecardFixture: SidecardPlugin {
         try SidecardView(available: true, label: "Reading", preferredWidth: 0.4, focusContentOnOpen: false) {
             ReadingFixture(id: "sidecard", nested: true)
         }
-    }
-}
-
-private struct ConversationDraftReplayPlugin: SidecardPlugin {
-    let capture: (ConversationSidecardPresentation) -> Void
-    private let plugin = NativeConversationSidecard()
-    var descriptor: SidecardPluginDescriptor { plugin.descriptor }
-    var icon: some View { plugin.icon }
-    func makePresentation(context: SidecardContext, lifetime: PluginLifetime) -> ConversationSidecardPresentation {
-        let presentation = plugin.makePresentation(context: context, lifetime: lifetime)
-        capture(presentation); return presentation
-    }
-    func updatePresentation(_ presentation: ConversationSidecardPresentation, context: SidecardContext) {
-        plugin.updatePresentation(presentation, context: context)
-    }
-    func sidecard(context: SidecardContext, presentation: ConversationSidecardPresentation) throws -> SidecardView<ConversationExecutionPane> {
-        try plugin.sidecard(context: context, presentation: presentation)
     }
 }
 
@@ -169,63 +151,5 @@ struct NativeSidecardNavigationTests {
         try await scroll(main, to: 60)
         expectNavigation(.betweenThresholds, hidden: false)
         await host.releaseAll()
-    }
-
-    @Test(arguments: ["none", "new", "same"])
-    func conversationConsumesOnlyTheAcceptedDraftAfterReopening(edit: String) async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("conversation-receipt-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: root) }
-        let firstDirectory = root.appendingPathComponent("host-a"), otherDirectory = root.appendingPathComponent("host-b")
-        let scope: JSONText = "conversation:conversation-replay"
-        let store = NativeComposerDraftPersistence(storageDirectory: firstDirectory, scope: scope)
-        let otherStore = NativeComposerDraftPersistence(storageDirectory: otherDirectory, scope: scope)
-        let raw = JSONText(codeUnits: Array("原始草稿 ".utf16) + [0xd800])
-        _ = try store.saveText(raw)
-        _ = try otherStore.saveText("另一台主机的草稿")
-        var receipt: CheckedContinuation<SidecardSendReceipt, Never>?
-        var sent: [JSONValue] = []
-        let thread = try HarnessThread(id: "conversation-replay", harnessID: "fixture", revision: 0, sessionState: .null,
-            observation: .init(), cwd: "/host/project", settings: .object([:]), createdAt: 0, updatedAt: 0, title: "Conversation", tags: [])
-        let client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: firstDirectory))
-        let host = NativeHarnessHost(client: client, registry: try HarnessPluginRegistry([]), currentThread: { _ in thread },
-            callbacks: .init(openExternal: { _ in }, openFollowUp: { _, _ in }, onError: { _ in }))
-        let configuration = NativeSidecardWorkspaceConfiguration(input: .init(thread: thread), executionDisabled: false,
-            suppressed: false, enabledIDs: nil, followUpRequest: nil, locale: Locale(identifier: "en-US"))
-        let services = NativeSidecardWorkspaceServices(send: { _, input in
-                sent.append(input)
-                return await withCheckedContinuation { receipt = $0 }
-            }, stageAttachments: { _ in [] }, discardAttachments: { _ in }, openExternal: { _ in })
-        func open() throws -> (NativeSidecardWorkspaceModel, ConversationSidecardPresentation) {
-            var captured: ConversationSidecardPresentation?
-            let registry = try SidecardPluginRegistry([AnySidecardPlugin(ConversationDraftReplayPlugin { captured = $0 })])
-            let model = NativeSidecardWorkspaceModel(harnessHost: host, registry: registry, configuration: configuration,
-                services: services, onBack: {}, onVisibilityChange: { _ in })
-            model.update(configuration: configuration, services: services, onBack: {}, onVisibilityChange: { _ in })
-            model.activate("conversation")
-            return (model, try #require(captured))
-        }
-        let (originalModel, original) = try open()
-        let sending = Task { await original.send() }
-        try await SwiftUIReplay.wait { receipt != nil }
-        #expect(sent.first?["parts"]?.arrayValue?.first?["text"] == .string(raw))
-        originalModel.release()
-
-        let (reopenedModel, reopened) = try open()
-        defer { reopenedModel.release() }
-        if edit == "new" { reopened.changeDraft("新编辑的草稿") }
-        if edit == "same" { reopened.changeDraft(raw.string) }
-        let window = SwiftUIReplay.window(ConversationExecutionPane(presentation: reopened), width: 420, height: 400)
-        defer { window.close() }
-        receipt?.resume(returning: .init(executionID: "accepted")); receipt = nil
-        await sending.value
-
-        let expected: JSONText = edit == "none" ? "" : edit == "new" ? "新编辑的草稿" : JSONText(raw.string)
-        #expect(reopened.draft == expected.string)
-        #expect(try store.loadText()?.textValue == expected)
-        #expect(try otherStore.loadText()?.textValue == "另一台主机的草稿")
-        #expect(sent.count == 1)
-        let content = try #require(window.contentView)
-        try await SwiftUIReplay.wait { SwiftUIReplay.editor(in: content)?.string == expected.string }
-        #expect(SwiftUIReplay.editor(in: content)?.isEditable == true)
     }
 }

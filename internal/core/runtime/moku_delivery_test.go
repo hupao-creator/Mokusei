@@ -135,8 +135,10 @@ func TestMokuDeliveryAdmissionFence(t *testing.T) {
 		t.Fatal("failed transport succeeded")
 	}
 	owner.workers.Wait()
-	if _, err := r.SendMokuDelivery(t.Context(), id, "moku", input, nil, nil); err == nil {
-		t.Fatal("uncertain delivery replayed")
+	// Stale polls are successful no-ops; the native call count proves that an
+	// uncertain attempt was not sent again.
+	if result, err := r.SendMokuDelivery(t.Context(), id, "moku", input, nil, nil); err != nil || result != (plugin.SessionSendResult{}) {
+		t.Fatalf("uncertain delivery did not settle as a no-op: %+v %v", result, err)
 	}
 	owner.workers.Wait()
 	if calls != 1 {
@@ -169,8 +171,8 @@ func TestMokuDeliveryAdmissionFence(t *testing.T) {
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("admitted delivery remains: %+v %v", pending, err)
 	}
-	if _, err := r.SendMokuDelivery(t.Context(), id, "moku", input, nil, nil); err == nil {
-		t.Fatal("receipt replayed")
+	if result, err := r.SendMokuDelivery(t.Context(), id, "moku", input, nil, nil); err != nil || result != (plugin.SessionSendResult{}) {
+		t.Fatalf("consumed delivery did not settle as a no-op: %+v %v", result, err)
 	}
 	owner.workers.Wait()
 	if calls != 2 {
