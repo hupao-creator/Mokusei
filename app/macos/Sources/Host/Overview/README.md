@@ -11,7 +11,7 @@ search and report coverage, including directory-only documents. Moku uses these
 facts for its empty-workspace landing; an unloaded catalog remains unknown. While
 the first creation awaits native admission, the canvas and filters stay covered
 by landing so a durable, unadmitted shell cannot replace the primary input. Ordinary
-eligibility rules, including archived and failed/interrupted visibility, are shared
+eligibility rules, including archive and terminal visibility, are shared
 with Overview rather than reimplemented by the Dock. The
 [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
 checks this distinction against real catalog transactions.
@@ -311,3 +311,14 @@ identity registry. Only an actual ordinary open captures text and geometry;
 this adds no projection cache or per-frame catalog publication. The destination
 reader owns the independent opening handoff, and return still uses the refreshed
 canvas frame and actual card content.
+
+Ordinary failed executions remain hidden by default. Interrupted executions are
+hidden only when their exact latest execution ID matches the Runtime-owned
+`mokuInterruptedExecutionId`. User Stop and missing/unknown historical sources
+remain visible. A successor execution stops matching the old provenance. The
+shared Shell predicate governs Overview, availability, search and ordinary
+navigation; membership invalidates when its resulting visibility changes, even
+if status and execution identity stay unchanged. Archive/unarchive choices,
+plugin-owned application visibility and explicit result-reading links keep
+their existing rules. Refresh and restart consume the retained envelope rather
+than guessing from terminal status or local UI actions.

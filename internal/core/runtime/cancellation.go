@@ -165,6 +165,17 @@ func (r *Runtime) InterruptThreadTarget(ctx context.Context, id, expected string
 	if expected == "" {
 		return model.CancellationResult{}, errors.New("cancellation identity is required")
 	}
+	return r.interruptThreadTarget(ctx, id, expected, false)
+}
+
+// InterruptThreadFromMokuTool captures the current target under the admission
+// gate. Lifecycle teardown and user cancellation must not use this capability.
+func (r *Runtime) InterruptThreadFromMokuTool(ctx context.Context, id string) error {
+	_, err := r.interruptThreadTarget(ctx, id, "", true)
+	return err
+}
+
+func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string, mokuTool bool) (model.CancellationResult, error) {
 	if err := r.begin(); err != nil {
 		return model.CancellationResult{}, err
 	}
@@ -177,10 +188,30 @@ func (r *Runtime) InterruptThreadTarget(ctx context.Context, id, expected string
 		state.mu.Unlock()
 		return model.CancellationResult{}, err
 	}
+	if mokuTool {
+		if thread.Moku || thread.MokuHistory {
+			state.mu.Unlock()
+			return model.CancellationResult{}, errors.New("Moku tools may only target ordinary Agent Threads")
+		}
+		expected = thread.CancellationID
+	}
 	active := thread.Observation.LatestExecution != nil && !thread.Observation.LatestExecution.Terminal()
 	if thread.CancellationID != expected || !active && !thread.PendingInput && thread.Observation.BackgroundWork == nil || state.cancelling {
 		state.mu.Unlock()
 		return model.CancellationResult{Status: "stale"}, nil
+	}
+	// Capture the execution before cancelling claims: their cancellation can
+	// synchronously settle it. A pending reservation may not be projected yet;
+	// background-only cancellation must not relabel an older terminal execution.
+	executionID := ""
+	if active {
+		executionID = thread.Observation.LatestExecution.ExecutionID
+	}
+	if thread.PendingInput && state.id == expected && state.executionID != "" {
+		latest := thread.Observation.LatestExecution
+		if latest == nil || latest.ExecutionID != state.executionID || !latest.Terminal() {
+			executionID = state.executionID
+		}
 	}
 	state.cancelling = true
 	state.closedTarget = expected
@@ -198,6 +229,15 @@ func (r *Runtime) InterruptThreadTarget(ctx context.Context, id, expected string
 		thread, err = r.Thread(id)
 		if err == nil && thread.CancellationID == expected {
 			owner, err = r.openThread(ctx, thread, nil)
+			if err == nil && mokuTool {
+				// Restore may settle abandoned native work. That outcome did
+				// not come from the interrupt tool we have yet to invoke.
+				restored, readErr := r.Thread(id)
+				err = readErr
+				if latest := restored.Observation.LatestExecution; latest == nil || latest.Terminal() {
+					executionID = ""
+				}
+			}
 		}
 		lock.Unlock()
 	}
@@ -206,6 +246,21 @@ func (r *Runtime) InterruptThreadTarget(ctx context.Context, id, expected string
 	}
 	if err != nil {
 		return model.CancellationResult{}, err
+	}
+	if mokuTool && executionID != "" {
+		// All native stop paths settle before acknowledging success. Require
+		// that outcome too: a no-op/late acknowledgement must never mark a
+		// still-running execution that a later manual stop or restart settles.
+		err = r.UpdateThread(context.WithoutCancel(ctx), id, func(t *model.ThreadRecord) error {
+			latest := t.Observation.LatestExecution
+			if t.CancellationID == expected && latest != nil && latest.ExecutionID == executionID && latest.Status == "interrupted" {
+				t.MokuInterruptedExecutionID = executionID
+			}
+			return nil
+		})
+		if err != nil {
+			return model.CancellationResult{}, err
+		}
 	}
 	return model.CancellationResult{Status: "cancelled"}, nil
 }

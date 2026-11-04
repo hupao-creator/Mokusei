@@ -47,3 +47,8 @@ from the mutable catalog `title`. Missing entries mean unknown historical names;
 clients must not fill them with the current title or another execution's name.
 Runtime records successful naming ownership and conservatively restores older
 entries from durable lifecycle evidence at startup.
+
+`ThreadRecord.mokuInterruptedExecutionId` is optional Runtime-owned evidence of a
+successful Moku interrupt tool request for that exact execution. Missing means
+unknown; neither clients nor migrations infer it from `interrupted`. It travels
+with the durable envelope independently of opaque Harness state.

@@ -43,7 +43,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			result, err := r.CreateThread(ctx, core.CreateThreadRequest{ResolveSettings: request.ResolveSettings, HarnessID: request.HarnessID, Input: request.Input, Cwd: request.Cwd, Settings: request.Settings, Worktree: request.Worktree})
 			return moku.CreatedThread{Record: result.Record, Execution: result.Execution, Acknowledgement: result.Acknowledgement, WorktreeName: result.WorktreeName, WorktreeNameAdjusted: result.WorktreeNameAdjusted, WorktreeNameNotice: result.WorktreeNameNotice}, err
 		},
-		SendThread: r.SendThread, ReadThread: r.ReadThread, InterruptThread: r.InterruptThread, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, RespondThread: r.RespondThread,
+		SendThread: r.SendThread, ReadThread: r.ReadThread, InterruptThread: r.InterruptThread, InterruptThreadFromMokuTool: r.InterruptThreadFromMokuTool, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, RespondThread: r.RespondThread,
 		CanonicalizeInput: b.attachments.CanonicalizeInput,
 		StageAttachments: func(ctx context.Context, raw json.RawMessage) (any, error) {
 			var imports []attachments.Import

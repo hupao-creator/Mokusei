@@ -21,6 +21,7 @@ public struct HarnessThread: Hashable, Sendable {
     public let updatedAt: Double
     public let title: JSONText
     public let executionTitles: [JSONText: JSONText]
+    public let mokuInterruptedExecutionID: JSONText?
     public let metadataState: JSONValue?
     public let metadataRevision: Int?
     public let tags: [JSONText]
@@ -61,6 +62,7 @@ public struct HarnessThread: Hashable, Sendable {
             }
         }
         executionTitles = titles
+        mokuInterruptedExecutionID = try r.optionalText("mokuInterruptedExecutionId", nonblank: true)
         metadataState = r.values["metadataState"]
         metadataRevision = try r.optionalInteger("metadataRevision")
         tags = try r.texts("tags")
@@ -92,7 +94,7 @@ public struct HarnessThread: Hashable, Sendable {
     public init(id: JSONText, harnessID: JSONText, revision: Int, sessionState: JSONValue,
                 observation: ThreadPublicObservation, cwd: JSONText, settings: JSONValue,
                 createdAt: Double, updatedAt: Double, title: JSONText, tags: [JSONText],
-                worktree: JSONValue? = nil, executionTitles: [JSONText: JSONText] = [:], metadataState: JSONValue? = nil,
+                worktree: JSONValue? = nil, mokuInterruptedExecutionID: JSONText? = nil, executionTitles: [JSONText: JSONText] = [:], metadataState: JSONValue? = nil,
                 metadataRevision: Int? = nil, archived: Bool? = nil,
                 moku: Bool? = nil, mokuHistory: Bool = false, note: ThreadNote? = nil,
                 transcript: JSONValue? = nil, tagEmojis: [JSONText: JSONText] = [:],
@@ -106,6 +108,7 @@ public struct HarnessThread: Hashable, Sendable {
         ]
         object["tagEmojis"] = .object(tagEmojis.mapValues(JSONValue.string))
         if !executionTitles.isEmpty { object["executionTitles"] = .object(executionTitles.mapValues(JSONValue.string)) }
+        object["mokuInterruptedExecutionId"] = mokuInterruptedExecutionID.map(JSONValue.string)
         object["worktree"] = worktree
         object["metadataState"] = metadataState
         object["metadataRevision"] = metadataRevision.map { .integer($0) }

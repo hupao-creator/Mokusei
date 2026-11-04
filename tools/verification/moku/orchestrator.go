@@ -330,7 +330,8 @@ func (w *orchestratorWorld) config() moku.Configuration {
 			}
 			return "inspected: " + question, nil
 		},
-		InterruptThread: func(ctx context.Context, id string) error { return w.terminal(ctx, id, "interrupted") },
+		InterruptThread:             func(ctx context.Context, id string) error { return w.terminal(ctx, id, "interrupted") },
+		InterruptThreadFromMokuTool: func(ctx context.Context, id string) error { return w.terminal(ctx, id, "interrupted") },
 		CanonicalizeInput: func(ctx context.Context, orchestratorInput model.AgentInput) (model.AgentInput, error) {
 			w.mu.Lock()
 			fn := w.canonicalizeFn
@@ -898,7 +899,7 @@ func replayOrchestratorBatchInterrupt() {
 	w := newOrchestratorWorld()
 	config := w.config()
 	var interrupted []string
-	config.InterruptThread = func(ctx context.Context, id string) error {
+	config.InterruptThreadFromMokuTool = func(ctx context.Context, id string) error {
 		interrupted = append(interrupted, id)
 		if id == "backend-failure" {
 			return errors.New("native interruption failed")

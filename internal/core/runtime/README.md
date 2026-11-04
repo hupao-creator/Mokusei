@@ -51,6 +51,27 @@ form preflight passes typed native values through the internal response handoff.
 
 Commands validate their execution/interaction identity before mutation. A follow-up whose reserved execution ended before input was retained may reserve a successor once. A dispatched failure is not automatically resent or used to rewrite an already terminal execution. Cancellation is fenced to its admitted execution, so a late interrupt cannot cancel a successor.
 
+Ordinary Threads retain optional `mokuInterruptedExecutionId` only after the
+`interrupt_thread` capability successfully stops the captured execution and its
+committed outcome is `interrupted`. The dedicated capability captures execution
+identity under the same cancellation gate as user Stop; it never infers source
+from a terminal status. It rejects Moku/history targets, fences successors and
+holds admission closed through provenance retention. User Stop and lifecycle
+teardown cannot supply tool provenance. A background-only stop does not relabel
+an older foreground outcome; reopening a session may settle abandoned work and
+that recovery is not attributed to the tool.
+
+The field survives catalog projection, refresh and restart. Missing historical
+or unknown provenance stays absent, with no status-based backfill. Forks clear
+it. Native failure or uncertain acknowledgement does not add it, even if a
+cancelled input happens to settle. A crash or failed store write between native
+stop and provenance retention conservatively leaves the interruption visible.
+A successful native stop must already have committed the matching interrupted
+outcome; a future asynchronous/uncertain outcome is not retroactively attributed.
+The field records the successful host cancellation request, not native forensic
+evidence of which event physically stopped a process if an external native stop
+races that request. It changes presentation only, never status or archive state.
+
 ## Settings
 
 [settings.go](settings.go) separates saved settings revision from streaming thread revisions. `app:update-settings` normalizes through the owning Harness and compares `expectedSettingsRevision` in the store transaction. A conflict returns the latest settings; invalid writes leave state unchanged. An unchanged save does not advance the revision.

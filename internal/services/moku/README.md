@@ -241,3 +241,9 @@ to reference one ordinary Agent Thread execution. Moku obtains the two identitie
 from thread lifecycle reports; this capability adds no query tool or reason to
 query proactively. Capability guidance leaves link selection to the model. The
 full Markdown URL counts toward the existing 1200-code-point limit.
+
+The `interrupt_thread` tool uses the dedicated `InterruptThreadFromMokuTool`
+capability so Runtime can retain exact execution provenance after successful
+interruption. `CancelTarget` (user Stop) and `Cancel` (lifecycle teardown) retain
+their separate capabilities and never supply tool provenance. Batch attempts and
+ordered per-thread success/error results retain their existing semantics.

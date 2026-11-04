@@ -110,13 +110,13 @@ cannot consume another page's Escape.
 Moku note execution URLs are parsed by the shared Markdown link boundary and
 enter through `openNoteExecution`; there is no OS-level execution URL handler.
 This entry admits public ordinary threads, including archived and
-failed/interrupted threads hidden from Overview. The result reading request is
+failed or Moku-tool-interrupted threads hidden from Overview. The result reading request is
 exact and does not start execution. A missing or ineligible thread shows an
 unavailable notice; a missing execution uses the reader's unavailable page. Each click receives a fresh reading request.
 Report relation buttons and the Note are Overview entry points, so their Host
 return action restores Overview. Admission rules remain entry-specific; archived
 ordinary threads are valid for both, while the Note additionally admits ordinary
-failed/interrupted threads hidden from Overview.
+failed or Moku-tool-interrupted threads hidden from Overview.
 
 Retained current/result/history documents may mount the same row simultaneously.
 The Harness host gives each content-resource acquisition its own subscription

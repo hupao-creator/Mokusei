@@ -80,3 +80,8 @@ map (missing means empty; malformed or empty entries are rejected). Harness
 readers pass only the matching execution's title into their conversation rows.
 The catalog title remains independent metadata and cannot fill a missing history
 entry. This envelope also persists through ordinary offline catalog recovery.
+
+`HarnessThread.mokuInterruptedExecutionID` decodes the optional nonblank
+`mokuInterruptedExecutionId` envelope field. Missing provenance remains unknown;
+the client preserves it through catalog snapshots, deltas and offline storage
+without inspecting private Harness state.

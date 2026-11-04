@@ -224,10 +224,10 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 				switch {
 				case record.Moku || record.MokuHistory:
 					interruptErr = errors.New("Moku tools may only target ordinary Agent Threads")
-				case c.config.InterruptThread == nil:
+				case c.config.InterruptThreadFromMokuTool == nil:
 					interruptErr = errors.New("Thread interrupt unavailable")
 				default:
-					interruptErr = c.config.InterruptThread(ctx, id)
+					interruptErr = c.config.InterruptThreadFromMokuTool(ctx, id)
 				}
 			}
 			item := interruptResult{ThreadID: id, OK: interruptErr == nil}

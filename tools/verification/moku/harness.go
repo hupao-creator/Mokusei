@@ -464,7 +464,7 @@ func newReplayConfiguration(root string, r *runtimepkg.Runtime, h *replayNativeH
 		ConfigureSession: func(ctx context.Context, id string, revision int64, c moku.SessionConfiguration) error {
 			return r.ConfigureMokuThread(ctx, id, revision, c.HarnessID, c.Settings, c.AppliedSettings, c.SettingsRevision, c.Cwd)
 		},
-		OpenSession: r.OpenMokuThread, CloseSession: r.CloseMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, SubscribeCommitted: r.OnThreadCommitted, InterruptThread: r.InterruptThread, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, SendThread: r.SendThread,
+		OpenSession: r.OpenMokuThread, CloseSession: r.CloseMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, SubscribeCommitted: r.OnThreadCommitted, InterruptThread: r.InterruptThread, InterruptThreadFromMokuTool: r.InterruptThreadFromMokuTool, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, SendThread: r.SendThread,
 		SubscribeUserThreadInputs: r.SubscribeUserThreadInputs,
 		CreateThread: func(ctx context.Context, request moku.CreateThreadRequest) (moku.CreatedThread, error) {
 			created, err := r.CreateThread(ctx, runtimepkg.CreateThreadRequest{HarnessID: request.HarnessID, Input: request.Input, Cwd: request.Cwd, Settings: request.Settings, Worktree: request.Worktree, ResolveSettings: request.ResolveSettings})

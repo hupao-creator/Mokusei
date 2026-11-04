@@ -93,6 +93,8 @@ type Configuration struct {
 	VoicePreparationContext func(service, command context.Context) context.Context
 	CompletedReply          func(string, string) (string, bool)
 	ReportFailure           func(string, error)
+	// Tool interruption carries provenance; user cancellation and teardown do not.
+	InterruptThreadFromMokuTool func(context.Context, string) error
 }
 type SubmitRequest struct {
 	Input            model.AgentInput `json:"input"`

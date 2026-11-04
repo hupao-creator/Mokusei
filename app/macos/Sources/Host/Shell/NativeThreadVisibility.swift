@@ -6,7 +6,9 @@ extension HarnessThread {
     var isHiddenFromUser: Bool {
         guard moku != true else { return false }
         switch observation.latestExecution?.status {
-        case .interrupted, .failed: return true
+        case .failed: return true
+        case .interrupted:
+            return mokuInterruptedExecutionID == observation.latestExecution?.executionID
         default: return false
         }
     }

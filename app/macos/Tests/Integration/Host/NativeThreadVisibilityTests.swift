@@ -11,7 +11,7 @@ import MokuseiPluginAPI
 struct NativeThreadVisibilityTests {
     private func thread(_ id: JSONText, status: PublicExecution.Status? = nil,
                         archived: Bool? = nil, moku: Bool? = nil, revision: Int = 0,
-                        tags: [JSONText] = []) throws -> HarnessThread {
+                        tags: [JSONText] = [], mokuInterruptedExecutionID: JSONText? = nil) throws -> HarnessThread {
         let execution = try status.map {
             try PublicExecution(executionID: revision == 0 ? "first" : "successor", status: $0,
                                 startedAt: 1, finishedAt: $0 == .running ? nil : 2)
@@ -20,6 +20,7 @@ struct NativeThreadVisibilityTests {
             sessionState: .object(["retained": .text("private native history")]),
             observation: .init(latestExecution: execution), cwd: "/workspace/project",
             settings: .object([:]), createdAt: 1, updatedAt: 2, title: id, tags: tags,
+            mokuInterruptedExecutionID: mokuInterruptedExecutionID,
             archived: archived, moku: moku, transcript: moku == true ? .array([]) : nil,
             tagEmojis: Dictionary(uniqueKeysWithValues: tags.map { ($0, JSONText("🔧")) }))
     }
@@ -33,9 +34,9 @@ struct NativeThreadVisibilityTests {
 
     @Test(arguments: [PublicExecution.Status.interrupted, .failed])
     func unsuccessfulExecutionOnlyChangesPresentationAndSuccessorsRestoreMembership(status: PublicExecution.Status) throws {
-        let hidden = try thread("hidden", status: status, tags: ["Hidden only", "Shared"])
+        let hidden = try thread("hidden", status: status, tags: ["Hidden only", "Shared"], mokuInterruptedExecutionID: "first")
         let archivedHidden = try thread("archived-hidden", status: status,
-                                        archived: true, tags: ["Archived hidden"])
+                                        archived: true, tags: ["Archived hidden"], mokuInterruptedExecutionID: "first")
         let completed = try thread("completed", status: .completed, tags: ["Shared"])
         let running = try thread("running", status: .running, tags: ["Shared"])
         let fresh = try thread("fresh")
@@ -55,7 +56,7 @@ struct NativeThreadVisibilityTests {
         #expect(catalog.moku?.json == moku.json)
         #expect(!moku.isHiddenFromUser)
 
-        let successor = try thread("hidden", status: .running, revision: 1, tags: ["Shared"])
+        let successor = try thread("hidden", status: .running, revision: 1, tags: ["Shared"], mokuInterruptedExecutionID: "first")
         try catalog.install(snapshot([successor, archivedHidden, completed, running, fresh, archived, moku], revision: 1))
         let restored = NativeOverviewSelection.select(threads: catalog.threads, applications: [])
         #expect(restored.threads.map(\.id) == ["hidden", "completed", "running", "fresh"])
@@ -63,7 +64,7 @@ struct NativeThreadVisibilityTests {
         #expect(catalog.thread("hidden")?.archived == nil)
         #expect(catalog.moku?.json == moku.json)
 
-        let stoppedAgain = try thread("hidden", status: status, revision: 2, tags: ["Shared"])
+        let stoppedAgain = try thread("hidden", status: status, revision: 2, tags: ["Shared"], mokuInterruptedExecutionID: "successor")
         try catalog.install(snapshot([stoppedAgain, archivedHidden, completed, running, fresh, archived, moku], revision: 2))
         let stopped = NativeOverviewSelection.select(threads: catalog.threads, applications: [])
         #expect(stopped.threads.map(\.id) == ["completed", "running", "fresh"])
