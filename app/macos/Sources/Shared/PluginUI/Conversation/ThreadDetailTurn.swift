@@ -112,6 +112,7 @@ private extension EnvironmentValues {
 public struct ThreadDetailTurn: View {
     @Environment(\.nativeThreadContentReveal) private var revealsContent
     @Environment(\.accessibilityReduceMotion) private var reducedMotion
+    @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
     @State private var entrance = NativeThreadContentReveal()
     @Environment(\.threadDetailFooterReveal) private var footerReveal
     @Environment(\.threadExecutionGroup) private var executionGroup
@@ -163,6 +164,7 @@ public struct ThreadDetailTurn: View {
     }
 
     public var body: some View {
+        let revealInProgress = revealsContent && !entrance.settled
         if let executionGroup {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
@@ -187,13 +189,24 @@ public struct ThreadDetailTurn: View {
                 if !active { footer.opacity(footerReveal * (revealsContent && !entrance.footerVisible ? 0 : 1)).padding(.top, displayed.last?.kind == .user ? 26 : 18) }
             }
             .environment(\.nativeThreadReveal, revealsContent ? entrance : nil)
+            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                status.hasContent = true
+                status.revealing = status.revealing || revealInProgress
+            }
             .onAppear {
-                if revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
+                if revealsContent {
+                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: reducedMotion, showsFooter: !active) }
+                }
                 else { entrance.finish() }
             }
             .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
-            .onChange(of: reducedMotion) { _, value in if value { entrance.finish() } }
-            .onDisappear { entrance.finish() }
+            .onChange(of: primaryEntranceReady) { _, ready in
+                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion, showsFooter: !active) }
+            }
+            .onChange(of: reducedMotion) { _, value in
+                if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true, showsFooter: !active) }
+            }
+            .onDisappear { entrance.cancel() }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(localize("对话轮次"))

@@ -86,23 +86,27 @@ private struct NativeThreadWorkspaceBody: View {
     @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: NativeSidecardWorkspaceModel?
-    @State private var secondaryStageReady = false
+    @State private var auxiliaryStageReady = false
+    @State private var contentRevealComplete = false
 
     private var configuration: NativeSidecardWorkspaceConfiguration {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
             locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation,
-            entranceReady: secondaryStageReady, reduceMotion: reduceMotion)
+            entranceReady: auxiliaryStageReady, reduceMotion: reduceMotion)
     }
 
     var body: some View {
         Group {
             if let model, let snapshot = model.snapshot {
-                NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot)
+                NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot, onContentRevealChange: { status in
+                    guard self.model === model else { return }
+                    contentRevealComplete = status.complete
+                })
                     .background {
-                        NativeReadingEntranceStage(enabled: primaryEntranceReady && !secondaryStageReady) {
+                        NativeReadingEntranceStage(enabled: primaryEntranceReady && contentRevealComplete && !auxiliaryStageReady) {
                             guard self.model === model, onEntranceReady() else { return }
-                            secondaryStageReady = true
+                            auxiliaryStageReady = true
                         }
                     }
             } else {
@@ -121,7 +125,7 @@ private struct NativeThreadWorkspaceBody: View {
             model?.update(configuration: value, services: services, onBack: onBack,
                           onVisibilityChange: onFollowUpVisibilityChange)
         }
-        .onDisappear { model?.release(); model = nil; secondaryStageReady = false }
+        .onDisappear { model?.release(); model = nil; auxiliaryStageReady = false; contentRevealComplete = false }
     }
 }
 
@@ -132,6 +136,7 @@ struct NativeSidecardWorkspaceLayout: View {
     let snapshot: NativeSidecardWorkspaceSnapshot
     /// Previews/replays can supply the same policy without changing OS settings.
     var motionReduced: Bool? = nil
+    var onContentRevealChange: (NativeReadingContentRevealStatus) -> Void = { _ in }
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -261,6 +266,12 @@ struct NativeSidecardWorkspaceLayout: View {
         // A promoting sidecard already displays this execution. Do not blank it
         // for a second entrance when the main reader takes ownership.
         .environment(\.nativeThreadContentReveal, snapshot.handoff == nil)
+        .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+            // The identity-only preparation reader has no loaded document. Its
+            // placeholder must not leave a ready value for the live reader.
+            if preparing { status = .init() }
+        }
+        .onPreferenceChange(NativeReadingContentRevealStatusKey.self, perform: onContentRevealChange)
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)

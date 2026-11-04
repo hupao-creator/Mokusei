@@ -78,6 +78,13 @@ already accepted Close even while preparation is pending. Nested stacks retain
 their existing behavior unless a host supplies these optional hooks.
 
 Validation uses the existing navigation, sidecard and reading suites and the [Overview native input replay](../../../../../tools/verification/overview-input/README.md).
+
+Agent entry now keeps line reveal separate from auxiliary presentation: after the
+outer panel/title handoff, only the active main document reveals; its last line
+and footer must complete before Moku input and Sidecard admission. Nested reading
+stacks retain the parent's entrance gate, and a moving empty/error history page
+also holds content readiness until its own travel finishes. Report/Git keep their
+primary-only admission. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,

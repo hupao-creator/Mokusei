@@ -184,6 +184,7 @@ public struct ThreadConversation: View {
                 if let row = visibleRows.first(where: { $0.id == id }) { row.node.nativeReadingContentReady() }
                 else if !rows.contains(where: { $0.id == id }) {
                     Text(localize("这轮对话已不可用。")).foregroundStyle(NativePalette.thread.danger.swiftUI)
+                        .nativeReadingContentReady()
                 }
             } else {
                 readingLayout.nativeReadingScope(interactionScope)
@@ -264,6 +265,9 @@ public struct ThreadConversation: View {
                     .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
                     .nativeReadingScope("current")
                     .nativeReadingActive(!readingPage && !pageMotion.active)
+                    .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                        if readingPage { status = .init() }
+                    }
             } front: {
                 if readingPage {
                     historyPage()
@@ -273,6 +277,11 @@ public struct ThreadConversation: View {
             }
             .clipped()
         }.padding(.vertical, agentDetail && !executionCard ? 0 : 12)
+            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                // Empty/error history pages have no turn to hold the boundary
+                // while their own reading stack is still travelling.
+                status.revealing = status.revealing || pageMotion.active
+            }
             .nativeReadingObservation("state", role: "conversation", value: .object([
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),
                 "historyRow": selectedPage.map { .string($0.id) } ?? .null,
@@ -352,9 +361,9 @@ public struct ThreadConversation: View {
         .nativeReadingActive(!pageMotion.active)
     }
     private var effectiveEmptyState: AnyView {
-        if let emptyState { return emptyState }
+        if let emptyState { return AnyView(emptyState.nativeReadingContentReady()) }
         if executionCard { return AnyView(NativeReadingPlaceholder(placement: .inline)) }
-        return AnyView(ThreadDetailEmptyState())
+        return AnyView(ThreadDetailEmptyState().nativeReadingContentReady())
     }
     private func closeHistory() {
         if entryRoute { rootNavigation?.onBack(); return }
@@ -490,7 +499,7 @@ private struct ThreadHistoryDocument: View {
     var body: some View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
-            toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
+            toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。")).nativeReadingContentReady()),
             contentTopInset: agentDetail ? 12 : nil,
             followOutput: result || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
             followKey: active ? page?.execution?.id : nil,

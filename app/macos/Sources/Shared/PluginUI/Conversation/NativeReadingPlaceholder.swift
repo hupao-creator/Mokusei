@@ -31,6 +31,12 @@ public struct NativeReadingPlaceholder: View {
                    alignment: placement == .surface ? .center : .leading)
             }
         }
+            .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                // A loaded sibling (for example a system error) cannot admit
+                // auxiliary input while this document is still being acquired.
+                // Readiness starts waiting before the visual grace period ends.
+                status.revealing = status.revealing || revealsContent
+            }
             .nativeLayoutLog("reading.placeholder")
             // Reserve the same geometry during the grace period. Inline loading
             // must never claim viewport height or change the reader's scroll extent.

@@ -77,9 +77,17 @@ The stack publishes `nativeReadingEntranceReady` from that actual completion
 boundary and, when present, the existing title/emoji ink handoff. Secondary
 layout cannot move the heading destination before the live reader owns it.
 `NativeReadingEntranceStage` additionally waits for a newly mounted
-folded layout to commit before secondary motion is admitted; its queued callback
+folded layout to commit before auxiliary motion is admitted; its queued callback
 is invalidated on disable, detach or replacement. This prevents an initially
-selected execution Sidecard from first rendering at expanded width. See the
+selected execution Sidecard from first rendering at expanded width. Agent detail
+also waits for `NativeReadingContentRevealStatusKey`: only active main contributes
+readiness, and unfinished line/footer fades keep the gate closed. Turns wait for
+primary admission, then use actual last-line and footer animation completion.
+Loaded empty/error states can finish without a text animation; mounted Agent
+loading placeholders keep the gate pending even alongside loaded sibling rows
+and during their visual grace period. The identity-only reader cannot admit
+content. Reduced Motion skips fades but keeps Markdown
+readiness, and teardown cancels late completion. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 

@@ -8,7 +8,8 @@ tag chrome withdraws upward and fades while Moku takes its reading seat; both us
 the emphasized panel opening. The existing identity-target preparation may precede
 compositor travel; secondary work never estimates its completion with a 420ms timer.
 Only the collapsed Moku position participates in this first stage. Its input
-expansion belongs to stage two. Tag layout/canvas clearance and Moku's
+expansion belongs to stage three, after a separate main-document line reveal.
+Tag layout/canvas clearance and Moku's
 bottom-anchored native editor stay intact.
 
 The reading Dock lowers its bottom edge by up to 16 logical points, bounded by a
@@ -17,7 +18,7 @@ height fitting, reasoning-ink fitting and interaction regions still derive from
 the same fitted surface. Landing and Settings keep their own seating. Report/Git
 use the same lower seat without forcing open their Moku composer.
 
-## Two-stage admission
+## Three-stage admission
 
 The owning `NativeReadingPageStack` supplies `nativeReadingEntranceReady` to its
 front only after actual primary completion. Panel entry uses the generation-fenced
@@ -28,12 +29,42 @@ opening a Sidecard then would move the destination beneath the retained ink.
 Reduce Motion and entries without identity ink do not acquire this extra wait.
 Resize, recovery and Reduce Motion settle through the same stack. Accepted Close
 and return preparation keep this gate shut.
+Nested reading stacks combine their own readiness with their parent's gate;
+history entry cannot start ink while the outer panel/identity handoff is moving.
 
 An Agent workspace initially publishes a folded Sidecard layout even if the
-Conversation plugin has already requested its active execution. Its native
-`NativeReadingEntranceStage` waits for that layout's transaction commit and the
-primary gate, then asks the window to admit this exact route visit before
-admitting the current selection. The window opens the Agent composer in that
+Conversation plugin has already requested its active execution. Stage two belongs
+only to main: text/row registration cannot schedule reveal until
+`nativeReadingEntranceReady` admits the turn. Actual TextKit line fragments and
+non-text rows keep their existing direction, 280ms opacity fades and bounded
+`min(45ms, 600ms / max(1, lineCount - 1))` interval.
+
+The last opacity animation actually installed reports its real end through Core
+Animation's delegate. A completed turn then fades its footer for 280ms and waits
+for SwiftUI's removed completion. Running turns have no footer to wait for.
+No line-count timer admits stage three. Streaming/resize changes that invalidate
+sampled masks settle the entrance to fully drawn content, as before; later
+updates do not restart it. Unmount restores drawing and cancels ownership, so
+late opacity/footer completion cannot publish success for that turn.
+If a native line animation is interrupted while its turn remains mounted, the
+turn restores full drawing and settles; a removed animation cannot strand input.
+
+`NativeReadingContentRevealStatusKey` combines readable-content readiness with
+any still-revealing turns. `nativeReadingContentReady()` reports loaded/error
+content, while `ThreadDetailTurn` keeps a pending contribution through Markdown
+parsing, last-line opacity and footer completion. Empty documents and unavailable
+links report their readable empty/error state. Loading placeholders do not.
+Mounted Agent loading placeholders keep an unfinished contribution from their
+first frame, including the visual grace period. A loaded sibling error cannot
+admit auxiliary input while another main document is still loading.
+The identity-only preparation reader and retained current document behind a
+history page clear their contributions. Only main is collected; Sidecards cannot
+admit the window's composer.
+
+For stage three, `NativeReadingEntranceStage` waits for main reveal to settle,
+the folded layout's transaction commit and the primary gate, then asks the
+window to admit this exact route visit before admitting the current selection.
+The window opens the Agent composer in that
 same stage: its 420ms expansion runs alongside the existing 380ms Sidecard
 fold/layout animation. An empty registry still commits and opens input. There
 is no new elapsed-time opening task.
@@ -52,12 +83,12 @@ Application reading commits release the gate without automatically opening their
 Moku composer. Covering history/interventions keep their surface priority: an
 admitted visit may restore input only through the existing eligible route.
 
-The existing 180ms focus delay starts with stage-two input opening, never with
+The existing 180ms focus delay starts with stage-three input opening, never with
 primary travel. Delivery checks the current draft, composer generation, route
 visibility and covering state. Reduce Motion skips this delay, including when
 enabled while a focus request waits. Closing before admission, replacing the
 route or releasing the window rejects a late admission; repeated settled entry
-does not fold/reopen the input or restart either stage.
+does not fold/reopen the input or restart the entrance stages.
 The scene also reads the owning panel's live motion state: accepted Close/return
 preparation disables input hit testing and focus without folding its retained
 shell. A delayed focus or failed-send callback cannot activate input in a moving
@@ -67,28 +98,34 @@ The boundary invalidates queued completion on disable, detach and replacement.
 Sidecard release cancels its transition task. Repeated plugin requests retain the
 current selection and do not restart travel. Availability loss before admission
 retires selection normally, so a completed/archived/disabled execution cannot be
-resurrected at stage two. An empty registry or an ineligible first execution opens
+resurrected at stage three. An empty registry or an ineligible first execution opens
 no Sidecard. The existing execution-completion handoff remains separate and cannot
 start before entrance admission. Reduce Motion removes travel and the 380ms
 interaction delay while retaining layout/readiness and cancellation ownership.
+It also skips line/footer fades but still waits for data and Markdown parsing,
+so a loading document cannot be mistaken for completed content.
 
 ## Scope and verification limits
 
-Changes stay in native presentation: shared reading timing/admission, Overview
-chrome, Moku geometry and the Host Sidecard presentation model. No Runtime,
-Harness contract, Report HTML, placeholder-logo alignment, input dismissal,
-source identity flight or Sidecard folding/promotion implementation changes.
+An independently built native demo was approved before this production
+implementation. Its files and launch fixes are outside this integration and its
+approval does not certify this production path. Changes stay in shared reveal
+completion/readiness and Host
+auxiliary admission. No Runtime, Harness contract, Report HTML, placeholder-logo
+alignment, input dismissal, source identity flight or Sidecard folding/promotion
+implementation changes.
 
 Sprint mode permits static review, product build and lint only. No tests are
-created or executed, no replay runs, and no repaired-build interactive acceptance
-has been performed. In particular, rendered-frame smoothness, fast user-driven
-reversal, actual focus/IME behavior and compact/zoomed window appearance remain
-unverified dynamically. Hosted CI and integration belong to the caller; this work
-is committed only in the detached managed worktree.
+created or executed, no test replay runs, and no production-build interactive
+acceptance has been performed for this change. Rendered-frame smoothness, fast
+user-driven reversal, actual focus/IME behavior and compact/zoomed window appearance remain
+unverified dynamically. Integration is limited to local main; no hosted checks,
+push, PR or release are part of this Sprint-mode task.
 
-Local verification completed: `swift build --product Mokusei` (Debug, macOS 26,
-Swift 6.3.2), `make lint` (architecture/static registration/no-Node, Go formatting
-and `go vet`), `git diff --check` and the new README links. GitHub protection/PR/run
-lookup could not connect to the API; no hosted validation was triggered. A future
-integration has mixed Swift/documentation scope and requires the caller's normal
-native CI rather than documentation-only coverage.
+The source implementation reported a final Debug product build, lint, diff and
+documentation-link checks. Local main integration must check its actual combined
+source with a fresh product build, lint, diff and documentation-link review.
+Neither those checks nor the demo observation certify production visual behavior.
+No tests or test replays are created or run. A future remote integration has mixed
+Swift/documentation scope and requires normal native CI rather than
+documentation-only coverage.

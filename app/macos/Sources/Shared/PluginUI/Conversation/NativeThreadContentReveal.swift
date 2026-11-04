@@ -10,10 +10,30 @@ extension EnvironmentValues {
     @Entry var nativeThreadReveal: NativeThreadContentReveal? = nil
 }
 
+/// Readable content and unfinished ink are independent: a loaded row may still
+/// be parsing Markdown or revealing its last line. Only the active reader exports
+/// this preference; retained history and Sidecards cannot admit its composer.
+public struct NativeReadingContentRevealStatus: Equatable, Sendable {
+    var hasContent = false
+    var revealing = false
+    public init() {}
+    public var complete: Bool { hasContent && !revealing }
+}
+
+public struct NativeReadingContentRevealStatusKey: PreferenceKey {
+    public static let defaultValue = NativeReadingContentRevealStatus()
+    public static func reduce(value: inout NativeReadingContentRevealStatus,
+                              nextValue: () -> NativeReadingContentRevealStatus) {
+        let next = nextValue()
+        value.hasContent = value.hasContent || next.hasContent
+        value.revealing = value.revealing || next.revealing
+    }
+}
+
 /// One mounted execution owns its first content entrance, never its data or
 /// subscriptions. Later streaming updates and newly disclosed work stay immediate.
 @MainActor @Observable
-final class NativeThreadContentReveal {
+final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDelegate {
     private final class WeakText {
         weak var view: MarkdownTextView?
         init(_ view: MarkdownTextView) { self.view = view }
@@ -31,8 +51,13 @@ final class NativeThreadContentReveal {
     private var documents: [UUID: Bool] = [:]
     private var masks: [(WeakView, CALayer)] = []
     private var task: Task<Void, Never>?
+    private var admitted = false
     private var started = false
     private var finished = false
+    private var cancelled = false
+    private var showingFooter = false
+    private var showsFooter = true
+    var settled: Bool { finished || cancelled }
     private(set) var footerVisible = false
     private(set) var bottomUp = false
     private(set) var animatedLineCount = 0
@@ -40,19 +65,19 @@ final class NativeThreadContentReveal {
     private var reducedMotion = false
 
     func beginDocument(_ id: UUID) {
-        guard !finished, !started else { return }
+        guard !cancelled, !finished, !started else { return }
         if documents[id] == nil { documents[id] = false }
     }
     func documentReady(_ id: UUID) {
-        guard !finished, !started else { return }
+        guard !cancelled, !finished, !started else { return }
         documents[id] = true; schedule()
     }
-    func endDocument(_ id: UUID) { documents[id] = nil }
+    func endDocument(_ id: UUID) { documents[id] = nil; schedule() }
     func contentChanged(_ view: NSView) {
         if started, masks.contains(where: { $0.0.view === view }) { finish() }
     }
     func register(_ view: MarkdownTextView) {
-        guard !finished, !started else { return }
+        guard !cancelled, !finished, !started else { return }
         texts[ObjectIdentifier(view)] = WeakText(view)
         view.awaitsLineReveal = true
         schedule()
@@ -62,7 +87,7 @@ final class NativeThreadContentReveal {
         view.admitLineReveal()
     }
     func register(_ view: ThreadRevealRowView) {
-        guard !finished, !started else { return }
+        guard !cancelled, !finished, !started else { return }
         rows[ObjectIdentifier(view)] = WeakRow(view)
         view.awaitsLineReveal = true
         schedule()
@@ -71,13 +96,15 @@ final class NativeThreadContentReveal {
         rows[ObjectIdentifier(view)] = nil
         view.awaitsLineReveal = false
     }
-    func begin(bottomUp: Bool, reducedMotion: Bool) {
-        self.bottomUp = bottomUp; self.reducedMotion = reducedMotion
-        if reducedMotion { finish(); return }
+    func begin(bottomUp: Bool, reducedMotion: Bool, showsFooter: Bool = true) {
+        guard !cancelled, !finished else { return }
+        admitted = true
+        self.bottomUp = bottomUp; self.reducedMotion = reducedMotion; self.showsFooter = showsFooter
+        if started && reducedMotion { finish(); return }
         schedule()
     }
     private func schedule() {
-        guard !finished, !started else { return }
+        guard admitted, !cancelled, !finished, !started else { return }
         task?.cancel()
         task = Task { @MainActor [weak self] in
             // Coalesce asynchronous Markdown block mounting and the reader's
@@ -87,6 +114,8 @@ final class NativeThreadContentReveal {
             // Parsing owns readiness; no guessed timeout may admit an empty
             // document and consume its entrance before its text arrives.
             guard !documents.values.contains(false) else { return }
+            // Reduced motion removes ink travel, not data/parse readiness.
+            if reducedMotion { finish(); return }
             for _ in 0..<12 {
                 if animate() { return }
                 do { try await Task.sleep(for: .milliseconds(16)) } catch { return }
@@ -121,6 +150,7 @@ final class NativeThreadContentReveal {
         let beat = min(0.045, 0.6 / Double(max(1, lines.count - 1)))
         let fadeDuration = 0.28
         let now = CACurrentMediaTime()
+        var animations: [(CALayer, CABasicAnimation)] = []
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for (index, line) in lines.enumerated() {
             let (text, rect, _) = line
@@ -139,27 +169,57 @@ final class NativeThreadContentReveal {
             fade.fromValue = 0; fade.toValue = 1
             fade.beginTime = now + Double(index) * beat; fade.duration = fadeDuration
             fade.fillMode = .backwards; fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            row.add(fade, forKey: "thread.line.entrance")
+            animations.append((row, fade))
         }
+        // Assign the delegate to the last animation actually installed, including
+        // when another owner keeps a text view's mask. The fade's *end* owns the
+        // boundary; neither line count nor the start of its last beat does.
+        animations.last?.1.delegate = self
+        for (row, fade) in animations { row.add(fade, forKey: "thread.line.entrance") }
         live.forEach { $0.admitLineReveal() }
         liveRows.forEach { $0.awaitsLineReveal = false }
         CATransaction.commit()
-        task = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(Double(lines.count) * beat)) } catch { return }
-            guard let self else { return }
-            withAnimation(.easeOut(duration: fadeDuration)) { footerVisible = true }
-            do { try await Task.sleep(for: .seconds(fadeDuration)) } catch { return }
-            finish()
-        }
+        if animations.isEmpty { linesCompleted() }
         return true
     }
+    func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
+        guard !cancelled, !finished else { return }
+        if flag { linesCompleted() }
+        // A still-mounted view can lose native animation on suspension or layer
+        // replacement. Restore full drawing instead of waiting for a dead clock.
+        else { finish() }
+    }
+    private func linesCompleted() {
+        guard !cancelled, !finished, !showingFooter else { return }
+        showingFooter = true
+        guard showsFooter, !reducedMotion else { finish(); return }
+        withAnimation(.easeOut(duration: 0.28), completionCriteria: .removed) {
+            footerVisible = true
+        } completion: { [weak self] in
+            guard let self, !cancelled else { return }
+            finish()
+        }
+    }
     func finish() {
-        task?.cancel(); task = nil
+        guard !cancelled else { return }
         finished = true; footerVisible = true
+        restoreDrawing()
+    }
+    func cancel() {
+        // Teardown restores paint but must not publish successful completion into
+        // a retained/replacement visit while its native callbacks are retiring.
+        cancelled = true
+        footerVisible = true
+        restoreDrawing()
+    }
+    private func restoreDrawing() {
+        task?.cancel(); task = nil
+        CATransaction.begin(); CATransaction.setDisableActions(true)
         for text in texts.values { text.view?.admitLineReveal() }
         for row in rows.values { row.view?.awaitsLineReveal = false }
         for (reference, mask) in masks where reference.view?.layer?.mask === mask { reference.view?.layer?.mask = nil }
         masks.removeAll(); texts.removeAll(); rows.removeAll(); documents.removeAll()
+        CATransaction.commit()
     }
 }
 

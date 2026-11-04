@@ -478,12 +478,13 @@ production bell during headless verification.
 ## Reading-panel Dock
 
 Primary reading entry uses the shared 420ms emphasized curve for the collapsed
-Dock's position. Its composer stays unmounted until the reading panel completes
-and the folded Agent workspace commits. That visit-scoped boundary admits Moku
+Dock's position. Its composer stays unmounted until the reading panel/title handoff
+and main-document line/footer reveal finish, then the folded Agent workspace
+commits. That visit-scoped boundary admits Moku
 input expansion (420ms) alongside the Sidecard reveal (380ms), even when no
 Sidecard qualifies. Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
-Focus uses its existing 180ms delay from stage two, with draft/generation checks;
+Focus uses its existing 180ms delay from stage three, with draft/generation checks;
 accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock

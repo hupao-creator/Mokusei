@@ -26,11 +26,13 @@ private struct NativeReadingContentReady: ViewModifier {
     @Environment(\.nativeReadingContentHandoff) private var handoff
     @Environment(\.nativeReadingContentReady) private var ready
     func body(content: Content) -> some View {
-        content.task(id: handoff?.id) {
-            guard let ready else { return }
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            ready()
-        }
+        content
+            .transformPreference(NativeReadingContentRevealStatusKey.self) { $0.hasContent = true }
+            .task(id: handoff?.id) {
+                guard let ready else { return }
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                ready()
+            }
     }
 }

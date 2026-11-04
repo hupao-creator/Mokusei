@@ -61,11 +61,12 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 
 ## Conversation
 
-Initial Host presentation is a second entrance stage: the main panel must finish
-its actual travel and a folded workspace must commit before a requested Sidecard
-selection becomes visible. That same visit-fenced commit releases the resident
+Initial Host presentation is the third entrance stage: the main panel finishes
+its actual travel, then main reveals its lines separately. The last line and any
+completion footer must settle before a folded workspace commits and admits a
+requested Sidecard. That same visit-fenced commit releases the resident
 Agent composer's input gate, so its 420ms expansion and the existing 380ms card
-animation start together in stage two. No available card is required for input.
+animation start together in stage three. No available card is required for input.
 Plugin selection/execution ownership stays live while presentation waits; retiring
 availability cannot be reopened by the layout completion. Reduced Motion also
 removes the card's transition interaction delay. See the

@@ -43,6 +43,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.nativeReadingEntranceReady) private var parentEntranceReady
     @State private var progress = 0.0
     @State private var panelTransition: NativeReadingPanelTransition?
     @State private var panelContentReady = false
@@ -114,14 +115,16 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                             // replace its identity ink. Secondary layout must not
                             // move that destination while the bridge still owns it.
                             .environment(\.nativeReadingEntranceReady,
-                                panelContentReady && !motion.active && !closing && !preparingClose
+                                parentEntranceReady && panelContentReady && !motion.active && !closing && !preparingClose
                                     && (reduceMotion || panelIdentity?.pending != true))
                             .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
                             .environment(\.nativeReadingPanelClosing, closing))
                 } else if open {
                     ZStack {
                         front.id(identity)
-                            .environment(\.nativeReadingEntranceReady, !motion.active && !closing && !preparingClose)
+                            // A nested history stack cannot admit ink while its
+                            // outer panel/identity handoff still owns entrance.
+                            .environment(\.nativeReadingEntranceReady, parentEntranceReady && !motion.active && !closing && !preparingClose)
                             .transition(axis == .vertical ? .asymmetric(
                                 insertion: .modifier(
                                     active: ReadingPageReplacementOffset(travel: bounds.size.height, motion: motion),
