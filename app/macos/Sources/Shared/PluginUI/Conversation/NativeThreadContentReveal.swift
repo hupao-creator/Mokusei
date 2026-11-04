@@ -35,7 +35,7 @@ public struct NativeReadingContentRevealStatusKey: PreferenceKey {
 @MainActor @Observable
 final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDelegate {
     // Scale only entrance choreography; layout/readiness waits keep their own timing.
-    private static let revealSpeed = 1.1
+    private static let revealSpeed = 1.32
 
     private final class WeakText {
         weak var view: MarkdownTextView?

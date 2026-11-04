@@ -37,8 +37,9 @@ Conversation plugin has already requested its active execution. Stage two belong
 only to main: text/row registration cannot schedule reveal until
 `nativeReadingEntranceReady` admits the turn. Actual TextKit line fragments and
 non-text rows keep their existing direction and ease-out opacity curve. Agent
-thread entrance runs at 1.1 times its original speed: fades use `280ms / 1.1`
-and the interval is `min(45ms, 600ms / max(1, lineCount - 1)) / 1.1`.
+thread entrance runs at 1.32 times its original speed (a further 20% over 1.1):
+fades use `280ms / 1.32`
+and the interval is `min(45ms, 600ms / max(1, lineCount - 1)) / 1.32`.
 The completed turn’s timestamp/usage footer joins this same native mask ordering
 as the last row, starting one beat after the preceding line with the same fade.
 It no longer waits for every body fade to end before starting a separate
@@ -122,7 +123,9 @@ so a loading document cannot be mistaken for completed content.
 The November 4 reveal adjustment was inspected against the supplied 18:43:01
 recording: body ink is clear around 1.75s, while timestamp/usage begins appearing
 around 1.95s. The separate completion-gated footer fade explains the pause;
-the footer now shares the native row clock, with the whole reveal at 1.1x speed.
+the footer now shares the native row clock. The initial 1.1x speed was subsequently
+increased by a further 20% to 1.32x; that follow-up uses the same static-only
+validation scope described below.
 Validation for this adjustment is Swift syntax parsing, source/diff review and
 local document-link checks only. No tests were added, and no build, regression,
 replay or post-change visual acceptance was run. No push or PR is included;

@@ -1098,9 +1098,9 @@ Each mounted execution owns weak text/summary registrations, masks and cancellat
 there is no window-wide text scan. Live text changes, actual width changes,
 Reduce Motion and disappearance retire masks and restore drawing. Streaming
 page admission and user scroll ownership remain unchanged. The entrance is
-sped up by a factor of 1.1: the original 45ms line beat, 600ms stagger cap,
-and 280ms line/footer fade are each divided by 1.1
-(approximately 40.9ms, 545.5ms and 254.5ms for either fade). Line ordering,
+sped up by a factor of 1.32 (a further 20% over 1.1): the original 45ms line
+beat, 600ms stagger cap and 280ms line/footer fade are each divided by 1.32
+(approximately 34.1ms, 454.5ms and 212.1ms for either fade). Line ordering,
 ease-out curves and completion-driven entrance admission stay unchanged, as do
 Markdown/layout readiness waits, loading skeletons and panel/identity motion.
 Later disclosures and stream updates do not restart an execution entrance. Other Markdown consumers
