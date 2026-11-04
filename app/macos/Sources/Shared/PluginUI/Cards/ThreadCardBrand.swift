@@ -39,18 +39,11 @@ private struct ThreadCardBadgeMaterial: ViewModifier {
     let hasEmoji: Bool
     let completed: Bool
     @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder func body(content: Content) -> some View {
         if flatMaterials && hasEmoji {
-            if reduceTransparency {
-                content.background(completed ? NativePalette.overview.accentSoft.swiftUI
-                    : NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
-            } else if completed {
-                content.glassEffect(.clear.tint(NativePalette.overview.success.swiftUI.opacity(0.32)), in: Circle())
-            } else {
-                content.glassEffect(.clear, in: Circle())
-            }
+            content.background(completed ? NativePalette.overview.accentSoft.swiftUI
+                : NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
         } else if flatMaterials {
             content
                 .background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())

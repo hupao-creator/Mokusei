@@ -491,12 +491,12 @@ contracts; the excerpt can use the height released by the former second line.
 `HarnessThreadCard` and the Overview semantic boundary supply
 `threadCardUsesFlatMaterials`: terminal badges and provider badges without an
 emoji use static palette fills, and the in-progress plan row uses the accent-soft
-surface without a glass container or effect. The 44pt emoji badge uses native
-clear Liquid Glass with no added border. Completion applies the adaptive success
-green at 32% tint opacity; Reduce Transparency substitutes the opaque adaptive
-accent-soft fill. Other states retain their existing glass and static palette
-fallback. Overview card shells remain neutral after completion. The emoji stays
-21pt, with the existing terminal mark preserving a non-color status cue.
+surface without a glass container or effect. The 44pt emoji badge uses a static
+opaque palette fill with no added border: adaptive accent-soft green when
+completed, neutral surface-strong otherwise, including under Reduce Transparency.
+It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
+panning Overview. Overview card shells remain neutral after completion. The emoji
+stays 21pt, with the existing terminal mark preserving a non-color status cue.
 The badge is status content, with an
 accessible label and tooltip, and has no Send button, hover swap, focus stop or
 message callback. Card activation stays with the surrounding host. Empty plans

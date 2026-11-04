@@ -21,13 +21,13 @@ The same rebuild also normalizes each distinct tag/label once and supplies those
 All Overview cards, including Agent Threads and Report, use opaque palette
 surfaces and a soft border, including completed cards.
 Shell and semantic planes contain no Liquid Glass containers. The card boundary
-supplies the shared flat-material policy to provider badges without emoji,
-terminal marks and plan highlights. Agent Thread emoji badges use native clear
-Liquid Glass without an added border. Completed emoji badges tint that glass
-with the adaptive success green; Reduce Transparency uses the opaque adaptive
-accent-soft fill instead. Other emoji badges retain the neutral static fill
-under Reduce Transparency. The terminal symbol and accessible status label remain
-independent of color. Card shells and all other card surfaces stay flat.
+supplies the shared flat-material policy to provider badges, terminal marks and
+plan highlights. Agent Thread emoji badges use static opaque palette fills
+without an added border: adaptive accent-soft green when completed, neutral
+surface-strong otherwise. This also applies under Reduce Transparency. Removing
+per-card Liquid Glass avoids its spatial update cost during canvas movement.
+The terminal symbol and accessible status label remain independent of color.
+Card shells and all other card surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
