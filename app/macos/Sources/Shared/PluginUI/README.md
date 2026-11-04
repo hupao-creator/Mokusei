@@ -284,6 +284,16 @@ resolve, including when an inline historical execution stops pausing follow.
 Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.
 
+Main reading also scopes its default position to the displayed execution. The
+first conversation index can move a live execution into its Sidecard after main
+has already opened at the live bottom. When that changes the main document to a
+completed execution, the timeline releases the old follow state and returns to
+the heading unless the user or an explicit reading visit owns the position.
+Finishing an execution without changing the displayed document keeps the current
+position and final-output following; live Sidecard output retains its own follow
+behavior. This correction was reviewed against the reported recording and
+checked statically in sprint mode, without new tests or regression runs.
+
 
 The timeline keeps exact scroll geometry in a view-owned observable reference.
 Only its small reading-control registration reads that geometry during view

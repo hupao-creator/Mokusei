@@ -147,6 +147,8 @@ private struct TimelineDiagnosticsAttachment: NSViewRepresentable {
 /// Bounded history window with explicit following. Documents start at their heading unless the caller opens at the live bottom.
 public struct HarnessMessageTimeline: View {
     public let timelineKey: JSONText
+    /// Primary document identity within a retained timeline, independent of its live follow key.
+    public var documentKey: JSONText?
     public let rows: [ThreadTimelineRow]
     public var toolbar: AnyView?
     public var emptyState: AnyView?
@@ -186,14 +188,15 @@ public struct HarnessMessageTimeline: View {
     @State private var suspendedSnapshot: (top: CGFloat, following: Bool)?
     @FocusState private var focused: Bool
 
-    public init(timelineKey: JSONText, rows: [ThreadTimelineRow], toolbar: AnyView? = nil,
+    public init(timelineKey: JSONText, documentKey: JSONText? = nil, rows: [ThreadTimelineRow], toolbar: AnyView? = nil,
                 emptyState: AnyView? = nil, contentTopInset: CGFloat? = nil,
                 suspended: Bool = false, followOutput: Bool = false, allowsJumpToLatest: Bool = true, opensAtBottom: Bool = false,
                 followKey: JSONText? = nil, followPaused: Bool = false, onJumpToLatest: (() -> Void)? = nil,
                 showOlderRows: Bool = true, pinnedRowId: JSONText? = nil,
                 readingTarget: ThreadTimelineReadingTarget? = nil, readingVisitId: JSONText? = nil, locatedRequestId: JSONText? = nil,
                 onLocated: ((JSONText) -> Void)? = nil) {
-        self.timelineKey = timelineKey; self.rows = rows; self.toolbar = toolbar; self.emptyState = emptyState
+        self.timelineKey = timelineKey; self.documentKey = documentKey
+        self.rows = rows; self.toolbar = toolbar; self.emptyState = emptyState
         self.contentTopInset = contentTopInset
         self.suspended = suspended; self.followOutput = followOutput; self.opensAtBottom = opensAtBottom; self.followKey = followKey
         self.allowsJumpToLatest = allowsJumpToLatest
@@ -315,6 +318,16 @@ public struct HarnessMessageTimeline: View {
                         if opensAtBottom { openBottom() }
                         else { follow(proxy) }
                     }
+                }
+                .onChange(of: documentKey) { old, new in
+                    guard old != nil, new != old, !suspended, !opensAtBottom,
+                          readingTarget == nil, readingVisitId == nil else { return }
+                    // The live execution can move to a Sidecard after its index
+                    // arrives. Its bottom-follow state does not belong to the
+                    // completed document left in main. Settlement alone keeps
+                    // the same document key and must not reset the reader.
+                    following = false
+                    if !userPositioned { position.scrollTo(y: 0) }
                 }
                 .onChange(of: opensAtBottom) { _, new in
                     if new { openBottom() }

@@ -247,7 +247,8 @@ public struct ThreadConversation: View {
                                    axis: .vertical,
                                    direction: pageDirection,
                                    onClose: finishClosingHistory) {
-                HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
+                HarnessMessageTimeline(timelineKey: threadId,
+                    documentKey: agentDetail && !executionCard ? currentRow?.id : nil, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
                     contentTopInset: executionCard || agentDetail ? 12 : nil,
                     suspended: readingPage, followOutput: true,
