@@ -61,7 +61,7 @@ public struct NativeApplicationBackgroundEditor: View {
         VStack(alignment: .leading, spacing: 0) {
             GlassEffectContainer {
                 HStack(spacing: 12) {
-                    modeChoice(locale.text("关闭 Agent", "Agent off"), choice: .off)
+                    modeChoice(locale.text("不启用", "Agent off"), choice: .off)
                     modeChoice(locale.text("跟随 Moku", "Use Moku"), choice: .inherit)
                     modeChoice(locale.text("单独配置", "Configure separately"), choice: .independent)
                 }
