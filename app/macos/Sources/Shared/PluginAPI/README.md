@@ -33,6 +33,18 @@ boundary before supplying these facts to Harnesses.
 
 Presentation implementations use [PluginUI](../PluginUI/README.md). New plugins implement these boundaries and are composed explicitly rather than adding hidden global discovery.
 
+`ClientWebNavigation.localFileURL` parses absolute local paths and local `file:`
+URLs once, retaining literal spaces/Unicode and file-URL query/fragment escapes.
+It rejects remote authorities, credentials, ports, network-path references and
+NUL paths; relative paths acquire no filesystem base.
+`ClientLocalHTMLDocument` admits readable regular `.html`/`.htm` files on a local
+volume, resolves symlinks and validates the target extension. It supplies the
+canonical URL to native Browser navigation and the system HTML fallback.
+Its `readAccessURL` is the containing directory for assets, except that a document
+at the filesystem root grants only that file, never `/`. This is a user-click
+document capability, independent of Harness
+execution permissions; it grants no runtime/command bridge to authored HTML.
+
 `HarnessRenderContext.contentResource` acquires an independently owned content
 handle on each call, even for equal scopes. A mounted consumer retains that
 handle and releases it when leaving; it cannot revoke another consumer's handle.

@@ -133,13 +133,7 @@ enum MarkdownURLPolicy {
     /// Absolute paths are filesystem paths, not relative web URLs. Decode URL
     /// escapes once while preserving literal spaces, Unicode and path delimiters.
     static func localFileURL(_ value: String) -> URL? {
-        if value.hasPrefix("/"), !value.hasPrefix("//") {
-            return URL(fileURLWithPath: value.removingPercentEncoding ?? value)
-        }
-        guard let url = URL(string: value), url.isFileURL,
-              url.host == nil || url.host == "" || url.host?.lowercased() == "localhost",
-              url.path.hasPrefix("/") else { return nil }
-        return URL(fileURLWithPath: url.path)
+        ClientWebNavigation.localFileURL(value)
     }
 }
 

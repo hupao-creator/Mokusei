@@ -18,6 +18,8 @@ Headless 顺序链，并据此更新当前交互指南及 CI 说明。下文“�
 [维护整合记录](maintenance-integration-2026-11-04.md)。
 后续交付 `b669711` 又移除 Tag Agent 的筛选写权限；Tag、插件能力、Application
 host 与 transport 当前指南已对应更新，下方逐文件清单仍保留原审计基线。
+之后交付的本机 HTML 链接 `24cfed1` 另行整合，更新 PluginAPI、PluginUI 与
+Sidecards 当前指南；路径/编码和 WebKit 读取范围见维护整合记录的后续小节。
 
 ## 核查方法与覆盖
 

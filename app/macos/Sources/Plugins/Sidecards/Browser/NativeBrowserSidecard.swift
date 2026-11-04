@@ -139,7 +139,7 @@ public final class BrowserSidecardPresentation {
         draft.observe(context.thread)
         context.onIntent(lifetime: lifetime) { [weak self] intent in
             guard let self, case let .openURL(raw) = intent.kind,
-                  let url = BrowserURL.absolute(raw.string) else { return false }
+                  let url = BrowserURL.destination(raw.string) else { return false }
             self.open(url)
             _ = self.context.open()
             return true
@@ -147,7 +147,10 @@ public final class BrowserSidecardPresentation {
         lifetime.onCancel { [weak self] in self?.release() }
     }
 
-    var annotationDisabled: Bool { pending.count >= 20 || context.executionDisabled || context.thread.archived == true }
+    var annotationDisabled: Bool {
+        pending.count >= 20 || context.executionDisabled || context.thread.archived == true
+            || BrowserURL.absolute(session?.url ?? "") == nil
+    }
     var canSend: Bool {
         !context.executionDisabled && !sending && (!supplementalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
             && pending.allSatisfy { !$0.comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -298,9 +301,13 @@ enum BrowserURL {
               let host = url.host, !host.isEmpty else { return nil }
         return url
     }
+    static func destination(_ raw: String) -> URL? {
+        absolute(raw) ?? ClientLocalHTMLDocument(raw)?.url
+    }
     static func address(_ raw: String) -> URL? {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let absolute = absolute(value) { return absolute }
+        if let destination = destination(value) { return destination }
+        if value.hasPrefix("/") { return nil }
         guard !value.isEmpty, value.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
         let hostPort = value.range(of: #"^[\w.-]+:\d+(?:[/?#]|$)"#, options: .regularExpression) != nil
         if !hostPort && value.range(of: #"^[a-z][a-z\d+.-]*:"#, options: [.regularExpression, .caseInsensitive]) != nil { return nil }

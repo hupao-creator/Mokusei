@@ -43,6 +43,7 @@ public enum NativePluginLocalization {
         "网页": "Web page", "后退": "Back", "前进": "Forward", "网址": "Address",
         "批注网页": "Annotate page", "收起网页": "Collapse web page",
         "请输入有效的 HTTP 或 HTTPS 网址": "Enter a valid HTTP or HTTPS address",
+        "请输入有效的 HTTP(S) 网址或本机 HTML 文件路径": "Enter a valid HTTP(S) address or local HTML file path",
         "仅发送文字": "Send text only", "{count} 条批注": "{count} annotations",
         "查看 {count} 条待发送批注": "View {count} pending annotations",
         "补充说明…": "Additional notes…", "补充说明": "Additional notes",

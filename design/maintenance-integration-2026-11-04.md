@@ -84,3 +84,56 @@ authority from the Tag Agent）。没有等待或纳入仍在开发的 HTML 链�
 567 个本地文档路径与 21 个锚点，没有发现错误；diff 空白检查通过。
 没有重复执行 Swift 构建，因为后续提交及协调修订没有改变 Swift 源码、依赖、
 资源或构建输入。没有运行任何测试、回放或 CI。
+
+## 后续交付：本机 HTML 链接
+
+在前两轮整合完成后，以干净的本地 main
+`2c1c10ce06eb8f52a37f38604841d0f723aa5fb3` 为起点，单独整合
+`24cfed131f59697e07e4c79654e9f16dcef98954`（Open local HTML links in
+Agent Thread browser sidecards）。来源基于较早的 `a77d3a3`，保留原始提交。
+沿用专属隔离 worktree；PluginUI README 自动合并，检查后确认死代码清理和其余
+已整合文档均保留，不覆盖用户或其他 worktree 的工作。
+
+### 路径和编码约定（源码审阅，未运行行为用例）
+
+- 接受绝对路径与本地 `file:` URL；相对路径、`~` 不推导 cwd 或 Home。
+- 绝对路径的 `?`/`#` 属于文件名。查询和片段需使用 file URL，例如
+  `file:///tmp/a%23b.html?q=%2520#section` 指向文件 `a#b.html` 并保留后缀转义。
+- 路径转义解码一次；`%20` 表示空格，字面 `%20` 文件名应写 `%2520`。
+  原生 URL 传递时重新编码，不再递归解码百分号序列。字面空格与 Unicode 保留。
+- file URL 只接受无 host 或 localhost；拒绝远程 authority、凭据、端口、网络路径
+  和 NUL。绝对路径也拒绝解码后以双斜线开头的网络路径。
+- 打开前要求 `.html`/`.htm`，解析 symlink 后仍须为可读、常规、本地卷 HTML 文件。
+  这是文件属性与扩展名准入，不是 HTML 内容净化，也不保证检查后文件不会被替换。
+- Markdown 各内联链接经共享 parser；inline code 中的 HTML 路径可点击，普通未链接
+  的文件文本和 fenced code 保持原样。Browser 不可用时，系统 HTML fallback 仍验证
+  文件；默认外部应用对查询/片段的实际处理未验证。其他非 HTML 文件操作沿用原行为。
+
+### WebKit 权限审阅与修正
+
+`loadFileURL(_:allowingReadAccessTo:)` 的本机 Xcode SDK 声明区分单文件和目录读取。
+普通文档授权其 canonical 所在目录以支持资源；这是目录内容读取范围，不是仅允许
+CSS/图片的文件清单。发现根目录文档原先会授权 `/`，修正为只授权该文件，并使页面
+导航的 admission 同样区分单文件和目录，保留 UTF-8 路径比较及目录分隔边界。
+
+明确点击/地址输入才增加 session 的读取范围。本地 page/frame/GET popup 只能导航
+到已授权范围内、重新验证过的 HTML，不能借 symlink 扩大目标范围。新 HTTP(S)
+导航不能复用旧本地 grant；现有 back/forward 历史允许返回本地文档。会话释放清除
+本地 admission 记录。子资源、跨 origin 读取及资源 symlink 仍由 WebKit 与 macOS
+权限约束；没有新增 security-scoped grant、隐私权限旁路、私有 file-access 设置或
+通向 Runtime/shell/Thread 的页面桥。HTML 保留原有 JavaScript 和网络行为。
+
+本地文档禁用网页批注，避免将本地路径送入 HTTP(S)-only 批注载荷；之前的 web
+批注草稿及回到网页后的功能保留。文档同步明确根目录、历史导航例外与权限限制。
+
+### 本轮验证与剩余限制
+
+本轮 Swift 生产构建通过（78.61 秒），命令为
+`xcrun swift build --package-path app/macos --scratch-path .build/maintenance-swift
+--force-resolved-versions --disable-index-store -j 2`，没有 `--build-tests`。
+`./scripts/go.sh run ./cmd/mokusei-check architecture` 通过架构、静态注册与无 Node
+源检查；diff 空白、文档本地路径/锚点及与已整合维护内容的差异复核通过。
+日志保留在整合 worktree 的 `.build/local-html-integration/`。
+没有新增或改动测试，也未运行测试、回放、CI，没有 PR 或 push。
+实际 WKWebView 打开、资源加载、文件权限/TCC、symlink 竞态、
+导航后缀、历史/弹窗、跨 origin 行为及打包应用的系统 fallback 均未做运行验证。

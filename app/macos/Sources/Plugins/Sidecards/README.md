@@ -120,6 +120,27 @@ link card through `NativeBrowserDocumentCard`. That document-owned surface has
 an ephemeral partition and no SidecardContext, annotation draft, attachment or
 send capability; Agent Sidecards retain their existing annotation behavior.
 
+Agent Thread Markdown links (Codex, Claude, Pi and OpenCode, including current,
+historical/inherited and Conversation execution readers) also route readable
+local `.html`/`.htm` files into Browser. Absolute paths and local file URLs use
+the shared PluginAPI parser; symlinks must resolve to a regular HTML file on a
+local volume. Explicit link/address opening grants WebKit read access to that
+document's directory for assets. A document at the filesystem root grants only
+that file; WebKit never receives `/` as the read-access URL. A directory grant
+allows directory contents, not just CSS/images, and is not a per-asset allowlist.
+Local page/frame/popup navigation can visit validated HTML only within read-access
+ranges already admitted by that session. New HTTP(S) page navigation cannot
+reuse a past local grant; existing back/forward history may return to an admitted
+local document. WebKit retains its own origin/file-access policy, and macOS
+permissions still apply. No security-scoped grant or privacy override is added.
+Queries, fragments, history, reload and HTTP(S) navigation retain the existing
+Browser lifecycle. No page bridge acquires runtime, shell or Thread authority.
+When Browser is unavailable, the existing system-open route validates HTML
+before handing it off; other existing host-file actions retain their behavior.
+Local documents disable annotation because the existing annotation transport
+accepts only HTTP(S) sources. Existing web annotations and pending drafts remain
+available after returning to a web page.
+
 Browser pages and their frames retain their own scrollbar styling. The native
 annotation list and its comment TextEditor use the shared trackless policy on
 their respective viewports; system scrollbar preferences remain in effect.

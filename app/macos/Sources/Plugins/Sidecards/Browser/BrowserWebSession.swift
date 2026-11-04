@@ -53,6 +53,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     @ObservationIgnored private var activeSnapshot: (UUID, CheckedContinuation<NativePlatformImage, Error>)?
     @ObservationIgnored private var pageDialog: BrowserPageDialog?
     @ObservationIgnored private var cancellingPageDialog = false
+    @ObservationIgnored private var localReadAccess: Set<URL> = []
 
     init(store: WKWebsiteDataStore) {
         let configuration = WKWebViewConfiguration()
@@ -86,8 +87,32 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
 
     func navigate(_ target: URL) {
         guard !released else { return }
+        if target.isFileURL {
+            guard let document = ClientLocalHTMLDocument(target.absoluteString) else {
+                rejectNavigation("已阻止打开该地址"); return
+            }
+            localReadAccess.insert(document.readAccessURL)
+            begin(document.url, allowSameDocument: true)
+            remember(webView.loadFileURL(document.url, allowingReadAccessTo: document.readAccessURL))
+            return
+        }
         begin(target, allowSameDocument: true)
         remember(webView.load(URLRequest(url: target)))
+    }
+
+    private func allowsLocalNavigation(_ action: WKNavigationAction) -> Bool {
+        // New web-page navigation cannot reuse a local grant. Host loads and
+        // existing back/forward history retain their own admission.
+        guard let target = action.request.url,
+              action.sourceFrame.request.url?.isFileURL == true
+                || (action.targetFrame?.isMainFrame == true
+                    && (action.navigationType == .backForward || pendingURL == target)),
+              let document = ClientLocalHTMLDocument(target.absoluteString) else { return false }
+        return localReadAccess.contains { access in
+            if !access.hasDirectoryPath { return document.url.path.utf8.elementsEqual(access.path.utf8) }
+            let prefix = access.path.hasSuffix("/") ? access.path : access.path + "/"
+            return document.url.path.utf8.starts(with: prefix.utf8)
+        }
     }
     private func begin(_ target: URL?, allowSameDocument: Bool = false) {
         generation += 1
@@ -125,7 +150,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     private func syncState() {
         guard !released else { return }
-        if let current = webView.url, BrowserURL.absolute(current.absoluteString) != nil {
+        if let current = webView.url, current.isFileURL || BrowserURL.absolute(current.absoluteString) != nil {
             if !url.isEmpty, current.absoluteString != url {
                 if annotating { cancelAnnotation() }
                 if documentResponseOK, !webView.isLoading, let item = webView.backForwardList.currentItem {
@@ -175,14 +200,16 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         if navigationAction.targetFrame == nil {
             // A popup POST's body is not reliably exposed by WebKit. The source
             // browser rejects these; never reconstruct it as a GET request.
-            let permitted = (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET" && BrowserURL.absolute(target.absoluteString) != nil
+            let permitted = (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET"
+                && (BrowserURL.absolute(target.absoluteString) != nil || allowsLocalNavigation(navigationAction))
             // Let UIDelegate receive GET popups and schedule the replacement
             // after WebKit finishes its popup decision, avoiding reentrant loads.
             if !permitted { rejectNavigation("未提交：不支持在新窗口中打开此请求") }
             decisionHandler(permitted ? .allow : .cancel)
             return
         }
-        let allowed = BrowserURL.absolute(target.absoluteString) != nil || (!main && ["about:blank", "about:srcdoc"].contains(target.absoluteString))
+        let allowed = BrowserURL.absolute(target.absoluteString) != nil || allowsLocalNavigation(navigationAction)
+            || (!main && ["about:blank", "about:srcdoc"].contains(target.absoluteString))
         guard allowed else {
             if main { rejectNavigation("已阻止打开该地址") }
             decisionHandler(.cancel); return
@@ -201,7 +228,9 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             decisionHandler(.cancel); return
         }
         if navigationResponse.isForMainFrame {
-            let status = (navigationResponse.response as? HTTPURLResponse)?.statusCode ?? 0
+            let response = navigationResponse.response
+            let localHTML = response.url?.isFileURL == true && response.mimeType?.lowercased() == "text/html"
+            let status = (response as? HTTPURLResponse)?.statusCode ?? (localHTML ? 200 : 0)
             receivedDocumentResponse = true; documentStatus = status
             documentResponseOK = (200..<300).contains(status)
             if !documentResponseOK { error = "网页响应失败（HTTP \(status)）" }
@@ -306,7 +335,8 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if navigationAction.targetFrame == nil, (navigationAction.request.httpMethod ?? "GET").uppercased() == "GET",
-           let target = navigationAction.request.url, BrowserURL.absolute(target.absoluteString) != nil {
+           let target = navigationAction.request.url,
+           BrowserURL.absolute(target.absoluteString) != nil || allowsLocalNavigation(navigationAction) {
             let owner = generation
             Task { @MainActor [weak self] in
                 guard let self, !self.released, self.generation == owner else { return }
@@ -495,6 +525,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         cancelPageDialog()
         observations.removeAll()
         navigationGenerations.removeAllObjects(); historyResponses.removeAll()
+        localReadAccess.removeAll()
         let abandoned = snapshots; snapshots.removeAll()
         for (_, continuation) in abandoned { continuation.resume(throwing: CancellationError()) }
         activeSnapshot?.1.resume(throwing: CancellationError()); activeSnapshot = nil; snapshotBusy = false
