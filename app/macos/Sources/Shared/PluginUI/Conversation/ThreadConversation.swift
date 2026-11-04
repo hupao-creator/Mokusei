@@ -192,7 +192,10 @@ public struct ThreadConversation: View {
                 // Resolve the entry request before mounting any reader. Otherwise
                 // a direct history/result visit first loads the current execution
                 // and starts a second page entrance while both bodies lay out.
-                NativeReadingPlaceholder(placement: .surface)
+                // A surface placeholder creates NativeThreadOpeningContent,
+                // which mounts another conversation under an identity visit.
+                // Admission must remain a leaf or layout recurses before onChange.
+                NativeReadingPlaceholder(placement: .inline)
             } else {
                 readingLayout.nativeReadingScope(interactionScope)
             }

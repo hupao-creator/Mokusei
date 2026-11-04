@@ -1075,3 +1075,10 @@ loaded/running data and checks source capture, measured handoff, first-paint
 protection, line direction, footer and mask cleanup, normal close and interrupted
 opening. Full-workspace navigation remains covered by the existing native reading
 and Moku landing integration replays.
+
+Initial conversation admission uses an inline loading placeholder until its entry
+request is consumed. It must not use the surface placeholder: with an identity
+visit, that placeholder builds `NativeThreadOpeningContent`, itself a conversation,
+causing recursive mounting before the initial `onChange` can run. The outer
+surface retains title/emoji loading presentation; the internal admission gate
+remains a leaf. The production thread-panel fixture above exercises this path.

@@ -50,7 +50,7 @@ import MokuseiSidecardVoice
     var snapshot: NativeSidecardWorkspaceSnapshot {
         .init(input: .init(thread: thread), cards: cards, selected: selected, lastSelected: lastSelected,
             selectionRevision: revision, transitioning: transitioning, dragging: dragging, widths: widths,
-            executionDisabled: false, suppressed: false, handoff: nil, focusLauncherOnClose: true)
+            executionDisabled: false, suppressed: false, entranceReady: true, handoff: nil, focusLauncherOnClose: true)
     }
     func activate(_ id: JSONText) {
         choose(selected == id ? nil : id)
