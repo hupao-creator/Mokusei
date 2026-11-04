@@ -78,14 +78,6 @@ func (r *Runtime) EnsureMokuThread(ctx context.Context, harnessID string, settin
 	}
 	return r.createMokuShell(ctx, "", harnessID, settings, cwd, nil, false, false)
 }
-func (r *Runtime) ReplaceMokuThread(ctx context.Context, oldID, harnessID string, settings json.RawMessage, cwd string) (model.ThreadRecord, error) {
-	if oldID != "" {
-		if err := r.CloseMokuThread(ctx, oldID); err != nil {
-			return model.ThreadRecord{}, err
-		}
-	}
-	return r.createMokuShell(ctx, oldID, harnessID, settings, cwd, nil, false, false)
-}
 func (r *Runtime) EnsureConfiguredMokuThread(ctx context.Context, configuration MokuConfiguration) (model.ThreadRecord, error) {
 	threads, err := r.Threads()
 	if err != nil {

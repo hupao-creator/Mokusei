@@ -153,16 +153,15 @@ var scopeSequence atomic.Uint64
 // Validation covers the collection revision too, preventing phantom inserts.
 type MutationScope struct {
 	collection string
-	recordID   string
 	revision   int64
 	token      uint64
 }
 
-func NewMutationScope(collection, recordID string, revision int64) MutationScope {
-	return MutationScope{collection: collection, recordID: recordID, revision: revision, token: scopeSequence.Add(1)}
+// collection is the host-issued read key, including record identity for record scopes.
+func NewMutationScope(collection string, revision int64) MutationScope {
+	return MutationScope{collection: collection, revision: revision, token: scopeSequence.Add(1)}
 }
 func (s MutationScope) Collection() string { return s.collection }
-func (s MutationScope) RecordID() string   { return s.recordID }
 func (s MutationScope) Revision() int64    { return s.revision }
 func (s MutationScope) Token() uint64      { return s.token }
 

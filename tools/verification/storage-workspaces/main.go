@@ -150,7 +150,7 @@ func main() {
 	must(os.WriteFile(filepath.Join(gitRoot, "source.txt"), []byte("retained source\n"), 0600))
 	git(gitRoot, "add", "source.txt")
 	git(gitRoot, "-c", "user.name=Mokusei Fixture", "-c", "user.email=fixture@invalid", "commit", "-m", "fixture")
-	paths := workspaces.Paths{DefaultCwd: gitRoot, MokuCwd: filepath.Join(root, "moku"), TemporaryRoot: filepath.Join(root, "temporary"), RegistryPath: filepath.Join(root, "owners.json")}
+	paths := workspaces.Paths{MokuCwd: filepath.Join(root, "moku"), TemporaryRoot: filepath.Join(root, "temporary"), RegistryPath: filepath.Join(root, "owners.json")}
 	must(os.Mkdir(paths.TemporaryRoot, 0700))
 	manager := workspaces.New(paths)
 	must(os.Mkdir(paths.MokuCwd, 0700))

@@ -169,7 +169,7 @@ public struct NativeComposerAttachmentChips: View {
                                height: NativeComposerChipMetrics.removeButtonSize)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(ComposerButtonStyle(kind: .remove)).help(removeLabel)
+                .buttonStyle(ComposerRemoveButtonStyle()).help(removeLabel)
                 .accessibilityLabel("\(removeLabel): \(name)")
             }
         }

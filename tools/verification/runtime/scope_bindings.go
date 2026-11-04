@@ -121,7 +121,7 @@ func verifyBackgroundScopeBindingPaths(ctx context.Context, aName, bName string)
 		db, err = store.Open(filepath.Join(data, "state.sqlite"))
 		must(err)
 		runtime, err = core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{"fixture": harness{}}, DataDir: data, DefaultCwd: data,
-			Workspaces: workspaces.New(workspaces.Paths{DefaultCwd: data, TemporaryRoot: filepath.Join(data, "tmp-workspaces"), RegistryPath: filepath.Join(data, "worktrees.json")})})
+			Workspaces: workspaces.New(workspaces.Paths{TemporaryRoot: filepath.Join(data, "tmp-workspaces"), RegistryPath: filepath.Join(data, "worktrees.json")})})
 		must(err)
 		probe = &bindingProbe{policy: plugin.PerDirectoryScope, instances: map[string]*bindingProbeInstance{}}
 		host, err = applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{probe}, DirectoryScopes: runtime.DirectoryScopes,

@@ -37,13 +37,6 @@ func (m *Manager) Validate(ctx context.Context, path string) (string, error) {
 	}
 	return cwd, ctx.Err()
 }
-func (m *Manager) RuntimeCwd(ctx context.Context) (string, error) {
-	cwd, err := m.Validate(ctx, m.paths.DefaultCwd)
-	if err == nil && cwd != m.paths.DefaultCwd {
-		err = errors.New("global default workspace identity changed")
-	}
-	return cwd, err
-}
 func (m *Manager) validatePaths(ctx context.Context, t model.ThreadRecord) error {
 	if t.Moku {
 		if err := ctx.Err(); err != nil {

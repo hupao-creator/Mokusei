@@ -20,7 +20,7 @@ func runWorktreeCreationReplay() error {
 	root, err = filepath.EvalSymlinks(root)
 	mokuReplayMust(err)
 	h := &replayNativeHarness{nativeModel: "first-model", wake: make(chan struct{}, 128)}
-	h.workspaces = workspaces.New(workspaces.Paths{DefaultCwd: root, MokuCwd: filepath.Join(root, "moku"), TemporaryRoot: filepath.Join(root, "workspaces"), RegistryPath: filepath.Join(root, "worktrees.json")})
+	h.workspaces = workspaces.New(workspaces.Paths{MokuCwd: filepath.Join(root, "moku"), TemporaryRoot: filepath.Join(root, "workspaces"), RegistryPath: filepath.Join(root, "worktrees.json")})
 	s := startReplaySystem(root, h)
 	defer s.close()
 	mokuReplayMust(s.c.Submit(mokuReplayContext(), mokuReplayText("coordinate isolated work")))

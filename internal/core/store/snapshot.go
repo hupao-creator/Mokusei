@@ -128,16 +128,6 @@ func (s Snapshot) Order(kind string) []string {
 	}
 	return append([]string{}, s.data.orders[kind]...)
 }
-func (s Snapshot) OrderKinds() []string {
-	kinds := []string{}
-	if s.data != nil {
-		for kind := range s.data.orders {
-			kinds = append(kinds, kind)
-		}
-	}
-	sort.Strings(kinds)
-	return kinds
-}
 
 // Tx is valid only for the synchronous duration of its Update callback. Do not
 // retain it or use it from another goroutine. All writes are owned JSON copies.
