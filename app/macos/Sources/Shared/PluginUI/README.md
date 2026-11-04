@@ -73,6 +73,14 @@ settle through the reading stack's existing ownership. Vertical history and
 non-panel navigation retain their original driver. Returning refreshes the
 retained Overview before starting a settled panel's close.
 
+The stack publishes `nativeReadingEntranceReady` from that actual completion
+boundary. `NativeReadingEntranceStage` additionally waits for a newly mounted
+folded layout to commit before secondary motion is admitted; its queued callback
+is invalidated on disable, detach or replacement. This prevents an initially
+selected execution Sidecard from first rendering at expanded width. See the
+[reading choreography](../../../../../design/reading-entrance-choreography.md)
+for lifecycle details and sprint verification limits.
+
 Codex reading validates and decodes each changed opaque state on its background
 actor before publishing its immutable typed result. Superseded and unmounted
 requests cancel delivery. Collapsed execution work also skips native row

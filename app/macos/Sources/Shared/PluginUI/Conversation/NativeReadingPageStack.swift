@@ -110,11 +110,13 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         identity: reduceMotion ? nil : panelIdentity,
                         onCompletion: finishPanelTransition,
                         content: front.id(identity)
+                            .environment(\.nativeReadingEntranceReady, panelContentReady && !motion.active && !closing && !preparingClose)
                             .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
                             .environment(\.nativeReadingPanelClosing, closing))
                 } else if open {
                     ZStack {
                         front.id(identity)
+                            .environment(\.nativeReadingEntranceReady, !motion.active && !closing && !preparingClose)
                             .transition(axis == .vertical ? .asymmetric(
                                 insertion: .modifier(
                                     active: ReadingPageReplacementOffset(travel: bounds.size.height, motion: motion),

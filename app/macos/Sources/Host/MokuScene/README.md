@@ -477,6 +477,13 @@ production bell during headless verification.
 
 ## Reading-panel Dock
 
+Reading entry uses the shared 420ms emphasized curve for the Dock shell and
+composer reveal. The fitted Dock bottom moves down by up to 16pt, keeping at least
+12pt below it; Report/Git retain their normal input policy in that same lower seat.
+Landing and Settings keep their existing positions. The bottom-anchored editor,
+reasoning envelope and hit regions still use the fitted surface. See the
+[reading choreography](../../../../../design/reading-entrance-choreography.md).
+
 The same resident Dock remains mounted and interactive while an ordinary Agent
 Thread, Report or Git detail is presented in a reading panel. `dockRouteVisible` combines Overview and
 reading-panel eligibility without admitting Settings or Note on a reading route.

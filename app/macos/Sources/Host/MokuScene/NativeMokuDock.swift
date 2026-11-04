@@ -217,7 +217,10 @@ public struct NativeMokuDock: View {
     private var rowExpanded: Bool { (!voiceModeActive && state.inputOpen) || displayedMessage != nil }
     private var expanded: Bool { state.settingsExpanded || state.notePanelOpen || rowExpanded }
     private var capsuleFraction: CGFloat { expanded ? 1 : 0 }
-    private var surfaceAnimation: Animation? { reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0) }
+    private var surfaceAnimation: Animation? {
+        reduceMotion ? nil : state.readingPanelVisible
+            ? NativeReadingPageTiming.openingAnimation : .smooth(duration: 0.42, extraBounce: 0)
+    }
     /// Centre of the resident face seat in shell-local points. The composer row
     /// carries the face with the editor; a retired composer keeps it on the row
     /// the shell's own layout reserves.
@@ -361,7 +364,8 @@ public struct NativeMokuDock: View {
     public var body: some View {
         GeometryReader { geometry in
             let viewport = state.dockViewport(in: geometry.size)
-            let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing)
+            let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing,
+                reading: state.readingPanelVisible && !state.settingsOpen)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(settingsPreferredHeight, max(0, viewport.height - 48)))
             let width = state.settingsExpanded ? settingsSize.width : state.notePanelOpen ? min(560, baseFrame.width) : frame.width
@@ -677,7 +681,9 @@ public struct NativeMokuDock: View {
                     // Let the eyes clear the text seat on expansion; fade prose
                     // quickly before they cross it again during collapse. Scope
                     // this curve to ink so it cannot retime native row placement.
-                    .animation(reduceMotion ? nil : (composerVisible ? .easeIn(duration: 0.42) : .easeOut(duration: 0.12))) { content in
+                    .animation(reduceMotion ? nil : (composerVisible
+                        ? (state.readingPanelVisible ? NativeReadingPageTiming.openingAnimation : .easeIn(duration: 0.42))
+                        : .easeOut(duration: 0.12))) { content in
                         content.opacity(composerVisible ? 1 : 0)
                     }
                     .allowsHitTesting(composerVisible)

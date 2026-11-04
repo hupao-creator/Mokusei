@@ -79,18 +79,28 @@ private struct NativeThreadWorkspaceBody: View {
     let onFollowUpVisibilityChange: (Bool) -> Void
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
+    @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: NativeSidecardWorkspaceModel?
+    @State private var secondaryStageReady = false
 
     private var configuration: NativeSidecardWorkspaceConfiguration {
         NativeSidecardWorkspaceConfiguration(input: HarnessThreadInput(thread: thread, readingTarget: readingTarget),
             executionDisabled: executionDisabled, suppressed: sidecardsSuppressed, enabledIDs: enabledSidecardIDs,
-            locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation)
+            locale: locale, executionReveal: executionReveal, mainReadingHistory: hasNestedNavigation,
+            entranceReady: secondaryStageReady, reduceMotion: reduceMotion)
     }
 
     var body: some View {
         Group {
             if let model, let snapshot = model.snapshot {
                 NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot)
+                    .background {
+                        NativeReadingEntranceStage(enabled: primaryEntranceReady && !secondaryStageReady) {
+                            guard self.model === model else { return }
+                            secondaryStageReady = true
+                        }
+                    }
             } else {
                 NativePalette.thread.canvas.swiftUI
             }
@@ -107,7 +117,7 @@ private struct NativeThreadWorkspaceBody: View {
             model?.update(configuration: value, services: services, onBack: onBack,
                           onVisibilityChange: onFollowUpVisibilityChange)
         }
-        .onDisappear { model?.release(); model = nil }
+        .onDisappear { model?.release(); model = nil; secondaryStageReady = false }
     }
 }
 

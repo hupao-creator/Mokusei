@@ -11,8 +11,11 @@ enum NativeMokuCapsuleLayout {
     /// radius from this value).
     static let cornerRadius: CGFloat = 29
 
-    static func frame(in viewport: CGRect, landing: Bool = false) -> CGRect {
-        let bottom = landing ? 24 : max(24, min(36, viewport.height * 0.05))
+    static func frame(in viewport: CGRect, landing: Bool = false, reading: Bool = false) -> CGRect {
+        let restingBottom = landing ? 24 : max(24, min(36, viewport.height * 0.05))
+        // Reading gives the expanding composer a lower seat. Keep a physical
+        // margin even in compact/zoomed windows; never translate outside the fit.
+        let bottom = reading && !landing ? max(12, restingBottom - 16) : restingBottom
         let width = min(landing ? 680 : 560, max(0, viewport.width - 48))
         return CGRect(x: viewport.midX - width / 2, y: viewport.minY + 24,
                       width: width, height: max(0, viewport.height - bottom - 24))
