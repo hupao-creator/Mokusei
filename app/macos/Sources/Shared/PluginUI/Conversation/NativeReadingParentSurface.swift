@@ -30,6 +30,9 @@ struct NativeReadingParentSurface<Content: View>: NSViewRepresentable {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         hosting.sizingOptions = []
+        // The workspace already supplies full-content bounds. A nested host
+        // must not inset and clip its canvas again below the window titlebar.
+        hosting.safeAreaRegions = []
         still.imageScaling = .scaleAxesIndependently
         still.isHidden = true
         still.setAccessibilityElement(false)

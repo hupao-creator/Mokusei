@@ -212,6 +212,8 @@ struct NativeMokuLandingTests {
             let backdrop = try #require(parent.subviews.compactMap { $0 as? NSImageView }.first)
             let state = fixture.presentation.canvas
             try await SwiftUIReplay.wait { state.mountedCardIDs == ["a", "b"] && !state.isLayingOut && !state.camera.isAnimating }
+            #expect(abs((state.camera.viewport?.height ?? 0) - parentHost.bounds.height) < 1,
+                    "The retained Overview must use the entire full-content viewport, including the titlebar band")
             state.camera.setManualTransform(.init(scale: 1, x: 60, y: 100))
             let camera = state.camera.liveTransform
             fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
@@ -240,6 +242,8 @@ struct NativeMokuLandingTests {
             #expect(fixture.overview.presentationActive && state.camera.manual && state.camera.liveTransform == camera)
             #expect(!parentHost.isHidden && backdrop.image == nil && parentHost.bounds.size == parent.bounds.size,
                     "Return preparation must thaw the same native host at the current viewport before travel")
+            #expect(abs((state.camera.viewport?.height ?? 0) - parentHost.bounds.height) < 1,
+                    "Thawing after resize must not reintroduce a titlebar inset")
             try await SwiftUIReplay.wait {
                 fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active && state.mountedCardIDs == ["a", "c"]
             }

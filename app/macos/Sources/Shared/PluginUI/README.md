@@ -67,6 +67,9 @@ the hidden card tree. Return preparation unhides the same host, applies the
 latest environment and viewport, and waits for the existing canvas receipt
 before sampling the destination. Reversal cancels a pending capture; the image
 is released on thaw or teardown. Nested reading stacks keep their existing host.
+The retained native host consumes the viewport already assigned by the workspace
+and disables its own safe-area regions. Applying the titlebar inset a second time
+would shorten and clip the Overview canvas below the full-content window's top.
 
 Panel opening freezes Overview display projection immediately. The panel's
 position, rounded aperture and closing fade run on Core Animation layers in

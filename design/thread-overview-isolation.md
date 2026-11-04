@@ -104,3 +104,13 @@ Agent detail 保留旧眼睛，与已落地的 Harness 翻牌设计冲突；改�
 未运行完整本地 make check、托管 CI、Release 性能测试或最终物理触控板验收。
 验证前已查询远端 strict Complete coverage 规则及 PR/run 状态；本次只本地合并，
 不声称远端门禁通过。开发包已更新到 `app/macos/dist/Mokusei Native Dev.app`。
+
+## 后续：顶部截断回归
+
+用户在 `eaf2567` 后报告 Overview 顶部出现水平截断。新增的嵌套 NSHostingView
+默认再次应用窗口标题栏安全区，虽然外层 workspace 已经提供 full-content bounds。
+真实工作区回放确认：首次显示和隐藏后缩放返回两处，canvas viewport 都比宿主少
+32pt。将内层 host 的 `safeAreaRegions` 设为空，沿用外层已经决定的视口；不添加
+固定补偿 padding，也不取消画布自身的边界裁切或后台冻结。
+现有返回集成用例补充完整视口断言，修复前两处均失败，修复后 10 项集成检查通过。
+原始对照及构建记录保存在 `/tmp/mokusei-overview-clipping-20261104/`。
