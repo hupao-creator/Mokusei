@@ -477,6 +477,23 @@ production bell during headless verification.
 
 ## Reading-panel Dock
 
+While the selected Sidecard owns the current running/waiting execution, the
+resident input is centered below that panel and fits its width with the ordinary
+24pt horizontal insets and 560pt cap. Its reading baseline stays fixed. The
+Sidecard host publishes destination bounds through passive native layout markers;
+the bridge converts across the reading panel's separate `NSHostingView` into
+scene coordinates. Publications wait for layout and carry Thread identity, so a
+retiring reader cannot position another Thread's input. The same editor, draft,
+selection and input actions remain mounted.
+Folding the execution card, selecting Browser/Voice, losing execution eligibility
+or starting completion promotion restores the workspace-centered input. A first
+execution in main does not move it. Opening/return uses the Sidecard's 380ms
+curve; divider dragging and window/zoom resizing settle without travel, and
+Reduce Motion disables spatial animation. Stacked layouts use the lower execution
+panel's full column width. Composer expansion retains its separate entrance timing.
+Sprint validation for this placement change is source review, lint and application
+product build only; no tests/replays or real-device input/animation acceptance.
+
 Primary reading entry uses the shared 420ms emphasized curve for the collapsed
 Dock's position. Its composer stays unmounted until the reading panel/title handoff
 and main-document line/footer reveal finish, then the folded Agent workspace
@@ -501,12 +518,19 @@ The composer, Talk, voice visuals and pending interventions use that shared
 eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
 input/hit-region ownership. Agent detail keeps its input expanded, with a localized
-placeholder naming that Thread and showing its actual Harness plugin's native logo.
+placeholder naming that Thread. Its left Moku eye seat flips downward into the
+actual Harness plugin's native logo, which remains visible while typing.
 The host resolves the current target's `harnessID` on each render, including target
 changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
 Registered custom Harnesses supply their own mark through the same registry.
-The logo is placeholder-only, ignores pointer/accessibility hit testing, and does
-not become draft text or replace the editor when the target changes.
+The passive logo occupies the same 34×25pt seat as the eyes and ignores pointer
+and accessibility hit testing. A 420ms horizontal-axis flip retires the old face
+in its first half and reveals the new face in its second half. Changing Harness
+flips to the new mark; changing Threads within the same Harness keeps it steady.
+Overview, Report/Git and Settings restore Moku's eyes. Reduce Motion replaces
+marks without spatial travel. Identity transitions use SwiftUI's retained views,
+without delayed callbacks that could restore a stale Harness or acquire focus.
+The logo is separate from placeholder/draft text and never replaces the editor.
 The window owns a persisted draft (text, directory mentions and attachments) per
 Thread, separately from Moku history/Overview. Sending keeps the Agent editor
 expanded and live rather than sealing retained animation ink, and calls

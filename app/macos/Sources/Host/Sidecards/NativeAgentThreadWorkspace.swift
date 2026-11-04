@@ -140,6 +140,7 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @FocusState private var focusedLauncher: JSONText?
     @State private var launcherFrames: [JSONText: CGRect] = [:]
     @State private var handoffProgress: CGFloat = 0
@@ -147,7 +148,7 @@ struct NativeSidecardWorkspaceLayout: View {
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
-        snapshot.dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
+        snapshot.dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation
     }
     private var dividerHitWidth: CGFloat {
         6
@@ -213,6 +214,14 @@ struct NativeSidecardWorkspaceLayout: View {
                 }
                 .animation(animation, value: snapshot.selected)
                 .animation(animation, value: layout.stacked)
+                .background(alignment: .topLeading) {
+                    // Measure the destination, never the animated aperture.
+                    NativeExecutionDockRegion(placement: executionPlacement,
+                        active: executionOwnsDock, dragging: snapshot.dragging, threadID: snapshot.input.thread.id)
+                        .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
+                        .offset(x: layout.surfaceX, y: layout.surfaceY)
+                        .allowsHitTesting(false)
+                }
         }
         .nativeReadingExitCommand {
             closeTopLevel()
@@ -241,6 +250,15 @@ struct NativeSidecardWorkspaceLayout: View {
             withTransaction(transaction) { handoffProgress = 1 }
             model.completeHandoffTravel(handoff.id)
             if handoff.contentReady { model.finishHandoff(handoff.id) }
+        }
+    }
+
+    private var executionOwnsDock: Bool {
+        guard !preparing, !snapshot.suppressed, snapshot.handoff == nil,
+              snapshot.input.thread.observation.isExecutionActive,
+              let executionID = snapshot.input.thread.observation.latestExecution?.executionID else { return false }
+        return snapshot.cards.contains {
+            $0.id == snapshot.selected && $0.view.available && $0.view.excludeExecutionID == executionID
         }
     }
 

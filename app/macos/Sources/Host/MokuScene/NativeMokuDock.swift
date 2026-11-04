@@ -68,6 +68,7 @@ public struct NativeMokuDock: View {
     public let state: NativeMokuSceneState
     public let draft: NativeComposerDraft
     public let cwd: JSONText
+    public var threadID: JSONText?
     public var threadTitle: String?
     public var threadHarness: AnyHarnessPlugin?
     public var onThreadClose: (() -> Void)?
@@ -99,6 +100,7 @@ public struct NativeMokuDock: View {
     @Environment(\.nativeOfflineDraftEditing) private var offlineDraftEditing
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @State private var hovered = false
     @State private var hoverTask: Task<Void, Never>?
     @FocusState private var stopFocused: Bool
@@ -127,7 +129,7 @@ public struct NativeMokuDock: View {
     @State private var retainedReasoningGlyphs: [MokuReasoningGlyph] = []
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
-                landing: Bool = false, threadTitle: String? = nil,
+                landing: Bool = false, threadID: JSONText? = nil, threadTitle: String? = nil,
                 threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
                 mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
                 talk: String? = nil,
@@ -150,6 +152,7 @@ public struct NativeMokuDock: View {
         self.state = state; self.draft = draft; self.cwd = cwd; self.mode = mode; self.running = running
         self.reasoning = reasoning
         self.landing = landing
+        self.threadID = threadID
         self.threadTitle = threadTitle
         self.threadHarness = threadHarness; self.onThreadClose = onThreadClose
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
@@ -364,7 +367,16 @@ public struct NativeMokuDock: View {
     public var body: some View {
         GeometryReader { geometry in
             let viewport = state.dockViewport(in: geometry.size)
-            let baseFrame = NativeMokuCapsuleLayout.frame(in: viewport, landing: landing,
+            // Keep the reading baseline; only the horizontal seat belongs to
+            // the execution panel. Stacked layouts use that panel's full width.
+            let executionFrame = state.readingPanelVisible && threadID != nil && running && !state.settingsOpen
+                && executionPlacement?.threadID == threadID
+                ? executionPlacement?.frame : nil
+            let column = executionFrame.map {
+                CGRect(x: $0.minX, y: viewport.minY, width: $0.width, height: viewport.height).intersection(viewport)
+            }
+            let dockViewport = column.flatMap { $0.isNull || $0.isEmpty ? nil : $0 } ?? viewport
+            let baseFrame = NativeMokuCapsuleLayout.frame(in: dockViewport, landing: landing,
                 reading: state.readingPanelVisible && !state.settingsOpen)
             let frame = baseFrame.insetBy(dx: displayedMessage?.dispatch != nil ? max(0, (baseFrame.width - 400) / 2) : 0, dy: 0)
             let settingsSize = CGSize(width: min(780, max(0, viewport.width - 48)), height: min(settingsPreferredHeight, max(0, viewport.height - 48)))
@@ -408,7 +420,14 @@ public struct NativeMokuDock: View {
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
                     .offset(x: placement.surface.midX - geometry.size.width / 2,
                             y: placement.surface.maxY - geometry.size.height)
+                    .animation(reduceMotion || executionPlacement?.dragging == true ? nil
+                        : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
+                    // Direct resizing tracks the pointer/window instead of
+                    // repeatedly chasing a new animated destination.
+                    .transaction(value: geometry.size) {
+                        $0.animation = nil; $0.disablesAnimations = true
+                    }
                 if let interaction, !state.settingsOpen {
                     interaction.padding(18)
                         .frame(width: panel.width, height: panel.height, alignment: .topLeading)
@@ -794,7 +813,9 @@ public struct NativeMokuDock: View {
             // Switching between an intrinsic-height row and a fixed-height row
             // cannot interpolate, and a delayed expansion fraction starts the
             // eyes a layout pass after the glass has already changed size.
-            face(characterInput)
+            NativeMokuDockIdentity(harness: threadHarness, showsHarness: threadTitle != nil && !state.settingsOpen) {
+                face(characterInput)
+            }
                 .position(x: faceCenter.x + faceShift.width, y: faceCenter.y + faceShift.height)
         }
         .overlay(alignment: .bottomTrailing) {
@@ -891,13 +912,9 @@ public struct NativeMokuDock: View {
         }
         else { _ = state.dismissInputForEscape() }
     }
-    private var threadPlaceholderIcon: AnyView? {
-        guard threadTitle != nil else { return nil }
-        return threadHarness?.logo(size: 14) ?? AnyView(Image(systemName: "terminal").font(.system(size: 14)))
-    }
     private func composer(room: CGFloat, compact: Bool) -> some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
-            threadTitle: threadTitle, placeholderIcon: threadPlaceholderIcon,
+            threadTitle: threadTitle,
             readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,

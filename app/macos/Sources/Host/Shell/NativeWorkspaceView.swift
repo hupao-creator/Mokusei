@@ -661,6 +661,7 @@ public struct NativeWorkspaceView: View {
                 let detail = presentation.dockThread
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && presentation.moku.landing,
+                    threadID: detail?.id,
                     threadTitle: detail.map { $0.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : $0.title.string },
                     threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
                     onThreadClose: {

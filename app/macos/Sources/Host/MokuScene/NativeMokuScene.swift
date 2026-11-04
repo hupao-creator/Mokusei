@@ -56,7 +56,9 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
                 .animation(.smooth(duration: 0.42, extraBounce: 0), value: state.dockRouteVisible)
             }
         }
+        .background { NativeExecutionDockRegion(placement: state.executionDockPlacement, isScene: true) }
         .modifier(NativeSettingsTransition(state: state))
+        .environment(\.nativeExecutionDockPlacement, state.executionDockPlacement)
         .environment(\.nativeCanvasInputRegions, state.canvasInputRegions)
         .environment(\.nativeReadingInputCancellation, { state.dismissInputForEscape() })
         .onAppear { state.setWindowVisible(true) }

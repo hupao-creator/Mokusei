@@ -16,6 +16,7 @@ import MokuseiPluginUI
     /// One registry spans the canvas and its overlaid Moku surfaces. A drag
     /// over the capsule must retain control ownership on touch and pointer.
     let canvasInputRegions = NativeCanvasInputRegions()
+    let executionDockPlacement = NativeExecutionDockPlacement()
     public private(set) var mokuOpen = false
     public let historyMotion = NativeReadingPageMotion()
     public private(set) var historyVisit = UUID()

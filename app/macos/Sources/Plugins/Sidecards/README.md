@@ -13,6 +13,17 @@ Only their shells change; plugin forms, browser behavior and voice ownership rem
 with the existing sessions. Nested history Back belongs inside the main panel;
 its independent Close returns to Overview.
 
+An expanded card owning the current running/waiting execution publishes its
+destination column to the resident Moku input through a passive native geometry
+bridge across the reading panel's separate hosting tree. Input
+centers below that column and narrows to fit it, following the same 380ms fold
+curve. Dragging/resizing settles directly; stacked layout uses the lower panel's
+column. Folding, choosing another activity, losing eligibility or promoting a
+completed execution returns input to the workspace center. No composer mounts
+inside a Sidecard and no plugin input ownership changes. See the
+[Reading-panel Dock contract](../../Host/MokuScene/README.md#reading-panel-dock)
+for fit, editor lifetime and Sprint validation limits.
+
 The host, execution pane and nested history route SwiftUI Escape through
 `nativeReadingExitCommand`, sharing resident-input priority with native reading
 without replacing focused-child dispatch. Native editors/marked text, menus,
