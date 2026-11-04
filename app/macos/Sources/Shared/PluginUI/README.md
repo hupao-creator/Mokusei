@@ -1137,10 +1137,26 @@ and placement share those results. List markers, quote rules and footnote number
 use a fixed leading slot, so horizontal flexibility negotiation no longer probes
 their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
 
-All blocks and native text views remain mounted. Whole-document selection/copy,
+Once admitted, all blocks and native text views remain mounted. Whole-document selection/copy,
 footnote navigation, media loading and scroll ownership retain their existing
 lifetimes. The native Markdown replay includes actual text growth/shrink and
 window resize, both writing directions, table copy/geometry and footnote return;
 the local-image and execution-link replays cover asynchronous media and streaming
 admission. This optimization does not use viewport virtualization or stale
 cross-document height caches.
+
+### Paced initial Agent text
+
+An Agent execution's first non-streamed Markdown document admits small batches
+of top-level blocks between main-loop turns, budgeted by estimated native text
+leaves. Tables and lists remain atomic. The document-ready/coverage acknowledgement
+is published only after all blocks have been admitted; the existing reveal scope
+protects first paint. A newer revision interrupts the old batches, including an
+empty replacement, and disappearance cancels the worker. Already displayed content
+and streaming pages retain their ordinary update path. Animation durations are
+unchanged. Reveal registration dictionaries, masks and tasks are imperative
+bookkeeping outside SwiftUI observation; visible completion remains observable.
+
+There is no additional cross-visit attributed-string or native-view cache.
+Existing immutable parse/content caches and layout-local measurements retain their
+own lifetimes; every reader owns fresh native text, callbacks and selection.

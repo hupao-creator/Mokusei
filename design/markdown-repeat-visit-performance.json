@@ -1,0 +1,240 @@
+{
+  "date": "2026-11-04",
+  "configuration": "signed Debug; detailed diagnostics enabled",
+  "metric": "native snapshot API response wait during each 3-second opening window, polled every 5ms; not CPU-only or rendered-frame time",
+  "cases": [
+    {
+      "label": "OpenCode long report",
+      "before": [
+        {
+          "settledMs": 1417.024,
+          "maxAPIResponseMs": 812.719
+        },
+        {
+          "settledMs": 1494.756,
+          "maxAPIResponseMs": 807.944
+        },
+        {
+          "settledMs": 1830.574,
+          "maxAPIResponseMs": 848.766
+        }
+      ],
+      "final": [
+        {
+          "settledMs": 798.036,
+          "maxAPIResponseMs": 195.184
+        },
+        {
+          "settledMs": 702.5,
+          "maxAPIResponseMs": 143.304
+        },
+        {
+          "settledMs": 731.769,
+          "maxAPIResponseMs": 162.664
+        }
+      ],
+      "discardedFormattingCacheExperiment": [
+        {
+          "settledMs": 726.04,
+          "maxAPIResponseMs": 163.402
+        },
+        {
+          "settledMs": 709.996,
+          "maxAPIResponseMs": 159.557
+        },
+        {
+          "settledMs": 719.467,
+          "maxAPIResponseMs": 143.02
+        }
+      ],
+      "contentHeightBefore": [
+        5641,
+        5641,
+        5641
+      ],
+      "contentHeightFinal": [
+        5641,
+        5641,
+        5641
+      ]
+    },
+    {
+      "label": "Codex short",
+      "before": [
+        {
+          "settledMs": 582.818,
+          "maxAPIResponseMs": 163.042
+        },
+        {
+          "settledMs": 575.781,
+          "maxAPIResponseMs": 159.591
+        },
+        {
+          "settledMs": 583.067,
+          "maxAPIResponseMs": 159.091
+        }
+      ],
+      "final": [
+        {
+          "settledMs": 588.386,
+          "maxAPIResponseMs": 158.307
+        },
+        {
+          "settledMs": 585.712,
+          "maxAPIResponseMs": 83.648
+        },
+        {
+          "settledMs": 573.065,
+          "maxAPIResponseMs": 164.073
+        }
+      ],
+      "discardedFormattingCacheExperiment": [
+        {
+          "settledMs": 582.731,
+          "maxAPIResponseMs": 159.027
+        },
+        {
+          "settledMs": 567.456,
+          "maxAPIResponseMs": 77.437
+        },
+        {
+          "settledMs": 575.962,
+          "maxAPIResponseMs": 165.883
+        }
+      ],
+      "contentHeightBefore": [
+        486,
+        486,
+        486
+      ],
+      "contentHeightFinal": [
+        486,
+        486,
+        486
+      ]
+    },
+    {
+      "label": "Codex medium",
+      "before": [
+        {
+          "settledMs": 587.726,
+          "maxAPIResponseMs": 163.443
+        },
+        {
+          "settledMs": 600.675,
+          "maxAPIResponseMs": 149.588
+        },
+        {
+          "settledMs": 595.656,
+          "maxAPIResponseMs": 146.968
+        }
+      ],
+      "final": [
+        {
+          "settledMs": 592.735,
+          "maxAPIResponseMs": 85.142
+        },
+        {
+          "settledMs": 728.679,
+          "maxAPIResponseMs": 238.915
+        },
+        {
+          "settledMs": 583.539,
+          "maxAPIResponseMs": 162.14
+        }
+      ],
+      "discardedFormattingCacheExperiment": [
+        {
+          "settledMs": 594.709,
+          "maxAPIResponseMs": 163.833
+        },
+        {
+          "settledMs": 574.15,
+          "maxAPIResponseMs": 160.088
+        },
+        {
+          "settledMs": 774.958,
+          "maxAPIResponseMs": 282.286
+        }
+      ],
+      "contentHeightBefore": [
+        1048,
+        1048,
+        1048
+      ],
+      "contentHeightFinal": [
+        1048,
+        1048,
+        1048
+      ]
+    },
+    {
+      "label": "Codex long",
+      "before": [
+        {
+          "settledMs": 598.817,
+          "maxAPIResponseMs": 165.987
+        },
+        {
+          "settledMs": 750.051,
+          "maxAPIResponseMs": 258.546
+        },
+        {
+          "settledMs": 583.361,
+          "maxAPIResponseMs": 163.829
+        }
+      ],
+      "final": [
+        {
+          "settledMs": 599.963,
+          "maxAPIResponseMs": 163.51
+        },
+        {
+          "settledMs": 617.063,
+          "maxAPIResponseMs": 163.98
+        },
+        {
+          "settledMs": 756.797,
+          "maxAPIResponseMs": 281.2
+        }
+      ],
+      "discardedFormattingCacheExperiment": [
+        {
+          "settledMs": 652.037,
+          "maxAPIResponseMs": 160.807
+        },
+        {
+          "settledMs": 672.392,
+          "maxAPIResponseMs": 181.281
+        },
+        {
+          "settledMs": 613.175,
+          "maxAPIResponseMs": 146.406
+        }
+      ],
+      "contentHeightBefore": [
+        1263,
+        1263,
+        1263
+      ],
+      "contentHeightFinal": [
+        1263,
+        1263,
+        1263
+      ]
+    }
+  ],
+  "finalHasAdditionalCrossVisitFormattingCache": false,
+  "finalBuild": {
+    "channel": "development",
+    "configuration": "debug",
+    "executableInputSHA256": "a88fadccc2a9c38a5d8927f1b184ecc25db8a56f62e4f0e6d46605e52a4f8702",
+    "runtimeInputSHA256": "716f2ce659205eee6f112c0d1086602fc38900a9261f145aae5ef9165610913a"
+  },
+  "originalBuild": {
+    "channel": "development",
+    "configuration": "debug",
+    "executableInputSHA256": "ce3b3ab60747ad3c4515e31fd0268bef15ad8dfb2971c3344fd9c1b493315147",
+    "runtimeInputSHA256": "c2d400c9ff63d2d3fa10bd4e2755aac2ba952f0b64ba59370d46289146ab5a00"
+  }
+}

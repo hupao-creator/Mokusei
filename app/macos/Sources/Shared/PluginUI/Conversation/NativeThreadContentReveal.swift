@@ -49,13 +49,15 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
         weak var view: NSView?
         init(_ view: NSView) { self.view = view }
     }
-    private var texts: [ObjectIdentifier: WeakText] = [:]
-    private var rows: [ObjectIdentifier: WeakRow] = [:]
-    private var documents: [UUID: Bool] = [:]
-    private var masks: [(WeakView, CALayer)] = []
-    private var task: Task<Void, Never>?
-    private var admitted = false
-    private var started = false
+    // Native registration is bookkeeping, not SwiftUI presentation state.
+    // Observing it invalidates previously mounted readers as siblings register.
+    @ObservationIgnored private var texts: [ObjectIdentifier: WeakText] = [:]
+    @ObservationIgnored private var rows: [ObjectIdentifier: WeakRow] = [:]
+    @ObservationIgnored private var documents: [UUID: Bool] = [:]
+    @ObservationIgnored private var masks: [(WeakView, CALayer)] = []
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var admitted = false
+    @ObservationIgnored private var started = false
     private var finished = false
     private var cancelled = false
     var settled: Bool { finished || cancelled }
@@ -63,7 +65,7 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
     private(set) var bottomUp = false
     private(set) var animatedLineCount = 0
     private(set) var initialDrawingProtected = false
-    private var reducedMotion = false
+    @ObservationIgnored private var reducedMotion = false
 
     func beginDocument(_ id: UUID) {
         guard !cancelled, !finished, !started else { return }

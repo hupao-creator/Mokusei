@@ -6,7 +6,7 @@ import Testing
 import MokuseiTestSupport
 #endif
 import UniformTypeIdentifiers
-import MokuseiPluginUI
+@testable import MokuseiPluginUI
 
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeMarkdownRegressionTests {
@@ -38,6 +38,33 @@ struct NativeMarkdownRegressionTests {
     private struct UnicodeReader: View {
         @ObservedObject var source: UnicodeSource
         var body: some View { NativeMarkdownView(text: source.text) }
+    }
+
+    private struct PacedReader: View {
+        @ObservedObject var source: UnicodeSource
+        let reveal: NativeThreadContentReveal
+        let applied: (NativeMarkdownAppliedDocument?) -> Void
+        var body: some View {
+            NativeMarkdownView(text: source.text, documentToken: source.text.isEmpty ? "empty" : "old",
+                onDocumentApplied: applied)
+                .environment(\.nativeThreadReveal, reveal)
+        }
+    }
+
+    @Test func pacedMountDiscardsSupersededContentBeforeAcknowledgingEmptyDocument() async throws {
+        let source = UnicodeSource()
+        source.text = (0..<80).map { "OBSOLETE_\($0)" }.joined(separator: "\n\n")
+        var applied: NativeMarkdownAppliedDocument?
+        let window = SwiftUIReplay.window(ScrollView {
+            PacedReader(source: source, reveal: NativeThreadContentReveal(), applied: { applied = $0 })
+        }, width: 700, height: 500)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        try await SwiftUIReplay.wait { texts(root).contains { $0.string.hasPrefix("OBSOLETE_") } }
+        #expect(texts(root).filter { $0.string.hasPrefix("OBSOLETE_") }.count < 80)
+        #expect(applied == nil)
+        source.text = ""
+        try await SwiftUIReplay.wait { applied?.token == "empty" && texts(root).allSatisfy { !$0.string.hasPrefix("OBSOLETE_") } }
     }
 
     @Test func mountedReaderUpdatesCanonicallyEquivalentLink() async throws {
