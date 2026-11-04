@@ -235,6 +235,11 @@ The [layout comparison](../../../../../tools/verification/overview-layout/README
 
 ## Agent reading panels
 
+Reading entry shares the 420ms emphasized panel curve with tag-chrome withdrawal
+and the resident Dock. Tag clearance remains fixed while the retained controls
+move upward. See the [two-stage reading choreography](../../../../../design/reading-entrance-choreography.md)
+for secondary Sidecard admission, cancellation and sprint verification limits.
+
 The presentation gate and prepared return apply to Agent, Report and Git panels.
 Report returns to its document card; Git uses the task card captured at activation.
 All sample their destination only after the refreshed canvas preparation completes.

@@ -110,11 +110,18 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         identity: reduceMotion ? nil : panelIdentity,
                         onCompletion: finishPanelTransition,
                         content: front.id(identity)
+                            // Panel travel can finish before live heading anchors
+                            // replace its identity ink. Secondary layout must not
+                            // move that destination while the bridge still owns it.
+                            .environment(\.nativeReadingEntranceReady,
+                                panelContentReady && !motion.active && !closing && !preparingClose
+                                    && (reduceMotion || panelIdentity?.pending != true))
                             .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
                             .environment(\.nativeReadingPanelClosing, closing))
                 } else if open {
                     ZStack {
                         front.id(identity)
+                            .environment(\.nativeReadingEntranceReady, !motion.active && !closing && !preparingClose)
                             .transition(axis == .vertical ? .asymmetric(
                                 insertion: .modifier(
                                     active: ReadingPageReplacementOffset(travel: bounds.size.height, motion: motion),

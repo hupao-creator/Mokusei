@@ -132,7 +132,7 @@ public struct NativeOverviewWorkspaceView: View {
                     // changing the canvas clearance, including the narrow two-row layout.
                     .offset(y: chromeVisible || reduceMotion ? 0 : -OverviewTagMetrics.chromeHeight)
                     .allowsHitTesting(chromeVisible).accessibilityHidden(!chromeVisible)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: chromeVisible)
+                    .animation(reduceMotion ? nil : NativeReadingPageTiming.openingAnimation, value: chromeVisible)
             }
         }
         .environment(\.nativeCanvasInputRegions, inputRegions)

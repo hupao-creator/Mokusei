@@ -13,6 +13,8 @@ struct NativeSidecardWorkspaceConfiguration: Equatable {
     var locale: Locale
     var executionReveal: SidecardExecutionReveal? = nil
     var mainReadingHistory = false
+    var entranceReady = true
+    var reduceMotion = false
 }
 
 struct NativeSidecardExecutionHandoff: Equatable, Identifiable {
@@ -111,7 +113,10 @@ final class NativeSidecardWorkspaceModel {
         let nextExecution = configuration.input.thread.observation.latestExecution
         let sameReading = self.configuration.input.readingTarget == configuration.input.readingTarget
             && self.configuration.input.thread.id == configuration.input.thread.id
-        let canHandoff = sameReading && !configuration.suppressed && !configuration.executionDisabled
+        // An execution that finishes before its card was ever presented belongs
+        // directly in main; there is no visible source reader to promote.
+        let canHandoff = sameReading && self.configuration.entranceReady && configuration.entranceReady
+            && !configuration.suppressed && !configuration.executionDisabled
             && !configuration.mainReadingHistory && configuration.input.thread.archived != true
         if let handoff, !canHandoff || nextExecution?.executionID != handoff.executionID
             || configuration.input.thread.observation.isExecutionActive
@@ -127,6 +132,12 @@ final class NativeSidecardWorkspaceModel {
            configuration.enabledIDs?.contains(card.id) != false,
            configuration.input.readingTarget.map({ $0.executionID == executionID }) ?? true {
             handoff = NativeSidecardExecutionHandoff(cardID: card.id, executionID: executionID)
+        }
+        if !self.configuration.entranceReady, configuration.entranceReady, selected != nil {
+            beginSelectionTransition(reduceMotion: configuration.reduceMotion)
+        } else if configuration.reduceMotion {
+            transitionTask?.cancel(); transitionTask = nil
+            transitioning = false
         }
         self.configuration = configuration; self.services = services
         self.onBack = onBack; self.onVisibilityChange = onVisibilityChange
@@ -213,17 +224,22 @@ final class NativeSidecardWorkspaceModel {
         if selected != id {
             selected = id
             if let id { lastSelected = id }
-            transitionTask?.cancel()
-            transitioning = true
-            transitionTask = Task { @MainActor [weak self] in
-                do { try await Task.sleep(for: .milliseconds(380)) } catch { return }
-                guard let self, !isReleased else { return }
-                transitioning = false; reconcile()
-            }
+            if configuration.entranceReady { beginSelectionTransition(reduceMotion: configuration.reduceMotion) }
         }
         needsReconciliation = true
         if !reconciling && dispatchDepth == 0 { reconcile() }
         return selectionRevision
+    }
+
+    private func beginSelectionTransition(reduceMotion: Bool) {
+        transitionTask?.cancel()
+        guard !reduceMotion else { transitionTask = nil; transitioning = false; return }
+        transitioning = true
+        transitionTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(380)) } catch { return }
+            guard let self, !isReleased, !Task.isCancelled else { return }
+            transitioning = false; reconcile()
+        }
     }
 
     private func openExternal(_ url: JSONText) async throws {
@@ -287,7 +303,7 @@ final class NativeSidecardWorkspaceModel {
         return SidecardContext(thread: input.thread, conversationIndex: conversationIndex,
             actions: harnessHost.actions(for: input.thread, routes: routes), readingTarget: input.readingTarget,
             executionDisabled: disabled, expanded: selected == id, transitioning: transitioning,
-            suppressed: configuration.suppressed || dragging || transitioning || selected != id,
+            suppressed: configuration.suppressed || !configuration.entranceReady || dragging || transitioning || selected != id,
             conversation: { [weak self] executionID, target in
                 guard let self else { return AnyView(EmptyView()) }
                 return AnyView(NativeHarnessThreadView(host: harnessHost,
@@ -321,7 +337,7 @@ final class NativeSidecardWorkspaceModel {
             backToOverview: { [weak self] in self?.onBack() },
             translate: { [weak self] in self?.translate($0) ?? $0 },
             draftStorageDirectory: harnessHost.client.storageDirectory, attachmentImport: services.attachmentImport,
-            executionReveal: configuration.suppressed ? nil : configuration.executionReveal,
+            executionReveal: configuration.suppressed || !configuration.entranceReady ? nil : configuration.executionReveal,
             executionHandoff: handoff?.cardID == id ? handoff?.executionID : nil)
     }
 
@@ -388,12 +404,15 @@ final class NativeSidecardWorkspaceModel {
                 _ = choose(nil)
             }
         } while needsReconciliation && passes < 16
+        // Keep plugin intent and execution ownership live, but publish folded
+        // geometry until the primary entrance and its first layout have committed.
         snapshot = NativeSidecardWorkspaceSnapshot(input: configuration.input, cards: cards,
-            selected: selected, lastSelected: lastSelected, selectionRevision: selectionRevision,
+            selected: configuration.entranceReady ? selected : nil, lastSelected: lastSelected, selectionRevision: selectionRevision,
             transitioning: transitioning, dragging: dragging, widths: widths,
-            executionDisabled: configuration.executionDisabled, suppressed: configuration.suppressed, handoff: handoff,
+            executionDisabled: configuration.executionDisabled,
+            suppressed: configuration.suppressed || !configuration.entranceReady, handoff: handoff,
             focusLauncherOnClose: focusLauncherOnClose)
-        let visible = cards.contains { $0.id == selected && $0.view.acceptsInput == true }
+        let visible = configuration.entranceReady && cards.contains { $0.id == selected && $0.view.acceptsInput == true }
         if lastVisibility != visible { lastVisibility = visible; onVisibilityChange(visible) }
     }
 

@@ -61,6 +61,14 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 
 ## Conversation
 
+Initial Host presentation is a second entrance stage: the main panel must finish
+its actual travel and a folded workspace must commit before a requested Sidecard
+selection becomes visible. The existing 380ms card animation then runs separately.
+Plugin selection/execution ownership stays live while presentation waits; retiring
+availability cannot be reopened by the layout completion. Reduced Motion also
+removes the card's transition interaction delay. See the
+[shared entrance contract and sprint limits](../../../../../design/reading-entrance-choreography.md).
+
 [Conversation](Conversation/) is an execution display. It owns no composer,
 draft, attachments, Send or Stop control; Agent input belongs to the Thread detail
 Moku bar. Follow-up suggestions from Harness/Application reading routes append
