@@ -141,7 +141,7 @@ public struct NativeComposerView: View {
         if running {
             return NativePlatformPalette.blend(NativePlatformPalette.thread.accent, with: NativePlatformPalette.thread.line, fraction: 0.7).swiftUI
         }
-        return (focused ? NativePlatformPalette.pair(0xb9b7ae, 0x64665c) : NativePlatformPalette.pair(0xd8d5cd, 0x4b4d44)).swiftUI
+        return (focused ? NativePlatformPalette.pair(0xb9b7ae, 0x8c8d83) : NativePlatformPalette.pair(0xd8d5cd, 0x5c5d54)).swiftUI
     }
     private func localized(_ text: String) -> String { composerLocalized(text, locale: locale) }
 }
