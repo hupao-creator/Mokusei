@@ -26,7 +26,14 @@ func (r *Runtime) appendEvent(tx *store.Tx, kind string, subject store.Subject, 
 			scope = directorytag.Scope(thread.Cwd)
 		}
 	}
-	return tx.AppendEvent(store.Event{ID: id, CreatedAt: time.Now().UnixMilli(), Type: kind, Subject: subject, Scope: scope, Source: source, Data: raw, IntroducedInteractionIDs: introduced})
+	event := store.Event{ID: id, CreatedAt: time.Now().UnixMilli(), Type: kind, Subject: subject, Scope: scope, Source: source, Data: raw, IntroducedInteractionIDs: introduced}
+	if err := tx.AppendEvent(event); err != nil {
+		return err
+	}
+	if kind == "thread.input-accepted" && source == "user" && subject.TypeID == "agent" {
+		return queueUserThreadInputNotification(tx, event)
+	}
+	return nil
 }
 func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *model.ThreadRecord) error {
 	record := next

@@ -16,6 +16,8 @@ type HarnessDescriptor struct {
 	ThreadCapabilities ThreadCapabilities `json:"threadCapabilities"`
 }
 type ThreadCapabilities struct {
+	// FollowUpOnly promises native steering cannot start work on an idle engine.
+	FollowUpOnly  bool     `json:"followUpOnly,omitempty"`
 	Instructions  bool     `json:"instructions"`
 	ThreadContext bool     `json:"threadContext"`
 	SendContext   bool     `json:"sendContext"`
@@ -128,6 +130,9 @@ func (e *InteractionResponseNotSentError) Error() string { return e.Cause.Error(
 func (e *InteractionResponseNotSentError) Unwrap() error { return e.Cause }
 
 type SendRequest struct {
+	// FollowUpOnly forbids reserving a new execution if the target has ended.
+	// The Harness checks this under its execution lock before retaining input.
+	FollowUpOnly bool
 	// Admitted is called exactly once after this input is durably retained.
 	// New executions admit before native dispatch; follow-ups may wait for native
 	// acceptance so a rejected steer does not acknowledge delivery. Stream updates
@@ -143,6 +148,11 @@ type SendRequest struct {
 // have its durable terminal outcome. Core may reserve a new execution and retry
 // once; ordinary errors (including uncertain dispatch) never authorize replay.
 var ErrExecutionEnded = errors.New("execution ended before input admission")
+
+// ErrFollowUpUnavailable proves that a follow-up-only input was neither retained
+// nor dispatched. Unlike ErrExecutionEnded, it need not prove durable terminal
+// settlement and never authorizes Core to reserve a successor.
+var ErrFollowUpUnavailable = errors.New("follow-up target unavailable before input admission")
 
 type ContextEntry struct {
 	ID      string `json:"id"`

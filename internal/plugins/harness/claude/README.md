@@ -90,3 +90,10 @@ canonical activity state and full execution content remain unchanged.
 
 Inherited activities have no embedded activity id; deferred output presence uses
 the enclosing timeline item id so unrelated empty Hooks cannot share a marker.
+
+This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
+input protocol has no proven atomic active-only condition. Lazy Moku notices
+therefore wait for the next independently triggered input and travel with its
+system context, even while this Harness is running. An explicit follow-up-only
+Send returns `ErrFollowUpUnavailable` before retaining or dispatching anything;
+ordinary inputs keep their existing behavior.

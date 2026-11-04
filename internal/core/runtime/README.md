@@ -151,3 +151,21 @@ once before the parallel batch. Neither endpoint interprets installed as
 account authentication. Settings telemetry separately measures
 `installation`, `presentation.snapshot` and `presentation.native`, with bounded
 Harness/owner metadata and no settings or credential values.
+
+## Lazy Moku notifications
+
+[moku_delivery.go](moku_delivery.go) owns a durable system-notification outbox.
+Direct user follow-up admission writes its lifecycle event and lazy notification
+in one transaction. Terminal facts keep their wake-producing behavior. A stable
+transaction sequence orders facts; source deletion and full history reset retire
+pending deliveries. Moku Harness replacement does not discard pending work.
+
+`SendMokuThread` bundles pending lazy notifications into system context and fences
+the selected identities immediately before native I/O. Admission removes exactly
+that batch. `sendLockedAdmitted` rejects an idle lazy-only admission and does not
+renew it after an exact `ErrExecutionEnded` or `ErrFollowUpUnavailable`, so finishing races cannot start a
+run. Confirmed unconsumed idle/configuration results release their attempt fence;
+other uncertain native outcomes require the existing operator reconciliation.
+Native voice context synchronization shares this outbox through its admission
+owner, with removal only after the execution commit. Neither receipt proves model
+processing or task completion.

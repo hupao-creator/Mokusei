@@ -967,6 +967,10 @@ func (t *Thread) reconcile(ctx context.Context, startup bool) error {
 	return t.commitLocked(ctx)
 }
 func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
+	// The native prompt route has no atomic active-only admission condition.
+	if request.FollowUpOnly {
+		return plugin.ErrFollowUpUnavailable
+	}
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()

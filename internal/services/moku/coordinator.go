@@ -183,7 +183,7 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 		}
 	}
 	c.mu.Unlock()
-	if c.config.SubscribeUserThreadInputs != nil {
+	if c.config.SubscribeUserThreadInputs != nil && (c.config.PendingDeliveries == nil || c.config.SendDelivery == nil) {
 		lifetime := c.ctx
 		c.unsubscribeUserInputs, err = c.config.SubscribeUserThreadInputs(lifetime, func(event plugin.LifecycleEvent) {
 			c.enqueueEvent(coordinatorEvent{userInput: &event, lifetime: lifetime})

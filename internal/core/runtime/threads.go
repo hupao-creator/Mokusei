@@ -398,6 +398,8 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	if err := h.active(); err != nil {
 		return "", errors.New("native execution owner closed")
 	}
+	var notifications mokuNativeDelivery
+	ctx = context.WithValue(ctx, mokuNativeDeliveryKey{}, &notifications)
 	if before != nil {
 		if err := before(ctx); err != nil {
 			return "", err
@@ -444,6 +446,11 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 		}
 		h.mu.Unlock()
 		return "", err
+	}
+	if notifications.batch != nil {
+		if err := notifications.batch.admitted(ctx); err != nil {
+			return "", err
+		}
 	}
 	return id, nil
 }
@@ -886,6 +893,10 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 		executionID = e.ExecutionID
 		started = false
 	} else {
+		if lazy, _ := ctx.Value(mokuLazyAdmissionKey{}).(bool); lazy {
+			unlockAdmission()
+			return SendResult{}, plugin.ErrMokuIdle
+		}
 		if err := r.checkMokuSendConfiguration(t); err != nil {
 			unlockAdmission()
 			return SendResult{}, err
@@ -975,7 +986,8 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 		<-admission.done
 		return admission.err
 	}
-	request := plugin.SendRequest{ExecutionID: executionID, Input: input, ContextEntries: entries, Admitted: func() error { return finishAdmission(nil, true) }}
+	followUpOnly, _ := ctx.Value(mokuLazyAdmissionKey{}).(bool)
+	request := plugin.SendRequest{FollowUpOnly: followUpOnly, ExecutionID: executionID, Input: input, ContextEntries: entries, Admitted: func() error { return finishAdmission(nil, true) }}
 	owner.mu.Lock()
 	if owner.closed {
 		owner.mu.Unlock()
@@ -1006,6 +1018,9 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 		}
 		// Only an untouched, unadmitted input may move to a new reservation.
 		// Exact equality deliberately excludes joined failures.
+		if request.FollowUpOnly && (err == plugin.ErrExecutionEnded || err == plugin.ErrFollowUpUnavailable) {
+			err = plugin.ErrMokuIdle
+		}
 		if err == plugin.ErrExecutionEnded && !started {
 			select {
 			case <-admission.done:

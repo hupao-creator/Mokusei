@@ -385,7 +385,26 @@ func (r *Runtime) SendMokuThread(ctx context.Context, id string, input model.Age
 	if !t.Moku {
 		return SendResult{}, errors.New("not a Moku session")
 	}
-	return r.sendLockedAdmitted(ctx, id, input, injection, entries, onAdmitted)
+	ctx, entries, batch, err := r.prepareMokuDeliveries(ctx, entries)
+	if err != nil {
+		return SendResult{}, err
+	}
+	if lazy, _ := ctx.Value(mokuLazyAdmissionKey{}).(bool); lazy {
+		harness := r.config.Harnesses[t.HarnessID]
+		if harness == nil || !harness.Descriptor().ThreadCapabilities.FollowUpOnly {
+			return SendResult{}, plugin.ErrMokuIdle
+		}
+	}
+	result, err := r.sendLockedAdmitted(ctx, id, input, injection, entries, func(result plugin.SessionSendResult) error {
+		if err := batch.admitted(ctx); err != nil {
+			return err
+		}
+		if onAdmitted != nil {
+			return onAdmitted(result)
+		}
+		return nil
+	})
+	return result, batch.releaseUnconsumed(ctx, err)
 }
 func (r *Runtime) CompletedReply(id, executionID string) (string, bool) {
 	r.mu.Lock()

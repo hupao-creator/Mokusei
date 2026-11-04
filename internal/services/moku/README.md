@@ -147,7 +147,7 @@ and WebRTC events; relay and private-discussion speech keep their existing path.
 
 Verification: `./scripts/go.sh run -race ./tools/verification/moku` and `./scripts/go.sh test -race ./internal/services/moku` from the repository root. The runner also exports production-shaped Talk/dispatch/note records for native UI replays.
 
-## Durable completion notifications
+## Durable system notifications
 
 Ordinary Thread terminal transitions write a Moku outbox entry in the same SQLite
 transaction as the observation. The coordinator drains it at startup and once per
@@ -160,9 +160,42 @@ event queue and its duplicate tracking. Configurations without the outbox retain
 the live notification path. Already queued Moku terminal audit settlement stays
 local and drains during shutdown.
 
-Before entering native Send, Runtime persists an uncertain attempt. A transport
+Direct user input to an ordinary Thread writes a **lazy** system notification in
+that input's successful admission transaction. Idle Moku keeps it queued without
+starting an execution. The next ordinary Moku input (typed, relay voice, or a
+wake-producing terminal fact) carries pending lazy notifications as separate
+system context, preserving the original user input and its transcript. Native
+voice syncs the same context before admitting its next execution. The shared
+notification formatter preserves the direct-to-thread warning: the child has
+already received this input; Moku must neither resend it nor treat it as a new
+request addressed to itself.
+
+While an execution is active, the outbox poll can deliver lazy notifications as
+internal follow-ups on Harnesses advertising safe `FollowUpOnly` steering. Codex
+supports this. Claude, Pi and OpenCode keep them queued for the next independent
+input because their native protocols cannot prove atomic active-only admission. Core rechecks active admission and never reserves a successor
+for a lazy-only send, even if native Send reports that the execution just ended.
+Such a confirmed unconsumed notification returns to the queue. Waiting-for-user,
+configuration and preparation failures also retain pending work. Lazy delivery is
+not a wake source; ordinary terminal notifications retain their existing wake
+behavior. Production uses the durable outbox rather than the live user-input
+subscription, so restart and subscriber timing cannot lose accepted facts.
+
+A transaction-owned sequence orders multiple notifications. Each send captures a
+batch; its attempt transaction fences all selected identities, and its admission
+receipt removes exactly that batch. Stale polling snapshots cannot resend an
+already bundled notification. Inputs committed after the snapshot remain queued
+for an active follow-up or the next independently triggered execution. Thread
+deletion and full history reset remove queued notifications; changing Moku's
+Harness preserves them for its replacement conversation.
+
+Before entering native Send or syncing native voice context, Runtime persists an
+uncertain attempt for the selected batch. A transport
 failure or crash in this interval cannot prove whether the provider consumed the
-notification, so this entry is retained and never automatically replayed. Moku
+notification, so these entries are retained and never automatically replayed.
+For native voice, context sync alone is not a receipt: removal follows Core
+execution admission. A later run failure does not replay an already admitted
+notification. Admission proves retention, not that the model read or acted on it. Moku
 reports `moku-delivery-uncertain` with the recovery command. Use authenticated
 `moku:deliveries` with no arguments to inspect pending facts. Restart the runtime
 to fence the old native workers, inspect the native conversation, then invoke
@@ -171,6 +204,26 @@ to fence the old native workers, inspect the native conversation, then invoke
 `acknowledge-confirmed-admitted` after confirming admission. Decisions are audited;
 the current runtime cannot reconcile its own uncertain attempts. Exactly-once
 provider effects cannot be guaranteed without provider idempotency support.
+
+Uncertainty is currently operator-visible through the Runtime diagnostic log
+(`moku-delivery-uncertain` under the profile's `runtime/debug-logs`) and the
+authenticated Runtime command API. It is not published as Talk, a client error
+banner or a recovery button, and these commands are not Moku tools. Invoke
+`moku:deliveries` with `args: []` to inspect retained entries. After restarting
+the Runtime and checking the native conversation, invoke `moku:resolve-delivery`
+with `args: [{"id":"<delivery id>","decision":"retry-confirmed-unadmitted"}]`
+or the same object with `acknowledge-confirmed-admitted`. Use the normal
+authenticated `/invoke/<channel>` transport and durable command receipts; a lost
+resolution response is queried by its command ID, not blindly resubmitted.
+
+A confirmed retry only makes the entry eligible again: a lazy entry still does
+not wake an idle Moku and needs the next independent trigger or supported active
+steering. Acknowledgment retires the entry; it does not prove the model processed
+it. If native evidence cannot establish admission either way, retain uncertainty
+and escalate for manual inspection. Restart alone does not resolve or replay it.
+The old native workers must actually be stopped before reconciliation; a failed
+shutdown is not a successful restart. No real-profile reconciliation is performed
+as part of local code integration.
 
 Overview directory context carries `directoryScopeId`, the stable host-derived scope identity. Display tags never resolve a selected directory by basename. Explicit directory mentions still take precedence; an unresolved selected scope reads one catalog snapshot and includes only directories in that scope.
 
