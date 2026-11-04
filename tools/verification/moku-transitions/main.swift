@@ -14,6 +14,7 @@ private struct Failure: Error, CustomStringConvertible { let description: String
     var landing = false
     var mode = MokuCharacterMode.idle
     var running = false
+    var threadTitle: String?
     var reasoning: MokuReasoningContent?
     var phase = ScenePhase.active
     var stage = "idle"
@@ -28,7 +29,7 @@ private struct Scene: View {
             }
         } thread: { Color.white } dock: {
             NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/tmp",
-                landing: fixture.landing, mode: fixture.mode, running: fixture.running, reasoning: fixture.reasoning,
+                landing: fixture.landing, threadTitle: fixture.threadTitle, mode: fixture.mode, running: fixture.running, reasoning: fixture.reasoning,
                 loadMentionDirectories: { ["Mokusei", "Design", "Research", "Website", "Agent Learn", "AnyThing"].map {
                     NativeComposerDirectory(name: JSONText($0), path: JSONText("/fixture/" + $0))
                 } },
@@ -70,7 +71,17 @@ private struct Scene: View {
     try await wait("one mounted production face") { canvases(in: host).filter { $0.seat == .face }.count == 1 }
     let face = canvases(in: host).first { $0.seat == .face }!
     let controller = face.controller
-    try await wait("native display link") { controller.hasScheduledFrame && controller.frameCount > 2 }
+    try await wait("configured visible face") { controller.input != nil && face.motionVisible }
+    // Idle eyes keep the existing absolute blink phase but sleep between blinks.
+    try await wait("idle between blinks") {
+        !controller.hasScheduledFrame && Date().timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: NativeMokuCapsuleBlinkTiming.interval) < NativeMokuCapsuleBlinkTiming.interval - 0.7
+    }
+    let idleFrames = controller.frameCount
+    try await Task.sleep(for: .milliseconds(250))
+    guard controller.frameCount == idleFrames else { throw Failure(description: "Idle display link kept ticking between blinks") }
+    try await wait("next idle blink") { controller.frameCount > idleFrames }
+    try await wait("blink returned to sleep") { !controller.hasScheduledFrame }
     var target: SCWindow?
     for _ in 0..<40 {
         target = try await SCShareableContent.currentProcess.windows.first {
@@ -307,11 +318,17 @@ private struct Scene: View {
     try await observe("thinking-to-idle-and-landing", milliseconds: 1300)
     guard controller.currentReasoning == nil, !controller.isRetiringReasoning,
           controller.pose["arcAlpha"] < 0.001 else { throw Failure(description: "Expired reasoning survived its handoff") }
+    fixture.threadTitle = "Completed Agent"
+    try await wait("Harness identity removes face") { canvases(in: host).allSatisfy { $0.seat != .face } }
+    try await wait("empty decoration sleeps") { !controller.isTransitioning && !controller.hasScheduledFrame }
+    let emptyFrames = controller.frameCount
+    try await Task.sleep(for: .seconds(4.5))
+    guard controller.frameCount == emptyFrames else { throw Failure(description: "Empty Harness decoration kept ticking") }
     try JSONSerialization.data(withJSONObject: observations, options: [.prettyPrinted, .sortedKeys])
         .write(to: output.appendingPathComponent("frames.json"))
     return ["samples": observations.count, "screenshots": screenshots, "maximumEyeStep": greatestEyeStep,
             "nativeFrames": controller.frameCount, "maximumMentionDrift": maximumMentionDrift,
-            "checks": ["single persistent eye seat", "input screen-space trajectory", "mention editor alignment in Dock and landing", "bounded inter-frame eye motion", "running clock continuation",
+            "checks": ["idle sleeps between preserved blinks", "empty Harness decorations have no frames", "single persistent eye seat", "input screen-space trajectory", "mention editor alignment in Dock and landing", "bounded inter-frame eye motion", "running clock continuation",
                        "append does not redirect", "rapid reversal", "inactive pause", "bottom/landing narrow/short loading fit", "centered enlarged thinking and input handoff", "retired glyph cleanup"]]
 }
 

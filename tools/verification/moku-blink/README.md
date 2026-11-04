@@ -15,6 +15,12 @@ WindowServer screenshots use ScreenCaptureKit's **current-process** window filte
 
 For each state, the replay samples actual presented pixels about every 25ms plus screenshot latency. It requires eye ink to drop below one third of the observed open area, then recover above four fifths, within a natural blink deadline. It never calls `draw`, `cacheDisplay`, `needsDisplay`, or a clock advance to manufacture a blink. The collapsed state must complete two cycles. Other states cover input expansion, running, streaming talk updates, search hide/show, miniaturization and remounting. The replay does not read or change OS motion preferences. Production blinking and running eyes use the system animation schedule without a fixed frame interval; capture polling is an observation interval, not an animation frame cap. Inactive scenes pause animation, and Reduce Motion keeps open eyes with static running dots.
 
+Dock ink is white on its dark capsule. Natural-blink crops use the actual native
+eye seat and exclude page/gradient components touching the crop edge; the focus
+reference remains black on white. The closing-eye component
+detector excludes the much larger white page background while retaining the
+existing requirement for two open eyes and the unchanged right-eye slope bound.
+
 The negative control supplies an inactive scene phase to the production Dock, stopping its real blink schedule. The replay must then report `no natural close/reopen`; an unrelated capture, compilation or window visibility error does not count as detecting the regression.
 
 Screenshots and `measurements.json` contain only this fixture window. This tests real native rendering and scheduling with fixture presentation states, not live harness/network behavior. It requires a logged-in macOS GUI session and does not overwrite the installed/running Mokusei app.

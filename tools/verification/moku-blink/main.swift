@@ -74,14 +74,32 @@ private func png(_ image: CGImage, _ url: URL) throws {
 private func ink(_ image: CGImage) -> Int {
     let width = image.width, height = image.height
     var pixels = [UInt8](repeating: 0, count: width * height * 4)
-    let count = pixels.withUnsafeMutableBytes { buffer -> Int in
+    pixels.withUnsafeMutableBytes { buffer in
         let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
             bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        let bytes = buffer.bindMemory(to: UInt8.self)
-        return stride(from: 0, to: bytes.count, by: 4).reduce(0) { result, offset in
-            result + (bytes[offset + 3] > 240 && bytes[offset] < 110 && bytes[offset + 1] < 110 && bytes[offset + 2] < 110 ? 1 : 0)
+    }
+    let white = stride(from: 0, to: pixels.count, by: 4).map { offset in
+        pixels[offset + 3] > 240 && pixels[offset] > 220 && pixels[offset + 1] > 220 && pixels[offset + 2] > 220
+    }
+    // The eye seat can extend beyond the glass. Exclude white page/gradient
+    // components touching the crop edge, never the isolated painted eye ink.
+    var visited = Set<Int>(), count = 0
+    for seed in white.indices where white[seed] && !visited.contains(seed) {
+        var queue = [seed], index = 0, border = false
+        visited.insert(seed)
+        while index < queue.count {
+            let point = queue[index]; index += 1
+            let x = point % width, y = point / width
+            border = border || x == 0 || y == 0 || x == width - 1 || y == height - 1
+            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let nx = x + dx, ny = y + dy, next = ny * width + nx
+                if nx >= 0, nx < width, ny >= 0, ny < height, white[next], visited.insert(next).inserted {
+                    queue.append(next)
+                }
+            }
         }
+        if !border { count += queue.count }
     }
     return count
 }
@@ -156,12 +174,15 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         guard window.occlusionState.contains(.visible) else {
             throw Failure(description: "Production eyes must be visible in a real native window")
         }
-        // The production eye is a SwiftUI Shape, with no AppKit canvas. The
-        // settled capsule's scene coordinates locate its 34 x 25 point seat.
-        let surface = fixture.state.capsuleFrame
-        let expanded = surface.width > NativeMokuCapsuleLayout.idleSize.width + 0.5
-        let frame = CGRect(x: expanded ? surface.minX + 15 : surface.midX - 17,
-                           y: surface.midY - 12.5, width: 34, height: 25)
+        // The dark Dock paints white eyes in its native seat. Use the mounted
+        // seat rather than the retired light-capsule size/inset assumptions.
+        func face(in view: NSView) -> NativeMokuCharacterCanvas? {
+            if let canvas = view as? NativeMokuCharacterCanvas, canvas.seat == .face { return canvas }
+            return view.subviews.lazy.compactMap { face(in: $0) }.first
+        }
+        guard let face = face(in: host) else { throw Failure(description: "Native eye seat is missing") }
+        var frame = face.convert(face.bounds, to: host)
+        if !host.isFlipped { frame.origin.y = host.bounds.height - frame.maxY }
         let sx = Double(image.width) / window.frame.width, sy = Double(image.height) / window.frame.height
         let rect = CGRect(x: frame.minX * sx, y: (window.frame.height - host.bounds.height + frame.minY) * sy,
                           width: frame.width * sx, height: frame.height * sy).integral
@@ -214,7 +235,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         guard let result = image.cropping(to: rect) else { throw Failure(description: "Probe crop failed") }
         return result
     }
-    func mask(_ image: CGImage) -> [Bool] {
+    func mask(_ image: CGImage, lightInk: Bool = false) -> [Bool] {
         var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
         pixels.withUnsafeMutableBytes { buffer in
             let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height,
@@ -222,7 +243,11 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         }
-        return stride(from: 0, to: pixels.count, by: 4).map { pixels[$0] < 110 && pixels[$0 + 3] > 240 }
+        return stride(from: 0, to: pixels.count, by: 4).map { offset in
+            guard pixels[offset + 3] > 240 else { return false }
+            if lightInk { return pixels[offset] > 220 && pixels[offset + 1] > 220 && pixels[offset + 2] > 220 }
+            return pixels[offset] < 110
+        }
     }
     func observeFocusTransitions() async throws {
         fixture.probing = true
@@ -380,7 +405,7 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         guard let strip = image.cropping(to: CGRect(x: 0, y: image.height - 160, width: image.width, height: 136)) else {
             throw Failure(description: "Dock crop failed")
         }
-        let pixels = mask(strip), width = strip.width
+        let pixels = mask(strip, lightInk: true), width = strip.width
         var visited = Set<Int>(), candidates: [(x: Double, slope: Double)] = []
         for seed in pixels.indices where pixels[seed] && !visited.contains(seed) {
             var queue = [seed], index = 0, points: [(Double, Double)] = []
@@ -395,7 +420,9 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
                        pixels[next], visited.insert(next).inserted { queue.append(next) }
                 }
             }
-            guard points.count > 200 else { continue } // Excludes caret/text, retains open eyes.
+            // White page background is one much larger component; caret/text
+            // are smaller than an open eye. Keep the same two-eye/slope oracle.
+            guard points.count > 200, points.count < 1000 else { continue }
             let count = Double(points.count)
             let x = points.reduce(0) { $0 + $1.0 } / count
             let y = points.reduce(0) { $0 + $1.1 } / count

@@ -58,6 +58,9 @@ struct NativeMokuCharacterPose {
     private weak var decorations: NativeMokuCharacterCanvas?
     private var wasVisible = false
     private var retirementPending = false
+    private var stationaryTarget: NativeMokuCharacterPose?
+    private var blinkWake: Task<Void, Never>?
+    private var blinkWakeDate: Date?
     var onReasoningRetired: (() -> Void)?
 
     var currentReasoning: MokuReasoningContent? { input?.presentsReasoning == true ? reasoningAnimation.content : nil }
@@ -114,6 +117,7 @@ struct NativeMokuCharacterPose {
             if isThinking { retiredGlyphs = [] }
         }
         input = next
+        stationaryTarget = nil
         if isThinking { arcSize = next.capsuleSize }
         let track = NativeMokuReasoningArcTrack(body: CGRect(origin: .zero, size: next.capsuleSize))
         reasoningAnimation.configure(next.reasoning, length: track.length,
@@ -143,6 +147,7 @@ struct NativeMokuCharacterPose {
         let active = visible
         if active != wasVisible { lastWall = ProcessInfo.processInfo.systemUptime; wasVisible = active }
         guard active, let anchor = face ?? decorations else {
+            blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
             link?.isPaused = true
             if input?.presentsReasoning != true, retirementPending {
                 retiredGlyphs = []; finishRetirement()
@@ -157,10 +162,41 @@ struct NativeMokuCharacterPose {
         if linkView !== anchor {
             link?.invalidate()
             link = anchor.displayLink(target: self, selector: #selector(displayFrame(_:)))
+            link?.isPaused = true
             linkView = anchor
             link?.add(to: .main, forMode: .common)
         }
-        link?.isPaused = false
+        let now = Date()
+        let blinkStart = Date(timeIntervalSinceReferenceDate:
+            floor(now.timeIntervalSinceReferenceDate / NativeMokuCapsuleBlinkTiming.interval)
+                * NativeMokuCapsuleBlinkTiming.interval)
+        let faceVisible = face?.motionVisible == true
+        let blinking = faceVisible && now < blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.duration)
+        let moving = input?.running == true || isTransitioning
+            || (input?.presentsReasoning == true && reasoningAnimation.needsFrames)
+            || retirementPending || (!replacementGlyphs.isEmpty && clock - replacementAt < 220)
+        if moving || blinking {
+            blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
+            // Sleeping between blinks must not inject its elapsed wall time
+            // into a newly accepted role transition or resumed running clock.
+            if link?.isPaused != false { lastWall = ProcessInfo.processInfo.systemUptime }
+            link?.isPaused = false
+        } else {
+            link?.isPaused = true
+            guard faceVisible else {
+                blinkWake?.cancel(); blinkWake = nil; blinkWakeDate = nil
+                return
+            }
+            let next = blinkStart.addingTimeInterval(NativeMokuCapsuleBlinkTiming.interval)
+            guard blinkWakeDate != next else { return }
+            blinkWake?.cancel(); blinkWakeDate = next
+            blinkWake = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: .seconds(max(0, next.timeIntervalSinceNow))) } catch { return }
+                guard let self, !Task.isCancelled, blinkWakeDate == next else { return }
+                blinkWake = nil; blinkWakeDate = nil
+                visibilityChanged()
+            }
+        }
     }
 
     @objc private func displayFrame(_ displayLink: CADisplayLink) {
@@ -177,6 +213,8 @@ struct NativeMokuCharacterPose {
         if clock - replacementAt >= 220 { replacementGlyphs = [] }
         frameCount += 1
         face?.needsDisplay = true; decorations?.needsDisplay = true
+        // Submit the final open-eye / retired-ink frame before sleeping.
+        visibilityChanged()
     }
 
     private func finishRetirement() {
@@ -203,6 +241,7 @@ struct NativeMokuCharacterPose {
     private func target(at time: Double) -> NativeMokuCharacterPose {
         guard let input else { return .init(values: [:]) }
         let running = input.running
+        if !running, let stationaryTarget { return stationaryTarget }
         let thinking = input.presentsReasoning && input.reasoning != nil
         let story = NativeMokuRunningGeometry.sample(milliseconds: runningElapsed + (running ? time - clock : 0),
             capsuleSize: input.capsuleSize, cornerRadius: input.cornerRadius, still: input.reduceMotion)
@@ -226,6 +265,9 @@ struct NativeMokuCharacterPose {
             result[key + "r"] = color.red; result[key + "g"] = color.green; result[key + "b"] = color.blue
             result[key + "radius"] = running ? 2.5 : 0.4
         }
+        // A non-running target depends on the input and frozen run clock, not
+        // the frame timestamp. Preserve its exact handoff geometry and colors.
+        if !running { stationaryTarget = result }
         return result
     }
 

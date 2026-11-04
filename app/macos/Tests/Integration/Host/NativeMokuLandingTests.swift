@@ -201,12 +201,24 @@ struct NativeMokuLandingTests {
         try await withFixture { fixture in
             try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("b", status: .completed)])
             fixture.mount(fullWorkspace: true)
+            let root = try #require(fixture.window?.contentView)
+            @MainActor func parentView(_ view: NSView) -> NativeReadingParentView? {
+                if let parent = view as? NativeReadingParentView { return parent }
+                return view.subviews.lazy.compactMap { parentView($0) }.first
+            }
+            try await SwiftUIReplay.wait { parentView(root) != nil }
+            let parent = try #require(parentView(root))
+            let parentHost = try #require(parent.subviews.compactMap { $0 as? NSHostingView<AnyView> }.first)
+            let backdrop = try #require(parent.subviews.compactMap { $0 as? NSImageView }.first)
             let state = fixture.presentation.canvas
             try await SwiftUIReplay.wait { state.mountedCardIDs == ["a", "b"] && !state.isLayingOut && !state.camera.isAnimating }
             state.camera.setManualTransform(.init(scale: 1, x: 60, y: 100))
             let camera = state.camera.liveTransform
             fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
             try await SwiftUIReplay.wait { !fixture.overview.presentationActive && !fixture.presentation.messageMotion.active }
+            try await SwiftUIReplay.wait { parentHost.isHidden && backdrop.image != nil && !backdrop.isHidden }
+            let frozenSize = parentHost.bounds.size
+            let frozenImage = backdrop.image
             let retained = fixture.overview.items, solves = state.layoutSolveCount
             for _ in 0..<3 {
                 try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("b", archived: true),
@@ -216,6 +228,8 @@ struct NativeMokuLandingTests {
             try await Task.sleep(for: .milliseconds(150))
             #expect(fixture.overview.items == retained && state.layoutSolveCount == solves)
             #expect(state.mountedCardIDs == ["a", "b"])
+            #expect(parentHost.bounds.size == frozenSize && backdrop.image === frozenImage,
+                    "Hidden mutations and resize must retain one backdrop without laying out the native card tree")
             #expect(fixture.overview.featuredOperation?.id == "hidden" && fixture.overview.featuredOperation?.phase == .running)
             fixture.presentation.showOverview()
             try await SwiftUIReplay.wait {
@@ -224,6 +238,8 @@ struct NativeMokuLandingTests {
                     && fixture.presentation.readingPanelSource == state.displayedFrame(for: "a")
             }
             #expect(fixture.overview.presentationActive && state.camera.manual && state.camera.liveTransform == camera)
+            #expect(!parentHost.isHidden && backdrop.image == nil && parentHost.bounds.size == parent.bounds.size,
+                    "Return preparation must thaw the same native host at the current viewport before travel")
             try await SwiftUIReplay.wait {
                 fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active && state.mountedCardIDs == ["a", "c"]
             }
@@ -398,7 +414,7 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait { fixture.presentation.canvas.allowsActivation(cardID: "child") && fixture.presentation.canvas.displayedFrame(for: "child") != nil }
             try await SwiftUIReplay.wait { fixture.presentation.threadIdentityRegistry.capture("child") != nil }
             let origin = try #require(fixture.presentation.canvas.displayedFrame(for: "child"))
-            let face = try #require(faces(in: root).first)
+            try #require(faces(in: root).count == 1)
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
             #expect(fixture.presentation.readingPanelSource == origin)
             try await SwiftUIReplay.wait {
@@ -460,7 +476,9 @@ struct NativeMokuLandingTests {
             #expect(fixture.scene.dockRouteVisible && !fixture.scene.overviewVisible)
             #expect(!fixture.presentation.canOpenSettings && !fixture.scene.canOpenSettings)
             #expect(fixture.presentation.interactionActions.contains("moku.input.toggle"))
-            #expect(faces(in: root).contains { $0 === face }, "The resident Moku must survive entry into an Agent panel")
+            // Agent input flips the passive eyes into its Harness logo. The
+            // decoration controller stays resident; an invisible eye must not.
+            #expect(faces(in: root).isEmpty, "Agent Harness identity must retire the native eye seat")
             let panel = try #require(readingPanel(in: root))
             let frame = panel.convert(panel.bounds, to: root)
             let expected = NativeReadingPanelGeometry.frame(in: root.bounds.size)
@@ -493,7 +511,7 @@ struct NativeMokuLandingTests {
             #expect(fixture.presentation.readingPanelSource == returnOrigin)
             try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             #expect(fixture.scene.overviewVisible && fixture.scene.dockRouteVisible)
-            #expect(faces(in: root).contains { $0 === face })
+            try await SwiftUIReplay.wait { faces(in: root).count == 1 }
             // Direct result visits have no Overview card prerequisite and retain
             // the same close route while their Harness loads the target.
             fixture.presentation.open(.init(threadID: "child", typeID: "agent"), target: .init(

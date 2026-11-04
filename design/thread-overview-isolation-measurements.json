@@ -1,0 +1,306 @@
+{
+  "machine": "Apple M1 Pro / macOS 26.5.1",
+  "configuration": "debug",
+  "cards": 31,
+  "note": "Candidate performance measurements precede the final heading-handoff capture gate. No FPS claim. Final physical acceptance delegated to user.",
+  "beforeBuild": {
+    "channel": "development",
+    "configuration": "debug",
+    "executableInputSHA256": "de51e839ff547967c73599519eadaca836d15b2693d5d72a69878c464b816ecd",
+    "runtimeInputSHA256": "0e5169d8faec5babd5a8fa95e9a76f020db9a0ce2ed1c558651835752d8b430d"
+  },
+  "candidateBuild": {
+    "channel": "development",
+    "configuration": "debug",
+    "executableInputSHA256": "61c5af938e0bad45c19dcd32156769092af143837b0d94dfded20c1c3659c466",
+    "runtimeInputSHA256": "a9f4b01a60eabbe2be6f57aad1f8f2bb02ff8ee20714b8e8d347a6727a9fe074"
+  },
+  "finalBuild": {
+    "channel": "development",
+    "configuration": "debug",
+    "executableInputSHA256": "4eeddb0ee0d58398f9e8dbe073aed97e077659b915503f1e96519f9edd0f387c",
+    "runtimeInputSHA256": "a9f4b01a60eabbe2be6f57aad1f8f2bb02ff8ee20714b8e8d347a6727a9fe074"
+  },
+  "before": [
+    {
+      "name": "all-overview-idle",
+      "pid": 45362,
+      "wallSeconds": 10.009498541941866,
+      "cpuSeconds": 0.5399999999999991,
+      "averageCPUPercent": 5.394875654732228,
+      "sampler": false,
+      "requests": 0
+    },
+    {
+      "name": "single-tag-overview-idle",
+      "pid": 45362,
+      "wallSeconds": 10.005026458064094,
+      "cpuSeconds": 0.509999999999998,
+      "averageCPUPercent": 5.097437794269258,
+      "sampler": false,
+      "requests": 0
+    },
+    {
+      "name": "all-reading-idle",
+      "pid": 45362,
+      "wallSeconds": 10.009102459065616,
+      "cpuSeconds": 0.5700000000000003,
+      "averageCPUPercent": 5.694816316759053,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 0
+    },
+    {
+      "name": "all-reading-scroll",
+      "pid": 45362,
+      "wallSeconds": 28.482667749980465,
+      "cpuSeconds": 30.200000000000003,
+      "averageCPUPercent": 106.02939396370523,
+      "sampler": false,
+      "requests": 240,
+      "requestMedianMs": 115.47435401007533,
+      "requestP95Ms": 127.64708395116031,
+      "observedScrollRange": [
+        0,
+        1200
+      ],
+      "startTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "endTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "staleRejectionsTotal": 3
+    },
+    {
+      "name": "search-reading-idle",
+      "pid": 45362,
+      "wallSeconds": 10.003239458194003,
+      "cpuSeconds": 0.5499999999999972,
+      "averageCPUPercent": 5.498218874981274,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 3
+    },
+    {
+      "name": "search-reading-scroll",
+      "pid": 45362,
+      "wallSeconds": 27.13987054093741,
+      "cpuSeconds": 29.22,
+      "averageCPUPercent": 107.66447819242524,
+      "sampler": false,
+      "requests": 240,
+      "requestMedianMs": 109.19656208716333,
+      "requestP95Ms": 133.98262485861778,
+      "observedScrollRange": [
+        0,
+        1200
+      ],
+      "startTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "endTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "staleRejectionsTotal": 16
+    }
+  ],
+  "candidate": [
+    {
+      "name": "all-overview-idle",
+      "pid": 52100,
+      "wallSeconds": 10.010049833217636,
+      "cpuSeconds": 0.07000000000000028,
+      "averageCPUPercent": 0.6992972179589984,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 0
+    },
+    {
+      "name": "single-tag-overview-idle",
+      "pid": 52100,
+      "wallSeconds": 10.009614165872335,
+      "cpuSeconds": 0.07000000000000028,
+      "averageCPUPercent": 0.6993276547927739,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 0
+    },
+    {
+      "name": "all-reading-idle",
+      "pid": 52100,
+      "wallSeconds": 10.010142541024834,
+      "cpuSeconds": 0.03999999999999915,
+      "averageCPUPercent": 0.3995947094266249,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 0
+    },
+    {
+      "name": "all-reading-scroll",
+      "pid": 52100,
+      "wallSeconds": 17.623443542048335,
+      "cpuSeconds": 19.34,
+      "averageCPUPercent": 109.74018757376263,
+      "sampler": false,
+      "requests": 240,
+      "requestMedianMs": 70.41137502528727,
+      "requestP95Ms": 83.72370922006667,
+      "observedScrollRange": [
+        0,
+        1200
+      ],
+      "startTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "endTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "staleRejectionsTotal": 6
+    },
+    {
+      "name": "search-reading-idle",
+      "pid": 52100,
+      "wallSeconds": 10.010061417007819,
+      "cpuSeconds": 0.060000000000002274,
+      "averageCPUPercent": 0.599396921761718,
+      "sampler": false,
+      "requests": 0,
+      "staleRejectionsTotal": 6
+    },
+    {
+      "name": "search-reading-scroll",
+      "pid": 52100,
+      "wallSeconds": 15.550317292101681,
+      "cpuSeconds": 17.619999999999997,
+      "averageCPUPercent": 113.30958506518417,
+      "sampler": false,
+      "requests": 240,
+      "requestMedianMs": 61.7893545422703,
+      "requestP95Ms": 77.8884592000395,
+      "observedScrollRange": [
+        0,
+        1200
+      ],
+      "startTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "endTimeline": {
+        "contentOffset": 0,
+        "firstIndex": 0,
+        "following": false,
+        "height": 4841,
+        "insetTop": 0,
+        "locatedRequestId": null,
+        "rowCount": 1,
+        "showLatest": true,
+        "showOlderRows": false,
+        "top": 0,
+        "viewport": 715,
+        "visibleCount": 1,
+        "visibleRowIds": [
+          "turn:e87e7492-0da4-489c-8e6e-082b0c876606"
+        ]
+      },
+      "staleRejectionsTotal": 35
+    }
+  ]
+}

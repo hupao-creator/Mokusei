@@ -27,6 +27,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var focusBlur: Bool
     public var stationaryParent: Bool
     public var panel: Bool
+    public var isolatesParent: Bool
     public var panelSource: CGRect?
     public var panelIdentity: NativeThreadIdentityVisit?
     public var threadPanelMotion: Bool
@@ -57,7 +58,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
-                emphasizedOpening: Bool = false, panel: Bool = false, panelSource: CGRect? = nil,
+                emphasizedOpening: Bool = false, panel: Bool = false, isolatesParent: Bool = false, panelSource: CGRect? = nil,
                 panelIdentity: NativeThreadIdentityVisit? = nil, threadPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
@@ -70,6 +71,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.focusBlur = focusBlur; self.stationaryParent = stationaryParent
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
+        self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.threadPanelMotion = threadPanelMotion
         self.axis = axis
         self.direction = direction
@@ -85,7 +87,15 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             let openingOrClosing = !replacing && motion.active
             let panelBounds = NativeReadingPanelGeometry.frame(in: bounds.size)
             ZStack {
-                parent
+                Group {
+                    if isolatesParent {
+                        // Admit the live heading before caching another native
+                        // host; display caching can flush its pending handoff.
+                        NativeReadingParentSurface(frozen: panel && open && panelContentReady && !motion.active
+                            && panelIdentity?.pending != true,
+                            content: parent)
+                    } else { parent }
+                }
                     .overlay { Color.black.opacity(axis == .horizontal ? 0.14 * progress : 0).allowsHitTesting(false) }
                     .blur(radius: panel ? 5 * progress : axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
                     .offset(x: stationaryParent || axis == .vertical ? 0 : -0.25 * bounds.size.width * progress * direction,

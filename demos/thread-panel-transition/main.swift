@@ -151,7 +151,7 @@ private struct PanelDemo: View {
                 if state.productionMode {
                     NativeReadingPageStack(open: state.selected != nil, identity: JSONText(state.selected?.id ?? "overview"),
                         motion: state.productionMotion, stationaryParent: true, emphasizedOpening: true,
-                        panel: true, panelSource: state.source, panelIdentity: state.identityVisit, threadPanelMotion: true,
+                        panel: true, isolatesParent: true, panelSource: state.source, panelIdentity: state.identityVisit, threadPanelMotion: true,
                         onClose: state.finishProductionClose) {
                         overview
                     } front: {

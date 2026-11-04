@@ -59,7 +59,14 @@ return. Opening/reversal remains immediate. Preparation shares the stack's route
 generation and cancellation ownership; a late completion cannot close a replacement.
 Hosts without these hooks retain the same navigation behavior. Overview uses them
 to coalesce hidden display work while retaining native controls and authoritative
-state reception.
+state reception. Its opt-in `isolatesParent` surface keeps that state in a
+separate native host. Once a panel settles and its live heading owns the identity
+ink, it captures the parent's appearance
+once and hides the live host. Resizing stretches the backdrop without resizing
+the hidden card tree. Return preparation unhides the same host, applies the
+latest environment and viewport, and waits for the existing canvas receipt
+before sampling the destination. Reversal cancels a pending capture; the image
+is released on thaw or teardown. Nested reading stacks keep their existing host.
 
 Panel opening freezes Overview display projection immediately. The panel's
 position, rounded aperture and closing fade run on Core Animation layers in

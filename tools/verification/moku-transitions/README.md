@@ -9,7 +9,10 @@ python3 tools/verification/moku-transitions/run.py --skip-build
 The replay mounts the production `NativeMokuScene` and `NativeMokuDock` in an
 isolated native window. It observes the actual shared display-link controller,
 captures WindowServer pixels, and never calls `draw` or advances a test clock.
-The face must remain the same single native view throughout role changes.
+The face must remain the same single native view throughout ordinary role changes.
+Idle eyes must stop display-link frames between natural blinks and resume at the
+next blink. At the end, entering an Agent Harness identity must remove the face;
+the retained empty decoration seat must stay asleep across a full blink interval.
 
 Cases cover idle → running, interruption during the orbit, running → thinking,
 same-segment text append without exposing reasoning text, full input expansion/collapse, reversals in both

@@ -259,7 +259,10 @@ The presentation gate and prepared return apply to Agent, Report and Git panels.
 Report returns to its document card; Git uses the task card captured at activation.
 All sample their destination only after the refreshed canvas preparation completes.
 
-The outer reading stack pauses Overview presentation only after opening settles.
+The outer reading stack pauses Overview projection when opening begins. Once
+the panel settles, it replaces the background's live drawing with one captured
+appearance and hides its separate native host. Input, tracking and native layout
+therefore do not need to traverse the retained cards for foreground reading.
 Catalog installation, membership/filter context, selection validity and Moku
 operation state continue at each runtime transaction. Hidden transactions coalesce
 the display's keyword filtering, sorting, plugin projections and content installs;
@@ -267,7 +270,8 @@ the mounted canvas also defers layout (including viewport changes). Existing car
 snapshots, native controls, drafts and camera remain retained. Settings, Git
 monitoring, runtime, notifications and Voice keep their existing lifecycles.
 
-Before an animated return, the stack resumes projection and awaits a new canvas
+Before an animated return, the stack unhides the same host at the latest viewport,
+resumes projection and awaits a new canvas
 preparation receipt before sampling the current source frame. Removed/archived
 cards cannot supply that destination. Preparation is cancelled with its route;
 replacement, focus loss, disconnect/recovery and direct returns cannot let an old
