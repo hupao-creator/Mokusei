@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 import MokuseiCore
 
@@ -63,6 +64,43 @@ private struct TimelineGeometry: Equatable {
     // scroll commands in the same coordinate space as their write target.
     var top: CGFloat { contentOffset + insetTop }
     var distance: CGFloat { max(0, height - top - viewport) }
+}
+
+@MainActor @Observable private final class TimelineViewport {
+    var geometry = TimelineGeometry(contentOffset: 0, insetTop: 0, height: 0, viewport: 0)
+}
+
+/// Exact offsets belong to the control observation, not to the document's view
+/// construction. Keep fresh control handles without rebuilding every message
+/// whenever the native viewport moves.
+private struct TimelineInteractionRegistration: View {
+    let viewport: TimelineViewport
+    let label: String
+    let enabled: Bool
+    let following: Bool
+    let locatedRequest: JSONText?
+    let showLatest: Bool
+    let rowCount: Int
+    let firstIndex: Int
+    let visibleRowIds: [JSONText]
+    let showOlderRows: Bool
+    let perform: (String, JSONValue) throws -> Void
+
+    var body: some View {
+        let geometry = viewport.geometry
+        NativeReadingControlRegistration(id: "timeline", descriptor: .object([
+            "kind": .text("scroll"), "role": .text("timeline"), "label": .text(label),
+            "enabled": .bool(enabled), "operations": .array([.text("scrollTo"), .text("scrollBy")]),
+            "value": .object([
+                "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
+                "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
+                "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
+                "locatedRequestId": locatedRequest.map(JSONValue.string) ?? .null, "showLatest": .bool(showLatest),
+                "rowCount": .integer(rowCount), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRowIds.count),
+                "visibleRowIds": .array(visibleRowIds.map(JSONValue.string)), "showOlderRows": .bool(showOlderRows)
+            ])
+        ]), perform: perform)
+    }
 }
 private enum TimelineEdge: Hashable { case top, bottom }
 
@@ -138,7 +176,7 @@ public struct HarnessMessageTimeline: View {
     @State private var showLatest = false
     @State private var userPositioned = false
     @State private var userScrolling = false
-    @State private var geometry = TimelineGeometry(contentOffset: 0, insetTop: 0, height: 0, viewport: 0)
+    @State private var viewport = TimelineViewport()
     @State private var anchors: [JSONText: CGFloat] = [:]
     @State private var focusAnchors: [UUID] = []
     @State private var locatedRequest: JSONText?
@@ -176,8 +214,10 @@ public struct HarnessMessageTimeline: View {
         guard let pinnedRowId, let index = ordered.firstIndex(where: { $0.id == pinnedRowId }), index < firstIndex else { return tail }
         return [ordered[index]] + tail
     }
+    private var geometry: TimelineGeometry { viewport.geometry }
     public var body: some View {
         let _ = TimelineConstructionProfile.record(1, context: performanceOperation)
+        let visible = visibleRows
         ScrollViewReader { proxy in
             let _ = TimelineConstructionProfile.record(2, context: performanceOperation)
             GeometryReader { bounds in
@@ -200,7 +240,7 @@ public struct HarnessMessageTimeline: View {
                         // The bounded outer window is retained as a VStack: lazy rows carry their
                         // own scoped reads, and anchor registration must also work below the fold.
                         VStack(alignment: .leading, spacing: 0) {
-                            ForEach(visibleRows) { row in
+                            ForEach(visible) { row in
                                 row.node.threadReadingAnchor(row.id)
                                     .nativeReadingScope("row." + nativeReadingInteractionKey(row.id))
                             }
@@ -231,7 +271,7 @@ public struct HarnessMessageTimeline: View {
                         height: $0.contentSize.height, viewport: $0.containerSize.height)
                 } action: { old, new in
                     TimelineConstructionProfile.record(5, context: performanceOperation)
-                    geometry = new
+                    viewport.geometry = new
                     reportReading()
                     guard !suspended else { return }
                     if let previous = prependSnapshot, new.height != previous.height {
@@ -318,7 +358,7 @@ public struct HarnessMessageTimeline: View {
                     reportReading()
                 }
                 .onDisappear { previousReadingNavigation?.remove(source: readingSource) }
-                .background(interactionRegistration)
+                .background { interactionRegistration(visible: visible) }
                 .overlay(alignment: .bottom) {
                     if allowsJumpToLatest && followOutput && showLatest && !suspended {
                         Button { jumpToLatest() } label: {
@@ -332,19 +372,10 @@ public struct HarnessMessageTimeline: View {
             }
         }
     }
-    private var interactionRegistration: some View {
-        NativeReadingControlRegistration(id: "timeline", descriptor: .object([
-            "kind": .text("scroll"), "role": .text("timeline"), "label": .text(localize("消息时间线")),
-            "enabled": .bool(!suspended), "operations": .array([.text("scrollTo"), .text("scrollBy")]),
-            "value": .object([
-                "top": .number(Double(geometry.top)), "height": .number(Double(geometry.height)),
-                "contentOffset": .number(Double(geometry.contentOffset)), "insetTop": .number(Double(geometry.insetTop)),
-                "viewport": .number(Double(geometry.viewport)), "following": .bool(following),
-                "locatedRequestId": locatedRequest.map(JSONValue.string) ?? .null, "showLatest": .bool(showLatest),
-                "rowCount": .integer(rows.count), "firstIndex": .integer(firstIndex), "visibleCount": .integer(visibleRows.count),
-                "visibleRowIds": .array(visibleRows.map { .string($0.id) }), "showOlderRows": .bool(showOlderRows)
-            ])
-        ])) { operation, value in
+    private func interactionRegistration(visible: [ThreadTimelineRow]) -> some View {
+        TimelineInteractionRegistration(viewport: viewport, label: localize("消息时间线"), enabled: !suspended,
+            following: following, locatedRequest: locatedRequest, showLatest: showLatest,
+            rowCount: rows.count, firstIndex: firstIndex, visibleRowIds: visible.map(\.id), showOlderRows: showOlderRows) { operation, value in
             guard let amount = value.numberValue, amount.isFinite, abs(amount) <= 10_000_000 else {
                 throw NativeReadingControlError("invalid_request", "Scroll offset must be a finite number within 10000000 points")
             }

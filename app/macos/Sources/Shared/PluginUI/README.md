@@ -275,6 +275,15 @@ Generic execution changes cannot supersede that visit. This does not change
 reading-stack motion or projection/resource ownership.
 
 
+The timeline keeps exact scroll geometry in a view-owned observable reference.
+Only its small reading-control registration reads that geometry during view
+construction. Native offset updates therefore refresh the control descriptor and
+stale-handle fencing without rebuilding the document's row tree. Follow, locate,
+prepend retention and relative scroll commands still read the latest geometry;
+visible-row projection is shared by the document and registration per body pass.
+See the [scroll investigation](../../../../../design/thread-scroll-observation.md)
+for the measured update counts and the remaining validation limits.
+
 Ordinary Agent Thread detail withholds assistant reply bodies while their native
 message status is `streaming`. While an execution is running or waiting for the
 user, each settled message renders its complete Markdown; a later streaming reply does not replace the
