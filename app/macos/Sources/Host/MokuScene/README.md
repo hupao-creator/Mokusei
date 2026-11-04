@@ -39,6 +39,14 @@ Agent composer motion are independent of this migration.
 
 ## Dock and composer
 
+Dock and history composer placeholders stay on one line and truncate at the tail,
+including the Agent-target title. The native draft editor remains multiline.
+The composer layout reserves the face, attachment and action seats before giving
+the remaining width to the editor; long placeholder text cannot displace Stop.
+Dispatch status already uses a single line with tail truncation and retains the
+Dock's separate trailing control inset. This repair is verified by source/layout
+review, Swift parsing and diff checks only; no tests, replays, builds or CI run.
+
 Moku’s Dock (idle, landing, composer, Talk, dispatch and Note), interaction
 panel, dispatch details and history input capsule keep their existing dark
 appearance independently of the system and workspace preference.

@@ -45,6 +45,7 @@ public struct NativeComposerTextInput: View {
     @Binding private var value: String
     private let placeholder: String
     private let placeholderIcon: AnyView?
+    private let placeholderLineLimit: Int?
     private let disabled: Bool
     private let readOnly: Bool
     private let focusEnabled: Bool
@@ -78,6 +79,7 @@ public struct NativeComposerTextInput: View {
     private var unavailable: Bool { disabled || readOnly || !environmentEnabled }
 
     public init(value: Binding<String>, placeholder: String, placeholderIcon: AnyView? = nil,
+                placeholderLineLimit: Int? = nil,
                 disabled: Bool = false, readOnly: Bool = false,
                 focusEnabled: Bool = true, automaticFocus: Bool = true,
                 focusRequestKey: Int = 0, focusContext: String = "", suppressInitialFocus: Bool = false,
@@ -94,6 +96,7 @@ public struct NativeComposerTextInput: View {
                 submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
         _value = value; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
         self.placeholderIcon = placeholderIcon
+        self.placeholderLineLimit = placeholderLineLimit
         self.focusEnabled = focusEnabled
         self.automaticFocus = automaticFocus
         self.focusRequestKey = focusRequestKey; self.focusContext = focusContext
@@ -127,6 +130,7 @@ public struct NativeComposerTextInput: View {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         if let placeholderIcon {
                             placeholderIcon.frame(width: fontSize, height: fontSize)
+                                .fixedSize()
                                 // Vectors have no text baseline; SF Symbols have
                                 // their own. Center either on the first line's caps.
                                 .alignmentGuide(.firstTextBaseline) { dimensions in
@@ -134,10 +138,12 @@ public struct NativeComposerTextInput: View {
                                 }
                         }
                         Text(placeholder).font(.system(size: fontSize))
+                            .lineLimit(placeholderLineLimit).truncationMode(.tail)
                     }
                         .foregroundStyle(Color.primary.opacity(0.85))
                         // Leave the emphasized insertion mark clear of the first placeholder glyph.
                         .padding(.leading, insets.left + 5 + (emphasizedInsertionPoint ? 3 : 0))
+                        .padding(.trailing, placeholderLineLimit == 1 ? insets.right + 5 : 0)
                         .padding(.top, insets.top + spacing / 2)
                         .allowsHitTesting(false).accessibilityHidden(true)
                 }

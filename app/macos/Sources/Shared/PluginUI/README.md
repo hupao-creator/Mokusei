@@ -126,6 +126,9 @@ aligns with the system font's cap-height center on the first placeholder line.
 This replaces provider-dependent vector/SF Symbol baseline defaults, preserves
 each Harness mark's aspect ratio and artwork, and keeps multiline placeholders
 anchored to their first line rather than centering the icon on the whole paragraph.
+Hosts can set `placeholderLineLimit` independently of the multiline draft editor.
+Moku uses one line with tail truncation and trailing editor clearance; the optional
+placeholder icon retains its fixed square seat when the text is compressed.
 
 ## Reading placeholders
 
