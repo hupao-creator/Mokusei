@@ -63,7 +63,9 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 
 Initial Host presentation is a second entrance stage: the main panel must finish
 its actual travel and a folded workspace must commit before a requested Sidecard
-selection becomes visible. The existing 380ms card animation then runs separately.
+selection becomes visible. That same visit-fenced commit releases the resident
+Agent composer's input gate, so its 420ms expansion and the existing 380ms card
+animation start together in stage two. No available card is required for input.
 Plugin selection/execution ownership stays live while presentation waits; retiring
 availability cannot be reopened by the layout completion. Reduced Motion also
 removes the card's transition interaction delay. See the

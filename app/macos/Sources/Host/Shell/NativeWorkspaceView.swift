@@ -21,6 +21,7 @@ public final class NativeWorkspacePresentation {
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
     public private(set) var threadExecutionReveal: SidecardExecutionReveal?
+    public private(set) var readingEntranceAdmitted = false
     @ObservationIgnored private var threadDrafts: [JSONText: NativeComposerDraft] = [:]
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
@@ -78,7 +79,8 @@ public final class NativeWorkspacePresentation {
 
     private func makeScene() -> NativeMokuSceneState {
         let state = NativeMokuSceneState(overviewState: canvas,
-            replyReadFileURL: workspace.client.storageDirectory.appendingPathComponent("native-moku-reply-read.json"))
+            replyReadFileURL: workspace.client.storageDirectory.appendingPathComponent("native-moku-reply-read.json"),
+            readingPanelMotion: messageMotion)
         state.submitNoteExposure = { [weak self] noteID, revision in
             guard let self else { throw CancellationError() }
             return try await NativeMokuNoteExposureSender.submit(workspace: self.workspace,
@@ -328,6 +330,7 @@ public final class NativeWorkspacePresentation {
     }
 
     private func resetNavigation() {
+        readingEntranceAdmitted = false
         threadExecutionReveal = nil
         navigation = nil
         mountedReadingThread = nil
@@ -416,7 +419,22 @@ public final class NativeWorkspacePresentation {
             }
             dockDraft = threadDrafts[thread.id]!
         } else { dockDraft = draft }
-        state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil)
+        state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
+            inputAdmissionReady: selected == nil || readingEntranceAdmitted)
+    }
+
+    fileprivate func admitReadingEntrance(routeID: UUID, reference: ApplicationThreadRef) -> Bool {
+        // The native layout commit can arrive after Close, replacement or release.
+        // Admission belongs to this visit, never just to a matching Thread ID.
+        guard started, !workspace.stopping, navigationRouteID == routeID,
+              selected == reference, !messageMotion.active else { return false }
+        guard !readingEntranceAdmitted else { return true }
+        readingEntranceAdmitted = true
+        configureDockInput(in: scene)
+        if reference.typeID == "agent", !scene.dockCovered, !scene.dockInteractionVisible {
+            scene.setInputOpen(true)
+        }
+        return true
     }
 
     public func sendThread(_ submission: NativeComposerSubmission, to id: JSONText) async throws {
@@ -754,6 +772,11 @@ public struct NativeWorkspaceView: View {
                             onClose: { presentation.closeApplication() }))
                         .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
                         .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
+                        .background {
+                            NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {
+                                _ = presentation.admitReadingEntrance(routeID: routeID, reference: selected)
+                            }
+                        }
                         .id(ApplicationSurfaceIdentity(thread: selected, recovery: model.recoveryRevision))
                         .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
                         .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
@@ -766,7 +789,8 @@ public struct NativeWorkspaceView: View {
                         onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
                         backLabel: model.preferences.locale.text("返回俯瞰", "Back to overview"),
                         onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
-                        executionReveal: presentation.threadExecutionReveal)
+                        executionReveal: presentation.threadExecutionReveal,
+                        onEntranceReady: { presentation.admitReadingEntrance(routeID: routeID, reference: selected) })
                         .environment(\.nativeReadingNavigation, nil)
                         .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
                         .onChange(of: selected) { _, ref in if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = ref } }
@@ -818,6 +842,17 @@ public struct NativeWorkspaceView: View {
             onSetLocale: { try model.updateLocale($0) }, onClose: { _ in presentation.scene.closeSettings() },
             mokuController: presentation.scene.settingsCharacter,
             onCoordinatorFrame: { presentation.scene.setCoordinatorFrame($0, pending: $1) })
+    }
+}
+
+/// Applications have no Agent workspace to commit a folded Sidecard layout.
+/// They release the same input gate after their own initial reading layout.
+private struct NativeWorkspaceApplicationEntrance: View {
+    let admitted: Bool
+    let onReady: () -> Void
+    @Environment(\.nativeReadingEntranceReady) private var primaryReady
+    var body: some View {
+        NativeReadingEntranceStage(enabled: primaryReady && !admitted, onReady: onReady)
     }
 }
 

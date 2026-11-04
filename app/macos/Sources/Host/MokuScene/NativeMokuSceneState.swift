@@ -23,6 +23,11 @@ import MokuseiPluginUI
     private var landingActive = false
     public private(set) var inputOpen = false
     public private(set) var inputPinnedOpen = false
+    public private(set) var inputAdmissionReady = true
+    private let readingPanelMotion: NativeReadingPageMotion?
+    public var inputInteractionReady: Bool {
+        inputAdmissionReady && (!readingPanelVisible || readingPanelMotion?.active != true)
+    }
     public private(set) var inputLeaving = false
     public private(set) var composerGeneration = UUID()
     @ObservationIgnored private var composerIdentity: ObjectIdentifier?
@@ -92,8 +97,10 @@ import MokuseiPluginUI
     @ObservationIgnored private var claimedNoteOpenGeneration = 0
 
     enum Command { case camera(Bool, Bool), settings(Bool), coordinator(CGRect?, Bool), position, visibility, shellScroll, settle }
-    public init(overviewState: NativeOverviewCanvasState = .init(), replyReadFileURL: URL? = nil) {
+    public init(overviewState: NativeOverviewCanvasState = .init(), replyReadFileURL: URL? = nil,
+                readingPanelMotion: NativeReadingPageMotion? = nil) {
         self.overviewState = overviewState
+        self.readingPanelMotion = readingPanelMotion
         self.replyReadFileURL = replyReadFileURL
         let stored = replyReadFileURL.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONValue.parse(data: $0) }?.arrayValue ?? []
@@ -153,8 +160,20 @@ import MokuseiPluginUI
     }
     /// Draft ownership changes synchronously with navigation. Retiring ink and
     /// editor selection must never cross from Moku or one Thread to another.
-    public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false) {
+    public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false,
+                                   inputAdmissionReady: Bool = true) {
         inputPinnedOpen = keepsInputOpen
+        if self.inputAdmissionReady != inputAdmissionReady {
+            self.inputAdmissionReady = inputAdmissionReady
+            if !inputAdmissionReady {
+                // Route entry must retire the previous editor immediately, even
+                // when the same draft is retained. No leaving ink or focus task
+                // may cross the primary entrance into a replacement visit.
+                composerGeneration = UUID()
+                capsuleTask?.cancel(); capsuleTask = nil
+                inputOpen = false; inputLeaving = false; capsuleSealed = false
+            }
+        }
         let identity = ObjectIdentifier(draft)
         guard composerIdentity != identity else { return }
         composerIdentity = identity
@@ -170,6 +189,7 @@ import MokuseiPluginUI
         composerIdentity == nil || composerIdentity == ObjectIdentifier(draft)
     }
     public func setInputOpen(_ open: Bool) {
+        guard !open || inputInteractionReady else { return }
         guard !settingsOpen else { return }
         guard !disabled || !open else { return }
         // Agent detail owns a persistent editor. Covering routes/interventions

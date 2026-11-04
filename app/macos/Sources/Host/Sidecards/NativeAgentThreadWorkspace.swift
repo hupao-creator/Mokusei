@@ -16,6 +16,7 @@ public struct NativeAgentThreadWorkspace: View {
     private let enabledSidecardIDs: Set<JSONText>?
     private let services: NativeSidecardWorkspaceServices
     private let executionReveal: SidecardExecutionReveal?
+    private let onEntranceReady: () -> Bool
     private let onBack: () -> Void
     private let onFollowUpVisibilityChange: (Bool) -> Void
     private let backLabel: String?
@@ -30,7 +31,8 @@ public struct NativeAgentThreadWorkspace: View {
                 enabledSidecardIDs: Set<JSONText>? = nil, services: NativeSidecardWorkspaceServices,
                 onBack: @escaping () -> Void, onFollowUpVisibilityChange: @escaping (Bool) -> Void = { _ in },
                 backLabel: String? = nil, onNavigationChange: ((ThreadDetailBackAction?) -> Void)? = nil,
-                executionReveal: SidecardExecutionReveal? = nil) {
+                executionReveal: SidecardExecutionReveal? = nil,
+                onEntranceReady: @escaping () -> Bool = { true }) {
         self.harnessHost = harnessHost; self.thread = thread; self.registry = registry
         self.executionDisabled = executionDisabled; self.readingTarget = readingTarget
         self.sidecardsSuppressed = sidecardsSuppressed
@@ -38,6 +40,7 @@ public struct NativeAgentThreadWorkspace: View {
         self.onBack = onBack; self.onFollowUpVisibilityChange = onFollowUpVisibilityChange
         self.backLabel = backLabel; self.onNavigationChange = onNavigationChange
         self.executionReveal = executionReveal
+        self.onEntranceReady = onEntranceReady
         _navigation = State(initialValue: ThreadDetailBackAction(label: backLabel ?? "返回俯瞰", onBack: onBack))
     }
 
@@ -49,7 +52,7 @@ public struct NativeAgentThreadWorkspace: View {
                 NativeThreadWorkspaceBody(harnessHost: harnessHost, thread: thread, registry: registry,
                     executionDisabled: executionDisabled, readingTarget: readingTarget,
                     sidecardsSuppressed: sidecardsSuppressed, enabledSidecardIDs: enabledSidecardIDs,
-                    services: services, executionReveal: executionReveal,
+                    services: services, executionReveal: executionReveal, onEntranceReady: onEntranceReady,
                     onBack: onBack, onFollowUpVisibilityChange: onFollowUpVisibilityChange)
                     .environment(\.nativeAgentHasNestedNavigation, nestedNavigation.map { $0.id != navigation.id } ?? false)
                     .id([thread.id, thread.harnessID])
@@ -75,6 +78,7 @@ private struct NativeThreadWorkspaceBody: View {
     let enabledSidecardIDs: Set<JSONText>?
     let services: NativeSidecardWorkspaceServices
     let executionReveal: SidecardExecutionReveal?
+    let onEntranceReady: () -> Bool
     let onBack: () -> Void
     let onFollowUpVisibilityChange: (Bool) -> Void
     @Environment(\.locale) private var locale
@@ -97,7 +101,7 @@ private struct NativeThreadWorkspaceBody: View {
                 NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot)
                     .background {
                         NativeReadingEntranceStage(enabled: primaryEntranceReady && !secondaryStageReady) {
-                            guard self.model === model else { return }
+                            guard self.model === model, onEntranceReady() else { return }
                             secondaryStageReady = true
                         }
                     }
