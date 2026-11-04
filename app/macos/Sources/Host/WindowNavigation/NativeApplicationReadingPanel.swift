@@ -38,9 +38,7 @@ struct NativeApplicationReadingPanel: ViewModifier {
     }
 
     private func panel(_ content: Content) -> some View {
-        content
-            .nativeReadingPanelViewport(topInset: identifier == "report-reading-panel" ? 8 : 48,
-                balancedVerticalInsets: identifier == "report-reading-panel")
+        viewport(content)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(NativePalette.thread.canvas.swiftUI)
             .background(NativeReadingPanelFrame(identifier: identifier))
@@ -51,6 +49,16 @@ struct NativeApplicationReadingPanel: ViewModifier {
             .accessibilityIdentifier(identifier)
             .nativeLayoutLog(layoutRole)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)
+    }
+
+    @ViewBuilder private func viewport(_ content: Content) -> some View {
+        if identifier == "report-reading-panel" {
+            // Clip before padding so the 8pt border follows the outer 22pt curve.
+            content.clipShape(RoundedRectangle(cornerRadius: 14))
+                .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
+        } else {
+            content.nativeReadingPanelViewport()
+        }
     }
 }
 

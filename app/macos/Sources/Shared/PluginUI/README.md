@@ -45,7 +45,8 @@ clearance keeps both scrolling content and native scrollers below Close. The
 main Agent reader instead clears Close horizontally with its reserved history
 rail, allowing 22pt viewport insets at both ends. Report uses 8pt insets on all
 sides and `overlaysContent: true` for an opaque canvas backing under Close.
-The host clips the viewport to the rounded panel. Spacing outside the circle
+The Report host clips the viewport with a 14pt radius before applying its 8pt
+insets, matching the outer panel's 22pt radius. Spacing outside the circle
 is not a close target. The button follows reading-palette light/dark colors,
 hover/press, disabled and increased-contrast states, with a visible keyboard
 focus ring and caller-owned localized help/accessibility labels. Callers keep

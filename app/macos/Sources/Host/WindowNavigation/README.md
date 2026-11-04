@@ -178,9 +178,11 @@ same-authority snapshots.
 
 Report reading cards reserve 8pt on every side of the WebKit viewport. Close
 overlays the upper-left document area with an opaque canvas circle behind its
-32pt target, preserving contrast over authored backgrounds. The panel clips the
-viewport to its rounded surface; the right-hand scrollbar remains unobstructed
-and both scroll limits retain the same 8pt border. This is card chrome, independent
+32pt target, preserving contrast over authored backgrounds. The host clips the
+viewport to a 14pt rounded rectangle before adding the 8pt inset, following the
+outer panel's 22pt curve with an even border. The right-hand scrollbar remains
+inside the clipped viewport, and both scroll limits retain the same 8pt border.
+This is card chrome, independent
 of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
 scroll offset or theme content is rewritten by this viewport adjustment.
 
