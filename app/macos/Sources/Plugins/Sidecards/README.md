@@ -16,8 +16,9 @@ its independent Close returns to Overview.
 The host, execution pane and nested history route SwiftUI Escape through
 `nativeReadingExitCommand`, sharing resident-input priority with native reading
 without replacing focused-child dispatch. Native editors/marked text, menus,
-transient controls and WebKit keep cancellation first; otherwise Escape folds
-open Moku input before folding the selected Sidecard or leaving the Thread.
+transient controls and WebKit keep cancellation first. Foldable resident input
+gets first refusal; pinned Agent-detail input stays expanded, so reading Escape
+retains the selected Sidecard/nested-history close order before leaving the Thread.
 Launcher toggles, browser address/annotation cancellation and non-Escape exit
 commands retain their own routes. Covered/disabled cards cannot close a replacement.
 
@@ -34,11 +35,23 @@ and workspace scaling. The source follows current launcher layout; if a button
 loses availability during return, its last real bounds remain the destination.
 The document stays mounted at panel size rather than stretching its text through
 the launcher. The shell remains visible until the final part of folding.
+Ordinary toggles and card choices admit each reader's destination size once,
+including when retained widths differ. The main reading column's center and
+outer shell animate separately, while its Close stays fixed at the upper-left;
+TextKit and SwiftUI documents no longer receive intermediate widths on every
+fold tick. Line wrapping therefore settles at the start of travel rather than
+continuously reflowing. Only size changes clear inherited animation; subsequent
+reader-owned animation transactions remain intact. Sidecard interpolation owns
+only paint, hit aperture, opacity and the native aperture marker, with travel applied as a rendering
+offset outside the document layout. Execution promotion retains its existing
+live resize, readiness and completion path.
 Reduced Motion and divider dragging settle geometry without travel.
 The existing selected/suppressed gates disable folded, retiring and covered
 cards; native document suppression, resizing, sessions and dismissal callbacks
 keep their ownership. Completion handoff still promotes the retained execution
 reader into the main panel.
+See the [fold performance investigation](../../../../../design/sidecard-fold-performance.md)
+for the original-recording evidence and this repair's sprint validation limits.
 
 The `--thread-send-feedback-native` replay samples mounted native aperture
 frames in the production layout for all three launcher positions, opening and
