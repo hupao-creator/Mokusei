@@ -159,10 +159,14 @@ enum MarkdownParser {
                 return textSpans(collapsedWhitespace(text.string), style: style)
             case let code as InlineCode:
                 style.text = code.code; style.code = true
-                if !style.linkContext, style.link == nil, let url = URL(string: code.code),
-                   ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
-                   url.host != nil, !code.code.contains(where: \.isWhitespace) {
-                    style.link = MarkdownURLPolicy.sanitized(code.code)
+                if !style.linkContext, style.link == nil {
+                    let url = URL(string: code.code)
+                    let web = ["http", "https"].contains(url?.scheme?.lowercased() ?? "")
+                        && url?.host != nil && !code.code.contains(where: \.isWhitespace)
+                    let local = MarkdownURLPolicy.localFileURL(code.code)
+                    if web || local.map({ ["html", "htm"].contains($0.pathExtension.lowercased()) }) == true {
+                        style.link = MarkdownURLPolicy.sanitized(code.code)
+                    }
                 }
                 return [style]
             case is Strong:

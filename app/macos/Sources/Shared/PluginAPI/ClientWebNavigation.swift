@@ -1,8 +1,28 @@
 import Darwin
 import Foundation
 
-/// Identifies loopback addresses when choosing a local page's default URL scheme.
+/// Shared client-side URL syntax for local documents and web navigation.
 public enum ClientWebNavigation {
+    /// Absolute Markdown destinations are paths; file URLs carry URL escapes
+    /// and may also carry a query/fragment. Never infer a filesystem base.
+    public static func localFileURL(_ raw: String) -> URL? {
+        if raw.hasPrefix("/"), !raw.hasPrefix("//") {
+            let path = raw.removingPercentEncoding ?? raw
+            guard !path.hasPrefix("//"), !path.contains("\0") else { return nil }
+            return URL(fileURLWithPath: path)
+        }
+        guard let url = URL(string: raw), url.isFileURL,
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.host == nil || parts.host == "" || parts.host?.lowercased() == "localhost",
+              parts.user == nil, parts.password == nil, parts.port == nil,
+              let path = parts.percentEncodedPath.removingPercentEncoding,
+              path.hasPrefix("/"), !path.hasPrefix("//"), !path.contains("\0") else { return nil }
+        var local = URLComponents(url: URL(fileURLWithPath: path), resolvingAgainstBaseURL: false)
+        local?.percentEncodedQuery = parts.percentEncodedQuery
+        local?.percentEncodedFragment = parts.percentEncodedFragment
+        return local?.url
+    }
+
     public static func isLoopback(_ url: URL) -> Bool {
         guard let raw = url.host else { return false }
         let host = raw.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]."))

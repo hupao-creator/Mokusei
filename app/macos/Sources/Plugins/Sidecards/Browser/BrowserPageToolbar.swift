@@ -73,19 +73,20 @@ struct BrowserPageToolbar<AnnotationControl: View>: View {
 
     private var addressDisplay: some View {
         let parsed = URLComponents(string: address)
+        let local = parsed?.scheme?.lowercased() == "file"
         let host = (parsed?.host ?? address).replacingOccurrences(of: "^www\\.", with: "", options: [.regularExpression, .caseInsensitive]) + (parsed?.port.map { ":\($0)" } ?? "")
         let path = parsed?.percentEncodedPath ?? ""
         let query = parsed?.percentEncodedQuery.map { "?" + $0 } ?? ""
         let hash = parsed?.percentEncodedFragment.map { "#" + $0 } ?? ""
         let suffix = path == "/" && query.isEmpty && hash.isEmpty ? "" : path + query + hash
         return HStack(spacing: 0) {
-            Text(host).foregroundStyle(palette.strongInk).font(NativeTypography.mono(size: 12, weight: 500)).layoutPriority(1)
+            Text(local ? "file://" : host).foregroundStyle(palette.strongInk).font(NativeTypography.mono(size: 12, weight: 500)).layoutPriority(1)
             Text(suffix).foregroundStyle(palette.muted).font(NativeTypography.mono(size: 12))
         }.lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).clipped()
     }
 
     private func submitAddress() {
-        guard let target = BrowserURL.address(addressDraft) else { addressError = "请输入有效的 HTTP 或 HTTPS 网址"; return }
+        guard let target = BrowserURL.address(addressDraft) else { addressError = "请输入有效的 HTTP(S) 网址或本机 HTML 文件路径"; return }
         onOpen(target); addressError = ""; addressFocused = false
     }
     private func tool(_ icon: String, _ label: String, disabled: Bool = false, active: Bool = false, action: @escaping () -> Void) -> some View {

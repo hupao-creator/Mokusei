@@ -120,6 +120,23 @@ link card through `NativeBrowserDocumentCard`. That document-owned surface has
 an ephemeral partition and no SidecardContext, annotation draft, attachment or
 send capability; Agent Sidecards retain their existing annotation behavior.
 
+Agent Thread Markdown links (Codex, Claude, Pi and OpenCode, including current,
+historical/inherited and Conversation execution readers) also route readable
+local `.html`/`.htm` files into Browser. Absolute paths and local file URLs use
+the shared PluginAPI parser; symlinks must resolve to a regular HTML file on a
+local volume. Explicit link/address opening grants WebKit read access to that
+document's directory for adjacent assets, never the filesystem root by default.
+Page/frame/popup navigation can visit HTML only within directories already
+admitted by that session; WebKit retains its own origin/file-access policy.
+Web pages cannot initiate local-file navigation using a past directory grant.
+Queries, fragments, history, reload and HTTP(S) navigation retain the existing
+Browser lifecycle. No page bridge acquires runtime, shell or Thread authority.
+When Browser is unavailable, the existing system-open route validates HTML
+before handing it off; other existing host-file actions retain their behavior.
+Local documents disable annotation because the existing annotation transport
+accepts only HTTP(S) sources. Existing web annotations and pending drafts remain
+available after returning to a web page.
+
 Browser pages and their frames retain their own scrollbar styling. The native
 annotation list and its comment TextEditor use the shared trackless policy on
 their respective viewports; system scrollbar preferences remain in effect.

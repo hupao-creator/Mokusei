@@ -357,6 +357,15 @@ the gutter from the visible height and clips the last row. Overlay scrollbars
 reserve no space; preference changes update this reservation. Row wrapping,
 app zoom and adjacent block spacing continue to use intrinsic content layout.
 
+Absolute local HTML destinations and local `file:` HTML URLs retain the same
+native link action throughout paragraphs, headings, lists, quotes, table cells,
+reference links and footnotes. Inline code containing one such destination is
+clickable like an inline-code HTTP(S) URL, including paths with spaces. Ordinary
+unlinked filesystem text and fenced code remain literal. File URL queries and
+fragments survive rendering; absolute paths treat `?` and `#` as filename bytes
+(use a file URL for navigation suffixes). The shared PluginAPI parser decodes
+path escapes once; the Browser/Host validates filesystem eligibility on opening.
+
 Markdown source preprocessing preserves code characters and recognizes footnotes
 before entity decoding; escaped syntax stays literal. Labels containing whitespace remain ordinary reference links rather than footnotes. [Reading/NativeMarkdownSourceMap.swift](Reading/NativeMarkdownSourceMap.swift) records each physical line's content start as bundled cmark consumes its quote/list prefix. Inline positions map through the retained raw block lines after reference definitions are removed, so lazy continuations, Setext, tabs and multiline literals share one source mapping rather than fixed column adjustments. BOM removal and NUL replacement retain physical byte provenance for every input line, including nodes without paragraph traces. Table cells also map their whitespace trimming and escaped pipes back through those input coordinates; a read-only parser hook observes each row’s actual container prefix without changing the AST. Paragraph-to-table promotion retains the complete original trace for both header cells and the synthesized preceding paragraph. Bare-URL rewrites stay within the original cell, preserve destination escapes until cmark decodes them, and escape generated pipe syntax so later cells cannot be swallowed. The mapper directly declares the already-bundled cmark 0.9.0 and isolates access to its exposed parser/block state; a cmark upgrade must rerun the source-range matrices and native Markdown replay. Parser cache keys, stored SwiftUI inputs (including message and code-block wrappers), document revisions and rendered text comparisons preserve raw UTF-8 identity, so canonically equivalent Unicode sources cannot substitute URL or copy bytes. Footnote labels use Unicode
 case folding and opaque URL-safe destination identities, including literal percent

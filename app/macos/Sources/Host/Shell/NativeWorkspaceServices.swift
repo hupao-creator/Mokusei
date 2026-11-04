@@ -234,7 +234,19 @@ public final class NativeWorkspaceServices {
         let locale = workspace?.preferences.locale ?? .english
         guard JSONText(text.string) == text, let url = URL(string: text.string) else { throw PluginContractError(locale.text("无效的链接", "Invalid link")) }
         if url.isFileURL {
-            guard NSWorkspace.shared.open(url) else { throw PluginContractError(locale.text("无法打开文件", "Could not open the file")) }
+            guard let local = ClientWebNavigation.localFileURL(text.string) else {
+                throw PluginContractError(locale.text("无效的链接", "Invalid link"))
+            }
+            let target: URL
+            if ["html", "htm"].contains(local.pathExtension.lowercased()) {
+                // A disabled Browser Sidecard must not turn a rejected HTML
+                // symlink or special file into an unrestricted system open.
+                guard let document = ClientLocalHTMLDocument(local.absoluteString) else {
+                    throw PluginContractError(locale.text("无法打开文件", "Could not open the file"))
+                }
+                target = document.url
+            } else { target = local }
+            guard NSWorkspace.shared.open(target) else { throw PluginContractError(locale.text("无法打开文件", "Could not open the file")) }
             return
         }
         if url.scheme?.lowercased() == "mailto" {
