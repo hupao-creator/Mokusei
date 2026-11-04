@@ -34,7 +34,7 @@ AppKit frame/bounds observation and coalesced, budgeted discovery with semantic
 SwiftUI geometry hooks in shared
 readers, timeline columns/documents, composers and scroll containers. It does not
 sample animation presentation frames or read content/accessibility values.
-Individual timeline rows have no global geometry hook. IO failure stops collection
+Overview also records bounded, anonymous logical relayout transactions (before, plan and terminal outcome), separate from geometry callbacks. Per-transaction card indices never contain model IDs or hashes. Individual timeline rows have no global geometry hook. IO failure stops collection
 and restores native observation flags without remounting focused product controls.
 
 Thread, Report, Git and Moku history panels share

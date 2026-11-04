@@ -61,11 +61,12 @@ print(json.dumps(rows, indent=2))
 
 by_name = {row['scenario']: row for row in rows}
 assert by_name['three-900']['visibleFill'][1] >= by_name['three-900']['visibleFill'][0] - 1e-9
-assert by_name['delete-center']['screenMax'][1] < 1
+assert by_name['delete-center']['screenMoved'][1] > 0
 assert by_name['six-to-seven']['fullCards'][1] == 7
 assert by_name['six-to-seven']['screenMax'][1] <= 188.01
-assert by_name['six-repeat']['steps'][1] == 0
-assert by_name['six-reversed']['steps'][1] == 0
+for name in ['six-repeat', 'six-reversed']:
+    assert by_name[name]['screenMoved'][1] == 0
+    assert by_name[name]['steps'][1] <= 2_000_000
 for name in ['fresh-16', 'fresh-30', 'fresh-100', 'fresh-500']:
     assert by_name[name]['visibleFill'][1] >= by_name[name]['visibleFill'][0] - 1e-9
 latencies = {}
@@ -102,7 +103,8 @@ assert (second_fresh['bounds']['columns'], second_fresh['bounds']['rows']) == (3
 assert len(second_fresh['placements']) == 8
 assert sum(p['member']['columns'] * p['member']['rows'] for p in second_fresh['placements']) == 9
 second_repeat = regressions['second-screenshot-repeat']
-assert cells(second_repeat) == second_expected and second_repeat['work']['steps'] == 0
+assert cells(second_repeat) == second_expected and second_repeat['topologyValidated']
+assert second_repeat['work']['steps'] <= 2_000_000
 second_budget = regressions['second-screenshot-budget']
 assert (second_budget['bounds']['columns'], second_budget['bounds']['rows']) == (3, 3)
 assert second_budget['work']['steps'] == 200 and not second_budget['searchComplete']
@@ -115,11 +117,15 @@ for name, wide_id in [('delete-wide-and-edge', '10-g'), ('shrink-wide', 'g'), ('
     assert not result['requiresRepack'], name
 for name, original in [('delete-repeat', 'delete-wide-and-edge'), ('shrink-repeat', 'shrink-wide')]:
     assert cells(regressions[name]) == cells(regressions[original]), name
-    assert regressions[name]['work']['steps'] == 0, name
-for name in ['history-expand', 'necessary-wide-vacancy', 'necessary-center-vacancy', 'center-refill']:
+    assert regressions[name]['topologyValidated'], name
+    assert regressions[name]['work']['steps'] <= 2_000_000, name
+for name in ['history-expand', 'necessary-wide-vacancy']:
     assert regressions[name]['shiftedIDs'] == [], name
-for name in ['necessary-wide-vacancy', 'necessary-center-vacancy']:
-    assert regressions[name]['work']['steps'] == 0, name
+assert regressions['necessary-wide-vacancy']['topologyValidated']
+center = regressions['necessary-center-vacancy']
+assert center['topologyValidated'] and center['shiftedIDs']
+assert any(p['column'] == 1 and p['row'] == 1 for p in center['placements'])
+assert regressions['center-refill']['topologyValidated']
 assert cells(regressions['screenshot-offset'])['g'] == (8, 13, 2, 1)
 assert regressions['screenshot-offset']['shiftedIDs'] == ['g']
 assert cells(regressions['screenshot-transposed'])['g'] == (2, 1, 1, 2)
@@ -131,7 +137,8 @@ assert regressions['capacity-recovery']['bounds']['columns'] == 3
 assert regressions['capacity-recovery']['bounds']['rows'] == 3
 square = regressions['necessary-square-vacancy']
 assert square['bounds']['columns'] == square['bounds']['rows'] == 4
-assert square['shiftedIDs'] == [] and square['work']['steps'] < 100
+assert square['shiftedIDs'] == [] and square['topologyValidated']
+assert square['work']['steps'] <= 2_000_000
 exhausted = regressions['probe-budget-exhausted']
 assert not exhausted['searchComplete'] and exhausted['work']['steps'] == 1
 assert exhausted['shiftedIDs'] == [] and not exhausted['requiresRepack']

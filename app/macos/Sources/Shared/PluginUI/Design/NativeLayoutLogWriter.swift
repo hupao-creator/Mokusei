@@ -32,6 +32,7 @@ struct NativeLayoutRecord: Encodable, Sendable {
     var flipped: Bool? = nil
     var before: NativeLayoutGeometry? = nil
     var after: NativeLayoutGeometry? = nil
+    var relayout: NativeLayoutRelayoutSnapshot? = nil
 }
 
 /// A separate diagnostic stream: performance aggregation cannot retain before/after

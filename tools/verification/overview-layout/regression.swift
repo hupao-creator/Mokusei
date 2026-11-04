@@ -142,7 +142,8 @@ try run("no-viewport-compact", previous: screenshot, next: shrunkMembers, fittin
 try run("probe-budget-exhausted", previous: screenshot, next: shrunkMembers, budget: 1)
 try run("compact-budget-exhausted", previous: screenshot, next: shrunkMembers, budget: 200)
 
-// A deleted center is necessary vacancy: neither 2×3 nor 3×2 can hold eight cells.
+// The old policy kept this enclosed vacancy because no whole row/column could
+// disappear. Topology repair must now move a survivor even at 8/9 occupancy.
 let nine = (0..<9).map { placement("n\($0)", 1, 1, $0 % 3, $0 / 3) }
 let center = try run("necessary-center-vacancy", previous: nine, next: nine.filter { $0.id != "n4" }.map(\.member))
 try run("center-refill", previous: center.placements, next: nine.map(\.member))

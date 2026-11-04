@@ -51,7 +51,7 @@ public final class NativeOverviewCanvasState {
     @ObservationIgnored public fileprivate(set) var sceneSnapshotCount = 0
     /// Mounted integration replays verify content invalidation without timing the UI.
     @ObservationIgnored public fileprivate(set) var bodyEvaluationCount = 0
-    /// Geometric fallbacks actually presented after the straight-move budget ran out.
+    /// Transparent repacks for uncertified motion or interrupted presentations.
     @ObservationIgnored public fileprivate(set) var repackCount = 0
     @ObservationIgnored public fileprivate(set) var layoutSolveCount = 0
     @ObservationIgnored public fileprivate(set) var geometryReuseCount = 0
@@ -204,6 +204,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
     @State private var mountedSelection: String?
     @State private var contentRect = NativeOverviewContentRect(left: 0, top: 0, width: 0, height: 0)
     @State private var plannedViewport: NativeOverviewViewport?
+    // Cache completed assessments, including bounded-search fallbacks. Reusing
+    // an unassessed retained layout would permanently bypass topology repair;
+    // retrying the same incomplete outcome on every render would cause churn.
+    @State private var assessedPlacements: [NativeOverviewPlacement]?
     @State private var retry = 0
     @State private var ownership = UUID()
     @State private var layoutToken = UUID()
@@ -319,7 +323,16 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             .onChange(of: ObjectIdentifier(contentStore)) { _, _ in attach(viewport) }
             .onChange(of: visible) { _, value in state.visible = value; state.camera.setVisible(value) }
-            .onChange(of: spatialMotionReduced) { _, value in state.camera.reduceMotion = value }
+            .onChange(of: spatialMotionReduced) { _, value in
+                state.camera.reduceMotion = value
+                if value, state.hostOwner == ownership {
+                    // Retire the animated owner and drain its unacknowledged
+                    // revisions through the immediate path under a new token.
+                    worker?.cancel(); worker = nil; workerEpoch = UUID(); pendingWork.removeAll()
+                    cardMotions.removeAll()
+                    enqueue(viewport)
+                }
+            }
             .onChange(of: viewport) { _, _ in attach(viewport) }
              .onChange(of: interactionPaused) { _, value in
                 state.externalInteractionPaused = value
@@ -510,11 +523,47 @@ public struct NativeOverviewCanvas<Content: View>: View {
             (mountedScene != sceneKey && (mountedSelection == nil || selectionID == nil))
         let displayed = state.presentedPlacements
         let members = next.map(\.member)
+        let diagnostic = NativeLayoutDiagnostics.beginRelayout()
+        var diagnosticIndices = [String: Int]()
+        var diagnosticAfter = displayed
+        var diagnosticOutcome = NativeLayoutRelayoutSnapshot.Phase.failed
+        var diagnosticStrategy: NativeLayoutRelayoutSnapshot.Strategy?
+        func record(_ phase: NativeLayoutRelayoutSnapshot.Phase, placements: [NativeOverviewPlacement],
+                    plan: NativeOverviewLayoutResult? = nil) {
+            guard let diagnostic else { return }
+            // Only aliases actually emitted are retained: at most 256 before
+            // plus 256 target cards, released with this transaction.
+            let cards = placements.prefix(256).map { placement in
+                let index = diagnosticIndices[placement.id] ?? diagnosticIndices.count
+                diagnosticIndices[placement.id] = index
+                return NativeLayoutRelayoutCard(index: index, column: placement.column, row: placement.row,
+                                                columns: placement.columns, rows: placement.rows)
+            }
+            let recorded = Set(placements.prefix(256).map(\.id))
+            let batches = plan.map { plan in
+                plan.moveBatches.prefix(256).map { batch in
+                    batch.filter { recorded.contains($0) }.compactMap { diagnosticIndices[$0] }
+                }
+            }
+            NativeLayoutDiagnostics.recordRelayout(diagnostic, snapshot: .init(phase: phase, cards: cards,
+                totalCards: placements.count, viewport: CGSize(width: viewport.width, height: viewport.height),
+                strategy: diagnosticStrategy, searchComplete: plan?.searchComplete, topologyValidated: plan?.topologyValidated,
+                searchSteps: plan?.work.steps, moveBatches: batches, totalMoveBatches: plan?.moveBatches.count))
+        }
+        record(.began, placements: displayed)
+        defer {
+            // Local snapshots describe this transaction's last submitted logical
+            // state. A cancelled owner must never log a newer owner's scene.
+            let outcome: NativeLayoutRelayoutSnapshot.Phase = Task.isCancelled || state.hostOwner != ownership
+                ? .cancelled : diagnosticOutcome
+            record(outcome, placements: diagnosticAfter)
+        }
         // Placements publish before their transition completes. A recovery can
         // cancel that owner, leaving transparent entrants or retiring snapshots;
         // those presentations must finish through the normal recovery path.
         if mountedScene == sceneKey, !replaceScene, state.layoutError == nil,
            cardMotions.isEmpty, cardPoses.isEmpty, outgoingPlacements.isEmpty, retiringPresentationIDs.isEmpty,
+           assessedPlacements == displayed,
            displayed.count == members.count, Set(displayed.map(\.member)) == Set(members),
            plannedViewport == viewport || NativeOverviewCameraGeometry.fitsAtReadingScale(contentRect, viewport: viewport) {
             // Internal slot/content revisions still retire their snapshots and
@@ -524,6 +573,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
             state.geometryReuseCount += 1
             plannedViewport = viewport
             state.camera.requestRefit(content: contentRect, viewport: viewport)
+            diagnosticStrategy = .reuse
+            diagnosticOutcome = .completed
             return
         }
         let nextIDs = Set(next.map(\.id))
@@ -578,8 +629,17 @@ public struct NativeOverviewCanvas<Content: View>: View {
         let oldCamera = state.camera.liveTransform
         let oldPlacements = displayed + outgoingPlacements
         let oldPoses = Dictionary(oldPlacements.map { ($0.id, livePose($0, at: now)) }, uniquingKeysWith: { first, _ in first })
+        // The solver certifies paths from logical placements, not interruption
+        // samples. Recovery from a partially submitted transition must retire
+        // the visible presentation before moving to a new logical layout.
+        let presentationRecovery = !outgoingPlacements.isEmpty || displayed.contains {
+            oldPoses[$0.id] != OverviewCardPose(frame: $0.cardFrame)
+        }
         let oldIDs = Set(displayed.map(\.id))
         let oldRecords = rendered.map(\.item)
+        diagnosticStrategy = !animated ? .immediate : replaceScene ? .filter
+            : (plan.requiresRepack || presentationRecovery) ? .repack : .ordered
+        record(.planned, placements: plan.placements, plan: plan)
         let box = plan.bounds
         contentRect = .init(left: Double(box.column) * 376, top: Double(box.row) * 216, width: box.width, height: box.height)
         mountedScene = sceneKey; mountedSelection = selectionID
@@ -601,6 +661,7 @@ public struct NativeOverviewCanvas<Content: View>: View {
         }
         let camera = state.camera.liveTransform
         state.presentedPlacements = plan.placements
+        diagnosticAfter = plan.placements
         retain()
         if !animated {
             cardPoses = Dictionary(plan.placements.map { ($0.id, OverviewCardPose(frame: $0.cardFrame)) }, uniquingKeysWith: { _, last in last })
@@ -632,9 +693,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
             let startedAt = ProcessInfo.processInfo.systemUptime
             for id in Array(cardMotions.keys) { cardMotions[id]?.start = startedAt }
             try await waitForMotion(0.39)
-        } else if plan.requiresRepack {
+        } else if plan.requiresRepack || presentationRecovery {
             state.repackCount += 1
-            // A bounded motion search can fail even when every card fits.
+            // A bounded motion search can fail even when every card fits;
+            // interruption samples also invalidate logical-origin certificates.
             // Keep mounted identities, retire their visible presentation, then
             // relocate while transparent so no unproven path crosses a card.
             for placement in plan.placements where !oldIDs.contains(placement.id) {
@@ -659,8 +721,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             try await waitForMotion(0.23)
         } else {
-            // Preserve the original collision-free beat order. New cards stay
-            // transparent until all shrink/move/grow beats ahead of them finish.
+            // Preserve shrink/move/grow barriers and all serial dependencies.
+            // New cards stay transparent until every survivor reaches its target.
             for placement in plan.placements where !oldIDs.contains(placement.id) {
                 cardPoses[placement.id] = .init(frame: placement.cardFrame, opacity: 0)
             }
@@ -674,20 +736,27 @@ public struct NativeOverviewCanvas<Content: View>: View {
             outgoingPlacements.removeAll()
             prepareCamera(next, initial: initial, replaceScene: false, viewport: viewport)
             let targets = Dictionary(plan.placements.map { ($0.id, $0.cardFrame) }, uniquingKeysWith: { _, last in last })
-            for placement in plan.placements where oldIDs.contains(placement.id) {
-                guard let from = cardPoses[placement.id], let target = targets[placement.id] else { continue }
+            let shrinking = plan.placements.compactMap { placement -> (String, CGRect)? in
+                guard oldIDs.contains(placement.id), let from = cardPoses[placement.id],
+                      let target = targets[placement.id] else { return nil }
                 let size = CGSize(width: min(from.frame.width, target.width), height: min(from.frame.height, target.height))
-                try await resizeCard(placement.id, to: CGRect(origin: from.frame.origin, size: size))
+                return (placement.id, CGRect(origin: from.frame.origin, size: size))
             }
-            for id in plan.moveOrder {
-                guard let from = cardPoses[id], let target = targets[id] else { continue }
-                try await resizeCard(id, to: CGRect(origin: target.origin, size: from.frame.size))
+            // Shrinking stays within disjoint old frames; growing stays within
+            // disjoint final frames. Both phases can share one clock and wait.
+            try await resizeCards(shrinking)
+            for batch in plan.moveBatches {
+                let moves = batch.compactMap { id -> (String, CGRect)? in
+                    guard let from = cardPoses[id], let target = targets[id] else { return nil }
+                    return (id, CGRect(origin: target.origin, size: from.frame.size))
+                }
+                try await resizeCards(moves)
             }
+            try await resizeCards(plan.placements.filter { oldIDs.contains($0.id) }.map { ($0.id, $0.cardFrame) })
             for placement in plan.placements {
                 let target = OverviewCardPose(frame: placement.cardFrame)
-                if oldIDs.contains(placement.id) {
-                    try await resizeCard(placement.id, to: target.frame)
-                } else if instantEntryIDs.contains(placement.id) {
+                if oldIDs.contains(placement.id) { continue }
+                if instantEntryIDs.contains(placement.id) {
                     cardPoses[placement.id] = target
                 } else {
                     setMotion(placement.id, from: target.transformed(scale: 1, dy: 8, opacity: 0), to: target,
@@ -710,6 +779,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
                                   preserveFraming: preserveFraming,
                                   preserveReadingPosition: !replaceScene && !initial && sameViewport
                                       && nextIDs.isSubset(of: oldIDs) && plan.shiftedIDs.isEmpty)
+        assessedPlacements = plan.placements
+        diagnosticOutcome = .completed
     }
 
     private func currentContentItem(_ item: NativeOverviewItem) -> NativeOverviewItem {
@@ -747,11 +818,19 @@ public struct NativeOverviewCanvas<Content: View>: View {
         try Task.checkCancellation()
         guard state.hostOwner == ownership else { throw CancellationError() }
     }
-    private func resizeCard(_ id: String, to frame: CGRect) async throws {
-        guard let from = cardPoses[id], from != OverviewCardPose(frame: frame) else { return }
-        setMotion(id, from: from, to: .init(frame: frame), duration: 0.26, curve: .layout, layoutSize: nil)
+    private func resizeCards(_ targets: [(String, CGRect)]) async throws {
+        try Task.checkCancellation()
+        guard state.hostOwner == ownership else { throw CancellationError() }
+        let start = ProcessInfo.processInfo.systemUptime
+        var moving = [String]()
+        for (id, frame) in targets {
+            guard let from = cardPoses[id], from != OverviewCardPose(frame: frame) else { continue }
+            setMotion(id, from: from, to: .init(frame: frame), duration: 0.26, curve: .layout, layoutSize: nil, start: start)
+            moving.append(id)
+        }
+        guard !moving.isEmpty else { return }
         try await waitForMotion(0.26)
-        finishMotion(id)
+        for id in moving { finishMotion(id) }
     }
 }
 

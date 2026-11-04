@@ -47,4 +47,19 @@ Cases include the research's 900×750 three-card fill, nine-card center deletion
 
 Scope: bounded necessary empty space and zero-survivor-movement insertion/growth are preferred. A preserved envelope also needs to resist a proven reduction by one row or column; occupancy alone cannot establish that. Conflicting growth still uses the existing planner; there is no new local collision-component solver, rank-based spatial ordering, resize hysteresis, FIFO replacement, or virtualization. The 75% grid occupancy threshold remains a conservative policy bound, not a measured optimum. No third-party implementation was copied; the existing research's preserve-position/free-slot ideas are implemented directly in Swift.
 
+The current topology contract additionally requires edge-connected occupied cells
+and no enclosed vacancy before preserving a readable history. A center deletion
+now repairs the cavity even when no whole row/column can disappear; existing
+center-deletion assertions reflect this change. Healthy edge vacancies remain
+eligible for preservation. Quality assessment consumes the shared budget, so
+stable solver replays certify zero travel and bounded work rather than zero
+search steps. Canvas separately caches completed assessments. Existing fixed-
+budget scenarios remain in place; their current outcomes have not been measured
+in this sprint. Earlier evidence/metrics above describe their recorded revisions.
+
+This sprint adds no cases and runs no regressions, native replays or tests.
+Validation is limited to source review, Swift syntax/type checks as supported by
+the affected file boundaries, Python syntax and changed documentation links.
+Rendered batch concurrency, cancellation and Reduce Motion remain unexercised.
+
 Reduce Motion is exercised through an isolated host override of the production motion policy (the OS accessibility environment is read-only) in native capacity tests. Explicit retirement hides outgoing/transparent semantic nodes. These assertions do not constitute a VoiceOver speech/focus audit, physical input test, or optical animation/frame-rate measurement.

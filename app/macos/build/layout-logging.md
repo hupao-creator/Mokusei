@@ -138,6 +138,50 @@ scope. SwiftUI IDs are not mapped to AppKit view/window IDs. Locate components
 using role/source, parent scope and geometry; convert coordinates before comparing
 different hosting roots.
 
+## Overview relayout transactions
+
+New `kind: "relayout"` / `source: "overview.transaction"` events use
+`role: "overview.relayout"` and a random `r-<UUID>` component for one `present`
+transaction. They complement geometry events; they are not presentation samples
+and are not mapped to SwiftUI/AppKit component IDs. Group by component, then sort
+by sequence. No stable scene, filter, model ID, hash, title or content is recorded.
+
+The `relayout` payload contains:
+
+- `phase`: `began` captures the logical before state; `planned` captures the
+  solver target; `completed` captures the submitted final logical state.
+  `cancelled`/`failed` terminate an incomplete transaction and capture only that
+  transaction's last submitted logical state. A cancelled target can already be
+  published while pixels are still in flight; it is not a settled after image.
+  Reuse has began/completed without a solver plan. A stopped/failed writer can
+  lose any phase; a missing terminal event never implies completion.
+- `cards`: `{index, column, row, columns, rows}` in the Overview world grid.
+  An index identifies a card only within this transaction. A card missing from
+  one side can be an entrant/exit or a truncated record. There is no cross-
+  transaction identity map. Convert grid origins using pitches 376×216 points;
+  pixel sizes are `columns * 376 - 16` and `rows * 216 - 16`.
+- `totalCards` and `viewport`: total logical membership and `[width, height]`
+  in viewport points. Each snapshot records at most 256 cards. When
+  `totalCards > cards.length`, it is incomplete; never infer absent membership
+  from a truncated array. Camera transforms and optical frames are not recorded.
+- `strategy`: `reuse`, `immediate`, `filter`, `ordered` or `repack`. Planned
+  ordered moves include `moveBatches` of numeric card indices, restricted to
+  recorded target cards and the first 256 batches. `totalMoveBatches` exposes
+  batch truncation. Empty entries can represent entirely omitted cards.
+  These are solver-certified batches, executed only by the ordered strategy;
+  filter/repack/immediate strategies do not consume them.
+- Plans include `searchComplete`, `topologyValidated` and `searchSteps`.
+  Incomplete search may still produce legal geometry; false topology validation
+  means a quality repair was not certified. It does not certify a repaired hole.
+  Optional batch certification can fall back to singleton batches independently
+  of the geometry-search completion flag.
+
+The token is scoped to its recording session: stop/restart cannot attach an old
+terminal snapshot to a new recording. Existing dev-channel admission, mailbox,
+rotation, permissions and data-loss reporting also apply to these events. They
+only explain newly recorded transactions. Earlier geometry-only logs cannot
+reliably reconstruct a user's old relayout case.
+
 ## Coverage and limits
 
 Discovery walks all current `NSApplication.windows`, including exposed native

@@ -47,12 +47,18 @@ public struct NativeOverviewLayoutResult: Equatable, Codable, Sendable {
     public let placements: [NativeOverviewPlacement]
     public let bounds: NativeOverviewBounds
     public let moveOrder: [String]
+    /// Contiguous partitions of moveOrder with disjoint swept pixel envelopes.
+    /// Empty on repack; budget exhaustion falls back to singleton batches.
+    public fileprivate(set) var moveBatches: [[String]] = []
     public let shiftedIDs: [String]
     public let totalShiftDistance: Double
     public fileprivate(set) var searchComplete: Bool
     /// Geometry is legal, but the bounded search could not certify a sequence
     /// of single straight moves. Retire the old presentation before relocating.
     public fileprivate(set) var requiresRepack = false
+    /// False means a legal geometric fallback has not passed the bounded
+    /// edge-connectivity and enclosed-vacancy checks, not that it is invalid.
+    public fileprivate(set) var topologyValidated = false
     /// Only a zero-travel result certifies the mathematical distance optimum.
     public let distanceOptimal: Bool
     public let aspect: Double?
@@ -278,6 +284,29 @@ private func layoutHoles(_ placements: [Placement], tick: Tick) throws -> [Cell]
     return holes
 }
 
+/// Cards belong to one grid component only when they share an edge of positive
+/// length. Corner contact and the decorative pixel gutters do not connect them.
+private func layoutConnected(_ placements: [Placement], tick: Tick) throws -> Bool {
+    guard !placements.isEmpty else { return true }
+    var remaining = Set(placements.indices.dropFirst()), queue = [0], index = 0
+    while index < queue.count {
+        if remaining.isEmpty { return true }
+        let a = placements[queue[index]]
+        for other in placements.indices {
+            try tick()
+            guard remaining.contains(other) else { continue }
+            let b = placements[other]
+            let horizontal = (a.column + a.columns == b.column || b.column + b.columns == a.column)
+                && max(a.row, b.row) < min(a.row + a.rows, b.row + b.rows)
+            let vertical = (a.row + a.rows == b.row || b.row + b.rows == a.row)
+                && max(a.column, b.column) < min(a.column + a.columns, b.column + b.columns)
+            if horizontal || vertical { remaining.remove(other); queue.append(other) }
+        }
+        index += 1
+    }
+    return remaining.isEmpty
+}
+
 /// Enclosed-hole detection alone permits ragged edges and separated corner gaps.
 /// Compare the occupied perimeter and vacancy regions *inside* the bounds with
 /// natural packing. Connecting vacancies through the exterior would hide them.
@@ -333,6 +362,17 @@ private struct PixelRect {
         y = Double(placement.row) * pitchY
         width = Double(columns) * NativeOverviewLayout.columnWidth + Double(columns - 1) * NativeOverviewLayout.gap
         height = Double(rows) * NativeOverviewLayout.rowHeight + Double(rows - 1) * NativeOverviewLayout.gap
+    }
+
+    init(sweeping from: PixelRect, to: PixelRect) {
+        x = min(from.x, to.x); y = min(from.y, to.y)
+        width = abs(to.x - from.x) + from.width
+        height = abs(to.y - from.y) + from.height
+    }
+
+    func overlaps(_ other: PixelRect) -> Bool {
+        x < other.x + other.width && other.x < x + width
+            && y < other.y + other.height && other.y < y + height
     }
 }
 
@@ -412,6 +452,32 @@ private func planStraightMoves(_ previous: [Placement], _ next: [Placement], tic
         edges.removeValue(forKey: ready)
     }
     return StraightMovePlan(moveOrder: order)
+}
+
+/// Preserve every dependency of the certified serial order by grouping only
+/// consecutive moves. Disjoint swept bounding boxes prove independence for ALL
+/// progress pairs, even if renderer ticks/start times differ between cards.
+private func batchStraightMoves(_ previous: [Placement], _ next: [Placement], order: [String], tick: Tick) throws -> [[String]] {
+    let old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+    let targets = Dictionary(uniqueKeysWithValues: next.map { ($0.id, $0) })
+    var batches = [[String]](), batch = [String](), envelopes = [PixelRect]()
+    for id in order {
+        try tick()
+        let before = old[id]!, after = targets[id]!
+        let columns = min(before.columns, after.columns), rows = min(before.rows, after.rows)
+        let from = PixelRect(before, columns: columns, rows: rows)
+        let to = PixelRect(after, columns: columns, rows: rows)
+        let envelope = PixelRect(sweeping: from, to: to)
+        var conflict = false
+        for other in envelopes {
+            try tick()
+            if envelope.overlaps(other) { conflict = true; break }
+        }
+        if conflict { batches.append(batch); batch = []; envelopes = [] }
+        batch.append(id); envelopes.append(envelope)
+    }
+    if !batch.isEmpty { batches.append(batch) }
+    return batches
 }
 
 private func packBox(fixed: [Placement], free: [Member], box: SearchBox, tick: Tick) throws -> [Placement]? {
@@ -590,7 +656,8 @@ private func unitAssignmentRepairs(previous: [Placement], fixed: [Placement], as
         return branches
     }
     let contour = try layoutContour(all, tick: tick)
-    if !contour.fits(contourLimits) {
+    let connected = try layoutConnected(all, tick: tick)
+    if !connected || !contour.fits(contourLimits) {
         // Any different occupancy must fill at least one current vacancy. Each
         // branch forbids every dummy row from taking that cell, while leaving
         // the real-member assignment free to minimize travel and avoid collisions.
@@ -675,11 +742,20 @@ private final class OverviewPackingSolver {
     }
 
     private func accept(_ placed: [Placement], tick: Tick) throws {
+        guard try layoutConnected(placed, tick: tick) else { return }
         guard try layoutHoles(placed, tick: tick).isEmpty else { return }
         guard try layoutContour(placed, tick: tick).fits(contourLimits) else { return }
+        var geometry = try summarize(placed, old: old)
+        geometry.topologyValidated = true
+        // Retain a quality-certified witness before attempting motion. Running
+        // out of motion-search budget must not restore the hole we just repaired.
+        if geometricFallback?.topologyValidated != true || geometry.totalShiftDistance < geometricFallback!.totalShiftDistance {
+            geometricFallback = geometry
+        }
         let plan = try planStraightMoves(previous, placed, tick: tick)
         guard plan.conflictIDs == nil else { return }
-        let result = try summarize(placed, old: old, moveOrder: plan.moveOrder)
+        var result = try summarize(placed, old: old, moveOrder: plan.moveOrder)
+        result.topologyValidated = true
         if work.firstFeasibleStep == nil { work.firstFeasibleStep = work.steps }
         if best == nil || result.totalShiftDistance < best!.totalShiftDistance {
             best = result
@@ -697,28 +773,40 @@ private final class OverviewPackingSolver {
             }
         }
         old = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
-        do { return try search() }
+        var result: Result
+        do { result = try search() }
         catch NativeOverviewLayoutError.searchLimit {
-            if let best { return finish(best, searchComplete: false) }
-            if var fallback = geometricFallback {
+            if let best { result = finish(best, searchComplete: false) }
+            else if var fallback = geometricFallback {
                 fallback.requiresRepack = !previous.isEmpty
-                return finish(fallback, searchComplete: false)
-            }
-            throw NativeOverviewLayoutError.searchLimit
+                result = finish(fallback, searchComplete: false)
+            } else { throw NativeOverviewLayoutError.searchLimit }
         }
+        try Task.checkCancellation()
+        if !result.requiresRepack {
+            // Batching is optional and shares the solver's hard work budget.
+            // Never publish a partially certified batch after exhaustion.
+            do { result.moveBatches = try batchStraightMoves(previous, result.placements, order: result.moveOrder, tick: tick) }
+            catch NativeOverviewLayoutError.searchLimit { result.moveBatches = result.moveOrder.map { [$0] } }
+        }
+        result.work = work
+        return result
     }
 
     private func search() throws -> Result {
         let members = next.sorted { idPrecedes($0.id, $1.id) }
-        if members.isEmpty { return finish(try summarize([], old: old)) }
+        if members.isEmpty {
+            var result = try summarize([], old: old)
+            result.topologyValidated = true
+            return finish(result)
+        }
         let free = members.sorted {
             let a = $0.columns * $0.rows, b = $1.columns * $1.rows
             return a == b ? idPrecedes($0.id, $1.id) : a > b
         }
-        // A readable, reasonably occupied history is more valuable than a
-        // cosmetic contour repair. Keep every survivor fixed unless packing
-        // proves an entire row or column is avoidable. Conflicting growth still
-        // uses the existing planner and its collision-certified move order.
+        // Stable history must also be edge-connected and free of enclosed grid
+        // vacancies. Otherwise even a 75%-occupied irreducible box can strand a
+        // card or keep a deleted center forever.
         if preservePositions, let fittingSize, !previous.isEmpty {
             var placed = members.compactMap { member in
                 old[member.id].map { Placement(member: member, column: $0.column, row: $0.row) }
@@ -753,30 +841,37 @@ private final class OverviewPackingSolver {
                     guard let slot else { break }
                     placed.append(slot)
                 }
-                let result = try summarize(placed, old: old)
+                var result = try summarize(placed, old: old)
                 let area = Double(members.reduce(0) { $0 + $1.columns * $1.rows })
                 if placed.count == members.count,
                    result.bounds.width <= fittingSize.width + 1e-6,
                    result.bounds.height <= fittingSize.height + 1e-6,
                    area >= Double(result.bounds.columns) * Double(result.bounds.rows) * 0.75 {
-                    // Occupancy alone can keep a wide card stranded below a
-                    // vacancy after deletion or shrink. Only reject history
-                    // when a smaller envelope is actually packable; necessary
-                    // vacancies (such as a deleted center cell) stay stable.
+                    // Keep a legal readable witness if quality assessment or
+                    // repair exhausts the shared budget. A completed transaction
+                    // may reuse that outcome; it must not repeatedly reshuffle.
+                    geometricFallback = result
                     var dominated = false
                     do {
-                        for size in [Cell(column: result.bounds.columns - 1, row: result.bounds.rows),
-                                     Cell(column: result.bounds.columns, row: result.bounds.rows - 1)] {
-                            guard size.column > 0, size.row > 0,
-                                  area <= Double(size.column) * Double(size.row) else { continue }
-                            if let compact = try packBox(fixed: [], free: free,
-                                box: SearchBox(column: result.bounds.column, row: result.bounds.row,
-                                               columns: size.column, rows: size.row), tick: tick) {
-                                // Preserve this readable witness if subsequent
-                                // shape/move optimization exhausts the budget.
-                                geometricFallback = try summarize(compact, old: old)
-                                dominated = true
-                                break
+                        result.topologyValidated = try layoutConnected(placed, tick: tick)
+                            && layoutHoles(placed, tick: tick).isEmpty
+                        geometricFallback = result
+                        // Invalid topology goes through compact planning even
+                        // when no whole row/column can be eliminated.
+                        if result.topologyValidated {
+                            for size in [Cell(column: result.bounds.columns - 1, row: result.bounds.rows),
+                                         Cell(column: result.bounds.columns, row: result.bounds.rows - 1)] {
+                                guard size.column > 0, size.row > 0,
+                                      area <= Double(size.column) * Double(size.row) else { continue }
+                                if let compact = try packBox(fixed: [], free: free,
+                                    box: SearchBox(column: result.bounds.column, row: result.bounds.row,
+                                                   columns: size.column, rows: size.row), tick: tick) {
+                                    // Preserve this readable witness if subsequent
+                                    // shape/move optimization exhausts the budget.
+                                    geometricFallback = try summarize(compact, old: old)
+                                    dominated = true
+                                    break
+                                }
                             }
                         }
                     } catch NativeOverviewLayoutError.searchLimit {
@@ -784,7 +879,7 @@ private final class OverviewPackingSolver {
                         // zero-travel candidate is still a legal readable fit.
                         return finish(result, searchComplete: false)
                     }
-                    if !dominated { return finish(result) }
+                    if result.topologyValidated, !dominated { return finish(result) }
                 }
             }
         }

@@ -226,7 +226,7 @@ struct NativeOverviewCapacityTests {
     }
 
     @Test(arguments: [false, true])
-    func structuralContentReusesGeometryAndDeletionKeepsScreenAnchors(reduceMotion: Bool) async throws {
+    func structuralContentReusesGeometryAndDeletionRepairsCenterVacancy(reduceMotion: Bool) async throws {
         let fixture = CapacityFixture()
         fixture.reduceMotion = reduceMotion
         fixture.items = (0..<9).map { .init(id: "card-\($0)") }
@@ -235,7 +235,6 @@ struct NativeOverviewCapacityTests {
         try await settle(fixture, in: window)
         let placements = fixture.state.presentedPlacements
         let center = try #require(placements.first { $0.column == 1 && $0.row == 1 })
-        let frames = fixture.frames
         let solves = fixture.state.layoutSolveCount
         for revision in 0..<10 {
             fixture.items[0].structureKey = "internal-\(revision)"
@@ -246,16 +245,14 @@ struct NativeOverviewCapacityTests {
         #expect(fixture.state.geometryReuseCount > 0)
         fixture.items.removeAll { $0.id == center.id }
         try await settle(fixture, in: window)
-        #expect(fixture.state.presentedPlacements == placements.filter { $0.id != center.id })
-        for item in fixture.items {
-            let before = try #require(frames[item.id])
-            let after = try #require(fixture.frames[item.id])
-            #expect(hypot(before.minX - after.minX, before.minY - after.minY) < 1)
-        }
+        let repaired = fixture.state.presentedPlacements
+        #expect(Set(repaired.map(\.id)) == Set(fixture.items.map(\.id)))
+        #expect(repaired != placements.filter { $0.id != center.id })
+        #expect(repaired.contains { $0.column == center.column && $0.row == center.row },
+                "Deletion must release the enclosed center vacancy rather than freeze all survivors")
         fixture.items.append(.init(id: "new"))
         try await settle(fixture, in: window)
-        let inserted = try #require(fixture.state.presentedPlacements.first { $0.id == "new" })
-        #expect(inserted.column == center.column && inserted.row == center.row)
+        #expect(Set(fixture.state.presentedPlacements.map(\.id)) == Set(fixture.items.map(\.id)))
         #expect(fixture.state.camera.reduceMotion == reduceMotion)
         try expectWholeCollection(fixture, in: window)
     }
