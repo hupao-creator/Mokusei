@@ -14,7 +14,7 @@ import (
 //go:embed instructions.txt
 var instructions string
 
-const overviewRequest = "Read current overview context with read_overview_context and combine it with current task evidence to make reasonable filter selections when useful; keeping the current selection is valid. No connected overview is normal, so continue classification if none is available."
+const overviewRequest = "Read current overview context with read_overview_context and use it as read-only evidence alongside the current task to classify threads. No connected overview is normal, so continue classification if none is available."
 
 type Plugin struct{}
 
@@ -85,8 +85,7 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 				}
 				return writes.Execute(callCtx, operation, plugin.BackgroundWriteOptions{RequestID: options.RequestID, Batch: *options.Batch})
 			}
-			selection := NewOverviewSelection(overview, lifetime, ctx.Owner.Binding.Scope)
-			return append(mutationTools(lifetime, execute), selection.Bindings()...)
+			return append(mutationTools(lifetime, execute), overviewContextTool(overview, lifetime, ctx.Owner.Binding.Scope))
 		},
 	})
 	return runner, err

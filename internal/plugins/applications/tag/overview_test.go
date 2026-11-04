@@ -38,8 +38,8 @@ func TestOverviewAllViewRetainsScopedEvidence(t *testing.T) {
 			native := &overviewFixture{clients: []plugin.OverviewClientSnapshot{client, other}}
 			tools := overviewTools(t, native)
 			observation := readOverview(t, tools)
-			if observation.ObservationID != "" || observation.SelectedTag != nil {
-				t.Fatalf("All view gained selection authority: %+v", observation)
+			if observation.SelectedTag != nil {
+				t.Fatalf("All view selection changed: %+v", observation)
 			}
 			wantFilters := []plugin.OverviewFilter{
 				{Tag: "Alpha", Scope: "workspace-alpha", Kind: "directory", Aliases: []string{}, Count: 1, Threads: []model.ThreadRef{own}},
@@ -62,65 +62,9 @@ func TestOverviewAllViewRetainsScopedEvidence(t *testing.T) {
 	}
 }
 
-func TestOverviewSelectionAuthorityIsScopeQualified(t *testing.T) {
-	for _, test := range []struct {
-		name, selectedTag, selectedScope string
-		canSelect                        bool
-	}{
-		{"local semantic filter", "Shared", "workspace-alpha", true},
-		{"local directory filter", "Alpha", "workspace-alpha", true},
-		{"same tag in another scope", "Shared", "workspace-beta", false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			client := overviewClient()
-			client.SelectedTag, client.SelectedScope = &test.selectedTag, &test.selectedScope
-			native := &overviewFixture{clients: []plugin.OverviewClientSnapshot{client}}
-			tools := overviewTools(t, native)
-			observation := readOverview(t, tools)
-			if (observation.ObservationID != "") != test.canSelect {
-				t.Fatalf("selection authority for %s/%s = %q", test.selectedScope, test.selectedTag, observation.ObservationID)
-			}
-			if test.canSelect {
-				selectOverview(t, tools, observation.ObservationID, "Shared", "applied")
-				assertOverviewSelections(t, native, []plugin.OverviewFilterSelection{{
-					ClientID: "desktop-alpha", ContextID: "context-alpha", Revision: 7,
-					Scope: "workspace-alpha", Tag: stringPointer("Shared"),
-				}})
-			}
-		})
-	}
-}
-
-func TestOverviewSelectionRejectsNonSemanticScopeTargets(t *testing.T) {
-	for _, target := range []string{"Alpha", "Beta only"} {
-		t.Run(target, func(t *testing.T) {
-			native := &overviewFixture{clients: []plugin.OverviewClientSnapshot{overviewClient()}}
-			tools := overviewTools(t, native)
-			observation := readOverview(t, tools)
-			selectOverview(t, tools, observation.ObservationID, target, "stale")
-			// Even a rejected target consumes the observed decision. It must not
-			// become a reusable handle for trying other filters on the desktop.
-			selectOverview(t, tools, observation.ObservationID, "Shared", "stale")
-			assertOverviewSelections(t, native, nil)
-
-			observation = readOverview(t, tools)
-			selectOverview(t, tools, observation.ObservationID, "Shared", "applied")
-			selectOverview(t, tools, observation.ObservationID, nil, "stale")
-			observation = readOverview(t, tools)
-			selectOverview(t, tools, observation.ObservationID, nil, "applied")
-			assertOverviewSelections(t, native, []plugin.OverviewFilterSelection{
-				{ClientID: "desktop-alpha", ContextID: "context-alpha", Revision: 7, Scope: "workspace-alpha", Tag: stringPointer("Shared")},
-				{ClientID: "desktop-alpha", ContextID: "context-alpha", Revision: 7},
-			})
-		})
-	}
-}
-
-// The fixture supplies external desktop state and records native requests. All
-// evidence filtering, opaque authority and target validation run in production.
+// The fixture supplies external desktop state; evidence filtering runs in production.
 type overviewFixture struct {
-	clients    []plugin.OverviewClientSnapshot
-	selections []plugin.OverviewFilterSelection
+	clients []plugin.OverviewClientSnapshot
 }
 
 func (f *overviewFixture) ReadClients(context.Context) ([]plugin.OverviewClientSnapshot, error) {
@@ -131,11 +75,6 @@ func (f *overviewFixture) ReadClients(context.Context) ([]plugin.OverviewClientS
 	var clients []plugin.OverviewClientSnapshot
 	err = json.Unmarshal(raw, &clients)
 	return clients, err
-}
-
-func (f *overviewFixture) SelectFilter(_ context.Context, selection plugin.OverviewFilterSelection) (plugin.OverviewFilterResult, error) {
-	f.selections = append(f.selections, selection)
-	return plugin.OverviewFilterResult{Status: "applied"}, nil
 }
 
 func overviewClient() plugin.OverviewClientSnapshot {
@@ -155,7 +94,7 @@ func overviewClient() plugin.OverviewClientSnapshot {
 
 func overviewTools(t *testing.T, native plugin.OverviewControl) map[string]plugin.ToolBinding {
 	t.Helper()
-	bindings := NewOverviewSelection(native, t.Context(), "workspace-alpha").Bindings()
+	bindings := []plugin.ToolBinding{overviewContextTool(native, t.Context(), "workspace-alpha")}
 	tools := map[string]plugin.ToolBinding{}
 	for _, binding := range bindings {
 		tools[binding.Name] = binding
@@ -165,7 +104,6 @@ func overviewTools(t *testing.T, native plugin.OverviewControl) map[string]plugi
 
 type overviewObservation struct {
 	plugin.OverviewClientContext
-	ObservationID string `json:"observationId"`
 }
 
 func readOverview(t *testing.T, tools map[string]plugin.ToolBinding) overviewObservation {
@@ -191,18 +129,6 @@ func readOverview(t *testing.T, tools map[string]plugin.ToolBinding) overviewObs
 	return observations[0]
 }
 
-func selectOverview(t *testing.T, tools map[string]plugin.ToolBinding, id string, target any, wantStatus string) {
-	t.Helper()
-	raw := executeOverview(t, tools, "select_tag_filter", map[string]any{"observationId": id, "tag": target})
-	var result struct{ Status string }
-	if err := json.Unmarshal(raw, &result); err != nil {
-		t.Fatal(err)
-	}
-	if result.Status != wantStatus {
-		t.Fatalf("select %v: status = %q; want %q", target, result.Status, wantStatus)
-	}
-}
-
 func executeOverview(t *testing.T, tools map[string]plugin.ToolBinding, name string, args map[string]any) json.RawMessage {
 	t.Helper()
 	tool, ok := tools[name]
@@ -220,34 +146,16 @@ func executeOverview(t *testing.T, tools map[string]plugin.ToolBinding, name str
 	return result
 }
 
-func assertOverviewSelections(t *testing.T, native *overviewFixture, want []plugin.OverviewFilterSelection) {
-	t.Helper()
-	if !reflect.DeepEqual(native.selections, want) {
-		t.Fatalf("native selections = %+v; want %+v", native.selections, want)
-	}
-}
-
 func stringPointer(value string) *string { return &value }
 
-func TestOverviewRetiredToolsCannotReadOrWrite(t *testing.T) {
+func TestOverviewRetiredToolsCannotRead(t *testing.T) {
 	lifetime, cancel := context.WithCancel(t.Context())
 	native := &overviewFixture{clients: []plugin.OverviewClientSnapshot{overviewClient()}}
-	tools := NewOverviewSelection(native, lifetime, "workspace-alpha").Bindings()
+	tools := []plugin.ToolBinding{overviewContextTool(native, lifetime, "workspace-alpha")}
 	cancel()
 	for _, tool := range tools {
 		if _, err := tool.Execute(t.Context(), plugin.ToolCall{Arguments: json.RawMessage(`{}`)}); err == nil {
 			t.Fatalf("retired %s retained authority", tool.Name)
 		}
-	}
-	if len(native.selections) != 0 {
-		t.Fatal("retired authority selected a filter")
-	}
-}
-func TestOverviewRejectsUnobservedSelection(t *testing.T) {
-	native := &overviewFixture{clients: []plugin.OverviewClientSnapshot{overviewClient()}}
-	tools := overviewTools(t, native)
-	selectOverview(t, tools, "invented-observation", "Shared", "stale")
-	if len(native.selections) != 0 {
-		t.Fatal("unobserved selection reached client")
 	}
 }

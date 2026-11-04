@@ -58,6 +58,8 @@ Boolean input; `BackgroundExecutionEnabled` treats omitted values as enabled, an
 admission. A disabled execution binding does not disable its application reader
 or remove retained settings and history.
 
+The Overview capability exposes only `ReadClients` for background classification evidence; it grants no filter-selection authority.
+
 ## Other plugin categories
 
 - [Application host](../../hosts/applicationhost/README.md): records, transactions, projections and background participants, declared in [application.go](application.go) and [capabilities.go](capabilities.go).

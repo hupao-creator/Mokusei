@@ -2,7 +2,7 @@
 
 [plugin.go](plugin.go) registers a per-directory Tag Agent. Each scope, including Inbox, owns a pool of at most **five** semantic tags. The agent classifies eligible ordinary threads, including archived threads, into exactly one tag from that pool. Runtime capability bindings enforce scope; the agent cannot assign another directory's threads or mutate directory labels.
 
-The agent observes accepted input and completed/failed/interrupted execution facts, plus its scoped inventory events. It uses the shared background runner with lazy initialization and idle disposal. Configuration follows Moku or an independent profile. [overview.go](overview.go) sends scoped selection requests through the host's Overview capability.
+The agent observes accepted input and completed/failed/interrupted execution facts, plus its scoped inventory events. It uses the shared background runner with lazy initialization and idle disposal. Configuration follows Moku or an independent profile. [overview.go](overview.go) exposes only `read_overview_context` through the host's read-only Overview capability. It retains scoped filters, member thread references and recent user actions as classification evidence, without exposing client identity, context revisions or selection handles. The Tag Agent cannot select filters; users continue to select them manually in Overview.
 
 Saved configuration applies at the next batch configuration boundary. Active
 batch steering retains its admitted profile. A save during native discovery
