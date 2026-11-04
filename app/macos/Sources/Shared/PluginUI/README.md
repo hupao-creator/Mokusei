@@ -76,9 +76,12 @@ would shorten and clip the Overview canvas below the full-content window's top.
 Panel opening freezes Overview display projection immediately. The panel's
 position, rounded aperture and closing fade run on Core Animation layers in
 [NativeReadingPanelTransition](Conversation/NativeReadingPanelTransition.swift),
-with the reading view kept unmounted until the opening completes. Projection,
-Markdown delivery and TextKit work therefore cannot consume panel animation
-ticks. The retained reader has one stable native hosting view after admission;
+with ordinary Agent card readers preloading only after the native animation-start
+callback. Their host stays transparent, hit testing and accessibility stay closed,
+and reading controls are not registered until arrival. Primary Markdown and
+TextKit preparation therefore overlap compositor-owned travel without advancing
+text entrance or secondary surfaces. Source-less and non-Agent entries retain
+their existing mounting gate. The retained reader has one stable native hosting view after admission;
 its environment comes from the enclosing SwiftUI surface and its layout width
 stays at the destination width throughout return travel. Reversal samples native
 presentation layers, and generation-fenced completion cannot admit or close a
@@ -1002,8 +1005,9 @@ Panel chrome can use `nativeReadingEscape` alongside HTML: the native fallback
 leaves a WebKit responder to its trusted DOM handler and respects inherited
 disabled state, native sheets and visible child windows.
 
-Thread opening now starts data-only prefetch outside the deferred front, while
-the native panel and reader admission keep their existing timing. Codex reuses
+Thread opening starts data-only prefetch outside the deferred front. Ordinary
+Agent card entries then preload the primary reader after native animation-start
+delivery, while drawing and secondary admission wait for arrival. Codex reuses
 successfully admitted immutable state by complete opaque input, with a bounded
 actor cache; new input cannot select an older revision. Read-only Markdown
 TextKit views disable Writing Tools while retaining native selection, copy and
@@ -1025,13 +1029,17 @@ recenters the entire column normally; it does not start another identity flight.
 Do not lock the reading origin to the panel's left edge to prevent this reflow:
 that breaks wide-window composition. Loading and loaded headings use the same
 layout at a given viewport size.
-Harness documents and sidecard bodies remain deferred. The compositor animates
+The primary Harness reader may preload after native travel begins; sidecard
+bodies remain deferred until arrival. The compositor animates
 native title/emoji ink to that measured destination with the panel's own curve
 and duration. The flight rasterizes the same SwiftUI heading leaves at their
 measured destination size and in the reader's environment. This preserves native
 font fallback, glyph baselines, tracking and two-line truncation at handoff;
 matching layout anchors alone does not align `CATextLayer` ink with SwiftUI `Text`.
-Loaded content only takes ownership at that position; there is no
+Opening waits for both native heading anchors, coalesces their publication, then
+resolves the current native layout before freezing their actual geometry; it does
+not use a trailing 48ms debounce. The panel's real completion and visible host,
+not an independent duration timer, admit the title handoff. Loaded content only takes ownership at that position; there is no
 post-opening title animation or data-loading timeout. The bridge never retains
 card/reader/plugin instances; replacement, close and reduced motion retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
@@ -1084,3 +1092,11 @@ visit, that placeholder builds `NativeThreadOpeningContent`, itself a conversati
 causing recursive mounting before the initial `onChange` can run. The outer
 surface retains title/emoji loading presentation; the internal admission gate
 remains a leaf. The production thread-panel fixture above exercises this path.
+
+Panel diagnostics use existing `reading.prepare` and `reading.transition` spans
+with `panel: 1` and `closing: 0/1`. Preparation covers native configuration through
+animation installation; transition covers installation through delegate completion.
+`reading.prepare` events with `anchorsReady: 1` and `layoutReady: 1` separate
+anchor publication from native layout resolution and subsequent ink construction.
+A `reading.transition` event with `started: 1` marks the native start callback.
+These are process observations, not display-frame timestamps.

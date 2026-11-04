@@ -386,6 +386,25 @@ private struct PanelDemo: View {
             throw DemoFailure(message: "Production text entrance failed: texts=\(texts.count), lines=\(texts.first?.threadReveal?.animatedLineCount ?? -1), protected=\(String(describing: texts.first?.threadReveal?.initialDrawingProtected)), direction=\(String(describing: texts.first?.threadReveal?.bottomUp)), footer=\(String(describing: texts.first?.threadReveal?.footerVisible)), blocked=\(texts.filter(\.awaitsLineReveal).count), masks=\(texts.filter { $0.layer?.mask != nil }.count)")
         }
     }
+    private func verifyPreloadedText(_ window: NSWindow, before deadline: ContinuousClock.Instant) async throws {
+        while ContinuousClock.now < deadline {
+            var texts: [MarkdownTextView] = []
+            func collect(_ view: NSView) {
+                if let text = view as? MarkdownTextView, text.threadReveal != nil, !text.string.isEmpty { texts.append(text) }
+                view.subviews.forEach(collect)
+            }
+            if let root = window.contentView { collect(root) }
+            if !texts.isEmpty {
+                guard state.productionMotion.active, state.identityVisit?.openingFinished == false,
+                      texts.allSatisfy({ $0.awaitsLineReveal && $0.threadReveal?.animatedLineCount == 0 }) else {
+                    throw DemoFailure(message: "Ready text must preload during travel without consuming its entrance")
+                }
+                return
+            }
+            try await Task.sleep(for: .milliseconds(8))
+        }
+        throw DemoFailure(message: "Ready text did not preload before panel arrival")
+    }
     func verifyProduction(_ window: NSWindow) async {
         do {
             try await Task.sleep(for: .seconds(2))
@@ -433,9 +452,11 @@ private struct PanelDemo: View {
             // next visit below rather than infer duration from screenshot cost.
             try await Task.sleep(for: .seconds(1))
             guard state.selected == nil else { throw DemoFailure(message: "Production close did not retire") }
+            let openingDeadline = ContinuousClock.now.advanced(by: .milliseconds(650))
             state.open(state.threads[1])
             state.loaded = true
-            try await Task.sleep(for: .milliseconds(650))
+            try await verifyPreloadedText(window, before: openingDeadline)
+            try await Task.sleep(until: openingDeadline, clock: .continuous)
             guard state.identityVisit?.openingFinished == true else {
                 throw DemoFailure(message: "Existing content delayed identity travel")
             }

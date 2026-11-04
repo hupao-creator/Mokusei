@@ -1,0 +1,100 @@
+{
+  "date": "2026-11-04",
+  "configuration": "debug",
+  "metric": "Process timestamps, not frame presentation or FPS",
+  "runs": {
+    "baseline": {
+      "observations": [
+        {
+          "readerCreatedMs": 693.906,
+          "markdownReadyMs": 831.371
+        },
+        {
+          "readerCreatedMs": 611.948,
+          "markdownReadyMs": 753.461
+        },
+        {
+          "readerCreatedMs": 631.044,
+          "markdownReadyMs": 766.144
+        }
+      ],
+      "log": "native-1793786811660-35430-3F501BEA-5A5B-40AA-B20F-86ECA55CF280.jsonl",
+      "build": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "cf293c5f1d97d98686a914bfd9a77f4791c9be3c3280e924d4279766ea49bade",
+        "runtimeInputSHA256": "55e5ea281c602c4bde920c8cc2db568a07fda7c8e36c62fd0cf4c82677b6883b"
+      }
+    },
+    "final": {
+      "observations": [
+        {
+          "anchorsReadyMs": 84.45,
+          "layoutReadyMs": 93.758,
+          "animationInstalledMs": 95.611,
+          "animationStartedMs": 108.172,
+          "readerCreatedMs": 122.798,
+          "animationCompletedMs": 527.173,
+          "markdownReadyMs": 560.817
+        },
+        {
+          "anchorsReadyMs": 164.047,
+          "layoutReadyMs": 164.262,
+          "animationInstalledMs": 165.911,
+          "animationStartedMs": 181.362,
+          "readerCreatedMs": 201.734,
+          "markdownReadyMs": 541.667,
+          "animationCompletedMs": 600.507
+        },
+        {
+          "anchorsReadyMs": 202.679,
+          "layoutReadyMs": 202.954,
+          "animationInstalledMs": 204.774,
+          "animationStartedMs": 214.339,
+          "readerCreatedMs": 229.87,
+          "markdownReadyMs": 438.315,
+          "animationCompletedMs": 632.511
+        }
+      ],
+      "log": "native-1793787512117-40977-0A525592-F979-470A-A4A9-612ABCB5A5DE.jsonl",
+      "build": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "b50f10a7a19ba4a3c79725ab81d807230d009eee19ad9103e0a78dad22ece4f9",
+        "runtimeInputSHA256": "d7effaf8a293aeeaa409c29fd984322764a42c5b9f8c6637a4292badfac04916"
+      }
+    },
+    "earlier_phase_probe": {
+      "observations": [
+        {
+          "animationInstalledMs": 439.348,
+          "animationStartedMs": 452.182,
+          "readerCreatedMs": 475.651,
+          "markdownReadyMs": 614.533,
+          "animationCompletedMs": 871.295
+        },
+        {
+          "animationInstalledMs": 88.056,
+          "animationStartedMs": 103.624,
+          "readerCreatedMs": 125.214,
+          "markdownReadyMs": 285.075,
+          "animationCompletedMs": 522.3
+        },
+        {
+          "animationInstalledMs": 439.451,
+          "animationStartedMs": 454.593,
+          "readerCreatedMs": 474.883,
+          "markdownReadyMs": 598.976,
+          "animationCompletedMs": 873.187
+        }
+      ],
+      "log": "native-1793787333436-39765-9B0E722E-6B56-4CF7-9EEB-A8843A73C725.jsonl",
+      "build": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "4909ba086e636d29c1e9416796d98022983d589cda937d9679dbd5e000a80497",
+        "runtimeInputSHA256": "d7effaf8a293aeeaa409c29fd984322764a42c5b9f8c6637a4292badfac04916"
+      }
+    }
+  }
+}

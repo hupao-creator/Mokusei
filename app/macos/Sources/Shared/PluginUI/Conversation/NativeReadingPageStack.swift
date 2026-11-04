@@ -48,6 +48,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @State private var progress = 0.0
     @State private var panelTransition: NativeReadingPanelTransition?
     @State private var panelContentReady = false
+    @State private var panelReaderPreloading = false
     @State private var closing = false
     @State private var preparingClose = false
     @State private var replacing = false
@@ -118,7 +119,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                     NativeReadingPanelViewport(target: panelBounds, source: panelSource,
                         open: panelContentReady || panelTransition != nil,
                         transition: panelTransition, contentReady: panelContentReady,
+                        readerPreloading: panelReaderPreloading,
                         identity: reduceMotion ? nil : panelIdentity,
+                        onOpeningStarted: preloadPanelReader,
                         onCompletion: finishPanelTransition,
                         content: front.id(identity)
                             // Panel travel can finish before live heading anchors
@@ -254,6 +257,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             progress = open ? 1 : 0
             panelTransition = nil
             panelContentReady = open
+            panelReaderPreloading = false
             closing = false
             preparingClose = false
             replacing = false
@@ -276,6 +280,12 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             motion.active = false
             animationTask = nil
         }
+    }
+
+    private func preloadPanelReader(_ token: Int) {
+        guard threadPanelMotion, generation == token,
+              panelTransition?.generation == token, panelTransition?.closing == false else { return }
+        panelReaderPreloading = true
     }
 
     private func finishPanelTransition(_ token: Int, _ wasClosing: Bool) {
@@ -306,7 +316,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             replacing = false
             self.closing = closing
             motion.active = true
-            if !closing { panelContentReady = false }
+            if !closing { panelContentReady = false; panelReaderPreloading = false }
             panelTransition = NativeReadingPanelTransition(generation: generation, closing: closing,
                 duration: duration, emphasized: !closing && emphasizedOpening, thread: threadPanelMotion)
             // Only the backdrop uses SwiftUI interpolation; panel geometry and

@@ -7,6 +7,7 @@ public extension EnvironmentValues {
     @Entry var nativeThreadIdentityRegistry: NativeThreadIdentityRegistry? = nil
     @Entry var nativeThreadIdentityKey: String? = nil
     @Entry var nativeThreadPreparing = false
+    @Entry var nativeThreadReaderPreloading = false
     @Entry var nativeThreadReservesHistoryRail = false
     @Entry var nativeThreadIdentityVisit: NativeThreadIdentityVisit? = nil
 }
@@ -153,7 +154,6 @@ final class NativeThreadIdentityFlight {
     private let overlay = ThreadIdentityInkHost()
     private var layers: [String: CALayer] = [:]
     private var task: Task<Void, Never>?
-    private var completion: Task<Void, Never>?
     init(visit: NativeThreadIdentityVisit, surface: NSView, source: CGRect, environment: EnvironmentValues,
          duration: TimeInterval, timing: CAMediaTimingFunction) {
         self.visit = visit; self.surface = surface
@@ -207,11 +207,13 @@ final class NativeThreadIdentityFlight {
             layer.add(position, forKey: "identity.position"); layer.add(scale, forKey: "identity.size")
         }
         CATransaction.commit()
-        completion = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(duration)) } catch { return }
-            guard let self else { return }
-            visit.completeOpening(); scheduleHandoff()
-        }
+    }
+
+    func completeOpening() {
+        // Preloaded live anchors can arrive during travel. Only the panel's
+        // actual completion and visible host may release the flying ink.
+        guard !visit.openingFinished else { return }
+        visit.completeOpening(); scheduleHandoff()
     }
 
     private func scheduleHandoff() {
@@ -231,7 +233,7 @@ final class NativeThreadIdentityFlight {
     }
 
     func retire(measured: Bool = false) {
-        task?.cancel(); completion?.cancel(); task = nil; completion = nil
+        task?.cancel(); task = nil
         visit.finish(measured: measured)
         layers.values.forEach { $0.removeFromSuperlayer() }; layers.removeAll()
         overlay.removeFromSuperview()
@@ -290,9 +292,16 @@ private struct NativeThreadHeadingInk: View {
 
 public struct NativeThreadPreparedReader<Content: View>: View {
     @Environment(\.nativeThreadPreparing) private var preparing
+    @Environment(\.nativeThreadReaderPreloading) private var preloading
     private let content: () -> Content
     public init(@ViewBuilder content: @escaping () -> Content) { self.content = content }
     public var body: some View {
-        if preparing { NativeThreadOpeningContent() } else { content() }
+        if preparing && !preloading { NativeThreadOpeningContent() }
+        else {
+            // Only the primary reader may prepare during travel. Its live
+            // heading registers the eventual handoff target; secondary surfaces
+            // still inherit the outer preparation gate until the panel arrives.
+            content().environment(\.nativeThreadPreparing, false)
+        }
     }
 }

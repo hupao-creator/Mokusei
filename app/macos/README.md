@@ -72,9 +72,12 @@ once by identity; separate calls with equal labels or output remain separate.
 See the [terminal reply investigation](../../design/terminal-assistant-disclosure.md)
 for the regression source, verification scope and remaining limits.
 
-Panel opening uses compositor-owned geometry and delays reader mounting until
-travel completes. Once submitted, panel travel no longer waits for main-actor
-animation ticks; initial reader mounting can still cause a later main-thread stall.
+Panel opening uses compositor-owned geometry. Ordinary Agent card readers start
+hidden preparation after native animation-start delivery, overlapping travel;
+content drawing, input, accessibility, text entrance and secondary surfaces wait
+for arrival. Source-less and non-Agent entries keep their existing mounting gate.
+Once submitted, panel travel no longer waits for main-actor animation ticks;
+reader mounting can still occupy the main thread.
 Data-only route prefetch overlaps content acquisition with travel; a bounded
 short-lived cache transfers continuously subscribed ready data between readers.
 Codex reader admission validates/decodes changed opaque state off the main actor,

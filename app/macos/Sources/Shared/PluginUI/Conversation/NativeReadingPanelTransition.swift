@@ -1,4 +1,5 @@
 import AppKit
+import MokuseiCore
 import QuartzCore
 import SwiftUI
 
@@ -10,15 +11,17 @@ struct NativeReadingPanelTransition: Equatable {
     var thread = false
 }
 
-/// The compositor owns panel travel. The reader is admitted only after opening
-/// completes, so neither its first projection nor TextKit can delay that travel.
+/// The compositor owns panel travel. Agent readers may prepare once native
+/// travel starts, but their drawing and interaction remain gated until arrival.
 struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     let target: CGRect
     let source: CGRect?
     let open: Bool
     let transition: NativeReadingPanelTransition?
     let contentReady: Bool
+    var readerPreloading = false
     var identity: NativeThreadIdentityVisit? = nil
+    var onOpeningStarted: ((Int) -> Void)? = nil
     let onCompletion: (Int, Bool) -> Void
     let content: Content
 
@@ -27,11 +30,14 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
     func updateNSView(_ view: ReadingPanelView, context: Context) {
         var environment = context.environment
         environment.nativeThreadPreparing = !contentReady && identity != nil
+        environment.nativeThreadReaderPreloading = readerPreloading
+        environment.nativeReadingInteractionActive = environment.nativeReadingInteractionActive && contentReady
         view.configure(target: target, source: source, open: open, transition: transition,
             contentReady: contentReady, identity: identity,
             environment: environment,
             paperColor: NativePalette.thread.canvas.swiftUI.resolve(in: context.environment).cgColor,
             content: AnyView(content.environment(\.self, environment)),
+            onOpeningStarted: onOpeningStarted,
             onCompletion: onCompletion)
     }
 
@@ -50,6 +56,9 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private var startedGeneration: Int?
     private var completedGeneration: Int?
     private var onCompletion: ((Int, Bool) -> Void)?
+    private var onOpeningStarted: ((Int) -> Void)?
+    private var prepareMeasurement: NativePerformanceSpan?
+    private var travelMeasurement: NativePerformanceSpan?
     private var acceptsInput = false
     private var identity: NativeThreadIdentityVisit?
     private var flight: NativeThreadIdentityFlight?
@@ -77,8 +86,18 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     func configure(target: CGRect, source: CGRect?, open: Bool,
                    transition: NativeReadingPanelTransition?, contentReady: Bool, identity: NativeThreadIdentityVisit? = nil,
                    environment: EnvironmentValues,
-                   paperColor: CGColor, content: AnyView, onCompletion: @escaping (Int, Bool) -> Void) {
+                   paperColor: CGColor, content: AnyView,
+                   onOpeningStarted: ((Int) -> Void)? = nil, onCompletion: @escaping (Int, Bool) -> Void) {
         self.environment = environment
+        if command != transition {
+            prepareMeasurement?.end(.cancelled); travelMeasurement?.end(.cancelled)
+            prepareMeasurement = nil; travelMeasurement = nil
+            if let transition {
+                prepareMeasurement = NativePerformance.begin(.readingPrepare,
+                    context: environment.nativePerformanceOperation,
+                    values: ["panel": 1, "closing": transition.closing ? 1 : 0])
+            }
+        }
         if self.identity !== identity {
             preparation?.cancel(); preparation = nil; prepared = false
             flight?.retire(); flight = nil; self.identity = identity
@@ -89,6 +108,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         self.target = target
         self.source = source ?? target.insetBy(dx: min(24, target.width / 4), dy: min(24, target.height / 4))
         self.onCompletion = onCompletion
+        self.onOpeningStarted = onOpeningStarted
         command = transition
         acceptsInput = open && transition == nil
         CATransaction.begin()
@@ -141,6 +161,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             surface.layer?.position = open ? target.origin : self.source.origin
             paper.isHidden = open && contentReady
             CATransaction.commit()
+            if open && contentReady { flight?.completeOpening() }
         }
     }
 
@@ -148,14 +169,20 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     override func layout() { super.layout(); startIfReady() }
 
     private func prepareOpening() {
-        guard startedGeneration == nil, identity?.openingTarget["title"] != nil,
+        guard startedGeneration == nil, preparation == nil, identity?.openingTarget["title"] != nil,
               identity?.openingTarget["emoji"] != nil else { return }
-        preparation?.cancel()
+        NativePerformance.event(.readingPrepare, context: environment.nativePerformanceOperation,
+            values: ["panel": 1, "anchorsReady": 1])
         preparation = Task { @MainActor [weak self] in
-            // Let the lightweight sidecard layout settle, without mounting any
-            // Harness document or waiting for its data.
-            do { try await Task.sleep(for: .milliseconds(48)) } catch { return }
-            guard let self else { return }
+            // Coalesce anchor publication, then resolve the current native
+            // layout before freezeOpeningTargets reads the actual views. A
+            // trailing debounce can postpone travel on every layout update.
+            await Task.yield()
+            guard !Task.isCancelled, let self else { return }
+            defer { preparation = nil }
+            hosting?.layoutSubtreeIfNeeded()
+            NativePerformance.event(.readingPrepare, context: environment.nativePerformanceOperation,
+                values: ["panel": 1, "layoutReady": 1])
             prepared = true; startIfReady()
         }
     }
@@ -247,6 +274,10 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         }
         layer.add(travel, forKey: "reading.travel")
         aperture.add(clip, forKey: "reading.aperture")
+        prepareMeasurement?.end(); prepareMeasurement = nil
+        travelMeasurement = NativePerformance.begin(.readingTransition,
+            context: environment.nativePerformanceOperation,
+            values: ["panel": 1, "closing": command.closing ? 1 : 0])
     }
 
     /// Native presentation geometry for the existing transition replay.
@@ -254,6 +285,21 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         guard command?.closing == true, let layer = surface.layer?.presentation(),
               let bounds = aperture.presentation()?.path?.boundingBoxOfPath else { return nil }
         return (CGRect(origin: layer.position, size: bounds.size), layer.opacity, source)
+    }
+
+    // Start delivery follows native animation submission. Preparing a hidden
+    // reader here overlaps travel without doing heavy work in the submission
+    // update or advancing text entrance/secondary surfaces before arrival.
+    nonisolated func animationDidStart(_ anim: CAAnimation) {
+        guard let generation = anim.value(forKey: "generation") as? Int else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let command, command.generation == generation,
+                  startedGeneration == generation, completedGeneration != generation,
+                  !command.closing else { return }
+            NativePerformance.event(.readingTransition, context: environment.nativePerformanceOperation,
+                values: ["panel": 1, "started": 1])
+            if command.thread { onOpeningStarted?(generation) }
+        }
     }
 
     // Delegate delivery may be delayed by unrelated main-thread work. Only this
@@ -265,6 +311,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             guard let self, let command, command.generation == generation,
                   completedGeneration != generation else { return }
             completedGeneration = generation
+            travelMeasurement?.end(); travelMeasurement = nil
             onCompletion?(generation, command.closing)
         }
     }
@@ -278,7 +325,13 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         return hit
     }
 
+    override func accessibilityChildren() -> [Any]? {
+        acceptsInput ? super.accessibilityChildren() : []
+    }
+
     func retire() {
+        prepareMeasurement?.end(.cancelled); travelMeasurement?.end(.cancelled)
+        prepareMeasurement = nil; travelMeasurement = nil
         preparation?.cancel(); preparation = nil
         command = nil
         flight?.retire(); flight = nil; identity = nil
