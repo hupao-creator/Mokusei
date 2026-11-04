@@ -61,12 +61,14 @@ Hosts without these hooks retain the same navigation behavior. Overview uses the
 to coalesce hidden display work while retaining native controls and authoritative
 state reception. Its opt-in `isolatesParent` surface keeps that state in a
 separate native host. Once a panel settles and its live heading owns the identity
-ink, it captures the parent's appearance
-once and hides the live host. Resizing stretches the backdrop without resizing
-the hidden card tree. Return preparation unhides the same host, applies the
-latest environment and viewport, and waits for the existing canvas receipt
-before sampling the destination. Reversal cancels a pending capture; the image
-is released on thaw or teardown. Nested reading stacks keep their existing host.
+ink, it hides the live host without capturing a bitmap. The parent fades fully
+out during panel travel, exposing the window's existing ultra-thin material;
+no Overview cards remain behind a settled reading panel. Resizing leaves the
+hidden card tree's viewport unchanged. Return preparation unhides the same host,
+applies the latest environment and viewport, and waits for the existing canvas
+receipt before sampling the destination. Return travel fades the refreshed cards
+back in. No snapshot allocation or CPU rasterization blocks reader admission.
+Nested reading stacks keep their existing parent presentation.
 The retained native host consumes the viewport already assigned by the workspace
 and disables its own safe-area regions. Applying the titlebar inset a second time
 would shorten and clip the Overview canvas below the full-content window's top.

@@ -263,9 +263,10 @@ The presentation gate and prepared return apply to Agent, Report and Git panels.
 Report returns to its document card; Git uses the task card captured at activation.
 All sample their destination only after the refreshed canvas preparation completes.
 
-The outer reading stack pauses Overview projection when opening begins. Once
-the panel settles, it replaces the background's live drawing with one captured
-appearance and hides its separate native host. Input, tracking and native layout
+The outer reading stack pauses Overview projection when opening begins. Cards
+fade completely out during travel. Once the panel settles, it hides the separate
+native host and reuses the window's existing ultra-thin material as the background;
+it never rasterizes Overview or retains even blurred cards. Input, tracking and native layout
 therefore do not need to traverse the retained cards for foreground reading.
 Catalog installation, membership/filter context, selection validity and Moku
 operation state continue at each runtime transaction. Hidden transactions coalesce

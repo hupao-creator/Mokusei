@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-04",
+  "configuration": "debug",
+  "control": "native interaction API",
+  "metric": "thread.open to completed markdown.delivery (not rendered frame latency)",
+  "runs": {
+    "baseline": {
+      "milliseconds": [
+        1622.091,
+        1622.508,
+        1600.486
+      ],
+      "build": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "63bfeab9a399051c510f307c95298c7c2d2d55645772711427073c4a392adfc4",
+        "runtimeInputSHA256": "a6be494809108e5590a04f352af294d074ec1a3de40fadfc2f210c154b92d0cf"
+      },
+      "performanceLog": "native-1793785622573-25423-A1869892-3A54-4B4D-8DF3-2F247016878D.jsonl"
+    },
+    "final": {
+      "milliseconds": [
+        884.753,
+        798.639,
+        1028.32
+      ],
+      "build": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "cf293c5f1d97d98686a914bfd9a77f4791c9be3c3280e924d4279766ea49bade",
+        "runtimeInputSHA256": "55e5ea281c602c4bde920c8cc2db568a07fda7c8e36c62fd0cf4c82677b6883b"
+      },
+      "performanceLog": "native-1793786253481-30826-B79130F8-1003-4662-B14D-6CD02B9F50DA.jsonl"
+    }
+  }
+}

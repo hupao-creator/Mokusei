@@ -89,8 +89,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             ZStack {
                 Group {
                     if isolatesParent {
-                        // Admit the live heading before caching another native
-                        // host; display caching can flush its pending handoff.
+                        // Keep the source host available through title handoff;
+                        // settled panels need only the existing window material.
                         NativeReadingParentSurface(frozen: panel && open && panelContentReady && !motion.active
                             && panelIdentity?.pending != true,
                             content: parent)
@@ -100,7 +100,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                     .blur(radius: panel ? 5 * progress : axis == .horizontal && focusBlur && motion.active ? 16 * progress : 0)
                     .offset(x: stationaryParent || axis == .vertical ? 0 : -0.25 * bounds.size.width * progress * direction,
                             y: stationaryParent || axis == .horizontal ? 0 : -bounds.size.height * progress * direction)
-                    .opacity(panel ? 1 - 0.78 * progress : open && !openingOrClosing ? 0 : 1)
+                    .opacity(panel ? 1 - (isolatesParent ? 1 : 0.78) * progress : open && !openingOrClosing ? 0 : 1)
                     .allowsHitTesting(!open && enabled)
                     // Disabling removes the native scroller gutter. Defer that
                     // input gate until the vertical parent is offscreen; restore

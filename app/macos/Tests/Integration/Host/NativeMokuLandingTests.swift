@@ -209,7 +209,6 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait { parentView(root) != nil }
             let parent = try #require(parentView(root))
             let parentHost = try #require(parent.subviews.compactMap { $0 as? NSHostingView<AnyView> }.first)
-            let backdrop = try #require(parent.subviews.compactMap { $0 as? NSImageView }.first)
             let state = fixture.presentation.canvas
             try await SwiftUIReplay.wait { state.mountedCardIDs == ["a", "b"] && !state.isLayingOut && !state.camera.isAnimating }
             #expect(abs((state.camera.viewport?.height ?? 0) - parentHost.bounds.height) < 1,
@@ -218,9 +217,8 @@ struct NativeMokuLandingTests {
             let camera = state.camera.liveTransform
             fixture.presentation.open(.init(threadID: "a", typeID: "agent"))
             try await SwiftUIReplay.wait { !fixture.overview.presentationActive && !fixture.presentation.messageMotion.active }
-            try await SwiftUIReplay.wait { parentHost.isHidden && backdrop.image != nil && !backdrop.isHidden }
+            try await SwiftUIReplay.wait { parentHost.isHidden }
             let frozenSize = parentHost.bounds.size
-            let frozenImage = backdrop.image
             let retained = fixture.overview.items, solves = state.layoutSolveCount
             for _ in 0..<3 {
                 try await fixture.install([fixture.thread("a", status: .completed), fixture.thread("b", archived: true),
@@ -230,8 +228,8 @@ struct NativeMokuLandingTests {
             try await Task.sleep(for: .milliseconds(150))
             #expect(fixture.overview.items == retained && state.layoutSolveCount == solves)
             #expect(state.mountedCardIDs == ["a", "b"])
-            #expect(parentHost.bounds.size == frozenSize && backdrop.image === frozenImage,
-                    "Hidden mutations and resize must retain one backdrop without laying out the native card tree")
+            #expect(parentHost.bounds.size == frozenSize && parentHost.isHidden,
+                    "Hidden mutations and resize must retain the native card tree without drawing or laying it out")
             #expect(fixture.overview.featuredOperation?.id == "hidden" && fixture.overview.featuredOperation?.phase == .running)
             fixture.presentation.showOverview()
             try await SwiftUIReplay.wait {
@@ -240,7 +238,7 @@ struct NativeMokuLandingTests {
                     && fixture.presentation.readingPanelSource == state.displayedFrame(for: "a")
             }
             #expect(fixture.overview.presentationActive && state.camera.manual && state.camera.liveTransform == camera)
-            #expect(!parentHost.isHidden && backdrop.image == nil && parentHost.bounds.size == parent.bounds.size,
+            #expect(!parentHost.isHidden && parentHost.bounds.size == parent.bounds.size,
                     "Return preparation must thaw the same native host at the current viewport before travel")
             #expect(abs((state.camera.viewport?.height ?? 0) - parentHost.bounds.height) < 1,
                     "Thawing after resize must not reintroduce a titlebar inset")
