@@ -65,7 +65,7 @@ provider availability, real-account authentication, model quality, or guaranteed
 Moku provider-side effects. Moku terminal notifications now use a transactional
 outbox with restart recovery and retries before native admission. Uncertain native
 admission is retained and reported for explicit reconciliation rather than blindly
-replayed; see the [Moku recovery procedure](../../../internal/services/moku/README.md#durable-completion-notifications). Runtime command locks now retire after the last holder/waiter, and cancellation
+replayed; see the [Moku recovery procedure](../../../internal/services/moku/README.md#durable-system-notifications). Runtime command locks now retire after the last holder/waiter, and cancellation
 gates retire after durable session deletion and the last in-flight claim. Module
 churn tests verify these lifetimes; they do not establish long-duration RSS bounds.
 

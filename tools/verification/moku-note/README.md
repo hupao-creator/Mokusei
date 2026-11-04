@@ -1,8 +1,10 @@
 # Production Note replay
 
-After `make check ARGS=`, run from the repository root:
+Run from the repository root; build current Debug modules before using
+`--skip-build`:
 
 ```sh
+xcrun swift build --package-path app/macos
 MOKU_NOTE_NATIVE_FIXTURE=.scratch/note-read-awareness/records.json ./scripts/go.sh run -race ./tools/verification/moku
 python3 tools/verification/moku-note/run.py --skip-build --records .scratch/note-read-awareness/records.json --evidence .scratch/note-read-awareness/evidence
 ./scripts/go.sh run -race ./tools/verification/moku -swift-note-exposure

@@ -11,7 +11,7 @@
 | [Settings 导航](settings-navigation/README.md) | 当前生产设置与导航组件的隔离回放。 |
 | [Settings 顶部 tab](settings-tabs/README.md) | 已批准提案的设计对照；正式界面与验收使用 Settings 导航回放。 |
 | [Moku thinking 历史对照](moku-thinking-orbit/README.md) | 当前生产胶囊 + Arc 的 fixture 演示；另保留 Electron 圆形阅读与后续胶囊环流作为历史对照。 |
-| [Moku 渐变玻璃](moku-gradient-material/README.md) | 生产渐变材质的独立原生调参预览；复用胶囊几何、眼睛与当前材质，并排比较深色和浅色。 |
+| [Moku 渐变玻璃](moku-gradient-material/README.md) | 生产渐变材质的独立原生调参预览；复用胶囊几何、眼睛与当前材质，保留深浅列标签；当前两列均复用固定深色生产材质，浅色标签不代表另一款产品材质。 |
 | [Moku Note 收起](moku-note-transition/README.md) | 当前 Release 生产 Dock 的隔离视觉预览；合成笔记、连续收起帧、快速往返、窄窗口/居中布局与禁动画 fixture。 |
 | [Moku mention transition](moku-mention-transition/README.md) | 当前生产 Dock 与已确认原型的菜单/眼睛过渡对照，支持真实输入及自动回放。 |
 | [Moku landing](moku-landing/README.md) | 当前生产 Dock/composer 的原生视觉回放；fixture 驱动派发与归档，全局状态接入另有生产页面集成回放。 |

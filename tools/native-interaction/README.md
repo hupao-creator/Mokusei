@@ -202,7 +202,7 @@ controls reject operations.
 | `visibility.work` | Current document's execution visibility value and toggle; Agent detail never offers a user-message toggle |
 | `loadEarlier`, `jumpLatest` | Mounted earlier-window and latest buttons |
 | `timeline` | Top, content height, viewport, following, visible row IDs/count, first index and total count |
-| `execution.group`, `activity`, `disclosure` | Nested execution/tool/thinking disclosure values and toggles |
+| `execution.group`, `activity`, `disclosure` | Disclosure values/toggles only on surfaces whose reader policy mounts them; ordinary Agent detail is summary-only |
 | `row.load`, `execution.load`, `turn` | Actual Codex row/shared execution load state and mounted turn's rendered row count |
 
 ```sh
@@ -212,11 +212,14 @@ python3 tools/native-interaction/thread_chaos.py --socket "$automation_root/ui.s
   --replay /private/tmp/reading-41.jsonl --trace /private/tmp/reading-41-replayed.jsonl
 ```
 
-The runner first exercises history, nested disclosures, scrolling, rejected Settings
-entry and stale-handle rejection, then makes seeded choices from mounted controls. A
-fixture with more than 120 completed turns and tool details is required to cover
-load-earlier and nested tools. The [production reading launcher](../verification/thread-interaction/README.md)
-provides that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from
+The runner exercises history, work visibility, scrolling, rejected Settings
+entry and stale-handle rejection, then makes seeded choices from mounted controls.
+Its disclosure traversal only operates on controls actually mounted by the reader.
+Ordinary Agent detail shows execution summaries without tool/thinking disclosures;
+fixture tool records do not establish nested-tool coverage there. A fixture with
+more than 120 completed turns exercises the earlier-history window. The
+[production reading launcher](../verification/thread-interaction/README.md) provides
+that fixture, fresh profiles and signed-app lifecycle management. Launch a fresh signed production app/profile from
 the same fixture before replay. Replay resolves each recorded logical control ID
 to its new mounted handle; handles from a previous process are never reusable.
 The trace records actual coverage, loading failures and every attempted command.

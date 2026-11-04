@@ -79,7 +79,14 @@ Use `./scripts/go.sh run ./cmd/mokusei-dev --help` for development and installat
 
 Mermaid fences display as source code. The built-in [Git application](internal/plugins/applications/git/README.md) supplies read-only worktree facts on task cards and the native diff reader. Managed Git worktrees are owned by the [workspace service](internal/services/workspaces/README.md).
 
-Documentation lives with its owning module. It describes current behavior, contracts, limits and runnable checks. Update it with the implementation; historical plans, migration ledgers and one-off review/test reports belong in Git history.
+Current behavior, contracts, limits and runnable commands live with their owning
+modules. Update those guides with the implementation. Dated investigations in
+`design/`, retained evidence and explicitly historical sections in tool/demo
+guides describe their recorded revisions; they do not certify current behavior
+or test results. Some tool guides combine a runnable entry point with historical
+measurements. The [2026-11-04 documentation audit](design/documentation-audit-2026-11-04.md)
+records the inventory, source-backed corrections and replay-cleanup dependencies
+for its source revision.
 
 The public source history starts from a single release snapshot. Older revisions cited by retained evidence belong to private development history. Before/after verification tools require the requested baseline revision to be available locally.
 

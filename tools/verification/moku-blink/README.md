@@ -3,7 +3,7 @@
 Run serially with other native UI replays and SwiftPM builds:
 
 ```sh
-make check
+xcrun swift build --package-path app/macos --build-tests
 xcrun swift test --package-path app/macos --filter NativeMokuBlinkTests
 MOKU_BLINK_EVIDENCE=/tmp/mokusei-moku-blink-evidence python3 tools/verification/moku-blink/run.py --skip-build
 python3 tools/verification/moku-blink/run.py --skip-build --negative-control

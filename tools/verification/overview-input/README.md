@@ -24,7 +24,7 @@ app path printed by the runner (or stored in `app-path.txt`). Add `--interactive
 fixture open for manual input and rendering checks. The fixture includes the
 production canvas, camera, flat card surfaces, cloud shader, reading stack and multiline editor.
 Its card includes the production emoji badge and completion mark. Check that
-the clear glass circle and emoji remain readable without an added border;
+the opaque emoji badge remains readable without an added border;
 hovering leaves the emoji visible and exposes no Send action. Use Open conversation
 to open detail. In interactive mode, Command-Shift-D toggles light/dark appearance
 without system changes.
@@ -86,13 +86,13 @@ camera dragging still work. Directory hover/accessibility filtering is covered
 by the production Overview interaction replay. Editors use Enter for a newline and
 Command-Enter or the send button to submit.
 
-Run the affected integration tests with:
+Select affected integration checks under the [verification policy](../../../scripts/ci/verification-policy.md),
+for example:
 
 ```sh
 MOKUSEI_OVERVIEW_SEARCH_NATIVE_REPLAY=1 xcrun swift test --package-path app/macos \
   --no-parallel --filter 'NativeOverview|NativeReadingPagePresentation|NativeMoku|NativeComposer|SwiftUIOverviewInteraction|NativeHTMLGeometry|NativePerformanceCache|NativeWindowControlPlacement'
 ./scripts/go.sh run -race ./tools/verification/runtime-helpers --swift-shutdown
-make check
 ```
 
 Tests host production SwiftUI in test-owned windows. Geometry, draft contents,

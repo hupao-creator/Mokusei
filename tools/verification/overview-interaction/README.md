@@ -1,5 +1,11 @@
 # Production Overview chaos
 
+The driver checks global eligible search results independently of the selected
+directory, with scoped browsing restored on clear/exit; see the
+[coverage matrix and limits](../../native-interaction/OVERVIEW.md#coverage-matrix).
+Current Runtime search is keyword-only. No graphical run was performed during
+this Spring Mode integration.
+
 Run the current signed production Release application:
 
 ```sh
