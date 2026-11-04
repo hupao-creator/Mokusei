@@ -3,12 +3,26 @@ import SwiftUI
 public extension View {
     /// Inset the viewport itself, not its document or just the painted thumb.
     /// Both ends clear the 22pt rounded edge at the document's scroll limits.
-    /// The top also clears the Close button's 14pt inset + 32pt hit region,
-    /// so an expanded overlay scroller cannot compete with that control.
+    /// By default the top clears Close's 14pt inset + 32pt hit region. A reader
+    /// that reserves horizontal space for Close can use a smaller top inset;
+    /// its document and scrollers must remain outside the control's hit region.
     /// Document owners can opt into matching the fixed chrome at both ends.
-    func nativeReadingPanelViewport(balancedVerticalInsets: Bool = false) -> some View {
+    func nativeReadingPanelViewport(topInset: CGFloat = 48, balancedVerticalInsets: Bool = false) -> some View {
         padding(.horizontal, 8)
-            .padding(.top, 48)
-            .padding(.bottom, balancedVerticalInsets ? 48 : 22)
+            .padding(.top, topInset)
+            .padding(.bottom, balancedVerticalInsets ? topInset : 22)
+    }
+
+    /// Top-level loading/error content has no conversation sidebar. Reserve its
+    /// host's unconsumed rail so the smaller viewport still clears Close.
+    func nativeThreadRailFallback() -> some View { modifier(NativeThreadRailFallback()) }
+}
+
+private struct NativeThreadRailFallback: ViewModifier {
+    @Environment(\.nativeThreadReservesHistoryRail) private var reservesHistoryRail
+
+    func body(content: Content) -> some View {
+        content.padding(.leading, reservesHistoryRail ? 48 : 0)
+            .environment(\.nativeThreadReservesHistoryRail, false)
     }
 }

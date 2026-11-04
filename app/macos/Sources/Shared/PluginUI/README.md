@@ -40,9 +40,11 @@ and restores native observation flags without remounting focused product control
 Thread, Report, Git and Moku history panels share
 [`NativeReadingPanelCloseButton`](Conversation/NativeReadingPanelCloseButton.swift).
 `nativeReadingPanelClose` places the 32pt circular target 14pt from the panel's
-top-left edge. Pair it with `nativeReadingPanelViewport`: the fixed 48pt top
-clearance keeps both scrolling content and native scrollers below Close, while
-the horizontal/bottom insets clear rounded corners. Spacing outside the circle
+top-left edge. Pair it with `nativeReadingPanelViewport`: its default 48pt top
+clearance keeps both scrolling content and native scrollers below Close. The
+main Agent reader instead clears Close horizontally with its reserved history
+rail, allowing 22pt viewport insets at both ends. The horizontal/bottom insets
+clear rounded corners. Spacing outside the circle
 is not a close target. The button follows reading-palette light/dark colors,
 hover/press, disabled and increased-contrast states, with a visible keyboard
 focus ring and caller-owned localized help/accessibility labels. Callers keep
@@ -846,18 +848,28 @@ keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
-48pt above and 22pt below by default for Git, Moku history and Agent Thread
+48pt above and 22pt below by default for Git, Moku history and execution-card
 reading panels. Report panels opt into
-`balancedVerticalInsets: true`, reserving 48pt at both ends. Agent Thread current
-and historical documents use 12pt of scrollable padding at each end, without
+`balancedVerticalInsets: true`, reserving 48pt at both ends. The main Agent Thread
+panel uses `topInset: 22`, matching its bottom viewport clearance. Its reserved
+48pt leading history rail separates the document and its scroller horizontally
+from Close; the rail itself retains 64pt of vertical padding. `ThreadConversation`
+consumes that rail reservation before rendering nested rows. Top-level loading
+and Harness error views use `nativeThreadRailFallback()`
+to reserve the same 48pt when no conversation layout is present; nested status
+views do not add it again. This also keeps heading-only loading aligned with
+the preparation reader without changing viewport height during admission.
+Current and historical Agent documents use 12pt of scrollable padding at each end, without
 additional vertical padding around the conversation viewport. This keeps the
 Close clearance while expanding the readable area at every window width;
 timeline page capacity uses the same document padding. The sibling Moku input
 keeps its existing host layout. The entire viewport
 sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
-edge. The top clears Close's complete 14pt inset + 32pt hit region, including
-when an overlay scroller expands on hover. Close remains anchored to the outer
+edge. The default top clears Close's complete 14pt inset + 32pt hit region,
+including when an overlay scroller expands on hover. The main Agent reader's
+horizontal clearance supplies that separation with the smaller top inset.
+Close remains anchored to the outer
 panel. The frame reduces available
 content width by only 16pt; native gutter ownership remains as described above.
 Report uses the same host inset without rewriting document layout, overflow or
@@ -888,22 +900,36 @@ belongs inside the document. The cat empty state's own vertical inset is 48pt
 on both sides. Other supplied empty/error/loading views keep their own content
 layout and receive the same outer document inset.
 
-The Agent panel has fixed viewport chrome of 48pt above and 22pt below, with
+The main Agent panel has fixed viewport chrome of 22pt above and below, with
 no additional page-stack inset around its main conversation. Together with the
-12pt document inset, this gives 60pt from the outer panel top to the document
-boundary at scroll start and 34pt from its bottom at scroll end. The close
-control remains in the fixed upper safety region throughout scrolling.
+12pt document inset, this gives 34pt from either outer panel edge to the
+corresponding document boundary at its scroll limit. The previous 48/22pt shell
+left 26pt of extra space above the viewport even after `9b835d0` made document
+padding symmetric. Title/emoji and author spacing belong inside the document;
+they are not the source of this fixed viewport imbalance. Close stays at its
+14pt panel inset, separate from the document's reserved leading rail throughout
+scrolling, history navigation, resizing and Sidecard layout changes.
 Short documents remain top aligned;
 unused viewport height below them is not padding and is not forcibly filled or
 centered. At an explicit result/message visit the targeted scroll position can
 start mid-document; these distances describe the document's two scroll limits.
 
-This spacing change leaves placeholder delay/placement, content acquisition and
-cache ownership unchanged. The upper-left reading close button retains its fixed
-clearance. Only Report keeps the balanced viewport argument; Agent main and
-execution-card viewports use the default 48/22pt chrome. The execution card's
-separate page-stack spacing is unchanged.
+This spacing change leaves placeholder delay, content acquisition and cache
+ownership unchanged. The upper-left reading close button retains its fixed
+panel position. The lightweight opening heading and live reader share the main
+Agent's 22/22pt viewport, preserving measured title/emoji handoff geometry.
+Content-reveal readiness, Moku input/Sidecard admission and their existing
+three-stage timing remain unchanged. Only Report keeps the balanced viewport
+argument; execution-card viewports use the default 48/22pt chrome. The execution
+card's separate page-stack spacing is unchanged.
 Git/Moku viewport defaults are unchanged.
+
+Sprint verification for this viewport adjustment is source/layout review,
+application product build, lint and documentation/diff checks. No tests or
+replays are created or run, and no CI, push or PR is triggered. The supplied
+screenshot was inspected; the changed layout has not been viewed in a running
+application, so rendered geometry and interaction/animation behavior are not
+claimed as observed acceptance.
 
 Report balances the **card-to-WebKit viewport** distance at 48pt on each end,
 including both document scroll limits. Its webpage background begins and ends

@@ -75,7 +75,8 @@ private struct ReadingPanelCloseBody: View {
 
 public extension View {
     /// Use with `nativeReadingPanelViewport()` so content and native scrollers
-    /// stay below the fixed control, including after scrolling or resizing.
+    /// clear the fixed control vertically or horizontally, even after scrolling
+    /// or resizing.
     func nativeReadingPanelClose(label: String, identifier: String = "reading-panel-close",
                                 onClose: @escaping () -> Void) -> some View {
         overlay(alignment: .topLeading) {

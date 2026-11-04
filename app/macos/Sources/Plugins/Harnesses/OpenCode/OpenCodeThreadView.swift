@@ -349,6 +349,7 @@ struct OpenCodeFailure: View {
             Text(retryError ?? message).textSelection(.enabled)
             if let retry { Button(ocLocalized("重试", locale: locale)) { Task { do { try await retry(); retryError = nil } catch { retryError = error.localizedDescription } } }.buttonStyle(.plain) }
         }.font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 14)
+            .nativeThreadRailFallback()
             .nativeReadingContentReady()
     }
 }

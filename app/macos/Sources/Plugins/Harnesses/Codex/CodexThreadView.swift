@@ -211,6 +211,7 @@ struct CodexContentFailure: View {
             .overlay(alignment: .top) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }
             .padding(.vertical, 12)
             .accessibilityElement(children: .contain)
+            .nativeThreadRailFallback()
             .nativeReadingContentReady()
     }
 }
@@ -233,6 +234,7 @@ private struct CodexContentError: View {
             }
         }.foregroundStyle(NativePalette.thread.muted.swiftUI).frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 16).accessibilityElement(children: .contain)
+            .nativeThreadRailFallback()
             .nativeReadingContentReady()
     }
 }

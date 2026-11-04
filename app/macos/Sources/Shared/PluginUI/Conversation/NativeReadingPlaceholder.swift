@@ -31,6 +31,7 @@ public struct NativeReadingPlaceholder: View {
                    alignment: placement == .surface ? .center : .leading)
             }
         }
+            .nativeThreadRailFallback()
             .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
                 // A loaded sibling (for example a system error) cannot admit
                 // auxiliary input while this document is still being acquired.

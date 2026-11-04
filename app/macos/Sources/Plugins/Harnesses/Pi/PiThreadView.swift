@@ -305,6 +305,7 @@ struct PiFailure: View {
                 do { try await retry(); failure = nil } catch { failure = error.localizedDescription }
             } }.disabled(retrying) }
         }.font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI)
+            .nativeThreadRailFallback()
             .nativeReadingContentReady()
     }
 }

@@ -188,6 +188,7 @@ struct ClaudeFailure: View {
             }
             if let retry { Button(claudeLocalized("重试", locale: locale)) { Task { do { try await retry(); error = nil } catch { self.error = error.localizedDescription } } }.buttonStyle(.plain) }
         }.font(NativeTypography.inter(size: 12)).foregroundStyle(NativePalette.thread.danger.swiftUI).padding(.vertical, 8)
+            .nativeThreadRailFallback()
             .nativeReadingContentReady()
     }
 }

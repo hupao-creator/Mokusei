@@ -73,6 +73,7 @@ struct NativeHarnessStatusView: View {
         .font(.system(size: 13)).foregroundStyle(.secondary)
         .nativeReadingContentReady()
         .padding(16)
+        .nativeThreadRailFallback()
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
     }
