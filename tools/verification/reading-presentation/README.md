@@ -91,14 +91,15 @@ deferred bodies and exact-result following through all four real Harness rendere
 python3 tools/verification/reading-presentation/run.py --moku-landing
 ```
 
-Runs nine `NativeMokuLandingTests` against the production workspace, catalog,
+Runs ten `NativeMokuLandingTests` against the production workspace, catalog,
 Overview and Moku presentation. The real shell waits for Moku hydration before
 centering. Installed public snapshots cover durable shells before native admission,
 failed dispatch, a successful result followed by Talk/another pending creation,
 global membership versus scoped search, archive/delete reentry, directory-only
 documents and snapshot rehydration. Mounted production surfaces also check one persistent character through native
 submission, running, Talk and dispatch, the accessible Stop action, notification
-deferral while editing, failed submission draft retention, Escape/reopening,
+deferral while editing, failed submission draft retention, Escape retaining landing
+input from both editor and native fallback, bottom-Dock Escape dismissal,
 narrow resize and Settings/history cover/remount without forced reopening.
 Landing outside-click coverage checks that a click inside keeps input open,
 a window-background click keeps it open without losing the draft, including

@@ -112,10 +112,12 @@ filtering to no results does not. Landing eligibility does not depend on the
 separate [first-run onboarding](../Onboarding/README.md) completion marker.
 
 Landing opens input once on entry. Submitting uses the ordinary sealed-draft
-collapse; failure reopens the preserved draft. Escape, input reopening and Stop
-use the same paths as the bottom Dock. Outside clicks keep landing input open,
-including clicks in another window or app, without consuming the click or losing
-the draft. Bottom-Dock input still collapses on outside clicks. Returning from a
+collapse; failure reopens the preserved draft. Escape keeps landing input open;
+IME, directory completion and native transient controls retain their cancellation
+priority. Input reopening and Stop use the same paths as the bottom Dock.
+Outside clicks keep landing input open, including clicks in another window or
+app, without consuming the click or losing the draft. Bottom-Dock input still
+collapses on outside clicks. Returning from a
 covering route or remounting cannot reopen input over a resident or message.
 Hydrating a running Moku or waiting message presents that state immediately.
 Focus loss, native menus, attachment sheets, modal panels and visible child

@@ -236,9 +236,10 @@ import MokuseiPluginUI
         inputHandledOutsideClick = true
     }
     /// Reading and the Dock share cancellation priority even after focus has
-    /// moved away from the editor. This retires presentation, never its draft.
+    /// moved away from the editor. Landing retains input, just as for outside clicks.
+    /// This retires presentation, never its draft.
     func dismissInputForEscape() -> Bool {
-        guard inputOpen, !inputPinnedOpen, dockContentVisible, !dockInteractionVisible else { return false }
+        guard inputOpen, !inputPinnedOpen, !landingActive, dockContentVisible, !dockInteractionVisible else { return false }
         setInputOpen(false)
         return true
     }

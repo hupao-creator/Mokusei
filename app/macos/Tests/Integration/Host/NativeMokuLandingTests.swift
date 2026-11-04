@@ -806,6 +806,9 @@ struct NativeMokuLandingTests {
             #expect(!fixture.scene.talkPresentation.presented && fixture.scene.dockHitRects.count == 1)
             #expect(fixture.presentation.draft.text == "保留这份补充" && SwiftUIReplay.editor(in: root) === followup)
             try press(53, characters: "\u{1b}", window: window)
+            #expect(fixture.scene.inputOpen && !fixture.scene.talkPresentation.presented)
+            #expect(fixture.presentation.draft.text == "保留这份补充" && SwiftUIReplay.editor(in: root) === followup)
+            fixture.scene.toggleInput()
             try await SwiftUIReplay.wait { !fixture.scene.inputOpen && fixture.scene.talkPresentation.presented }
             #expect(fixture.moku.talkMessage?.dispatch?.phase == .dispatching && fixture.scene.dockHitRects.count == 1)
             #expect(faces(in: root).count == 1 && faces(in: root).first === face)
@@ -828,9 +831,16 @@ struct NativeMokuLandingTests {
             let window = try #require(fixture.window), root = try #require(window.contentView)
             let input = try #require(SwiftUIReplay.editor(in: root))
             input.insertText("保留草稿", replacementRange: .init(location: 0, length: 0))
+            #expect(window.makeFirstResponder(input))
             try press(53, characters: "\u{1b}", window: window)
-            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
-            fixture.scene.toggleInput()
+            #expect(fixture.scene.inputOpen && !fixture.scene.inputLeaving)
+            #expect(window.firstResponder === input && fixture.presentation.draft.text == "保留草稿")
+            #expect(window.makeFirstResponder(nil))
+            let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+            NSApp.sendEvent(escape)
+            #expect(fixture.scene.inputOpen && !fixture.scene.inputLeaving)
             window.setContentSize(CGSize(width: 480, height: 620))
             try await SwiftUIReplay.wait { fixture.scene.capsuleFrame.width == 432 }
             fixture.scene.openSettings()
@@ -856,6 +866,16 @@ struct NativeMokuLandingTests {
             try await SwiftUIReplay.wait { fixture.scene.inputOpen && !fixture.scene.capsuleFrame.isEmpty }
             try click(CGPoint(x: 30, y: 100), window: window)
             #expect(fixture.scene.inputOpen)
+            try await fixture.install([fixture.thread(status: .completed)])
+            try await SwiftUIReplay.wait { !fixture.moku.landing && !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            fixture.scene.toggleInput()
+            try await SwiftUIReplay.wait { fixture.scene.inputOpen }
+            let bottomRoot = try #require(window.contentView)
+            let bottomInput = try #require(SwiftUIReplay.editor(in: bottomRoot))
+            #expect(window.makeFirstResponder(bottomInput))
+            try press(53, characters: "\u{1b}", window: window)
+            try await SwiftUIReplay.wait { !fixture.scene.inputOpen && !fixture.scene.inputLeaving }
+            #expect(fixture.presentation.draft.text == "保留草稿")
         }
     }
 
