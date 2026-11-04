@@ -789,7 +789,7 @@ private struct OverviewCameraPlane<Content: View>: View {
     }
 }
 
-/// The static shell observes completion tint independently of semantic content.
+/// The static shell keeps a neutral surface across execution states.
 /// Structural/environment updates retain the same spatial frame and identity.
 private struct OverviewCardShell: View, Equatable {
     let slot: OverviewCardContentState
@@ -804,7 +804,7 @@ private struct OverviewCardShell: View, Equatable {
     var body: some View {
         OverviewCardFrame(pose: pose, motion: motion, visible: visible) {
             RoundedRectangle(cornerRadius: 22)
-                .fill(slot.completed ? NativePalette.overview.accentSoft.swiftUI : NativePalette.overview.surface.swiftUI)
+                .fill(NativePalette.overview.surface.swiftUI)
                 .overlay {
                     RoundedRectangle(cornerRadius: 22)
                         .stroke(NativePalette.overview.lineSoft.swiftUI, lineWidth: 1)

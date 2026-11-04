@@ -21,7 +21,7 @@ public struct ThreadCardProviderStatus: View {
             if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false))
+        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, completed: terminal == .completed))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .help(label)
@@ -37,13 +37,17 @@ public struct ThreadCardProviderStatus: View {
 }
 private struct ThreadCardBadgeMaterial: ViewModifier {
     let hasEmoji: Bool
+    let completed: Bool
     @Environment(\.threadCardUsesFlatMaterials) private var flatMaterials
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @ViewBuilder func body(content: Content) -> some View {
         if flatMaterials && hasEmoji {
             if reduceTransparency {
-                content.background(NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+                content.background(completed ? NativePalette.overview.accentSoft.swiftUI
+                    : NativePalette.overview.surfaceStrong.swiftUI, in: Circle())
+            } else if completed {
+                content.glassEffect(.clear.tint(NativePalette.overview.success.swiftUI.opacity(0.32)), in: Circle())
             } else {
                 content.glassEffect(.clear, in: Circle())
             }

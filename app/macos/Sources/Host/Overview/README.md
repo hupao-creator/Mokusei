@@ -19,12 +19,15 @@ checks this distinction against real catalog transactions.
 The same rebuild also normalizes each distinct tag/label once and supplies those keys to the existing selection rules. This memo is local to the synchronous rebuild, bounded by its distinct labels, and discarded before another locale/catalog revision can use it. Standalone selection calls retain the ordinary normalization path.
 
 All Overview cards, including Agent Threads and Report, use opaque palette
-surfaces and a soft border. Completed cards retain a static completion tint.
+surfaces and a soft border, including completed cards.
 Shell and semantic planes contain no Liquid Glass containers. The card boundary
 supplies the shared flat-material policy to provider badges without emoji,
 terminal marks and plan highlights. Agent Thread emoji badges use native clear
-Liquid Glass without an added border; Reduce Transparency retains only the static
-palette fill. Card shells and all other card surfaces stay flat.
+Liquid Glass without an added border. Completed emoji badges tint that glass
+with the adaptive success green; Reduce Transparency uses the opaque adaptive
+accent-soft fill instead. Other emoji badges retain the neutral static fill
+under Reduce Transparency. The terminal symbol and accessible status label remain
+independent of color. Card shells and all other card surfaces stay flat.
 The former `glass world` preference is removed. Chrome, directory menus, Moku,
 Settings and shared controls outside a card keep their own materials. Cloud,
 scan and spatial-animation ownership are unchanged.
@@ -54,11 +57,11 @@ current collection; this boundary does not claim constant-time model projection.
 Array-based fixture hosts feed the same store and layout state machine.
 
 Each card retains separate Equatable shell and semantic boundaries outside its
-spatial frame. The shell observes only its slot's completed
-tint; the semantic wrapper observes its current item. Geometry, motion,
+spatial frame. The shell keeps a neutral palette surface;
+the semantic wrapper observes its current item, including completion. Geometry, motion,
 visibility, viewport, locale, decorative policy, activation and explicit
 renderer/state identities still invalidate the appropriate wrappers. Completion
-changes cannot be hidden behind a slot's stable reference identity.
+changes reach the badge through the semantic wrapper's observed item.
 
 Slots are keyed by structural identity, including footprint and internal
 structure, rather than thread ID alone. Leaving the current collection or
