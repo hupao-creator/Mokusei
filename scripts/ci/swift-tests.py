@@ -1,7 +1,9 @@
 """Capture a full local run or audit the complete native CI run."""
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -75,17 +77,25 @@ def main():
     output_dir = (args.output_dir or Path(".build/check-swift")).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     if args.run:
-        path, record = capture(output_dir)
+        logs, record = capture(output_dir)
     else:
         path = args.full_log.resolve()
         record = {"command": None, "exit_code": args.exit_code, "log": str(path)}
-    results, errors, rows = summarize([("Ordinary Swift suite" if args.run else "Captured Swift log", path)])
-    if record["exit_code"] != 0:
+        logs = [("Captured Swift log", path)]
+    results, errors, rows = summarize(logs)
+    if record["exit_code"] != 0 or (args.run and record["status"] != "passed"):
         errors.append(f"Swift test exit code {record['exit_code']} (null means interrupted).")
     native = []
     if args.run:
-        if path.is_file() and terminal_methods(path.read_text(errors="replace"), NATIVE_METHOD_OWNERS, errors, allow_other=True):
-            errors.append("Ordinary Swift run executed a method assigned exclusively to its native owner.")
+        for run, (label, path) in zip(record["runs"], logs):
+            if not path.is_file():
+                continue
+            text = path.read_text(errors="replace")
+            outcomes = terminal_methods(text, record["tests"] + list(NATIVE_METHOD_OWNERS), errors)
+            if Counter(name for name, _ in outcomes) != Counter(run["tests"]):
+                errors.append(f"{label}: outcomes do not match the assigned inventory exactly once.")
+            if run["name"] == "headless" and any(status != "passed" for _, status in outcomes):
+                errors.append(f"{label}: every headless method must pass without skips.")
         native, native_errors = capture_native_owners(output_dir)
         errors.extend(native_errors)
         rows.append(f"Mandatory native owners: {len(NATIVE_METHOD_OWNERS)} methods; actual receipts, passing outcomes and execution markers required.")
@@ -100,4 +110,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # Ordinary execution owns separate process groups through deadline.run;
+    # unwind them on cancellation just like the hosted native launcher does.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit("Local Swift execution terminated"))
     raise SystemExit(main())

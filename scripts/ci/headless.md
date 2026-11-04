@@ -1,4 +1,19 @@
-# Windowless developer feedback
+# Windowless Swift execution
+
+The ordinary CI and `make check-swift` launchers run reviewed windowless suites
+first with `MOKUSEI_TEST_HEADLESS=1`, then the remaining suites in the graphical
+process. Both commands use the same current build, stay serial and exclude the
+unchanged mandatory native owners. Their disjoint method lists must cover the
+complete ordinary inventory exactly once. Every headless method must pass;
+display skips cannot substitute for native execution.
+
+The registry in [swift_execution.py](swift_execution.py) contains 35 self-contained
+suites (200 method declarations at the cleanup baseline) and four fixture-backed
+suites (29 declarations). The latter move only when their existing Go producer's
+environment is present: Moku dispatch/status, Timer, tag emoji and voice events.
+Without those variables they retain their previous ordinary execution/deferral.
+The [migration audit](../../tools/verification/swift-tests/headless-migration-20261104.md)
+records the source evidence, retained graphical suites and validation limits.
 
 Run from the repository root with the macOS 26/Xcode/Metal toolchain:
 
@@ -8,9 +23,11 @@ python3 scripts/ci/swift-native.py prepare
 python3 scripts/ci/swift-native.py headless --evidence /tmp/new-windowless-evidence
 ```
 
-Use a fresh evidence directory. The reviewed selection covers protocol and
-cancellation boundaries, pure camera/packing/directory models, card composition
-and production offscreen Metal rendering. It currently contains 37 methods.
+Use a fresh evidence directory. This independent command runs the same reviewed
+selection without launching its graphical remainder. It includes the four
+fixture-backed suites only when their producer variables are supplied. Counts
+above describe source declarations, not parameterized cases or a completed run;
+the actual current-build inventory remains authoritative.
 Every selected method must pass exactly once; absent suites, missing/duplicate
 outcomes, any skip, incomplete summaries and nonzero process status fail.
 The receipt records source revision, dirty state, requested methods, actual
@@ -21,7 +38,7 @@ It creates no test window or activation request and runs with
 `MOKUSEI_TEST_HEADLESS=1`. AppKit, macOS and a Metal device remain dependencies;
 a capability override does not establish physical absence of WindowServer.
 The full hosted native run still covers all current methods plus the real
-input/focus/WebKit/window/pixel owners and performs exactly-once coverage audit.
+input/focus/WebKit/window/pixel owners and audits both ordinary execution modes.
 The standalone windowless result never replaces Complete coverage.
 
 Independent Go fixture producers also retain two bounded workers and per-command

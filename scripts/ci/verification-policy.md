@@ -26,7 +26,7 @@ documentation scope are not claimed as executed.
 | Go checks, race tests and generated properties | Architecture boundaries, data races, admission schedules, terminal-state invariants | Linux, plus Darwin-only clipboard/profile-lease tests on macOS |
 | Runtime integration replays | Real HTTP/NDJSON, SQLite crash recovery, command ownership, Git worktrees, search lifecycle and cross-client cancellation | Linux `runtime` replay group |
 | Adapter and Context replays | Real subprocess/protocol boundaries, malformed/late events, callback lifecycle, OAuth callback/refresh and cache ownership | Linux `adapters` replay group; scripted external peers and loopback services |
-| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | One complete serial ordinary run plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
+| Complete Swift suite | Mounted production controls, text composition/focus, attachment cleanup, WebKit, animation cancellation, geometry and actual bundled Metal rendering | Serial windowless and graphical ordinary processes plus explicit mandatory native method owners after one macOS build; display skips fail CI; DirectoryTag is included once |
 | Generated Swift fixtures | Go-produced initial-response, Moku status/Timer, voice-event, conversation and Harness-form contracts reach real Swift consumers | Five producers export six files locally before the complete Swift run |
 | Go/Swift and process interop | Unicode/null/integer wire fidelity, file transfer, settings admission, profile identity, failed shutdown/reopen, Pi usage and native profile leases | Six existing interop launchers, three devtool replays and real daemon lifecycle on macOS |
 | Isolated AppKit flows | Browser sheet lifecycle, application back navigation, settings persistence/conflict and real glass clipping during transitions | Existing settings and reading-presentation launchers on macOS |
@@ -50,8 +50,12 @@ complete intermediate WindowServer frames before their unchanged pixel oracle
 can pass; the real AppKit event loop owns that capture.
 All full method identities remain in discovery and are excluded from ordinary
 execution without a test-level skip or environment bypass.
-The complete ordinary command has no positive `--filter` and passes the shared
-`--skip` for the full native method ID and its runtime source-location suffix. This command selection does not add a framework skip outcome; the method
+The shared ordinary plan runs reviewed whole windowless suites under an anchored
+`--filter` with `MOKUSEI_TEST_HEADLESS=1`. The graphical remainder has no positive
+filter and excludes those suites. Both commands pass the shared native `--skip`
+for the full method ID and its runtime source-location suffix. The receipt and
+audit require the exact disjoint inventories, per-process summaries and zero
+headless skips. This command selection does not add a framework skip outcome; the method
 must still execute at its declared native owner.
 Coverage requires exactly one successful owner receipt, one passing terminal
 outcome and the required execution marker at that declared check; missing frames fail the native assertion, while

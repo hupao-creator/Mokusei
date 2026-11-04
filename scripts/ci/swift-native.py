@@ -10,27 +10,14 @@ import shutil
 import signal
 import sys
 import subprocess
-import time
 from collections import Counter
 
 import deadline
 from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
+from swift_execution import HEADLESS_SUITES, execute_ordinary, headless_suites, suite_filter
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "app/macos/.build/ci-manifest.json"
-
-# Reviewed windowless production boundaries. Unknown/new suites stay in the full
-# graphical run; this selection cannot replace the complete native audit.
-HEADLESS_SUITES = {
-    "MokuseiCoreTests.RuntimeProtocolTests",
-    "MokuseiCoreTests.RuntimeAppliedDeliveryTests",
-    "MokuseiCoreTests.RuntimeQueryCancellationTests",
-    "MokuseiSettingsIntegrationTests.NativeOverviewPackingTests",
-    "MokuseiSettingsIntegrationTests.NativeOverviewCameraReadabilityTests",
-    "MokuseiSettingsIntegrationTests.NativeMokuDirectoryMentionsTests",
-    "MokuseiSettingsIntegrationTests.NativeCloudMetalTests",
-    "MokuseiGitIntegrationTests.ThreadCardExtensionLayoutTests",
-}
 
 
 def identity():
@@ -99,12 +86,13 @@ def main():
         return
     if args.mode == "headless":
         from swift_reporting import summarize, terminal_methods
-        tests = [test for test in manifest["tests"] if test.split("/")[0] in HEADLESS_SUITES]
-        if {test.split("/")[0] for test in tests} != HEADLESS_SUITES:
+        suites = headless_suites(os.environ)
+        tests = [test for test in manifest["ordinary"]["tests"] if test.split("/")[0] in suites]
+        if {test.split("/")[0] for test in tests} != suites:
             raise RuntimeError("A reviewed headless suite is absent from the current build")
-        selection = "^(?:" + "|".join(re.escape(suite) + "/" for suite in sorted(HEADLESS_SUITES)) + ")"
+        selection = suite_filter(suites)
         command = ["xcrun", "swift", "test", "--skip-build", "--no-parallel", "--package-path", "app/macos",
-                   "--filter", selection]
+                   "--filter", selection, "--skip", native_filter()]
         log = args.evidence / "headless-swift.log"
         receipt = {"revision": manifest["revision"], "tests": tests, "command": command, "status": "running",
                    "dirty": bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT))}
@@ -131,36 +119,21 @@ def main():
             raise SystemExit(1)
         return
     ordinary = manifest["ordinary"]
-    receipt = {"revision": manifest["revision"], "tests": ordinary["tests"],
-               "skip": ordinary["skip"], "status": "running", "startedAt": time.time()}
-    path = args.evidence / "swift.json"
-    path.write_text(json.dumps(receipt, indent=2) + "\n")
-    command = ["xcrun", "swift", "test", "--skip-build", "--no-parallel", "--package-path", "app/macos",
-               "--skip", ordinary["skip"]]
-    try:
-        with (args.evidence / "swift.log").open("w") as log:
-            receipt["exit_code"] = deadline.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
-        receipt["status"] = "passed" if receipt["exit_code"] == 0 else "failed"
-    except (OSError, TimeoutError) as error:
-        receipt.update(status="failed", error=str(error))
-    except BaseException as error:
-        receipt.update(status="failed", error=str(error))
-        raise
-    finally:
-        receipt["finishedAt"] = time.time()
-        path.write_text(json.dumps(receipt, indent=2) + "\n")
+    receipt = execute_ordinary(ordinary["tests"], ROOT, args.evidence, revision=manifest["revision"])
     print(json.dumps(receipt | {"tests": len(receipt["tests"])}))
     if receipt["status"] != "passed":
-        log = args.evidence / "swift.log"
-        text = log.read_text(errors="replace") if log.exists() else "No Swift log was captured."
+        logs = [args.evidence / run["log"] for run in receipt["runs"] if run["status"] != "passed"]
+        text = "\n".join(log.read_text(errors="replace") for log in logs if log.exists())
         failures = [line for line in text.splitlines()
                     if re.search(r"recorded an issue|Expectation failed|error:|failed after|failed \(|Incomplete", line)]
         excerpt = "\n".join(failures[:40])[-12000:] if failures else text[-12000:]
-        message = f"Ordinary Swift suite: exit={receipt.get('exit_code')}; {receipt.get('error', 'test process failed')}"
+        failures = [f"{run['name']}: exit={run.get('exit_code')}; {run.get('error', 'test process failed')}"
+                    for run in receipt["runs"] if run["status"] != "passed"]
+        message = "Ordinary Swift suite: " + "; ".join(failures)
         print(message + "\n" + excerpt, flush=True)
         if "GITHUB_STEP_SUMMARY" in os.environ:
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-                summary.write(f"\n### Swift failure\n\n{message}\n\n````text\n{excerpt}\n````\n\nFull log: `{log}`\n")
+                summary.write(f"\n### Swift failure\n\n{message}\n\n````text\n{excerpt}\n````\n\nFull logs: {logs}\n")
         raise SystemExit(1)
 
 

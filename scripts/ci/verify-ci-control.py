@@ -26,7 +26,7 @@ def verify_swift_ownership(root, repo, environment):
     scripts = repo / "scripts/ci"
     scripts.mkdir(parents=True)
     for name in ("swift-native.py", "swift-tests.py", "swift_coverage.py", "swift_reporting.py",
-                 "swift_ownership.py", "replays.py", "deadline.py"):
+                 "swift_ownership.py", "swift_execution.py", "replays.py", "deadline.py"):
         shutil.copyfile(SCRIPTS / name, scripts / name)
     native_names = set(NATIVE_METHOD_OWNERS)
     tests = sorted(native_names

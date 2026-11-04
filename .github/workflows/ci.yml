@@ -285,7 +285,7 @@ jobs:
         id: fixtures
         if: ${{ !cancelled() }}
         run: python3 scripts/ci/replays.py fixtures --output "$MOKUSEI_CI_EVIDENCE/ci-fixtures"
-      - name: Run the complete ordinary Swift suite once
+      - name: Run windowless and graphical Swift suites serially
         if: ${{ !cancelled() && steps.swift-build.outcome == 'success' && steps.fixtures.outcome == 'success' }}
         run: python3 scripts/ci/swift-native.py run --evidence "$MOKUSEI_CI_EVIDENCE"
       - name: Run Go and Swift boundary replays

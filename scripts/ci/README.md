@@ -2,7 +2,8 @@
 
 [The workflow](../../.github/workflows/ci.yml) runs portable Go checks and
 protocol replays on Linux alongside one native verification job on macOS 26
-arm64. The native job builds once and runs the complete ordinary Swift suite,
+arm64. The native job builds once and runs the complete ordinary Swift inventory
+in serial windowless and graphical processes,
 Go/Swift interop and graphical replays serially in the same session. There are
 no test shards, placement weights or cross-runner build/fixture transfers.
 The `thread-send-feedback` native owner runs four mounted methods for Dock,
@@ -62,7 +63,10 @@ The native job performs these stages:
    commit, workspace, architecture, configuration, toolchain, run and attempt.
 3. Verify the graphical environment, run native Go checks and generate the five
    real Go fixture producers' six output files in the same evidence directory.
-4. Execute every ordinary Swift method once with `--skip-build --no-parallel`.
+4. Execute reviewed windowless suites with `MOKUSEI_TEST_HEADLESS=1`, then their
+   graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
+   method belongs to exactly one process; fixture-backed windowless suites move
+   only when their existing producer environment is supplied.
 5. Run all ten `interop` checks and all eleven `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
@@ -74,9 +78,11 @@ verification succeed. Replays reuse that same local build; no other runner's
 binary or prior attempt's evidence is needed. Swift omits the editor index store
 while retaining Debug code and test targets. DirectoryTag executes once.
 
-The ordinary command has no positive suite filter. Its explicit `--skip` excludes
-only full identities recorded in `swift_ownership.py`, including Swift Testing's
-runtime source-location suffix. This is selection, not a passing skip result:
+The [shared execution plan](swift_execution.py) selects reviewed windowless
+suites by an anchored suite-prefix filter. The graphical command has no positive
+filter and excludes those suites. Both commands also exclude the full native
+identities recorded in `swift_ownership.py`, including Swift Testing's runtime
+source-location suffix. This is selection, not a passing skip result:
 each excluded method must produce its actual passing outcome, marker and zero
 exit receipt in the declared native check. The title-reversal
 pixel proof needs that host's AppKit loop and WindowServer delivery.
@@ -128,11 +134,14 @@ component sizes. All GUI work within this session remains serial.
 ## Evidence and failure semantics
 
 `swift-native.py` owns build identity, discovery and ordinary execution.
-`build-manifest.json`, `swift.json` and `swift.log` live at the native evidence
-root; `ci-fixtures`, `ci-interop` and `ci-native` contain the required replay reports.
+`build-manifest.json`, `swift.json`, `headless-swift.log` and `swift.log` live at
+the native evidence root. `swift.json` retains each process's command, method
+list, environment override, status and timing. `ci-fixtures`, `ci-interop` and
+`ci-native` contain the required replay reports.
 `swift-tests.py` audits that directory before the native job can pass. Its actual
-method identities and framework totals must match the discovered inventory, with
-exactly one ordinary outcome or the declared native owner. Same-count omissions,
+method identities and framework totals must match each mode's assigned inventory,
+with exactly one ordinary outcome or the declared native owner. Headless skips
+are forbidden; only the existing named graphical deferrals remain. Same-count omissions,
 substitutions, duplicate methods, unexpected skips and missing terminal summaries
 fail. An early exit with status zero cannot certify incomplete tests.
 
@@ -204,9 +213,10 @@ Native groups need the current Swift build and graphical capabilities. The
 [verification policy](verification-policy.md) records independent defect coverage
 and the limited device/signed-package acceptance requirements.
 
-`make check-swift` invokes `swift-tests.py --run`, preserving the ordinary log,
-actual process receipt and native-owner evidence under `.build/check-swift`.
-It uses the same explicit ordinary exclusion, then invokes the existing producer
+`make check-swift` invokes `swift-tests.py --run`, building/listing current tests
+once and preserving both ordinary logs, the per-process receipt and native-owner
+evidence under `.build/check-swift`. It uses the same serial execution plan and
+explicit native exclusion, then invokes the existing producer
 for each declared owner check serially. The complete CI path additionally runs
 all fixtures/interop/native groups and audits the discovered method inventory.
 To inspect an existing ordinary log without claiming native owner execution:
@@ -252,7 +262,8 @@ GitHub-hosted macOS remains the default; optional self-hosted routing was alread
 present at that baseline and its repository variable is currently unset.
 No local status publication or external signing extension is part of the gate.
 
-[Windowless feedback](headless.md) remains an independent developer command.
+[Windowless feedback](headless.md) remains an independent developer command and
+shares its reviewed suite registry with ordinary CI/local execution.
 Every selected method must pass exactly once, without skips. It does not replace
 full hosted native verification. Independent fixture producers run at most two
 at once (`replays.py fixtures --jobs 1` retains the diagnostic serial control).

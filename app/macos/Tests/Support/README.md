@@ -194,10 +194,13 @@ intermediate frames cannot substitute for a current one.
 
 ## Windowless feedback
 
-The reviewed `swift-native.py headless` selection runs current protocol, pure
-geometry/model and offscreen Metal tests with display admission disabled. It
-requires every selected method to pass, with no skips; it is not the full native
-gate. Metal uses SwiftUI ImageRenderer directly without initializing NSApplication
+The reviewed [execution registry](../../../../scripts/ci/swift_execution.py)
+runs whole protocol, geometry/model, unattached-control and offscreen Metal
+suites with display admission disabled in ordinary CI/local execution, followed
+serially by the graphical remainder. Fixture-backed suites move only when their
+existing producer environment is supplied. Each selected method must pass with
+no skips. `swift-native.py headless` runs that selection independently; it is not
+the full native gate. Metal uses SwiftUI ImageRenderer directly without initializing NSApplication
 or creating a window. Main-actor controls retain the shared gate; genuinely pure
 cases keep their ordinary scheduling. Tests for removed embedded selector
 presentations are not carried forward as headless coverage.

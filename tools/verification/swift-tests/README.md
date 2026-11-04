@@ -3,6 +3,8 @@
 For the later source-based cleanup of removed Conversation input and superseded
 Talk/Note layouts, see the [2026-11-04 cleanup audit](obsolete-tests-20261104.md).
 The baseline inventory below remains historical evidence.
+The subsequent [Headless migration audit](headless-migration-20261104.md) records
+the reviewed whole-suite routing, graphical exceptions and static-only limits.
 
 Baseline: `a42e44c9943260e36ab4876f3619a43e5f20ec9b`. All commands ran in the
 assigned detached worktree. No product source or behavioral assertion threshold

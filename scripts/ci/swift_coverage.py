@@ -6,6 +6,7 @@ import re
 from collections import Counter
 from swift_reporting import summarize, terminal_methods
 from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
+from swift_execution import ordinary_runs
 
 
 def main():
@@ -92,9 +93,6 @@ def main():
     allowed_skips = swift_launchers | {name.rsplit(".", 1)[0] + "/" + name.rsplit(".", 1)[1] for name in xctest_launchers}
     deferred = set()
     label = "Ordinary Swift suite"
-    path = one("swift.log")
-    results, parser_errors, rows = summarize([(label, path)] if path is not None else [])
-    errors.extend(parser_errors)
     receipt = read_json(one("swift.json"))
     if receipt is None or receipt.get("status") != "passed" or receipt.get("exit_code") != 0:
         errors.append(f"{label}: missing successful process receipt.")
@@ -104,25 +102,43 @@ def main():
                 or receipt.get("skip") != manifest["ordinary"].get("skip")):
             errors.append(f"{label}: receipt does not match the complete test inventory.")
         receipt_tests.extend(receipt.get("tests", []))
-    if path is None:
-        errors.append(f"{label}: no test log; tests did not run.")
-    else:
+    plan = ordinary_runs(manifest["ordinary"]["tests"], os.environ) if manifest else []
+    actual_runs = receipt.get("runs", []) if receipt else []
+    if not isinstance(actual_runs, list):
+        actual_runs = []
+    if len(actual_runs) != len(plan):
+        errors.append(f"{label}: missing or repeated execution modes.")
+    logs = []
+    for index, expected in enumerate(plan):
+        run_label = label + " / " + expected["name"]
+        actual = actual_runs[index] if index < len(actual_runs) else {}
+        if (not isinstance(actual, dict) or any(actual.get(key) != value for key, value in expected.items())
+                or actual.get("status") != "passed" or actual.get("exit_code") != 0):
+            errors.append(f"{run_label}: missing successful receipt for the exact execution plan.")
+        path = one(expected["log"])
+        if path is None:
+            errors.append(f"{run_label}: no test log; tests did not run.")
+            continue
+        logs.append((run_label, path))
         log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", path.read_text(errors="replace"))
         if "Requires a logged-in WindowServer session and a display" in log:
-            errors.append(f"{label}: native display tests skipped; hosted UI coverage is required.")
-        if manifest:
-            outcomes = terminal_methods(log, manifest["tests"], errors)
-            identities = [name for name, _ in outcomes]
-            observed_tests.extend(identities)
-            expected = manifest["ordinary"]["tests"]
-            if Counter(identities) != Counter(expected):
-                errors.append(f"{label}: observed method identities omit, repeat or substitute discovered ordinary tests.")
-            skipped_names = {name for name, status in outcomes if status == "skipped"}
-            deferred.update(skipped_names)
-            for name in sorted(skipped_names - allowed_skips):
-                errors.append(f"{label}: unexpected skip: {name}")
-        if manifest and sum(result["tests"] for result in results) != len(manifest["ordinary"]["tests"]):
-            errors.append(f"{label}: framework totals do not account for every ordinary method.")
+            errors.append(f"{run_label}: native display tests skipped; hosted UI coverage is required.")
+        outcomes = terminal_methods(log, manifest["tests"], errors)
+        identities = [name for name, _ in outcomes]
+        observed_tests.extend(identities)
+        if Counter(identities) != Counter(expected["tests"]):
+            errors.append(f"{run_label}: observed method identities omit, repeat or substitute assigned tests.")
+        skipped_names = {name for name, status in outcomes if status == "skipped"}
+        deferred.update(skipped_names)
+        permitted = allowed_skips if expected["name"] == "graphical" else set()
+        for name in sorted(skipped_names - permitted):
+            errors.append(f"{run_label}: unexpected skip: {name}")
+    results, parser_errors, rows = summarize(logs)
+    errors.extend(parser_errors)
+    for expected in plan:
+        total = sum(result["tests"] for result in results if result["run"] == label + " / " + expected["name"])
+        if total != len(expected["tests"]):
+            errors.append(f"{label} / {expected['name']}: framework totals do not account for every assigned method.")
 
     replay_passes = set()
     for group in ("fixtures", "interop", "native"):

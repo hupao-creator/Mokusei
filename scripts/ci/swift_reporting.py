@@ -1,10 +1,9 @@
 """Capture or summarize complete XCTest and Swift Testing runs."""
-import json
 from pathlib import Path
 import re
 import subprocess
 import sys
-from swift_ownership import native_filter
+from swift_ownership import NATIVE_METHOD_OWNERS
 
 
 def summarize(logs):
@@ -111,25 +110,19 @@ def terminal_methods(log, inventory, errors, *, allow_other=False):
 
 
 def capture(output_dir):
+    from swift_execution import execute_ordinary
     repo = Path(__file__).resolve().parents[2]
-    command = ["xcrun", "swift", "test", "--package-path", str(repo / "app/macos"),
-               "--skip", native_filter()]
-    path = output_dir / "swift-tests.log"
-    status = output_dir / "swift-status.json"
-    record = {"command": command, "exit_code": None, "log": str(path)}
-    status.write_text(json.dumps(record, indent=2) + "\n")
-    with path.open("wb") as log:
-        try:
-            with subprocess.Popen(command, cwd=repo, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, bufsize=0) as process:
-                while chunk := process.stdout.read(64 * 1024):
-                    log.write(chunk)
-                    log.flush()
-                    sys.stdout.buffer.write(chunk)
-                    sys.stdout.buffer.flush()
-                record["exit_code"] = process.wait()
-        except OSError as error:
-            log.write((str(error) + "\n").encode())
-            record["exit_code"] = 127
-    status.write_text(json.dumps(record, indent=2) + "\n")
-    return path, record
+    # Listing builds the current sources once. Both serial execution modes then
+    # consume that same inventory/binary, just as hosted CI does after prepare.
+    listed = subprocess.check_output(["xcrun", "swift", "test", "list", "--package-path", "app/macos"],
+                                     cwd=repo, text=True).splitlines()
+    tests = sorted(line.strip() for line in listed if line.strip())
+    if not tests or len(tests) != len(set(tests)) or any("/" not in test or "." not in test.split("/")[0] for test in tests):
+        raise RuntimeError("Invalid or empty Swift test inventory")
+    ordinary = [test for test in tests if test not in NATIVE_METHOD_OWNERS]
+    record = execute_ordinary(ordinary, repo, output_dir, no_parallel=False)
+    logs = [("Ordinary Swift suite / " + run["name"], output_dir / run["log"]) for run in record["runs"]]
+    for _, path in logs:
+        if path.is_file():
+            sys.stdout.write(path.read_text(errors="replace"))
+    return logs, record

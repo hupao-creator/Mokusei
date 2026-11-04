@@ -101,8 +101,9 @@ records the failure/skip inventory and reproduction commands.
 Hosted macOS CI now runs graphical tests and the Go/AppKit fixture launchers,
 rejecting unexpected skips. Its current-revision results replace equivalent
 local runs under the [verification policy](../../scripts/ci/verification-policy.md).
-[Windowless developer feedback](../../scripts/ci/headless.md) retains the reviewed
-protocol/model/geometry/offscreen Metal selection without replacing hosted native coverage.
+[Windowless execution](../../scripts/ci/headless.md) runs reviewed whole suites
+before the graphical remainder in ordinary CI/local checks. Its independent
+developer command uses the same registry without replacing hosted native coverage.
 
 Workspace startup and Dock presence are narrow observable facts. `hasSnapshot`
 changes only when the workspace snapshot becomes present/absent, and the catalog
