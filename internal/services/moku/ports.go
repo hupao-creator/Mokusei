@@ -62,6 +62,7 @@ type Configuration struct {
 	ReplaceSession           func(context.Context, string, SessionConfiguration) (model.ThreadRecord, error)
 	ConfigureSession         func(context.Context, string, int64, SessionConfiguration) error
 	OpenSession              func(context.Context, string, *plugin.Injection) error
+	SyncNativeContext        func(context.Context, plugin.VoiceContextSync, []plugin.ContextEntry) error
 	SetNativeAdmission       func(string, func(context.Context) error) error
 	CloseSession             func(context.Context, string) error
 	// onAdmitted runs after durable running observation and before native execution

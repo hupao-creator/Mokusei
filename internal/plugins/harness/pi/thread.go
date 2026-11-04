@@ -468,6 +468,10 @@ func prepareInput(ctx context.Context, request plugin.SendRequest) (PromptInput,
 	return PromptInput{Message: message, Images: images}, strings.Join(append(visible, references...), "\n\n"), ctx.Err()
 }
 func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) error {
+	// Native prompt(steer) can start a run after settlement; defer lazy work.
+	if request.FollowUpOnly {
+		return plugin.ErrFollowUpUnavailable
+	}
 	h.sendMu.Lock()
 	defer h.sendMu.Unlock()
 	if request.ExecutionID == "" {

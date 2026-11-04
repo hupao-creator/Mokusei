@@ -35,7 +35,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 		ConfigureSession: func(ctx context.Context, id string, revision int64, value moku.SessionConfiguration) error {
 			return r.ConfigureMokuThread(ctx, id, revision, value.HarnessID, value.Settings, value.AppliedSettings, value.SettingsRevision, value.Cwd)
 		},
-		OpenSession: r.OpenMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
+		OpenSession: r.OpenMokuThread, SetNativeAdmission: r.SetMokuNativeAdmission, SyncNativeContext: r.SyncMokuVoiceContext, CloseSession: r.CloseMokuThread, SendSession: r.SendMokuThread,
 		PendingDeliveries: r.PendingMokuDeliveries, SendDelivery: r.SendMokuDelivery,
 		SubscribeCommitted: r.OnThreadCommitted, SubscribeDiagnostics: b.subscribeDiagnostics,
 		SubscribeUserThreadInputs: r.SubscribeUserThreadInputs,

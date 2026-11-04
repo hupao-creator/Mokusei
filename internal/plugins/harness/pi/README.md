@@ -131,3 +131,10 @@ superseded by refresh. A failed native process cleanup remains observable and
 fences replacement discovery until a new adapter is constructed.
 
 Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.
+
+This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
+input protocol has no proven atomic active-only condition. Lazy Moku notices
+therefore wait for the next independently triggered input and travel with its
+system context, even while this Harness is running. An explicit follow-up-only
+Send returns `ErrFollowUpUnavailable` before retaining or dispatching anything;
+ordinary inputs keep their existing behavior.

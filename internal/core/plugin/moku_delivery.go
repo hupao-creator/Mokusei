@@ -12,9 +12,15 @@ import (
 // Native Harness errors and uncertain acknowledgements must never use it.
 var ErrMokuConfigurationPending = errors.New("Moku configuration must be applied before new execution admission")
 
-// MokuDelivery is a committed terminal fact awaiting coordinator admission.
+// ErrMokuIdle means a lazy notification was not consumed and must await another trigger.
+var ErrMokuIdle = errors.New("Moku is idle; notification remains queued")
+
+// MokuDelivery is a committed system notification awaiting coordinator admission.
 // Uncertain means native Send may have consumed it; automatic replay is unsafe.
 type MokuDelivery struct {
+	Sequence     int64              `json:"sequence"`
+	Lazy         bool               `json:"lazy,omitempty"`
+	Notification string             `json:"notification,omitempty"`
 	ID           string             `json:"id"`
 	Thread       model.ThreadRecord `json:"thread"`
 	AttemptEpoch string             `json:"attemptEpoch,omitempty"`

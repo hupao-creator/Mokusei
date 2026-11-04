@@ -919,6 +919,9 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if err != nil {
 		return err
 	}
+	if v.c.config.SyncNativeContext != nil {
+		return v.c.config.SyncNativeContext(linked, syncer, entries)
+	}
 	return syncer.SyncContext(linked, entries)
 }
 

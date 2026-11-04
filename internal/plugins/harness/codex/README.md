@@ -138,3 +138,8 @@ canonical activity state and full execution content remain unchanged.
 
 Matching id/status/name-only successful Hook JSON is lifecycle metadata, not
 summary output; unknown fields remain conservative and full detail is retained.
+
+Lazy Moku delivery uses `SendRequest.FollowUpOnly`. The adapter checks its own
+active execution before retaining input and returns `ErrFollowUpUnavailable`
+when the target is gone; it must not create a replacement execution for this
+request. Ordinary sends retain their existing admission behavior.

@@ -65,3 +65,23 @@ or remove retained settings and history.
 - [Native Plugin API](../../../app/macos/Sources/Shared/PluginAPI/README.md): Swift presentation and Sidecard contracts.
 
 Verification from the repository root: `./scripts/go.sh run -race ./tools/verification/thread-metadata` and the affected [Harness replay](../../../tools/verification/README.md).
+
+`MokuDelivery` represents either a wake-producing terminal fact or a lazy internal
+system notification. `Lazy` forbids starting an execution solely for that delivery;
+`Notification` is its text, and `Sequence` preserves committed order. Core's exact
+`ErrMokuIdle` guarantees no input consumption at an idle/ended admission boundary.
+The notification text is carried independently of the triggering user message.
+The shared direct-to-thread formatter in [moku_notification.go](moku_notification.go)
+preserves admission-only semantics and bounded previews for both durable and live
+notification consumers.
+
+`SendRequest.FollowUpOnly` forbids a Harness from creating a new execution if the
+captured target ends before its own admission lock. An exact
+`ErrFollowUpUnavailable` proves no input retention or dispatch, without asserting
+durable terminal settlement. Core keeps that lazy notification queued instead of
+reserving a successor. The default is false, preserving other input sources.
+
+`ThreadCapabilities.FollowUpOnly` advertises safe native active-only steering.
+Codex advertises it; Claude, Pi and OpenCode defer lazy-only sends because their
+native input paths cannot prove that a finishing race will not start more work.
+They still receive queued notices with the next independent input.

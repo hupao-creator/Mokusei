@@ -210,6 +210,10 @@ func (h *Handle) commitLocked(ctx context.Context) error {
 	return e
 }
 func (h *Handle) Send(ctx context.Context, r plugin.SendRequest) error {
+	// Continuous CLI input cannot guarantee no new work after native settlement.
+	if r.FollowUpOnly {
+		return plugin.ErrFollowUpUnavailable
+	}
 	h.op.Lock()
 	defer h.op.Unlock()
 	if err := ctx.Err(); err != nil {

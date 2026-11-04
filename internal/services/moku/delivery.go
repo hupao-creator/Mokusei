@@ -44,12 +44,22 @@ func (c *Coordinator) drainDeliveries(ctx context.Context, reported map[string]s
 			}
 			continue
 		}
+		if delivery.Lazy {
+			current, err := c.current()
+			if err != nil || current.Observation.LatestExecution == nil || current.Observation.LatestExecution.Terminal() {
+				continue
+			}
+			harness := c.config.Harnesses[current.HarnessID]
+			if harness == nil || !harness.Descriptor().ThreadCapabilities.FollowUpOnly {
+				continue
+			}
+		}
 		if err := c.queue.Lock(ctx); err != nil {
 			return
 		}
-		err = c.admitSettings(ctx, func(ctx context.Context) error { return c.deliverTerminal(ctx, delivery) })
+		err = c.admitSettings(ctx, func(ctx context.Context) error { return c.deliverNotification(ctx, delivery) })
 		c.queue.Unlock()
-		if err != nil && ctx.Err() == nil {
+		if err != nil && err != plugin.ErrMokuIdle && ctx.Err() == nil {
 			if reported[delivery.ID] != err.Error() {
 				c.report("moku-delivery", err)
 				reported[delivery.ID] = err.Error()
@@ -62,7 +72,7 @@ func (c *Coordinator) drainDeliveries(ctx context.Context, reported map[string]s
 		}
 	}
 }
-func (c *Coordinator) deliverTerminal(ctx context.Context, delivery plugin.MokuDelivery) error {
+func (c *Coordinator) deliverNotification(ctx context.Context, delivery plugin.MokuDelivery) error {
 	return retryConfigurationAdmission(func() error {
 		record, err := c.ensure(ctx)
 		if err != nil {
@@ -73,6 +83,9 @@ func (c *Coordinator) deliverTerminal(ctx context.Context, delivery plugin.MokuD
 			return err
 		}
 		input := textInput("Mokusei Agent Thread terminal event:\n" + string(serialized))
+		if delivery.Notification != "" {
+			input = textInput(delivery.Notification)
+		}
 		input.Presentation = "internal"
 		entries, err := c.sendContext(ctx, input, nil, nil)
 		if err != nil {
