@@ -835,8 +835,13 @@ viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
 48pt above and 22pt below by default for application reading panels (Git and
-Moku history). Agent Thread and Report panels opt into
-`balancedVerticalInsets: true`, reserving 48pt at both ends. The entire viewport
+Moku history and Agent Thread). Report panels opt into
+`balancedVerticalInsets: true`, reserving 48pt at both ends. Agent Thread current
+and historical documents use 12pt of scrollable padding at each end, without
+additional vertical padding around the conversation viewport. This keeps the
+Close clearance while expanding the readable area at every window width;
+timeline page capacity uses the same document padding. The sibling Moku input
+keeps its existing host layout. The entire viewport
 sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
 edge. The top clears Close's complete 14pt inset + 32pt hit region, including
