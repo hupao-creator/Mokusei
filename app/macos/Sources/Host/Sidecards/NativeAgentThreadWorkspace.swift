@@ -140,6 +140,8 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
+            let mainSize = snapshot.handoff?.travelComplete == true ? panelSize
+                : CGSize(width: layout.mainWidth, height: layout.mainHeight)
             launchers
                 .position(x: panelSize.width + 38, y: panelSize.height / 2)
                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -148,12 +150,20 @@ struct NativeSidecardWorkspaceLayout: View {
                         let frames = anchors.mapValues { proxy[$0] }
                         ZStack(alignment: .topLeading) {
                             mainConversation
-                                .frame(width: snapshot.handoff?.travelComplete == true ? panelSize.width : layout.mainWidth,
-                                       height: snapshot.handoff?.travelComplete == true ? panelSize.height : layout.mainHeight, alignment: .topLeading)
+                                .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
+                                // Reflow the reader once at its destination width.
+                                // Animate its center and the surrounding shell
+                                // independently, without rescaling native text or
+                                // proposing a different TextKit width every tick.
+                                .offset(x: -mainSize.width / 2)
+                                .transaction { $0.animation = nil }
+                                .offset(x: mainSize.width / 2)
+                                .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 .background(NativePalette.thread.canvas.swiftUI)
                                 .background(NativeReadingPanelFrame())
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+                                .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
                                 .accessibilityIdentifier("agent-reading-panel")
                                 .nativeLayoutLog("agent.reading.panel")
                                 .allowsHitTesting(snapshot.handoff == nil)
@@ -239,7 +249,6 @@ struct NativeSidecardWorkspaceLayout: View {
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)
         .nativeReadingPanelViewport(balancedVerticalInsets: true)
-        .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
         // History owns its own Escape. Keep this fallback out of Sidecards so
@@ -270,10 +279,8 @@ struct NativeSidecardWorkspaceLayout: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
-            .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
-            .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
             .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source, destination: destination,
-                frameIdentifier: "sidecard-aperture-" + card.id.string))
+                frameIdentifier: "sidecard-aperture-" + card.id.string, animatesContentSize: promoting))
             .opacity(promoting ? handoffOpacity : 1)
             .zIndex(promoting ? 3 : expanded ? 1 : 0)
             .allowsHitTesting(expanded && !snapshot.suppressed)
