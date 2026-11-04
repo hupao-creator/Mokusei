@@ -41,8 +41,10 @@ private struct Preview: View {
                     }
                 }
             }.padding(50)
-            NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/isolated/note-preview",
-                landing: fixture.landing, note: fixture.note, onSend: { _ in }, onCancel: {})
+            NativeMokuScene(state: fixture.state, outside: { EmptyView() }, thread: { EmptyView() }, dock: {
+                NativeMokuDock(state: fixture.state, draft: fixture.draft, cwd: "/isolated/note-preview",
+                    landing: fixture.landing, note: fixture.note, onSend: { _ in }, onCancel: {})
+            }, settings: { EmptyView() })
                 .frame(width: fixture.size.width / fixture.zoom, height: fixture.size.height / fixture.zoom)
                 .scaleEffect(fixture.zoom)
                 .transaction { transaction in

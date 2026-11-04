@@ -12,7 +12,7 @@ The first native mode mounts the production Dock and Markdown renderer with
 Coordinator-generated records. It checks short-note dwell, opening/closing,
 click-to-input and note-to-input focus, ignored horizontal swipes,
 Talk bubble upward swipes with both Natural Scrolling settings while retaining
-the notification, overflow scrolling at both ends and long-message eye entry,
+the covered notification's data, overflow scrolling at both ends and long-message eye entry,
 in-place updates, unsupported content, long-note gaps and complete overlapping
 viewport coverage, plus pending submission failure/retry and voice presentation.
 The Go/Swift mode starts a temporary authenticated Runtime, sends the actual
@@ -33,6 +33,9 @@ the result and `cleanup.json` are retained with the evidence.
 Exposure failures also print the submission/catalog events, foreground state and
 mounted viewport/tracker diagnostics. They distinguish a missing completed view
 from a rejected Runtime receipt without changing arming or coverage admission.
+Note dwell waits for the completed exposure rather than counting shell travel
+as reading time. The existing History accessibility case expects a covered voice
+transcript to leave the accessibility tree while Note owns the reading surface.
 
 Finish SwiftPM builds before staging. Native replays acquire one nonblocking
 graphical-session lock. `--isolation-only` validates packaging without mounting

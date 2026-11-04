@@ -174,11 +174,11 @@ components without opening a window; it does not certify on-screen glass pixels.
 
 The Dock and history input placeholder follows the displayed directory tags, including the retained draft during Dock dismissal. With no directory it reads `Ask Moku… or hold to speak` (Chinese: `向 Moku 提问，或长按说话…`); selected directories retain `Ask Moku about <name>…` with `or hold to speak` appended (Chinese: `向 Moku 询问关于 <name> 的问题，或长按说话…`). Two directories show both names joined by `and` / `和`; three or more show the first name and the remaining count (`<name> and N other directories` / `<name> 等 N 个目录`, with the Chinese count including all selected directories).
 
-On macOS, clicking the collapsed Moku row opens input; when a message is visible, only the eyes are the input target so prose remains selectable and controls retain their actions. Clicking the retained row beneath an open note switches to input. Physical two-finger upward swipe opens the note; horizontal swipes do not open input. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. The click entry uses the existing composer focus and draft-restoration path. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Clicking Moku cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
+On macOS, clicking the collapsed Moku row opens input; when a message is visible, only the eyes are the input target so prose remains selectable and controls retain their actions. Clicking the eyes beneath an open note switches to input. Physical two-finger upward swipe opens the note; horizontal swipes do not open input. [NativeMokuSwipe](NativeMokuSwipe.swift) requires a precise phased gesture, threshold and dominant direction, rejects inertia/outside-origin gestures, and respects input/voice/interaction ownership. The click entry uses the existing composer focus and draft-restoration path. Voice mode allows the same upward note gesture on the retained Moku row (only the eyes when a transcript/notification is visible), excluding the measured voice control bounds. Clicking Moku cannot open the composer during voice. Note scrolling, Escape, outside click and the close button reuse the ordinary note path without changing the media owner or saved composer restoration state.
 
-Ordinary Talk also admits that upward gesture across the message row, retaining
-the bubble beneath the opened note. A native viewport with vertical overflow
-keeps its scrolling ownership, including at either end; the eyes and surrounding
+Ordinary Talk also admits that upward gesture across the message row. Note
+temporarily replaces the message as the capsule's reading surface. A native
+viewport with vertical overflow keeps its scrolling ownership, including at either end; the eyes and surrounding
 row remain note entry points for a long message. The monitor checks the actual
 hit-tested AppKit viewport, so resizing and persistent scroller gutters do not
 depend on a predicted text height. Stop and voice controls retain their measured
@@ -233,9 +233,9 @@ The expanded note's **Moku history** button opens the existing conversation
 reader, including its archived-session picker. It remains available when the
 note or conversation is empty and supports keyboard and accessibility activation
 with localized labels. History sits before Stop or voice controls in the trailing
-action row. The Dock measures the actions and shares the row only when it
-leaves at least 200 points for a message or 240 for a dispatch card. Narrower
-capsules put actions below the retained message or eyes. If the full label
+action row beside the persistent eyes. Note covers Talk, dispatch and voice
+transcript ink rather than reserving a second message row. The Dock measures
+the actions; narrower capsules put them below the eyes. If the full label
 cannot fit beside the other control, History becomes an icon with the same
 accessible label and help; if even that pair cannot fit, the controls stack.
 The note body stays clipped above these rows; its header scrolls with the body
@@ -309,28 +309,34 @@ finishes: replacing it retires the mounted renderer and its armed read session.
 
 Input/permission interactions take precedence over the note; leaving Overview or opening another covering route closes it. Escape, outside click, the close button and the note command dismiss it. The macOS note command is `Cmd+Shift+N` when the Dock is available. The Dock's surface/eye expansion explicitly respects Reduce Motion.
 
-Note ink has its own composited transition outside the native document's
-non-animated layout transaction. Header and Markdown fade together over 120ms
-on dismissal, before the 420ms glass contraction carries the header through the
-eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
-removes both animations. Closing only dismisses this read-only presentation;
-it does not clear the catalog note or change the composer draft.
+Talk and Note take turns owning the same reading surface. Opening first fades
+message ink in place over 100ms, expands the single glass shell with the existing
+420ms geometry curve, then fades Note and History in over 120ms. Closing reverses
+that sequence. The footer retains only the same eyes and History/Stop/voice
+actions; Note prose never travels through a visible Talk row. The message's native
+viewport remains mounted with its ordinary 48-point control inset, preserving
+wrapping and scroll state while hidden. This also applies to dispatch and live
+voice transcript ink, without changing dispatch detail or voice media ownership.
 
-Retained Talk and voice-transcript ink have a geometry group outside their
-discrete native viewport layout transaction. The group resolves the enclosing
-shell/row travel first, so disabling native text layout animation cannot make
-the message adopt its final scene coordinates while the glass is still moving.
-Opening/closing Note and interrupted reversals keep the same message view and
-scroll state; Note does not trigger the message's opacity transition. That fade
-belongs only to message insertion/removal and respects Reduce Motion. Note's
-History action can still change the available prose width or move actions below
-the message in a narrow capsule; text wraps at the destination width without
-interpolating native document/clip heights. Dispatch keeps its existing layout
-and detail target. The no-message path keeps the ordinary persistent face/shell.
-Delivery, same-operation updates, expiry, dismissal, voice precedence and
-interaction/composer ownership remain in the existing scene and Talk state.
-See the [Talk/Note transition investigation](../../../../../design/moku-talk-note-transition.md)
-for original-video observations and this repair's verification limits.
+A generation fences each animation completion, so a rapid reversal cannot finish
+an older intent. Input, covering routes, inactive/hidden scenes and Reduce Motion
+settle the current target immediately. Hidden/retiring text and History cannot
+receive pointer or accessibility activation. Note gains interaction and reading
+exposure eligibility only after its entrance completes; a close intent revokes
+both immediately. Its native viewport claims a user-open arm when eligible,
+including a quick reopen that retained the same renderer. Escape, outside click
+and the eye-to-input action remain available during the handoff.
+
+Covering a notification with Note does not consume it. An already presented
+Talk keeps its original deadline and can expire while covered; a new operation
+received inside Note starts its deadline only when it becomes visible on return.
+The latest scene-owned message supplies that return, with no snapshot or cached
+message to resurrect. Text selection, scrolling, composer drafts and note data
+retain their existing owners. See the [same-level handoff investigation](../../../../../design/moku-talk-note-handoff.md)
+for source-video evidence and this change's validation limits. The earlier
+[geometry investigation](../../../../../design/moku-talk-note-transition.md)
+records the preceding repair, whose simultaneous Talk/Note presentation is
+superseded by this handoff.
 
 Note's Regular material is noninteractive; text selection, links, scrolling,
 history and dismissal retain their existing native targets. Returning to the

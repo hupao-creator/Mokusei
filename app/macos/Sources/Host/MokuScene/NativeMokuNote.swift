@@ -48,7 +48,7 @@ public struct NativeMokuNote: Equatable, Sendable {
     }
 }
 
-/// The note consumes only the space above Moku's existing bottom row. Its
+/// The note consumes the space above Moku's persistent face/action row. Its
 /// natural reading height is capped by the Dock's visible viewport.
 enum NativeMokuNoteLayout {
     static func fittedHeight(content: CGFloat, available: CGFloat) -> CGFloat {
@@ -101,7 +101,7 @@ struct NativeMokuNoteContent: View {
                 }
             }
         }
-        // Reading content stays above the retained row and the history action.
+        // Reading content stays above the face and history action.
         .frame(width: width, height: height, alignment: .top)
         .nativeLayoutLog("moku.note.panel")
         .clipped()
@@ -111,7 +111,7 @@ struct NativeMokuNoteContent: View {
         .onAppear {
             exposure.onComplete = onExposure
             exposure.configure(note)
-            if claimOpenArm() { exposure.arm() }
+            if routeEligible, claimOpenArm() { exposure.arm() }
         }
         .onChange(of: note) { _, next in exposure.configure(next) }
         .onDisappear { exposure.endSession() }
@@ -161,7 +161,7 @@ struct NativeMokuNoteContent: View {
                     onDocumentApplied: { exposure.applied($0) })
                     .id(note.documentToken)
                     .background(NativeMokuNoteExposureProbe(tracker: exposure, note: note,
-                        routeEligible: routeEligible))
+                        routeEligible: routeEligible, claimOpenArm: claimOpenArm))
                     .accessibilityIdentifier("moku-note-content")
             } else {
                 Text(localize("Moku 还没有写笔记。", "Moku has not written a note yet."))
@@ -280,23 +280,30 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
     let tracker: NativeMokuNoteExposureTracker
     let note: NativeMokuNote
     let routeEligible: Bool
+    let claimOpenArm: () -> Bool
 
     func makeNSView(context: Context) -> ExposureView {
         let view = ExposureView()
         view.tracker = tracker
+        view.documentToken = note.documentToken
         view.routeEligible = routeEligible
+        view.claimOpenArm = claimOpenArm
         return view
     }
     func updateNSView(_ view: ExposureView, context: Context) {
         view.tracker = tracker
+        view.documentToken = note.documentToken
         view.routeEligible = routeEligible
+        view.claimOpenArm = claimOpenArm
         view.refresh()
     }
     static func dismantleNSView(_ view: ExposureView, coordinator: ()) { view.stop(retireSession: true) }
 
     @MainActor final class ExposureView: NSView {
         weak var tracker: NativeMokuNoteExposureTracker?
+        var documentToken: String?
         var routeEligible = true
+        var claimOpenArm: () -> Bool = { false }
         private var observers: [NSObjectProtocol] = []
         private var monitor: Any?
         private weak var clip: NSClipView?
@@ -360,6 +367,11 @@ private struct NativeMokuNoteExposureProbe: NSViewRepresentable {
 
         func refresh() {
             guard let window, let clip else { return }
+            // Note can remain mounted through a quick close/reopen. Claim the
+            // new user visit only after its ink arrives, before sampling the
+            // viewport, so a hidden preparation frame cannot consume the arm.
+            if routeEligible, tracker?.note?.documentToken == documentToken,
+               claimOpenArm() { tracker?.arm() }
             // The document host spans the whole scroll view, so a persistent
             // legacy scroller leaves it wider than the clip view by exactly its
             // reserved gutter. That gutter is layout, not horizontal overflow;

@@ -2,6 +2,9 @@
 
 直接链接当前工作树 Release 生产模块，挂载 `NativeMokuDock`。只有背景卡片、Note 文本、草稿和状态切换是 fixture；没有复制 Note、玻璃、眼睛或动画实现。它是视觉预览，不包含断言、不运行测试或 Runtime，也不访问用户 profile、剪贴板或麦克风。
 
+预览通过生产 `NativeMokuScene` 驱动可见性生命周期。直接单独挂载 Dock 会保持
+`windowVisible == false`，只能展示隐藏窗口的立即收敛分支，不能验收动画或 Talk。
+
 ```sh
 xcrun swift build --package-path app/macos --configuration release --product Mokusei -Xswiftc -warnings-as-errors
 python3 demos/moku-note-transition/build.py --label candidate

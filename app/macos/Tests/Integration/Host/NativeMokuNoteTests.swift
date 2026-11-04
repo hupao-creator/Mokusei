@@ -358,10 +358,8 @@ struct NativeMokuNoteTests {
             let rootScreen = window.convertToScreen(root.convert(root.bounds, to: nil))
             #expect(bounds.width > 60 && bounds.height >= 28)
             if withMessage {
-                let message = try #require(element(id: "moku-voice-transcript", in: root))
-                let messageBounds = try frame(message)
-                #expect(messageBounds.minY >= bounds.maxY || messageBounds.maxX <= bounds.minX,
-                        "Transcript \(messageBounds) overlaps history \(bounds); node \(type(of: message))")
+                #expect(element(id: "moku-voice-transcript", in: root) == nil,
+                        "Note owns the reading surface; covered transcript must leave accessibility")
             }
             if withVoice || mode == "running" {
                 let control = try #require(element(id: withVoice ? "history-test-voice" : "moku-stop", in: root))

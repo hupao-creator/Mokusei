@@ -377,7 +377,10 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await wait("Note replay could not become foreground/key") { NSApp.isActive && window.isKeyWindow }
     fixture.state.openNotePanelFromUser()
     try await wait("Note did not reopen") { fixture.state.notePanelOpen }
-    try await Task.sleep(for: .milliseconds(2_300))
+    // Dwell starts when Note's ink arrives, after the shell handoff.
+    try await wait("Stable complete short note did not emit exposure after arrival") {
+        fixture.exposureAttempts.contains("\(note?.id.string ?? ""):1")
+    }
     let exposureView = find(host, NSView.self, where: { String(describing: type(of: $0)).contains("ExposureView") })
     let exposureClip = exposureView?.enclosingScrollView?.contentView
     try require(fixture.exposureAttempts.contains("\(note?.id.string ?? ""):1"),
@@ -412,8 +415,8 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
     try await Task.sleep(for: .milliseconds(300))
     try await capture("dark-note-expanded")
 
-    // Horizontal swipes leave the note alone; clicking its retained row opens input.
-    let noteRow = CGPoint(x: fixture.state.capsuleFrame.midX, y: fixture.state.capsuleFrame.maxY - 22)
+    // Horizontal swipes leave the note alone; clicking the eyes opens input.
+    let noteRow = CGPoint(x: fixture.state.capsuleFrame.minX + 32, y: fixture.state.capsuleFrame.maxY - 22)
     _ = try await scroll(0, x: 30, point: noteRow, inverted: false)
     try require(fixture.state.notePanelOpen && !fixture.state.inputOpen, "Left swipe from note opened composer")
     try await click(noteRow)
@@ -522,8 +525,8 @@ private func coversFullWindow(_ image: CGImage) -> Bool {
         _ = try await scroll(inverted ? -16 : 16, phase: .changed, point: point, inverted: inverted)
         try await wait("Talk bubble upward swipe did not open note") { fixture.state.notePanelOpen }
         try await settle()
-        try require(!fixture.state.inputOpen && axTexts(host).contains("Selectable notification text"),
-                    "Talk swipe lost the bubble or opened the composer")
+        try require(!fixture.state.inputOpen && fixture.state.talkPresentation.message?.text == "Selectable notification text",
+                    "Talk swipe consumed the covered notification or opened the composer")
         try require(try await scroll(-40, phase: [], momentum: .began, point: point) == nil,
                     "Talk opening gesture leaked momentum into note")
         fixture.state.setNotePanelOpen(false)
