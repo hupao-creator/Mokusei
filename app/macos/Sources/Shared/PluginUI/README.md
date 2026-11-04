@@ -1127,3 +1127,20 @@ animation installation; transition covers installation through delegate completi
 anchor publication from native layout resolution and subsequent ink construction.
 A `reading.transition` event with `started: 1` marks the native start callback.
 These are process observations, not display-frame timestamps.
+
+### Width-driven Markdown layout
+
+`NativeMarkdownColumn` measures document/list blocks at the supplied reading
+width with unconstrained height. It retains at most four width proposals in
+SwiftUI's layout cache, clearing them when the layout/subviews change; measurement
+and placement share those results. List markers, quote rules and footnote numbers
+use a fixed leading slot, so horizontal flexibility negotiation no longer probes
+their paragraph at one-point width. SwiftUI owns right-to-left mirroring.
+
+All blocks and native text views remain mounted. Whole-document selection/copy,
+footnote navigation, media loading and scroll ownership retain their existing
+lifetimes. The native Markdown replay includes actual text growth/shrink and
+window resize, both writing directions, table copy/geometry and footnote return;
+the local-image and execution-link replays cover asynchronous media and streaming
+admission. This optimization does not use viewport virtualization or stale
+cross-document height caches.

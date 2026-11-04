@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-04",
+  "configuration": "Debug, detailed performance enabled",
+  "criterion": "native API reports no transition and a ready mounted turn; not full pixel-reveal time or FPS",
+  "baseline": {
+    "opens": [
+      {
+        "settledMs": 1525.898,
+        "maxAPIResponseMs": 811.946
+      },
+      {
+        "settledMs": 1830.88,
+        "maxAPIResponseMs": 813.813
+      },
+      {
+        "settledMs": 1905.156,
+        "maxAPIResponseMs": 808.926
+      }
+    ],
+    "recordedTextSizeQueriesFirst3s": 45979,
+    "textLayoutMsFirst3s": 221.55,
+    "textViews": 139,
+    "contentHeight": 5641,
+    "viewportHeight": 742
+  },
+  "final": {
+    "opens": [
+      {
+        "settledMs": 967.509,
+        "maxAPIResponseMs": 250.751
+      },
+      {
+        "settledMs": 782.726,
+        "maxAPIResponseMs": 266.235
+      },
+      {
+        "settledMs": 683.216,
+        "maxAPIResponseMs": 179.497
+      }
+    ],
+    "perOpenFirst3s": [
+      {
+        "textSizeQueries": 278,
+        "textCacheLogRecords": 2,
+        "textViews": 139,
+        "textLayoutMs": 14.318,
+        "onePointLayouts": 0
+      },
+      {
+        "textSizeQueries": 278,
+        "textCacheLogRecords": 2,
+        "textViews": 139,
+        "textLayoutMs": 15.166,
+        "onePointLayouts": 0
+      },
+      {
+        "textSizeQueries": 278,
+        "textCacheLogRecords": 2,
+        "textViews": 139,
+        "textLayoutMs": 15.121,
+        "onePointLayouts": 0
+      }
+    ],
+    "contentHeight": 5641,
+    "viewportHeight": 742,
+    "build": {
+      "channel": "development",
+      "configuration": "debug",
+      "executableInputSHA256": "a33762a792c44bd3b35a77ad8e3956dc459bed9bf2b517d9f46f0177f26cc04d",
+      "runtimeInputSHA256": "e2a1f72ef2068a52cd877298e5a7256d84ca9ff81f543ff2e7e91bd978a96a8b"
+    }
+  }
+}

@@ -64,3 +64,13 @@ Verification: Core Swift tests, `./scripts/go.sh run -race ./tools/verification/
 from the repository root on macOS. The file interop replay uses the real Swift
 client without GUI: regular and symlink uploads, prompt FIFO rejection, and
 `.partial` downloads retain their validated bytes and basename.
+
+`NativePerformance.recordTextCache` accumulates hit/miss integers per surface in
+its current recorder, rather than allocating an event for every size proposal.
+At each existing 250ms writer drain, `text.cache` records carry `queries`, `hits`
+and `misses`; their timestamp is the drain time, not an individual probe time.
+Summary `count` remains the number of queries, with hit/miss totals alongside it.
+Pending counters are limited to 256 contexts and overflow increments the existing
+dropped counter. Reconfiguration and normal finish drain the owning recorder;
+counts never cross recording sessions. JSON encoding and file IO stay off the
+main actor. Other metrics retain their existing event/span semantics.

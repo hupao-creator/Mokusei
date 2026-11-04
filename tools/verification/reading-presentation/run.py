@@ -220,7 +220,7 @@ def main():
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
              10 if "--browser-viewport" in sys.argv else
-             8 if "--markdown" in sys.argv else
+             10 if "--markdown" in sys.argv else
              7 if glass_captures else
              8 if "--moku-composer" in sys.argv else
              7 if tag_glass else

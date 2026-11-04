@@ -510,10 +510,10 @@ final class MarkdownTextView: MarkdownPlatformTextView {
         let width = max(1, floor(width * scale) / scale)
         let height: CGFloat
         if let cached = measurements.first(where: { $0.width == width && $0.scale == scale }) {
-            NativePerformance.event(.textCache, context: performanceOperation, values: ["hit": 1])
+            NativePerformance.recordTextCache(hit: true, context: performanceOperation)
             height = cached.height
         } else {
-            NativePerformance.event(.textCache, context: performanceOperation, values: ["hit": 0])
+            NativePerformance.recordTextCache(hit: false, context: performanceOperation)
             applyText(width: width)
             height = layoutHeight(width: width, scale: scale)
         }

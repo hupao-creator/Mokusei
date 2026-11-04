@@ -81,6 +81,11 @@ public enum NativePerformance {
         recorder.append(.init(kind: "event", metric: metric.rawValue, id: nextID(), context: context ?? Self.context,
                               time: now(), values: bounded(values())))
     }
+    /// Size probing is a hot path. Accumulate numeric counters without creating
+    /// an event, timestamp, identifier or values dictionary for every proposal.
+    public static func recordTextCache(hit: Bool, context: UInt64? = nil) {
+        registry.withLock { $0.recorder }?.recordTextCache(hit: hit, context: context ?? Self.context)
+    }
     public static func sample(_ metric: Metric, milliseconds: Double, context: UInt64? = nil,
                               values: @autoclosure () -> [String: Double] = [:]) {
         guard milliseconds.isFinite, milliseconds >= 0,
@@ -151,7 +156,13 @@ private final class NativePerformanceRecorder: @unchecked Sendable {
     let signposter = OSSignposter(subsystem: "com.mokusei.desktop", category: "performance")
     private let origin = NativePerformance.now()
     private let session = UUID().uuidString
-    private struct Pending { var records: [PerformanceRecord] = []; var dropped = 0; var closed = false }
+    private struct TextCacheCounts { var hits = 0; var misses = 0 }
+    private struct Pending {
+        var records: [PerformanceRecord] = []
+        var textCaches: [UInt64?: TextCacheCounts] = [:]
+        var dropped = 0
+        var closed = false
+    }
     private let pending = Mutex(Pending())
     private let queue = DispatchQueue(label: "com.mokusei.performance.writer", qos: .utility)
     private var timer: DispatchSourceTimer?
@@ -169,15 +180,22 @@ private final class NativePerformanceRecorder: @unchecked Sendable {
         var count = 0, failed = 0, cancelled = 0
         var durationCount = 0
         var totalMs = 0.0, maxMs = 0.0
+        var cacheHits = 0, cacheMisses = 0
         mutating func add(_ record: PerformanceRecord) {
-            count += 1
+            if record.metric == NativePerformance.Metric.textCache.rawValue {
+                count += Int(record.values["queries"] ?? 1)
+                cacheHits += Int(record.values["hits"] ?? 0)
+                cacheMisses += Int(record.values["misses"] ?? 0)
+            } else { count += 1 }
             if record.outcome == "failed" { failed += 1 }
             if record.outcome == "cancelled" { cancelled += 1 }
             if let duration = record.durationMs { durationCount += 1; totalMs += duration; maxMs = max(maxMs, duration) }
         }
         var json: [String: Any] {
-            ["count": count, "failed": failed, "cancelled": cancelled, "durationCount": durationCount,
+            var result: [String: Any] = ["count": count, "failed": failed, "cancelled": cancelled, "durationCount": durationCount,
              "totalMs": totalMs, "maxMs": maxMs]
+            if cacheHits + cacheMisses > 0 { result["hits"] = cacheHits; result["misses"] = cacheMisses }
+            return result
         }
     }
     private var aggregates: [String: Aggregate] = [:]
@@ -247,14 +265,28 @@ private final class NativePerformanceRecorder: @unchecked Sendable {
             state.records.append(record)
         }
     }
+    func recordTextCache(hit: Bool, context: UInt64?) {
+        pending.withLock { state in
+            guard !state.closed else { return }
+            guard state.textCaches[context] != nil || state.textCaches.count < 256 else { state.dropped += 1; return }
+            if hit { state.textCaches[context, default: TextCacheCounts()].hits += 1 }
+            else { state.textCaches[context, default: TextCacheCounts()].misses += 1 }
+        }
+    }
     private func drain() {
         let batch = pending.withLock { state in
-            let result = (state.records, state.dropped)
-            state.records = []; state.dropped = 0
+            let result = (state.records, state.dropped, state.textCaches)
+            state.records = []; state.dropped = 0; state.textCaches = [:]
             return result
         }
+        var records = batch.0
+        for (context, counts) in batch.2 {
+            records.append(PerformanceRecord(kind: "event", metric: NativePerformance.Metric.textCache.rawValue,
+                id: NativePerformance.nextID(), context: context, time: NativePerformance.now(),
+                values: ["queries": Double(counts.hits + counts.misses), "hits": Double(counts.hits), "misses": Double(counts.misses)]))
+        }
         dropped += batch.1
-        for record in batch.0 {
+        for record in records {
             if bytes >= Self.maximumBytes, !truncated { rotate() }
             if record.kind == "begin" {
                 if active.count < Self.maximumPending { active[record.id] = record }

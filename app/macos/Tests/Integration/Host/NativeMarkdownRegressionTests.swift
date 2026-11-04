@@ -51,6 +51,49 @@ struct NativeMarkdownRegressionTests {
         #expect(!links(root).contains { $0.1.absoluteString.hasSuffix("caf%C3%A9") })
     }
 
+    @Test func mountedBlockLayoutTracksTextGrowthResizeAndShrink() async throws {
+        let source = UnicodeSource()
+        let short = "INTRO\n\n- Short item\n\nAFTER_LIST"
+        source.text = short
+        let window = SwiftUIReplay.window(EmptyView(), width: 700, height: 500)
+        defer { window.close() }
+        // The ordinary replay helper pins its root to the initial frame. This
+        // case needs the real content viewport to follow native window resize.
+        let host = NSHostingView(rootView: ScrollView { UnicodeReader(source: source) })
+        host.sizingOptions = []
+        window.contentView = host
+        let root = try #require(window.contentView)
+        func distance() -> CGFloat {
+            guard let first = texts(root).first(where: { $0.string == "INTRO" }),
+                  let last = texts(root).first(where: { $0.string == "AFTER_LIST" }) else { return 0 }
+            return abs(first.convert(first.bounds, to: nil).maxY - last.convert(last.bounds, to: nil).maxY)
+        }
+        try await SwiftUIReplay.wait { distance() > 0 }
+        let original = distance()
+        source.text = "INTRO\n\n- " + String(repeating: "A wrapped list item retains its complete selectable text. ", count: 30) + "\n\nAFTER_LIST"
+        try await SwiftUIReplay.wait { distance() > original + 100 }
+        let wide = distance()
+        window.setContentSize(CGSize(width: 350, height: 500))
+        try await SwiftUIReplay.wait { distance() > wide + 100 }
+        source.text = short
+        try await SwiftUIReplay.wait { abs(distance() - original) < 1 }
+    }
+
+    @Test func listMarkerUsesTheLeadingSideInBothDirections() async throws {
+        for direction in [LayoutDirection.leftToRight, .rightToLeft] {
+            let window = SwiftUIReplay.window(NativeMarkdownView(text: "123. LIST_CONTENT")
+                .environment(\.layoutDirection, direction), width: 600, height: 200)
+            defer { window.close() }
+            let root = try #require(window.contentView)
+            try await SwiftUIReplay.wait { texts(root).contains { $0.string == "LIST_CONTENT" } }
+            let marker = try #require(texts(root).first { $0.string == "123." })
+            let content = try #require(texts(root).first { $0.string == "LIST_CONTENT" })
+            let markerFrame = marker.convert(marker.bounds, to: nil), contentFrame = content.convert(content.bounds, to: nil)
+            if direction == .leftToRight { #expect(markerFrame.maxX <= contentFrame.minX + 1) }
+            else { #expect(markerFrame.minX >= contentFrame.maxX - 1) }
+        }
+    }
+
     @Test func sourceSyntaxPreservesURLsFootnotesAndCode() async throws {
         let source = """
         \u{FEFF}lead `prefix [^table-map]`

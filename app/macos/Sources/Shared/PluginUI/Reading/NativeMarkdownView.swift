@@ -222,7 +222,7 @@ struct MarkdownContent: View {
     var isFinal = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        NativeMarkdownColumn {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 MarkdownBlockView(block: block, options: options)
                     .equatable()
@@ -264,15 +264,15 @@ private struct MarkdownBlockView: View, Equatable {
             MarkdownInlineView(spans: spans, fontSize: size, weight: level <= 3 ? 600 : level == 4 ? 680 : 700, strongInk: level <= 4, tracking: level <= 3 ? -0.25 : 0, lineHeight: NativeStreamingPageMetrics.headingLineHeight(level, size: size), options: options)
                 .accessibilityAddTraits(.isHeader)
         case .quote(let children):
-            HStack(alignment: .top, spacing: 15) {
+            NativeMarkdownLeadingColumn(leadingWidth: 3, spacing: 15, stretchesLeading: true) {
                 Rectangle().fill(NativePlatformPalette.thread.line.swiftUI).frame(width: 3)
                 MarkdownContent(blocks: children, options: quoteOptions)
             }.fixedSize(horizontal: false, vertical: true).padding(.vertical, 3)
         case .list(let items):
             let markerWidth = markerWidth(items)
-            VStack(alignment: .leading, spacing: items.first?.tight == false ? 14 : 5) {
+            NativeMarkdownColumn(spacing: items.first?.tight == false ? 14 : 5) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .top, spacing: 0) {
+                    NativeMarkdownLeadingColumn(leadingWidth: markerWidth) {
                         Group {
                             if let checked = item.checked {
                                 Image(systemName: checked ? "checkmark.square.fill" : "square")
@@ -295,7 +295,7 @@ private struct MarkdownBlockView: View, Equatable {
         case .rule:
             Rectangle().fill(NativePlatformPalette.thread.line.swiftUI).frame(height: 1).padding(.vertical, 6)
         case .footnote(let id, let index, let children):
-            HStack(alignment: .top, spacing: 0) {
+            NativeMarkdownLeadingColumn(leadingWidth: 23) {
                 MarkdownSelectableText(spans: [MarkdownSpan(text: "\(index).")], fontSize: options.fontSize,
                     muted: options.muted, lineHeight: options.fontSize * 1.8,
                     selectionScope: options.anchorPrefix, openLink: options.openLink)
