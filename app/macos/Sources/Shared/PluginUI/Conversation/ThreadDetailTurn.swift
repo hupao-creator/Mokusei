@@ -186,7 +186,19 @@ public struct ThreadDetailTurn: View {
                     Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                         .threadReadingAnchor(threadExecutionResultAnchor(id))
                 }
-                if !active { footer.opacity(footerReveal * (revealsContent && !entrance.footerVisible ? 0 : 1)).padding(.top, displayed.last?.kind == .user ? 26 : 18) }
+                if !active {
+                    Group {
+                        if revealsContent {
+                            // Join the line clock instead of waiting for the body to finish fading.
+                            NativeThreadRevealRow(contentID: nativeReadingInteractionKey(id)) {
+                                footer.opacity(footerReveal)
+                            }
+                        } else {
+                            footer.opacity(footerReveal)
+                        }
+                    }
+                    .padding(.top, displayed.last?.kind == .user ? 26 : 18)
+                }
             }
             .environment(\.nativeThreadReveal, revealsContent ? entrance : nil)
             .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
@@ -195,16 +207,16 @@ public struct ThreadDetailTurn: View {
             }
             .onAppear {
                 if revealsContent {
-                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: reducedMotion, showsFooter: !active) }
+                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
                 }
                 else { entrance.finish() }
             }
             .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
             .onChange(of: primaryEntranceReady) { _, ready in
-                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion, showsFooter: !active) }
+                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
             }
             .onChange(of: reducedMotion) { _, value in
-                if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true, showsFooter: !active) }
+                if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true) }
             }
             .onDisappear { entrance.cancel() }
             .frame(maxWidth: .infinity, alignment: .leading)

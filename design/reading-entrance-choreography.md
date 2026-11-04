@@ -36,24 +36,30 @@ An Agent workspace initially publishes a folded Sidecard layout even if the
 Conversation plugin has already requested its active execution. Stage two belongs
 only to main: text/row registration cannot schedule reveal until
 `nativeReadingEntranceReady` admits the turn. Actual TextKit line fragments and
-non-text rows keep their existing direction, 280ms opacity fades and bounded
-`min(45ms, 600ms / max(1, lineCount - 1))` interval.
+non-text rows keep their existing direction and ease-out opacity curve. Agent
+thread entrance runs at 1.1 times its original speed: fades use `280ms / 1.1`
+and the interval is `min(45ms, 600ms / max(1, lineCount - 1)) / 1.1`.
+The completed turn’s timestamp/usage footer joins this same native mask ordering
+as the last row, starting one beat after the preceding line with the same fade.
+It no longer waits for every body fade to end before starting a separate
+SwiftUI animation. Markdown/layout readiness waits and other surface motion
+retain their original timing.
 
 The last opacity animation actually installed reports its real end through Core
-Animation's delegate. A completed turn then fades its footer for 280ms and waits
-for SwiftUI's removed completion. Running turns have no footer to wait for.
+Animation's delegate, including the footer row for completed turns. Running
+turns have no footer.
 No line-count timer admits stage three. Streaming/resize changes that invalidate
 sampled masks settle the entrance to fully drawn content, as before; later
 updates do not restart it. Unmount restores drawing and cancels ownership, so
-late opacity/footer completion cannot publish success for that turn.
+late opacity completion cannot publish success for that turn.
 If a native line animation is interrupted while its turn remains mounted, the
 turn restores full drawing and settles; a removed animation cannot strand input.
 
 `NativeReadingContentRevealStatusKey` combines readable-content readiness with
 any still-revealing turns. `nativeReadingContentReady()` reports loaded/error
 content, while `ThreadDetailTurn` keeps a pending contribution through Markdown
-parsing, last-line opacity and footer completion. Empty documents and unavailable
-links report their readable empty/error state. Loading placeholders do not.
+parsing and the final native line/row opacity completion. Empty documents and
+unavailable links report their readable empty/error state. Loading placeholders do not.
 Mounted Agent loading placeholders keep an unfinished contribution from their
 first frame, including the visual grace period. A loaded sibling error cannot
 admit auxiliary input while another main document is still loading.
@@ -112,6 +118,15 @@ It also skips line/footer fades but still waits for data and Markdown parsing,
 so a loading document cannot be mistaken for completed content.
 
 ## Scope and verification limits
+
+The November 4 reveal adjustment was inspected against the supplied 18:43:01
+recording: body ink is clear around 1.75s, while timestamp/usage begins appearing
+around 1.95s. The separate completion-gated footer fade explains the pause;
+the footer now shares the native row clock, with the whole reveal at 1.1x speed.
+Validation for this adjustment is Swift syntax parsing, source/diff review and
+local document-link checks only. No tests were added, and no build, regression,
+replay or post-change visual acceptance was run. No push or PR is included;
+the caller owns integration. Validation below belongs to earlier adjustments.
 
 The Sidecard Dock motion adjustment was inspected against the reported recording:
 around 3.7s, the compact Dock moves right while expanding. The adjustment now

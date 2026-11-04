@@ -34,6 +34,9 @@ public struct NativeReadingContentRevealStatusKey: PreferenceKey {
 /// subscriptions. Later streaming updates and newly disclosed work stay immediate.
 @MainActor @Observable
 final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDelegate {
+    // Scale only entrance choreography; layout/readiness waits keep their own timing.
+    private static let revealSpeed = 1.1
+
     private final class WeakText {
         weak var view: MarkdownTextView?
         init(_ view: MarkdownTextView) { self.view = view }
@@ -55,8 +58,6 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
     private var started = false
     private var finished = false
     private var cancelled = false
-    private var showingFooter = false
-    private var showsFooter = true
     var settled: Bool { finished || cancelled }
     private(set) var footerVisible = false
     private(set) var bottomUp = false
@@ -96,10 +97,10 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
         rows[ObjectIdentifier(view)] = nil
         view.awaitsLineReveal = false
     }
-    func begin(bottomUp: Bool, reducedMotion: Bool, showsFooter: Bool = true) {
+    func begin(bottomUp: Bool, reducedMotion: Bool) {
         guard !cancelled, !finished else { return }
         admitted = true
-        self.bottomUp = bottomUp; self.reducedMotion = reducedMotion; self.showsFooter = showsFooter
+        self.bottomUp = bottomUp; self.reducedMotion = reducedMotion
         if started && reducedMotion { finish(); return }
         schedule()
     }
@@ -147,8 +148,8 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
         animatedLineCount = lines.count
         initialDrawingProtected = live.allSatisfy(\.awaitsLineReveal) && liveRows.allSatisfy(\.awaitsLineReveal)
         lines.sort { bottomUp ? $0.2 > $1.2 : $0.2 < $1.2 }
-        let beat = min(0.045, 0.6 / Double(max(1, lines.count - 1)))
-        let fadeDuration = 0.28
+        let beat = min(0.045, 0.6 / Double(max(1, lines.count - 1))) / Self.revealSpeed
+        let fadeDuration = 0.28 / Self.revealSpeed
         let now = CACurrentMediaTime()
         var animations: [(CALayer, CABasicAnimation)] = []
         CATransaction.begin(); CATransaction.setDisableActions(true)
@@ -179,26 +180,14 @@ final class NativeThreadContentReveal: NSObject, @preconcurrency CAAnimationDele
         live.forEach { $0.admitLineReveal() }
         liveRows.forEach { $0.awaitsLineReveal = false }
         CATransaction.commit()
-        if animations.isEmpty { linesCompleted() }
+        if animations.isEmpty { finish() }
         return true
     }
-    func animationDidStop(_ anim: CAAnimation, finished flag: Bool) {
+    func animationDidStop(_ anim: CAAnimation, finished _: Bool) {
         guard !cancelled, !finished else { return }
-        if flag { linesCompleted() }
         // A still-mounted view can lose native animation on suspension or layer
         // replacement. Restore full drawing instead of waiting for a dead clock.
-        else { finish() }
-    }
-    private func linesCompleted() {
-        guard !cancelled, !finished, !showingFooter else { return }
-        showingFooter = true
-        guard showsFooter, !reducedMotion else { finish(); return }
-        withAnimation(.easeOut(duration: 0.28), completionCriteria: .removed) {
-            footerVisible = true
-        } completion: { [weak self] in
-            guard let self, !cancelled else { return }
-            finish()
-        }
+        finish()
     }
     func finish() {
         guard !cancelled else { return }

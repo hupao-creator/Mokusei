@@ -1073,7 +1073,9 @@ period. Real Markdown parse completion (independent of optional document tokens)
 and native text attachment admit the first execution entrance. TextKit drawing
 is gated before first paint, then line masks and visibility commit together.
 Completed executions reveal top-down; active executions reveal bottom-up after
-normal follow positioning. The completion footer follows the last line.
+normal follow positioning. The completion footer joins the same native mask
+ordering as the last row, starting one beat after the preceding line rather
+than waiting for its fade to end.
 Execution-process summaries join this same ordering as whole rows, including
 their icon and wrapped text. Their SwiftUI layout and accessibility stay intact;
 an inner native host gates first paint until the shared mask is installed.
@@ -1088,8 +1090,12 @@ Each mounted execution owns weak text/summary registrations, masks and cancellat
 there is no window-wide text scan. Live text changes, actual width changes,
 Reduce Motion and disappearance retire masks and restore drawing. Streaming
 page admission and user scroll ownership remain unchanged. The entrance is
-bounded to 600ms of line staggering plus a 280ms fade; later disclosures and
-stream updates do not restart an execution entrance. Other Markdown consumers
+sped up by a factor of 1.1: the original 45ms line beat, 600ms stagger cap,
+and 280ms line/footer fade are each divided by 1.1
+(approximately 40.9ms, 545.5ms and 254.5ms for either fade). Line ordering,
+ease-out curves and completion-driven entrance admission stay unchanged, as do
+Markdown/layout readiness waits, loading skeletons and panel/identity motion.
+Later disclosures and stream updates do not restart an execution entrance. Other Markdown consumers
 leave the presentation scope disabled.
 
 Run the [production fixture](../../../../../demos/thread-panel-transition/README.md)
