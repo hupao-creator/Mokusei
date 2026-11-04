@@ -19,13 +19,15 @@ public enum NativePalette {
         danger: pair(0xb4493f, 0xf0988d), warning: pair(0x9a6d23, 0xe6bd78),
         success: pair(0x287d54, 0x68bd8c), agentRun: pair(0x6d28d9, 0xc4b5fd))
 
+    // Keep the reader's large dark canvas charcoal, with separate content and
+    // interaction levels. SwiftUI, TextKit and panel travel share these colors.
     public static let thread = Surface(
-        canvas: pair(0xffffff, 0x191919), surface: pair(0xf6f5f4, 0x202020),
-        surfaceStrong: pair(0xffffff, 0x252525), surfaceSoft: pair(0xfafaf9, 0x202020),
+        canvas: pair(0xffffff, 0x232323), surface: pair(0xf6f5f4, 0x2b2b2a),
+        surfaceStrong: pair(0xffffff, 0x333331), surfaceSoft: pair(0xfafaf9, 0x2e2e2c),
         ink: pair(0x37352f, 0xd4d3cf), inkStrong: pair(0x1a1a1a, 0xeeeeec),
-        muted: pair(0x787671, 0xa19e98), faint: pair(0x98958e, 0x96928c),
-        line: pair(0xe5e3df, 0x383735), lineSoft: pair(0xeeedeb, 0x2d2c2a),
-        accent: pair(0x5645d4, 0xb5a7ff), accentSoft: pair(0xeeebfb, 0x302a46),
+        muted: pair(0x787671, 0xb3b0aa), faint: pair(0x98958e, 0xa39f99),
+        line: pair(0xe5e3df, 0x4a4946), lineSoft: pair(0xeeedeb, 0x3c3b39),
+        accent: pair(0x5645d4, 0xb5a7ff), accentSoft: pair(0xeeebfb, 0x3b3452),
         action: pair(0x5645d4, 0xb5a7ff), provider: pair(0x5645d4, 0xb5a7ff),
         danger: pair(0xb44841, 0xe69a92), warning: pair(0x986b32, 0xd4ac76),
         success: pair(0x47785b, 0x8aba9b), agentRun: pair(0x6d28d9, 0xc4b5fd))

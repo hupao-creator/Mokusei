@@ -2,6 +2,15 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
+progressively lighter content/interaction/composer fills and warm off-white text.
+SwiftUI, TextKit and the panel transition resolve the same adaptive assets;
+other readers consuming this palette share its dark tones. Light variants and
+Overview/Settings palette definitions retain their existing values. Claude's
+Overview workflow cards and Thread settings hints also consume thread surface
+and muted colors, so those shared consumers inherit the dark changes. See the
+[Notion reference, palette decisions and sprint verification limits](../../../../../design/agent-detail-dark-tone.md).
+
 `nativeReadingEscape` preserves native editor/IME, menu, sheet, popup and WebKit
 cancellation before reading navigation. Hosts can supply
 `nativeReadingInputCancellation` to fold resident input first when native reading
