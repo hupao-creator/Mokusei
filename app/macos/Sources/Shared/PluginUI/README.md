@@ -15,6 +15,9 @@ and muted colors, so those shared consumers inherit the dark changes. See the
 cancellation before reading navigation. Hosts can supply
 `nativeReadingInputCancellation` to fold resident input first when native reading
 owns Escape; returning `true` consumes that Escape without navigating the reader.
+Pinned Agent-detail input returns `false` so the existing document/Sidecard
+cancellation proceeds without folding that editor. Its host-owned editor/Dock
+Escape callback closes the detail; generic reader cancellation stays unchanged.
 The host's own input surface can use the same fallback after editor focus moves
 to its controls. The callback does not bypass viewport/focus or transient-control
 ownership checks and defaults to absent outside the host's scene.
@@ -22,8 +25,8 @@ ownership checks and defaults to absent outside the host's scene.
 focused-child exit route (including execution Sidecards and nested history),
 using the shared native editor/marked-text/transient-control boundary. It does
 not install another global key monitor or replace editor-specific exit actions.
-The focusable history sidebar uses this route too: Escape first folds resident
-input, then a later Escape retains the existing return to the current document.
+The focusable history sidebar uses this route too: foldable resident input gets
+first refusal; otherwise Escape returns to the current document directly.
 Its Arrow/Return navigation and document-owned cancellation remain independent.
 
 Dev-only [layout logging](../../../build/layout-logging.md) combines window-wide
@@ -76,6 +79,12 @@ requests cancel delivery. Collapsed execution work also skips native row
 construction; errors, final replies, disclosure and canonical content keep their
 existing policies. See the [investigation and manual performance evidence](../../../../../design/thread-open-animation-investigation.md)
 for measured scope and limits; no tests or CI were run for this change.
+
+`NativeComposerTextInput` accepts an optional native `placeholderIcon` beside its
+placeholder string. Both disappear when text is present and are decorative,
+pointer-transparent and hidden from accessibility; the plain placeholder string
+remains the editor's accessibility label. The icon does not enter draft, paste,
+selection or IME state, and does not change native editor identity.
 
 ## Reading placeholders
 

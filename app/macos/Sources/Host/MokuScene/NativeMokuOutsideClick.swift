@@ -72,7 +72,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     var isActive: () -> Bool
     var usesExclusions = true
     var preservesOwnedInteractions = false
-    var composingClick: () -> Void = {}
+    var preservedClick: () -> Void = {}
     var outsideWindowClick: (() -> Void)? = nil
     var isInside: (CGPoint) -> Bool
     var click: (CGPoint) -> Void
@@ -81,7 +81,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         let view = MonitorView()
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
                     usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
-                    composingClick: composingClick,
+                    preservedClick: preservedClick,
                     outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
         return view
@@ -90,7 +90,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
     func updateNSView(_ view: MonitorView, context: Context) {
         view.update(exclusions: exclusions, beginClick: beginClick, isActive: isActive,
                     usesExclusions: usesExclusions, preservesOwnedInteractions: preservesOwnedInteractions,
-                    composingClick: composingClick,
+                    preservedClick: preservedClick,
                     outsideWindowClick: outsideWindowClick,
                     isInside: isInside, click: click)
     }
@@ -104,7 +104,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         private var preservesOwnedInteractions = false
         private var menuObservers: [NSObjectProtocol] = []
         private var popoverObserver: NSObjectProtocol?
-        private var popoverDismissalPress: TimeInterval?
+        private var auxiliaryDismissalPress: TimeInterval?
         private var trackingMenus = Set<ObjectIdentifier>()
         private var outsideWindowClick: (() -> Void)?
         private var exclusions = NativeClickExclusions()
@@ -112,7 +112,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         private var isActive: () -> Bool = { false }
         private var isInside: (CGPoint) -> Bool = { _ in true }
         private var click: (CGPoint) -> Void = { _ in }
-        private var composingClick: () -> Void = {}
+        private var preservedClick: () -> Void = {}
 
         // Match the flipped SwiftUI scene rather than AppKit's bottom-left origin.
         override var isFlipped: Bool { true }
@@ -120,14 +120,14 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
 
         func update(exclusions: NativeClickExclusions, beginClick: @escaping () -> Void,
                     isActive: @escaping () -> Bool, usesExclusions: Bool, preservesOwnedInteractions: Bool,
-                    composingClick: @escaping () -> Void,
+                    preservedClick: @escaping () -> Void,
                     outsideWindowClick: (() -> Void)?, isInside: @escaping (CGPoint) -> Bool,
                     click: @escaping (CGPoint) -> Void) {
             self.exclusions = exclusions; self.beginClick = beginClick; self.isActive = isActive
             self.isInside = isInside; self.click = click
             self.usesExclusions = usesExclusions; self.outsideWindowClick = outsideWindowClick
             self.preservesOwnedInteractions = preservesOwnedInteractions
-            self.composingClick = composingClick
+            self.preservedClick = preservedClick
             syncGlobalMonitor()
         }
 
@@ -141,18 +141,17 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
                     let identity = ObjectIdentifier(menu), began = name == NSMenu.didBeginTrackingNotification
                     MainActor.assumeIsolated {
                         if began { self?.trackingMenus.insert(identity) }
-                        else { self?.trackingMenus.remove(identity) }
+                        else {
+                            self?.trackingMenus.remove(identity)
+                            self?.rememberAuxiliaryDismissalPress()
+                        }
                     }
                 })
             }
             popoverObserver = NotificationCenter.default.addObserver(forName: NSPopover.willCloseNotification,
                 object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    guard let self, let event = NSApp.currentEvent, event.window === self.window,
-                          event.type == .leftMouseDown else { return }
-                    // AppKit may remove the child window before forwarding the
-                    // popover's dismissing press to its owner.
-                    self.popoverDismissalPress = event.timestamp
+                    self?.rememberAuxiliaryDismissalPress()
                 }
             }
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
@@ -167,16 +166,22 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
                            (window.firstResponder as? NSTextInputClient)?.hasMarkedText() == true {
                             // Check before transient windows: an IME candidate
                             // window can disappear while forwarding this press.
-                            self.composingClick()
+                            self.preservedClick()
                             return
                         }
                     }
-                    guard !self.ownsAuxiliaryInteraction(in: window) else { return }
+                    guard !self.ownsAuxiliaryInteraction(in: window) else {
+                        if event.window === window, self.isActive() { self.preservedClick() }
+                        return
+                    }
                     guard event.window === window else {
                         self.clickOutsideWindow()
                         return
                     }
-                    guard !self.preservesOwnedInteractions || self.popoverDismissalPress != event.timestamp else { return }
+                    guard !self.preservesOwnedInteractions || self.auxiliaryDismissalPress != event.timestamp else {
+                        self.preservedClick()
+                        return
+                    }
                     guard self.isActive() else { return }
                     let point = self.convert(event.locationInWindow, from: nil)
                     guard !self.isInside(point) else { return }
@@ -191,6 +196,13 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
         override func viewWillMove(toWindow newWindow: NSWindow?) {
             if newWindow == nil { stop() }
             super.viewWillMove(toWindow: newWindow)
+        }
+
+        private func rememberAuxiliaryDismissalPress() {
+            guard let event = NSApp.currentEvent, event.window === window,
+                  event.type == .leftMouseDown else { return }
+            // AppKit may retire a menu/child window before forwarding its press.
+            auxiliaryDismissalPress = event.timestamp
         }
 
         private func ownsAuxiliaryInteraction(in window: NSWindow) -> Bool {
@@ -220,7 +232,7 @@ struct NativeMokuOutsideClickMonitor: NSViewRepresentable {
 
         func stop() {
             if let popoverObserver { NotificationCenter.default.removeObserver(popoverObserver); self.popoverObserver = nil }
-            popoverDismissalPress = nil
+            auxiliaryDismissalPress = nil
             for observer in menuObservers { NotificationCenter.default.removeObserver(observer) }
             menuObservers.removeAll(); trackingMenus.removeAll()
             if let globalMonitor { NSEvent.removeMonitor(globalMonitor); self.globalMonitor = nil }

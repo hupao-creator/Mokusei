@@ -66,8 +66,7 @@ import SwiftUI
         guard !editor.composing, isOpen else { return false }
         switch event.key {
         case .escape:
-            dismissed = key
-            return true
+            return dismiss()
         case .up, .down:
             let count = matches.count
             activeIndex = count == 0 ? 0 : (index + (event.key == .down ? 1 : -1) + count) % count
@@ -79,6 +78,13 @@ import SwiftUI
             if !options.isEmpty { choose(options[index], draft: draft) }
             return event.key == .enter || !options.isEmpty
         }
+    }
+
+    @discardableResult
+    public func dismiss() -> Bool {
+        guard isOpen else { return false }
+        dismissed = key
+        return true
     }
 
     public func choose(_ directory: NativeComposerDirectory, draft: NativeComposerDraft) {

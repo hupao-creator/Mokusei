@@ -467,12 +467,18 @@ reading-panel eligibility without admitting Settings or Note on a reading route.
 The composer, Talk, voice visuals and pending interventions use that shared
 eligibility; other application pages and covering routes still hide it.
 Returning to Overview publishes eligibility in an order that retains native
-input/hit-region ownership. Agent detail enters input mode by default, with a localized placeholder naming
-that Thread. The window owns a persisted draft (text, directory mentions and
-attachments) per Thread, separately from Moku history/Overview. Sending folds the
-Agent capsule with Overview's retained-ink transition and calls `thread:follow-up` with the
-Thread identity captured before the first suspension; Runtime chooses steer or a
-successor execution. Stop uses that Thread's observed cancellation identity.
+input/hit-region ownership. Agent detail keeps its input expanded, with a localized
+placeholder naming that Thread and showing its actual Harness plugin's native logo.
+The host resolves the current target's `harnessID` on each render, including target
+changes; unknown/empty IDs use a neutral terminal mark, never Moku's Harness.
+Registered custom Harnesses supply their own mark through the same registry.
+The logo is placeholder-only, ignores pointer/accessibility hit testing, and does
+not become draft text or replace the editor when the target changes.
+The window owns a persisted draft (text, directory mentions and attachments) per
+Thread, separately from Moku history/Overview. Sending keeps the Agent editor
+expanded and live rather than sealing retained animation ink, and calls
+`thread:follow-up` with the Thread identity captured before the first suspension;
+Runtime chooses steer or a successor execution. Stop uses that Thread's observed cancellation identity.
 Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
 late receipts consume only their original draft and cannot reopen another visit.
 The local send publishes a visit-scoped reveal request before admission, then
@@ -484,35 +490,38 @@ Navigation resets retained editor ink, selection and completion ownership before
 admitting the replacement draft. Returning to Overview, Report, Git or Moku history
 restores the existing Moku send route. No Overview card send entrance is added.
 
-Escape and outside clicks may fold Agent input; clicking the capsule or
-Cmd+Shift+B reopens it. Entering another Thread, returning from an application
-panel or closing Moku history opens that Thread's composer again. Existing Moku
-interventions retain priority, then release the Agent editor. Agent input does
-not expose Moku voice-start actions, transcripts or Talk; an existing workspace
-voice session is not stopped. The execution Sidecard stays usable beside an open
-Agent composer and owns no text/attachment input.
+Agent detail pins the composer open: Escape, outside clicks, the input toggle
+and successful sends cannot fold it. The editor's Escape callback closes the
+current detail through its existing reading motion, fenced to that route/target;
+the Dock's native fallback uses the same callback after focus moves to its controls.
+Reading/document/Sidecard Escape skips resident-input folding and retains its own
+nested cancellation order. An ordinary click in the blank panel margin closes
+that detail on the first completed press; clicking inside the reader, Sidecards,
+capsule or directory candidates retains their normal interaction.
 
-Input dismissal is independent of execution availability: an archived or
-otherwise unavailable Thread can still fold its open composer. Native reading
-Escape asks the resident input to fold before navigating the reader, including
-after focus moves away from the text editor. The Dock uses the same native
-fallback for its own controls. Editable sibling fields, IME marked text, WebKit,
-native menus, sheets, popovers and explicit control cancellation retain priority;
-the editor still closes directory completion before folding input.
-The capsule, its controls and directory candidate region count as inside.
-An outside press that folds input cannot also close the reading panel on
-mouse-up; a subsequent press or Escape keeps the reader's usual close behavior.
-Explicit Close controls keep their action. Folding only changes presentation,
-retaining the Thread draft, attachments, directories and selection without
-starting/stopping voice or moving accessibility focus to another control.
-While the first responder has native marked text, a local press is delivered
-without folding input or closing the reading panel. AppKit/input methods may
-commit or retain composition; no forced unmark/discard or delayed collapse is
-added. A later action after composition ends uses the ordinary dismissal route.
-See the [routing investigation and manual limits](../../../../../design/thread-detail-input-dismissal.md).
+IME marked text, directory completion, native menus, sheets, popovers and explicit
+control cancellation retain priority. Escape closes directory completion first;
+in Agent detail an outside press also dismisses completion first without folding
+the editor or closing the reader. Native transient/IME-owned presses are recorded
+before delivery so mouse-up cannot close the reading panel after AppKit commits a
+mark or removes a popup. No forced unmark/discard or delayed close is added.
+Existing Moku interventions/covering routes keep their surface priority and release
+the Agent editor afterward; its draft remains owned by the same Thread.
+Agent input does not expose Moku voice-start actions, transcripts or Talk; an
+existing workspace voice session is not stopped. Execution Sidecards stay usable
+beside the open composer and own no text/attachment input.
 
-Sprint verification for this change uses the application build, architecture
-checks and isolated manual inspection; historical test suites are not run.
+Overview, landing, Report/Git and Moku history retain their existing input and
+cancellation policies. Closing detail or changing targets retains unsent text,
+attachments and directories through the window-owned persisted Thread draft.
+Sending still consumes only the accepted revision; failed sends retain the draft
+and error, and late receipts cannot alter another target's presentation.
+See the [routing investigation and sprint limits](../../../../../design/thread-detail-input-dismissal.md).
+
+Sprint verification for the current change is static review and the application
+product build only: no new tests, test runs, replays, manual interaction fixture,
+CI or publishing. Earlier investigation results below that document's current
+contract are historical evidence, not verification of this revision.
 
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell

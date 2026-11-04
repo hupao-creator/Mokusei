@@ -22,6 +22,7 @@ import MokuseiPluginUI
     public private(set) var cameraActive = false
     private var landingActive = false
     public private(set) var inputOpen = false
+    public private(set) var inputPinnedOpen = false
     public private(set) var inputLeaving = false
     public private(set) var composerGeneration = UUID()
     @ObservationIgnored private var composerIdentity: ObjectIdentifier?
@@ -152,7 +153,8 @@ import MokuseiPluginUI
     }
     /// Draft ownership changes synchronously with navigation. Retiring ink and
     /// editor selection must never cross from Moku or one Thread to another.
-    public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool) {
+    public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false) {
+        inputPinnedOpen = keepsInputOpen
         let identity = ObjectIdentifier(draft)
         guard composerIdentity != identity else { return }
         composerIdentity = identity
@@ -170,6 +172,9 @@ import MokuseiPluginUI
     public func setInputOpen(_ open: Bool) {
         guard !settingsOpen else { return }
         guard !disabled || !open else { return }
+        // Agent detail owns a persistent editor. Covering routes/interventions
+        // may replace its surface; ordinary toggles and sends cannot fold it.
+        guard open || !inputPinnedOpen || !dockRouteVisible || dockCovered || dockInteractionVisible else { return }
         guard open != inputOpen else { return }
         capsuleTask?.cancel(); capsuleTask = nil
         overviewState.clearAutoFocusSuppression()
@@ -194,7 +199,7 @@ import MokuseiPluginUI
     /// also run its automatic framing transition for the same press.
     @discardableResult
     public func dismissInputForOutsideClick() -> Bool {
-        guard inputOpen, !landingActive, dockRouteVisible, !dockCovered else { return false }
+        guard inputOpen, !inputPinnedOpen, !landingActive, dockRouteVisible, !dockCovered else { return false }
         setInputOpen(false)
         inputHandledOutsideClick = true
         overviewState.suppressAutoFocusForThisClick()
@@ -204,15 +209,15 @@ import MokuseiPluginUI
         inputHandledOutsideClick = false
         overviewState.clearAutoFocusSuppression()
     }
-    func preserveInputForCompositionClick() {
-        // The native input session may commit or keep composing on delivery.
-        // Its press must not also retire the reading route on mouse-up.
+    func preserveInputForOwnedClick() {
+        // Composition or a transient control owns this press, even if AppKit
+        // commits the mark or removes the popup before mouse-up.
         inputHandledOutsideClick = true
     }
     /// Reading and the Dock share cancellation priority even after focus has
     /// moved away from the editor. This retires presentation, never its draft.
     func dismissInputForEscape() -> Bool {
-        guard inputOpen, dockContentVisible, !dockInteractionVisible else { return false }
+        guard inputOpen, !inputPinnedOpen, dockContentVisible, !dockInteractionVisible else { return false }
         setInputOpen(false)
         return true
     }

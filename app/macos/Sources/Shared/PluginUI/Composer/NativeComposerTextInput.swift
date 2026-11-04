@@ -44,6 +44,7 @@ public struct NativeComposerKeyEvent: Sendable {
 public struct NativeComposerTextInput: View {
     @Binding private var value: String
     private let placeholder: String
+    private let placeholderIcon: AnyView?
     private let disabled: Bool
     private let readOnly: Bool
     private let focusEnabled: Bool
@@ -76,7 +77,8 @@ public struct NativeComposerTextInput: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var unavailable: Bool { disabled || readOnly || !environmentEnabled }
 
-    public init(value: Binding<String>, placeholder: String, disabled: Bool = false, readOnly: Bool = false,
+    public init(value: Binding<String>, placeholder: String, placeholderIcon: AnyView? = nil,
+                disabled: Bool = false, readOnly: Bool = false,
                 focusEnabled: Bool = true, automaticFocus: Bool = true,
                 focusRequestKey: Int = 0, focusContext: String = "", suppressInitialFocus: Bool = false,
                 minHeight: CGFloat = 54, maxHeight: CGFloat = 180, fontSize: CGFloat = 13.5,
@@ -91,6 +93,7 @@ public struct NativeComposerTextInput: View {
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
                 submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
         _value = value; self.placeholder = placeholder; self.disabled = disabled; self.readOnly = readOnly
+        self.placeholderIcon = placeholderIcon
         self.focusEnabled = focusEnabled
         self.automaticFocus = automaticFocus
         self.focusRequestKey = focusRequestKey; self.focusContext = focusContext
@@ -120,7 +123,11 @@ public struct NativeComposerTextInput: View {
             .padding(emphasizedInsertionPoint ? EdgeInsets() : editorInsets)
             .background(alignment: .topLeading) {
                 if value.isEmpty {
-                    Text(placeholder).font(.system(size: fontSize)).foregroundStyle(Color.primary.opacity(0.85))
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        if let placeholderIcon { placeholderIcon.frame(width: fontSize, height: fontSize) }
+                        Text(placeholder).font(.system(size: fontSize))
+                    }
+                        .foregroundStyle(Color.primary.opacity(0.85))
                         // Leave the emphasized insertion mark clear of the first placeholder glyph.
                         .padding(.leading, insets.left + 5 + (emphasizedInsertionPoint ? 3 : 0))
                         .padding(.top, insets.top + spacing / 2)
