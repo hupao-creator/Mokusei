@@ -5,16 +5,18 @@ import SwiftUI
 /// Intercept only attachment shortcuts over this editor, leaving native text
 /// editing and marked text with the system's input context.
 struct NativeComposerPasteShortcut: NSViewRepresentable {
+    var ownerID: UUID
     var enabled: Bool
     var onPaste: ([NSItemProvider], NSRange) -> Void
 
     func makeNSView(context: Context) -> ShortcutView { ShortcutView() }
     func updateNSView(_ view: ShortcutView, context: Context) {
-        view.enabled = enabled; view.onPaste = onPaste
+        view.ownerID = ownerID; view.enabled = enabled; view.onPaste = onPaste
     }
     static func dismantleNSView(_ view: ShortcutView, coordinator: ()) { view.detach() }
 
     final class ShortcutView: NSView {
+        var ownerID: UUID?
         var enabled = false
         var onPaste: (([NSItemProvider], NSRange) -> Void)?
         private var monitor: Any?
@@ -37,31 +39,15 @@ struct NativeComposerPasteShortcut: NSViewRepresentable {
             guard enabled, !isHiddenOrHasHiddenAncestor, event.window === window,
                   modifiers == .command || modifiers == .control,
                   event.charactersIgnoringModifiers?.lowercased() == "v",
-                  let editor = window?.firstResponder as? NSTextView,
+                  let editor = window?.firstResponder as? ComposerTextView,
+                  let ownerID, editor.pasteOwnerID == ownerID,
                   editor.isEditable, !editor.hasMarkedText() else { return false }
-            guard owns(editor) else { return false }
+            // Retained/covered composers can share a window and geometry. Only
+            // the exact mounted editor may route a paste into this draft.
             let providers = NativeComposerPaste.attachmentProviders(from: .general)
             guard !providers.isEmpty, let onPaste else { return false }
             onPaste(providers, editor.selectedRange())
             return true
-        }
-        private func owns(_ editor: NSTextView) -> Bool {
-            // Find the editor in the nearest shared native container. Geometry
-            // alone would also claim an unrelated editor overlaying Moku.
-            func candidate(in view: NSView) -> NSTextView? {
-                if let text = view as? NSTextView {
-                    let viewport = text.enclosingScrollView ?? text
-                    let center = NSPoint(x: viewport.bounds.midX, y: viewport.bounds.midY)
-                    return bounds.contains(convert(center, from: viewport)) ? text : nil
-                }
-                return view.subviews.lazy.compactMap { candidate(in: $0) }.first
-            }
-            var container = superview
-            while let view = container {
-                if let text = candidate(in: view) { return text === editor }
-                container = view.superview
-            }
-            return false
         }
     }
 }

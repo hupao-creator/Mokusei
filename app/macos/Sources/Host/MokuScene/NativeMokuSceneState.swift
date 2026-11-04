@@ -325,7 +325,9 @@ import MokuseiPluginUI
         }
     }
     public func retainDraft(_ draft: NativeComposerDraft, seal: Bool = false) {
-        guard !capsuleSealed else { return }
+        // A retiring view or late preview/import may still publish after
+        // navigation has admitted another draft into this shared capsule.
+        guard ownsComposer(draft), !capsuleSealed else { return }
         retainedText = draft.text; retainedAttachments = draft.attachments; retainedDirectories = draft.directories
         capsuleSealed = seal
     }

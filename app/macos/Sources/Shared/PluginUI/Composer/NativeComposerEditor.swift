@@ -6,6 +6,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     @Binding var value: String
     @Binding var selection: NSRange?
     @Binding var focused: Bool
+    var pasteOwnerID: UUID
     var selectionRequest: NativeComposerSelectionRequest?
     var initialSelection: NSRange?
     var focusEnabled: Bool
@@ -29,6 +30,7 @@ struct NativeComposerEditor: NSViewRepresentable {
         scroll.drawsBackground = false
         scroll.contentView.drawsBackground = false
         let editor = ComposerTextView()
+        editor.pasteOwnerID = pasteOwnerID
         editor.isRichText = false
         editor.drawsBackground = false
         editor.allowsUndo = true
@@ -97,6 +99,7 @@ struct NativeComposerEditor: NSViewRepresentable {
             editor.insertionPointColor = .labelColor
         }
         editor.composerTextInsets = textInsets
+        editor.pasteOwnerID = pasteOwnerID
         editor.pasteAttachments = unavailable ? nil : onPaste
         editor.isEditable = !unavailable
         editor.isSelectable = !unavailable
@@ -201,6 +204,7 @@ struct NativeComposerEditor: NSViewRepresentable {
 }
 
 @MainActor final class ComposerTextView: NSTextView {
+    var pasteOwnerID: UUID?
     var changed: (() -> Void)?
     var focusChanged: (() -> Void)?
     var handleKey: ((NSEvent) -> Bool)?

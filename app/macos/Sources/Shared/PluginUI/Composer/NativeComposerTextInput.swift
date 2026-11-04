@@ -71,6 +71,7 @@ public struct NativeComposerTextInput: View {
     private let emphasizedInsertionPoint: Bool
     @State private var focused = false
     @State private var pasting = false
+    @State private var pasteOwnerID = UUID()
     @State private var selection: NSRange?
     @State private var measuredHeight: CGFloat
     @Environment(\.locale) private var locale
@@ -115,6 +116,7 @@ public struct NativeComposerTextInput: View {
     public var body: some View {
         let placeholderCapHeight = CTFontGetCapHeight(nativeFont)
         NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
+            pasteOwnerID: pasteOwnerID,
             selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
@@ -165,7 +167,7 @@ public struct NativeComposerTextInput: View {
                 : (locale.language.languageCode?.identifier == "zh" ? "Enter 换行，⌘Enter 发送" : "Enter for a new line, ⌘Enter to send"))
             .disabled(unavailable)
             .background {
-                NativeComposerPasteShortcut(enabled: !unavailable && onFiles != nil) { providers, range in
+                NativeComposerPasteShortcut(ownerID: pasteOwnerID, enabled: !unavailable && onFiles != nil) { providers, range in
                     paste(providers, selection: range)
                 }
             }

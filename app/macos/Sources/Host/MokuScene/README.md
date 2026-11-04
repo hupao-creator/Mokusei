@@ -569,6 +569,11 @@ expanded and live rather than sealing retained animation ink, and calls
 Runtime chooses steer or a successor execution. Stop uses that Thread's observed cancellation identity.
 Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
 late receipts consume only their original draft and cannot reopen another visit.
+Retiring composer callbacks may refresh the capsule's retained text, directories
+and attachment ink only while they still own its selected draft. A Thread title
+or execution change keeps that Thread's unsent draft. See the
+[recording and attachment ownership investigation](../../../../../design/thread-attachment-ownership.md)
+for the distinction between restored input and cross-Thread routing defects.
 The local send publishes a visit-scoped reveal request before admission, then
 attaches the exact execution receipt. Conversation opens once that same execution
 is observed running/waiting and qualifies for its Sidecard. A receipt alone cannot

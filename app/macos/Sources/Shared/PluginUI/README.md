@@ -587,6 +587,13 @@ for actual Go projections consumed by the native production card replay.
 
 Composer state and submitted revision belong to the workspace. Attachment upload, file selection and send receipts are shared by the Dock and conversation surfaces. Form components validate the public typed interaction schema and send through injected actions rather than bypassing Runtime admission.
 
+Attachment paste shortcuts bind to the exact mounted native composer through a
+shared editor identity. Common window ancestry and overlapping geometry cannot
+authorize a retained/covered composer to paste into its draft. Provider decoding
+and staging keep the draft captured at paste admission. See the
+[attachment ownership investigation](../../../../../design/thread-attachment-ownership.md)
+for the recording evidence and this sprint's static-only verification limits.
+
 [Forms/PublicInteractionQuestionnaire.swift](Forms/PublicInteractionQuestionnaire.swift)
 projects public form metadata consistently for the Dock and Reader fallback.
 Visible defaults populate the editor; optional absence remains valid. Hidden
