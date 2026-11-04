@@ -6,6 +6,9 @@ process. Both commands use the same current build, stay serial and exclude the
 unchanged mandatory native owners. Their disjoint method lists must cover the
 complete ordinary inventory exactly once. Every headless method must pass;
 display skips cannot substitute for native execution.
+The graphical process explicitly sets `MOKUSEI_TEST_HEADLESS=0`, so an inherited
+windowless override cannot suppress its display admission. It still needs the
+real graphical session; this setting does not manufacture display capability.
 
 The registry in [swift_execution.py](swift_execution.py) contains 35 self-contained
 suites (200 method declarations at the cleanup baseline) and four fixture-backed

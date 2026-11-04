@@ -2,8 +2,9 @@
 
 Inspect the actual required checks before planning verification. Default to focused local checks and affected replays, then require the final revision's successful hosted Complete coverage check and the actual remote branch rules. A local run cannot replace a check required by branch protection. Do not duplicate equivalent full local verification unless explicitly requested, diagnosing a failure, or covering an affected boundary CI cannot execute. `make check` remains the local entry point: Go formatting, package boundaries and static registration, allowed external Harness JS resources, `go vet ./...`, Go/Swift builds, the complete Swift suite, concurrency properties, module tests and directory-tag checks.
 
-`make check-swift` streams the full Swift run through the shared CI reporter and
-retains its log, actual process status and JSON summary under `.build/check-swift`.
+`make check-swift` captures the windowless and graphical Swift processes through
+the shared CI reporter, prints their logs after capture and retains separate logs,
+actual process statuses and a JSON summary under `.build/check-swift`.
 It requires complete XCTest and Swift Testing summaries with matching counts;
 an early process exit with status zero is a failure. Use the report and named
 native launchers to distinguish an incomplete run from explicit capability skips.

@@ -85,7 +85,10 @@ def ordinary_runs(tests, environment, *, no_parallel=True):
         # A negative suite selection also excludes Swift Testing's runtime
         # source-location suffixes, without restoring any native-owned sibling.
         skip = native_filter() + "|" + suite_filter(suites) if headless else native_filter()
-        runs.append({"name": "graphical", "tests": graphical, "log": "swift.log", "environment": {},
+        # A caller's windowless override must not disable display admission for
+        # the graphical complement. Actual missing display capability still skips.
+        runs.append({"name": "graphical", "tests": graphical, "log": "swift.log",
+                     "environment": {"MOKUSEI_TEST_HEADLESS": "0"},
                      "command": command + ["--skip", skip]})
     return runs
 

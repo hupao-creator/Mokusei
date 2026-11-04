@@ -80,7 +80,10 @@ while retaining Debug code and test targets. DirectoryTag executes once.
 
 The [shared execution plan](swift_execution.py) selects reviewed windowless
 suites by an anchored suite-prefix filter. The graphical command has no positive
-filter and excludes those suites. Both commands also exclude the full native
+filter and excludes those suites. The graphical process sets
+`MOKUSEI_TEST_HEADLESS=0` even if
+the parent environment requested windowless feedback. Actual display capability
+is still checked by the existing trait. Both modes exclude the native
 identities recorded in `swift_ownership.py`, including Swift Testing's runtime
 source-location suffix. This is selection, not a passing skip result:
 each excluded method must produce its actual passing outcome, marker and zero
