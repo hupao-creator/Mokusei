@@ -141,8 +141,13 @@ Agent still restores that Agent and its reading target on Close. Overview entry
 remembers the actual source card (the clicked Agent card for Git), and refreshes
 its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
-The shared Close sits at the panel's upper-left with 48pt of fixed viewport
-clearance below the top edge. Agent Sidecards use their right-side launcher as
+The shared Close sits at the panel's upper-left. Viewports normally reserve
+48pt below the top edge; the main Agent reader uses symmetric 22pt viewport
+insets and clears Close horizontally through its reserved 48pt history rail.
+The rail retains its own 64pt vertical padding. This applies to both opening
+heading preparation and the live current/history reader, retaining measured
+title handoff and the existing text-then-input/Sidecard entrance gates.
+Agent Sidecards use their right-side launcher as
 the open/close toggle and have no independent Close icon. The main panel button
 owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
