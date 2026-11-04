@@ -8,6 +8,7 @@ public extension EnvironmentValues {
 public struct NativeReadingPanelCloseButton: View {
     private let label: String
     private let onClose: () -> Void
+    private let overlaysContent: Bool
     @Environment(\.isEnabled) private var enabled
     @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reducedMotion
@@ -15,8 +16,8 @@ public struct NativeReadingPanelCloseButton: View {
     @Environment(\.nativeThreadPreparing) private var preparing
     @State private var appeared = false
 
-    public init(label: String, onClose: @escaping () -> Void) {
-        self.label = label; self.onClose = onClose
+    public init(label: String, overlaysContent: Bool = false, onClose: @escaping () -> Void) {
+        self.label = label; self.onClose = onClose; self.overlaysContent = overlaysContent
     }
 
     public var body: some View {
@@ -26,6 +27,11 @@ public struct NativeReadingPanelCloseButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(ReadingPanelCloseStyle())
+        .background {
+            if overlaysContent {
+                Circle().fill(NativePalette.thread.canvas.swiftUI).allowsHitTesting(false)
+            }
+        }
         .nativeLayoutLog("reading.close.target")
         .focusable()
         .focused($focused)
@@ -76,11 +82,12 @@ private struct ReadingPanelCloseBody: View {
 public extension View {
     /// Use with `nativeReadingPanelViewport()` so content and native scrollers
     /// clear the fixed control vertically or horizontally, even after scrolling
-    /// or resizing.
+    /// or resizing. For overlay placement, keep the control legible over authored
+    /// content with an opaque canvas backing; the host still owns edge clipping.
     func nativeReadingPanelClose(label: String, identifier: String = "reading-panel-close",
-                                onClose: @escaping () -> Void) -> some View {
+                                overlaysContent: Bool = false, onClose: @escaping () -> Void) -> some View {
         overlay(alignment: .topLeading) {
-            NativeReadingPanelCloseButton(label: label, onClose: onClose)
+            NativeReadingPanelCloseButton(label: label, overlaysContent: overlaysContent, onClose: onClose)
                 .accessibilityIdentifier(identifier).padding(14)
         }
     }

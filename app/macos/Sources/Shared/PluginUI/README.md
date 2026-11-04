@@ -43,8 +43,9 @@ Thread, Report, Git and Moku history panels share
 top-left edge. Pair it with `nativeReadingPanelViewport`: its default 48pt top
 clearance keeps both scrolling content and native scrollers below Close. The
 main Agent reader instead clears Close horizontally with its reserved history
-rail, allowing 22pt viewport insets at both ends. The horizontal/bottom insets
-clear rounded corners. Spacing outside the circle
+rail, allowing 22pt viewport insets at both ends. Report uses 8pt insets on all
+sides and `overlaysContent: true` for an opaque canvas backing under Close.
+The host clips the viewport to the rounded panel. Spacing outside the circle
 is not a close target. The button follows reading-palette light/dark colors,
 hover/press, disabled and increased-contrast states, with a visible keyboard
 focus ring and caller-owned localized help/accessibility labels. Callers keep
@@ -895,7 +896,7 @@ viewport/margin contract for production and the standalone native fixture.
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
 48pt above and 22pt below by default for Git, Moku history and execution-card
 reading panels. Report panels opt into
-`balancedVerticalInsets: true`, reserving 48pt at both ends. The main Agent Thread
+`topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main Agent Thread
 panel uses `topInset: 22`, matching its bottom viewport clearance. Its reserved
 48pt leading history rail separates the document and its scroller horizontally
 from Close; the rail itself retains 64pt of vertical padding. `ThreadConversation`
@@ -917,7 +918,7 @@ horizontal clearance supplies that separation with the smaller top inset.
 Close remains anchored to the outer
 panel. The frame reduces available
 content width by only 16pt; native gutter ownership remains as described above.
-Report uses the same host inset without rewriting document layout, overflow or
+Report uses its compact host inset without rewriting document layout, overflow or
 external webpage/frame styles. Panel chrome uses the application canvas color;
 an authored Report background remains inside its viewport.
 The inset belongs to the reading card: Moku history's separate input capsule
@@ -964,9 +965,9 @@ ownership unchanged. The upper-left reading close button retains its fixed
 panel position. The lightweight opening heading and live reader share the main
 Agent's 22/22pt viewport, preserving measured title/emoji handoff geometry.
 Content-reveal readiness, Moku input/Sidecard admission and their existing
-three-stage timing remain unchanged. Only Report keeps the balanced viewport
-argument; execution-card viewports use the default 48/22pt chrome. The execution
-card's separate page-stack spacing is unchanged.
+three-stage timing remain unchanged. Report uses the balanced viewport argument
+with an 8pt top inset; execution-card viewports use the default 48/22pt chrome.
+The execution card's separate page-stack spacing is unchanged.
 Git/Moku viewport defaults are unchanged.
 
 Sprint verification for this viewport adjustment is source/layout review,
@@ -976,7 +977,7 @@ screenshot was inspected; the changed layout has not been viewed in a running
 application, so rendered geometry and interaction/animation behavior are not
 claimed as observed acceptance.
 
-Report balances the **card-to-WebKit viewport** distance at 48pt on each end,
+Report balances the **card-to-WebKit viewport** distance at 8pt on each end,
 including both document scroll limits. Its webpage background begins and ends
 at these viewport boundaries, and WebKit's scrollbar stays inside that viewport;
 no overlay masks or indicator-hiding rules are added. Short reports retain
@@ -984,8 +985,17 @@ WebKit's normal document/viewport sizing. Window resize and theme changes do not
 introduce another inset. The webpage's own padding, the existing HTML safe-area
 contract (including the 60pt panel top clearance), CSS, zoom and authored
 backgrounds remain independent and unchanged: the first and last text glyphs
-need not be equidistant from the card edge. This deliberately fixes the shell
-asymmetry shown in the supplied Report screenshot without rewriting its report.
+need not be equidistant from the card edge. Close overlays the upper-left
+document with an opaque canvas backing; its
+32pt circular hit region and 14pt placement remain unchanged. Only that target
+intercepts document input; the backing adds no hit area. The existing panel
+clip and inset contain the viewport at its rounded edges without adding a mask
+over the document or its scrollbar. This reduces the dark shell padding shown
+in the supplied screenshot without rewriting its report.
+
+Sprint verification for this Report adjustment is limited to Swift parsing,
+source/layout review and documentation/diff checks. No tests, replays, product
+build or rendered interaction checks are run; no CI, push or PR is triggered.
 
 Hosts interrupting motion for recovery can request `cancelAll(finishingClose: true)`
 to complete an accepted return for its current visit. Default cancellation still

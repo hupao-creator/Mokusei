@@ -39,14 +39,15 @@ struct NativeApplicationReadingPanel: ViewModifier {
 
     private func panel(_ content: Content) -> some View {
         content
-            .nativeReadingPanelViewport(balancedVerticalInsets: identifier == "report-reading-panel")
+            .nativeReadingPanelViewport(topInset: identifier == "report-reading-panel" ? 8 : 48,
+                balancedVerticalInsets: identifier == "report-reading-panel")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(NativePalette.thread.canvas.swiftUI)
             .background(NativeReadingPanelFrame(identifier: identifier))
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
             .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭面板" : "Close panel",
-                onClose: onClose)
+                overlaysContent: identifier == "report-reading-panel", onClose: onClose)
             .accessibilityIdentifier(identifier)
             .nativeLayoutLog(layoutRole)
             .nativeReadingEscape(perform: suppressed || !escapeEnabled || identifier == "report-reading-panel" ? nil : onClose)

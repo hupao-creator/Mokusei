@@ -176,10 +176,11 @@ new visit. The full-workspace replay clicks the settled panel's icon before
 injecting these events, including control cases for ordinary mutations and
 same-authority snapshots.
 
-Report reading cards reserve 48pt above and below the entire WebKit viewport.
-The upper reservation clears the complete Close hit region and remains compatible
-with upper-left placement. The lower reservation matches it at either scroll
-limit, without covering the native scrollbar. This is card chrome, independent
+Report reading cards reserve 8pt on every side of the WebKit viewport. Close
+overlays the upper-left document area with an opaque canvas circle behind its
+32pt target, preserving contrast over authored backgrounds. The panel clips the
+viewport to its rounded surface; the right-hand scrollbar remains unobstructed
+and both scroll limits retain the same 8pt border. This is card chrome, independent
 of the existing HTML safe-area and authored page padding; no Report HTML, CSS,
 scroll offset or theme content is rewritten by this viewport adjustment.
 
