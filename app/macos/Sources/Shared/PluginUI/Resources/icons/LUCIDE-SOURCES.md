@@ -1,12 +1,14 @@
 # Native Lucide paths
 
-The native icon catalog is derived from the exact installed `lucide-react@0.544.0`
-package used by the Electron renderer, under `dist/esm/icons/*.js`. The upstream
+The native icon catalog was derived from `lucide-react@0.544.0`, installed in
+the former Electron renderer's authoring environment, under `dist/esm/icons/*.js`.
+The generated catalog is bundled here; native builds do not require that npm
+package or the removed renderer. The upstream
 [Lucide project](https://github.com/lucide-icons/lucide) uses ISC (with Feather
 portions under MIT); the complete package license is included as `lucide-LICENSE.txt`.
 
-The catalog contains every Lucide name imported by the desktop renderer and current
-plugin renderers, plus common navigation/control icons. It has 136 source names and
+The source selection covered Lucide names imported by the renderer and plugin
+renderers at conversion time, plus common navigation/control icons. It has 136 source names and
 141 normalized lookup keys (React aliases and canonical SVG names share geometry).
 
 `NativeIcon` accepts PascalCase and kebab-case names. It renders native SwiftUI Paths

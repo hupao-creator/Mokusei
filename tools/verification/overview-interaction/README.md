@@ -1,5 +1,10 @@
 # Production Overview chaos
 
+The retained driver has an outdated directory-scoped search assertion. Current
+production search is global and keyword-only; see the
+[contract mismatch and cleanup boundary](../../native-interaction/OVERVIEW.md#coverage-matrix).
+The commands below remain diagnostic entry points, with no current pass claimed.
+
 Run the current signed production Release application:
 
 ```sh

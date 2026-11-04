@@ -1,7 +1,8 @@
 # Functional integration replays
 
 The [CI verification policy](../../scripts/ci/verification-policy.md) maps these
-tools to GitHub Linux gates and local macOS signoff, and explains their value.
+tools to default/extended hosted checks and specifically triggered device or
+signed-package acceptance, and explains their value.
 A current-revision CI pass replaces an equivalent local run. Standalone visual/research tools are
 not automatically merge requirements; additional local acceptance needs a named
 uncovered defect and trigger. macOS builds, complete native tests, the extended
@@ -16,10 +17,13 @@ identities are retained. Repacked archives preserve their member names and order
 
 `make check-modules` separately runs offline, race-enabled [plugin module tests](../../internal/plugins/README.md), Runtime and Moku tests. It is included in `make check`; the replays below continue to cover cross-module production boundaries.
 
-`make check-swift`, also included in `make check`, runs all Swift tests. Native
-cases share process-wide test isolation; display and fixture requirements appear
-as explicit skips. See the [Swift failure audit](swift-tests/README.md) for the
-baseline comparison, headless admission and the eight XCTest fixture skips.
+`make check-swift`, also included in `make check`, runs the ordinary Swift
+selection followed by the declared native-owner checks, retaining their logs
+and receipts. Native cases share process-wide test isolation. Plain SwiftPM can
+report display/fixture skips; hosted CI supplies fixtures and native owners and
+rejects unexpected skips. The [Swift failure audit](swift-tests/README.md) records
+a historical baseline, including its eight XCTest fixture skips; it is not the
+current inventory. See the [current execution contract](../../scripts/ci/README.md#local-verification).
 
 For real native CLI + mock LLM combinations spanning Moku, child tasks, scoped
 Report/Tag, faults, public actions and restart, see [Moku system verification](moku-system/README.md)
@@ -49,8 +53,8 @@ Run SwiftPM builds and native replays serially; never grant Desktop access to
 work around an incorrectly staged fixture or resource.
 For Overview camera input and context-menu absence checks, see the [isolated AppKit replay](overview-input/README.md).
 For the foreground Overview performance baseline, see the
-[Release CI comparison](overview-ci-performance/README.md). It uses one local
-macOS host for serial, balanced A/B pairs with a separate production Core
+[Release CI comparison](overview-ci-performance/README.md). It uses one Actions
+macOS runner for serial, balanced A/B pairs with a separate production Core
 producer, real transport/catalog consumption and four fully visible running
 cards. Its retained Markdown report and raw measurements are the continuing
 baseline; historical target-Mac measurements are not pooled with CI results.

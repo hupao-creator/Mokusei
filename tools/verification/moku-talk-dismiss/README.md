@@ -1,7 +1,7 @@
 # Talk dismissal and capsule edge replay
 
 ```sh
-make check
+xcrun swift build --package-path app/macos
 python3 tools/verification/moku-talk-dismiss/run.py --skip-build
 ```
 

@@ -6,17 +6,17 @@ requirements are in the [production runner](../verification/overview-interaction
 
 | Action | Fields | Production implementation |
 | --- | --- | --- |
-| `filter.select` | `filterId` or null | `NativeOverviewWorkspaceModel.selectTag`, shared with tag buttons/context menus |
+| `filter.select` | `filterId` or null | `NativeOverviewWorkspaceModel.selectTag`, shared with tag buttons |
 | `overview.filters.scroll` | top-level `filterId` | Mounted SwiftUI filter-bar `ScrollViewProxy.scrollTo` |
 | `overview.directory.open` | `directoryId` | Visible directory control's `revealChildren`, also used by hover/accessibility |
 | `overview.directory.select` | `directoryId`, child `filterId` | Mounted glass child button's callback, scope guards and selection-driven menu exit |
 | `overview.directory.close` | `directoryId` | Native accessibility close callback and its glass exit transaction |
 | `overview.pan` | `deltaX`, `deltaY`, each ±10,000 points | Production camera pan, shared with canvas navigation |
 | `overview.zoom` | `delta` within ±1,000; `x`, `y` within 0–1 | Production camera zoom at a normalized viewport anchor |
-| `overview.auto` | none | Toolbar/context-menu return to automatic framing |
+| `overview.auto` | none | Toolbar/background-click return to automatic framing |
 | `overview.retry` | none | The existing layout error banner's refresh/retry operations; available only on error |
 | `moku.input.toggle` | none | Existing Compose command's capsule input state |
-| `moku.history.toggle` | none | Existing Moku command/context-menu history toggle |
+| `moku.history.toggle` | none | Existing Moku history command |
 | `moku.note.toggle` | none | Existing Moku Note command and its route admission |
 
 `search.begin/update/end`, `thread.open`, `navigation.back` and Settings navigation
@@ -27,7 +27,8 @@ should first scroll a clipped directory into view, open it, then observe its ID 
 completed animation or rendered frame.
 
 Selecting a child closes the submenu. The parent chip retains its existing title
-until the production glass exit completes, then displays `directory / child`.
+until the production glass exit completes, then displays directory and child
+names separated by the production vertical divider.
 The runner waits for both the requested filter state and menu unmount, then
 scrolls/reopens and waits for the real menu before selecting another child. Wrong
 child tests reopen first; closed-menu tests deliberately remain closed. Random
@@ -70,7 +71,7 @@ then closes Compose and waits for the fit to apply.
 | Directory tags | Ordinary paths, same basename in different parents, nested independent scopes, Unicode/spaces, symlink canonicalization, real Git linked-worktree folding, temporary-workspace Inbox suppression |
 | Semantic tags | Parent/child membership, same tag name in different scopes, single-member tags, separate tags with equal membership, count and archive exclusion |
 | Directory glass menu | Filter-bar scroll, actual menu mounting/opening, every child callback, selection-driven close/reopen, explicit close, closed-menu and wrong-child rejection |
-| Search | Empty/nonempty/Unicode/no-match queries, current-scope intersection, clear/exit, manual camera restoration; observed keyword/hybrid mode |
+| Search | Runner contains empty/nonempty/Unicode/no-match and camera-restoration assertions; its scoped-search assertion is stale (see below) |
 | Canvas | Pan, zoom/clamping, return to automatic view, deferred fit while Compose is open, finite transforms, readable scale bounds, actual mounted cards, stable non-overlapping placement cells |
 | Cards/navigation | Open each seeded conversation and return; retained Overview state |
 | Moku Dock | Compose open/close, history open/close, note open/close, route guards |
@@ -78,9 +79,18 @@ then closes Compose and waits for the fit to apply.
 
 Current Overview has no tag create/bind/rename/remove controls, card multi-select,
 pin/rename/archive context menu, layout-mode chooser, or manual search-mode
-selector. Directory tags are derived from working directories; keyword/hybrid
-mode is Runtime-owned. Archive restoration belongs to Settings. These are not
-reported as tested features.
+selector. Directory tags are derived from working directories. Runtime search
+is keyword-only; nonempty queries use the global eligible catalog independently
+of the browsing tag. Settings has no archive-restoration section. These absent
+controls are not reported as tested features.
+
+The retained `overview_chaos.py` smoke sequence still asserts that searching
+`alpha` inside one same-name directory excludes the other directory. That
+assertion contradicts the current global-search contract in
+[Overview](../../app/macos/Sources/Host/Overview/README.md#search-results) and must
+be reviewed by the parallel replay/test cleanup before this runner can certify
+current search behavior. Its conditional non-keyword branch also predates the
+keyword-only Runtime. No current passing run is claimed here.
 
 Task dispatch, interrupting real work, permission responses, credential changes,
 installation, microphone/voice calls, attachment imports, OS directory/file

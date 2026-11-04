@@ -136,6 +136,7 @@ Agent panels now carry source title/emoji ink separately during deferred opening
 show a scoped skeleton while loading, and reveal admitted native text top-down
 for completed executions or bottom-up for active executions. A per-execution
 presentation scope protects first paint and releases masks on change/cancellation.
-Closing retains native geometry travel with the confirmed 65% crossfade to the
-refreshed card. See the shared PluginUI and WindowNavigation documentation for
-lifecycle boundaries and the production fixture command.
+Closing retains the 420ms native return: reader content fades over the first
+80%, travel reaches the source card at 86%, and the shell crossfades to the
+refreshed card over the final 14%. See the shared PluginUI and WindowNavigation
+documentation for lifecycle boundaries and the production fixture command.

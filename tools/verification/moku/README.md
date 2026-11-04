@@ -11,8 +11,8 @@ starts a temporary authenticated Runtime and launches the production macOS
 note presentation. The Swift viewport tracker must send its receipt through
 `RuntimeClient`; Go then checks the exact persisted version/text and the next
 fake Harness Moku context. This mode needs a macOS graphical session and does
-not read a user's profile. Run `make check` first; the launcher uses its current
-Swift build.
+not read a user's profile. Build current Debug modules first with
+`xcrun swift build --package-path app/macos`; the launcher reuses that build.
 
 The command exits nonzero if an expectation fails or Go reports a data race.
 Successful execution ends with `PASS all Moku fixed replays`. It needs the
@@ -31,8 +31,10 @@ media events are fixed local fixtures.
 
 - Actual `SendMokuThread` admission: the sender waits for its admission callback,
   and user input is committed before the native tool executes.
-- Public `thread:follow-up` admissions from conversation/browser sidecards reach
-  the real Moku native handle as internal coordination events. SQLite event IDs,
+- The in-memory fallback fixture sends public `thread:follow-up` admissions to
+  the real Moku native handle as internal coordination events. This fixture
+  does not establish the production durable lazy-delivery path described below.
+  SQLite event IDs,
   user source, target thread, execution receipts, original child instructions,
   canonical attachments and browser annotations survive delivery. Running
   steering and new executions both notify; failed sends, repeated admission
@@ -159,28 +161,35 @@ Performance mode does not assert that the implementation is already optimized.
 The default replay enforces prompt queue cancellation, exact lazy-read counts,
 schema validation behavior, and notification/settlement ownership.
 
-Direct-user notifications reuse `thread.input-accepted` with `source=user`.
-Only the public follow-up command assigns that source; Moku tools and background
-work retain `source=application`. Moku subscribes to newly committed lifecycle
-events and queues them through the same settings/context/native `SendMokuThread`
-path as terminal events, including steering a busy Moku. The notification tells
-Moku to respect the child's direct user instructions and not resend the input.
-Attachments are described by canonical metadata, not inspected by Moku. Input
-payloads over 64 KiB use a UTF-8-safe preview, event/execution identifiers and an
-explicit truncation flag; the child and durable event keep the complete input.
+## Direct-user notification ownership
 
-The voice sidecard is a read-only discussion and does not submit child tasks.
-Native interaction responses and interrupt/archive commands are outside this
-follow-up notification path. Historical direct-user input notifications are
-not replayed on coordinator restart; this path still uses an in-memory queue
-without durable retry if Moku admission fails. Terminal completion notifications
-use a separate transactional outbox with admission receipts, safe retry and
-explicit uncertain-admission reconciliation; see the
-[Moku recovery procedure](../../../internal/services/moku/README.md#durable-completion-notifications).
-Deleted/deleting
-targets are skipped. User-send success means the child admitted the input,
-independent of later execution or Moku delivery failure. Repeated explicit user
-submissions remain distinct admissions; this does not add transport idempotency.
+Direct-user notifications reuse `thread.input-accepted` with `source=user`.
+The public follow-up command assigns that source; Moku tools and background
+work retain `source=application`. Production composition supplies the durable
+outbox. The input admission transaction stores a lazy notification alongside its
+lifecycle event. Restart retains pending notifications; they do not wake idle
+Moku. Its next independently triggered input bundles them as system context.
+An active Harness advertising `FollowUpOnly` can receive them without starting
+a successor; currently Codex advertises this capability, while Claude, Pi and
+OpenCode wait for the next independent input. The direct-to-thread warning tells
+Moku that the child already received the input and must not be sent it again.
+
+Attachments use canonical metadata. Inputs over 64 KiB use a UTF-8-safe,
+explicitly truncated preview; the child and lifecycle event keep the full input.
+The source formatter is shared with the in-memory fallback exercised by
+`user_thread_input.go`. That fallback subscribes only to new events when durable
+ports are absent; its immediate-send/restart assertions do not certify lazy
+production delivery. Runtime's durable implementation is in
+[`moku_delivery.go`](../../../internal/core/runtime/moku_delivery.go), selected by
+[`composition/moku.go`](../../../internal/core/composition/moku.go).
+
+Admission removes the captured outbox batch durably. Uncertain native outcomes
+remain fenced and require explicit reconciliation; see the
+[Moku recovery procedure](../../../internal/services/moku/README.md#durable-system-notifications).
+Deletion/history reset retire pending facts. User-send success means the child
+admitted the input, independently of later Moku delivery. Voice discussions,
+interaction answers and interrupt/archive commands do not submit child input
+through this path. Repeated explicit submissions remain distinct admissions.
 
 For a compile/static check without executing the fixtures:
 

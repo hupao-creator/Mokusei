@@ -1,7 +1,7 @@
 # Go storage contract
 
-`internal/core/store` is the authoritative durability boundary. It uses the macOS
-system SQLite library through `internal/platform/sqlite`, a small cgo binding. There is no
+`internal/core/store` is the authoritative durability boundary. It links the host system
+SQLite library through `internal/platform/sqlite`, a small cgo binding. There is no
 Node process, SQLite CLI subprocess, third-party Go driver, or JSON-file fallback.
 Building requires cgo, the system SQLite development headers, and a C compiler.
 

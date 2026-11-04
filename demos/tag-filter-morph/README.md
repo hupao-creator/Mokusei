@@ -3,7 +3,7 @@
 此入口直接链接当前 Debug `MokuseiUI.NativeOverviewChrome`，用于验证正式实现；不复制标签 UI，不启动 runtime，也不读取用户会话。
 
 ```sh
-make check
+xcrun swift build --package-path app/macos
 python3 demos/tag-filter-morph/build.py
 open .build/tag-filter-morph/ProductionTagMorph.app
 ```

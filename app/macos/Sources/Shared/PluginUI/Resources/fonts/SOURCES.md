@@ -1,7 +1,8 @@
 # Bundled native fonts
 
-These files preserve the font versions already used by `apps/desktop/src/renderer/src/fonts.css`.
-They are the existing npm package WOFF2 files decompressed to OpenType TrueType (not redrawn,
+These files preserve the font versions used by the former Electron renderer
+(`apps/desktop/src/renderer/src/fonts.css`, no longer in this checkout).
+They are the original npm package WOFF2 files decompressed to OpenType TrueType (not redrawn,
 replaced, or converted to static weights). Their `wght` variation axes remain available to CoreText.
 The source licenses are included alongside the fonts.
 
@@ -32,7 +33,10 @@ AppKit/CoreText performs system fallback for glyphs beyond the original fonts' c
 to the appropriate JetBrains subset, while `中` resolves to PingFang SC.
 `NativeTypography` never substitutes the complete Inter or JetBrains family with a system font.
 
-Reproduction, from the repository root with FontTools and Brotli installed:
+Historical conversion recipe, with FontTools and Brotli installed. The
+`node_modules/.pnpm` paths below refer to the original asset-authoring environment
+and are not supplied by this native checkout. These TTFs are already bundled;
+ordinary development and packaging do not install npm packages or run this recipe:
 
 ```python
 from pathlib import Path

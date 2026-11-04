@@ -1,7 +1,8 @@
 # Native Moku voice cloud replay
 
 Run `python3 tools/verification/moku-voice-cloud/run.py` from the root, or add
-`--skip-build` immediately after a successful current `make check`. Run serially
+`--skip-build` after building current Debug modules with
+`xcrun swift build --package-path app/macos`. Run serially
 with other SwiftPM builds. `MOKU_VOICE_INSPECT=1` leaves the isolated native
 production-component window running for 30 seconds for Computer Use inspection.
 It launches only its own disposable application, not the installed Mokusei.

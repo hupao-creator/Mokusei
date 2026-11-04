@@ -2,7 +2,7 @@
 
 [manager.go](manager.go), [thread.go](thread.go) and [git.go](git.go) resolve thread execution directories, allocate temporary workspaces and own managed Git worktrees. [registry.go](registry.go) records ownership; [recovery.go](recovery.go) reconciles it on recovery. A base project directory and its managed execution worktree are distinct identities.
 
-With `worktree: false`, an absent `cwd` allocates a unique directory under the profile's `tmp-workspaces`; an explicit `cwd` must be an existing usable absolute directory. `worktree: true` requires an explicit committed Git checkout and creates an isolated worktree under `.<repository>-mokusei-worktrees`. Callers execute in the returned worktree directory.
+With `worktree: false`, an absent `cwd` allocates a unique directory under the profile's `tmp-workspaces`; an explicit `cwd` must be an existing usable absolute directory. `worktree: true` requires an explicit committed Git checkout and creates an isolated worktree at detached HEAD under `.<repository>-mokusei-worktrees`. It does not create a branch. Callers execute in the returned execution directory, preserving the selected subdirectory when the base `cwd` is inside the repository.
 
 ## Worktree names
 

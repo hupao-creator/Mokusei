@@ -62,15 +62,19 @@ for the mounted production-page regression.
 [NativeReadingPageStack](../../Shared/PluginUI/Conversation/NativeReadingPageStack.swift) retains reading-page identity through transitions. [NativeReadingPageTiming](../../Shared/PluginUI/Conversation/NativeReadingPageTiming.swift) centralizes duration and curves: outer ordinary-detail opening uses the emphasized 420 ms curve, while nested/default navigation and closing retain their declared policies. Non-panel page offset, horizontal parent shade/blur and the clipped horizontal page shadow derive from shared progress. Panel position, aperture and closing fade use the independent native compositor driver in [NativeReadingPanelTransition](../../Shared/PluginUI/Conversation/NativeReadingPanelTransition.swift). Vertical conversation-history navigation uses equal full-height travel on a flat plane, without these depth effects; its retained document changes enabled state only offscreen to preserve the native scroller gutter during opening/return. History replacement keeps that hidden document disabled throughout, independently of the shared active-motion flag. The parent remains mounted through the return transition. Resize or an inactive scene completes an accepted Close for that same route visit; otherwise the animation simply settles. Identity replacement, explicit cancellation and disabled presentation still cancel the current generation without closing a replacement route.
 
 The outer workspace reading stack also owns the retained Overview presentation
-gate. Panel opening pauses display projection immediately and admits its reader
-only after compositor-driven travel completes. Card identity flights first mount
+gate. Panel opening pauses display projection immediately. Ordinary Agent card
+entries preload the primary reader after native animation-start delivery; drawing,
+input, accessibility and secondary surfaces wait for arrival. Other panel entries
+retain their arrival mounting gate. Card identity flights first mount
 a lightweight workspace layout with a row-free conversation heading; this fixes
 the destination before travel without mounting Harness documents. The real
 reader takes over without a second title movement. The outer Agent route starts
 data-only manifest/target-row prefetch during travel, owned by the route visit
 and target execution; cancellation cannot publish into a replacement reader.
-This does not mount TextKit or a hidden conversation view. Non-panel opening and return keep
-projection active, and settled-detail return awaits refreshed canvas layout
+Data-only prefetch itself mounts no TextKit or conversation view; the separate
+Agent reader preload can prepare native content during travel. Non-panel opening
+and return keep projection active, and settled-detail return awaits refreshed
+canvas layout
 before sampling the return frame. Preparation belongs to the current route
 generation: replacement or
 cancellation cannot close another visit, and focus loss/disconnect completes an
@@ -190,7 +194,8 @@ scroll offset or theme content is rewritten by this viewport adjustment.
 Agent panel entry captures only the source title/emoji text and native window
 geometry. Its lightweight compositor ink survives deferred reader mounting and
 hands off at actual heading anchors; source-less/direct-result routes skip that
-bridge. Agent closing uses the confirmed 65% content handoff within 420ms,
-scaling/fading the reader without separate closing identity travel. Other panel
-routes retain their previous fade policy. Route generations, refreshed parent
+bridge. Agent closing takes 420ms: content fades over the first 80%, scaling
+and travel reach the source card at 86%, and the opaque shell crossfades to
+Overview over the final 14%. There is no separate closing identity travel. Other
+panel routes retain their previous fade policy. Route generations, refreshed parent
 layout, cancellation and resize completion remain owned by the reading stack.

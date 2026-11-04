@@ -63,7 +63,7 @@ The native job performs these stages:
 3. Verify the graphical environment, run native Go checks and generate the five
    real Go fixture producers' six output files in the same evidence directory.
 4. Execute every ordinary Swift method once with `--skip-build --no-parallel`.
-5. Run all ten `interop` checks and all eleven `native` checks serially.
+5. Run all ten `interop` checks and all twelve `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
