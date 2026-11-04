@@ -110,6 +110,7 @@ public struct NativeComposerTextInput: View {
     }
 
     public var body: some View {
+        let placeholderCapHeight = CTFontGetCapHeight(nativeFont)
         NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
             selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
@@ -124,7 +125,14 @@ public struct NativeComposerTextInput: View {
             .background(alignment: .topLeading) {
                 if value.isEmpty {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        if let placeholderIcon { placeholderIcon.frame(width: fontSize, height: fontSize) }
+                        if let placeholderIcon {
+                            placeholderIcon.frame(width: fontSize, height: fontSize)
+                                // Vectors have no text baseline; SF Symbols have
+                                // their own. Center either on the first line's caps.
+                                .alignmentGuide(.firstTextBaseline) { dimensions in
+                                    dimensions[VerticalAlignment.center] + placeholderCapHeight / 2
+                                }
+                        }
                         Text(placeholder).font(.system(size: fontSize))
                     }
                         .foregroundStyle(Color.primary.opacity(0.85))
@@ -204,8 +212,9 @@ public struct NativeComposerTextInput: View {
         }
     }
     private struct FocusRequest: Equatable { let key: Int; let context: String }
+    private var nativeFont: CTFont { CTFontCreateUIFontForLanguage(.system, fontSize, nil)! }
     private var spacing: CGFloat {
-        let font = CTFontCreateUIFontForLanguage(.system, fontSize, nil)!
+        let font = nativeFont
         return max(0, lineHeight - ceil(CTFontGetAscent(font) + CTFontGetDescent(font) + CTFontGetLeading(font)))
     }
 }

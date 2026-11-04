@@ -85,6 +85,11 @@ placeholder string. Both disappear when text is present and are decorative,
 pointer-transparent and hidden from accessibility; the plain placeholder string
 remains the editor's accessibility label. The icon does not enter draft, paste,
 selection or IME state, and does not change native editor identity.
+The icon's square seat has an explicit first-text-baseline guide: its center
+aligns with the system font's cap-height center on the first placeholder line.
+This replaces provider-dependent vector/SF Symbol baseline defaults, preserves
+each Harness mark's aspect ratio and artwork, and keeps multiline placeholders
+anchored to their first line rather than centering the icon on the whole paragraph.
 
 ## Reading placeholders
 
