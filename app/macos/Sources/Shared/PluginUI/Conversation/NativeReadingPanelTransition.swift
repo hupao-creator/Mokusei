@@ -29,6 +29,7 @@ struct NativeReadingPanelViewport<Content: View>: NSViewRepresentable {
         environment.nativeThreadPreparing = !contentReady && identity != nil
         view.configure(target: target, source: source, open: open, transition: transition,
             contentReady: contentReady, identity: identity,
+            environment: environment,
             paperColor: NativePalette.thread.canvas.swiftUI.resolve(in: context.environment).cgColor,
             content: AnyView(content.environment(\.self, environment)),
             onCompletion: onCompletion)
@@ -54,6 +55,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private var flight: NativeThreadIdentityFlight?
     private var preparation: Task<Void, Never>?
     private var prepared = false
+    private var environment = EnvironmentValues()
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { false }
@@ -74,7 +76,9 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
 
     func configure(target: CGRect, source: CGRect?, open: Bool,
                    transition: NativeReadingPanelTransition?, contentReady: Bool, identity: NativeThreadIdentityVisit? = nil,
+                   environment: EnvironmentValues,
                    paperColor: CGColor, content: AnyView, onCompletion: @escaping (Int, Bool) -> Void) {
+        self.environment = environment
         if self.identity !== identity {
             preparation?.cancel(); preparation = nil; prepared = false
             flight?.retire(); flight = nil; self.identity = identity
@@ -164,6 +168,7 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
             guard prepared else { return }
             identity.freezeOpeningTargets()
             flight = NativeThreadIdentityFlight(visit: identity, surface: surface, source: source,
+                environment: environment,
                 duration: command.duration, timing: command.emphasized ? NativeReadingPageTiming.emphasizedOpening
                     : CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1))
         }

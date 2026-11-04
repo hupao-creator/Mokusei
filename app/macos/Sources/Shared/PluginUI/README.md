@@ -926,10 +926,15 @@ that breaks wide-window composition. Loading and loaded headings use the same
 layout at a given viewport size.
 Harness documents and sidecard bodies remain deferred. The compositor animates
 native title/emoji ink to that measured destination with the panel's own curve
-and duration. Loaded content only takes ownership at that position; there is no
+and duration. The flight rasterizes the same SwiftUI heading leaves at their
+measured destination size and in the reader's environment. This preserves native
+font fallback, glyph baselines, tracking and two-line truncation at handoff;
+matching layout anchors alone does not align `CATextLayer` ink with SwiftUI `Text`.
+Loaded content only takes ownership at that position; there is no
 post-opening title animation or data-loading timeout. The bridge never retains
 card/reader/plugin instances; replacement, close and reduced motion retire its layers. Direct result
 navigation and entries without a visible source card retain their ordinary entry.
+See the [recording analysis and sprint verification limits](../../../../../design/emoji-title-transition-handoff.md).
 
 Agent closing keeps the 420ms native panel return. The complete reader fades
 over the first 80%; scaling and shell travel reach the source card at 86%.

@@ -151,10 +151,11 @@ final class NativeThreadIdentityFlight {
     private let visit: NativeThreadIdentityVisit
     private weak var surface: NSView?
     private let overlay = ThreadIdentityInkHost()
-    private var layers: [String: CATextLayer] = [:]
+    private var layers: [String: CALayer] = [:]
     private var task: Task<Void, Never>?
     private var completion: Task<Void, Never>?
-    init(visit: NativeThreadIdentityVisit, surface: NSView, source: CGRect, duration: TimeInterval, timing: CAMediaTimingFunction) {
+    init(visit: NativeThreadIdentityVisit, surface: NSView, source: CGRect, environment: EnvironmentValues,
+         duration: TimeInterval, timing: CAMediaTimingFunction) {
         self.visit = visit; self.surface = surface
         overlay.wantsLayer = true; overlay.frame = surface.bounds
         overlay.layer?.masksToBounds = true
@@ -162,16 +163,23 @@ final class NativeThreadIdentityFlight {
         surface.addSubview(overlay)
         CATransaction.begin(); CATransaction.setDisableActions(true)
         for (element, leaf) in visit.source {
-            guard leaf.window === surface.window, let parent = surface.superview else { continue }
+            guard leaf.window === surface.window, let parent = surface.superview,
+                  let target = visit.openingTarget[element] else { continue }
             let absolute = parent.convert(leaf.frame, from: nil)
             let ratio: CGFloat = element == "emoji" ? 21 / 44 : 15 / 40
             let scale = ratio * absolute.height / max(1, leaf.localSize.height)
             let size = CGSize(width: absolute.width / max(0.01, scale), height: absolute.height / max(0.01, scale))
-            let layer = CATextLayer()
+            let layer = CALayer()
             layer.contentsScale = surface.window?.backingScaleFactor ?? 2
-            layer.string = Self.ink(leaf.text, element: element)
-            layer.alignmentMode = .left; layer.truncationMode = .end
-            layer.isWrapped = false
+            // Equal anchor frames do not imply equal glyph baselines: CATextLayer
+            // lays out fallback fonts and emoji differently from SwiftUI Text.
+            // Freeze the production heading's ink once, then let the compositor
+            // move it without another text layout at the reader handoff.
+            let renderer = ImageRenderer(content: NativeThreadHeadingInk(text: leaf.text, element: element)
+                .frame(width: target.localSize.width, height: target.localSize.height, alignment: .topLeading)
+                .environment(\.self, environment))
+            renderer.scale = layer.contentsScale
+            layer.contents = renderer.cgImage
             layer.bounds = CGRect(origin: .zero, size: size)
             layer.anchorPoint = .zero
             layer.position = CGPoint(x: absolute.minX - source.minX, y: absolute.minY - source.minY)
@@ -194,7 +202,6 @@ final class NativeThreadIdentityFlight {
             scale.fromValue = NSValue(caTransform3D: layer.transform)
             scale.toValue = NSValue(caTransform3D: CATransform3DIdentity)
             layer.bounds = CGRect(origin: .zero, size: destination.size)
-            layer.isWrapped = element == "title"
             layer.position = destination.origin; layer.transform = CATransform3DIdentity
             for animation in [position, scale] { animation.duration = duration; animation.timingFunction = timing }
             layer.add(position, forKey: "identity.position"); layer.add(scale, forKey: "identity.size")
@@ -207,14 +214,6 @@ final class NativeThreadIdentityFlight {
         }
     }
 
-    private static func ink(_ text: String, element: String) -> NSAttributedString {
-        let font = element == "emoji" ? NSFont.systemFont(ofSize: 44)
-            : NativeTypography.interPlatformFont(size: 40, weight: 650)
-        return NSAttributedString(string: text, attributes: [
-            .font: font, .kern: element == "emoji" ? 0 : -0.8,
-            .foregroundColor: NativePlatformPalette.thread.inkStrong
-        ])
-    }
     private func scheduleHandoff() {
         guard visit.pending, visit.openingFinished,
               visit.target["title"] != nil, visit.target["emoji"] != nil else { return }
@@ -264,13 +263,27 @@ struct NativeThreadHeading: View {
     let emoji: String
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(emoji).font(.system(size: 44)).threadIdentityElement("emoji", detail: true, text: emoji).accessibilityHidden(true)
-            Text(title).font(NativeTypography.inter(size: 40, weight: 650))
-                .tracking(-0.8).lineLimit(2).truncationMode(.tail)
-                .foregroundStyle(NativePalette.thread.inkStrong.swiftUI)
-                .frame(maxWidth: .infinity, alignment: .leading).help(title)
+            NativeThreadHeadingInk(text: emoji, element: "emoji")
+                .threadIdentityElement("emoji", detail: true, text: emoji).accessibilityHidden(true)
+            NativeThreadHeadingInk(text: title, element: "title").help(title)
                 .threadIdentityElement("title", detail: true, text: title)
                 .accessibilityAddTraits(.isHeader)
+        }
+    }
+}
+
+/// Shared glyph layout for the live heading and its compositor-owned entry ink.
+private struct NativeThreadHeadingInk: View {
+    let text: String
+    let element: String
+    var body: some View {
+        if element == "emoji" {
+            Text(text).font(.system(size: 44))
+        } else {
+            Text(text).font(NativeTypography.inter(size: 40, weight: 650))
+                .tracking(-0.8).lineLimit(2).truncationMode(.tail)
+                .foregroundStyle(NativePalette.thread.inkStrong.swiftUI)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
