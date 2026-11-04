@@ -303,6 +303,9 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 preparedPresentationToken = $0
             }
             .clipped()
+            // Group before attaching the canvas gesture; otherwise SwiftUI
+            // derives its accessibility attachment for every card descendant.
+            .accessibilityElement(children: .contain)
             .simultaneousGesture(magnification(in: geometry.size))
             .onChange(of: zoomActive) { _, active in if !active { navigationInput.endPinch() } }
             .onChange(of: state.isLayingOut) { _, layingOut in if layingOut { navigationInput.cancel() } }
@@ -324,7 +327,6 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             .onDisappear { detach() }
         }
-        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("overview.canvas")
     }
 

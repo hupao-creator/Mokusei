@@ -1,0 +1,829 @@
+{
+  "sourceBase": "e17c87e",
+  "date": "2026-11-04",
+  "configuration": "debug",
+  "cardCount": 23,
+  "method": "Target Mac, same completed Agent Thread; temporary numeric NativePerformance markers. Mixed exploratory AX/keyboard interactions; not a statistically controlled benchmark or optical FPS measurement. Sampling was used for root-cause diagnosis. No parallel build during measured visits.",
+  "phaseLegend": {
+    "0": "open intent accepted",
+    "1": "close intent accepted",
+    "2": "return preparation completed",
+    "3": "heading anchors ready",
+    "4": "identity rasterization begins",
+    "5": "opening CA travel submitted",
+    "6": "closing CA travel submitted",
+    "7": "input open accepted",
+    "8": "input close accepted",
+    "9": "native editor creation begins",
+    "10": "native editor creation ends",
+    "11": "synchronous Overview refresh completed",
+    "12": "canvas preparation requested",
+    "13": "canvas reconciliation enqueued",
+    "14": "canvas reconciliation starts",
+    "15": "canvas reconciliation ends"
+  },
+  "runs": [
+    {
+      "variant": "baseline",
+      "pid": 51997,
+      "bundleGeneration": "generation-414298711",
+      "provenance": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "6bc4706b2799825b04328196ee75078489db90861b2d964e08dc913740bb8561",
+        "runtimeInputSHA256": "2ff2f5a00d11b873652d57fb196640b168964488cc6911b81ed3731b300ae23d"
+      },
+      "timings": [
+        {
+          "operation": "close",
+          "durationMs": 1286.161
+        },
+        {
+          "operation": "open",
+          "durationMs": 1589.463
+        },
+        {
+          "operation": "close",
+          "durationMs": 1430.829
+        }
+      ],
+      "events": [
+        {
+          "timeMs": 3006.084833,
+          "phase": 7
+        },
+        {
+          "timeMs": 3020.794583,
+          "phase": 9
+        },
+        {
+          "timeMs": 3021.840333,
+          "phase": 10
+        },
+        {
+          "timeMs": 11803.882292,
+          "phase": 1
+        },
+        {
+          "timeMs": 13083.224208,
+          "phase": 2
+        },
+        {
+          "timeMs": 13090.043208,
+          "phase": 6
+        },
+        {
+          "timeMs": 36505.481125,
+          "phase": 0
+        },
+        {
+          "timeMs": 38024.034417,
+          "phase": 3
+        },
+        {
+          "timeMs": 38092.370875,
+          "phase": 4
+        },
+        {
+          "timeMs": 38094.94375,
+          "phase": 5
+        },
+        {
+          "timeMs": 41126.737625,
+          "phase": 7
+        },
+        {
+          "timeMs": 41135.576417,
+          "phase": 9
+        },
+        {
+          "timeMs": 41136.327375,
+          "phase": 10
+        },
+        {
+          "timeMs": 57386.566542,
+          "phase": 1
+        },
+        {
+          "timeMs": 58804.852792,
+          "phase": 2
+        },
+        {
+          "timeMs": 58817.39525,
+          "phase": 6
+        }
+      ],
+      "inputGeometryCallbacks": [
+        {
+          "inputIntentTimeMs": 3006.084833,
+          "offsetsMs": [
+            34.32,
+            61.69,
+            71.19,
+            74.14,
+            85.91,
+            87.97,
+            102.56,
+            104.47,
+            119.24,
+            121.44,
+            135.94,
+            138.06,
+            152.59,
+            154.67,
+            169.25,
+            171.45,
+            185.89,
+            187.94,
+            202.55,
+            204.9,
+            219.22,
+            221.55,
+            239.44,
+            244.72,
+            252.73,
+            255.0,
+            269.26,
+            272.05,
+            285.98,
+            288.11,
+            302.73,
+            305.2,
+            319.48,
+            321.91,
+            336.22,
+            338.55,
+            352.67,
+            355.61,
+            369.28,
+            371.74,
+            385.99,
+            388.46,
+            402.56,
+            405.47,
+            419.28,
+            421.95,
+            435.88,
+            438.5,
+            452.63,
+            455.19,
+            469.23,
+            471.26,
+            485.91
+          ],
+          "maxGapMs": 27.37
+        },
+        {
+          "inputIntentTimeMs": 41126.737625,
+          "offsetsMs": [
+            50.64,
+            454.76
+          ],
+          "maxGapMs": 404.12
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "pid": 56695,
+      "bundleGeneration": "generation-1744165004",
+      "provenance": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "05aa82d06f93cc474421b8e73e3f9620a795ef0c2d28f17c360439447641f22b",
+        "runtimeInputSHA256": "2ff2f5a00d11b873652d57fb196640b168964488cc6911b81ed3731b300ae23d"
+      },
+      "timings": [
+        {
+          "operation": "open",
+          "durationMs": 1306.06
+        },
+        {
+          "operation": "close",
+          "durationMs": 580.79
+        }
+      ],
+      "events": [
+        {
+          "timeMs": 635.663125,
+          "phase": 13
+        },
+        {
+          "timeMs": 676.396416,
+          "phase": 14
+        },
+        {
+          "timeMs": 694.890291,
+          "phase": 15
+        },
+        {
+          "timeMs": 2066.262416,
+          "phase": 13
+        },
+        {
+          "timeMs": 2159.807083,
+          "phase": 14
+        },
+        {
+          "timeMs": 2427.978583,
+          "phase": 13
+        },
+        {
+          "timeMs": 2661.254791,
+          "phase": 14
+        },
+        {
+          "timeMs": 2661.475708,
+          "phase": 15
+        },
+        {
+          "timeMs": 7102.522916,
+          "phase": 15
+        },
+        {
+          "timeMs": 9113.178458,
+          "phase": 13
+        },
+        {
+          "timeMs": 9257.962166,
+          "phase": 14
+        },
+        {
+          "timeMs": 9944.360041,
+          "phase": 15
+        },
+        {
+          "timeMs": 17776.332375,
+          "phase": 0
+        },
+        {
+          "timeMs": 18829.80925,
+          "phase": 3
+        },
+        {
+          "timeMs": 19080.015916,
+          "phase": 4
+        },
+        {
+          "timeMs": 19082.392083,
+          "phase": 5
+        },
+        {
+          "timeMs": 21668.797083,
+          "phase": 7
+        },
+        {
+          "timeMs": 21683.771875,
+          "phase": 9
+        },
+        {
+          "timeMs": 21684.672166,
+          "phase": 10
+        },
+        {
+          "timeMs": 31883.898333,
+          "phase": 1
+        },
+        {
+          "timeMs": 31885.07375,
+          "phase": 11
+        },
+        {
+          "timeMs": 31921.349125,
+          "phase": 13
+        },
+        {
+          "timeMs": 31947.157541,
+          "phase": 12
+        },
+        {
+          "timeMs": 31947.271041,
+          "phase": 14
+        },
+        {
+          "timeMs": 31947.61525,
+          "phase": 15
+        },
+        {
+          "timeMs": 31953.913333,
+          "phase": 13
+        },
+        {
+          "timeMs": 32451.814208,
+          "phase": 14
+        },
+        {
+          "timeMs": 32452.114208,
+          "phase": 15
+        },
+        {
+          "timeMs": 32457.935916,
+          "phase": 2
+        },
+        {
+          "timeMs": 32464.687958,
+          "phase": 6
+        },
+        {
+          "timeMs": 33273.351291,
+          "phase": 13
+        },
+        {
+          "timeMs": 33712.909416,
+          "phase": 14
+        },
+        {
+          "timeMs": 33713.206458,
+          "phase": 15
+        },
+        {
+          "timeMs": 72254.701208,
+          "phase": 13
+        },
+        {
+          "timeMs": 72545.841958,
+          "phase": 14
+        }
+      ],
+      "inputGeometryCallbacks": [
+        {
+          "inputIntentTimeMs": 21668.797083,
+          "offsetsMs": [
+            56.01
+          ],
+          "maxGapMs": 0
+        }
+      ]
+    },
+    {
+      "variant": "grouped",
+      "pid": 58539,
+      "bundleGeneration": "generation-926931403",
+      "provenance": {
+        "channel": "development",
+        "configuration": "debug",
+        "executableInputSHA256": "79aca867ff61e234769eeca2193e9a4ab8d1311ddb0f6f881eadd2cd56334a68",
+        "runtimeInputSHA256": "2ff2f5a00d11b873652d57fb196640b168964488cc6911b81ed3731b300ae23d"
+      },
+      "timings": [
+        {
+          "operation": "open",
+          "durationMs": 588.952
+        },
+        {
+          "operation": "close",
+          "durationMs": 204.262
+        },
+        {
+          "operation": "open",
+          "durationMs": 383.261
+        },
+        {
+          "operation": "close",
+          "durationMs": 179.7
+        },
+        {
+          "operation": "open",
+          "durationMs": 361.896
+        }
+      ],
+      "events": [
+        {
+          "timeMs": 645.66175,
+          "phase": 13
+        },
+        {
+          "timeMs": 697.610833,
+          "phase": 14
+        },
+        {
+          "timeMs": 916.659708,
+          "phase": 15
+        },
+        {
+          "timeMs": 1678.430958,
+          "phase": 13
+        },
+        {
+          "timeMs": 1713.80725,
+          "phase": 14
+        },
+        {
+          "timeMs": 1834.624125,
+          "phase": 13
+        },
+        {
+          "timeMs": 1897.594125,
+          "phase": 14
+        },
+        {
+          "timeMs": 1897.809875,
+          "phase": 15
+        },
+        {
+          "timeMs": 6016.247667,
+          "phase": 15
+        },
+        {
+          "timeMs": 8059.064875,
+          "phase": 13
+        },
+        {
+          "timeMs": 8077.372917,
+          "phase": 14
+        },
+        {
+          "timeMs": 8614.612208,
+          "phase": 15
+        },
+        {
+          "timeMs": 13165.237458,
+          "phase": 0
+        },
+        {
+          "timeMs": 13518.447583,
+          "phase": 3
+        },
+        {
+          "timeMs": 13751.458208,
+          "phase": 4
+        },
+        {
+          "timeMs": 13754.189917,
+          "phase": 5
+        },
+        {
+          "timeMs": 15829.273208,
+          "phase": 7
+        },
+        {
+          "timeMs": 15845.554125,
+          "phase": 9
+        },
+        {
+          "timeMs": 15846.43925,
+          "phase": 10
+        },
+        {
+          "timeMs": 31915.603708,
+          "phase": 1
+        },
+        {
+          "timeMs": 31917.855375,
+          "phase": 11
+        },
+        {
+          "timeMs": 31969.290917,
+          "phase": 13
+        },
+        {
+          "timeMs": 32084.582167,
+          "phase": 12
+        },
+        {
+          "timeMs": 32084.705125,
+          "phase": 14
+        },
+        {
+          "timeMs": 32085.427458,
+          "phase": 15
+        },
+        {
+          "timeMs": 32094.460875,
+          "phase": 13
+        },
+        {
+          "timeMs": 32102.344208,
+          "phase": 14
+        },
+        {
+          "timeMs": 32102.6705,
+          "phase": 15
+        },
+        {
+          "timeMs": 32111.441083,
+          "phase": 2
+        },
+        {
+          "timeMs": 32119.865208,
+          "phase": 6
+        },
+        {
+          "timeMs": 32740.472667,
+          "phase": 13
+        },
+        {
+          "timeMs": 32843.471,
+          "phase": 14
+        },
+        {
+          "timeMs": 32844.042167,
+          "phase": 15
+        },
+        {
+          "timeMs": 89324.948208,
+          "phase": 0
+        },
+        {
+          "timeMs": 89638.3995,
+          "phase": 3
+        },
+        {
+          "timeMs": 89705.936583,
+          "phase": 4
+        },
+        {
+          "timeMs": 89708.209708,
+          "phase": 5
+        },
+        {
+          "timeMs": 91927.711833,
+          "phase": 7
+        },
+        {
+          "timeMs": 91935.855583,
+          "phase": 9
+        },
+        {
+          "timeMs": 91936.608583,
+          "phase": 10
+        },
+        {
+          "timeMs": 120385.12725,
+          "phase": 1
+        },
+        {
+          "timeMs": 120395.007708,
+          "phase": 11
+        },
+        {
+          "timeMs": 120435.664042,
+          "phase": 13
+        },
+        {
+          "timeMs": 120531.683958,
+          "phase": 12
+        },
+        {
+          "timeMs": 120531.79775,
+          "phase": 14
+        },
+        {
+          "timeMs": 120532.088417,
+          "phase": 15
+        },
+        {
+          "timeMs": 120538.297333,
+          "phase": 13
+        },
+        {
+          "timeMs": 120548.302458,
+          "phase": 14
+        },
+        {
+          "timeMs": 120548.6005,
+          "phase": 15
+        },
+        {
+          "timeMs": 120557.644458,
+          "phase": 2
+        },
+        {
+          "timeMs": 120564.826875,
+          "phase": 6
+        },
+        {
+          "timeMs": 121143.686208,
+          "phase": 13
+        },
+        {
+          "timeMs": 121189.234875,
+          "phase": 14
+        },
+        {
+          "timeMs": 121189.560833,
+          "phase": 15
+        },
+        {
+          "timeMs": 135113.790458,
+          "phase": 0
+        },
+        {
+          "timeMs": 135407.019542,
+          "phase": 3
+        },
+        {
+          "timeMs": 135473.788917,
+          "phase": 4
+        },
+        {
+          "timeMs": 135475.686208,
+          "phase": 5
+        },
+        {
+          "timeMs": 137662.717875,
+          "phase": 7
+        },
+        {
+          "timeMs": 137669.598083,
+          "phase": 9
+        },
+        {
+          "timeMs": 137670.050208,
+          "phase": 10
+        }
+      ],
+      "inputGeometryCallbacks": [
+        {
+          "inputIntentTimeMs": 15829.273208,
+          "offsetsMs": [
+            55.57,
+            118.42,
+            124.95,
+            128.51,
+            140.99,
+            150.52,
+            157.64,
+            167.05,
+            174.33,
+            184.07,
+            190.98,
+            193.15,
+            207.61,
+            209.62,
+            224.29,
+            226.56,
+            287.72,
+            304.15,
+            309.24,
+            311.36,
+            324.35,
+            326.67,
+            340.95,
+            343.06,
+            357.74,
+            360.01,
+            374.4,
+            376.7,
+            391.23,
+            393.38,
+            407.86,
+            409.9,
+            424.5,
+            426.7,
+            440.97,
+            443.56,
+            457.61,
+            459.88,
+            474.28,
+            476.6,
+            491.06,
+            493.05,
+            507.68,
+            509.83,
+            524.3,
+            526.29,
+            540.93
+          ],
+          "maxGapMs": 62.85
+        },
+        {
+          "inputIntentTimeMs": 91927.711833,
+          "offsetsMs": [
+            46.07,
+            105.77,
+            115.44,
+            119.07,
+            131.5,
+            134.18,
+            148.18,
+            150.91,
+            164.86,
+            167.53,
+            181.48,
+            184.46,
+            198.19,
+            201.03,
+            214.82,
+            217.48,
+            231.49,
+            233.7,
+            292.57,
+            311.5,
+            314.94,
+            317.88,
+            331.47,
+            334.1,
+            348.28,
+            351.32,
+            364.88,
+            367.48,
+            381.59,
+            384.69,
+            398.38,
+            401.66,
+            414.97,
+            418.06,
+            431.47,
+            434.31,
+            448.25,
+            450.91,
+            464.99,
+            467.9,
+            481.59,
+            484.26,
+            498.34,
+            501.03,
+            514.82,
+            517.78,
+            531.55
+          ],
+          "maxGapMs": 59.7
+        },
+        {
+          "inputIntentTimeMs": 137662.717875,
+          "offsetsMs": [
+            53.38,
+            112.87,
+            127.87,
+            131.36,
+            143.87,
+            146.05,
+            160.36,
+            162.22,
+            177.16,
+            179.39,
+            193.79,
+            195.76,
+            210.5,
+            212.81,
+            227.14,
+            229.42,
+            287.16,
+            305.6,
+            311.51,
+            314.33,
+            327.21,
+            329.75,
+            343.8,
+            346.36,
+            360.5,
+            362.96,
+            377.14,
+            380.0,
+            393.84,
+            396.59,
+            410.67,
+            413.6,
+            427.24,
+            430.04,
+            443.97,
+            446.75,
+            460.53,
+            463.4,
+            477.37,
+            482.81,
+            493.88,
+            496.83,
+            510.56,
+            513.36,
+            527.21,
+            530.07,
+            543.91
+          ],
+          "maxGapMs": 59.49
+        }
+      ]
+    }
+  ],
+  "machine": {
+    "chip": "Apple M1 Pro",
+    "os": "macOS 26.5.1 (25F80)"
+  },
+  "finalApplication": {
+    "pid": 67769,
+    "bundleGeneration": "generation-2642239477",
+    "temporaryInstrumentation": false,
+    "provenance": {
+      "channel": "development",
+      "configuration": "debug",
+      "executableInputSHA256": "5eb8aeb9cfc54e0c36aa21247df7c2c868340357a4adb1c6dd5947fe2a1eebd8",
+      "runtimeInputSHA256": "2ff2f5a00d11b873652d57fb196640b168964488cc6911b81ed3731b300ae23d"
+    },
+    "observation": "Mouse open/close, editor focus, draft restoration and cleanup verified. Callback windows start at composer initial geometry and are not directly comparable to intent-based diagnostic windows.",
+    "composerMounts": [
+      {
+        "capsuleGeometryCallbackCount": 52,
+        "maxCallbackGapMs": 17.87
+      },
+      {
+        "capsuleGeometryCallbackCount": 46,
+        "maxCallbackGapMs": 55.99
+      },
+      {
+        "capsuleGeometryCallbackCount": 45,
+        "maxCallbackGapMs": 60.23
+      }
+    ]
+  }
+}

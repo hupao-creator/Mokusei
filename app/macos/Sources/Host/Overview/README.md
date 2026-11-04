@@ -103,6 +103,18 @@ for color, lifetime and native-composition acceptance. Standalone card fixtures
 default to the shared renderer, so Overview performance verification must mount
 this production workspace path and confirm that its native renderer is active.
 
+## Accessibility gesture ownership
+
+The canvas groups its accessibility children **before** installing its pinch
+recognizer. Each Agent card likewise creates a named container before attaching
+its open gesture and action. Its title, preview, status and embedded interaction
+controls remain readable and independently actionable inside that container.
+Do not move these groups outside the gesture modifiers: SwiftUI otherwise derives
+gesture attachments for every descendant when navigation or Moku input changes
+visibility/enablement, blocking transition startup even for the retained backdrop.
+See the [target-Mac investigation](../../../../../design/thread-transition-latency.md)
+for samples, paired observations and validation limits.
+
 ## Layout, motion and input
 
 [NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves every surviving top-left position, accepts nonconflicting footprint changes and fills existing vacancies before extending the envelope for entrants. This path must fit at the readable floor and occupy at least 75% of its bounding grid. Necessary vacancies, including enclosed ones, are allowed; if production packing proves the collection can lose an entire row or column without enlarging the other axis, the existing bounded compact planner repairs the avoidable envelope. This catches deletion/shrink histories that strand a wide card below a fitting vacancy even at exactly 75% occupancy. An area lower bound avoids searching already irreducible envelopes. If that proof exhausts the shared search budget, the legal preserved candidate returns with incomplete search; once a smaller readable witness exists, subsequent optimization retains it as a geometric fallback. Conflicting growth, excessive fragmentation and insufficient capacity also use the compact planner and its collision-certified move order. Calls without a fitting region retain the compact-planning contract.

@@ -14,6 +14,7 @@ import MokuseiPluginUI
     var scene = "replay"
     var selection: String? = "all"
     var detail = false
+    @ObservationIgnored var detailMounted = false
     var dark = false
     var query = String(repeating: "A long draft with a final visible line.\n", count: 24) + "FINAL LINE"
     var focus = 1
@@ -211,13 +212,15 @@ import MokuseiPluginUI
             try verifyWindowChrome()
             try await verifyWindowResize()
             try clickNavigationBack()
-            try await wait("reading return") { !detail }
+            // A new user visit starts after the old reader has left the tree;
+            // the model can close a frame before SwiftUI commits that removal.
+            try await wait("reading return") { !detail && !detailMounted }
             try check(appearances["first"] == firstAppearances && state.camera.manual, "Reading return lost overview state")
             for _ in 0..<2 {
                 detail = true
                 try await Task.sleep(for: .milliseconds(400))
                 try clickNavigationBack()
-                try await wait("repeated reading return") { !detail }
+                try await wait("repeated reading return") { !detail && !detailMounted }
                 try check(appearances["first"] == firstAppearances && state.camera.manual, "Repeated return lost overview state")
             }
             state.camera.returnToAuto()
@@ -278,6 +281,8 @@ private struct ReplaySurface: View {
                 Button("Back") { replay.reading.close() }
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(.background)
+                .onAppear { replay.detailMounted = true }
+                .onDisappear { replay.detailMounted = false }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { replay.viewport = $0 }

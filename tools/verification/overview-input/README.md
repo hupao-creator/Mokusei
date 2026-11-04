@@ -56,7 +56,11 @@ The automatic replay verifies:
   does not change the measured animation offsets.
 - Conversation opening/return through window-dispatched mouse clicks on the
   visible back chevron, including repeated visits and return after resize;
-  retained Overview state and automatic framing. The fixture uses the ordinary
+  retained Overview state and automatic framing. Repeated visits wait for the
+  previous production reader to unmount as well as its logical route to close;
+  otherwise SwiftUI can coalesce close/reopen before committing the old visit.
+  The 400ms opening-interruption click and geometry/identity assertions remain.
+  The fixture uses the ordinary
   workspace's stationary, blurred backdrop and emphasized detail entrance; see
   [Thread Detail transitions](../../../app/macos/Sources/Host/WindowNavigation/README.md).
 - Theme changes without replacing card content.

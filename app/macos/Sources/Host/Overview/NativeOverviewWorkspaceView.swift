@@ -210,6 +210,10 @@ private struct NativeOverviewWorkspaceCard: View {
                     .environment(\.threadCardLogo, { @MainActor in
                         (try? model.workspace.harnessHost.registry.require(thread.harnessID))?.logo(size: 12) ?? AnyView(EmptyView())
                     })
+                    // Keep one opening action per card while preserving its
+                    // readable children and independently actionable controls.
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(thread.title.string)
                     .contentShape(RoundedRectangle(cornerRadius: 22))
                     .onTapGesture { open(thread.id) }
                     .focusable()
