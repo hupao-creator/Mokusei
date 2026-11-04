@@ -312,20 +312,10 @@ type OverviewClientSnapshot struct {
 	OverviewClientContext
 	ClientID string `json:"clientId"`
 }
-type OverviewFilterSelection struct {
-	ClientID  string  `json:"clientId"`
-	ContextID string  `json:"contextId"`
-	Revision  int64   `json:"revision"`
-	Scope     string  `json:"scope,omitempty"`
-	Tag       *string `json:"tag"`
-}
-type OverviewFilterResult struct {
-	Status  string                  `json:"status"`
-	Context *OverviewClientSnapshot `json:"context"`
-}
+
+// OverviewControl exposes read-only desktop context to background agents.
 type OverviewControl interface {
 	ReadClients(context.Context) ([]OverviewClientSnapshot, error)
-	SelectFilter(context.Context, OverviewFilterSelection) (OverviewFilterResult, error)
 }
 type ApplicationProcessInput struct {
 	Command        string

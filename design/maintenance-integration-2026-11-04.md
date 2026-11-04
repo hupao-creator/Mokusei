@@ -62,3 +62,25 @@ Conversation API 失败，移除旧用例后测试构建通过，但其后 Talk 
 本次没有测试执行结果，不以旧结果认证整合提交。Swift 过滤器的真实运行、分进程
 计数、取消语义、fixture、图形输入、WebKit、Metal 和托管 Complete coverage
 均未执行。未改变远程保护或声称通过远程门禁；本次授权仅涉及本地 main。
+
+## 后续交付：Tag Agent 只读 Overview
+
+前五项维护内容已先以 `4ac93e032a9bc3a1c03fc060c3c5cb7e741573e9` 快进
+本地 main；随后按用户追加要求整合
+`b6697112055cca5ba6f3b2c7f71b3743d3aecdaa`（Remove filter selection
+authority from the Tag Agent）。没有等待或纳入仍在开发的 HTML 链接功能。
+
+静态审阅确认 `select_tag_filter`、opaque observation 决策及插件写适配器被移除。
+`read_overview_context` 保留 scope 成员过滤、分页快照、大小限制与 lifetime/request
+取消；不再输出 client/context 身份、revision 或 selection handle。背景能力仅有
+`ReadClients`。手动 Overview 筛选和客户端 transport 协议保持可用，其现有测试
+不因 Agent 写权限移除而删除。既有 Tag 只读 evidence 与退休生命周期用例保留；
+仅移除退休的选择权限用例和 fixture。没有新增测试。
+
+此提交与现有维护内容自动合并，没有文本冲突。另在 transport 文档明确客户端
+控制与 Tag 只读能力的边界，并在原文档审计补记后续变化，保留历史基线。
+最终 `make lint` 和 `./scripts/go.sh build ./...` 均通过，日志为
+`tag-lint.log` 和 `tag-go-build.log`。最终静态复核解析 7 个变更 Python 模块、
+567 个本地文档路径与 21 个锚点，没有发现错误；diff 空白检查通过。
+没有重复执行 Swift 构建，因为后续提交及协调修订没有改变 Swift 源码、依赖、
+资源或构建输入。没有运行任何测试、回放或 CI。

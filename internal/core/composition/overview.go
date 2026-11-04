@@ -30,26 +30,6 @@ func (c overviewControl) ReadClients(ctx context.Context) ([]plugin.OverviewClie
 	}
 	return result, nil
 }
-func (c overviewControl) SelectFilter(ctx context.Context, input plugin.OverviewFilterSelection) (plugin.OverviewFilterResult, error) {
-	var scope *string
-	if input.Scope != "" {
-		value := input.Scope
-		scope = &value
-	}
-	result, err := c.broker.SelectFilter(ctx, transport.OverviewSelection{ClientID: input.ClientID, ContextID: input.ContextID, Revision: input.Revision, Scope: scope, Tag: input.Tag})
-	if err != nil {
-		return plugin.OverviewFilterResult{}, err
-	}
-	output := plugin.OverviewFilterResult{Status: result.Status}
-	if result.Context != nil {
-		value, err := convertOverview(*result.Context)
-		if err != nil {
-			return output, err
-		}
-		output.Context = &value
-	}
-	return output, nil
-}
 func convertOverview(value transport.OverviewSnapshot) (plugin.OverviewClientSnapshot, error) {
 	reference := func(source *transport.OverviewThread) *model.ThreadRef {
 		if source == nil {

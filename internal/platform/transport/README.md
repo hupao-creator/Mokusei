@@ -26,6 +26,9 @@ block ordinary content release or re-subscription. Both pools retain the shared
 192 MiB in-flight body budget, authenticated endpoints and 64-socket limit.
 
 [overview.go](overview.go) brokers host-to-client overview control with device/lease ownership and bounded waits. It does not give background plugins direct access to native views.
+The plugin Overview capability exposes only read-only client context; the Tag
+Agent has no filter-selection tool or write adapter. The broker and native client
+selection protocol remain available independently of background classification.
 
 Verification from the repository root:
 

@@ -59,7 +59,7 @@ ThreadTypeDefinition 通过 Project 返回 title/view 和可选的稳定 Scope�
 
 ### 后台能力与生命周期
 
-能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、classification、semantic tags read/write/snapshot、overview control 和受控 process。
+能力 key 包含 ID、APIVersion 和 Phase。宿主只发放定义的 Requires 清单中的能力；snapshot 能力只在纯查询/事务中使用。现有 keys 覆盖 lifecycle、background configuration/sessions/environment、ordinary tasks read/snapshot、classification、semantic tags read/write/snapshot、只读 overview context 和受控 process。
 
 BackgroundAgentDefinition 必须显式声明 Global 或 PerDirectoryScope。Runtime 的 DirectoryScopes 只提供持久目录身份与名称；Host 根据注册定义派生稳定实例 ID。目录在 task 生命周期事务中记录，来源删除或事件类型不会影响恢复。
 

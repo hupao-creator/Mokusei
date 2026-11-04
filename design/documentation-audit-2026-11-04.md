@@ -16,6 +16,8 @@
 Headless 顺序链，并据此更新当前交互指南及 CI 说明。下文“待并行清理”描述保留为
 原审计时点的依赖记录，不再表示当前 driver 仍有该旧断言。最终整合范围和验证限制见
 [维护整合记录](maintenance-integration-2026-11-04.md)。
+后续交付 `b669711` 又移除 Tag Agent 的筛选写权限；Tag、插件能力、Application
+host 与 transport 当前指南已对应更新，下方逐文件清单仍保留原审计基线。
 
 ## 核查方法与覆盖
 

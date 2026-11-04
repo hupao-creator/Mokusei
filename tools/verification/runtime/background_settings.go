@@ -42,9 +42,6 @@ type backgroundSettingsOverview struct{}
 func (backgroundSettingsOverview) ReadClients(ctx context.Context) ([]plugin.OverviewClientSnapshot, error) {
 	return []plugin.OverviewClientSnapshot{}, ctx.Err()
 }
-func (backgroundSettingsOverview) SelectFilter(context.Context, plugin.OverviewFilterSelection) (plugin.OverviewFilterResult, error) {
-	return plugin.OverviewFilterResult{}, fmt.Errorf("no connected overview client")
-}
 
 func (h *backgroundSettingsHarness) DefaultSettings() json.RawMessage {
 	return raw(model.Object{"model": "initial"})
