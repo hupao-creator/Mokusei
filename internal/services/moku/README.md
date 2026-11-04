@@ -34,6 +34,24 @@ Every `create_thread` call supplies `worktree` as a boolean. `false` uses an exp
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. Deferred native targets use `describe_native_harness` for the exact current schema; cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
+The built-in prompt and both creation/follow-up prompt schemas share target-routing
+guidance: explicit user choices take precedence over general routing guidance and
+belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
+with the actual work and omits only dispatch requirements already fulfilled by
+that selection. A target-model choice alone is not a request for a child Agent.
+Explicit child-Agent, parallel-work and role requirements, and model names or
+quoted instructions meaningful to the task remain part of the assignment.
+`send_to_thread` retains the existing target configuration; an unsatisfied routing
+choice needs a suitable target or a user-visible explanation, not an instruction
+to spawn a replacement child.
+
+This is coordinator guidance across Harnesses, not a semantic runtime guarantee.
+The runtime validates native target options and forwards the supplied task text
+without model-name or delegation-keyword filtering. It cannot mechanically
+distinguish routing intent from task content, and the target's own instructions
+or judgment can still cause subdelegation. Existing dispatched tasks and native
+histories are not rewritten; updated guidance is injected on session preparation.
+
 Moku always uses its built-in coordination instructions. Saved routing guidance is appended separately; settings do not expose additional system instructions or replace the built-in prompt.
 
 ## Talk and notes
