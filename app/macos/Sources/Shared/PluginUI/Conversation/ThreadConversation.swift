@@ -245,7 +245,7 @@ public struct ThreadConversation: View {
                                    onClose: finishClosingHistory) {
                 HarnessMessageTimeline(timelineKey: threadId, rows: documentRows,
                     toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
-                    contentTopInset: executionCard ? 12 : nil,
+                    contentTopInset: executionCard || agentDetail ? 12 : nil,
                     suspended: readingPage, followOutput: true,
                     allowsJumpToLatest: allowsJumpToLatest,
                     opensAtBottom: agentDetail && running && effectiveRunningID != nil && requestedDestination == nil,
@@ -272,7 +272,7 @@ public struct ThreadConversation: View {
                 }
             }
             .clipped()
-        }.padding(.vertical, 12)
+        }.padding(.vertical, agentDetail && !executionCard ? 0 : 12)
             .nativeReadingObservation("state", role: "conversation", value: .object([
                 "destination": .text(readingPage ? selectedPage == nil ? "unavailable" : "history" : "current"),
                 "historyRow": selectedPage.map { .string($0.id) } ?? .null,
@@ -491,6 +491,7 @@ private struct ThreadHistoryDocument: View {
         HarnessMessageTimeline(timelineKey: page?.id ?? threadId,
             rows: page.map { [ThreadTimelineRow(id: $0.id, createdAt: $0.createdAt, node: rowContent ?? $0.node)] } ?? [],
             toolbar: AnyView(header), emptyState: AnyView(Text(localize("链接指向的执行不可用。"))),
+            contentTopInset: agentDetail ? 12 : nil,
             followOutput: result || (running && readingTarget?.follow == true), allowsJumpToLatest: allowsJumpToLatest,
             followKey: active ? page?.execution?.id : nil,
             readingTarget: readingTarget, readingVisitId: readingVisitId, locatedRequestId: locatedRequestId, onLocated: onLocated)

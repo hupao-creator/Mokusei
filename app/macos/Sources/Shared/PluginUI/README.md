@@ -834,9 +834,14 @@ keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
-48pt above and 22pt below by default for application reading panels (Git and
-Moku history). Agent Thread and Report panels opt into
-`balancedVerticalInsets: true`, reserving 48pt at both ends. The entire viewport
+48pt above and 22pt below by default for Git, Moku history and Agent Thread
+reading panels. Report panels opt into
+`balancedVerticalInsets: true`, reserving 48pt at both ends. Agent Thread current
+and historical documents use 12pt of scrollable padding at each end, without
+additional vertical padding around the conversation viewport. This keeps the
+Close clearance while expanding the readable area at every window width;
+timeline page capacity uses the same document padding. The sibling Moku input
+keeps its existing host layout. The entire viewport
 sits inside this frame, so persistent and
 overlay indicators, their hit regions and both scroll limits clear the rounded
 edge. The top clears Close's complete 14pt inset + 32pt hit region, including
@@ -854,8 +859,8 @@ is added. Readers derive their available width/height from the inset viewport.
 ### Thread document spacing
 
 `HarnessMessageTimeline` uses one vertical document inset for both ends, including
-history/unavailable pages and execution presentations. The existing top-inset
-selection is retained: explicit `contentTopInset` (12pt for execution), otherwise
+history/unavailable pages and execution presentations. The inset selection uses
+explicit `contentTopInset` (12pt for Agent detail and execution), otherwise
 94pt under reading navigation, or 24/28/44pt for widths >=1024 / <=540 / between.
 Despite its name, the explicit top override now applies to both document edges.
 The streaming Markdown page capacity subtracts this inset twice from the current
@@ -871,20 +876,21 @@ belongs inside the document. The cat empty state's own vertical inset is 48pt
 on both sides. Other supplied empty/error/loading views keep their own content
 layout and receive the same outer document inset.
 
-The Agent panel additionally has symmetric fixed 48pt viewport chrome and the
-conversation's existing 12pt page-stack inset on both sides. Thus a typical
-44pt document inset gives 104pt from either outer panel edge to the corresponding
-document boundary at its scroll limit. The close control remains in the fixed
-upper safety region throughout scrolling. Short documents remain top aligned;
+The Agent panel has fixed viewport chrome of 48pt above and 22pt below, with
+no additional page-stack inset around its main conversation. Together with the
+12pt document inset, this gives 60pt from the outer panel top to the document
+boundary at scroll start and 34pt from its bottom at scroll end. The close
+control remains in the fixed upper safety region throughout scrolling.
+Short documents remain top aligned;
 unused viewport height below them is not padding and is not forcibly filled or
 centered. At an explicit result/message visit the targeted scroll position can
-start mid-document; equality describes the document's two scroll limits.
+start mid-document; these distances describe the document's two scroll limits.
 
 This spacing change leaves placeholder delay/placement, content acquisition and
-cache ownership unchanged. It composes with `3736c2a` (upper-left reading close
-buttons): retain the Agent and Report balanced viewport arguments when integrating
-the adjacent close-control changes. Its new execution-card viewport keeps the default
-48/22pt chrome; balancing that separate card's shell is outside this Thread fix.
+cache ownership unchanged. The upper-left reading close button retains its fixed
+clearance. Only Report keeps the balanced viewport argument; Agent main and
+execution-card viewports use the default 48/22pt chrome. The execution card's
+separate page-stack spacing is unchanged.
 Git/Moku viewport defaults are unchanged.
 
 Report balances the **card-to-WebKit viewport** distance at 48pt on each end,

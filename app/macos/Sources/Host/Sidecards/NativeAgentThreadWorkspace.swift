@@ -264,7 +264,7 @@ struct NativeSidecardWorkspaceLayout: View {
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)
-        .nativeReadingPanelViewport(balancedVerticalInsets: true)
+        .nativeReadingPanelViewport()
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话轮次", "Conversation turns"))
         // History owns its own Escape. Keep this fallback out of Sidecards so
