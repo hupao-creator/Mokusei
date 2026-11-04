@@ -7,7 +7,9 @@ tag chrome withdraws upward and fades while Moku takes its reading seat; both us
 `NativeReadingPageTiming.openingAnimation` (420ms, cubic 0.76/0/0.24/1), matching
 the emphasized panel opening. The existing identity-target preparation may precede
 compositor travel; secondary work never estimates its completion with a 420ms timer.
-Tag layout/canvas clearance and Moku's bottom-anchored native editor stay intact.
+Only the collapsed Moku position participates in this first stage. Its input
+expansion belongs to stage two. Tag layout/canvas clearance and Moku's
+bottom-anchored native editor stay intact.
 
 The reading Dock lowers its bottom edge by up to 16 logical points, bounded by a
 12-point bottom margin (normally 12–20 points). Width, top clearance, expanded
@@ -26,12 +28,36 @@ and return preparation keep this gate shut.
 An Agent workspace initially publishes a folded Sidecard layout even if the
 Conversation plugin has already requested its active execution. Its native
 `NativeReadingEntranceStage` waits for that layout's transaction commit and the
-primary gate, then admits the current selection. This causes a separate existing
-380ms Sidecard fold/layout animation. There is no new elapsed-time opening task.
+primary gate, then asks the window to admit this exact route visit before
+admitting the current selection. The window opens the Agent composer in that
+same stage: its 420ms expansion runs alongside the existing 380ms Sidecard
+fold/layout animation. An empty registry still commits and opens input. There
+is no new elapsed-time opening task.
 Plugin sessions, execution exclusion and user selection revisions keep their
 existing ownership; hiding presentation does not transfer an execution to main.
 The stage latches once per mounted workspace, so primary Close does not fold an
 already-expanded card underneath the returning panel.
+
+The window resets admission on route replacement, binds the new draft immediately
+and configures a separate scene-level input gate. While the gate is closed,
+`setInputOpen(true)` is rejected regardless of its source (initial context,
+interaction restoration, input toggle, follow-up suggestion or failed send).
+Previous editor ink retires immediately, and composer generation invalidates old
+focus tasks. Pinning still prevents ordinary detail input dismissal after entry.
+Application reading commits release the gate without automatically opening their
+Moku composer. Covering history/interventions keep their surface priority: an
+admitted visit may restore input only through the existing eligible route.
+
+The existing 180ms focus delay starts with stage-two input opening, never with
+primary travel. Delivery checks the current draft, composer generation, route
+visibility and covering state. Reduce Motion skips this delay, including when
+enabled while a focus request waits. Closing before admission, replacing the
+route or releasing the window rejects a late admission; repeated settled entry
+does not fold/reopen the input or restart either stage.
+The scene also reads the owning panel's live motion state: accepted Close/return
+preparation disables input hit testing and focus without folding its retained
+shell. A delayed focus or failed-send callback cannot activate input in a moving
+reading panel.
 
 The boundary invalidates queued completion on disable, detach and replacement.
 Sidecard release cancels its transition task. Repeated plugin requests retain the

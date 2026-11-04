@@ -477,8 +477,17 @@ production bell during headless verification.
 
 ## Reading-panel Dock
 
-Reading entry uses the shared 420ms emphasized curve for the Dock shell and
-composer reveal. The fitted Dock bottom moves down by up to 16pt, keeping at least
+Primary reading entry uses the shared 420ms emphasized curve for the collapsed
+Dock's position. Its composer stays unmounted until the reading panel completes
+and the folded Agent workspace commits. That visit-scoped boundary admits Moku
+input expansion (420ms) alongside the Sidecard reveal (380ms), even when no
+Sidecard qualifies. Scene-level input admission also gates interaction restoration,
+input controls and focus; navigation cannot bypass it by reconfiguring the draft.
+Focus uses its existing 180ms delay from stage two, with draft/generation checks;
+accepted Close also suspends input hit testing/focus through the panel's live
+motion state without folding the retained shell. Reduce Motion removes the focus
+delay and spatial animations. The fitted Dock
+bottom moves down by up to 16pt, keeping at least
 12pt below it; Report/Git retain their normal input policy in that same lower seat.
 Landing and Settings keep their existing positions. The bottom-anchored editor,
 reasoning envelope and hit regions still use the fitted surface. See the

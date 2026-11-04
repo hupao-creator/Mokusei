@@ -202,7 +202,7 @@ public struct NativeMokuDock: View {
             && !voiceModeActive && interaction == nil && !navigationDisabled
     }
     private var rowControlAvailable: Bool {
-        state.dockRouteVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
+        state.inputInteractionReady && state.dockRouteVisible && state.windowVisible && !state.dockCovered && !navigationDisabled
             && interaction == nil && !state.inputOpen && !state.inputLeaving
     }
     private var voiceControlVisible: Bool {
@@ -590,10 +590,14 @@ public struct NativeMokuDock: View {
             state.dockMentionHitRect = nil
             hoverTask?.cancel(); hoverTask = nil
         }
-        .task(id: "\(state.composerGeneration):\(state.dockRouteVisible && state.inputOpen && !state.dockCovered)") {
-            guard state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
-            do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
-            guard !Task.isCancelled, state.dockRouteVisible, state.inputOpen else { return }
+        .task(id: "\(state.composerGeneration):\(state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered):\(reduceMotion)") {
+            guard state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
+            let generation = state.composerGeneration
+            if !reduceMotion {
+                do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
+            }
+            guard !Task.isCancelled, state.composerGeneration == generation, state.ownsComposer(draft),
+                  state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { return }
             focusReady = true; focusRequest += 1
         }
         .onChange(of: draft.text) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
@@ -686,8 +690,8 @@ public struct NativeMokuDock: View {
                         : .easeOut(duration: 0.12))) { content in
                         content.opacity(composerVisible ? 1 : 0)
                     }
-                    .allowsHitTesting(composerVisible)
-                    .disabled(state.settingsOpen)
+                    .allowsHitTesting(composerVisible && state.inputInteractionReady)
+                    .disabled(state.settingsOpen || !state.inputInteractionReady)
                     .accessibilityHidden(!composerVisible)
             }
         }
@@ -894,7 +898,7 @@ public struct NativeMokuDock: View {
     private func composer(room: CGFloat, compact: Bool) -> some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
             threadTitle: threadTitle, placeholderIcon: threadPlaceholderIcon,
-            readOnly: state.inputLeaving, focusEnabled: state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
+            readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,
