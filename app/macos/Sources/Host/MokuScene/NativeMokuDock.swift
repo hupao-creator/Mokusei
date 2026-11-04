@@ -267,7 +267,13 @@ public struct NativeMokuDock: View {
                 // overflow and flashes the overlay scroller at wraps.
                 // Keep the glass animation outside this transaction.
                 .transaction { $0.animation = nil }
-                .transition(.opacity.animation(.easeInOut(duration: 0.22)))
+                // Resolve shell/row travel before the native viewport's discrete
+                // layout. Otherwise its leaves adopt the final scene coordinates
+                // while the glass is still moving, clipping Talk on Note entry
+                // and carrying it above the eyes on return. The same message and
+                // scroll state stay mounted through both directions and reversals.
+                .geometryGroup()
+                .transition(.opacity.animation(reduceMotion ? nil : .easeInOut(duration: 0.22)))
         }
     }
     /// Force-touch voice remains on Moku's original control row, rather than

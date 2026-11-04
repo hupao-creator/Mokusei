@@ -297,6 +297,22 @@ eye seat. Opening retains the glass's ordinary reveal timing; Reduce Motion
 removes both animations. Closing only dismisses this read-only presentation;
 it does not clear the catalog note or change the composer draft.
 
+Retained Talk and voice-transcript ink have a geometry group outside their
+discrete native viewport layout transaction. The group resolves the enclosing
+shell/row travel first, so disabling native text layout animation cannot make
+the message adopt its final scene coordinates while the glass is still moving.
+Opening/closing Note and interrupted reversals keep the same message view and
+scroll state; Note does not trigger the message's opacity transition. That fade
+belongs only to message insertion/removal and respects Reduce Motion. Note's
+History action can still change the available prose width or move actions below
+the message in a narrow capsule; text wraps at the destination width without
+interpolating native document/clip heights. Dispatch keeps its existing layout
+and detail target. The no-message path keeps the ordinary persistent face/shell.
+Delivery, same-operation updates, expiry, dismissal, voice precedence and
+interaction/composer ownership remain in the existing scene and Talk state.
+See the [Talk/Note transition investigation](../../../../../design/moku-talk-note-transition.md)
+for original-video observations and this repair's verification limits.
+
 Note's Regular material is noninteractive; text selection, links, scrolling,
 history and dismissal retain their existing native targets. Returning to the
 collapsed Dock restores its clear interactive material. The warm gradient and
