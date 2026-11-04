@@ -294,6 +294,17 @@ position and final-output following; live Sidecard output retains its own follow
 behavior. This correction was reviewed against the reported recording and
 checked statically in sprint mode, without new tests or regression runs.
 
+The first reading request is resolved before mounting the page stack. A direct
+history/result entry therefore starts on that document without first mounting
+current or sliding from it. A never-visited current document is not acquired or
+rendered behind that entry; an already mounted current reader remains retained
+with its scroll state. Explicit TOC navigation still admits current for the
+existing return transition. Result links keep their reply anchor rather than
+forcing the document heading, and manual scrolling takes ownership even before
+a non-following request's delayed anchor arrives. A new request may locate again.
+See the [recording, version and local-log investigation](../../../../../design/thread-opening-entry-admission.md)
+for evidence and the sprint verification limits.
+
 
 The timeline keeps exact scroll geometry in a view-owned observable reference.
 Only its small reading-control registration reads that geometry during view

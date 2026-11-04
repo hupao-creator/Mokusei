@@ -94,6 +94,8 @@ public struct ThreadConversation: View {
     @State private var pageMotion = NativeReadingPageMotion()
     @State private var pageDirection: CGFloat = -1
     @State private var navigationToken: UUID?
+    @State private var initializedThread: JSONText?
+    @State private var hasMountedCurrentDocument = false
 
     public init(threadId: JSONText, title: String, icon: String? = nil, rows: [ThreadConversationRow],
                 readingTarget: ThreadConversationReadingTarget? = nil, running: Bool = false,
@@ -186,6 +188,11 @@ public struct ThreadConversation: View {
                     Text(localize("这轮对话已不可用。")).foregroundStyle(NativePalette.thread.danger.swiftUI)
                         .nativeReadingContentReady()
                 }
+            } else if initializedThread != threadId {
+                // Resolve the entry request before mounting any reader. Otherwise
+                // a direct history/result visit first loads the current execution
+                // and starts a second page entrance while both bodies lay out.
+                NativeReadingPlaceholder(placement: .surface)
             } else {
                 readingLayout.nativeReadingScope(interactionScope)
             }
@@ -200,8 +207,10 @@ public struct ThreadConversation: View {
         .background(NativePalette.thread.canvas.swiftUI)
         .onChange(of: threadId, initial: true) { _, _ in
             userMessages = false; manualWork = nil
+            hasMountedCurrentDocument = false
             destination = .document(inline: nil); consumedRequest = nil; requestedDestination = nil; acceptedAnchor = nil; locatedRequest = nil
             consumeReadingTarget()
+            initializedThread = threadId
         }
         .onChange(of: effectiveRunningID) { _, _ in manualWork = nil }
         .onChange(of: readingTarget) { _, _ in consumeReadingTarget() }
@@ -247,31 +256,39 @@ public struct ThreadConversation: View {
                                    axis: .vertical,
                                    direction: pageDirection,
                                    onClose: finishClosingHistory) {
-                HarnessMessageTimeline(timelineKey: threadId,
-                    documentKey: agentDetail && !executionCard ? currentRow?.id : nil, rows: documentRows,
-                    toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
-                    contentTopInset: executionCard || agentDetail ? 12 : nil,
-                    suspended: readingPage, followOutput: true,
-                    allowsJumpToLatest: allowsJumpToLatest,
-                    opensAtBottom: agentDetail && running && effectiveRunningID != nil && requestedDestination == nil,
-                    followKey: effectiveRunningID,
-                    followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
-                    onJumpToLatest: {
-                        destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
-                    }, showOlderRows: false, pinnedRowId: inlineRow,
-                    readingTarget: readingPage ? nil : scrollTarget,
-                    readingVisitId: destination == requestedDestination ? consumedRequest : nil, locatedRequestId: locatedRequest,
-                    onLocated: { locatedRequest = $0 })
-                    .environment(\.threadDetailVisibility, visibility)
-                    .environment(\.threadAuthorInHeader, true)
-                    .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
-                    .environment(\.nativeInteractionQuestionInDocument, true)
-                    .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
-                    .nativeReadingScope("current")
-                    .nativeReadingActive(!readingPage && !pageMotion.active)
-                    .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
-                        if readingPage { status = .init() }
-                    }
+                if hasMountedCurrentDocument || !readingPage || !entryRoute {
+                    HarnessMessageTimeline(timelineKey: threadId,
+                        documentKey: agentDetail && !executionCard ? currentRow?.id : nil, rows: documentRows,
+                        toolbar: AnyView(documentHeader()), emptyState: effectiveEmptyState,
+                        contentTopInset: executionCard || agentDetail ? 12 : nil,
+                        suspended: readingPage, followOutput: true,
+                        allowsJumpToLatest: allowsJumpToLatest,
+                        opensAtBottom: agentDetail && running && effectiveRunningID != nil && requestedDestination == nil,
+                        followKey: effectiveRunningID,
+                        followPaused: inlineRow.map { historicalIDs.contains($0) } == true,
+                        onJumpToLatest: {
+                            destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
+                        }, showOlderRows: false, pinnedRowId: inlineRow,
+                        readingTarget: readingPage ? nil : scrollTarget,
+                        readingVisitId: destination == requestedDestination ? consumedRequest : nil, locatedRequestId: locatedRequest,
+                        onLocated: { locatedRequest = $0 })
+                        .environment(\.threadDetailVisibility, visibility)
+                        .environment(\.threadAuthorInHeader, true)
+                        .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
+                        .environment(\.nativeInteractionQuestionInDocument, true)
+                        .allowsHitTesting(!readingPage).accessibilityHidden(readingPage)
+                        .nativeReadingScope("current")
+                        .nativeReadingActive(!readingPage && !pageMotion.active)
+                        .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
+                            if readingPage { status = .init() }
+                        }
+                        .onAppear { hasMountedCurrentDocument = true }
+                } else {
+                    // A direct history route exits to its host. There is no
+                    // previous current document to restore or pre-render. Once
+                    // current participates, retain its actual scroll state.
+                    Color.clear
+                }
             } front: {
                 if readingPage {
                     historyPage()

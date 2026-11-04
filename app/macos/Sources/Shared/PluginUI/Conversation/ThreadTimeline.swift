@@ -428,7 +428,9 @@ public struct HarnessMessageTimeline: View {
         readingNavigation?.update(source: readingSource, scrollTop: geometry.top, active: !suspended)
     }
     private func locate() {
-        guard !suspended, let target = readingTarget, !(target.follow && userPositioned),
+        // A fresh request resets userPositioned. Late anchors for that same
+        // request must respect manual scrolling, including non-following visits.
+        guard !suspended, let target = readingTarget, !userPositioned,
               (locatedRequest != target.requestId && locatedRequestId != target.requestId) || clampedRequest == target.requestId,
               geometry.height > 0, geometry.viewport > 0, let top = anchors[target.anchorId] else { return }
         following = target.follow && followOutput && !followPaused
