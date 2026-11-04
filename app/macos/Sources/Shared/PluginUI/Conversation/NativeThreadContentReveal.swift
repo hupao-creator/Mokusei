@@ -18,9 +18,18 @@ final class NativeThreadContentReveal {
         weak var view: MarkdownTextView?
         init(_ view: MarkdownTextView) { self.view = view }
     }
+    private final class WeakRow {
+        weak var view: ThreadRevealRowView?
+        init(_ view: ThreadRevealRowView) { self.view = view }
+    }
+    private final class WeakView {
+        weak var view: NSView?
+        init(_ view: NSView) { self.view = view }
+    }
     private var texts: [ObjectIdentifier: WeakText] = [:]
+    private var rows: [ObjectIdentifier: WeakRow] = [:]
     private var documents: [UUID: Bool] = [:]
-    private var masks: [(WeakText, CALayer)] = []
+    private var masks: [(WeakView, CALayer)] = []
     private var task: Task<Void, Never>?
     private var started = false
     private var finished = false
@@ -39,7 +48,7 @@ final class NativeThreadContentReveal {
         documents[id] = true; schedule()
     }
     func endDocument(_ id: UUID) { documents[id] = nil }
-    func contentChanged(_ view: MarkdownTextView) {
+    func contentChanged(_ view: NSView) {
         if started, masks.contains(where: { $0.0.view === view }) { finish() }
     }
     func register(_ view: MarkdownTextView) {
@@ -51,6 +60,16 @@ final class NativeThreadContentReveal {
     func unregister(_ view: MarkdownTextView) {
         texts[ObjectIdentifier(view)] = nil
         view.admitLineReveal()
+    }
+    func register(_ view: ThreadRevealRowView) {
+        guard !finished, !started else { return }
+        rows[ObjectIdentifier(view)] = WeakRow(view)
+        view.awaitsLineReveal = true
+        schedule()
+    }
+    func unregister(_ view: ThreadRevealRowView) {
+        rows[ObjectIdentifier(view)] = nil
+        view.awaitsLineReveal = false
     }
     func begin(bottomUp: Bool, reducedMotion: Bool) {
         self.bottomUp = bottomUp; self.reducedMotion = reducedMotion
@@ -77,9 +96,9 @@ final class NativeThreadContentReveal {
     }
     private func animate() -> Bool {
         let live = texts.values.compactMap(\.view)
-        guard !live.isEmpty else { return false }
-        guard let window = live.first?.window, let root = window.contentView else { return false }
-        var lines: [(MarkdownTextView, CGRect, CGFloat)] = []
+        let liveRows = rows.values.compactMap(\.view)
+        guard let window = live.first?.window ?? liveRows.first?.window, let root = window.contentView else { return false }
+        var lines: [(NSView, CGRect, CGFloat)] = []
         for text in live where text.window === window {
             guard text.bounds.width > 0, let layout = text.layoutManager, let container = text.textContainer else { return false }
             layout.ensureLayout(for: container)
@@ -89,10 +108,15 @@ final class NativeThreadContentReveal {
                 lines.append((text, local, root.isFlipped ? global.minY : -global.maxY))
             }
         }
+        for row in liveRows where row.window === window {
+            guard row.bounds.width > 0, row.bounds.height > 0 else { return false }
+            let global = row.convert(row.bounds, to: root)
+            lines.append((row, row.bounds, root.isFlipped ? global.minY : -global.maxY))
+        }
         guard !lines.isEmpty else { return false }
         started = true
         animatedLineCount = lines.count
-        initialDrawingProtected = live.allSatisfy(\.awaitsLineReveal)
+        initialDrawingProtected = live.allSatisfy(\.awaitsLineReveal) && liveRows.allSatisfy(\.awaitsLineReveal)
         lines.sort { bottomUp ? $0.2 > $1.2 : $0.2 < $1.2 }
         let beat = min(0.045, 0.6 / Double(max(1, lines.count - 1)))
         let fadeDuration = 0.28
@@ -105,9 +129,9 @@ final class NativeThreadContentReveal {
             else {
                 text.wantsLayer = true
                 // Another presentation owner always wins; never replace its mask.
-                guard text.layer?.mask == nil else { text.admitLineReveal(); continue }
+                guard text.layer?.mask == nil else { continue }
                 mask = CALayer(); mask.frame = text.bounds
-                text.layer?.mask = mask; masks.append((WeakText(text), mask))
+                text.layer?.mask = mask; masks.append((WeakView(text), mask))
             }
             let row = CALayer(); row.frame = rect.insetBy(dx: -2, dy: 0)
             row.backgroundColor = NSColor.white.cgColor; mask.addSublayer(row)
@@ -118,6 +142,7 @@ final class NativeThreadContentReveal {
             row.add(fade, forKey: "thread.line.entrance")
         }
         live.forEach { $0.admitLineReveal() }
+        liveRows.forEach { $0.awaitsLineReveal = false }
         CATransaction.commit()
         task = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(Double(lines.count) * beat)) } catch { return }
@@ -132,8 +157,9 @@ final class NativeThreadContentReveal {
         task?.cancel(); task = nil
         finished = true; footerVisible = true
         for text in texts.values { text.view?.admitLineReveal() }
+        for row in rows.values { row.view?.awaitsLineReveal = false }
         for (reference, mask) in masks where reference.view?.layer?.mask === mask { reference.view?.layer?.mask = nil }
-        masks.removeAll(); texts.removeAll(); documents.removeAll()
+        masks.removeAll(); texts.removeAll(); rows.removeAll(); documents.removeAll()
     }
 }
 

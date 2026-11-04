@@ -115,6 +115,7 @@ public struct ThreadExecutionProcess: View {
     @Environment(\.locale) private var locale
     @Environment(\.threadExecutionLoader) private var loader
     @Environment(\.threadAgentDetail) private var agentDetail
+    @Environment(\.nativeThreadReveal) private var reveal
 
     public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil) {
         self.groupID = groupID
@@ -124,7 +125,9 @@ public struct ThreadExecutionProcess: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            summaryRow
+            if reveal != nil {
+                NativeThreadRevealRow(contentID: summary) { summaryRow }
+            } else { summaryRow }
             // Agent reading stops at the summary, including for failed tools.
             // Do not acquire historical detail leases for this presentation.
             if !agentDetail {

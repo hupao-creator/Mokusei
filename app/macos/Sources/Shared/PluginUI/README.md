@@ -926,12 +926,17 @@ and native text attachment admit the first execution entrance. TextKit drawing
 is gated before first paint, then line masks and visibility commit together.
 Completed executions reveal top-down; active executions reveal bottom-up after
 normal follow positioning. The completion footer follows the last line.
+Execution-process summaries join this same ordering as whole rows, including
+their icon and wrapped text. Their SwiftUI layout and accessibility stay intact;
+an inner native host gates first paint until the shared mask is installed.
+Summary count/usage changes or width changes release the entrance masks, while
+summaries admitted after the entrance appear immediately without restarting it.
 When a completed execution moves from its retained sidecard into the main
 reader, the destination skips this entrance: the handoff already presents the
 content and must not expose a second blank/reveal cycle. Content readiness still
 acknowledges the destination before the retained sidecard fades away.
 
-Each mounted execution owns weak text registrations, masks and cancellation;
+Each mounted execution owns weak text/summary registrations, masks and cancellation;
 there is no window-wide text scan. Live text changes, actual width changes,
 Reduce Motion and disappearance retire masks and restore drawing. Streaming
 page admission and user scroll ownership remain unchanged. The entrance is
