@@ -69,6 +69,8 @@ public struct NativeMokuDock: View {
     public let draft: NativeComposerDraft
     public let cwd: JSONText
     public var threadTitle: String?
+    public var threadHarness: AnyHarnessPlugin?
+    public var onThreadClose: (() -> Void)?
     public var landing: Bool
     public var mode: MokuCharacterMode
     public var running: Bool
@@ -126,6 +128,7 @@ public struct NativeMokuDock: View {
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
                 landing: Bool = false, threadTitle: String? = nil,
+                threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
                 mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
                 talk: String? = nil,
                 reply: NativeMokuDockReply? = nil, disabled: Bool = false,
@@ -148,6 +151,7 @@ public struct NativeMokuDock: View {
         self.reasoning = reasoning
         self.landing = landing
         self.threadTitle = threadTitle
+        self.threadHarness = threadHarness; self.onThreadClose = onThreadClose
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
         self.interactionIsQuestion = interactionIsQuestion; self.voiceControls = voiceControls
         self.voiceBackground = voiceBackground
@@ -440,7 +444,7 @@ public struct NativeMokuDock: View {
                     isActive: { (state.inputOpen || (!navigationDisabled && (state.notePanelOpen || foregroundTalkID != nil))) && state.dockRouteVisible && !state.dockCovered },
                     usesExclusions: foregroundTalkID == nil || state.notePanelOpen,
                     preservesOwnedInteractions: state.inputOpen,
-                    composingClick: { state.preserveInputForCompositionClick() },
+                    preservedClick: { state.preserveInputForOwnedClick() },
                     outsideWindowClick: !state.notePanelOpen && foregroundTalkID != nil ? {
                         state.dismissTalk()
                     } : nil,
@@ -450,6 +454,9 @@ public struct NativeMokuDock: View {
                     },
                     click: { _ in
                         if state.notePanelOpen { state.setNotePanelOpen(false) }
+                        else if state.inputPinnedOpen, directoryMentions.dismiss() {
+                            state.preserveInputForOwnedClick()
+                        }
                         else if state.inputOpen { state.dismissInputForOutsideClick() }
                         else { state.dismissTalk() }
                     })
@@ -470,8 +477,8 @@ public struct NativeMokuDock: View {
             }
             .allowsHitTesting(false)
         }
-        .nativeReadingEscape(perform: state.inputOpen && state.dockContentVisible && interaction == nil ? {
-            state.dismissInputForEscape()
+        .nativeReadingEscape(perform: !state.inputPinnedOpen && state.inputOpen && state.dockContentVisible && interaction == nil ? {
+            escapeInput()
         } : nil)
         .onChange(of: landing, initial: true) { _, active in
             guard state.updateLanding(active) else { return }
@@ -833,6 +840,11 @@ public struct NativeMokuDock: View {
         .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
         .animation(surfaceAnimation, value: surface)
         .nativeCanvasNavigationRegion()
+        // In detail, only Dock focus may use this close route. A window-sized
+        // fallback would race the reader's nested history/Sidecard cancellation.
+        .nativeReadingEscape(perform: state.inputPinnedOpen && state.inputOpen && state.dockContentVisible && interaction == nil ? {
+            escapeInput()
+        } : nil)
         .accessibilityElement(children: .contain).accessibilityLabel(state.settingsOpen ? localize("设置", "Settings") : "Moku")
         .accessibilityHint(state.settingsOpen ? "" : localize("点击打开输入框，鼠标悬停时在触控板上向上滑动打开笔记", "Click to type; while hovering, swipe up on the trackpad for notes"))
         .accessibilityValue(state.noteUnread(note) ? localize("笔记有尚未完整浏览的更新", "Note update not yet fully browsed") : "")
@@ -850,9 +862,26 @@ public struct NativeMokuDock: View {
     private func dispatchHarness(_ dispatch: NativeMokuDispatch) -> AnyHarnessPlugin? {
         try? presentation?.workspace.plugins.harnesses.require(dispatch.harnessID)
     }
+    private func escapeInput() {
+        guard state.ownsComposer(draft) else { return }
+        if state.inputPinnedOpen {
+            // Editor key handling arrives after IME/completion, but AppKit can
+            // still address an anchor while a native transient owns Escape.
+            guard let window = NSApp.currentEvent?.window ?? NSApp.keyWindow,
+                  window.attachedSheet == nil, NSApp.modalWindow == nil,
+                  !(window.childWindows ?? []).contains(where: { $0.isVisible }) else { return }
+            if directoryMentions.dismiss() { return }
+            onThreadClose?()
+        }
+        else { _ = state.dismissInputForEscape() }
+    }
+    private var threadPlaceholderIcon: AnyView? {
+        guard threadTitle != nil else { return nil }
+        return threadHarness?.logo(size: 14) ?? AnyView(Image(systemName: "terminal").font(.system(size: 14)))
+    }
     private func composer(room: CGFloat, compact: Bool) -> some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
-            threadTitle: threadTitle,
+            threadTitle: threadTitle, placeholderIcon: threadPlaceholderIcon,
             readOnly: state.inputLeaving, focusEnabled: state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,
@@ -876,13 +905,13 @@ public struct NativeMokuDock: View {
                 // last open seat until live editing resumes.
                 if state.ownsComposer(draft), state.inputOpen { editorBottomInset = $0 }
             },
-            onEscape: { if state.ownsComposer(draft) { state.setInputOpen(false) } }, onSend: send)
+            onEscape: escapeInput, onSend: send)
             .id(ObjectIdentifier(draft))
     }
 
     private func send() {
         guard state.ownsComposer(draft), !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
-        state.retainDraft(draft, seal: true)
+        state.retainDraft(draft, seal: !state.inputPinnedOpen)
         if threadTitle == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, generation = state.composerGeneration
         submissionDraft = sendingDraft

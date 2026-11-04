@@ -416,7 +416,7 @@ public final class NativeWorkspacePresentation {
             }
             dockDraft = threadDrafts[thread.id]!
         } else { dockDraft = draft }
-        state.setComposerContext(dockDraft, opensInput: thread != nil)
+        state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil)
     }
 
     public func sendThread(_ submission: NativeComposerSubmission, to id: JSONText) async throws {
@@ -607,6 +607,7 @@ public struct NativeWorkspaceView: View {
 
     private var workspaceScene: some View {
         let historyVisit = presentation.scene.historyVisit
+        let routeID = presentation.navigationRouteID
         return NativeMokuScene(state: presentation.scene) {
             NativeRuntimeSurface(model: model, showsConnectionNotice: false) {
                 if presentation.onboarding.blocksWorkspace { Color.clear }
@@ -643,6 +644,13 @@ public struct NativeWorkspaceView: View {
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && presentation.moku.landing,
                     threadTitle: detail.map { $0.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : $0.title.string },
+                    threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
+                    onThreadClose: {
+                        guard let detail, presentation.navigationRouteID == routeID,
+                              presentation.dockThreadID == detail.id, !presentation.scene.dockCovered,
+                              !presentation.messageMotion.active else { return }
+                        presentation.showOverview()
+                    },
                     mode: detail.map { $0.observation.isExecutionActive ? .running : .idle } ?? presentation.moku.dockMode,
                     running: detail?.observation.isExecutionActive ?? presentation.moku.running,
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
@@ -716,7 +724,8 @@ public struct NativeWorkspaceView: View {
                 onPanelOutsideClick: applicationSuppressed ? nil : {
                     guard presentation.navigationRouteID == routeID else { return }
                     // The Dock observes mouse-down without swallowing it. A press
-                    // folding input or owned by its IME cannot also close this panel.
+                    // folding Overview input or owned by IME/transient controls
+                    // cannot also close this panel. Agent input stays expanded.
                     guard !presentation.scene.inputHandledOutsideClick else { return }
                     if presentation.selected?.typeID == "agent" { presentation.showOverview() }
                     else { presentation.closeApplication() }

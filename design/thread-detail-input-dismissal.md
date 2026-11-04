@@ -1,5 +1,55 @@
 # Thread detail 输入模式的退出路由
 
+## 当前契约（2026-11-04）
+
+用户明确要求 Agent detail 中 Moku 始终展开。本节取代下方历史调查中
+“先折叠输入、再关闭阅读面板”的 Agent detail 策略；其他视图维持原行为。
+
+- `NativeWorkspacePresentation.configureDockInput` 随 Thread draft 同步设置
+  `inputPinnedOpen`；场景状态阻止普通关闭、toggle 和发送收起输入。
+  Moku intervention/覆盖路由仍可取得展示所有权，返回后恢复 Thread 输入。
+- 编辑器先让 AppKit 处理 marked text，再让目录候选消费 Escape；普通 Escape
+  调用绑定当前 route/target 的 `showOverview`，经过原 reading motion 关闭 detail。
+  Dock 控件失焦后的 native fallback 使用同一路径。阅读内容、历史及 Sidecard
+  的原取消路由不再先折叠输入，仍保留其内部返回/关闭顺序和可编辑字段优先级。
+- Dock 的外部 mouse-down 不再折叠 Agent 输入或标记该普通按压为已消费；
+  原 `NativeReadingPanelBackdrop` 只在卡片外空白区完成 click 后关闭 detail。
+  卡片内部、Sidecard、输入控件和目录候选不新增覆盖层或关闭手势。
+- 目录候选打开时，Escape 或外部按压先关闭候选。IME/native menu、sheet、modal、
+  child window 与 popover 转发按压仍优先，按压标记跨过 AppKit 的关闭/提交阶段，
+  避免同次 mouse-up 连带关闭 detail。普通编辑器失焦不再成为关闭障碍。
+- 目标 Harness 从当前 `dockThread.harnessID` 查询注册插件，直接用其 `logo(size:)`。
+  注册的非内置 Harness 也可正常显示；空/未知标识使用中性 terminal 图标。
+  不从协调 Moku 或全局设置推断，也不缓存前一目标的标识。Logo 只属于空草稿的
+  placeholder，不写入文本、不接收鼠标、不重复进入 accessibility。
+- 每个 Thread 的持久化 draft 生命周期不变。关闭/切换不清空未发送文本、附件或目录；
+  持续展开的发送不再封存动画文本，成功只消费已提交 revision，失败保留草稿与错误。
+  异步结果仍绑定原 draft 和 composer generation，不能恢复另一目标的输入。
+
+本轮按 sprint mode：只做静态审阅和必要产品构建；没有新增测试、运行测试/回放、
+手工交互窗口或托管 CI，也不推送、建 PR、发布或修改共享分支。
+当前 detached worktree 仅产出本地提交，由调用方负责集成本地 main。
+
+### 本轮实际检查与限制
+
+- 静态 review 当前 diff：追踪 Shell → Scene/Dock → native editor/completion →
+  reading backdrop/ExitCommand → `showOverview`/reading motion → draft 切换的完整路径；
+  额外把 detail Dock 的 native Escape fallback 缩至 capsule，避免与历史/Sidecard 抢事件。
+- `git diff --check` 与本次 README 本地链接检查通过。没有改动配色或历史标题实现。
+- 首次 `xcrun swift build --package-path app/macos --disable-sandbox --product Mokusei`
+  因当前工作树无依赖检出、沙箱无法解析 GitHub 而失败；日志
+  `/tmp/moku-detail-interaction-build.log`。
+- 复制已有 SwiftPM repository/artifact 缓存到 `/tmp/moku-detail-swift-cache`，使用独立
+  module/config/security 缓存及 `--skip-update` 离线构建同一产品，通过（82.23s）。
+  修正新代码一个未使用返回值警告后，对最终源码再次产品构建通过（16.78s），日志
+  `/tmp/moku-detail-interaction-final-build.log`；剩余提示为 SwiftPM 的
+  `--skip-update` 选项弃用提示，不是源码编译警告。
+- 未新增/运行 Swift、Go 测试、回放、CI、hooks 或手工 fixture。真实 IME、弹窗转发、
+  键鼠/VoiceOver、视觉布局与端到端 Harness 行为仅做代码路径审阅，未实机认证。
+  产品构建不等同这些交互验证，也不作为托管合并门禁结果。
+
+## 历史调查（旧的 Agent 输入折叠策略）
+
 本次只交付 detached worktree 中的独立提交，供调用方本地整合。
 按本次 sprint 约束，没有新增或运行测试、CI、hooks，没有推送、建 PR 或合并。
 

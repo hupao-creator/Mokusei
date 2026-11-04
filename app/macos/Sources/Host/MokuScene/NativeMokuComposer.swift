@@ -79,6 +79,7 @@ struct NativeMokuComposerInput: View {
     var cwd: JSONText = ""
     var disabled = false
     var threadTitle: String?
+    var placeholderIcon: AnyView?
     var readOnly = false
     var focusEnabled = true
     var focusRequestKey = 0
@@ -205,7 +206,7 @@ struct NativeMokuComposerInput: View {
     }
     private var editor: some View {
         NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
-            placeholder: placeholder, disabled: editingUnavailable, readOnly: readOnly,
+            placeholder: placeholder, placeholderIcon: placeholderIcon, disabled: editingUnavailable, readOnly: readOnly,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
             suppressInitialFocus: suppressInitialFocus,
             minHeight: compact ? 32 : (landing ? 76 : 58), maxHeight: compact ? max(32, maxHeight - 40) : maxHeight,
