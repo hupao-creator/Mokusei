@@ -6,13 +6,19 @@ import WebKit
 
 public struct ThreadConversationExecution: Hashable, Sendable {
     public let id: JSONText
+    public let title: String?
     public let prompt: String
     public let answer: String
     public let completedAt: Double?
     public let readable: Bool
-    public init(id: JSONText, prompt: String, answer: String, completedAt: Double? = nil, readable: Bool = true) {
-        self.id = id; self.prompt = prompt; self.answer = answer; self.completedAt = completedAt; self.readable = readable
+    public init(id: JSONText, title: String? = nil, prompt: String, answer: String, completedAt: Double? = nil, readable: Bool = true) {
+        self.id = id; self.title = title; self.prompt = prompt; self.answer = answer; self.completedAt = completedAt; self.readable = readable
     }
+}
+
+extension ThreadConversationRow {
+    // Never substitute the mutable Thread title or another execution's prompt.
+    var executionTitle: String { execution?.title ?? formatThreadTimestamp(createdAt) }
 }
 
 /// Short-lived render projection. Each Harness owns interpretation, ordering, and the content node.
@@ -289,7 +295,7 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !executionCard { heading(title, emoji: icon ?? "📝") }
+            if !executionCard { heading(documentTitle, emoji: icon ?? "📝") }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID
@@ -300,6 +306,15 @@ public struct ThreadConversation: View {
                     .padding(.top, executionCard ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
+    }
+    private var documentTitle: String {
+        // Main can retain an older execution while the newest one lives in a
+        // Sidecard. Its heading must not borrow the newest catalog title.
+        if agentDetail, let row = visibleRows.first(where: { $0.id == selectedRowID }),
+           row.execution != nil, row.execution?.id != rows.last(where: { $0.execution != nil })?.execution?.id {
+            return row.executionTitle
+        }
+        return title
     }
     private func heading(_ title: String, emoji: String) -> some View {
         NativeThreadHeading(title: title, emoji: emoji)
@@ -511,7 +526,7 @@ private struct ThreadHistoryDocument: View {
     private var historyTitle: String {
         guard let page else { return localize("历史执行不可用") }
         if !agentDetail { return page.execution?.prompt ?? localize("历史对话") }
-        return page.execution == nil ? localize("历史对话") : formatThreadTimestamp(page.createdAt)
+        return page.execution == nil ? localize("历史对话") : page.executionTitle
     }
     private func toggleWork() { manualWork = !work }
     private func emoji(_ id: JSONText) -> String {

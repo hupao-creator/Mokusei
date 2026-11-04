@@ -14,6 +14,25 @@ does not change `note.updatedAt`, create lifecycle events or wake Moku.
 
 [threads.go](threads.go) owns thread identity, execution admission and serialized session access. Harness session data remains opaque; each Harness validates it and produces its public observation and renderer projection. Accepted work belongs to the service and survives client disconnection.
 
+Ordinary Threads retain `executionTitles`, keyed by exact execution ID. A
+successful metadata completion commits its title and ownership atomically with
+its metadata revision; input retention alone never copies the current Thread
+title onto a new execution. Later naming changes only the covered execution.
+The map survives reload and accompanies catalog envelopes, independently of lazy
+conversation bodies. Forks retain matching inherited execution identities.
+
+[execution_titles.go](execution_titles.go) performs one transactional startup
+backfill for older records. Lifecycle title changes prove naming commits;
+`thread.input-accepted` facts identify possible owners since the previous commit.
+A change is restored only when exactly one execution could own it. Input
+admission alone cannot exclude an older pending result, because metadata
+retention failures are nonfatal. Repeated tag/settings snapshots do not prove
+naming completion. Equal-millisecond input/execution boundaries, conflicting
+facts, missing history and an unknown initial title leave gaps. Existing
+explicit entries take precedence.
+The migration neither consults the mutable current title nor runs a model;
+unknown titles remain absent so the reader uses the execution timestamp.
+
 Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions.
 Moku audit previews additionally retain the latest 256 successful completed
 `timer` operations across executions so coalesced publication and reconnect can

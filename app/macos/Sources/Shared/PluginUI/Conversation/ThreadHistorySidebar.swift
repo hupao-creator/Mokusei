@@ -103,7 +103,7 @@ struct ThreadHistorySidebar: View {
         .onDisappear { dismissPreview() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(localize("对话目录"))
-        .accessibilityValue(focused.flatMap { id in rows.first { $0.id == id } }.map { agentDetail ? formatThreadTimestamp($0.createdAt) : $0.execution?.prompt ?? "" } ?? "")
+        .accessibilityValue(focused.flatMap { id in rows.first { $0.id == id } }.map { agentDetail ? $0.executionTitle : $0.execution?.prompt ?? "" } ?? "")
         .accessibilityHint(localize("使用上下方向键选择轮次，按回车阅读"))
         .nativeReadingObservation("state", role: "history.sidebar", value: observation)
     }
@@ -149,7 +149,7 @@ struct ThreadHistorySidebar: View {
         let emphasized = active || hovered == row.id || focused == row.id
         let prompt = row.execution?.prompt ?? ""
         let title: String
-        if agentDetail, row.execution != nil { title = formatThreadTimestamp(row.createdAt) }
+        if agentDetail, row.execution != nil { title = row.executionTitle }
         else { title = prompt.isEmpty ? localize("历史对话") : prompt }
         let label = localize("第 {count} 轮对话").replacingOccurrences(of: "{count}", with: String(index + 1)) + ": " + title
         return Button { keyboardRow = row.id; select(row.id) } label: {
@@ -261,7 +261,7 @@ private struct ThreadHistoryPreview: View {
         }
     }
     private var title: String {
-        if agentDetail { return row.execution == nil ? localize("历史对话") : formatThreadTimestamp(row.createdAt) }
+        if agentDetail { return row.execution == nil ? localize("历史对话") : row.executionTitle }
         let prompt = row.execution?.prompt ?? ""
         return prompt.isEmpty ? localize("历史对话") : String(prompt.prefix(240)).split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }

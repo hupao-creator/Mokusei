@@ -40,7 +40,7 @@ public struct OpenCodeThreadView: View {
         for execution in state.executions {
             let primary = state.messages.filter { $0.executionID == execution.executionID && !$0.inherited && ($0.nativeSessionID == nil || $0.nativeSessionID == state.nativeSessionID) }
             rows.append(.init(id: execution.executionID, createdAt: execution.startedAt,
-                execution: .init(id: execution.executionID, prompt: primary.first { $0.role == "user" }?.text ?? "",
+                execution: .init(id: execution.executionID, title: input.thread.executionTitles[execution.executionID]?.string, prompt: primary.first { $0.role == "user" }?.text ?? "",
                     answer: primary.filter { $0.role == "assistant" }.map(\.text).joined(separator: "\n"), completedAt: execution.status == .completed ? execution.finishedAt : nil),
                 node: AnyView(row(execution.executionID, state: state))))
         }

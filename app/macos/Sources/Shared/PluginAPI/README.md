@@ -74,3 +74,9 @@ its panel travels. Codex chooses its target/latest execution row; other Harnesse
 default to manifest-only preparation. Cancellation belongs to the route visit.
 Runtime retention owns a live subscription independently of any view or action;
 each visible consumer still acquires and retires its own handle.
+
+`HarnessThread.executionTitles` decodes the optional public execution-ID-to-title
+map (missing means empty; malformed or empty entries are rejected). Harness
+readers pass only the matching execution's title into their conversation rows.
+The catalog title remains independent metadata and cannot fill a missing history
+entry. This envelope also persists through ordinary offline catalog recovery.

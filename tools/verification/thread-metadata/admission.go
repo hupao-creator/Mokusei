@@ -30,7 +30,7 @@ func (h *admittingHandle) Send(_ context.Context, request plugin.SendRequest) er
 
 type failingMetadataStore struct{ *memoryStore }
 
-func (s failingMetadataStore) Commit(context.Context, int64, json.RawMessage) (bool, error) {
+func (s failingMetadataStore) Commit(context.Context, int64, json.RawMessage, string) (bool, error) {
 	return false, errors.New("fixture metadata persistence failure")
 }
 

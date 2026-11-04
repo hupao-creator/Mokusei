@@ -32,7 +32,7 @@ struct PiThreadView: View {
         let rows = state.executions.map { execution -> ThreadConversationRow in
             let messages = state.messagesByExecution[execution.executionID] ?? []
             return ThreadConversationRow(id: execution.executionID, createdAt: execution.startedAt,
-                execution: ThreadConversationExecution(id: execution.executionID,
+                execution: ThreadConversationExecution(id: execution.executionID, title: input.thread.executionTitles[execution.executionID]?.string,
                     prompt: messages.first { $0.role == "user" }?.text.string ?? "",
                     answer: messages.filter { $0.role == "assistant" }.map(\.text.string).joined(separator: "\n"),
                     completedAt: execution.status == .completed ? execution.finishedAt : nil),

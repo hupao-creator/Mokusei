@@ -594,7 +594,7 @@ func (h *generatedMetadataHandle) retainAcceptedInput(request SendRequest) error
 		if err != nil {
 			return err
 		}
-		accepted, err := h.open.Metadata.Commit(h.ctx, snapshot.Revision, raw)
+		accepted, err := h.open.Metadata.Commit(h.ctx, snapshot.Revision, raw, "")
 		if err != nil {
 			return err
 		}
@@ -649,6 +649,10 @@ func (h *generatedMetadataHandle) refresh(epoch uint64) (processed int64, err er
 			title, emoji, parseErr := parseThreadMetadataResult(result, next.Pending.Input)
 			err = parseErr
 			if err == nil {
+				executionID := ""
+				if next.Pending.ExecutionID != nil {
+					executionID = *next.Pending.ExecutionID
+				}
 				next.Title, next.Emoji, next.Pending = title, emoji, nil
 				raw, marshalErr := marshalGeneratedMetadata(next)
 				if marshalErr != nil {
@@ -659,7 +663,7 @@ func (h *generatedMetadataHandle) refresh(epoch uint64) (processed int64, err er
 					h.writes.Unlock()
 					return processed, nil
 				}
-				accepted, commitErr := h.open.Metadata.Commit(h.ctx, covered.Revision, raw)
+				accepted, commitErr := h.open.Metadata.Commit(h.ctx, covered.Revision, raw, executionID)
 				h.writes.Unlock()
 				if commitErr != nil {
 					return processed, commitErr

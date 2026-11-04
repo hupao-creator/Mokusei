@@ -26,7 +26,7 @@ func (s *memoryStore) Read() plugin.MetadataSnapshot {
 	defer s.mu.Unlock()
 	return plugin.MetadataSnapshot{Revision: s.snapshot.Revision, State: append(json.RawMessage(nil), s.snapshot.State...)}
 }
-func (s *memoryStore) Commit(ctx context.Context, revision int64, state json.RawMessage) (bool, error) {
+func (s *memoryStore) Commit(ctx context.Context, revision int64, state json.RawMessage, executionID string) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {

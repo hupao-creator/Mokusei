@@ -43,7 +43,14 @@ authorizes another append. Other voice paths do not opt into this handshake.
 
 ## Generated metadata
 
-[metadata.go](metadata.go) and [metadata_completion.go](metadata_completion.go) own the optional generated title/emoji policy. Successful input admission updates bounded initial/recent intent even if later native dispatch fails or the caller releases its request context. Rejected admission does not update metadata, and metadata persistence failures do not reject accepted input. Existing metadata stays visible until a replacement succeeds. Completion can steer to newer accepted input; results are fenced by metadata revision. Transient failures retry after 2, 5 and 15 seconds; exhausted or invalid results remain pending for another input or reopen. Interrupt and Close cancel and drain completion and backoff. An admission racing with Interrupt remains pending in admission order without resuming naming.
+[metadata.go](metadata.go) and [metadata_completion.go](metadata_completion.go) own the optional generated title/emoji policy. Successful input admission updates bounded initial/recent intent even if later native dispatch fails or the caller releases its request context. Rejected admission does not update metadata, and metadata persistence failures do not reject accepted input. Existing metadata stays visible until a replacement succeeds. Completion can steer to newer accepted input; results are fenced by metadata revision.
+
+`MetadataStore.Commit` carries an execution ID only for a successful naming result whose accepted intent supplies
+that identity. Runtime stores the title for that execution in the same commit,
+even if a successor already exists. Intent retention and legacy pending intent
+without an execution ID do not claim historical title ownership.
+
+Transient failures retry after 2, 5 and 15 seconds; exhausted or invalid results remain pending for another input or reopen. Interrupt and Close cancel and drain completion and backoff. An admission racing with Interrupt remains pending in admission order without resuming naming.
 
 Background execution settings share optional `enabled` control. The owner validates
 Boolean input; `BackgroundExecutionEnabled` treats omitted values as enabled, and

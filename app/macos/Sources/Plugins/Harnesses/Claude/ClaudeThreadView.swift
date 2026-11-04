@@ -33,7 +33,7 @@ public struct ClaudeThreadView: View {
         if !state.history.isEmpty { rows.append(ThreadConversationRow(id: "fork-history", createdAt: 0, history: true, node: AnyView(row("fork-history", state: state)))) }
         rows += state.turns.map { turn in
             ThreadConversationRow(id: turn.id, createdAt: turn.createdAt,
-                execution: ThreadConversationExecution(id: turn.id, prompt: turn.visiblePrompts.first?.stringValue ?? "", answer: turn.raw["text"]?.stringValue ?? "", completedAt: turn.status == "completed" ? turn.finishedAt : nil),
+                execution: ThreadConversationExecution(id: turn.id, title: input.thread.executionTitles[turn.id]?.string, prompt: turn.visiblePrompts.first?.stringValue ?? "", answer: turn.raw["text"]?.stringValue ?? "", completedAt: turn.status == "completed" ? turn.finishedAt : nil),
                 node: AnyView(row(turn.id, state: state)))
         }
         if !state.tasks.isEmpty { rows.append(ThreadConversationRow(id: "native-background-tasks", createdAt: input.thread.updatedAt, node: AnyView(ClaudeBackgroundTasks(tasks: state.tasks)))) }

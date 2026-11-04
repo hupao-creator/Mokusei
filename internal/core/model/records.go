@@ -111,6 +111,7 @@ type ThreadRecord struct {
 	DirectoryTag     string            `json:"directoryTag"`
 	DirectoryScope   string            `json:"directoryScope"`
 	Title            string            `json:"title"`
+	ExecutionTitles  map[string]string `json:"executionTitles,omitempty"`
 	MetadataState    json.RawMessage   `json:"metadataState,omitempty"`
 	MetadataRevision *int64            `json:"metadataRevision,omitempty"`
 	TagEmojis        map[string]string `json:"tagEmojis"`

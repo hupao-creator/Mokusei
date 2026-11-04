@@ -50,7 +50,7 @@ public struct CodexThreadView: View {
         let allTurns = state.forkHistory + state.turns
         let rows: [ThreadConversationRow] = allTurns.map { turn in
             ThreadConversationRow(id: turn.rowID, createdAt: turn.createdAt,
-                execution: ThreadConversationExecution(id: turn.executionId,
+                execution: ThreadConversationExecution(id: turn.executionId, title: input.thread.executionTitles[turn.executionId]?.string,
                     prompt: turn.messages.first(where: { $0.role == "user" && !$0.isInternal })?.content ?? "",
                     answer: turn.answer, completedAt: turn.status == "completed" ? turn.finishedAt : nil,
                     readable: ownIDs.contains(turn.executionId)), node: AnyView(turnView(turn, state: state)))
