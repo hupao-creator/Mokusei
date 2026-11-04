@@ -27,8 +27,9 @@ connection for independent membership and persistence checks. In particular, a
 directory filter must include every eligible record in its canonical scope,
 even when an alias cwd has a different display label. It also checks every
 semantic child's exact scope, counts, layout cell occupancy, mounted identities,
-camera limits, search restoration, actual directory menu callbacks and Moku
-capsule navigation. See the [full feature matrix and limits](../../native-interaction/OVERVIEW.md).
+camera limits, global nonempty search across selected directory filters,
+scoped browsing on clear/exit, search camera restoration, actual directory menu
+callbacks and Moku capsule navigation. See the [full feature matrix and limits](../../native-interaction/OVERVIEW.md).
 
 Evidence is retained under the printed `/private/tmp/oa-overview-*` path:
 production provenance, each seed's fixture, Runtime oracle snapshots, app log,

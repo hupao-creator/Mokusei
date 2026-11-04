@@ -1,4 +1,4 @@
-"""Real production Overview controls with scoped-directory and geometry oracles."""
+"""Real production Overview controls with scoped browsing, global search and geometry oracles."""
 import argparse
 from collections import Counter
 import json
@@ -118,9 +118,12 @@ class Driver:
                 assert self.members(child) <= self.members(item), "Child tag escaped directory scope"
         selected = next((item for item in flat if item["id"] == state["selectedFilterId"]), None)
         actual = {card["id"] for card in overview["cards"]}
-        allowed = self.members(selected)
-        assert actual <= allowed, f"Cards escaped current scope: {actual - allowed}"
-        if not state["search"]["active"] or not state["search"]["query"].strip():
+        active_query = state["search"]["active"] and bool(state["search"]["query"].strip())
+        # Nonempty queries search all eligible records; the selected filter
+        # still owns browsing membership when the query is cleared or closed.
+        allowed = self.members(None if active_query else selected)
+        assert actual <= allowed, f"Cards escaped {'global search catalog' if active_query else 'current scope'}: {actual - allowed}"
+        if not active_query:
             assert actual == allowed, f"Missing scoped cards: {allowed - actual}"
         if not overview["layingOut"] and overview["stage"] is None:
             placements = overview["placements"]
@@ -264,10 +267,10 @@ class Driver:
                               "equal-membership-tags": 1, "archived-exclusion": 1})
         self.action({"name": "filter.select", "filterId": left["id"]})
         self.action({"name": "search.begin"})
-        scoped = self.action({"name": "search.update", "query": "alpha"})
-        assert "overview-leftalpha" in {card["id"] for card in scoped["overview"]["cards"]}
-        assert "overview-rightalpha" not in {card["id"] for card in scoped["overview"]["cards"]}, "Search escaped selected same-name directory"
-        self.coverage["scoped-search"] += 1
+        results = self.action({"name": "search.update", "query": "alpha"})
+        assert "overview-leftalpha" in {card["id"] for card in results["overview"]["cards"]}
+        assert "overview-rightalpha" in {card["id"] for card in results["overview"]["cards"]}, "Global search excluded another same-name directory"
+        self.coverage["global-search"] += 1
         self.action({"name": "search.end"})
         self.reset()
         self.action({"name": "overview.pan", "deltaX": 127, "deltaY": -81})

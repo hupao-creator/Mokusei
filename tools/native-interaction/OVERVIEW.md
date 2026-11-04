@@ -70,7 +70,7 @@ then closes Compose and waits for the fit to apply.
 | Directory tags | Ordinary paths, same basename in different parents, nested independent scopes, Unicode/spaces, symlink canonicalization, real Git linked-worktree folding, temporary-workspace Inbox suppression |
 | Semantic tags | Parent/child membership, same tag name in different scopes, single-member tags, separate tags with equal membership, count and archive exclusion |
 | Directory glass menu | Filter-bar scroll, actual menu mounting/opening, every child callback, selection-driven close/reopen, explicit close, closed-menu and wrong-child rejection |
-| Search | Empty/nonempty/Unicode/no-match queries, current-scope intersection, clear/exit, manual camera restoration; observed keyword/hybrid mode |
+| Search | Empty/nonempty/Unicode/no-match queries, global eligible results for nonempty queries, selected-scope browsing for empty queries and clear/exit, manual camera restoration; observed keyword/hybrid mode |
 | Canvas | Pan, zoom/clamping, return to automatic view, deferred fit while Compose is open, finite transforms, readable scale bounds, actual mounted cards, stable non-overlapping placement cells |
 | Cards/navigation | Open each seeded conversation and return; retained Overview state |
 | Moku Dock | Compose open/close, history open/close, note open/close, route guards |
