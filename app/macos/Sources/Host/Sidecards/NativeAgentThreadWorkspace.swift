@@ -84,9 +84,11 @@ private struct NativeThreadWorkspaceBody: View {
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
+    @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: NativeSidecardWorkspaceModel?
     @State private var auxiliaryStageReady = false
+    @State private var inputStageReady = false
     @State private var contentRevealComplete = false
 
     private var configuration: NativeSidecardWorkspaceConfiguration {
@@ -102,11 +104,16 @@ private struct NativeThreadWorkspaceBody: View {
                 NativeSidecardWorkspaceLayout(model: model, snapshot: snapshot, onContentRevealChange: { status in
                     guard self.model === model else { return }
                     contentRevealComplete = status.complete
+                }, onDockSettled: {
+                    guard self.model === model, snapshot.entranceReady, auxiliaryStageReady, !inputStageReady,
+                          primaryEntranceReady else { return }
+                    inputStageReady = onEntranceReady()
                 })
                     .background {
                         NativeReadingEntranceStage(enabled: primaryEntranceReady && contentRevealComplete && !auxiliaryStageReady) {
-                            guard self.model === model, onEntranceReady() else { return }
+                            guard self.model === model else { return }
                             auxiliaryStageReady = true
+                            if executionPlacement == nil { inputStageReady = onEntranceReady() }
                         }
                     }
             } else {
@@ -125,7 +132,10 @@ private struct NativeThreadWorkspaceBody: View {
             model?.update(configuration: value, services: services, onBack: onBack,
                           onVisibilityChange: onFollowUpVisibilityChange)
         }
-        .onDisappear { model?.release(); model = nil; auxiliaryStageReady = false; contentRevealComplete = false }
+        .onDisappear {
+            model?.release(); model = nil
+            auxiliaryStageReady = false; inputStageReady = false; contentRevealComplete = false
+        }
     }
 }
 
@@ -137,6 +147,7 @@ struct NativeSidecardWorkspaceLayout: View {
     /// Previews/replays can supply the same policy without changing OS settings.
     var motionReduced: Bool? = nil
     var onContentRevealChange: (NativeReadingContentRevealStatus) -> Void = { _ in }
+    var onDockSettled: () -> Void = {}
     @Environment(\.locale) private var locale
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -217,7 +228,8 @@ struct NativeSidecardWorkspaceLayout: View {
                 .background(alignment: .topLeading) {
                     // Measure the destination, never the animated aperture.
                     NativeExecutionDockRegion(placement: executionPlacement,
-                        active: executionOwnsDock, dragging: snapshot.dragging, threadID: snapshot.input.thread.id)
+                        active: executionOwnsDock, dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
+                        onSettled: onDockSettled)
                         .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
                         .offset(x: layout.surfaceX, y: layout.surfaceY)
                         .allowsHitTesting(false)

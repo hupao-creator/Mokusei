@@ -11,6 +11,8 @@ final class NativeExecutionDockPlacement {
     private(set) var frame: CGRect?
     private(set) var threadID: JSONText?
     private(set) var dragging = false
+    private(set) var travelRevision = 0
+    @ObservationIgnored private var travelSettled = true
     @ObservationIgnored private weak var scene: NativeExecutionDockRegion.RegionView?
     @ObservationIgnored private weak var execution: NativeExecutionDockRegion.RegionView?
     @ObservationIgnored private var publicationPending = false
@@ -24,6 +26,14 @@ final class NativeExecutionDockPlacement {
         if scene === view { scene = nil }
         if execution === view { execution = nil }
         schedulePublication()
+    }
+
+    func completeTravel(revision: Int) {
+        guard revision == travelRevision else { return }
+        travelSettled = true
+        // A native layout publication may already be replacing this target.
+        // Let that publication decide whether the new column needs travel.
+        if !publicationPending, frame != nil || execution?.active == false { execution?.onSettled() }
     }
 
     func schedulePublication() {
@@ -42,8 +52,13 @@ final class NativeExecutionDockPlacement {
             let nextDragging = execution?.dragging == true
             if dragging != nextDragging { dragging = nextDragging }
             let nextThread = next == nil ? nil : execution?.threadID
+            if frame != next || threadID != nextThread {
+                travelRevision += 1
+                travelSettled = next == nil
+            }
             if threadID != nextThread { threadID = nextThread }
             if frame != next { frame = next }
+            if travelSettled, next != nil || execution?.active == false { execution?.onSettled() }
         }
     }
 }
@@ -58,11 +73,13 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
     var active = true
     var dragging = false
     var threadID: JSONText?
+    var onSettled: () -> Void = {}
 
     func makeNSView(context: Context) -> RegionView { RegionView(isScene: isScene) }
     func updateNSView(_ view: RegionView, context: Context) {
         if view.placement !== placement { view.placement?.detach(view) }
         view.placement = placement; view.active = active; view.dragging = dragging; view.threadID = threadID
+        view.onSettled = onSettled
         placement?.attach(view)
     }
     static func dismantleNSView(_ view: RegionView, coordinator: ()) { view.placement?.detach(view) }
@@ -73,6 +90,7 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
         var active = true
         var dragging = false
         var threadID: JSONText?
+        var onSettled: () -> Void = {}
         init(isScene: Bool) { self.isScene = isScene; super.init(frame: .zero) }
         required init?(coder: NSCoder) { nil }
         override var isFlipped: Bool { true }

@@ -44,6 +44,7 @@ struct NativeSidecardWorkspaceSnapshot {
     let widths: [JSONText: CGFloat]
     let executionDisabled: Bool
     let suppressed: Bool
+    let entranceReady: Bool
     let handoff: NativeSidecardExecutionHandoff?
     let focusLauncherOnClose: Bool
 
@@ -410,7 +411,8 @@ final class NativeSidecardWorkspaceModel {
             selected: configuration.entranceReady ? selected : nil, lastSelected: lastSelected, selectionRevision: selectionRevision,
             transitioning: transitioning, dragging: dragging, widths: widths,
             executionDisabled: configuration.executionDisabled,
-            suppressed: configuration.suppressed || !configuration.entranceReady, handoff: handoff,
+            suppressed: configuration.suppressed || !configuration.entranceReady,
+            entranceReady: configuration.entranceReady, handoff: handoff,
             focusLauncherOnClose: focusLauncherOnClose)
         let visible = configuration.entranceReady && cards.contains { $0.id == selected && $0.view.acceptsInput == true }
         if lastVisibility != visible { lastVisibility = visible; onVisibilityChange(visible) }

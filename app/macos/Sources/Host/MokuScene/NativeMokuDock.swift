@@ -110,6 +110,8 @@ public struct NativeMokuDock: View {
     @State private var submissionDraft: NativeComposerDraft?
     @State private var focusReady = false
     @State private var focusRequest = 0
+    @State private var horizontalCenter: CGFloat?
+    @State private var horizontalTravelID = UUID()
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
     @State private var noteContentHeight: CGFloat = 0
@@ -418,11 +420,20 @@ public struct NativeMokuDock: View {
                     // making retiring AppKit text jump vertically for a frame.
                     .scaleEffect(placement.scale, anchor: .bottom)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
-                    .offset(x: placement.surface.midX - geometry.size.width / 2,
-                            y: placement.surface.maxY - geometry.size.height)
+                    .offset(y: placement.surface.maxY - geometry.size.height)
                     .animation(reduceMotion || executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
+                    // Keep horizontal inertia outside shell sizing: the editor
+                    // opens only after this trip, without bouncing its height.
+                    .offset(x: (horizontalCenter ?? placement.surface.midX) - geometry.size.width / 2)
+                    .onChange(of: HorizontalDestination(center: placement.surface.midX, frame: executionFrame,
+                        revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
+                        dragging: executionPlacement?.dragging == true, reduced: reduceMotion,
+                        composer: state.composerGeneration), initial: true) { previous, next in
+                        moveHorizontal(from: previous, to: next)
+                    }
+                    .onDisappear { horizontalTravelID = UUID(); horizontalCenter = nil }
                     // Direct resizing tracks the pointer/window instead of
                     // repeatedly chasing a new animated destination.
                     .transaction(value: geometry.size) {
@@ -650,6 +661,36 @@ public struct NativeMokuDock: View {
         // Keep the override local: a preferredColorScheme would also recolor
         // the containing workspace window and its other application surfaces.
         .environment(\.colorScheme, .dark)
+    }
+
+    private struct HorizontalDestination: Equatable {
+        let center: CGFloat
+        let frame: CGRect?
+        let revision: Int
+        let viewport: CGSize
+        let dragging: Bool
+        let reduced: Bool
+        let composer: UUID
+    }
+
+    private func moveHorizontal(from previous: HorizontalDestination, to next: HorizontalDestination) {
+        let id = UUID()
+        horizontalTravelID = id
+        let animation: Animation?
+        if horizontalCenter == nil || next.reduced || next.dragging || previous.viewport != next.viewport {
+            animation = nil
+        } else if previous.frame != next.frame {
+            animation = next.frame != nil
+                ? .spring(response: 0.62, dampingFraction: 0.78) : NativeSidecardTiming.foldAnimation
+        } else { animation = surfaceAnimation }
+        withAnimation(animation, completionCriteria: .removed) {
+            horizontalCenter = next.center
+        } completion: {
+            // An interrupted trip cannot admit a replacement route's editor
+            // or finish newer column geometry.
+            guard horizontalTravelID == id, state.composerGeneration == next.composer else { return }
+            executionPlacement?.completeTravel(revision: next.revision)
+        }
     }
     private struct HitLayout: Equatable {
         var surface, panel: CGRect

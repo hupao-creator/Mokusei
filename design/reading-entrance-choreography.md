@@ -63,11 +63,17 @@ admit the window's composer.
 
 For stage three, `NativeReadingEntranceStage` waits for main reveal to settle,
 the folded layout's transaction commit and the primary gate, then asks the
-window to admit this exact route visit before admitting the current selection.
-The window opens the Agent composer in that
-same stage: its 420ms expansion runs alongside the existing 380ms Sidecard
-fold/layout animation. An empty registry still commits and opens input. There
-is no new elapsed-time opening task.
+current selection to reveal. If the selected execution Sidecard owns the Dock,
+the compact Moku first travels horizontally into its destination column using a
+620ms-response spring with 0.78 damping, allowing gentle braking and a small
+rebound. Its actual removed completion asks the window to admit this exact route
+visit, then the Agent composer expands for 420ms. Destination revisions and local
+travel identity reject stale completions; a native publication already replacing
+the target takes precedence. The shell's sizing, Sidecard's 380ms fold/layout
+animation and return keep their existing curves.
+An empty registry, folded selection or ineligible execution still commits and
+opens input without a horizontal travel wait. Later card choices keep an already
+admitted editor open. There is no elapsed-time opening task.
 Plugin sessions, execution exclusion and user selection revisions keep their
 existing ownership; hiding presentation does not transfer an execution to main.
 The stage latches once per mounted workspace, so primary Close does not fold an
@@ -83,9 +89,9 @@ Application reading commits release the gate without automatically opening their
 Moku composer. Covering history/interventions keep their surface priority: an
 admitted visit may restore input only through the existing eligible route.
 
-The existing 180ms focus delay starts with stage-three input opening, never with
-primary travel. Delivery checks the current draft, composer generation, route
-visibility and covering state. Reduce Motion skips this delay, including when
+The existing 180ms focus delay starts with input expansion after horizontal travel
+when needed, never with primary travel. Delivery checks the current draft,
+composer generation, route visibility and covering state. Reduce Motion skips this delay, including when
 enabled while a focus request waits. Closing before admission, replacing the
 route or releasing the window rejects a late admission; repeated settled entry
 does not fold/reopen the input or restart the entrance stages.
@@ -106,6 +112,14 @@ It also skips line/footer fades but still waits for data and Markdown parsing,
 so a loading document cannot be mistaken for completed content.
 
 ## Scope and verification limits
+
+The Sidecard Dock motion adjustment was inspected against the reported recording:
+around 3.7s, the compact Dock moves right while expanding. The adjustment now
+separates horizontal arrival from initial input expansion. Sprint validation for
+this adjustment is Swift syntax parsing, diff/static review and local document
+link checks only. No tests were added or run, and no build, replay, live visual
+acceptance or hosted CI certifies this revision. Main integration belongs to the
+caller. Earlier validation below applies to the original choreography only.
 
 An independently built native demo was approved before this production
 implementation. Its files and launch fixes are outside this integration and its

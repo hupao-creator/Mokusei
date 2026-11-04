@@ -16,9 +16,12 @@ its independent Close returns to Overview.
 An expanded card owning the current running/waiting execution publishes its
 destination column to the resident Moku input through a passive native geometry
 bridge across the reading panel's separate hosting tree. Input
-centers below that column and narrows to fit it, following the same 380ms fold
-curve. Dragging/resizing settles directly; stacked layout uses the lower panel's
-column. Folding, choosing another activity, losing eligibility or promoting a
+centers below that column and narrows to fit it. Its horizontal entrance uses a
+620ms-response spring with 0.78 damping for braking and a small rebound; shell
+sizing and return keep the 380ms fold curve. On initial entry the compact Dock
+finishes that travel before input expansion is admitted. Later card choices keep
+the editor mounted and open. Dragging/resizing settles directly; stacked layout
+uses the lower panel's column. Folding, choosing another activity, losing eligibility or promoting a
 completed execution returns input to the workspace center. No composer mounts
 inside a Sidecard and no plugin input ownership changes. See the
 [Reading-panel Dock contract](../../Host/MokuScene/README.md#reading-panel-dock)
@@ -75,9 +78,11 @@ Conversation/Browser/Voice toggle, Dock and handoff cases run beside it.
 Initial Host presentation is the third entrance stage: the main panel finishes
 its actual travel, then main reveals its lines separately. The last line and any
 completion footer must settle before a folded workspace commits and admits a
-requested Sidecard. That same visit-fenced commit releases the resident
-Agent composer's input gate, so its 420ms expansion and the existing 380ms card
-animation start together in stage three. No available card is required for input.
+requested Sidecard. The resident Agent composer's input gate releases through
+the same visit check after the compact Dock's horizontal travel completes,
+then starts its 420ms expansion. Without an owning execution Sidecard, input is
+admitted at the layout commit. The card keeps its existing 380ms animation.
+No available card is required for input.
 Plugin selection/execution ownership stays live while presentation waits; retiring
 availability cannot be reopened by the layout completion. Reduced Motion also
 removes the card's transition interaction delay. See the

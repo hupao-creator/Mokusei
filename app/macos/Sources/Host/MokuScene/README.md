@@ -498,21 +498,33 @@ retiring reader cannot position another Thread's input. The same editor, draft,
 selection and input actions remain mounted.
 Folding the execution card, selecting Browser/Voice, losing execution eligibility
 or starting completion promotion restores the workspace-centered input. A first
-execution in main does not move it. Opening/return uses the Sidecard's 380ms
-curve; divider dragging and window/zoom resizing settle without travel, and
-Reduce Motion disables spatial animation. Stacked layouts use the lower execution
+execution in main does not move it. Horizontal travel into the execution column
+uses a spring (620ms response, 0.78 damping fraction) for a gentler acceleration,
+braking and a small settling rebound. Shell sizing and return retain the
+Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
+travel, and Reduce Motion disables spatial animation. Stacked layouts use the lower execution
 panel's full column width. Composer expansion retains its separate entrance timing.
 Sprint validation for this placement change is source review, lint and application
 product build only; no tests/replays or real-device input/animation acceptance.
+The horizontal spring adjustment was reviewed against the reported recording
+(the movement starts around 3.7s), with Swift syntax and diff checks only. No new
+tests, existing regression runs, live animation acceptance or hosted CI were run
+for that adjustment; its rendered feel remains to be confirmed in the app.
 
 Primary reading entry uses the shared 420ms emphasized curve for the collapsed
 Dock's position. Its composer stays unmounted until the reading panel/title handoff
 and main-document line/footer reveal finish, then the folded Agent workspace
-commits. That visit-scoped boundary admits Moku
-input expansion (420ms) alongside the Sidecard reveal (380ms), even when no
-Sidecard qualifies. Scene-level input admission also gates interaction restoration,
+commits. That visit-scoped boundary admits the Sidecard reveal (380ms). If its
+execution column owns the Dock, the compact Moku travels there first; the actual
+horizontal animation's removed completion then admits input expansion (420ms).
+The native geometry bridge fences completion to the current destination revision,
+and the workspace retains the existing route-visit admission check. A folded,
+ineligible or absent execution Sidecard admits input at the layout commit without
+a travel wait. Once input is admitted, later card choices move the retained editor
+without folding it. Reduce Motion and direct resizing settle without a delay.
+Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
-Focus uses its existing 180ms delay from stage three, with draft/generation checks;
+Focus uses its existing 180ms delay from input expansion, with draft/generation checks;
 accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock
