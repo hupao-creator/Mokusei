@@ -36,8 +36,10 @@ execution status, author and usage. Errors are exempt from the content allowlist
 explicit error records, error-level notices, failed assistant messages and
 execution failures remain readable, including after completion and with work collapsed.
 Input messages (user, developer/system), ordinary info/warning notices and plan
-timeline entries are excluded. History headings and sidebar labels use execution
-timestamps instead of user prompts. Thread title/emoji remain catalog metadata.
+timeline entries are excluded. History headings and sidebar labels use the title
+stored for their exact execution, with the execution timestamp when no reliable title is available.
+Thread title/emoji remain catalog metadata; the current title is never used to
+fill missing historical titles.
 
 This is a native reader policy shared by Codex, Claude, Pi and OpenCode across
 live, loaded historical, inherited/fork and deferred execution content (including

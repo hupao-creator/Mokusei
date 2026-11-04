@@ -20,6 +20,7 @@ public struct HarnessThread: Hashable, Sendable {
     public let createdAt: Double
     public let updatedAt: Double
     public let title: JSONText
+    public let executionTitles: [JSONText: JSONText]
     public let metadataState: JSONValue?
     public let metadataRevision: Int?
     public let tags: [JSONText]
@@ -50,6 +51,16 @@ public struct HarnessThread: Hashable, Sendable {
         createdAt = try r.number("createdAt", minimum: 0)
         updatedAt = try r.number("updatedAt", minimum: createdAt)
         title = try r.text("title")
+        var titles: [JSONText: JSONText] = [:]
+        if let value = r.values["executionTitles"] {
+            let entries = try ThreadContractReader(value, path: "thread.executionTitles")
+            for id in entries.values.keys {
+                guard !id.codeUnits.contains(0) else { throw PluginContractError("thread.executionTitles key contains NUL") }
+                try ThreadContractReader.nonblank(id, path: "thread.executionTitles key")
+                titles[id] = try entries.text(id, nonblank: true)
+            }
+        }
+        executionTitles = titles
         metadataState = r.values["metadataState"]
         metadataRevision = try r.optionalInteger("metadataRevision")
         tags = try r.texts("tags")
@@ -81,7 +92,7 @@ public struct HarnessThread: Hashable, Sendable {
     public init(id: JSONText, harnessID: JSONText, revision: Int, sessionState: JSONValue,
                 observation: ThreadPublicObservation, cwd: JSONText, settings: JSONValue,
                 createdAt: Double, updatedAt: Double, title: JSONText, tags: [JSONText],
-                worktree: JSONValue? = nil, metadataState: JSONValue? = nil,
+                worktree: JSONValue? = nil, executionTitles: [JSONText: JSONText] = [:], metadataState: JSONValue? = nil,
                 metadataRevision: Int? = nil, archived: Bool? = nil,
                 moku: Bool? = nil, mokuHistory: Bool = false, note: ThreadNote? = nil,
                 transcript: JSONValue? = nil, tagEmojis: [JSONText: JSONText] = [:],
@@ -94,6 +105,7 @@ public struct HarnessThread: Hashable, Sendable {
             "title": .string(title), "tags": .array(tags.map(JSONValue.string))
         ]
         object["tagEmojis"] = .object(tagEmojis.mapValues(JSONValue.string))
+        if !executionTitles.isEmpty { object["executionTitles"] = .object(executionTitles.mapValues(JSONValue.string)) }
         object["worktree"] = worktree
         object["metadataState"] = metadataState
         object["metadataRevision"] = metadataRevision.map { .integer($0) }

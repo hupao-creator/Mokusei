@@ -413,10 +413,13 @@ historical and inherited content across the four Harnesses.
 Empty filtered turns retain their execution status and result anchor; filtering
 happens before grouping and rendering, so hidden events create no row gaps or scroll destinations. The
 timeline's existing follow/pause, geometry-driven growth and jump-to-latest
-behavior remains unchanged. Historical titles, previews and accessibility labels
-use execution timestamps rather than raw prompts; thread title/emoji remain
-catalog metadata. Each Harness entry sets `threadAgentDetail` from the public
-thread's Moku/current-history identity; Moku conversations keep their original
+behavior remains unchanged. Historical headings, previews and accessibility
+labels use each row's execution title. The four Harnesses resolve it from the public `executionTitles`
+map by exact execution identity. Missing historical names use the row's execution
+timestamp; neither a raw prompt nor the current catalog title is substituted.
+This also applies when main retains an older execution while the newest one
+occupies a Sidecard. Thread title/emoji remain catalog metadata. Each Harness
+entry sets `threadAgentDetail` from the public thread's Moku/current-history identity; Moku conversations keep their original
 input visibility controls, prompts and notices. No stored history or other
 surface is filtered.
 Narrow widths wrap the control and truncate the visible

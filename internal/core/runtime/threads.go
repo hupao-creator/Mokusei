@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -511,7 +512,7 @@ func (s metadataStore) Read() plugin.MetadataSnapshot {
 	}
 	return plugin.MetadataSnapshot{Revision: revision, State: model.CloneRaw(t.MetadataState)}
 }
-func (s metadataStore) Commit(ctx context.Context, expected int64, state json.RawMessage) (bool, error) {
+func (s metadataStore) Commit(ctx context.Context, expected int64, state json.RawMessage, executionID string) (bool, error) {
 	state = model.CloneRaw(state)
 	if expected < 0 || !json.Valid(state) {
 		return false, errors.New("invalid thread metadata commit")
@@ -538,6 +539,14 @@ func (s metadataStore) Commit(ctx context.Context, expected int64, state json.Ra
 		t.MetadataRevision = &revision
 		t.MetadataState = model.CloneRaw(state)
 		t.Title = title
+		if executionID != "" {
+			// UpdateThread keeps a before image for lifecycle comparison.
+			t.ExecutionTitles = maps.Clone(t.ExecutionTitles)
+			if t.ExecutionTitles == nil {
+				t.ExecutionTitles = map[string]string{}
+			}
+			t.ExecutionTitles[executionID] = title
+		}
 		saved = true
 		return nil
 	})

@@ -353,7 +353,7 @@ func main() {
 		must(r.CloseMokuThread(context.Background(), c.Record.ID))
 		e = n.open.SessionState.Commit(context.Background(), n.open.SessionState.Read())
 		assert(e != nil, "retired owner persisted session")
-		_, e = n.open.Metadata.Commit(context.Background(), 0, raw(map[string]string{"title": "stale"}))
+		_, e = n.open.Metadata.Commit(context.Background(), 0, raw(map[string]string{"title": "stale"}), "")
 		assert(e != nil, "retired owner persisted metadata")
 		cleanup()
 		fmt.Println("retired session + metadata owner fencing: passed")

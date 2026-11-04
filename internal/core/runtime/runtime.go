@@ -165,6 +165,11 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 		cancel()
 		return nil, err
 	}
+	err = r.restoreExecutionTitles(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	err = r.settleStaleMokuTranscript(ctx)
 	if err != nil {
 		cancel()

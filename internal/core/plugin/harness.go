@@ -76,7 +76,8 @@ type MetadataSnapshot struct {
 }
 type MetadataStore interface {
 	Read() MetadataSnapshot
-	Commit(ctx context.Context, expectedRevision int64, state json.RawMessage) (bool, error)
+	// executionID is nonempty only when this revision names that exact execution.
+	Commit(ctx context.Context, expectedRevision int64, state json.RawMessage, executionID string) (bool, error)
 }
 type ExecutionAdmission interface {
 	// Accept reserves an identity and durably admits workspace/state before native
