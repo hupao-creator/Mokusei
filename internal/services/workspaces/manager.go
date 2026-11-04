@@ -16,7 +16,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-type Paths struct{ DefaultCwd, MokuCwd, TemporaryRoot, RegistryPath string }
+type Paths struct{ MokuCwd, TemporaryRoot, RegistryPath string }
 type Config = Paths
 type Manager struct {
 	paths            Paths
@@ -296,21 +296,6 @@ func (m *Manager) PrepareForStart(ctx context.Context, baseCwd, threadID string,
 	p.Worktree = model.Worktree{Cwd: executionCwd}
 	p.Created = true
 	return p, nil
-}
-func (m *Manager) ManagedWorkspaceRoots() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	seen := map[string]bool{}
-	var out []string
-	for _, p := range m.proofs {
-		for _, root := range []string{p.Snapshot.Root, p.Snapshot.StagingRoot} {
-			if !seen[root] {
-				seen[root] = true
-				out = append(out, root)
-			}
-		}
-	}
-	return out
 }
 func proofMatches(s snapshot, p ownershipProof) error {
 	// A selected subdirectory can be recreated between executions, as in the

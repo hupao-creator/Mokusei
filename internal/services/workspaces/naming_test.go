@@ -129,7 +129,7 @@ func TestPrepareForStartReportsWorktreeNameOutcome(t *testing.T) {
 	}
 	git("add", "fixture.txt")
 	git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture")
-	manager := New(Paths{DefaultCwd: repo})
+	manager := New(Paths{})
 	enabled := true
 	prepare := func(threadID, name string) Preparation {
 		t.Helper()

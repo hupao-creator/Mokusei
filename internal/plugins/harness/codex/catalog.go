@@ -17,8 +17,6 @@ type CatalogTransport interface {
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
 type catalogEntry struct {
-	at                 time.Time
-	generation         uint64
 	models             []Map
 	modelsError        error
 	computerUse        bool
@@ -29,15 +27,12 @@ type catalogEntry struct {
 	cli                Map
 }
 type Catalog struct {
-	factory    CatalogFactory
-	identity   func(context.Context, string, string) (string, error)
-	mu         sync.Mutex
-	generation uint64
-	reads      discovery.Cache[catalogEntry]
+	factory  CatalogFactory
+	identity func(context.Context, string, string) (string, error)
+	reads    discovery.Cache[catalogEntry]
 }
 
 func NewCatalog(factory CatalogFactory) *Catalog { return &Catalog{factory: factory} }
-func (c *Catalog) Invalidate()                   { c.mu.Lock(); c.generation++; c.mu.Unlock() }
 func (c *Catalog) Close() error                  { return c.reads.Close() }
 func (c *Catalog) Load(ctx context.Context, cwd, configured string) (Map, error) {
 	entry, err := c.observe(ctx, cwd, configured)
@@ -82,12 +77,8 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 		}
 		key += "\x00" + identity
 	}
-	c.mu.Lock()
-	generation := c.generation
-	c.mu.Unlock()
-	key += fmt.Sprintf("\x00%d", generation)
 	entry, err := c.reads.Get(ctx, key, len(refresh) > 0 && refresh[0], 5*time.Minute, 60*time.Second, func(shared context.Context) (catalogEntry, error) {
-		value, err := c.probe(shared, cwd, configured, generation)
+		value, err := c.probe(shared, cwd, configured)
 		if err == nil && c.identity != nil {
 			current, sourceErr := c.identity(shared, cwd, configured)
 			if sourceErr != nil {
@@ -111,7 +102,7 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 	}
 	return entry, err
 }
-func (c *Catalog) probe(ctx context.Context, cwd, configured string, generation uint64) (entry catalogEntry, err error) {
+func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry catalogEntry, err error) {
 	if c.factory == nil {
 		return catalogEntry{}, fmt.Errorf("Codex model catalog has no target runtime")
 	}
@@ -120,7 +111,7 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string, generation 
 		return catalogEntry{}, err
 	}
 	defer func() { err = errors.Join(err, discovery.Cleanup(server.Close())) }()
-	entry = catalogEntry{at: time.Now(), generation: generation, models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
+	entry = catalogEntry{models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {

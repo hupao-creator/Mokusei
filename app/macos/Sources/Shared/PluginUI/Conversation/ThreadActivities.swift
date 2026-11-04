@@ -184,75 +184,6 @@ public struct ThreadActivityList: View {
     }
 }
 
-public struct ThreadSurfacePlan<Content: View>: View {
-    public let explanation: String?
-    public let label: String
-    public let completed: Int
-    public let total: Int
-    private let content: Content
-    @Environment(\.locale) private var locale
-    public init(explanation: String? = nil, label: String = "计划", completed: Int,
-                total: Int, @ViewBuilder content: () -> Content) {
-        self.explanation = explanation
-        self.label = label
-        self.completed = completed
-        self.total = total
-        self.content = content()
-    }
-
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 7) {
-                ThreadPlanGlyph().stroke(style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
-                    .frame(width: 14, height: 14).accessibilityHidden(true)
-                Text(NativePluginLocalization.localize(label, locale: locale))
-                    .font(NativeTypography.inter(size: 11, weight: 500))
-                Spacer(minLength: 0)
-                Text("\(completed)/\(total)").font(NativeTypography.inter(size: 10))
-            }
-            if let explanation, !explanation.isEmpty {
-                Text(explanation)
-                    .font(NativeTypography.inter(size: 12))
-                    .lineSpacing(7.8)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 12)
-            }
-            VStack(alignment: .leading, spacing: 9) { content }.padding(.top, 12)
-        }
-        .font(NativeTypography.inter(size: 12))
-        .foregroundStyle(NativePalette.thread.muted.swiftUI)
-        .padding(.vertical, 5)
-        .padding(.leading, 14)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(NativePalette.thread.line.swiftUI).frame(width: 1)
-        }
-        .padding(.vertical, 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(NativePluginLocalization.localize("计划", locale: locale))
-    }
-}
-
-public struct ThreadSurfacePlanRow<Content: View>: View {
-    public let state: AnyView
-    public let inProgress: Bool
-    private let content: Content
-
-    public init(state: AnyView, inProgress: Bool = false, @ViewBuilder content: () -> Content) {
-        self.state = state
-        self.inProgress = inProgress
-        self.content = content()
-    }
-
-    public var body: some View {
-        HStack(spacing: 8) {
-            state.frame(width: 12, height: 12).accessibilityHidden(true)
-            content.fixedSize(horizontal: false, vertical: true)
-        }
-        .font(NativeTypography.inter(size: 12))
-        .foregroundStyle((inProgress ? NativePalette.thread.ink : NativePalette.thread.muted).swiftUI)
-    }
-}
-
 public struct ThreadSurfaceDisclosure<Content: View>: View {
     public let label: String
     public let live: Bool
@@ -318,18 +249,6 @@ private struct ThreadActivityButtonBody: View {
                               ? NativePalette.thread.ink : NativePalette.thread.muted).swiftUI)
             .background(hovered || configuration.isPressed ? NativePalette.thread.surfaceSoft.swiftUI : .clear)
             .onHover { hovered = $0 }
-    }
-}
-
-private struct ThreadPlanGlyph: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        for y in [4.0, 8.0, 12.0] {
-            path.move(to: CGPoint(x: 6.25, y: y)); path.addLine(to: CGPoint(x: 12.25, y: y))
-            path.move(to: CGPoint(x: 2.6, y: y)); path.addLine(to: CGPoint(x: 3.6, y: y + 1))
-            path.addLine(to: CGPoint(x: 5.3, y: y - 1))
-        }
-        return path.applying(CGAffineTransform(scaleX: rect.width / 16, y: rect.height / 16))
     }
 }
 

@@ -286,7 +286,7 @@ type forgedTagsScope struct {
 }
 
 func (forgedTagsScope) Scope() (plugin.MutationScope, error) {
-	return plugin.NewMutationScope("tag-redirects", "", 0), nil
+	return plugin.NewMutationScope("tag-redirects", 0), nil
 }
 
 func (h *harness) beginBatch(ctx context.Context, id string) (plugin.LifecycleWork, error) {

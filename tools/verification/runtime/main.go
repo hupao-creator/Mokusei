@@ -205,7 +205,7 @@ func main() {
 	database := filepath.Join(dir, "state.sqlite")
 	db, err := store.Open(database)
 	must(err)
-	manager := workspaces.New(workspaces.Paths{DefaultCwd: dir, MokuCwd: filepath.Join(dir, "moku"), TemporaryRoot: filepath.Join(dir, "workspaces"), RegistryPath: filepath.Join(dir, "worktrees.json")})
+	manager := workspaces.New(workspaces.Paths{MokuCwd: filepath.Join(dir, "moku"), TemporaryRoot: filepath.Join(dir, "workspaces"), RegistryPath: filepath.Join(dir, "worktrees.json")})
 	r, err := core.New(ctx, core.Config{Store: db, Harnesses: map[string]plugin.Harness{"fixture": harness{}}, DataDir: dir, DefaultCwd: dir, Attachments: attachments.New(filepath.Join(dir, "attachments")), Workspaces: manager, Log: func(kind string, err error) { fmt.Println("log", kind, err) }})
 	must(err)
 	app, err := applicationhost.New(ctx, applicationhost.Config{Store: db, Applications: []plugin.Application{report.New(), tag.New()}, RuntimeCapabilities: r.RuntimeCapabilities, BackgroundCapabilities: r.BackgroundCapabilities, SnapshotCapabilities: r.SnapshotCapabilities, ProjectSession: r.ProjectSession, InitializeSession: r.InitializeApplicationSession, ArchiveExecutions: r.ArchiveExecutions})

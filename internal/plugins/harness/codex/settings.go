@@ -604,7 +604,6 @@ var _ plugin.HarnessSettings = (*SettingsAPI)(nil)
 func NewSettingsAPI(factory CatalogFactory) *SettingsAPI {
 	return &SettingsAPI{catalog: NewCatalog(factory)}
 }
-func (s *SettingsAPI) InvalidateCatalog() { s.catalog.Invalidate() }
 func (s *SettingsAPI) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 	settings, err := model.DecodeObject(raw)
 	if err != nil {

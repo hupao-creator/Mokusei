@@ -51,27 +51,6 @@ public func threadCardStatus(_ observation: ThreadPublicObservation) -> ThreadCa
     return .init(kind: .idle, label: "等待开始", icon: "CircleDashed")
 }
 
-public struct ThreadCardStatus: View {
-    public let observation: ThreadPublicObservation
-    public let brandKey: String
-    public let label: String
-    public let emoji: String?
-    @Environment(\.locale) private var locale
-    public init(observation: ThreadPublicObservation, brandKey: String, label: String,
-                emoji: String? = nil) {
-        self.observation = observation; self.brandKey = brandKey; self.label = label
-        self.emoji = emoji
-    }
-    public var body: some View {
-        let status = threadCardStatus(observation)
-        HStack(alignment: .top, spacing: 8) {
-            if status.showsState { ThreadCardTaskState(status: status) }
-            ThreadCardProviderStatus(label: status.providerLabel(label, locale: locale), brandKey: brandKey, emoji: emoji,
-                                     terminal: status.terminal)
-        }
-    }
-}
-
 public struct ThreadCardTaskState: View {
     public let status: ThreadCardStatusProjection
     @Environment(\.locale) private var locale

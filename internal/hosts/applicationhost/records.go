@@ -90,7 +90,7 @@ func (r *recordReader) IssueScope(key string, revision int64) (plugin.MutationSc
 			}
 		}
 	}
-	scope := plugin.NewMutationScope(key, "", revision)
+	scope := plugin.NewMutationScope(key, revision)
 	r.issued[scope.Token()] = scope
 	return scope, nil
 }

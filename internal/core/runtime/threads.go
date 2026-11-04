@@ -746,7 +746,7 @@ func (r *Runtime) CreateThread(ctx context.Context, request CreateThreadRequest)
 	defer releaseClaim()
 	lock := r.threadLock(id)
 	lock.Lock()
-	result, err := r.sendLocked(ctx, id, request.Input, request.Injection, nil)
+	result, err := r.sendLocked(ctx, id, request.Input, request.Injection)
 	lock.Unlock()
 	if err != nil {
 		return created(record, SendResult{}, nil), err
@@ -789,37 +789,10 @@ func (r *Runtime) sendThread(ctx context.Context, id string, input model.AgentIn
 	lock := r.threadLock(id)
 	lock.Lock()
 	defer lock.Unlock()
-	return r.sendLocked(ctx, id, input, nil, nil)
+	return r.sendLocked(ctx, id, input, nil)
 }
-func (r *Runtime) SendThreadWithContext(ctx context.Context, id string, input model.AgentInput, entries []plugin.ContextEntry) (SendResult, error) {
-	thread, err := r.Thread(id)
-	if err != nil {
-		return SendResult{}, err
-	}
-	if thread.Moku {
-		return SendResult{}, errors.New("Moku input must be routed through its coordinator")
-	}
-	if err := r.begin(); err != nil {
-		return SendResult{}, err
-	}
-	defer r.operations.Done()
-	ctx, cancelOperation := r.operationContext(ctx)
-	defer cancelOperation()
-	if err := validateInput(input); err != nil {
-		return SendResult{}, err
-	}
-	ctx, releaseClaim, err := r.claimSend(ctx, id)
-	if err != nil {
-		return SendResult{}, err
-	}
-	defer releaseClaim()
-	lock := r.threadLock(id)
-	lock.Lock()
-	defer lock.Unlock()
-	return r.sendLocked(ctx, id, input, nil, entries)
-}
-func (r *Runtime) sendLocked(ctx context.Context, id string, input model.AgentInput, injection *plugin.Injection, entries []plugin.ContextEntry) (SendResult, error) {
-	return r.sendLockedAdmitted(ctx, id, input, injection, entries, nil)
+func (r *Runtime) sendLocked(ctx context.Context, id string, input model.AgentInput, injection *plugin.Injection) (SendResult, error) {
+	return r.sendLockedAdmitted(ctx, id, input, injection, nil, nil)
 }
 func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model.AgentInput, injection *plugin.Injection, entries []plugin.ContextEntry, onAdmitted func(SendResult) error) (SendResult, error) {
 	ctx, releaseClaim, err := r.claimSend(ctx, id)

@@ -35,7 +35,7 @@ func recoveryGitFixture() {
 }
 
 func replayParallelRecovery(ctx context.Context, root, gitRoot string) {
-	paths := workspaces.Paths{DefaultCwd: gitRoot, RegistryPath: filepath.Join(root, "parallel-owners.json")}
+	paths := workspaces.Paths{RegistryPath: filepath.Join(root, "parallel-owners.json")}
 	manager := workspaces.New(paths)
 	check(len(manager.RehydrateOwners(ctx, nil)) == 0, "parallel fixture ownership load")
 	enabled := true
