@@ -928,10 +928,12 @@ keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
-48pt above and 22pt below by default for Git, Moku history and execution-card
+48pt above and 22pt below by default for Git and Moku history
 reading panels. Report panels opt into
-`topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main Agent Thread
-panel uses `topInset: 22`, matching its bottom viewport clearance. Its reserved
+`topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main
+Agent Thread panel and live execution Sidecard use `topInset: 22`, matching their
+bottom viewport clearance. The Sidecard has no Close control of its own. The main
+panel's reserved
 48pt leading history rail separates the document and its scroller horizontally
 from Close; the rail itself retains 64pt of vertical padding. `ThreadConversation`
 consumes that rail reservation before rendering nested rows. Top-level loading
@@ -999,9 +1001,12 @@ ownership unchanged. The upper-left reading close button retains its fixed
 panel position. The lightweight opening heading and live reader share the main
 Agent's 22/22pt viewport, preserving measured title/emoji handoff geometry.
 Content-reveal readiness, Moku input/Sidecard admission and their existing
-three-stage timing remain unchanged. Report uses the balanced viewport argument
-with an 8pt top inset; execution-card viewports use the default 48/22pt chrome.
-The execution card's separate page-stack spacing is unchanged.
+three-stage timing remain unchanged. The live execution Sidecard also uses
+22pt viewport chrome and no page-stack inset; its 12pt scrollable document
+inset gives the same 34pt boundary at each scroll limit. Its horizontal insets,
+scrolling, launcher and dismissal ownership remain unchanged. Report uses the
+balanced viewport argument with an 8pt top inset; its related-execution reader
+retains its own page-stack spacing.
 Git/Moku viewport defaults are unchanged.
 
 Sprint verification for this viewport adjustment is source/layout review,
@@ -1010,6 +1015,11 @@ replays are created or run, and no CI, push or PR is triggered. The supplied
 screenshot was inspected; the changed layout has not been viewed in a running
 application, so rendered geometry and interaction/animation behavior are not
 claimed as observed acceptance.
+
+The later live Sidecard alignment was reviewed against the source geometry and
+checked with Swift parsing and lint; its rendered scroll limits and interactions
+have not been visually accepted in a running application. Sprint scope excludes
+tests and replays.
 
 Report balances the **card-to-WebKit viewport** distance at 8pt on each end,
 including both document scroll limits. Its webpage background begins and ends

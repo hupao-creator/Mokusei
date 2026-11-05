@@ -115,6 +115,11 @@ before publishing the next snapshot. Folding retains the existing execution
 ownership policy and Harness response forms. The execution card has no decorative
 title/emoji; its label is localized as Execution/执行.
 
+The live execution viewport reserves 22pt at both vertical edges, with 12pt of
+scrollable document padding at each end, matching the main Agent reader. The
+viewport keeps its existing horizontal inset and contains the scroller at both
+limits; the launcher and Escape continue to own dismissal.
+
 ## Browser
 
 [Browser](Browser/) owns WKWebView navigation, URL policy, annotation and capture.

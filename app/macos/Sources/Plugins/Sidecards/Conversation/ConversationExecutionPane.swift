@@ -20,7 +20,7 @@ public struct ConversationExecutionPane: View {
             conversation
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .nativeReadingPanelViewport()
+            .nativeReadingPanelViewport(topInset: 22)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(t("执行卡片"))
             .accessibilityIdentifier("conversation-sidecard")

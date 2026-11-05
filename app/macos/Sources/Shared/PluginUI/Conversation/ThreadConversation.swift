@@ -301,7 +301,7 @@ public struct ThreadConversation: View {
                 }
             }
             .clipped()
-        }.padding(.vertical, agentDetail && !executionCard ? 0 : 12)
+        }.padding(.vertical, (agentDetail && !executionCard) || (executionCard && !relatedExecution) ? 0 : 12)
             .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
                 // Empty/error history pages have no turn to hold the boundary
                 // while their own reading stack is still travelling.
