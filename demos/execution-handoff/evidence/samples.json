@@ -1,0 +1,173 @@
+[
+  {
+    "busy" : false,
+    "elapsed" : "1.373306833 seconds",
+    "name" : "00-running",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "1.657684333 seconds",
+    "name" : "01-handoff-00",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "准备结果 · 等待原生正文排版",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "1.942441083 seconds",
+    "name" : "01-handoff-01",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "向下翻到新结果 · sidecard 吸入主面板",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "2.224934833 seconds",
+    "name" : "01-handoff-02",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "向下翻到新结果 · sidecard 吸入主面板",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "2.512907291 seconds",
+    "name" : "01-handoff-03",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "向下翻到新结果 · sidecard 吸入主面板",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "2.796136625 seconds",
+    "name" : "01-handoff-04",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "向下翻到新结果 · sidecard 吸入主面板",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "3.076947125 seconds",
+    "name" : "01-handoff-05",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "sidecard 已吸入 · 新结果停靠，主面板展开",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "3.364578208 seconds",
+    "name" : "01-handoff-06",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "sidecard 已吸入 · 新结果停靠，主面板展开",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : true,
+    "elapsed" : "3.647480416 seconds",
+    "name" : "01-handoff-07",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "sidecard 已吸入 · 新结果停靠，主面板展开",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "3.93369025 seconds",
+    "name" : "01-handoff-08",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "4.220583583 seconds",
+    "name" : "01-handoff-09",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "4.505320291 seconds",
+    "name" : "01-handoff-10",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "4.796113916 seconds",
+    "name" : "01-handoff-11",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "5.079554416 seconds",
+    "name" : "01-handoff-12",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "5.771662583 seconds",
+    "name" : "02-complete",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "7.298576791 seconds",
+    "name" : "03-cancel",
+    "reduced" : false,
+    "size" : "{1240, 800}",
+    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "8.079511333 seconds",
+    "name" : "04-compact-dark",
+    "reduced" : false,
+    "size" : "{960, 680}",
+    "status" : "上一轮仍在主 detail · 新 execution 在右侧运行",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "9.609666583000001 seconds",
+    "name" : "05-compact-result",
+    "reduced" : false,
+    "size" : "{960, 680}",
+    "status" : "最新结果已接住 · 可滚动阅读，或重播比较",
+    "systemReducedMotion" : false
+  },
+  {
+    "busy" : false,
+    "elapsed" : "10.484190457999999 seconds",
+    "name" : "06-reduced",
+    "reduced" : true,
+    "size" : "{960, 680}",
+    "status" : "最新结果已接住 · 减弱动态效果",
+    "systemReducedMotion" : false
+  }
+]
