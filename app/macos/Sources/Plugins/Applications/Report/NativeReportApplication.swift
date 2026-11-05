@@ -69,6 +69,7 @@ struct NativeReportDetail: View {
     @State private var failure: String?
     @State private var localSidecards = NativeReportSidecardPresentation()
     @State private var entranceAdmitted = false
+    @State private var referencesRevealed = false
     @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
@@ -121,33 +122,8 @@ struct NativeReportDetail: View {
                                 .padding(12)
                             }
                     } else {
-                        HStack {
-                            Text(applicationText(locale, "关联执行", "Related executions"))
-                            Text(String(references.count)).foregroundStyle(.secondary)
-                            Spacer(minLength: 0)
-                        }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
-                        Divider()
-                        NativeScrollView {
-                            VStack(alignment: .leading, spacing: 6) {
-                                if let failure { Text(failure).foregroundStyle(.red) }
-                                if references.isEmpty { Text(applicationText(locale, "暂无关联执行", "No related executions")).foregroundStyle(.secondary).padding(12) }
-                                ForEach(references, id: \.reference) { item in
-                                    Button { selected = item.reference } label: {
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text(item.title.string).font(NativeTypography.inter(size: 13, weight: 550)).lineLimit(3)
-                                            HStack(spacing: 5) {
-                                                if let harness = item.harness {
-                                                    ThreadCardBrandLogo(logoSource: harness.logoSource, label: harness.displayName.string, brandKey: harness.id.string)
-                                                }
-                                                if item.missing { Text(applicationText(locale, "已删除", "Deleted")) }
-                                                Spacer(minLength: 0)
-                                                if let usage = item.usage { Text(usage.value.string) }
-                                            }.font(NativeTypography.inter(size: 10)).foregroundStyle(.secondary)
-                                        }.frame(maxWidth: .infinity, alignment: .leading).padding(12).contentShape(Rectangle())
-                                    }.buttonStyle(.plain).disabled(item.missing)
-                                }
-                            }.padding(8)
-                        }
+                        referencesContent
+                            .opacity(reduceMotion || referencesRevealed ? 1 : 0)
                     }
                 }
                 .environment(\.nativeReadingNavigation, nil)
@@ -184,6 +160,11 @@ struct NativeReportDetail: View {
             catch { failure = error.localizedDescription }
         }
         .onDisappear { unsubscribe?(); unsubscribe = nil; sidecards.cancel(); entranceAdmitted = false }
+        .onChange(of: expanded) { _, open in
+            if open && !referencesRevealed {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { referencesRevealed = true }
+            }
+        }
         .onChange(of: entranceReady && entranceAdmitted && !suppressed) { _, ready in
             sidecards.updateLayout(ready: ready, suppressed: suppressed)
         }
@@ -202,6 +183,38 @@ struct NativeReportDetail: View {
                 .accessibilityIdentifier("sidecard-toggle-report-executions")
         ))
         .preference(key: NativeReadingAuxiliaryBackKey.self, value: auxiliaryBack)
+    }
+
+    private var referencesContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(applicationText(locale, "关联执行", "Related executions"))
+                Text(String(references.count)).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
+            Divider()
+            NativeScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let failure { Text(failure).foregroundStyle(.red) }
+                    if references.isEmpty { Text(applicationText(locale, "暂无关联执行", "No related executions")).foregroundStyle(.secondary).padding(12) }
+                    ForEach(references, id: \.reference) { item in
+                        Button { selected = item.reference } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(item.title.string).font(NativeTypography.inter(size: 13, weight: 550)).lineLimit(3)
+                                HStack(spacing: 5) {
+                                    if let harness = item.harness {
+                                        ThreadCardBrandLogo(logoSource: harness.logoSource, label: harness.displayName.string, brandKey: harness.id.string)
+                                    }
+                                    if item.missing { Text(applicationText(locale, "已删除", "Deleted")) }
+                                    Spacer(minLength: 0)
+                                    if let usage = item.usage { Text(usage.value.string) }
+                                }.font(NativeTypography.inter(size: 10)).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding(12).contentShape(Rectangle())
+                        }.buttonStyle(.plain).disabled(item.missing)
+                    }
+                }.padding(8)
+            }
+        }
     }
 
     private var auxiliaryBack: NativeReadingAuxiliaryBackAction? {
