@@ -32,6 +32,7 @@ import MokuseiPluginUI
     public private(set) var inputLeaving = false
     public private(set) var composerGeneration = UUID()
     public private(set) var composerAutofocus = true
+    public private(set) var composerFocusRequest = 0
     @ObservationIgnored private var composerIdentity: ObjectIdentifier?
     public private(set) var talkPresentation = NativeMokuTalkState()
     public private(set) var settingsOpen = false
@@ -158,6 +159,11 @@ import MokuseiPluginUI
         // documents still omit the Dock and cannot acquire hidden input.
         guard dockRouteVisible else { return }
         if mokuOpen || cameraActive { setMokuOpen(false); setInputOpen(true) }
+        // A pinned Agent editor cannot fold. Compose is an explicit focus
+        // request even when TOC navigation deliberately suppressed autofocus.
+        else if inputPinnedOpen, inputOpen, !dockCovered {
+            composerFocusRequest += 1
+        }
         else { setInputOpen(!inputOpen) }
     }
     /// Draft ownership changes synchronously with navigation. Retiring ink and

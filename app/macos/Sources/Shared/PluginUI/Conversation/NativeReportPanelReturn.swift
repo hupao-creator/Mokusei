@@ -33,7 +33,8 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
     func makeNSView(context: Context) -> ReportReturnView { ReportReturnView() }
     func updateNSView(_ view: ReportReturnView, context: Context) {
         view.update(content: AnyView(content.environment(\.self, context.environment)),
-            returning: returning, main: main)
+            returning: returning, main: main,
+            paperColor: NativePalette.thread.canvas.swiftUI.resolve(in: context.environment).cgColor)
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: ReportReturnView, context: Context) -> CGSize? {
         // The surrounding production frame owns both dimensions. Do not let an
@@ -43,12 +44,14 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
     static func dismantleNSView(_ view: ReportReturnView, coordinator: ()) { view.retire() }
 }
 
-/// Retain the actual reader and transform a separate native carrier. SwiftUI's
-/// GeometryEffect can resize an NSViewRepresentable's viewport; a CALayer
-/// transform here leaves WebKit bounds and its line breaks untouched.
+/// Retain the reader at fixed native bounds for the shared return animation.
+/// SwiftUI's GeometryEffect can resize an NSViewRepresentable's viewport;
+/// transforming its hosting layer leaves WebKit bounds and line breaks untouched.
 @MainActor private final class ReportReturnView: NSView {
     private let carrier = ReportReturnCarrier()
     private let host = NSHostingView(rootView: AnyView(EmptyView()))
+    private let paper = CALayer()
+    private let aperture = CAShapeLayer()
     private var returning: NativeReportPanelReturn?
     private var startedAt: TimeInterval?
     private var main = false
@@ -63,17 +66,24 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
         wantsLayer = true; clipsToBounds = false
         carrier.wantsLayer = true; carrier.clipsToBounds = false
         carrier.layer?.anchorPoint = .zero
+        carrier.layer?.addSublayer(paper)
+        paper.isHidden = true
+        host.wantsLayer = true
         host.sizingOptions = []; host.safeAreaRegions = []
         carrier.addSubview(host); addSubview(carrier)
     }
     required init?(coder: NSCoder) { nil }
 
-    func update(content: AnyView, returning: NativeReportPanelReturn?, main: Bool) {
+    func update(content: AnyView, returning: NativeReportPanelReturn?, main: Bool, paperColor: CGColor) {
         self.returning = returning; self.main = main
+        paper.backgroundColor = paperColor
         if returning == nil {
             startedAt = nil
             CATransaction.begin(); CATransaction.setDisableActions(true)
             carrier.layer?.removeAllAnimations()
+            host.layer?.removeAllAnimations(); aperture.removeAllAnimations()
+            carrier.layer?.mask = nil; paper.isHidden = true
+            host.layer?.transform = CATransform3DIdentity; host.layer?.opacity = 1
             carrier.layer?.transform = CATransform3DIdentity
             carrier.layer?.position = .zero; carrier.layer?.opacity = 1
             CATransaction.commit()
@@ -97,6 +107,7 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         carrier.frame = bounds
         host.frame = carrier.bounds
+        paper.frame = carrier.bounds
         CATransaction.commit()
     }
 
@@ -105,32 +116,23 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
               window != nil, carrier.bounds.width > 0, carrier.bounds.height > 0,
               let layer = carrier.layer else { return }
         startedAt = start
-        let begin = layer.convertTime(start, from: nil)
-        let timing = NativeReadingPageTiming.replacementTimingFunction
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        if main {
-            let destination = returning.source.origin
-            let transform = CATransform3DMakeScale(returning.source.width / carrier.bounds.width,
-                returning.source.height / carrier.bounds.height, 1)
-            let travel = CABasicAnimation(keyPath: "position")
-            travel.fromValue = NSValue(point: .zero); travel.toValue = NSValue(point: destination)
-            travel.beginTime = begin; travel.duration = returning.duration; travel.timingFunction = timing
-            let scale = CABasicAnimation(keyPath: "transform")
-            scale.fromValue = NSValue(caTransform3D: CATransform3DIdentity)
-            scale.toValue = NSValue(caTransform3D: transform)
-            scale.beginTime = begin; scale.duration = returning.duration; scale.timingFunction = timing
-            layer.position = destination; layer.transform = transform
-            layer.add(travel, forKey: "report.return.position")
-            layer.add(scale, forKey: "report.return.scale")
+        if main, let content = host.layer {
+            NativeReadingPanelReturn.animate(surface: layer, content: content, aperture: aperture, paper: paper,
+                fromPosition: .zero,
+                fromPath: CGPath(roundedRect: carrier.bounds, cornerWidth: 22, cornerHeight: 22, transform: nil),
+                source: returning.source, readerWidth: carrier.bounds.width,
+                duration: returning.duration, startedAt: start)
+        } else {
+            // The auxiliary surface retains its original position and viewport.
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = layer.opacity; fade.toValue = 0
+            fade.beginTime = layer.convertTime(start, from: nil); fade.duration = returning.duration
+            fade.timingFunction = NativeReadingPanelReturn.timing
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            layer.opacity = 0
+            layer.add(fade, forKey: "report.sidecard.return")
+            CATransaction.commit()
         }
-        let fade = CAKeyframeAnimation(keyPath: "opacity")
-        fade.values = main ? [1, 1, 0] : [1, 0]
-        fade.keyTimes = main ? [0, 0.86, 1] : [0, 1]
-        fade.beginTime = begin; fade.duration = returning.duration
-        fade.timingFunction = main ? CAMediaTimingFunction(name: .linear) : timing
-        layer.opacity = 0
-        layer.add(fade, forKey: "report.return.opacity")
-        CATransaction.commit()
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -141,6 +143,7 @@ private struct ReportReturnHost<Content: View>: NSViewRepresentable {
     }
     func retire() {
         carrier.layer?.removeAllAnimations()
+        host.layer?.removeAllAnimations(); aperture.removeAllAnimations()
         host.rootView = AnyView(EmptyView())
     }
 }

@@ -111,7 +111,8 @@ public struct NativeMokuDock: View {
     @State private var capsuleHeight: CGFloat = 58
     @State private var completionHeight: CGFloat = 0
     @State private var submissionDraft: NativeComposerDraft?
-    @State private var focusReady = false
+    @State private var focusGeneration: UUID?
+    @State private var explicitFocusGeneration: UUID?
     @State private var focusRequest = 0
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
@@ -559,7 +560,7 @@ public struct NativeMokuDock: View {
             }
         }
         .onChange(of: state.inputOpen, initial: true) { _, open in
-            focusReady = false
+            focusGeneration = nil
             if open {
                 if voiceModeActive {
                     if !voiceComposerRestoration.active {
@@ -573,7 +574,7 @@ public struct NativeMokuDock: View {
             }
         }
         .onChange(of: ObjectIdentifier(draft)) { _, _ in
-            focusReady = false
+            focusGeneration = nil
             directoryMentions = NativeMokuDirectoryMentions()
             voiceComposerRestoration = NativeMokuVoiceComposerRestoration()
         }
@@ -655,20 +656,26 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: state.dockRouteVisible) { _, visible in
             guard !visible else { return }
-            focusReady = false
+            focusGeneration = nil
             state.dockHitRects = []
             state.dockMentionHitRect = nil
             hoverTask?.cancel(); hoverTask = nil
         }
         .task(id: "\(state.composerGeneration):\(state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered):\(reduceMotion)") {
-            guard state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusReady = false; return }
+            guard state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { focusGeneration = nil; return }
             let generation = state.composerGeneration
             if !reduceMotion {
                 do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
             }
             guard !Task.isCancelled, state.composerGeneration == generation, state.ownsComposer(draft),
                   state.inputInteractionReady, state.dockRouteVisible, state.inputOpen, !state.dockCovered else { return }
-            focusReady = true; focusRequest += 1
+            focusGeneration = generation; focusRequest += 1
+        }
+        .onChange(of: state.composerFocusRequest) { _, _ in
+            guard state.inputOpen, state.dockRouteVisible, !state.dockCovered else { return }
+            explicitFocusGeneration = state.composerGeneration
+            focusGeneration = state.composerGeneration
+            focusRequest += 1
         }
         .onChange(of: draft.text) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: draft.attachments) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
@@ -698,7 +705,7 @@ public struct NativeMokuDock: View {
             if state.dockInteractionVisible { state.setDockInteractionVisible(false, question: false) }
             presentation?.setPresenting(false)
             hoverTask?.cancel(); hoverTask = nil
-            focusReady = false
+            focusGeneration = nil
         }
         .sheet(item: $dispatchDetail) { selected in
             NativeMokuDispatchSheet(selected: selected, presentation: presentation)
@@ -1026,11 +1033,15 @@ public struct NativeMokuDock: View {
         else { _ = state.dismissInputForEscape() }
     }
     private func composer(room: CGFloat, compact: Bool) -> some View {
+        // The entrance delay owns only automatic acquisition. An admitted
+        // editor must accept clicks/Tab without a delayed update blurring it.
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || (submitting && sidecardComposer == nil),
             busy: submitting && sidecardComposer != nil,
             threadTitle: threadTitle, sidecardComposer: sidecardComposer,
-            readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady && (sidecardComposer?.ready ?? true),
-            focusRequestKey: state.composerAutofocus ? focusRequest : 0,
+            readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && (sidecardComposer?.ready ?? true),
+            automaticFocus: false,
+            focusRequestKey: focusGeneration == state.composerGeneration
+                && (state.composerAutofocus || explicitFocusGeneration == state.composerGeneration) ? focusRequest : 0,
             suppressInitialFocus: !state.composerAutofocus,
             maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,

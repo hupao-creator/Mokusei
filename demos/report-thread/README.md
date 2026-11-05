@@ -66,3 +66,7 @@ ScreenCaptureKit 只录制自身窗口、无音频和麦克风，停止后写入
 已用真实原生 UI 手动复现旧实现瞬隐，随后观察原生 carrier 修正的慢速/正常列表返回、
 5:5 详情滚动后返回，并解码窗口录屏检查中间帧。证据与边界见
 [Report 关闭调查](../../design/report-sidecard-close.md)。
+
+共享 Agent 返回动画的后续复核保留同一入口。录制按钮在预览未成为 key window
+时仍只选择本 app 的可见窗口，并显示无法录制的原因，不静默退出。最新验证以
+[Report 关闭调查](../../design/report-sidecard-close.md) 的共享返回后续记录为准。

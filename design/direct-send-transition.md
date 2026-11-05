@@ -79,19 +79,24 @@ The guard uses `inputOpen`, not `inputPresent`: closing a Thread editor restores
 applicable pending/running feedback without waiting for `inputLeaving` to end.
 Send, draft, receipt, positioning and focus ownership are unchanged.
 
-The repair was based on local main `c8e1c7f`. The `Mokusei` application-only build
-passed (69.59s), along with Swift parsing and diff checks. A disposable native
+The repair started from local main `c8e1c7f`, then integrated `9e61f8f` with the
+parallel focus and Report-return changes without replacing their logic. The
+final `Mokusei` application-only build passed (46.92s), along with Swift parsing,
+diff/link checks and the repository's static lint. A disposable native
 window linked those exact production Scene/Dock/composer objects and used
 memory-only state. Manual UI inspection confirmed an expanded running Thread
 input without dots, and a closed running capsule with dots. The preview was
-closed afterward; no installed application or user profile was replaced.
+closed afterward. Both states were checked again using the final combined
+production modules; no installed application or user profile was replaced.
 
 The temporary preview initially failed to compile because macOS exposes Reduce
 Motion as a read-only environment value. Removing that attempted preview-only
 override allowed it to build; no system accessibility preference was changed.
 Reduce Motion and rapid reversal were reviewed in code, not visually certified.
-An attempted simulated send did not proceed because the preview editor did not
-accept keyboard/paste input; the separate focus repair was left untouched.
+Before the parallel focus fix was integrated, an attempted simulated send did
+not proceed because the preview editor did not accept keyboard/paste input.
+That unrelated behavior was not modified here, and the final combined preview
+was limited to the open/closed running states rather than rechecking focus.
 No claim is made for visual send timing, real Runtime admission, failure or
 uncertain-receipt recovery. No tests were added or run, and no replay, PR or CI
 was used. The existing receipt and draft implementation is unchanged.

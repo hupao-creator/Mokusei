@@ -122,9 +122,15 @@ private struct ProductionReportRoute: View {
                 active = false
                 return
             }
-            guard let window = NSApp.keyWindow else { return }
+            // Accessibility clicks can reach this isolated preview without making
+            // it key. Keep recording scoped to its visible application window.
+            guard let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else {
+                status = "没有可录制的预览窗口"; return
+            }
             let available = try await SCShareableContent.currentProcess
-            guard let target = available.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else { return }
+            guard let target = available.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+                status = "预览窗口尚未可供录制"; return
+            }
             let directory = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("evidence")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let destination = directory.appendingPathComponent("return-\(Int(Date().timeIntervalSince1970)).mp4")

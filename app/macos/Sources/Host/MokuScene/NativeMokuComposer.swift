@@ -85,6 +85,7 @@ struct NativeMokuComposerInput: View {
     var placeholderIcon: AnyView?
     var readOnly = false
     var focusEnabled = true
+    var automaticFocus = true
     var focusRequestKey = 0
     var suppressInitialFocus = false
     var maxHeight: CGFloat = 126
@@ -221,7 +222,8 @@ struct NativeMokuComposerInput: View {
         NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
             placeholder: placeholder, placeholderIcon: placeholderIcon, placeholderLineLimit: 1,
             disabled: editingUnavailable || busy, readOnly: readOnly || busy,
-            focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
+            focusEnabled: focusEnabled, automaticFocus: automaticFocus,
+            focusRequestKey: focusRequestKey, focusContext: "moku-dock",
             suppressInitialFocus: suppressInitialFocus,
             minHeight: compact ? 32 : (landing ? 76 : 58), maxHeight: compact ? max(32, maxHeight - 40) : maxHeight,
             fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
