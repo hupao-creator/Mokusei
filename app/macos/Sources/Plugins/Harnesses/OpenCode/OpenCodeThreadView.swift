@@ -169,7 +169,17 @@ private struct OpenCodeTurn: View {
             usage: usage.map { AnyView(ThreadTokenUsage(input: $0.input + $0.cacheRead + $0.cacheWrite,
                 output: $0.output + $0.reasoning, cached: $0.cacheRead, cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) },
             active: current && input.thread.observation.isExecutionActive,
-            executionRunning: execution.status == .running && latest?.status == .running)
+            executionRunning: execution.status == .running && latest?.status == .running,
+            executionTailIsWork: messages.last.map { message in
+                if message.role == "tool" { return true }
+                guard message.role == "assistant" else { return false }
+                // OpenCode interleaves reply, reasoning and tool parts in one message.
+                // A streaming text part is a boundary even before it can render.
+                if let part = message.parts.last {
+                    return ["reasoning", "tool"].contains(part["type"]?.stringValue ?? "")
+                }
+                return message.text.isEmpty && message.raw["thinking"]?.stringValue?.isEmpty == false
+            } ?? false)
             .nativeReadingExecutionReady(execution.executionID, settled: !executionActive)
     }
     private var statusLabel: String {

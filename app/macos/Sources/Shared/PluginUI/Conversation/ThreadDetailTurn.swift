@@ -132,6 +132,9 @@ public struct ThreadDetailTurn: View {
     public let active: Bool
     /// Harness execution state, separate from active readers that may be waiting for input.
     public let executionRunning: Bool
+    /// Native tail classification before streaming replies are withheld from rows.
+    /// Default closed: visible work alone cannot prove it is still the stream tail.
+    public let executionTailIsWork: Bool
 
     @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
@@ -141,7 +144,7 @@ public struct ThreadDetailTurn: View {
     public init(id: JSONText, author: JSONValue? = nil, rows: [ThreadDetailRow],
                 reasoningUsage: ThreadReasoningUsage? = nil, createdAt: Double,
                 updatedAt: Double, status: String, completedAt: Double? = nil,
-                usage: AnyView? = nil, active: Bool, executionRunning: Bool = false) {
+                usage: AnyView? = nil, active: Bool, executionRunning: Bool = false, executionTailIsWork: Bool = false) {
         self.id = id
         self.author = author
         self.rows = rows
@@ -153,6 +156,7 @@ public struct ThreadDetailTurn: View {
         self.usage = usage
         self.active = active
         self.executionRunning = executionRunning
+        self.executionTailIsWork = executionTailIsWork
     }
 
     private var filteredRows: [ThreadDetailRow] {
@@ -175,7 +179,7 @@ public struct ThreadDetailTurn: View {
         if let executionGroup {
             ThreadExecutionGroupContent(groupID: executionGroup, rows: filteredRows)
         } else {
-            let displayed = groupThreadExecutionRows(filteredRows, reasoningUsage: reasoningUsage, summaryOnly: agentDetail, running: agentDetail && active && executionRunning)
+            let displayed = groupThreadExecutionRows(filteredRows, reasoningUsage: reasoningUsage, summaryOnly: agentDetail, running: agentDetail && active && executionRunning && executionTailIsWork)
             // Harnesses identify the final reply, including its first text part.
             // Resolve only after the body loads; review/status rows can follow it.
             let result = completedAt != nil ? displayed.first(where: \.finalReply)?.id ?? displayed.last?.id : displayed.last?.id

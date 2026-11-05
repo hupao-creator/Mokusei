@@ -96,6 +96,10 @@ public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
         case .row(let row): return row
         case .execution(let id, let rows):
             let usage = index == lastExecution ? reasoningUsage : nil
+            // A later reply/diagnostic ends loading even while the execution runs.
+            // Use the unfiltered runs so omitting an empty summary cannot reactivate an older group.
+            let loading = running && index == lastExecution && index == runs.indices.last
+
             // Classify by native content, never by row position or zero tool counts.
             // Full readers keep their original rows, disclosures and detail leases.
             guard !summaryOnly || rows.contains(where: { $0.executionSummary?.hasContent != false }) ||
@@ -103,7 +107,7 @@ public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
             return ThreadDetailRow(
                 id: executionProcessID(id), kind: .work,
                 node: AnyView(ThreadExecutionProcess(groupID: id, rows: rows,
-                    reasoningUsage: usage, running: running && index == lastExecution)))
+                    reasoningUsage: usage, running: loading)))
         }
     }
 }
@@ -224,13 +228,17 @@ private struct ThreadExecutionLoadingSweep: View {
             GeometryReader { geometry in
                 // A fixed-width soft highlight keeps long summaries from becoming
                 // a whole-line pulse. The reset happens beyond both text edges.
-                let width: CGFloat = 48
+                let width: CGFloat = 64
                 let travel = geometry.size.width + width
                 let duration = max(0.8, Double(travel) / 180)
                 let phase = context.date.timeIntervalSince(startedAt)
                     .truncatingRemainder(dividingBy: duration + 0.25) / duration
-                LinearGradient(colors: [.clear, NativePalette.thread.ink.swiftUI.opacity(0.65), .clear],
-                               startPoint: .leading, endPoint: .trailing)
+                LinearGradient(stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: NativePalette.thread.inkStrong.swiftUI, location: 0.35),
+                    .init(color: NativePalette.thread.inkStrong.swiftUI, location: 0.65),
+                    .init(color: .clear, location: 1)
+                ], startPoint: .leading, endPoint: .trailing)
                     .frame(width: width)
                     .offset(x: -width + travel * min(phase, 1))
             }

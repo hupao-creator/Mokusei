@@ -25,7 +25,8 @@ struct CodexTurnRows: View {
             status: statusLabel, completedAt: turn.status == "completed" ? turn.finishedAt : nil,
             usage: AnyView(ThreadTokenUsage(input: turn.usage?["inputTokens"]?.numberValue,
                 output: turn.usage?["outputTokens"]?.numberValue, cached: turn.usage?["cachedInputTokens"]?.numberValue,
-                reasoning: turn.usage?["reasoningTokens"]?.numberValue)), active: active, executionRunning: turn.status == "running")
+                reasoning: turn.usage?["reasoningTokens"]?.numberValue)), active: active, executionRunning: turn.status == "running",
+            executionTailIsWork: turn.timeline.last.map { ["reasoning", "activity"].contains($0.kind) } ?? false)
             .nativeReadingExecutionReady(turn.executionId, settled: !["running", "waiting-input"].contains(turn.status))
             .onChange(of: turn.interactions) { _, interactions in
                 if let busyInteractionID, !interactions.contains(where: { $0.id == busyInteractionID && $0.status == "pending" && $0.blocksTurn }) {
