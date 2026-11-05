@@ -24,8 +24,10 @@ reverse even with only one target.
 
 ## Behavior and ownership
 
-- Capturing a Thread submission immediately admits orbit feedback around the
-  existing capsule; the pinned editor and captured draft retain their ownership.
+- Capturing a Thread submission immediately admits orbit feedback when input is
+  closed. Open input hides the orbit and any retiring dot ink; closing input
+  reveals applicable feedback without waiting for editor retirement. The pinned
+  editor and captured draft retain their ownership.
   The orbit skips the authored prelude, with static dots for Reduce Motion.
 - Pending feedback does not set execution activity, expose a speculative Stop,
   clear input or open a result. Failure and uncertain-receipt errors use the
@@ -66,3 +68,30 @@ rendered orbit timing, glass clipping and travel remain visually unverified.
 
 The parallel Report-close change on local main is integrated separately; this
 repair does not replace its retained split layout or sidecard fade policy.
+
+## Open-input follow-up (2026-11-05)
+
+The supplied `pasted-image.png` shows a running Agent Thread with its input
+expanded and three colored dots below it. Open input now hides running feedback
+at semantic admission and masks the decoration seat immediately, so a previous
+orbit's retirement cannot leak through during opening or a rapid reversal.
+The guard uses `inputOpen`, not `inputPresent`: closing a Thread editor restores
+applicable pending/running feedback without waiting for `inputLeaving` to end.
+Send, draft, receipt, positioning and focus ownership are unchanged.
+
+The repair was based on local main `c8e1c7f`. The `Mokusei` application-only build
+passed (69.59s), along with Swift parsing and diff checks. A disposable native
+window linked those exact production Scene/Dock/composer objects and used
+memory-only state. Manual UI inspection confirmed an expanded running Thread
+input without dots, and a closed running capsule with dots. The preview was
+closed afterward; no installed application or user profile was replaced.
+
+The temporary preview initially failed to compile because macOS exposes Reduce
+Motion as a read-only environment value. Removing that attempted preview-only
+override allowed it to build; no system accessibility preference was changed.
+Reduce Motion and rapid reversal were reviewed in code, not visually certified.
+An attempted simulated send did not proceed because the preview editor did not
+accept keyboard/paste input; the separate focus repair was left untouched.
+No claim is made for visual send timing, real Runtime admission, failure or
+uncertain-receipt recovery. No tests were added or run, and no replay, PR or CI
+was used. The existing receipt and draft implementation is unchanged.

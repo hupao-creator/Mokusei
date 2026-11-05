@@ -349,12 +349,13 @@ public struct NativeMokuDock: View {
         return reply
     }
     private var runningFeedback: Bool {
-        guard !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
+        guard !state.inputOpen, !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
               presentation?.workspace.runtimeAvailable ?? true else { return false }
         if threadID != nil, sidecardComposer == nil {
             // Submission is pending feedback only. It grants neither success,
             // Stop authority nor permission to consume the captured draft.
-            // The pinned Thread editor must not suppress its own busy signal.
+            // Closing input admits feedback immediately, even while the
+            // retiring editor remains mounted. Open input owns its own controls.
             return (submitting && draft.error == nil) || continuationPresenting || (!disabled && running && draft.error == nil)
         }
         return running && (mode == .running || incomingReasoning != nil)
@@ -978,6 +979,10 @@ public struct NativeMokuDock: View {
             NativeMokuCharacterSurface(controller: character, input: characterInput, seat: .decorations)
                 .frame(width: surface.width + decorationPadding * 2, height: rowHeight + decorationPadding * 2)
                 .offset(y: decorationPadding)
+                // The character retains its smooth retirement pose. Hide that
+                // ink immediately when input opens, including rapid reversals.
+                .opacity(state.inputOpen ? 0 : 1)
+                .animation(nil, value: state.inputOpen)
                 .allowsHitTesting(false)
         }
         .contentShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius)).onHover(perform: updateHover)

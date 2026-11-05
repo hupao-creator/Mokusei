@@ -692,8 +692,11 @@ shared by Report and Agent input; there is no force-resend button.
 See [Execution continuation](../../../../../design/report-execution-continuation.md)
 for native constraints and the current sprint validation scope.
 
-Direct Thread sends start the three-dot orbit as soon as the Dock captures the
-submission, including while the pinned editor is present. This feedback skips
+Direct Thread sends admit three-dot orbit feedback as soon as the Dock captures
+the submission. Open input hides the orbit, including retiring dot ink; closing
+input reveals applicable pending/running feedback without waiting for the
+retained editor to unmount. The pinned editor keeps its own Send/Stop controls.
+This feedback skips
 the running choreography's initial three-beat prelude; it does not grant Stop
 authority, consume a draft or navigate before a confirmed receipt. Failure or
 an unresolved receipt retires submission feedback and leaves the existing draft
@@ -712,10 +715,12 @@ Reduce Motion settle travel directly. This preserves the existing draft,
 receipt, input-readiness and late-callback fences. See the
 [recording diagnosis and Sprint limits](../../../../../design/direct-send-transition.md).
 
-Sprint verification for the current change is static review and the application
-product build only: no new tests, test runs, replays, manual interaction fixture,
-CI or publishing. Earlier investigation results below that document's current
-contract are historical evidence, not verification of this revision.
+The original direct-send repair used static review and the application product
+build only. Its open-input follow-up also manually inspected the built production
+Dock in an isolated native window: running feedback is absent with input open
+and present after closing it. No tests, replays, CI or publishing were performed.
+Real Runtime sends and receipt recovery were not exercised by that preview;
+see the linked investigation for the exact verification limits.
 
 Settings starts with a 900-point preferred height and grows to the active tab's
 natural document height (including header and form insets). The shared Dock shell
