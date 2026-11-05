@@ -69,8 +69,8 @@ private struct ReadingPanelCloseBody: View {
     var body: some View {
         configuration.label
             .foregroundStyle(hovering && enabled ? NativePalette.thread.ink.swiftUI : NativePalette.thread.muted.swiftUI)
-            .background(NativePalette.thread.ink.swiftUI.opacity(
-                enabled && configuration.isPressed ? 0.12 : enabled && hovering ? 0.08 : 0.04), in: Circle())
+            .glassEffect(.regular.tint(enabled && configuration.isPressed
+                ? NativePalette.thread.ink.swiftUI.opacity(0.12) : .clear).interactive(enabled), in: .circle)
             .overlay {
                 Circle().stroke(NativePalette.thread.muted.swiftUI.opacity(contrast == .increased ? 0.6 : 0), lineWidth: 1)
                     .allowsHitTesting(false)

@@ -47,8 +47,10 @@ rail, allowing 22pt viewport insets at both ends. Report uses 8pt insets on all
 sides and `overlaysContent: true` for an opaque canvas backing under Close.
 The Report host clips the viewport with a 14pt radius before applying its 8pt
 insets, matching the outer panel's 22pt radius. Spacing outside the circle
-is not a close target. The button follows reading-palette light/dark colors,
-hover/press, disabled and increased-contrast states, with a visible keyboard
+is not a close target. The button uses the same native interactive regular
+Liquid Glass as the Sidecard launchers, directly on the package's macOS 26 minimum;
+no older-system material fallback is needed. It retains reading-palette icon and
+pressed tint colors, disabled and increased-contrast states, with a visible keyboard
 focus ring and caller-owned localized help/accessibility labels. Close uses
 activation-only focus: pointer clicks do not acquire focus or flash the ring,
 while system Keyboard Navigation retains focus indication and Space/Return
