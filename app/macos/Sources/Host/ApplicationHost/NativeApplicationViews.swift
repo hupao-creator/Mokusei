@@ -23,9 +23,6 @@ public struct NativeApplicationDetailEnvironment {
 extension NativeApplicationHost {
     public func detail(thread: ApplicationThreadRef, readingTarget: HarnessReadingTarget? = nil,
                        environment: NativeApplicationDetailEnvironment) -> AnyView {
-        if thread.typeID == "git.worktree" {
-            return AnyView(NativeGitReadingPage(host: self, id: thread.threadID, environment: environment))
-        }
         return AnyView(NativeApplicationThreadDetail(host: self, thread: thread, readingTarget: readingTarget, environment: environment))
     }
     public func settingsSections(model: NativeSettingsModel) -> [NativeApplicationSettingsSection] {

@@ -58,80 +58,6 @@ struct NativeGitView: Hashable, Sendable {
     }
 }
 
-enum NativeGitDiffScope: String, CaseIterable, Hashable, Sendable { case unstaged, staged, untracked, conflicts }
-struct NativeGitChangedFile: Hashable, Sendable, Identifiable {
-    struct Identity: Hashable, Sendable { let path: JSONText; let scope: NativeGitDiffScope }
-    let json: JSONValue
-    let path: JSONText
-    let oldPath: JSONText?
-    let status: JSONText
-    let scope: NativeGitDiffScope
-    let submodule: Bool
-    var id: Identity { .init(path: path, scope: scope) }
-    init(_ json: JSONValue) throws {
-        let r = try GitRecord(json, "Git file", keys: ["path", "oldPath", "status", "scope", "submodule"])
-        path = try r.text("path"); oldPath = try r.nullableText("oldPath", maximum: Int.max)
-        status = try r.text("status"); scope = try r.enumeration("scope", NativeGitDiffScope.self)
-        submodule = try r.bool("submodule"); self.json = json
-    }
-}
-struct NativeGitFilesResult: Sendable {
-    let files: [NativeGitChangedFile]
-    let readAt: Double
-    init(_ json: JSONValue) throws {
-        let r = try GitRecord(json, "Git files result", keys: ["files", "readAt"])
-        files = try r.array("files").map(NativeGitChangedFile.init)
-        guard Set(files.map(\.id)).count == files.count else { throw PluginContractError("Duplicate Git file identities") }
-        readAt = try r.number("readAt")
-    }
-    var json: JSONValue { .object(["files": .array(files.map(\.json)), "readAt": .number(readAt)]) }
-}
-enum NativeGitDiffNotice: String, Sendable, CaseIterable { case binary, empty, tooLarge = "too-large", conflict, submodule }
-struct NativeGitDiffContent: Sendable {
-    let patch: JSONText
-    let notice: NativeGitDiffNotice?
-    init(_ json: JSONValue) throws {
-        let r = try GitRecord(json, "Git diff", keys: ["patch", "notice"])
-        patch = try r.text("patch"); notice = try r.nullableEnum("notice", NativeGitDiffNotice.self)
-    }
-    var json: JSONValue { .object(["patch": .string(patch), "notice": notice.map { .text($0.rawValue) } ?? .null]) }
-}
-struct NativeGitDiffSelection: Hashable, Sendable {
-    let activityID: JSONText
-    let path: JSONText
-    let scope: NativeGitDiffScope
-    var json: JSONValue { .object(["activityId": .string(activityID), "path": .string(path), "scope": .text(scope.rawValue)]) }
-    func validate() throws {
-        guard !activityID.codeUnits.isEmpty, activityID.codeUnits.count <= 256,
-              !path.codeUnits.isEmpty, path.codeUnits.count <= 32_768, !path.codeUnits.contains(0) else {
-            throw PluginContractError("Invalid Git diff selection")
-        }
-    }
-    init(activityID: JSONText, path: JSONText, scope: NativeGitDiffScope) { self.activityID = activityID; self.path = path; self.scope = scope }
-    init(_ json: JSONValue) throws {
-        let r = try GitRecord(json, "Git diff selection", keys: ["activityId", "path", "scope"])
-        activityID = try r.text("activityId", minimum: 1, maximum: 256)
-        path = try r.text("path", minimum: 1, maximum: 32_768)
-        scope = try r.enumeration("scope", NativeGitDiffScope.self); try validate()
-    }
-}
-
-@MainActor enum NativeGitContracts {
-    static var files: ApplicationOperation<JSONText, NativeGitFilesResult> {
-        .init(id: "git.files", ownerPluginID: "git", kind: .query,
-              input: .init(decode: { try GitRecord($0, "Git files request", keys: ["activityId"]).text("activityId", minimum: 1, maximum: 256) },
-                           encode: { id in
-                               guard !id.codeUnits.isEmpty, id.codeUnits.count <= 256 else { throw PluginContractError("Invalid Git activity identity") }
-                               return .object(["activityId": .string(id)])
-                           }), output: .init(decode: NativeGitFilesResult.init, encode: { $0.json }))
-    }
-    static var diff: ApplicationOperation<NativeGitDiffSelection, NativeGitDiffContent> {
-        .init(id: "git.diff", ownerPluginID: "git", kind: .query,
-              input: .init(decode: NativeGitDiffSelection.init, encode: { try $0.validate(); return $0.json }),
-              output: .init(decode: NativeGitDiffContent.init, encode: { $0.json }))
-    }
-}
-
 private struct GitRecord {
     let object: [JSONText: JSONValue]
     let path: String
@@ -206,7 +132,7 @@ struct NativeGitRepositoryPage: Sendable {
         } else { nextCursor = nil }
     }
 }
-extension NativeGitContracts {
+@MainActor enum NativeGitContracts {
     static var repositories: ApplicationOperation<JSONText?, NativeGitRepositoryPage> {
         .init(id: "git.list", ownerPluginID: "git", kind: .query,
               input: .init(decode: { json in json["cursor"]?.stringValue.map { JSONText($0) } },

@@ -273,8 +273,8 @@ and the resident Dock. Tag clearance remains fixed while the retained controls
 move upward. See the [two-stage reading choreography](../../../../../design/reading-entrance-choreography.md)
 for secondary Sidecard admission, cancellation and sprint verification limits.
 
-The presentation gate and prepared return apply to Agent, Report and Git panels.
-Report returns to its document card; Git uses the task card captured at activation.
+The presentation gate and prepared return apply to Agent and Report panels.
+Report returns to its document card.
 All sample their destination only after the refreshed canvas preparation completes.
 
 The outer reading stack pauses Overview projection when opening begins. Cards
@@ -315,9 +315,8 @@ changes when available. Direct/restored entries without an eligible card use a
 small centered expansion instead. Route identity, cancellation and reduced-motion
 settling remain owned by the shared reading stack.
 
-Reports expand from their own card. The optional Git activation callback also
-forwards the actual clicked Agent card, even when several tasks share a repository.
-The shell uses that identity to refresh the return frame after layout changes.
+Reports expand from their own card. The shell uses that identity to refresh
+the return frame after layout changes. Git summaries remain read-only card metadata.
 
 
 Agent card title/emoji leaves register weak native anchors with the workspace's

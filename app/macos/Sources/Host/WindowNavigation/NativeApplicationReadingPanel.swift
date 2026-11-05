@@ -22,7 +22,6 @@ struct NativeApplicationReadingPanel: ViewModifier {
         switch identifier {
         case "moku-reading-panel": "moku.history.panel"
         case "report-reading-panel": "report.reading.panel"
-        case "git-reading-panel": "git.reading.panel"
         default: "application.reading.panel"
         }
     }

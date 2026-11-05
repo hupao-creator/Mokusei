@@ -62,9 +62,9 @@ Only actual controls own pointer regions; dragging the window header does not
 pan Overview. Hover is reconciled with current availability and pointer geometry
 rather than a stale enter event.
 
-The [workspace shell](../Shell/NativeWorkspaceView.swift) presents ordinary threads, Moku history, Report HTML and Git reading routes. Their back actions close the owning route or nested history; a plugin does not replace the host's navigation state. Native document/HTML content keeps the shared navigation safe area and cannot cover the back target.
+The [workspace shell](../Shell/NativeWorkspaceView.swift) presents ordinary threads, Moku history and Report HTML reading routes. Their back actions close the owning route or nested history; a plugin does not replace the host's navigation state. Native document/HTML content keeps the shared navigation safe area and cannot cover the back target.
 
-Application and Git reading pages retain their back action across redraws.
+Application reading pages retain their back action across redraws.
 Publishing navigation into the shell must not create a new action on the next
 render and feed another publication. A changed route or language refreshes the
 action; unmounting clears it and a new mount owns a new identity.
@@ -100,7 +100,7 @@ outer panel/title handoff, only the active main document reveals; its last line
 and footer must complete before Moku input and Sidecard admission. Nested reading
 stacks retain the parent's entrance gate, and a moving empty/error history page
 also holds content readiness until its own travel finishes. Report admits its
-auxiliary card after primary travel and a committed folded layout; Git keeps primary-only admission. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
+auxiliary card after primary travel and a committed folded layout. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
@@ -141,7 +141,7 @@ handle; the surviving document remains loaded. Execution disclosure groups still
 share demand within their owning row, and retiring a surface releases all its
 remaining handles.
 
-Agent, Report, Git and Moku history reading use a panel-owned Close rather than a Back control beside the
+Agent, Report and Moku history reading use a panel-owned Close rather than a Back control beside the
 traffic lights. Agent history executions have no dedicated upper-left Back button,
 including when the shared history document has no navigation host. History retains
 TOC navigation, Escape and its close action with the existing route-visit fence.
@@ -150,11 +150,9 @@ Moku history retains the underlying route and owns a separate nested navigation
 scope; its current/archived session picker reserves space inside the panel for
 Close, and its transcript does not drive window navigation. Report panel HTML keeps its trusted
 DOM Escape/editing/dialog handling without installing the scroll-driven window
-navigation portal; scrolling never moves the traffic lights. Git reuses the
-conversation reader’s viewport-scoped native Escape cancellation, preserving
-menu, IME and sibling Moku input ownership. Opening either application from an
+navigation portal; scrolling never moves the traffic lights. Opening an application from an
 Agent still restores that Agent and its reading target on Close. Overview entry
-remembers the actual source card (the clicked Agent card for Git), and refreshes
+remembers the actual source card, and refreshes
 its return frame after resize. These routes share panel margins, source-frame
 animation, reduced-motion settling, rounded surfaces and the full-circle Close target.
 The shared Close sits at the panel's upper-left. Viewports normally reserve
@@ -169,7 +167,7 @@ owns its 32pt circular background and hit shape, so
 the entire visible circle responds rather than only the smaller icon area. Its outer
 14pt padding remains panel spacing and does not become a close target.
 
-Agent, Report, Git and Moku history panels also close on a completed click in the surrounding
+Agent, Report and Moku history panels also close on a completed click in the surrounding
 blank workspace margin. The shared reading stack owns a separate backdrop hit
 region, excluding the panel's complete rectangle (including internal whitespace,
 Sidecards and their divider). Front controls, including the Sidecard toolbar and
@@ -177,8 +175,8 @@ Moku, remain above it. The backdrop is inactive during reading motion or coverin
 Moku interactions, and native sheets/popovers keep their dismissing press.
 Outside dismissal uses the panel's existing Close route: an application opened
 from an Agent returns to that Agent rather than dropping its reading target.
-Escape in the current Agent document now has the same native fallback as history
-and Git; nested history and Sidecards retain their existing cancellation order.
+Escape in the current Agent document now has the same native fallback as history;
+nested history and Sidecards retain their existing cancellation order.
 Application panel chrome also accepts Escape while loaded WebKit content keeps
 its trusted DOM editor/dialog handling. Native editors, IME, menus, sheets,
 popovers and sibling Moku focus take precedence over reading cancellation.

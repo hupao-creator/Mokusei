@@ -146,7 +146,7 @@ Contents/Resources/build-provenance.json
 Contents/Resources/licenses/
 ```
 
-Mermaid fences display source code. The built-in [Git reader](../Sources/Host/Git/README.md) is part of the active native target.
+Mermaid fences display source code. The built-in [Git card extension](../Sources/Host/Git/README.md) is part of the active native target.
 There is no content-renderer subprocess. WKWebView remains available for browser
 and authored HTML document content.
 

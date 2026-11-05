@@ -581,29 +581,18 @@ struct NativeMokuLandingTests {
                 }
             }
         }
-        for type in ["report.document", "git.worktree"] {
+        for type in ["report.document"] {
             try await withFixture { fixture in
                 fixture.presentation.applicationHost.git.stop()
                 let report = fixture.report()
                 try await fixture.install([fixture.thread(status: .completed)], applications: [report])
-                if type == "git.worktree" {
-                    let repository = try NativeGitRepository(.object([
-                        "id": .text("git-fixture"), "available": .bool(true), "directories": .array([.text(fixture.directory.path)]),
-                        "snapshot": .object(["root": .text(fixture.directory.path), "branch": .text("main"), "head": .null,
-                            "upstream": .null, "ahead": .null, "behind": .null, "additions": .integer(2), "deletions": .integer(1),
-                            "lineStatsError": .null, "changed": .integer(1), "staged": .integer(0), "unstaged": .integer(1),
-                            "untracked": .integer(0), "conflicts": .integer(0)]),
-                        "sync": .object(["attemptedAt": .integer(1), "observedAt": .integer(1), "error": .null])]))
-                    fixture.presentation.applicationHost.git.install([repository])
-                    fixture.overview.refreshCardExtensions()
-                }
                 let directoryFilter = try #require(fixture.overview.filters.first(where: { $0.isDirectory }))
                 fixture.overview.selectTag(directoryFilter)
                 fixture.mount(fullWorkspace: true, width: 1100, height: 760)
                 let window = try #require(fixture.window), root = try #require(window.contentView)
-                let sourceID = type == "report.document" ? "report" : "child"
-                let ref = ApplicationThreadRef(threadID: type == "report.document" ? "report" : "git-fixture", typeID: JSONText(type))
-                let identifier = type == "report.document" ? "report-reading-panel-frame" : "git-reading-panel-frame"
+                let sourceID = "report"
+                let ref = ApplicationThreadRef(threadID: "report", typeID: JSONText(type))
+                let identifier = "report-reading-panel-frame"
                 try await SwiftUIReplay.wait {
                     fixture.presentation.canvas.allowsActivation(cardID: sourceID)
                         && fixture.presentation.canvas.displayedFrame(for: sourceID) != nil

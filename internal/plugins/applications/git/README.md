@@ -50,11 +50,9 @@ error retains the last successful status and marks it stale. Git results do not
 change thread order, tags, filter counts or archive state. Visibility changes use
 the same card composition and overview layout transitions as other extensions.
 
-Clicking the extension opens the existing native diff reader, with normal back
-navigation, staged/unstaged/untracked/conflict categories, file selection,
-repository switching among observed worktrees, refresh, selectable source,
-copying, line numbers and syntax annotation. Clean observations stay available
-while a reader is open. No historical patches are retained.
+The extension presents read-only status with no diff-panel action. The native
+host has no dedicated Git reading route. File and diff queries remain available
+on demand through the application domain; no historical patches are retained.
 
 The service uses internal application-domain collection/query infrastructure,
 without registering a Git thread type. Its built-in manifest is always enabled
@@ -68,6 +66,6 @@ concurrency limit of two. No fetch, index write, commit, checkout or reset featu
 is exposed. Paths are authorized against fresh NUL-framed status, use literal
 pathspecs, and disable external diff, text conversion and fsmonitor hooks.
 
-See the [native reader](../../../../app/macos/Sources/Host/Git/README.md).
+See the [native card extension](../../../../app/macos/Sources/Host/Git/README.md).
 
 Verification: `./scripts/go.sh run -race ./tools/verification/git` from the repository root. This exercises disposable repositories and the real process capability, application host and SQLite store.

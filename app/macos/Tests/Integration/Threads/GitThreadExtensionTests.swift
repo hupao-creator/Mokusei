@@ -269,23 +269,19 @@ struct GitThreadExtensionTests {
         if foreground && distinct && sized { print("GIT_TOKEN_FLIP_FRAMES_CONFIRMED") }
     }
     @Test(.requiresDisplay, arguments: ["known", "unknown", "too-large", "timeout", "unavailable", "inaccessible", "stale"], ["en-US", "zh-CN"])
-    func extensionButtonShowsStatisticsStateAndOpensWorktree(state: String, locale: String) async throws {
+    func extensionShowsStatisticsState(state: String, locale: String) async throws {
         let known = state == "known" || state == "stale"
         let git = status(changed: 3163, additions: known ? 0 : nil, deletions: known ? 0 : nil,
                          lineStatsError: HarnessGitReadError(rawValue: state), error: state == "stale" ? "timeout" : nil)
         let presentation = try composeThreadCard(.standard(extensions: []), git: git, layoutContext: .init(availableCols: 3))
-        var opened: [JSONText] = []
-        var openedAgent = false
         let app = NSApplication.shared
         app.setActivationPolicy(.regular); app.unhide(nil); app.activate(ignoringOtherApps: true)
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         let content = HarnessThreadCard(identity: .init(title: "Agent", excerpt: ""), presentation: presentation)
-            .environment(\.openGitWorktree, { opened.append($0) })
             .environment(\.locale, Locale(identifier: locale))
             .environment(\.colorScheme, .light)
             .background(NativePalette.overview.canvas.swiftUI)
-            .onTapGesture { openedAgent = true }
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 736, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .aqua)
@@ -311,16 +307,6 @@ struct GitThreadExtensionTests {
         let directory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MOKUSEI_GIT_ARTIFACTS"] ?? "/tmp/mokusei-git-visual")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try #require(image.representation(using: .png, properties: [:])).write(to: directory.appendingPathComponent("git-extension-\(state)-\(locale).png"))
-        let point = root.convert(NSPoint(x: 550, y: 90), to: nil)
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
-                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
-            window.sendEvent(event)
-        }
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(!openedAgent)
-        #expect(opened == ["worktree"])
     }
     private func accessibilityText(_ root: NSView) -> String {
         var result: [String] = [], seen = Set<ObjectIdentifier>()

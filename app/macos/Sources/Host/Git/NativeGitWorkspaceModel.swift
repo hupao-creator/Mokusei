@@ -14,7 +14,6 @@ final class NativeGitWorkspaceModel {
     @ObservationIgnored private var timer: Task<Void, Never>?
     @ObservationIgnored private var byDirectory: [JSONText: NativeGitRepository] = [:]
     init(host: NativeApplicationHost) { self.host = host }
-    func repository(_ id: JSONText) -> NativeGitRepository? { repositories.first { $0.id == id } }
     func status(thread: HarnessThread) -> HarnessGitStatus? {
         let cwd: JSONText
         if let worktree = thread.worktree, worktree != .null {
