@@ -654,10 +654,11 @@ struct NativeMokuLandingTests {
                 try await SwiftUIReplay.wait { readingPanel(in: root, identifier: identifier) == nil }
                 fixture.presentation.open(ref, sourceCardID: sourceID)
                 do {
+                    let closeLabels = type == "report.document" ? ["关闭报告", "Close report"] : ["关闭面板", "Close panel"]
                     try await SwiftUIReplay.wait {
                         let labels = SwiftUIReplay.text(in: root)
                         return fixture.presentation.mountedReadingThread == ref && !fixture.presentation.messageMotion.active
-                            && (labels.contains("关闭面板") || labels.contains("Close panel"))
+                            && closeLabels.contains(where: labels.contains)
                     }
                 } catch {
                     print("PANEL_REOPEN type=\(type) selected=\(String(describing: fixture.presentation.selected)) mounted=\(String(describing: fixture.presentation.mountedReadingThread)) content=\(fixture.workspace.hasInitialContent) scene=\(fixture.scene.overviewVisible)/\(fixture.scene.readingPanelVisible)/\(fixture.scene.mokuOpen)/\(fixture.scene.cameraActive)/\(fixture.scene.inputOpen) frame=\(String(describing: readingPanel(in: root, identifier: identifier)?.frame)) labels=\(SwiftUIReplay.text(in: root))")
@@ -669,13 +670,27 @@ struct NativeMokuLandingTests {
                     }
                     throw error
                 }
-                window.makeFirstResponder(root)
-                let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
-                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                    characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
-                // Native reading Escape is an application-level event monitor.
-                // Window.sendEvent would bypass the production owner entirely.
-                NSApp.sendEvent(escape)
+                @MainActor func sendEscape() throws {
+                    window.makeFirstResponder(root)
+                    let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+                        characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+                    // Window.sendEvent bypasses the production application-level owner.
+                    NSApp.sendEvent(escape)
+                }
+                if type == "report.document" {
+                    // Report now opens its related-execution card on entry. Its
+                    // first Escape folds that activity and retains the report.
+                    try await SwiftUIReplay.wait {
+                        SwiftUIReplay.text(in: root).contains { $0 == "已展开" || $0 == "Expanded" }
+                    }
+                    try sendEscape()
+                    try await SwiftUIReplay.wait {
+                        fixture.presentation.selected == ref && !fixture.presentation.messageMotion.active
+                            && !SwiftUIReplay.text(in: root).contains { $0 == "已展开" || $0 == "Expanded" }
+                    }
+                }
+                try sendEscape()
                 try await SwiftUIReplay.wait { fixture.presentation.selected == nil && !fixture.presentation.messageMotion.active }
             }
         }

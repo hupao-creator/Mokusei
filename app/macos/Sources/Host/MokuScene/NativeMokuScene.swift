@@ -47,7 +47,10 @@ public struct NativeMokuScene<Outside: View, Thread: View, Dock: View, Settings:
             if !state.dockCovered || state.settingsOpen {
                 Group {
                     if state.dockRouteVisible {
-                        dock.environment(\.nativeMokuSettingsContent, AnyView(settings)).transition(.opacity)
+                        NativeMokuHorizontalTravel {
+                            dock.environment(\.nativeMokuSettingsContent, AnyView(settings))
+                        }
+                        .transition(.opacity)
                     }
                 }
                 .allowsHitTesting(state.dockRouteVisible)

@@ -10,6 +10,7 @@ here = Path(__file__).resolve().parent
 repo = here.parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--skip-build", action="store_true")
+parser.add_argument("--horizontal-only", action="store_true")
 options = parser.parse_args()
 if not options.skip_build:
     subprocess.run(["xcrun", "swift", "build", "--package-path", str(repo / "app/macos")], check=True)
@@ -19,9 +20,9 @@ from native_replay import NativeReplay
 replay = NativeReplay(repo, "MokuTransitionReplay", "com.mokusei.moku-transition-replay")
 evidence = Path(os.environ.get("MOKU_TRANSITION_EVIDENCE", "/tmp/mokusei-moku-transition-evidence"))
 try:
-    replay.compile([here / "main.swift"])
+    replay.compile([here / "main.swift", here / "horizontal.swift"])
     replay.acquire()
-    status = replay.run([replay.workspace / "evidence"], timeout=120)
+    status = replay.run([replay.workspace / "evidence"] + (["--horizontal-only"] if options.horizontal_only else []), timeout=120)
     report = replay.root / "result.json"
     if not report.is_file():
         raise RuntimeError("Native transition replay exited without a result")

@@ -338,7 +338,10 @@ private struct Scene: View {
             let root = Bundle.main.bundleURL.deletingLastPathComponent()
             var result: [String: Any]
             do {
-                let evidence = try await replay(output: URL(fileURLWithPath: CommandLine.arguments[1]))
+                let output = URL(fileURLWithPath: CommandLine.arguments[1])
+                var evidence: [String: Any] = [:]
+                if !CommandLine.arguments.contains("--horizontal-only") { evidence = try await replay(output: output) }
+                evidence["horizontal"] = try await replayHorizontalTravel(output: output)
                 result = ["ok": true, "message": "continuous production Moku transitions", "evidence": evidence]
             } catch { result = ["ok": false, "message": String(describing: error)] }
             try! JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])

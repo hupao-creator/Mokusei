@@ -519,7 +519,10 @@ resident input is centered below that panel and fits its width with the ordinary
 Sidecard host publishes destination bounds through passive native layout markers;
 the bridge converts across the reading panel's separate `NSHostingView` into
 scene coordinates. Publications wait for layout and carry Thread identity, so a
-retiring reader cannot position another Thread's input. The same editor, draft,
+retiring reader cannot position another Thread's input. The native marker stays
+at the workspace origin and carries the target's local rectangle explicitly;
+equal-width column switches therefore do not depend on a native frame-change
+notification from a SwiftUI ancestor transform. The same editor, draft,
 selection and input actions remain mounted.
 Selecting Browser/Voice (or another non-owning activity) instead centers input
 below the main reading panel and fits that panel's width, including when the
@@ -534,8 +537,32 @@ Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
 travel, and Reduce Motion disables spatial animation. Stacked layouts share the
 panels' full column width and keep the same bottom reading baseline. Composer
 expansion retains its separate entrance timing.
-Sprint validation for this placement update is source/diff review and application
-product build only; no tests/replays or real-device input/animation acceptance.
+
+The Scene keeps the complete Dock in one persistent native hosting tree. Its
+native outer layer owns horizontal travel; the Dock lays out at the target
+column once, and a compositor translation carries its editor, controls and glass
+together. Main-thread work therefore does not stop an already admitted trip.
+Reversal starts at the current presentation position. Completion is fenced to
+the current native animation, placement revision and composer generation;
+resizing and Reduce Motion settle immediately. Keyboard focus survives travel,
+while coordinate-based pointer hits wait for arrival so they cannot activate a
+control at its invisible destination.
+
+Switching columns can also change input width. The editor adopts that width
+once, inside its own geometry group, while the shell retains its existing size
+and vertical animation. The complete Dock owns its state and geometry within
+one hosting tree, including Settings height preferences and input hit regions.
+The hosting root stays fixed while observable content carries outer updates;
+replacing the root can settle the shell before its face finishes moving.
+
+The [horizontal transition replay](../../../../../tools/verification/moku-transitions/README.md)
+uses WindowServer pixels to check continued travel during a controlled main-actor
+hold, and also checks reversal, arrival, editor width, draft retention and resize.
+This is a targeted regression check for the native travel boundary, not a claim
+about full-workspace FPS or GPU/energy use.
+
+The earlier placement update used source/diff review and an application product
+build, without tests/replays or real-device input/animation acceptance.
 The horizontal spring adjustment was reviewed against the reported recording
 (the movement starts around 3.7s), with Swift syntax and diff checks only. No new
 tests, existing regression runs, live animation acceptance or hosted CI were run

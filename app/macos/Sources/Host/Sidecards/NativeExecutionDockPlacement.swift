@@ -47,7 +47,7 @@ final class NativeExecutionDockPlacement {
             let next: CGRect?
             if let scene, let execution, execution.active, execution.window != nil,
                scene.window === execution.window {
-                next = scene.convert(execution.bounds, from: execution)
+                next = scene.convert(execution.destination ?? execution.bounds, from: execution)
             } else { next = nil }
             let nextDragging = execution?.dragging == true
             if dragging != nextDragging { dragging = nextDragging }
@@ -74,11 +74,22 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
     var dragging = false
     var threadID: JSONText?
     var onSettled: () -> Void = {}
+    var destination: CGRect?
+
+    func destinationFrame(_ frame: CGRect?) -> some View {
+        var region = self
+        // Keep the native marker at the workspace origin. A SwiftUI offset can
+        // move via an ancestor transform without a native frame notification;
+        // publishing the local destination explicitly also covers equal widths.
+        region.destination = frame
+        return region.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
     func makeNSView(context: Context) -> RegionView { RegionView(isScene: isScene) }
     func updateNSView(_ view: RegionView, context: Context) {
         if view.placement !== placement { view.placement?.detach(view) }
         view.placement = placement; view.active = active; view.dragging = dragging; view.threadID = threadID
+        view.destination = destination
         view.onSettled = onSettled
         placement?.attach(view)
     }
@@ -90,6 +101,7 @@ struct NativeExecutionDockRegion: NSViewRepresentable {
         var active = true
         var dragging = false
         var threadID: JSONText?
+        var destination: CGRect?
         var onSettled: () -> Void = {}
         init(isScene: Bool) { self.isScene = isScene; super.init(frame: .zero) }
         required init?(coder: NSCoder) { nil }

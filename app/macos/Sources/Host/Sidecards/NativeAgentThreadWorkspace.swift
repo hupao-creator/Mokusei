@@ -238,8 +238,7 @@ struct NativeSidecardWorkspaceLayout: View {
                     NativeExecutionDockRegion(placement: executionPlacement,
                         active: dockFrame != nil, dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
                         onSettled: onDockSettled)
-                        .frame(width: dockFrame?.width ?? 0, height: dockFrame?.height ?? 0)
-                        .offset(x: dockFrame?.minX ?? 0, y: dockFrame?.minY ?? 0)
+                        .destinationFrame(dockFrame)
                         .allowsHitTesting(false)
                 }
                 .onChange(of: geometry.size) { _, _ in

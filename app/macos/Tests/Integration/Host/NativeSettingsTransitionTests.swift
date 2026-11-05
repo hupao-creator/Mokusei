@@ -190,7 +190,9 @@ struct NativeSettingsTransitionTests {
             #expect(fixture.pageSize.height > 40, "Settings must retain a usable content viewport")
             if originalContrast > 0 {
                 #expect(try await contrast(pixels(window)) < originalContrast * 0.5, "The real Overview backdrop must be blurred")
-                #expect(abs(panel.width - 780) < 1 && abs(panel.height - 668) < 1)
+                // The 900pt preferred page is capped by the 780pt viewport's
+                // existing 24pt top and bottom margins.
+                #expect(abs(panel.width - 780) < 1 && abs(panel.height - 732) < 1)
                 #expect(try await panelLuminance(window, panel: panel) < 0.6,
                         "The dark Settings page and glass shell must not follow the light window")
             }

@@ -111,8 +111,6 @@ public struct NativeMokuDock: View {
     @State private var submissionDraft: NativeComposerDraft?
     @State private var focusReady = false
     @State private var focusRequest = 0
-    @State private var horizontalCenter: CGFloat?
-    @State private var horizontalTravelID = UUID()
     @State private var directoryMentions = NativeMokuDirectoryMentions()
     @State private var editorBottomInset: CGFloat = 29
     @State private var noteContentHeight: CGFloat = 0
@@ -416,11 +414,16 @@ public struct NativeMokuDock: View {
             let panel = NativeMokuCapsuleLayout.panel(in: viewport, above: placement.surface,
                                                      question: interactionIsQuestion)
             let noteButtonRect: CGRect? = nil
+            let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
+                frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
+                dragging: executionPlacement?.dragging == true, reduced: reduceMotion,
+                composer: state.composerGeneration, reading: state.readingPanelVisible)
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
                         surface: surface, messageWidth: messageWidth, rowHeight: rowHeight, noteHeight: noteHeight,
                         noteAvailableHeight: noteAvailableHeight, decorationPadding: placement.decorationPadding, settingsSize: settingsSize)
                     .nativeCanvasNavigationRegion()
+                    .geometryGroup()
                     // Seat the native editor on the bottom edge. Animating a
                     // centre position as well as the shell height applies the
                     // destination row layout before its translation has moved,
@@ -431,18 +434,12 @@ public struct NativeMokuDock: View {
                     .animation(reduceMotion || executionPlacement?.dragging == true ? nil
                         : NativeSidecardTiming.foldAnimation, value: executionFrame)
                     .animation(surfaceAnimation, value: placement)
-                    // Keep horizontal inertia outside shell sizing: the editor
-                    // opens only after this trip, without bouncing its height.
-                    .offset(x: (horizontalCenter ?? placement.surface.midX) - geometry.size.width / 2)
-                    .onChange(of: HorizontalDestination(center: placement.surface.midX, frame: executionFrame,
-                        revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
-                        dragging: executionPlacement?.dragging == true, reduced: reduceMotion,
-                        composer: state.composerGeneration), initial: true) { previous, next in
-                        moveHorizontal(from: previous, to: next)
-                    }
-                    .onDisappear { horizontalTravelID = UUID(); horizontalCenter = nil }
-                    // Direct resizing tracks the pointer/window instead of
-                    // repeatedly chasing a new animated destination.
+                    // Inner shell animations must not inherit the discrete
+                    // horizontal offset owned by the native compositor.
+                    .geometryGroup()
+                    .offset(x: destination.offset)
+                    .animation(nil, value: destination.offset)
+                    // Direct resize settles the native trip and shell together.
                     .transaction(value: geometry.size) {
                         $0.animation = nil; $0.disablesAnimations = true
                     }
@@ -457,10 +454,18 @@ public struct NativeMokuDock: View {
                 }
             }
             .coordinateSpace(name: "native-moku-dock")
+            .background {
+                NativeMokuHorizontalTravelCommand(destination: destination,
+                    hitRects: [placement.surface.insetBy(dx: -5, dy: -5)]
+                        + (interaction != nil && !state.settingsOpen ? [panel] : []),
+                    onSettled: { arrived in
+                        guard state.composerGeneration == arrived.composer else { return }
+                        executionPlacement?.completeTravel(revision: arrived.revision)
+                    })
+                    .allowsHitTesting(false)
+            }
             .nativeLayoutLog("moku.dock.viewport")
             .onPreferenceChange(NativeSettingsPreferredHeightKey.self) { height in
-                // Keep a generous default and grow for longer Harness forms.
-                // The viewport cap leaves scrolling available on small/zoomed windows.
                 settingsPreferredHeight = max(900, ceil(height))
             }
             .onChange(of: HitLayout(surface: placement.surface, panel: panel, interaction: interaction != nil && !state.settingsOpen, noteButton: noteButtonRect), initial: true) { _, layout in
@@ -687,35 +692,6 @@ public struct NativeMokuDock: View {
         .environment(\.colorScheme, .dark)
     }
 
-    private struct HorizontalDestination: Equatable {
-        let center: CGFloat
-        let frame: CGRect?
-        let revision: Int
-        let viewport: CGSize
-        let dragging: Bool
-        let reduced: Bool
-        let composer: UUID
-    }
-
-    private func moveHorizontal(from previous: HorizontalDestination, to next: HorizontalDestination) {
-        let id = UUID()
-        horizontalTravelID = id
-        let animation: Animation?
-        if horizontalCenter == nil || next.reduced || next.dragging || previous.viewport != next.viewport {
-            animation = nil
-        } else if previous.frame != next.frame {
-            animation = next.frame != nil
-                ? .spring(response: 0.62, dampingFraction: 0.78) : NativeSidecardTiming.foldAnimation
-        } else { animation = surfaceAnimation }
-        withAnimation(animation, completionCriteria: .removed) {
-            horizontalCenter = next.center
-        } completion: {
-            // An interrupted trip cannot admit a replacement route's editor
-            // or finish newer column geometry.
-            guard horizontalTravelID == id, state.composerGeneration == next.composer else { return }
-            executionPlacement?.completeTravel(revision: next.revision)
-        }
-    }
     private struct HitLayout: Equatable {
         var surface, panel: CGRect
         var interaction: Bool
@@ -813,11 +789,12 @@ public struct NativeMokuDock: View {
             if composerMounted {
                 composer(room: room, compact: width < 260)
                 .nativeLayoutLog("moku.composer")
-                    // Native text and controls lay out at their destination width.
-                    // Only the enclosing shell reveals them. Keep the enclosing
-                    // placement animated: clearing this entire transaction makes
-                    // AppKit adopt its target vertical seat on the first frame.
+                    // Reflow native text once at the destination width. Resolve
+                    // the shell's movement outside that discrete layout so its
+                    // editor cannot jump to the final scene-space position.
                     .frame(width: width).fixedSize(horizontal: false, vertical: true)
+                    .transaction(value: width) { $0.animation = nil }
+                    .geometryGroup()
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { capsuleHeight = max(58, $0) }
                     // Let the eyes clear the text seat on expansion; fade prose
                     // quickly before they cross it again during collapse. Scope
