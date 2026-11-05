@@ -120,7 +120,8 @@ struct OverviewCardFrame<Content: View>: View {
 
 extension NativeOverviewPlacement {
     var cardFrame: CGRect {
-        CGRect(x: Double(column) * 376, y: Double(row) * 216,
-               width: Double(columns) * 376 - 16, height: Double(rows) * 216 - 16)
+        CGRect(x: Double(column) * NativeOverviewLayout.columnPitch, y: Double(row) * NativeOverviewLayout.rowPitch,
+               width: Double(columns) * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap,
+               height: Double(rows) * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap)
     }
 }

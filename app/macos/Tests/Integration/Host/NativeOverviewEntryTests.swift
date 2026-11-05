@@ -80,7 +80,7 @@ struct NativeOverviewEntryTests {
 
     private func verifyEntry(_ fixture: EntryFixture, in window: NSWindow) async throws {
         let content = try #require(window.contentView)
-        let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 200),
+        let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
             viewport: .init(width: content.bounds.width, height: content.bounds.height, toolbarBottom: 58))
         fixture.items = [.init(id: "first")]
         var samples = 0
@@ -183,6 +183,6 @@ struct NativeOverviewEntryTests {
         let frame = try #require(fixture.frames["thread"])
         let scale = fixture.state.camera.liveTransform.scale
         #expect(abs(frame.width - 360 * scale) < 1)
-        #expect(abs(frame.height - 200 * scale) < 1)
+        #expect(abs(frame.height - 220 * scale) < 1)
     }
 }

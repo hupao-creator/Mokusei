@@ -173,6 +173,7 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
+            let dockFrame = dockFrame(in: layout)
             let mainSize = CGSize(
                 width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
                 height: layout.mainHeight + (panelSize.height - layout.mainHeight) * handoffProgress)
@@ -235,10 +236,10 @@ struct NativeSidecardWorkspaceLayout: View {
                 .background(alignment: .topLeading) {
                     // Measure the destination, never the animated aperture.
                     NativeExecutionDockRegion(placement: executionPlacement,
-                        active: executionOwnsDock, dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
+                        active: dockFrame != nil, dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
                         onSettled: onDockSettled)
-                        .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
-                        .offset(x: layout.surfaceX, y: layout.surfaceY)
+                        .frame(width: dockFrame?.width ?? 0, height: dockFrame?.height ?? 0)
+                        .offset(x: dockFrame?.minX ?? 0, y: dockFrame?.minY ?? 0)
                         .allowsHitTesting(false)
                 }
                 .onChange(of: geometry.size) { _, _ in
@@ -284,13 +285,17 @@ struct NativeSidecardWorkspaceLayout: View {
         } completion: { model.completeHandoffTravel(id) }
     }
 
-    private var executionOwnsDock: Bool {
+    private func dockFrame(in layout: NativeSidecardWorkspaceGeometry) -> CGRect? {
         guard !preparing, !snapshot.suppressed, snapshot.handoff == nil,
-              snapshot.input.thread.observation.isExecutionActive,
-              let executionID = snapshot.input.thread.observation.latestExecution?.executionID else { return false }
-        return snapshot.cards.contains {
-            $0.id == snapshot.selected && $0.view.available && $0.view.excludeExecutionID == executionID
+              let card = snapshot.cards.first(where: { $0.id == snapshot.selected && $0.view.available }) else { return nil }
+        // Position expresses the Thread input's execution scope. Other activities
+        // leave that scope in main, even when its execution has already finished.
+        if snapshot.input.thread.observation.isExecutionActive,
+           let executionID = snapshot.input.thread.observation.latestExecution?.executionID,
+           card.view.excludeExecutionID == executionID {
+            return CGRect(x: layout.surfaceX, y: layout.surfaceY, width: layout.surfaceWidth, height: layout.surfaceHeight)
         }
+        return CGRect(x: 0, y: 0, width: layout.mainWidth, height: layout.mainHeight)
     }
 
     private var contentHandoff: NativeReadingContentHandoff? {

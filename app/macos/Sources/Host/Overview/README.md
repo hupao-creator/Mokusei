@@ -117,6 +117,11 @@ for samples, paired observations and validation limits.
 
 ## Layout, motion and input
 
+The 1x grid cell is 360pt wide and 220pt high (10% taller than the former
+200pt baseline), with a 16pt gap. Two-row cards are therefore 456pt high.
+Packing, rendered card bounds, transitions, attention visibility and camera
+readability all use the shared grid pitch; width and gap stay unchanged.
+
 [NativeOverviewLayout](NativeOverviewLayout.swift) packs cards without overlap. In the production viewport path it first preserves surviving top-left positions, accepts nonconflicting footprint changes and fills vacancies before extending the envelope for entrants. Preserved geometry must fit at the readable floor, occupy at least 75% of its bounding grid, form one edge-connected component and contain no enclosed grid vacancies. Corner contact does not connect cards; decorative pixel gutters do not count as holes. Isolated cards and deleted center cells now enter compact planning even when no whole row or column can be removed. Healthy history still uses the existing area lower bound and bounded packing proof to detect avoidable rows/columns. Calls without a fitting region retain compact planning.
 
 Topology checks, geometry optimization, move certification and optional batching share the existing search-step budget and cancellation polling. `topologyValidated` records a passed connectivity/hole check. A quality-certified witness is retained before motion certification; if motion cannot be proven, it uses transparent repack. If quality repair itself exhausts the budget, legal readable geometry can still return with `searchComplete = false` and `topologyValidated = false`; this is an explicitly incomplete quality outcome, not a promise that all cavities are repaired. No unbounded retry or extra repair loop runs.

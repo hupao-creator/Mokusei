@@ -85,8 +85,10 @@ public enum NativeOverviewLayoutError: LocalizedError, Equatable {
 /// geometric fallback from a certified collision-free straight move order.
 public enum NativeOverviewLayout {
     public static let columnWidth: Double = 360
-    public static let rowHeight: Double = 200
+    public static let rowHeight: Double = 220
     public static let gap: Double = 16
+    public static let columnPitch = columnWidth + gap
+    public static let rowPitch = rowHeight + gap
 
     public static func plan(
         previous: [NativeOverviewPlacement], next: [NativeOverviewMember],
@@ -105,8 +107,8 @@ private typealias Placement = NativeOverviewPlacement
 private typealias Result = NativeOverviewLayoutResult
 private typealias Tick = () throws -> Void
 private let maximumSafeInteger = 9_007_199_254_740_991
-private let pitchX = NativeOverviewLayout.columnWidth + NativeOverviewLayout.gap
-private let pitchY = NativeOverviewLayout.rowHeight + NativeOverviewLayout.gap
+private let pitchX = NativeOverviewLayout.columnPitch
+private let pitchY = NativeOverviewLayout.rowPitch
 
 private struct Cell: Hashable {
     let column: Int

@@ -507,15 +507,20 @@ the bridge converts across the reading panel's separate `NSHostingView` into
 scene coordinates. Publications wait for layout and carry Thread identity, so a
 retiring reader cannot position another Thread's input. The same editor, draft,
 selection and input actions remain mounted.
-Folding the execution card, selecting Browser/Voice, losing execution eligibility
-or starting completion promotion restores the workspace-centered input. A first
-execution in main does not move it. Horizontal travel into the execution column
+Selecting Browser/Voice (or another non-owning activity) instead centers input
+below the main reading panel and fits that panel's width, including when the
+Thread's latest execution has finished. Input still sends to the same Thread;
+opening an activity does not make that activity its target. Folding the selected
+card, suppression, losing the selected card's eligibility or starting completion
+promotion restores the workspace-centered input. A first execution in main with
+no expanded activity does not move it. Horizontal travel into a target column
 uses a spring (620ms response, 0.78 damping fraction) for a gentler acceleration,
 braking and a small settling rebound. Shell sizing and return retain the
 Sidecard's 380ms curve; divider dragging and window/zoom resizing settle without
-travel, and Reduce Motion disables spatial animation. Stacked layouts use the lower execution
-panel's full column width. Composer expansion retains its separate entrance timing.
-Sprint validation for this placement change is source review, lint and application
+travel, and Reduce Motion disables spatial animation. Stacked layouts share the
+panels' full column width and keep the same bottom reading baseline. Composer
+expansion retains its separate entrance timing.
+Sprint validation for this placement update is source/diff review and application
 product build only; no tests/replays or real-device input/animation acceptance.
 The horizontal spring adjustment was reviewed against the reported recording
 (the movement starts around 3.7s), with Swift syntax and diff checks only. No new

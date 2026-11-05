@@ -132,7 +132,7 @@ struct ThreadCardInitialResponseTests {
                 let expected = try identity(input).0
                 let snapshot = try module.projectOverview(input: input, availableColumns: 3)
                 let cardWidth = 360 * CGFloat(snapshot.envelope.footprint.columns) + 16 * CGFloat(snapshot.envelope.footprint.columns - 1)
-                let cardHeight = 200 * CGFloat(snapshot.envelope.footprint.rows) + 16 * CGFloat(snapshot.envelope.footprint.rows - 1)
+                let cardHeight = 220 * CGFloat(snapshot.envelope.footprint.rows) + 16 * CGFloat(snapshot.envelope.footprint.rows - 1)
                 for dark in [false, true] {
                     let window = FirstResponseNative.window(snapshot.card(respond: { _ in }, openThread: {})
                         .frame(width: cardWidth, height: cardHeight)

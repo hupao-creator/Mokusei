@@ -96,7 +96,7 @@ public enum NativeOverviewCameraGeometry {
     public static let scaleFloor = 0.85
     public static let scaleMaximum = 1.7
     public static let readableCellBudget = 16.0
-    private static let standardCellArea = 376.0 * 216.0
+    private static let standardCellArea = NativeOverviewLayout.columnPitch * NativeOverviewLayout.rowPitch
     public static let wheelZoomIntensity = 0.0015
 
     public static func contentRegion(_ viewport: NativeOverviewViewport) -> NativeOverviewContentRect {

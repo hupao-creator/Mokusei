@@ -96,7 +96,7 @@ for name in ['second-screenshot-history', 'second-screenshot-deletion', 'second-
     # stationary F, so moving only the bottom reports is not a certified repair.
     assert result['shiftedIDs'] == ['F', 'G', 'H'], name
     assert result['moveOrder'] == ['F', 'G', 'H'], name
-    assert result['totalShiftDistance'] == 808, name
+    assert result['totalShiftDistance'] == 848, name
     assert result['searchComplete'] and not result['requiresRepack'], name
 second_fresh = regressions['second-screenshot-fresh']
 assert (second_fresh['bounds']['columns'], second_fresh['bounds']['rows']) == (3, 3)

@@ -172,7 +172,7 @@ import MokuseiPluginUI
             try await wait("initial card and viewport") {
                 guard appearances["first"] == 1, let frame = frames["first"], state.camera.isInitialized,
                       !state.isLayingOut, viewport.width > 0 else { return false }
-                let fit = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 200),
+                let fit = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
                     viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: 58))
                 return abs(frame.minX - fit.x) < 1
             }
@@ -186,7 +186,7 @@ import MokuseiPluginUI
                 do { try verifyWindowChrome(); return true } catch { return false }
             }
             try verifyWindowChrome()
-            let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 200),
+            let expected = NativeOverviewCameraGeometry.fit(.init(left: 0, top: 0, width: 360, height: 220),
                 viewport: .init(width: viewport.width, height: viewport.height, toolbarBottom: 58))
             try check(abs(frames["first"]!.minX - expected.x) < 1, "First card not centered: frame=\(frames["first"]!), expected=\(expected), viewport=\(viewport), camera=\(state.camera.liveTransform)")
             guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "replay" }) else {

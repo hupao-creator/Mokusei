@@ -450,8 +450,10 @@ public struct NativeOverviewCanvas<Content: View>: View {
             }
             state.overflowAttentionCount = state.presentedPlacements.filter { placement in
                 attention.contains(placement.id) && !NativeOverviewCameraGeometry.isVisible(
-                    .init(left: Double(placement.column) * 376, top: Double(placement.row) * 216,
-                          width: Double(placement.columns) * 376 - 16, height: Double(placement.rows) * 216 - 16),
+                    .init(left: Double(placement.column) * NativeOverviewLayout.columnPitch,
+                          top: Double(placement.row) * NativeOverviewLayout.rowPitch,
+                          width: Double(placement.columns) * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap,
+                          height: Double(placement.rows) * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap),
                     transform: state.camera.liveTransform, viewport: viewport)
             }.count
         }
@@ -641,7 +643,8 @@ public struct NativeOverviewCanvas<Content: View>: View {
             : (plan.requiresRepack || presentationRecovery) ? .repack : .ordered
         record(.planned, placements: plan.placements, plan: plan)
         let box = plan.bounds
-        contentRect = .init(left: Double(box.column) * 376, top: Double(box.row) * 216, width: box.width, height: box.height)
+        contentRect = .init(left: Double(box.column) * NativeOverviewLayout.columnPitch,
+                            top: Double(box.row) * NativeOverviewLayout.rowPitch, width: box.width, height: box.height)
         mountedScene = sceneKey; mountedSelection = selectionID
         state.layoutError = nil
         retiringPresentationIDs.formUnion(oldRecords.map(\.presentationID))

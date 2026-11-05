@@ -31,7 +31,7 @@ struct NativeOverviewGestureTests {
 
     @Test func invalidPanDoesNotTakeOverAndOverflowDoesNotCorruptCamera() {
         let camera = NativeOverviewCamera()
-        camera.cutTo(content: .init(left: 0, top: 0, width: 360, height: 200),
+        camera.cutTo(content: .init(left: 0, top: 0, width: 360, height: 220),
                      viewport: .init(width: 1180, height: 780, toolbarBottom: 58))
         defer { camera.dispose() }
         let automatic = camera.liveTransform

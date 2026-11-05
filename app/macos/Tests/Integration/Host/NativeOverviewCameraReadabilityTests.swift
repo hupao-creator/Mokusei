@@ -8,14 +8,14 @@ import MokuseiTestSupport
 @MainActor @Suite(.serializedNative, .serialized)
 struct NativeOverviewCameraReadabilityTests {
     private let viewport = NativeOverviewViewport(width: 1180, height: 780, toolbarBottom: 58)
-    private let largeContent = NativeOverviewContentRect(left: -376, top: -216, width: 376 * 6 - 16, height: 216 * 6 - 16)
+    private let largeContent = NativeOverviewContentRect(left: -376, top: -236, width: 376 * 6 - 16, height: 236 * 6 - 16)
 
     @Test func minimumKeepsAboutSixteenReadableStandardCellsAcrossWindowSizes() {
         for size in [CGSize(width: 500, height: 600), CGSize(width: 1180, height: 780), CGSize(width: 2560, height: 1440)] {
             let view = NativeOverviewViewport(width: size.width, height: size.height, toolbarBottom: 58)
             let region = NativeOverviewCameraGeometry.framingRegion(view)
             let minimum = NativeOverviewCameraGeometry.minimumScale(in: view)
-            let visibleCells = region.width * region.height / (376 * 216 * minimum * minimum)
+            let visibleCells = region.width * region.height / (376 * 236 * minimum * minimum)
             #expect(minimum >= 0.85)
             #expect(visibleCells <= 16 + 1e-6)
             #expect(NativeOverviewCameraGeometry.maximumScale(minimumScale: minimum) >= minimum * 2)
@@ -48,8 +48,8 @@ struct NativeOverviewCameraReadabilityTests {
         let region = NativeOverviewCameraGeometry.framingRegion(viewport)
         // A single card and a compact three-card collection both retain their
         // surrounding space instead of being forced against the browsing edge.
-        for content in [NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 200),
-                        NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)] {
+        for content in [NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220),
+                        NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)] {
             let fitted = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
             #expect(fitted.scale == max(1, NativeOverviewCameraGeometry.minimumScale(in: viewport)))
             #expect(abs(fitted.x - (region.left + (region.width - content.width * fitted.scale) / 2)) < 1e-6)
@@ -107,9 +107,9 @@ struct NativeOverviewCameraReadabilityTests {
     @Test func retainedFilterFramingRecentersChangedContentAtTheReadingScale() {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
-        let original = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
-        let taller = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 632)
-        let smaller = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 200)
+        let original = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let taller = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 692)
+        let smaller = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
         camera.cutTo(content: original, viewport: viewport)
         let scale = camera.liveTransform.scale
         for content in [taller, smaller, original] {
@@ -142,7 +142,7 @@ struct NativeOverviewCameraReadabilityTests {
         #expect(retainedScale == NativeOverviewCameraGeometry.minimumScale(in: viewport))
         #expect(retainedScale < 1)
         for origin in [CGPoint.zero, CGPoint(x: 3760, y: 648)] {
-            let oneCard = NativeOverviewContentRect(left: origin.x, top: origin.y, width: 360, height: 200)
+            let oneCard = NativeOverviewContentRect(left: origin.x, top: origin.y, width: 360, height: 220)
             // A fresh fit would pick scale 1, so this asserts retention rather
             // than a coincidental refit.
             #expect(NativeOverviewCameraGeometry.fit(oneCard, viewport: viewport).scale == 1)
@@ -165,14 +165,14 @@ struct NativeOverviewCameraReadabilityTests {
         // otherwise correct it.
         let expanded = NativeOverviewViewport(width: 3840, height: 2160, toolbarBottom: 58)
         let floor = NativeOverviewCameraGeometry.minimumScale(in: expanded)
-        #expect(abs(floor - 2.375) < 0.001)
-        let card = NativeOverviewContentRect(left: 752, top: 432, width: 360, height: 200)
+        #expect(abs(floor - 2.272) < 0.001)
+        let card = NativeOverviewContentRect(left: 752, top: 472, width: 360, height: 220)
         camera.retainFraming(content: card, viewport: expanded)
         #expect(camera.liveTransform.scale == floor)
         #expect(camera.liveTransform.scale >= camera.minimumScale)
         expectCameraAnchored(card, in: camera.liveTransform, viewport: expanded)
         // Later tag switches keep the corrected floor rather than a stale scale.
-        let next = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
+        let next = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
         camera.retainFraming(content: next, viewport: expanded)
         #expect(camera.liveTransform.scale == floor)
         expectCameraAnchored(next, in: camera.liveTransform, viewport: expanded)
@@ -181,8 +181,8 @@ struct NativeOverviewCameraReadabilityTests {
     @Test func retainedFilterFramingKeepsSameFootprintAndManualViewsUntouched() {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
-        let content = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
-        let changed = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 632)
+        let content = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let changed = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 692)
         camera.cutTo(content: content, viewport: viewport)
         let fitted = camera.liveTransform
         // An unchanged footprint is already framed; recentering must not add a
@@ -200,8 +200,8 @@ struct NativeOverviewCameraReadabilityTests {
     func retainedFilterFramingResumesOrdinaryCameraPolicy(trigger: String) async throws {
         let camera = NativeOverviewCamera()
         defer { camera.dispose() }
-        let original = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
-        let subset = NativeOverviewContentRect(left: 376, top: 216, width: 360, height: 200)
+        let original = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
+        let subset = NativeOverviewContentRect(left: 376, top: 236, width: 360, height: 220)
         camera.cutTo(content: original, viewport: viewport)
         camera.retainFraming(content: subset, viewport: viewport)
         let retained = camera.liveTransform

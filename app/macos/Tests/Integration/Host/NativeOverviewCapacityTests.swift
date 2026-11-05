@@ -498,7 +498,7 @@ struct NativeOverviewCapacityTests {
             let frame = try #require(fixture.frames[item.id])
             #expect(allowed.contains(frame), "\(item.id): \(frame) outside \(allowed)")
             #expect(frame.width + 1 / window.backingScaleFactor >= Double(item.columns * 376 - 16) * camera.minimumScale)
-            #expect(frame.height + 1 / window.backingScaleFactor >= Double(item.rows * 216 - 16) * camera.minimumScale)
+            #expect(frame.height + 1 / window.backingScaleFactor >= Double(item.rows * 236 - 16) * camera.minimumScale)
         }
     }
 }

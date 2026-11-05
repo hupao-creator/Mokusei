@@ -168,7 +168,7 @@ private struct TagGlassReplay: View {
         ZStack(alignment: .top) {
             if includeCanvas {
                 NativeOverviewCanvas(items: [.init(id: "card")], sceneKey: "tag-menu", state: fixture.canvas,
-                    toolbarBottom: toolbarBottom, inputRegions: fixture.regions) { _ in Color.blue.frame(width: 360, height: 200) }
+                    toolbarBottom: toolbarBottom, inputRegions: fixture.regions) { _ in Color.blue.frame(width: 360, height: 220) }
             }
             VStack {
                 NativeOverviewChrome(filters: fixture.filters, selectedTag: fixture.selected?.tag ?? "",

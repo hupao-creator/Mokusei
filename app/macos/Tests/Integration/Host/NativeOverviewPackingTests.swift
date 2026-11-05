@@ -65,8 +65,8 @@ struct NativeOverviewPackingTests {
     private func expectClearMoves(_ result: NativeOverviewLayoutResult,
                                   previous: [NativeOverviewPlacement]) throws {
         func rect(_ p: NativeOverviewPlacement) -> CGRect {
-            CGRect(x: Double(p.column) * 376, y: Double(p.row) * 216,
-                   width: Double(p.columns) * 376 - 16, height: Double(p.rows) * 216 - 16)
+            CGRect(x: Double(p.column) * 376, y: Double(p.row) * 236,
+                   width: Double(p.columns) * 376 - 16, height: Double(p.rows) * 236 - 16)
         }
         var frames = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, rect($0)) })
         #expect(Set(result.moveOrder) == Set(result.shiftedIDs))

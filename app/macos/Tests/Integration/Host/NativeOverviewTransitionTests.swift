@@ -116,9 +116,9 @@ struct NativeOverviewTransitionTests {
         let row = try #require(placements.map(\.row).min())
         let columns = (placements.map { $0.column + $0.columns }.max() ?? 0) - column
         let rows = (placements.map { $0.row + $0.rows }.max() ?? 0) - row
-        return .init(left: Double(column) * 376, top: Double(row) * 216,
+        return .init(left: Double(column) * 376, top: Double(row) * 236,
                      width: Double(columns) * 360 + Double(columns - 1) * 16,
-                     height: Double(rows) * 200 + Double(rows - 1) * 16)
+                     height: Double(rows) * 220 + Double(rows - 1) * 16)
     }
 
     private func expectAnchored(_ fixture: TransitionFixture) throws {
@@ -574,7 +574,7 @@ struct NativeOverviewTransitionTests {
         }
         let shrinking = try #require(sample)
         #expect(shrinking.width > 360 * scale && shrinking.width < 736 * scale)
-        #expect(abs(shrinking.height - 200 * scale) < 0.5)
+        #expect(abs(shrinking.height - 220 * scale) < 0.5)
         fixture.items[0].presentationID = "content-during-resize"
         fixture.locale = Locale(identifier: "ja")
         try await SwiftUIReplay.wait {
@@ -586,7 +586,7 @@ struct NativeOverviewTransitionTests {
         #expect(fixture.appearances["a"] == 1)
         #expect(fixture.semanticIdentities["a"] == identity)
         #expect(fixture.presentations["a"] == "content-during-resize")
-        #expect(abs(try frame("a", fixture).height - 416 * scale) < 0.5)
+        #expect(abs(try frame("a", fixture).height - 456 * scale) < 0.5)
     }
 
     @Test func queuedLayoutDoesNotRestoreStaleCardContent() async throws {

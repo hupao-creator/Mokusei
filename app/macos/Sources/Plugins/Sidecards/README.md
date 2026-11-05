@@ -21,8 +21,11 @@ centers below that column and narrows to fit it. Its horizontal entrance uses a
 sizing and return keep the 380ms fold curve. On initial entry the compact Dock
 finishes that travel before input expansion is admitted. Later card choices keep
 the editor mounted and open. Dragging/resizing settles directly; stacked layout
-uses the lower panel's column. Folding, choosing another activity, losing eligibility or promoting a
-completed execution returns input to the workspace center. No composer mounts
+uses the panels' shared full column width. Choosing Browser/Voice or another
+non-owning activity centers and fits input below main, including for a completed
+Thread; its send target remains that Thread. Folding, suppression, losing
+selected-card eligibility or promoting a completed execution returns input to
+the workspace center. No composer mounts
 inside a Sidecard and no plugin input ownership changes. See the
 [Reading-panel Dock contract](../../Host/MokuScene/README.md#reading-panel-dock)
 for fit, editor lifetime and Sprint validation limits.

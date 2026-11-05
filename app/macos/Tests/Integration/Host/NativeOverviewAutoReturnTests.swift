@@ -99,8 +99,8 @@ struct NativeOverviewAutoReturnTests {
         camera.stageCoordinator = coordinator
         let layout = try await coordinator.acquire(owner: "layout")
         defer { layout.release() }
-        let small = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 200)
-        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 416)
+        let small = NativeOverviewContentRect(left: 0, top: 0, width: 360, height: 220)
+        let grown = NativeOverviewContentRect(left: 0, top: 0, width: 736, height: 456)
         if restoring {
             camera.restore(view: .init(transform: displaced, manual: false), content: small, viewport: viewport)
         } else {

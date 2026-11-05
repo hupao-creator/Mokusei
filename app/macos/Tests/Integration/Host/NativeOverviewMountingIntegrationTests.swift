@@ -192,7 +192,7 @@ struct NativeOverviewMountingIntegrationTests {
         // Leave the first card completely visible, shifted right/down.
         let placement = try #require(fixture.state.presentedPlacements.first { $0.id == "running" })
         let manual = NativeOverviewTransform(scale: 1, x: 500 - Double(placement.column) * 376,
-                                             y: 300 - Double(placement.row) * 216)
+                                             y: 300 - Double(placement.row) * 236)
         camera.setManualTransform(manual)
         try await settled(fixture)
         let identities = fixture.markerIDs
@@ -396,7 +396,7 @@ private struct OverviewCardVisualReplay: View {
             }
         }
         .padding(20)
-        .frame(width: 360, height: 200)
+        .frame(width: 360, height: 220)
         .background(Color.white)
         .environment(\.locale, Locale(identifier: "en"))
         .environment(\.colorScheme, .light)
@@ -411,7 +411,7 @@ extension NativeOverviewMountingIntegrationTests {
     @Test func retainedRuntimePausesAndResumesWithoutReplayingMissedSeconds() async throws {
         let fixture = OverviewCardVisualFixture()
         fixture.animationsEnabled = false
-        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 200)
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 220)
         defer { window.close() }
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { runtimeSeconds(in: root) != nil }
@@ -448,7 +448,7 @@ extension NativeOverviewMountingIntegrationTests {
         let fixture = OverviewCardVisualFixture()
         fixture.suppliesVisibility = false
         fixture.visibility.isVisible = false
-        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 200)
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture), width: 360, height: 220)
         defer { window.close() }
         let root = try #require(window.contentView)
         try await SwiftUIReplay.wait { runtimeSeconds(in: root) != nil }
@@ -459,7 +459,7 @@ extension NativeOverviewMountingIntegrationTests {
     @Test(arguments: [0, 1, 2])
     func retainedDecorationsPauseAndResumeWithoutRemount(decoration: Int) async throws {
         let fixture = OverviewCardVisualFixture()
-        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture, decoration: decoration), width: 360, height: 200)
+        let window = SwiftUIReplay.window(OverviewCardVisualReplay(fixture: fixture, decoration: decoration), width: 360, height: 220)
         defer { window.close() }
         let root = try #require(window.contentView)
         window.appearance = NSAppearance(named: .aqua)

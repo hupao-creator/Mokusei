@@ -373,8 +373,8 @@ public struct NativeMokuDock: View {
         GeometryReader { geometry in
             let viewport = state.dockViewport(in: geometry.size)
             // Keep the reading baseline; only the horizontal seat belongs to
-            // the execution panel. Stacked layouts use that panel's full width.
-            let executionFrame = state.readingPanelVisible && threadID != nil && running && !state.settingsOpen
+            // the target execution column. Stacked layouts share its full width.
+            let executionFrame = state.readingPanelVisible && threadID != nil && !state.settingsOpen
                 && executionPlacement?.threadID == threadID
                 ? executionPlacement?.frame : nil
             let column = executionFrame.map {

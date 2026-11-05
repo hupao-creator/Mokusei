@@ -3,8 +3,8 @@ import CoreGraphics
 
 func member(_ id: String) -> NativeOverviewMember { .init(id: id, columns: 1, rows: 1) }
 func rect(_ p: NativeOverviewPlacement) -> CGRect {
-    .init(x: Double(p.column) * 376, y: Double(p.row) * 216,
-          width: Double(p.columns) * 376 - 16, height: Double(p.rows) * 216 - 16)
+    .init(x: Double(p.column) * 376, y: Double(p.row) * (NativeOverviewLayout.rowHeight + NativeOverviewLayout.gap),
+          width: Double(p.columns) * 376 - 16, height: Double(p.rows) * (NativeOverviewLayout.rowHeight + NativeOverviewLayout.gap) - 16)
 }
 func bounds(_ ps: [NativeOverviewPlacement]) -> NativeOverviewContentRect {
     let b = ps.map(rect).reduce(CGRect.null) { $0.union($1) }

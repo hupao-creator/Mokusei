@@ -28,7 +28,13 @@ func BuildRuntime(ctx context.Context, repo string) error {
 		return err
 	}
 	directory := filepath.Join(repo, ".build/go")
-	if err := os.MkdirAll(directory, 0755); err != nil {
+	intermediate := filepath.Join(directory, "runtime-cache", "mokusei-runtime")
+	if err := os.MkdirAll(filepath.Dir(intermediate), 0755); err != nil {
+		return err
+	}
+	// Go can reuse unchanged link output only while its stable destination exists.
+	// Keep that compiler-owned file separate from the atomically published runtime.
+	if err = runVisible(ctx, repo, nil, goExecutable(), "build", "-trimpath", "-o", intermediate, "./cmd/mokusei-runtime"); err != nil {
 		return err
 	}
 	// Publish only a fully linked binary so parallel development launches never see a partial executable.
@@ -39,7 +45,7 @@ func BuildRuntime(ctx context.Context, repo string) error {
 	temp := file.Name()
 	file.Close()
 	defer os.Remove(temp)
-	if err = runVisible(ctx, repo, nil, goExecutable(), "build", "-trimpath", "-o", temp, "./cmd/mokusei-runtime"); err != nil {
+	if err = copyFile(intermediate, temp, 0755); err != nil {
 		return err
 	}
 	if err = unchangedBuildInputs(repo, false, inputs); err != nil {

@@ -67,7 +67,9 @@ def main():
     # asynchronous owner is irrelevant to this projection check.
     source = source[:source.index("/// Single-writer camera")]
     geometry = OUTPUT / "Geometry.swift"
-    geometry.write_text(source)
+    # Camera readability uses the production grid dimensions.
+    layout = (ROOT / "app/macos/Sources/Host/Overview/NativeOverviewLayout.swift").read_text()
+    geometry.write_text(source + "\n" + layout)
     executable = OUTPUT / "verify-geometry"
     subprocess.run(["xcrun", "swiftc", "-parse-as-library", "-swift-version", "6",
                     "-module-cache-path", str(OUTPUT / "ModuleCache"),

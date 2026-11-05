@@ -12,8 +12,8 @@ func placement(_ id: String, _ columns: Int, _ rows: Int, _ column: Int, _ row: 
     .init(member: member(id, columns, rows), column: column, row: row)
 }
 func rect(_ p: ReplayPlacement) -> CGRect {
-    .init(x: Double(p.column) * 376, y: Double(p.row) * 216,
-          width: Double(p.columns) * 376 - 16, height: Double(p.rows) * 216 - 16)
+    .init(x: Double(p.column) * 376, y: Double(p.row) * (NativeOverviewLayout.rowHeight + NativeOverviewLayout.gap),
+          width: Double(p.columns) * 376 - 16, height: Double(p.rows) * (NativeOverviewLayout.rowHeight + NativeOverviewLayout.gap) - 16)
 }
 func validate(_ result: ReplayResult, previous: [ReplayPlacement], next: [ReplayMember]) {
     precondition(Set(result.placements.map(\.member)) == Set(next))
@@ -147,7 +147,7 @@ try run("compact-budget-exhausted", previous: screenshot, next: shrunkMembers, b
 let nine = (0..<9).map { placement("n\($0)", 1, 1, $0 % 3, $0 / 3) }
 let center = try run("necessary-center-vacancy", previous: nine, next: nine.filter { $0.id != "n4" }.map(\.member))
 try run("center-refill", previous: center.placements, next: nine.map(\.member))
-let insufficient = try run("insufficient-capacity", previous: screenshot, next: shrunkMembers, fittingSize: .init(width: 736, height: 416))
+let insufficient = try run("insufficient-capacity", previous: screenshot, next: shrunkMembers, fittingSize: .init(width: 736, height: 456))
 try run("capacity-recovery", previous: insufficient.placements, next: shrunkMembers)
 let squares = [placement("square-a", 2, 2, 0, 0), placement("square-b", 2, 2, 2, 0), placement("square-c", 2, 2, 0, 2)]
 let squareViewport = NativeOverviewViewport(width: 1920, height: 1200, toolbarBottom: 60)

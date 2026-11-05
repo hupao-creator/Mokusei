@@ -194,8 +194,8 @@ struct NativeOverviewCenteringTests {
         for size in [CGSize(width: 500, height: 600), CGSize(width: 1180, height: 780), CGSize(width: 2560, height: 1440)] {
             let viewport = NativeOverviewViewport(width: size.width, height: size.height, toolbarBottom: 58)
             for origin in [CGPoint.zero, CGPoint(x: -752, y: -432), CGPoint(x: 1128, y: 648)] {
-                for extent in [CGSize(width: 360, height: 200), CGSize(width: 2240, height: 1280),
-                               CGSize(width: 360, height: 1280), CGSize(width: 2240, height: 200)] {
+                for extent in [CGSize(width: 360, height: 220), CGSize(width: 2240, height: 1280),
+                               CGSize(width: 360, height: 1280), CGSize(width: 2240, height: 220)] {
                     let content = NativeOverviewContentRect(left: origin.x, top: origin.y, width: extent.width, height: extent.height)
                     let fitted = NativeOverviewCameraGeometry.fit(content, viewport: viewport)
                     let region = NativeOverviewCameraGeometry.framingRegion(viewport)

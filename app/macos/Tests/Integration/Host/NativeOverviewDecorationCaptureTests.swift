@@ -289,7 +289,7 @@ struct NativeOverviewDecorationCaptureTests {
         let result = DecorationGeometry(card: card, scan: scan, cloud: cloud, rightCellCloud: rightCellCloud, control: control,
             scale: scale, multiplier: multiplier, imageSize: CGSize(width: window.frame.width * scale, height: window.frame.height * scale),
             camera: camera)
-        try #require(abs(card.width - 736 * multiplier) <= 2 && abs(card.height - 200 * multiplier) <= 2,
+        try #require(abs(card.width - 736 * multiplier) <= 2 && abs(card.height - 220 * multiplier) <= 2,
                      "Native cloud geometry did not follow the actual manual camera")
         try #require(card.insetBy(dx: -1, dy: -1).contains(scan)
                      && card.insetBy(dx: 22 * multiplier, dy: 22 * multiplier).contains(cloud)

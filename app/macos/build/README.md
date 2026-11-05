@@ -61,7 +61,14 @@ to install at that location. These tools never quit the user's production app.
 
 ## Development and watching main
 
-Go and Swift retain their compiler caches. `fast` always packages and verifies
+Go and Swift retain their compiler caches. Go also retains its compiler-owned
+link output at `.build/go/runtime-cache/mokusei-runtime`, allowing unchanged
+builds to avoid relinking. Each invocation still runs Go's dependency checks,
+joins compiler descendants, copies to a separate temporary file, validates source
+stability and atomically publishes `.build/go/mokusei-runtime`. A failed build
+does not publish the retained intermediate output.
+
+`fast` always packages and verifies
 a new Debug generation under `app/macos/dist/fast/`; there is no Node dependency
 tree to redeploy. Existing processes keep their original executable and resource
 paths. Generations retain the development bundle identity, signing team,
