@@ -1194,7 +1194,12 @@ geometry retains the 16pt gap and switches to vertically stacked panes below
 760pt; the fold owns the visible and interactive aperture without resizing the
 native document on each animation frame. Reduced Motion settles immediately.
 Report commits its initial folded layout through `NativeReadingEntranceStage`
-after primary reading travel, then opens related executions once per visit.
+after primary reading travel. `NativeApplicationHTMLReadinessKey` carries the
+current source, thread, WebKit view generation and main-frame readiness.
+`NativeReportSidecardPresentation` waits for both gates, then 200ms, before
+admitting the latest pending selection. Report references and Browser share
+that single selection; closing or switching cannot revive a replaced card.
+Document replacement, covering and departure revoke pending admission.
 Folding retains the selected execution reader, with hit testing and accessibility
 excluded until reopening. Returning from an execution restores the reference
 list; the next Escape folds it and returns focus to its launcher.
@@ -1202,3 +1207,10 @@ list; the next Escape folds it and returns focus to its launcher.
 reserved rail, alongside a retained Browser launcher when links have been opened.
 `nativeReadingAuxiliaryLauncherPosition` supplies its actual workspace seat to
 the fold, including Browser splits and narrow-window stacking.
+
+The host scopes `threadRelatedExecution` to Report's referenced execution reader.
+It keeps the exact execution title (timestamp fallback), the Harness's thread
+emoji, final reply and ordinary non-work facts, while hiding execution work and
+its process summary. Live Agent execution Sidecards retain their existing
+heading and summary behavior. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
+for lifecycle details and Sprint validation limits.

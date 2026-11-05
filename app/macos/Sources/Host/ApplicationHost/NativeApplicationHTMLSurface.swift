@@ -93,7 +93,9 @@ private struct HTMLDocumentSession: View {
             if let document {
                 HTMLWebDocument(document: document, thread: thread, theme: theme, suppressed: suppressed, panel: panel, locale: locale,
                     zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
-                    openExternal: openExternal, openLinkCard: openLinkCard, onReady: {
+                    openExternal: openExternal, openLinkCard: openLinkCard, onLoading: {
+                        ready = false; onNativeNavigationChange(false)
+                    }, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
@@ -141,6 +143,8 @@ private struct HTMLDocumentSession: View {
             }
         }
         .nativeReadingEscape(perform: panel && !ready && !suppressed ? onBack : nil)
+        .preference(key: NativeApplicationHTMLReadinessKey.self, value:
+            NativeApplicationHTMLReadiness(source: source, thread: thread, generation: loadedGeneration, ready: ready))
         .preferredColorScheme(theme == .dark ? .dark : .light)
         .task(id: refresh) {
             document = nil; failure = nil; ready = false; scrollHidden = false; hovered = false; navigationNotice = nil
@@ -235,6 +239,7 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
     let preloader: NativeApplicationHTMLPreloader?
     let openExternal: @MainActor (URL) async throws -> Void
     let openLinkCard: ((URL) -> Void)?
+    let onLoading: () -> Void
     let onReady: () -> Void
     let onFailure: (String) -> Void
     let onNavigation: (HTMLNavigationIntent) -> Void
@@ -277,6 +282,8 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         private var cancellingPageDialog = false
         private var preloader: NativeApplicationHTMLPreloader?
         private var warmupNavigation: WKNavigation?
+        private var navigation: WKNavigation?
+        private var hasReadyDocument = false
         private let documentURL: URL
         private static let world = WKContentWorld.world(name: "Mokusei.HTML.Presentation")
         private static let handler = "presentation"
@@ -328,21 +335,26 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
             webView?.stopLoading(); webView = nil
             preloader?.documentDidClose(); preloader = nil
             warmupNavigation = nil
+            navigation = nil
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            guard owns(webView), let navigation, navigation === self.navigation else { return }
             (webView as? HTMLDocumentWebView)?.updateSafeArea()
+            hasReadyDocument = true
             input.onReady()
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            self.navigation = navigation
             cancelPageDialog()
+            input.onLoading()
         }
 
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-            guard owns(webView), warmupNavigation == nil || navigation !== warmupNavigation, let url = webView.url else { return }
+            guard owns(webView), let navigation, navigation === self.navigation, let url = webView.url else { return }
+            hasReadyDocument = false
             cancelPageDialog()
             // A new document owns its scroll state, including remote pages
             // reached from a Report whose navigation was collapsed.
@@ -351,12 +363,12 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            guard warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            guard let navigation, navigation === self.navigation else { return }
             failed(webView, error)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            guard warmupNavigation == nil || navigation !== warmupNavigation else { return }
+            guard let navigation, navigation === self.navigation else { return }
             failed(webView, error)
         }
 
@@ -371,10 +383,14 @@ private struct HTMLWebDocument: HTMLViewRepresentable {
 
         private func failed(_ view: WKWebView, _ error: Error) {
             let error = error as NSError
-            guard owns(view), !(error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled) else { return }
+            guard owns(view) else { return }
             // Policy cancellation (including rejected downloads) interrupts
             // a provisional frame, not the already loaded Report document.
-            if error.domain == "WebKitErrorDomain" && error.code == 102 { return }
+            if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled ||
+                error.domain == "WebKitErrorDomain" && error.code == 102 {
+                if hasReadyDocument { input.onReady() }
+                return
+            }
             active = false
             cancelPageDialog()
             input.onFailure(error.localizedDescription)

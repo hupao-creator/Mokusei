@@ -27,7 +27,9 @@ import SwiftUI
     func card(props: ApplicationThreadProps<NativeReportView>, projection: NativeReportCardProjection, openThread: @escaping () -> Void) -> some View {
         NativeReportCard(props: props, projection: projection, openThread: openThread)
     }
-    func detail(props: ApplicationThreadProps<NativeReportView>) -> some View { NativeReportDetail(props: props) }
+    func detail(props: ApplicationThreadProps<NativeReportView>) -> some View {
+        NativeReportDetail(props: props).id(props.entry.ref)
+    }
 }
 
 @MainActor private struct ReportSettingsPlugin: ApplicationSettingsPlugin {
@@ -65,14 +67,17 @@ struct NativeReportDetail: View {
     @State private var selected: ApplicationExecutionRef?
     @State private var unsubscribe: (() -> Void)?
     @State private var failure: String?
-    @State private var expanded = false
+    @State private var localSidecards = NativeReportSidecardPresentation()
     @State private var entranceAdmitted = false
+    @Environment(\.nativeReportSidecards) private var sharedSidecards
     @FocusState private var launcherFocused: Bool
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
     @Environment(\.nativeReadingAuxiliaryLauncherPosition) private var launcherPosition
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var locale: JSONText { props.context.locale }
+    private var sidecards: NativeReportSidecardPresentation { sharedSidecards ?? localSidecards }
+    private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
             let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
@@ -80,6 +85,12 @@ struct NativeReportDetail: View {
             let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
             ZStack(alignment: .topLeading) {
                 NativeReportHTML(props: props)
+                    .onPreferenceChange(NativeApplicationHTMLReadinessKey.self) { readiness in
+                        guard let readiness else { sidecards.updateDocument(nil); return }
+                        guard readiness.thread == props.entry.ref,
+                              readiness.source.contentRevision == props.entry.view.contentRevision else { return }
+                        sidecards.updateDocument(readiness)
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
                     .frame(width: layout.mainWidth, height: layout.mainHeight)
@@ -150,7 +161,7 @@ struct NativeReportDetail: View {
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true
-                    expanded = true
+                    sidecards.updateLayout(ready: entranceReady, suppressed: suppressed)
                 }
             }
         }
@@ -158,27 +169,38 @@ struct NativeReportDetail: View {
             do { unsubscribe = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).subscribe(refresh); refresh() }
             catch { failure = error.localizedDescription }
         }
-        .onDisappear { unsubscribe?(); unsubscribe = nil }
+        .onDisappear { unsubscribe?(); unsubscribe = nil; sidecards.cancel(); entranceAdmitted = false }
+        .onChange(of: entranceReady && entranceAdmitted && !suppressed) { _, ready in
+            sidecards.updateLayout(ready: ready, suppressed: suppressed)
+        }
+        .onChange(of: props.entry.view.contentRevision) { _, _ in sidecards.updateDocument(nil) }
         .onChange(of: props.entry.view.relatedExecutions) { _, _ in refresh() }
         .preference(key: NativeReadingAuxiliaryToolbarKey.self, value: AnyView(
-            NativeSidecardToggle(expanded: expanded,
+            NativeSidecardToggle(expanded: expanded || sidecards.pending == .relatedExecutions,
                 label: applicationText(locale, "关联执行", "Related executions"), action: {
-                    expanded.toggle()
+                    sidecards.toggle(.relatedExecutions)
                     launcherFocused = !expanded
                 }) {
                     NativeIcon(name: "PanelRight", size: 17, strokeWidth: 1.8)
                 }
                 .focused($launcherFocused)
-                .disabled(!entranceAdmitted)
+                .disabled(!entranceAdmitted || suppressed)
                 .accessibilityIdentifier("sidecard-toggle-report-executions")
         ))
-        .preference(key: NativeReadingAuxiliaryBackKey.self, value: expanded ?
-            NativeReadingAuxiliaryBackAction(id: selected.map {
-                $0.thread.threadID.string + ":" + $0.executionID.string
-            } ?? "report-executions") {
-                if selected != nil { selected = nil }
-                else { expanded = false; launcherFocused = true }
-            } : nil)
+        .preference(key: NativeReadingAuxiliaryBackKey.self, value: auxiliaryBack)
+    }
+
+    private var auxiliaryBack: NativeReadingAuxiliaryBackAction? {
+        guard expanded || sidecards.pending == .relatedExecutions else { return nil }
+        let selectionID = sidecards.selectionID
+        let reference = selected
+        let referenceID = reference.map { $0.thread.threadID.string + ":" + $0.executionID.string } ?? ""
+        return NativeReadingAuxiliaryBackAction(id: selectionID.uuidString + referenceID) {
+            guard selectionID == sidecards.selectionID, reference == selected,
+                  sidecards.active == .relatedExecutions || sidecards.pending == .relatedExecutions else { return }
+            if expanded && selected != nil { selected = nil }
+            else { sidecards.close(); launcherFocused = true }
+        }
     }
 
     private func refresh() {

@@ -39,9 +39,13 @@ public struct NativeBrowserDocumentCard: View {
         .task(id: requestID) {
             guard !Task.isCancelled else { return }
             if session == nil { makeSession() }
+            session?.backToOverview = onClose
             session?.navigate(url)
         }
-        .onChange(of: suppressed) { _, value in session?.setSuppressed(value) }
+        .onChange(of: suppressed) { _, value in
+            session?.backToOverview = onClose
+            session?.setSuppressed(value)
+        }
         .onChange(of: locale) { _, value in
             session?.translate = { NativePluginLocalization.localize($0, locale: value) }
         }

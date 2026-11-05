@@ -72,11 +72,12 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @State private var auxiliaryBack: NativeReadingAuxiliaryBackAction?
     @State private var requestID = UUID()
     @State private var url: URL?
-    @State private var expanded = false
+    @State private var sidecards = NativeReportSidecardPresentation()
     @State private var retainedWidth: CGFloat?
     @State private var dragging = false
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var expanded: Bool { sidecards.active == .browser }
 
     var body: some View {
         GeometryReader { geometry in
@@ -85,10 +86,15 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                 preferredWidth: 2.0 / 3, retainedWidth: retainedWidth)
             ZStack(alignment: .topLeading) {
                 content
-                    .environment(\.nativeApplicationOpenLinkCard, { target in url = target; requestID = UUID(); expanded = true })
+                    .environment(\.nativeReportSidecards, sidecards)
+                    .environment(\.nativeApplicationOpenLinkCard, { target in
+                        guard !suppressed else { return }
+                        url = target; requestID = UUID(); sidecards.open(.browser)
+                    })
                     .environment(\.nativeApplicationCloseLinkCard, {
-                        if expanded { expanded = false; return true }
+                        if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close(); return true }
                         if let auxiliaryBack { auxiliaryBack.perform(); return true }
+                        if sidecards.active != nil || sidecards.pending != nil { sidecards.close(); return true }
                         return false
                     })
                     .environment(\.nativeReadingAuxiliarySuppressed, suppressed)
@@ -103,8 +109,14 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                             .offset(x: layout.mainWidth + 5)
                     }
                     if let url {
+                        let browserRequest = requestID
+                        let selectionID = sidecards.selectionID
                         NativeBrowserDocumentCard(url: url, requestID: requestID, suppressed: suppressed || !expanded,
-                            onClose: { expanded = false })
+                            onClose: {
+                                guard browserRequest == requestID, selectionID == sidecards.selectionID,
+                                      sidecards.active == .browser else { return }
+                                sidecards.close()
+                            })
                             .environment(\.nativeReadingNavigation, nil)
                             .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
                             .background(NativePalette.thread.canvas.swiftUI)
@@ -118,9 +130,9 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                             .accessibilityHidden(!expanded || suppressed)
                             .accessibilityIdentifier("report-link-card")
                     }
-                    NativeSidecardToggle(expanded: expanded,
+                    NativeSidecardToggle(expanded: expanded || sidecards.pending == .browser,
                         label: locale.language.languageCode?.identifier == "zh" ? "网页" : "Browser",
-                        action: { expanded.toggle() }) {
+                        action: { sidecards.toggle(.browser) }) {
                         NativeIcon(name: "Globe2", size: 17, strokeWidth: 1.8)
                             .frame(width: 42, height: 42).contentShape(Circle())
                     }
@@ -138,9 +150,14 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
         }
         .onPreferenceChange(NativeReadingAuxiliaryBackKey.self) { auxiliaryBack = $0 }
+        .onChange(of: suppressed) { _, hidden in
+            if hidden { sidecards.updateLayout(ready: false, suppressed: true) }
+        }
+        .onDisappear { sidecards.cancel(); auxiliaryBack = nil }
         .nativeReadingEscape(perform: suppressed ? nil : {
-            if expanded { expanded = false }
+            if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close() }
             else if let auxiliaryBack { auxiliaryBack.perform() }
+            else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }
             else { onClose() }
         })
     }

@@ -84,6 +84,7 @@ public struct ThreadConversation: View {
     @State private var sidebarFocusRevision = 0
     @State private var userMessages = false
     @Environment(\.threadAgentDetail) private var agentDetail
+    @Environment(\.threadRelatedExecution) private var relatedExecution
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
@@ -142,7 +143,7 @@ public struct ThreadConversation: View {
         if case let .execution(id) = context?.presentation, id != activeExecutionId { return false }
         return true
     }
-    private var work: Bool { executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil)) }
+    private var work: Bool { !relatedExecution && (executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil))) }
     private var visibility: ThreadDetailVisibility {
         ThreadDetailVisibility(userMessages: !agentDetail && (executionCard || userMessages), work: work,
                                workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID,
@@ -328,7 +329,7 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !executionCard { heading(documentTitle, emoji: icon ?? "📝") }
+            if !executionCard || relatedExecution { heading(documentTitle, emoji: icon ?? "📝") }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID
@@ -336,11 +337,14 @@ public struct ThreadConversation: View {
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
                     showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
-                    .padding(.top, executionCard ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
+                    .padding(.top, executionCard && !relatedExecution ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
     }
     private var documentTitle: String {
+        if relatedExecution, let row = visibleRows.first(where: { $0.id == selectedRowID }) {
+            return row.executionTitle
+        }
         // Main can retain an older execution while the newest one lives in a
         // Sidecard. Its heading must not borrow the newest catalog title.
         if agentDetail, let row = visibleRows.first(where: { $0.id == selectedRowID }),

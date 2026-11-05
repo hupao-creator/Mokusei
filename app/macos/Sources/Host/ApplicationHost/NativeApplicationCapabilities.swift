@@ -232,6 +232,7 @@ private struct NativeApplicationReferencedExecution: View {
         if let thread = host.workspace.catalog.thread(reference.thread.threadID), !thread.isHiddenFromUser {
             NativeHarnessThreadView(host: host.workspace.harnessHost,
                 input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
+                .environment(\.threadRelatedExecution, true)
                 .environment(\.nativeReadingNavigation, nil)
         } else {
             Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))

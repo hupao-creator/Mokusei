@@ -201,7 +201,8 @@ panel routes retain their previous fade policy. Route generations, refreshed par
 layout, cancellation and resize completion remain owned by the reading stack.
 
 Report owns its HTML and associated-execution reading shells. The HTML first
-commits at full width; after primary travel, the shared native entrance stage
+commits at full width. After primary travel, the folded layout commit and the
+current HTML document's WebKit main-frame completion, a cancellable 200ms gate
 admits the related-execution Sidecard's fold from its right-rail launcher.
 The launcher toggles expansion without discarding the selected execution.
 Agent and Report share the fold, toggle chrome and workspace geometry (including
@@ -209,10 +210,16 @@ minimum pane widths and narrow-window stacking). References prefer 20% width,
 then 50% for a selected execution, subject to that shared geometry.
 The outer workspace reserves one real toolbar rail for Report and Browser
 controls, and supplies the Report launcher's seat in its local coordinates.
+Both cards share one active/pending selection: opening either replaces the
+other, including the related list. Close and replacement win over delayed
+admission; document revisions, retries, covering and departure retire old work.
 `NativeReadingAuxiliaryBackKey` forwards the current auxiliary Back action upward;
 native and HTML Escape first fold a linked browser, return from an execution to
 references, fold references with focus restored to their launcher, then close
-the report. The action is removed while folded or when the visit disappears.
+the report. The action also cancels a pending related card before it opens, and
+is removed when neither an active nor pending related card belongs to the visit.
 Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
 of the Sidecard. Browser routing, divider resizing and retained documents keep
 their existing ownership.
+See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
+for readiness, cancellation, screenshot diagnosis and Sprint verification limits.

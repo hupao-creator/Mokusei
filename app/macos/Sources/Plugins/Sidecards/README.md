@@ -122,6 +122,11 @@ Its shared navigation toolbar and WebKit session also serve the Host's Report
 link card through `NativeBrowserDocumentCard`. That document-owned surface has
 an ephemeral partition and no SidecardContext, annotation draft, attachment or
 send capability; Agent Sidecards retain their existing annotation behavior.
+Report's Browser and related-execution list/detail share one active selection
+and wait for Report document readiness plus 200ms on initial admission. Browser
+DOM Back callbacks follow the current URL request and selection; a callback
+from a folded or replaced card cannot dismiss its replacement. This does not
+change Agent Sidecard timing. See the [Report admission contract](../../../../../design/report-sidecard-admission.md).
 
 Agent Thread Markdown links (Codex, Claude, Pi and OpenCode, including current,
 historical/inherited and Conversation execution readers) also route readable

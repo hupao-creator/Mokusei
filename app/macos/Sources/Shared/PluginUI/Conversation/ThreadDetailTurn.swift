@@ -56,6 +56,10 @@ public struct ThreadReasoningUsage: Sendable {
 
 private struct ThreadAgentDetailKey: EnvironmentKey { static let defaultValue = true }
 public extension EnvironmentValues {
+    /// A Report's referenced execution keeps its own heading and final reply,
+    /// without the execution-process summary used by the live Agent Sidecard.
+    @Entry var threadRelatedExecution = false
+
     /// Moku's current/archived conversations reuse the Harness reader without
     /// adopting the ordinary Agent detail content policy.
     var threadAgentDetail: Bool {
