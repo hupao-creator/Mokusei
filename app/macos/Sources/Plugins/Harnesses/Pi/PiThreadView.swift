@@ -150,7 +150,7 @@ private struct PiTurn: View {
                 createdAt: execution.startedAt, updatedAt: execution.finishedAt ?? execution.startedAt,
                 status: execution.status.rawValue, completedAt: execution.status == .completed ? execution.finishedAt : nil,
                 usage: usage.map { AnyView(ThreadTokenUsage(input: $0.prompt, output: $0.output, cached: $0.cacheRead,
-                    cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) }, active: active)
+                    cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) }, active: active, executionRunning: execution.status == .running && input.thread.observation.latestExecution?.status == .running)
                 .nativeReadingExecutionReady(execution.executionID, settled: ![.running, .waitingForUser].contains(execution.status))
         }
     }

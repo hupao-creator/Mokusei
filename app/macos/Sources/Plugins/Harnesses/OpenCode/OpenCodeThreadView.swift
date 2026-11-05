@@ -168,7 +168,8 @@ private struct OpenCodeTurn: View {
             completedAt: execution.status == .completed ? execution.finishedAt : nil,
             usage: usage.map { AnyView(ThreadTokenUsage(input: $0.input + $0.cacheRead + $0.cacheWrite,
                 output: $0.output + $0.reasoning, cached: $0.cacheRead, cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) },
-            active: current && input.thread.observation.isExecutionActive)
+            active: current && input.thread.observation.isExecutionActive,
+            executionRunning: execution.status == .running && latest?.status == .running)
             .nativeReadingExecutionReady(execution.executionID, settled: !executionActive)
     }
     private var statusLabel: String {

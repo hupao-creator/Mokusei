@@ -139,7 +139,7 @@ struct ClaudeTurnView: View {
             completedAt: turn.status == "completed" ? turn.finishedAt : nil,
             usage: AnyView(ThreadTokenUsage(input: inputs.allSatisfy { $0 != nil } ? inputs.compactMap { $0 }.reduce(0,+) : nil,
                 output: usage?["outputTokens"]?.numberValue, cached: usage?["cachedTokens"]?.numberValue,
-                cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active)
+                cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active, executionRunning: turn.status == "running" && !waiting)
             .nativeReadingExecutionReady(turn.id, settled: turn.status != "running")
     }
     private var rows: [ThreadDetailRow] {

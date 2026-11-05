@@ -88,7 +88,7 @@ public func partitionExecutionRows(_ rows: [ThreadDetailRow]) -> [ThreadExecutio
 @MainActor
 public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
                                      reasoningUsage: ThreadReasoningUsage? = nil,
-                                     summaryOnly: Bool = false) -> [ThreadDetailRow] {
+                                     summaryOnly: Bool = false, running: Bool = false) -> [ThreadDetailRow] {
     let runs = partitionExecutionRows(rows)
     let lastExecution = runs.lastIndex { if case .execution = $0 { true } else { false } }
     return runs.enumerated().compactMap { index, run in
@@ -103,7 +103,7 @@ public func groupThreadExecutionRows(_ rows: [ThreadDetailRow],
             return ThreadDetailRow(
                 id: executionProcessID(id), kind: .work,
                 node: AnyView(ThreadExecutionProcess(groupID: id, rows: rows,
-                    reasoningUsage: usage)))
+                    reasoningUsage: usage, running: running && index == lastExecution)))
         }
     }
 }
@@ -112,15 +112,17 @@ public struct ThreadExecutionProcess: View {
     public let groupID: JSONText
     public let rows: [ThreadDetailRow]
     public let reasoningUsage: ThreadReasoningUsage?
+    public let running: Bool
     @Environment(\.locale) private var locale
     @Environment(\.threadExecutionLoader) private var loader
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.nativeThreadReveal) private var reveal
 
-    public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil) {
+    public init(groupID: JSONText, rows: [ThreadDetailRow], reasoningUsage: ThreadReasoningUsage? = nil, running: Bool = false) {
         self.groupID = groupID
         self.rows = rows
         self.reasoningUsage = reasoningUsage
+        self.running = running
     }
 
     public var body: some View {
@@ -142,9 +144,13 @@ public struct ThreadExecutionProcess: View {
             NativeIcon(name: "Wrench", size: 13)
                 .frame(width: 20)
                 .accessibilityHidden(true)
-            Text(summary)
-                .monospacedDigit()
-                .fixedSize(horizontal: false, vertical: true)
+            summaryText
+                .overlay {
+                    if running && agentDetail {
+                        ThreadExecutionLoadingSweep()
+                            .mask { summaryText }
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
@@ -153,6 +159,12 @@ public struct ThreadExecutionProcess: View {
         .foregroundStyle(NativePalette.thread.muted.swiftUI)
         .accessibilityElement(children: .combine)
         .id(executionProcessID(groupID))
+    }
+
+    private var summaryText: some View {
+        Text(summary)
+            .monospacedDigit()
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var summary: String {
@@ -192,5 +204,42 @@ private func executionProcessID(_ source: JSONText) -> JSONText {
 private extension ThreadReasoningUsage {
     var hasValidTokens: Bool {
         tokens.isFinite && tokens >= 0 && tokens.rounded() == tokens && tokens <= 9_007_199_254_740_991
+    }
+}
+
+/// Keep the clock in the decorative leaf: counts and accessibility remain static.
+private struct ThreadExecutionLoadingSweep: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
+    @State private var visible = false
+    @State private var startedAt = Date()
+
+    private var animates: Bool {
+        visible && entranceReady && !reduceMotion && scenePhase == .active
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
+            GeometryReader { geometry in
+                // A fixed-width soft highlight keeps long summaries from becoming
+                // a whole-line pulse. The reset happens beyond both text edges.
+                let width: CGFloat = 48
+                let travel = geometry.size.width + width
+                let duration = max(0.8, Double(travel) / 180)
+                let phase = context.date.timeIntervalSince(startedAt)
+                    .truncatingRemainder(dividingBy: duration + 0.25) / duration
+                LinearGradient(colors: [.clear, NativePalette.thread.ink.swiftUI.opacity(0.65), .clear],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: width)
+                    .offset(x: -width + travel * min(phase, 1))
+            }
+        }
+        .opacity(animates ? 1 : 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { startedAt = Date(); visible = true }
+        .onDisappear { visible = false }
+        .onChange(of: animates) { _, value in if value { startedAt = Date() } }
     }
 }
