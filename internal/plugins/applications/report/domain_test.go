@@ -15,7 +15,7 @@ func TestApplyReplacesPersistedWorktreeDirectoryTag(t *testing.T) {
 	const bad = "task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb"
 	const repository = "Mokusei"
 	ref := model.ThreadRef{ThreadID: "thread-1", TypeID: "agent"}
-	value := Data{
+	value := Data{Emoji: "📊", ShortDescription: "Report introduction",
 		Scope:           "/projects/Mokusei",
 		Title:           "Report",
 		HTML:            "<p>ok</p>",
@@ -69,7 +69,7 @@ func TestApplyReplacesPersistedWorktreeDirectoryTag(t *testing.T) {
 func TestApplyClearsDirectoryTagForMissingSourceThread(t *testing.T) {
 	const bad = "task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb"
 	ref := model.ThreadRef{ThreadID: "thread-1", TypeID: "agent"}
-	value := Data{
+	value := Data{Emoji: "📊", ShortDescription: "Report introduction",
 		Scope:           "/projects/Mokusei",
 		Title:           "Report",
 		HTML:            "<p>ok</p>",
@@ -117,7 +117,7 @@ func TestApplyClearsDirectoryTagForMissingSourceThread(t *testing.T) {
 }
 
 func TestReportEmojiContractAndNormalizedSourceInheritance(t *testing.T) {
-	value := Data{
+	value := Data{Emoji: "📊", ShortDescription: "Report introduction",
 		Scope: "/projects/Repo",
 		Title: "Report", HTML: "<p>ok</p>", ContentRevision: "content-1",
 		RelatedExecutions: []model.ExecutionRef{

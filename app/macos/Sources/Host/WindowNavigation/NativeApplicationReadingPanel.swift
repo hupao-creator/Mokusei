@@ -29,7 +29,10 @@ struct NativeApplicationReadingPanel: ViewModifier {
         if enabled {
             if identifier == "report-reading-panel" {
                 NativeReportLinkWorkspace(suppressed: suppressed, onClose: onClose) {
-                    panel(content)
+                    content
+                        .nativeReadingPanelClose(label: locale.language.languageCode?.identifier == "zh" ? "关闭报告" : "Close report", overlaysContent: true, onClose: onClose)
+                        .background(NativeReadingPanelFrame(identifier: identifier))
+                        .accessibilityIdentifier(identifier)
                 }
             } else {
                 panel(content).padding(.trailing, 76)
@@ -66,6 +69,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     let suppressed: Bool
     let onClose: () -> Void
     @ViewBuilder var content: Content
+    @State private var auxiliaryBack: NativeReadingAuxiliaryBackAction?
     @State private var requestID = UUID()
     @State private var url: URL?
     @State private var expanded = false
@@ -83,8 +87,9 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                 content
                     .environment(\.nativeApplicationOpenLinkCard, { target in url = target; requestID = UUID(); expanded = true })
                     .environment(\.nativeApplicationCloseLinkCard, {
-                        guard expanded else { return false }
-                        expanded = false; return true
+                        if expanded { expanded = false; return true }
+                        if let auxiliaryBack { auxiliaryBack.perform(); return true }
+                        return false
                     })
                     .frame(width: layout.mainWidth, height: layout.mainHeight)
                 if url != nil {
@@ -127,8 +132,10 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             .animation(dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: expanded)
             .animation(dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
         }
+        .onPreferenceChange(NativeReadingAuxiliaryBackKey.self) { auxiliaryBack = $0 }
         .nativeReadingEscape(perform: suppressed ? nil : {
             if expanded { expanded = false }
+            else if let auxiliaryBack { auxiliaryBack.perform() }
             else { onClose() }
         })
     }

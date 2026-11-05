@@ -40,7 +40,7 @@ func TestRefreshApplicationDirectoryTagsTracksWorktreeAndRemovedSource(t *testin
 	const stale = "task-fd71335e-bfa-1c13e467e2e6e0adf36974155175c5fb"
 	ref := model.ThreadRef{ThreadID: "worktree-source", TypeID: "agent"}
 	reportID := "report-worktree"
-	value := report.Data{
+	value := report.Data{Emoji: "📊", ShortDescription: "Report introduction",
 		Scope:           main,
 		Title:           "Worktree report",
 		HTML:            "<p>ok</p>",

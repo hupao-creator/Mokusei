@@ -83,3 +83,25 @@ confirm, prompt and file selection use native sheets owned by the current visit;
 suppression, replacement and disposal cancel outstanding callbacks exactly once.
 Downloads are rejected with a dismissible notice while the loaded document stays
 open.
+
+## Card metadata and execution workspace
+
+Report documents persist `emoji` (one complete Unicode emoji) and
+`shortDescription` (1–220 Unicode scalars, whitespace normalized) independently
+of HTML. Create requires both; update can replace either without changing the
+HTML content revision. Read/list and the native catalog expose these fields.
+The Report Agent supplies them through its tool schema. Missing or invalid
+metadata is rejected; this unreleased contract has no legacy migration.
+
+Overview uses the shared Agent card typography, excerpt renderer and upper-right
+emoji badge. The metadata row displays unique source Harness logos and update
+time. Each Harness logo shows `×N` when it references more than one Thread;
+the count follows the existing one-execution-per-thread contract. Related executions appear only in the reader; archiving is in the card's
+context menu. The HTML-derived preview remains available as its existing public
+projection, while the card uses the authored short description.
+
+The right-hand execution list occupies 20% of available panel width (excluding
+the 16pt gap). Selecting a reference replaces the list with the host's actual
+single-execution Harness reader at 50%. Back restores the list; removal or hiding
+of the selected reference retires its reader. HTML remains mounted across these
+changes. Browser-link navigation retains its existing additional workspace.

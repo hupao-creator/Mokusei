@@ -8,7 +8,7 @@ import (
 )
 
 func TestReportPersistenceContract(t *testing.T) {
-	valid := Data{Scope: "inbox", Title: "报告", HTML: "<p>正文</p>", ContentRevision: "v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]TagSource{}}
+	valid := Data{Emoji: "📊", ShortDescription: "Report introduction", Scope: "inbox", Title: "报告", HTML: "<p>正文</p>", ContentRevision: "v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]TagSource{}}
 	cases := []struct {
 		name string
 		edit func(map[string]any)
@@ -20,6 +20,11 @@ func TestReportPersistenceContract(t *testing.T) {
 		{"unknown field", func(v map[string]any) { v["extra"] = true }},
 		{"null references", func(v map[string]any) { v["relatedExecutions"] = nil }},
 		{"orphan tags", func(v map[string]any) { v["tagSources"] = map[string]any{"orphan": map[string]any{}} }},
+		{"missing emoji", func(v map[string]any) { delete(v, "emoji") }},
+		{"invalid emoji", func(v map[string]any) { v["emoji"] = "report" }},
+		{"multiple emoji", func(v map[string]any) { v["emoji"] = "📊📊" }},
+		{"blank description", func(v map[string]any) { v["shortDescription"] = "  " }},
+		{"long description", func(v map[string]any) { v["shortDescription"] = strings.Repeat("字", 221) }},
 		{"blank title", func(v map[string]any) { v["title"] = "  " }},
 	}
 	raw, _ := json.Marshal(valid)

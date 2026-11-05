@@ -5,6 +5,8 @@ import MokuseiCore
 public enum SemanticTagLabel {
     private static let emojis = Set(SemanticTagEmojiData.sequences.split(separator: "\n").map(String.init))
 
+    public static func isValidEmoji(_ value: String) -> Bool { emojis.contains(value) }
+
     public static func display(name: String, emoji: String) -> String {
         "\(emoji) \(name)"
     }

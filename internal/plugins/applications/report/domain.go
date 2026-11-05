@@ -72,7 +72,7 @@ func dataContract() plugin.ValueContract {
 		if err != nil {
 			return nil, err
 		}
-		for _, key := range []string{"scope", "title", "html", "contentRevision", "archived", "relatedExecutions", "tagSources"} {
+		for _, key := range []string{"emoji", "shortDescription", "scope", "title", "html", "contentRevision", "archived", "relatedExecutions", "tagSources"} {
 			if value, ok := object[key]; !ok || value == nil {
 				return nil, fmt.Errorf("missing %s", key)
 			}
@@ -197,8 +197,14 @@ func RegisterDomain(registry plugin.Registry) error {
 	}}); err != nil {
 		return err
 	}
-	createInput := typedContract[CreateInput]("report.create.input", []string{"title", "html", "relatedExecutions"}, func(input *CreateInput) error {
+	createInput := typedContract[CreateInput]("report.create.input", []string{"emoji", "shortDescription", "title", "html", "relatedExecutions"}, func(input *CreateInput) error {
 		var err error
+		if input.Emoji, err = ParseEmoji(input.Emoji); err != nil {
+			return err
+		}
+		if input.ShortDescription, err = ParseDescription(input.ShortDescription); err != nil {
+			return err
+		}
 		if input.Title, err = ParseTitle(input.Title); err != nil {
 			return err
 		}
@@ -236,7 +242,7 @@ func RegisterDomain(registry plugin.Registry) error {
 			if err != nil {
 				return nil, err
 			}
-			value := Data{Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
+			value := Data{Emoji: input.Emoji, ShortDescription: input.ShortDescription, Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
 			encoded, err := json.Marshal(value)
 			if err != nil {
 				return nil, err
@@ -254,8 +260,22 @@ func RegisterDomain(registry plugin.Registry) error {
 		if !validID(input.ReportID) {
 			return errors.New("invalid reportId")
 		}
-		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil {
+		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil && input.Emoji == nil && input.ShortDescription == nil {
 			return errors.New("Report update must change at least one field")
+		}
+		if input.Emoji != nil {
+			value, err := ParseEmoji(*input.Emoji)
+			if err != nil {
+				return err
+			}
+			input.Emoji = &value
+		}
+		if input.ShortDescription != nil {
+			value, err := ParseDescription(*input.ShortDescription)
+			if err != nil {
+				return err
+			}
+			input.ShortDescription = &value
 		}
 		if input.Title != nil {
 			value, err := ParseTitle(*input.Title)
@@ -303,6 +323,12 @@ func RegisterDomain(registry plugin.Registry) error {
 			if input.Title != nil {
 				value.Title = *input.Title
 			}
+			if input.Emoji != nil {
+				value.Emoji = *input.Emoji
+			}
+			if input.ShortDescription != nil {
+				value.ShortDescription = *input.ShortDescription
+			}
 			if input.HTML != nil && *input.HTML != value.HTML {
 				value.HTML = *input.HTML
 				value.ContentRevision = context.AllocateID("content")
@@ -329,12 +355,12 @@ func RegisterDomain(registry plugin.Registry) error {
 		return err
 	}
 	extensions := threadExtensions{}
-	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Report", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"previewText", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
+	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Report", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
 		value, err := ParseData(record.Value)
 		if err != nil {
 			return plugin.ThreadProjection{}, err
 		}
-		view, err := json.Marshal(View{HTMLPreview(value.HTML, value.Title), value.ContentRevision, value.RelatedExecutions})
+		view, err := json.Marshal(View{value.Emoji, value.ShortDescription, HTMLPreview(value.HTML, value.Title), value.ContentRevision, value.RelatedExecutions})
 		return plugin.ThreadProjection{Scope: value.Scope, Title: value.Title, View: view}, err
 	}, SearchText: func(record model.ApplicationThreadRecord) (string, error) {
 		value, err := ParseData(record.Value)
@@ -443,6 +469,8 @@ func tagSources(refs []model.ExecutionRef, access plugin.CapabilityAccess, scope
 }
 
 type contentOutput struct {
+	Emoji             string               `json:"emoji"`
+	ShortDescription  string               `json:"shortDescription"`
 	ID                string               `json:"id"`
 	Revision          int64                `json:"revision"`
 	CreatedAt         int64                `json:"createdAt"`
@@ -456,7 +484,7 @@ type contentOutput struct {
 }
 
 func content(record model.VersionedRecord, value Data) contentOutput {
-	return contentOutput{record.ID, record.Revision, record.CreatedAt, record.UpdatedAt, value.Title, value.HTML, value.ContentRevision, value.RelatedExecutions, value.Archived, ProjectTags(value)}
+	return contentOutput{value.Emoji, value.ShortDescription, record.ID, record.Revision, record.CreatedAt, record.UpdatedAt, value.Title, value.HTML, value.ContentRevision, value.RelatedExecutions, value.Archived, ProjectTags(value)}
 }
 
 type threadExtensions struct{}

@@ -302,7 +302,7 @@ func writeOptions(consumer string, work plugin.LifecycleWork, invocation string)
 	return plugin.DomainCommandOptions{RequestID: invocation, Batch: &plugin.BatchWriteContext{ConsumerID: consumer, BatchID: work.ID, InvocationID: invocation}}
 }
 func createInput() json.RawMessage {
-	return encode(report.CreateInput{Title: fixtureTitle, HTML: fixtureHTML, RelatedExecutions: []model.ExecutionRef{}})
+	return encode(report.CreateInput{Emoji: "📊", ShortDescription: "Report introduction", Title: fixtureTitle, HTML: fixtureHTML, RelatedExecutions: []model.ExecutionRef{}})
 }
 func encode(value any) json.RawMessage {
 	raw, err := json.Marshal(value)

@@ -80,7 +80,7 @@ struct NativeMokuLandingTests {
                 "presentations": .array([.object(["id": .text("mokusei.overview"), "apiVersion": .integer(1),
                     "schemaVersion": .integer(1), "value": .object(["visible": .bool(true), "tagFilter": .text("directory"),
                         "coversExecutions": .array([])])])]),
-                "view": .object(["previewText": .text("Report"), "contentRevision": .text("one"), "relatedExecutions": .array([])])])
+                "view": .object(["emoji": .text("📊"), "shortDescription": .text("Report introduction"), "previewText": .text("Report"), "contentRevision": .text("one"), "relatedExecutions": .array([])])])
         }
         func install(_ threads: [HarnessThread] = [], operations: [JSONValue] = [], applications: [JSONValue] = [],
                      includeMoku: Bool = true, execution: JSONText = "moku-run", running: Bool = false) async throws {

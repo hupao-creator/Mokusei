@@ -199,3 +199,11 @@ and travel reach the source card at 86%, and the opaque shell crossfades to
 Overview over the final 14%. There is no separate closing identity travel. Other
 panel routes retain their previous fade policy. Route generations, refreshed parent
 layout, cancellation and resize completion remain owned by the reading stack.
+
+Report now owns its two reading shells: HTML on the left and associated execution
+references on the right (80/20, then 50/50 when selected). The outer workspace
+keeps Close and Browser routing. `NativeReadingAuxiliaryBackKey` forwards the
+selected execution's Back action upward; native and HTML Escape first fold a
+linked browser, then return to references, then close the report. The action is
+removed when selection or the report visit disappears. Report HTML keeps its
+8pt viewport inset and 14pt inner clipping independently of the sidecard.

@@ -83,6 +83,10 @@ extension NativeApplicationHost {
                     guard let self, !isReleased else { throw CancellationError() }
                     try lifetime.checkCancellation()
                     return try workspace.plugins.harnesses.require(id).logo(size: size)
+                }, execution: { [weak self] reference in
+                    guard let self, !isReleased else { throw CancellationError() }
+                    try lifetime.checkCancellation()
+                    return AnyView(NativeApplicationReferencedExecution(host: self, reference: reference))
                 }))
         ]
         if try conversation(entry) != nil {
@@ -215,6 +219,23 @@ private struct NativeApplicationHTMLCapabilityView: View {
                 openExternal: { url in try await host.navigation.openExternal(url) }, onBack: detail.onBack, onSettings: detail.onSettings,
                 onNativeNavigationChange: detail.onNativeNavigationChange, onFailure: onFailure)
                 .environment(\.nativeHTMLPreloader, host.htmlPreloader)
+        }
+    }
+}
+
+/// Catalog observation remains mounted with the selected execution; the ordinary
+/// reader owns its content lease and revokes it when selection changes.
+private struct NativeApplicationReferencedExecution: View {
+    let host: NativeApplicationHost
+    let reference: ApplicationExecutionRef
+    var body: some View {
+        if let thread = host.workspace.catalog.thread(reference.thread.threadID), !thread.isHiddenFromUser {
+            NativeHarnessThreadView(host: host.workspace.harnessHost,
+                input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
+                .environment(\.nativeReadingNavigation, nil)
+        } else {
+            Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))
+                .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

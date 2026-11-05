@@ -46,7 +46,7 @@ func TestReportProjectionParserDepthBoundary(t *testing.T) {
 				want += " DEEP AFTER"
 			}
 
-			data := Data{Scope: "inbox", Title: "Report", HTML: source, ContentRevision: "v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]TagSource{}}
+			data := Data{Emoji: "📊", ShortDescription: "Report introduction", Scope: "inbox", Title: "Report", HTML: source, ContentRevision: "v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]TagSource{}}
 			raw, err := json.Marshal(data)
 			if err != nil {
 				t.Fatal(err)

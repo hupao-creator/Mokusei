@@ -47,7 +47,7 @@ import MokuseiHarnessOpenCode
                     setArchived: { _, _, _ in }, initializeConversation: { _, _ in })),
             ])
         let view = try! NativeReportView(json: .object([
-            "previewText": .text("Production Report summary. The document title, excerpt, archive and open actions remain readable."),
+            "emoji": .text("📊"), "shortDescription": .text("Report introduction"), "previewText": .text("Production Report summary. The document title, excerpt, archive and open actions remain readable."),
             "contentRevision": .text("fixed-revision"), "relatedExecutions": .array([]),
         ]))
         report = .init(entry: .init(ref: reference, revision: 1, createdAt: 1, updatedAt: 1,

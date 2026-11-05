@@ -261,7 +261,7 @@ func verifyReportScopes(ctx context.Context) {
 	if !strings.Contains(journal, a.ID) || strings.Contains(journal, b.ID) || strings.Contains(journal, inbox.ID) {
 		panic("Report journal escaped successful-event scope")
 	}
-	create := model.Object{"title": "Scoped report", "html": "<html><body>Evidence</body></html>"}
+	create := model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Scoped report", "html": "<html><body>Evidence</body></html>"}
 	aRaw, err := reportTool(ctx, aHandle, "create_report", "create", create)
 	must(err)
 	var aReport report.Summary
@@ -286,12 +286,12 @@ func verifyReportScopes(ctx context.Context) {
 	}
 	_, err = reportTool(ctx, aHandle, "update_report", "foreign-update", model.Object{"reportId": bReport.ID, "title": "Wrong scope"})
 	expectReportDenied(err, "foreign report update")
-	_, err = reportTool(ctx, aHandle, "create_report", "spoof-scope", model.Object{"title": "Spoof", "html": "<p>x</p>", "scope": bScope})
+	_, err = reportTool(ctx, aHandle, "create_report", "spoof-scope", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Spoof", "html": "<p>x</p>", "scope": bScope})
 	expectReportDenied(err, "model-supplied scope")
 	refs := []model.Object{{"threadId": a.ID, "executionId": a.Observation.LatestExecution.ExecutionID}, {"threadId": b.ID, "executionId": b.Observation.LatestExecution.ExecutionID}}
 	_, err = reportTool(ctx, aHandle, "update_report", "mixed-update", model.Object{"reportId": aReport.ID, "title": "Must roll back", "relatedExecutions": refs})
 	expectReportDenied(err, "mixed-scope related executions")
-	_, err = reportTool(ctx, aHandle, "create_report", "mixed-create", model.Object{"title": "Must roll back", "html": "<p>x</p>", "relatedExecutions": refs})
+	_, err = reportTool(ctx, aHandle, "create_report", "mixed-create", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Must roll back", "html": "<p>x</p>", "relatedExecutions": refs})
 	expectReportDenied(err, "cross-scope creation")
 	assertCatalog := func() {
 		catalog, err := app.Catalog(ctx)

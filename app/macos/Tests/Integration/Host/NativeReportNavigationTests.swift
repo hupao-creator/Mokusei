@@ -458,8 +458,9 @@ struct NativeReportNavigationTests {
             panelFrame(in: root) != nil && webView(in: root)?.isLoading == false && !fixture.motion.active
         }
         let frame = try #require(panelFrame(in: root))
-        // Click the circle's rim, beyond the X glyph, as in the Agent panel.
-        let close = frame.convert(NSPoint(x: frame.bounds.maxX - 17, y: frame.isFlipped ? 30 : frame.bounds.maxY - 30), to: nil)
+        // Close is at the leading edge: 14pt inset + 32pt circle.
+        // Click its right rim (43pt), beyond the X glyph.
+        let close = frame.convert(NSPoint(x: frame.bounds.minX + 43, y: frame.isFlipped ? 30 : frame.bounds.maxY - 30), to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             window.sendEvent(try #require(NSEvent.mouseEvent(with: type, location: close, modifierFlags: [], timestamp: 0,
                 windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)))
@@ -566,7 +567,7 @@ struct NativeReportNavigationTests {
             openThread: { _, _ in }, openExecution: { _ in })
         let entry = ApplicationThreadCatalogEntry<JSONValue>(ref: reference, revision: 1, createdAt: 0, updatedAt: 0,
             title: "Report", archived: false, tags: .init(tags: [], semanticTags: [], directoryTags: [], tagEmojis: [:]), presentations: [],
-            view: .object(["previewText": .text(""), "contentRevision": .text("1"), "relatedExecutions": .array([])]))
+            view: .object(["emoji": .text("📊"), "shortDescription": .text("Report introduction"), "previewText": .text(""), "contentRevision": .text("1"), "relatedExecutions": .array([])]))
         let window = SwiftUIReplay.window(try plugin.detail(props: .init(entry: entry, context: context)))
         defer { window.close() }
         let root = try #require(window.contentView)

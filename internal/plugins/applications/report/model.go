@@ -37,6 +37,8 @@ type TagSource struct {
 	DirectoryTags []string          `json:"directoryTags"`
 }
 type Data struct {
+	Emoji             string               `json:"emoji"`
+	ShortDescription  string               `json:"shortDescription"`
 	Scope             string               `json:"scope"`
 	Title             string               `json:"title"`
 	HTML              string               `json:"html"`
@@ -46,11 +48,15 @@ type Data struct {
 	TagSources        map[string]TagSource `json:"tagSources"`
 }
 type View struct {
+	Emoji             string               `json:"emoji"`
+	ShortDescription  string               `json:"shortDescription"`
 	PreviewText       string               `json:"previewText"`
 	ContentRevision   string               `json:"contentRevision"`
 	RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
 }
 type Summary struct {
+	Emoji              string `json:"emoji"`
+	ShortDescription   string `json:"shortDescription"`
 	ID                 string `json:"id"`
 	Revision           int64  `json:"revision"`
 	Title              string `json:"title"`
@@ -61,6 +67,8 @@ type Summary struct {
 	Archived           bool   `json:"archived"`
 }
 type Content struct {
+	Emoji             string               `json:"emoji"`
+	ShortDescription  string               `json:"shortDescription"`
 	ID                string               `json:"id"`
 	Revision          int64                `json:"revision"`
 	CreatedAt         int64                `json:"createdAt"`
@@ -73,11 +81,15 @@ type Content struct {
 	model.TagProjection
 }
 type CreateInput struct {
+	Emoji             string               `json:"emoji"`
+	ShortDescription  string               `json:"shortDescription"`
 	Title             string               `json:"title"`
 	HTML              string               `json:"html"`
 	RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
 }
 type UpdateInput struct {
+	Emoji             *string               `json:"emoji,omitempty"`
+	ShortDescription  *string               `json:"shortDescription,omitempty"`
 	ReportID          string                `json:"reportId"`
 	Title             *string               `json:"title,omitempty"`
 	HTML              *string               `json:"html,omitempty"`
@@ -94,6 +106,21 @@ type ListInput struct {
 type Page struct {
 	Items      []Summary `json:"items"`
 	NextCursor string    `json:"nextCursor,omitempty"`
+}
+
+func ParseEmoji(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if !taglabel.ValidEmoji(value) {
+		return "", errors.New("report emoji must be one complete emoji")
+	}
+	return value, nil
+}
+func ParseDescription(value string) (string, error) {
+	value = strings.Join(strings.Fields(value), " ")
+	if value == "" || utf8.RuneCountInString(value) > MaxPreviewLength {
+		return "", errors.New("report shortDescription must contain 1 to 220 characters")
+	}
+	return value, nil
 }
 
 func ParseTitle(value string) (string, error) {
@@ -157,6 +184,12 @@ func ParseData(raw json.RawMessage) (Data, error) {
 		return value, errors.New("invalid report scope")
 	}
 	var err error
+	if value.Emoji, err = ParseEmoji(value.Emoji); err != nil {
+		return value, err
+	}
+	if value.ShortDescription, err = ParseDescription(value.ShortDescription); err != nil {
+		return value, err
+	}
 	if value.Title, err = ParseTitle(value.Title); err != nil {
 		return value, err
 	}
@@ -223,7 +256,7 @@ func uniqueTags(values []string) []string {
 	return result
 }
 func summarize(record model.VersionedRecord, value Data) Summary {
-	return Summary{ID: record.ID, Revision: record.Revision, Title: value.Title, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, RelatedThreadCount: len(value.RelatedExecutions), TagCount: len(ProjectTags(value).Tags), Archived: value.Archived}
+	return Summary{Emoji: value.Emoji, ShortDescription: value.ShortDescription, ID: record.ID, Revision: record.Revision, Title: value.Title, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, RelatedThreadCount: len(value.RelatedExecutions), TagCount: len(ProjectTags(value).Tags), Archived: value.Archived}
 }
 
 var hiddenTags = map[string]bool{"head": true, "script": true, "style": true, "template": true, "noscript": true, "svg": true}

@@ -93,3 +93,18 @@ public extension View {
         }
     }
 }
+
+/// An embedded reader offers Back to its owning workspace without replacing
+/// the workspace's Close route. Identity changes retire the previous action.
+public struct NativeReadingAuxiliaryBackAction: Equatable, Sendable {
+    public let id: String
+    public let perform: @MainActor @Sendable () -> Void
+    public init(id: String, perform: @escaping @MainActor @Sendable () -> Void) { self.id = id; self.perform = perform }
+    public static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+}
+public struct NativeReadingAuxiliaryBackKey: PreferenceKey {
+    public static let defaultValue: NativeReadingAuxiliaryBackAction? = nil
+    public static func reduce(value: inout NativeReadingAuxiliaryBackAction?, nextValue: () -> NativeReadingAuxiliaryBackAction?) {
+        value = nextValue() ?? value
+    }
+}

@@ -139,11 +139,13 @@ public struct ApplicationExecutionReferencesUI {
     /// The host returns cancellation for the same aggregate catalog subscription.
     public let subscribe: (@escaping () -> Void) -> () -> Void
     /// Renderer-only native factory; public reference metadata stays plain data.
+    public let execution: (ApplicationExecutionRef) throws -> AnyView
     public let logo: (JSONText, CGFloat) throws -> AnyView
     public init(read: @escaping ([ApplicationExecutionRef]) throws -> [ApplicationExecutionPresentation],
                 subscribe: @escaping (@escaping () -> Void) -> () -> Void,
-                logo: @escaping (JSONText, CGFloat) throws -> AnyView) {
-        self.read = read; self.subscribe = subscribe; self.logo = logo
+                logo: @escaping (JSONText, CGFloat) throws -> AnyView,
+                execution: @escaping (ApplicationExecutionRef) throws -> AnyView = { _ in throw PluginContractError("Execution reader unavailable") }) {
+        self.read = read; self.subscribe = subscribe; self.logo = logo; self.execution = execution
     }
 }
 public struct ApplicationHTMLFailure: Sendable {

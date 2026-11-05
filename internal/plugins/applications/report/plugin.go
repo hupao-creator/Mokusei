@@ -61,6 +61,8 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *background.Runner) []plugin.ToolBinding {
 	id := model.Object{"type": "string", "minLength": 1, "maxLength": MaxIdentifierLength}
 	title := model.Object{"type": "string", "minLength": 1, "maxLength": MaxTitleLength, "pattern": "\\S", "description": "Report title."}
+	emoji := model.Object{"type": "string", "description": "One complete emoji representing this report."}
+	description := model.Object{"type": "string", "minLength": 1, "maxLength": MaxPreviewLength, "description": "Short standalone introduction for the report card."}
 	html := model.Object{"type": "string", "minLength": 1, "maxLength": MaxHTMLCharacters, "pattern": "\\S", "description": "Report HTML document. Follow the current system instructions for content and presentation."}
 	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
 	write := func(operation string) background.ToolHandler {
@@ -90,7 +92,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 		}
 	}
 	return []plugin.ToolBinding{
-		background.Tool(lifetime, "create_report", "Create a persistent read-only Report Thread.", model.Object{"title": title, "html": html, "relatedExecutions": related}, []string{"title", "html"}, write("create")),
+		background.Tool(lifetime, "create_report", "Create a persistent read-only Report Thread.", model.Object{"emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"title", "emoji", "shortDescription", "html"}, write("create")),
 		background.JSONPage(lifetime, "list_reports", "List Report Thread summaries. Offset and limit paginate the JSON text.", model.Object{}, nil, func(ctx context.Context, _ model.Object, _ string) (any, error) {
 			raw, err := domain.Query(ctx, "report.list", json.RawMessage(`{"limit":10000,"includeArchived":true}`))
 			if err != nil {
@@ -130,7 +132,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 			value["relatedExecutions"] = refs
 			return value, nil
 		}),
-		background.Tool(lifetime, "update_report", "Replace supplied Report Thread fields.", model.Object{"reportId": id, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId"}, write("update")),
+		background.Tool(lifetime, "update_report", "Replace supplied Report Thread fields.", model.Object{"reportId": id, "emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId"}, write("update")),
 	}
 }
 func toolReferences(value any) ([]model.ExecutionRef, error) {

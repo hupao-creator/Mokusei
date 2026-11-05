@@ -1,12 +1,17 @@
+import Foundation
 import MokuseiCore
 import MokuseiPluginAPI
 
 struct NativeReportView: Hashable, Sendable {
+    let emoji: JSONText
+    let shortDescription: JSONText
     let previewText: JSONText
     let contentRevision: JSONText
     let relatedExecutions: [ApplicationExecutionRef]
     init(json: JSONValue) throws {
-        let r = try NativeApplicationRecord(json, path: "report view", keys: ["previewText", "contentRevision", "relatedExecutions"])
+        let r = try NativeApplicationRecord(json, path: "report view", keys: ["emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"])
+        emoji = try r.text("emoji"); shortDescription = try r.text("shortDescription")
+        guard SemanticTagLabel.isValidEmoji(emoji.string), !shortDescription.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, shortDescription.string.unicodeScalars.count <= 220 else { throw PluginContractError("Invalid report card metadata") }
         previewText = try r.text("previewText"); contentRevision = try r.identifier("contentRevision")
         relatedExecutions = try r.array("relatedExecutions").map { value in
             let reference = try NativeApplicationRecord(value, path: "report execution", keys: ["thread", "executionId"])
@@ -19,7 +24,7 @@ struct NativeReportView: Hashable, Sendable {
         }
     }
     var json: JSONValue {
-        .object(["previewText": .string(previewText), "contentRevision": .string(contentRevision),
+        .object(["emoji": .string(emoji), "shortDescription": .string(shortDescription), "previewText": .string(previewText), "contentRevision": .string(contentRevision),
                  "relatedExecutions": .array(relatedExecutions.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })])
     }
 }

@@ -97,3 +97,8 @@ entry. This envelope also persists through ordinary offline catalog recovery.
 `mokuInterruptedExecutionId` envelope field. Missing provenance remains unknown;
 the client preserves it through catalog snapshots, deltas and offline storage
 without inspecting private Harness state.
+
+`ApplicationExecutionReferencesUI.execution` supplies a host-owned reader for a
+validated ordinary execution reference. The mounted host observes deletion and
+visibility, while `NativeHarnessThreadView` owns acquisition/release and the
+single-execution presentation. Report plugins never decode Harness timelines.

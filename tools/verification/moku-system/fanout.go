@@ -119,7 +119,7 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 				return "", "", nil, true, fmt.Errorf("Report read evidence mismatch: %v", readResult)
 			}
 			if !hasResult(req["input"], createID) {
-				return "create_report", createID, object{"title": "System chain report", "html": "<html><body><p>SYSTEM_CHILD_DONE</p></body></html>", "relatedExecutions": []any{object{"threadId": id, "executionId": execution["executionId"]}}}, true, nil
+				return "create_report", createID, object{"emoji": "📊", "shortDescription": "Summary of completed system chain work", "title": "System chain report", "html": "<html><body><p>SYSTEM_CHILD_DONE</p></body></html>", "relatedExecutions": []any{object{"threadId": id, "executionId": execution["executionId"]}}}, true, nil
 			}
 		}
 		return "", "", nil, true, nil

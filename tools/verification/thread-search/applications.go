@@ -92,7 +92,7 @@ func verifyApplications(ctx context.Context, directory string) {
 	})
 	must(e)
 	_, e = db.Update(ctx, func(tx *store.Tx) error {
-		return tx.Put("application:"+report.CollectionID+":report", model.VersionedRecord{ID: "report", Revision: 1, CreatedAt: 1, UpdatedAt: 1, Value: raw(report.Data{Scope: "inbox", Title: "正文报告", HTML: "<html><head><script>NEVER_UPLOAD_SCRIPT</script></head><body><h1>正文报告</h1><p>离线删除与本机数据清理</p><style>NEVER_UPLOAD_STYLE</style></body></html>", ContentRevision: "fixture-v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]report.TagSource{}})})
+		return tx.Put("application:"+report.CollectionID+":report", model.VersionedRecord{ID: "report", Revision: 1, CreatedAt: 1, UpdatedAt: 1, Value: raw(report.Data{Emoji: "📊", ShortDescription: "离线删除与本机数据清理", Scope: "inbox", Title: "正文报告", HTML: "<html><head><script>NEVER_UPLOAD_SCRIPT</script></head><body><h1>正文报告</h1><p>离线删除与本机数据清理</p><style>NEVER_UPLOAD_STYLE</style></body></html>", ContentRevision: "fixture-v1", RelatedExecutions: []model.ExecutionRef{}, TagSources: map[string]report.TagSource{}})})
 	})
 	must(e)
 	start(r)

@@ -39,7 +39,7 @@ struct NativeOverviewMembershipTests {
                 "tagEmojis": .object(["Shared": .text("🔧")])]),
             "presentations": .array([.object(["id": .text("mokusei.overview"), "apiVersion": .integer(1), "schemaVersion": .integer(1),
                 "value": .object(presentation)])]),
-            "view": .object(["previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
+            "view": .object(["emoji": .text("📊"), "shortDescription": .text("Report introduction"), "previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
     }
 
     private func model(_ directory: URL, gitStatus: @escaping (HarnessThread) -> HarnessGitStatus? = { _ in nil }) throws -> NativeOverviewWorkspaceModel {
