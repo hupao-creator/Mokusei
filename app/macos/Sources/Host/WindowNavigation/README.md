@@ -249,3 +249,20 @@ The actual main reader publishes its selection rather than relying solely on
 the Host's entry `readingTarget`. Request and reader-owner identities fence late
 publications; history travel and unavailable/non-execution pages disable send.
 Returning to the ordinary current document relinquishes the exact input target.
+
+Accepted input from a Report's referenced execution requests a single whole-workspace
+leftward slide into the resulting Agent execution. The Host retains the actual
+outgoing Report and execution surfaces while the new production Agent workspace
+finishes its existing content, auxiliary-layout and Dock admission. The two incoming
+execution panels share one native seat and travel together from the right over
+420ms using the reading replacement curve; the outgoing workspace moves left by
+the same distance. Core Animation translates seats without changing document widths.
+Landing retains the incoming hosting tree, so content updates do not replay travel
+or recreate readers. Native pointer/accessibility and reading interaction gates
+exclude both workspaces during preparation/travel; resident input keeps its existing
+owner. The route UUID scopes the request and completion, and a replacement route
+retires old work. Reduce Motion and inactive/covered scenes switch directly once
+ready; enabling those policies during travel or resizing settles immediately.
+This is limited to accepted Report continuation navigation, including historical
+forks; ordinary Agent sends, manual navigation and completion promotion retain
+their existing transitions. See the [Sprint implementation notes](../../../../../design/execution-route-slide.md).
