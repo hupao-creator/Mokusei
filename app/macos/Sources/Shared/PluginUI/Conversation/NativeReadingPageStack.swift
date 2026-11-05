@@ -30,6 +30,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var isolatesParent: Bool
     public var panelSource: CGRect?
     public var panelIdentity: NativeThreadIdentityVisit?
+    public var panelFrontIdentity: JSONText?
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
@@ -60,7 +61,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
                 emphasizedOpening: Bool = false, panel: Bool = false, isolatesParent: Bool = false, panelSource: CGRect? = nil,
-                panelIdentity: NativeThreadIdentityVisit? = nil, threadPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -73,7 +74,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.emphasizedOpening = emphasizedOpening; self.duration = duration
         self.panel = panel; self.panelSource = panelSource
         self.isolatesParent = isolatesParent
-        self.panelIdentity = panelIdentity; self.threadPanelMotion = threadPanelMotion
+        self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
+        self.threadPanelMotion = threadPanelMotion
         self.axis = axis
         self.direction = direction
         self.onParentPresentationChange = onParentPresentationChange; self.prepareParent = prepareParent
@@ -123,7 +125,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         identity: reduceMotion ? nil : panelIdentity,
                         onOpeningStarted: preloadPanelReader,
                         onCompletion: finishPanelTransition,
-                        content: front.id(identity)
+                        // A host retaining routes supplies a stable container identity;
+                        // it still owns each document's route identity inside.
+                        content: front.id(panelFrontIdentity ?? identity)
                             // Panel travel can finish before live heading anchors
                             // replace its identity ink. Secondary layout must not
                             // move that destination while the bridge still owns it.

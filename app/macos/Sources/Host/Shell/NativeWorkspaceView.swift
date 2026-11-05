@@ -17,6 +17,7 @@ public final class NativeWorkspacePresentation {
     public let themeTransition = NativeThemeTransitionController()
     public let readingNavigation = NativeReadingNavigationState()
     public let readingInteractions = NativeReadingInteractions()
+    let executionRouteSlide = NativeExecutionRouteSlideRequest()
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
@@ -488,9 +489,13 @@ public final class NativeWorkspacePresentation {
         // for a new fork. Wait for that event without delaying draft admission.
         guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
         executionSendNavigation = nil
+        let slidesFromReport = selected?.typeID == "report.document"
         open(pending.destination.thread, target: HarnessReadingTarget(executionID: pending.destination.executionID,
             requestID: JSONText(UUID().uuidString), mode: thread.observation.latestExecution?.executionID == pending.destination.executionID ? .current : .history,
             position: .result))
+        if slidesFromReport, selected == pending.destination.thread {
+            executionRouteSlide.destinationRoute = navigationRouteID
+        }
     }
 
     private func clearSidecardComposer() {
@@ -918,6 +923,7 @@ public struct NativeWorkspaceView: View {
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
                 panel: presentation.usesReadingPanel, isolatesParent: true, panelSource: presentation.readingPanelSource,
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
+                panelFrontIdentity: "workspace-route-slide",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
@@ -943,48 +949,11 @@ public struct NativeWorkspaceView: View {
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
                     chromeVisible: presentation.selected == nil)
             } front: {
-                if let selected = presentation.selected, selected.typeID != "agent" {
-                    presentation.applicationHost.detail(thread: selected, readingTarget: presentation.readingTarget,
-                        environment: NativeApplicationDetailEnvironment(suppressed: applicationSuppressed,
-                            contentTopInset: presentation.usesReadingPanel ? 60 : 74,
-                            onBack: { presentation.closeApplication() }, onSettings: { presentation.openSettings() },
-                            onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
-                            onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
-                        .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
-                            suppressed: applicationSuppressed,
-                            identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
-                            onClose: { presentation.closeApplication() }))
-                        .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
-                        .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in
-                            presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)
-                        })
-                        .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
-                        .background {
-                            NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {
-                                _ = presentation.admitReadingEntrance(routeID: routeID, reference: selected)
-                            }
-                        }
-                        .id(ApplicationSurfaceIdentity(thread: selected, recovery: model.recoveryRevision))
-                        .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
-                        .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
-                } else if let selected = presentation.selected, let thread = model.catalog.thread(selected.threadID) {
-                    NativeAgentThreadWorkspace(harnessHost: model.harnessHost, thread: thread, registry: model.plugins.sidecards,
-                        executionDisabled: !model.executionAvailable(thread), readingTarget: presentation.readingTarget,
-                        sidecardsSuppressed: sidecardsSuppressed,
-                        enabledSidecardIDs: enabledSidecards, services: presentation.sidecardServices(),
-                        onBack: { presentation.showOverview() },
-                        onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
-                        backLabel: model.preferences.locale.text("返回俯瞰", "Back to overview"),
-                        onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
-                        executionReveal: presentation.threadExecutionReveal,
-                        onEntranceReady: { presentation.admitReadingEntrance(routeID: routeID, reference: selected) })
-                        .environment(\.nativeAgentInputTargetChanged, { owner, target in
-                            presentation.updateAgentInput(owner: owner, target: target, route: routeID)
-                        })
-                        .environment(\.nativeReadingNavigation, nil)
-                        .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
-                        .onChange(of: selected) { _, ref in if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = ref } }
-                        .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
+                NativeExecutionRouteSlide(route: routeID,
+                    requestedRoute: presentation.executionRouteSlide.destinationRoute,
+                    ready: presentation.readingEntranceAdmitted,
+                    enabled: !applicationSuppressed && presentation.selected != nil) {
+                    readingFront.id(routeID)
                 }
             }
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
@@ -999,6 +968,53 @@ public struct NativeWorkspaceView: View {
             .environment(\.nativeReadingInteractionVisit, routeID)
             .environment(\.nativeReadingInteractionRefresh, presentation.readingInteractions.refresh)
             .nativeReadingActive(presentation.interactionPage == "thread" && !presentation.scene.cameraActive && !presentation.messageMotion.active)
+    }
+
+    @ViewBuilder private var readingFront: some View {
+        let routeID = presentation.navigationRouteID
+        if let selected = presentation.selected, selected.typeID != "agent" {
+            presentation.applicationHost.detail(thread: selected, readingTarget: presentation.readingTarget,
+                environment: NativeApplicationDetailEnvironment(suppressed: applicationSuppressed,
+                    contentTopInset: presentation.usesReadingPanel ? 60 : 74,
+                    onBack: { presentation.closeApplication() }, onSettings: { presentation.openSettings() },
+                    onNativeNavigationChange: { if presentation.navigationRouteID == routeID { presentation.nativeApplicationNavigation = $0 } },
+                    onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
+                .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
+                    suppressed: applicationSuppressed,
+                    identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
+                    onClose: { presentation.closeApplication() }))
+                .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
+                .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in
+                    presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)
+                })
+                .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
+                .background {
+                    NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {
+                        _ = presentation.admitReadingEntrance(routeID: routeID, reference: selected)
+                    }
+                }
+                .id(ApplicationSurfaceIdentity(thread: selected, recovery: model.recoveryRevision))
+                .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
+                .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
+        } else if let selected = presentation.selected, let thread = model.catalog.thread(selected.threadID) {
+            NativeAgentThreadWorkspace(harnessHost: model.harnessHost, thread: thread, registry: model.plugins.sidecards,
+                executionDisabled: !model.executionAvailable(thread), readingTarget: presentation.readingTarget,
+                sidecardsSuppressed: sidecardsSuppressed,
+                enabledSidecardIDs: enabledSidecards, services: presentation.sidecardServices(),
+                onBack: { presentation.showOverview() },
+                onFollowUpVisibilityChange: { presentation.setFollowUpVisible($0) },
+                backLabel: model.preferences.locale.text("返回俯瞰", "Back to overview"),
+                onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } },
+                executionReveal: presentation.threadExecutionReveal,
+                onEntranceReady: { presentation.admitReadingEntrance(routeID: routeID, reference: selected) })
+                .environment(\.nativeAgentInputTargetChanged, { owner, target in
+                    presentation.updateAgentInput(owner: owner, target: target, route: routeID)
+                })
+                .environment(\.nativeReadingNavigation, nil)
+                .onAppear { if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = selected } }
+                .onChange(of: selected) { _, ref in if presentation.navigationRouteID == routeID { presentation.mountedReadingThread = ref } }
+                .onDisappear { if presentation.navigationRouteID == routeID, presentation.mountedReadingThread == selected { presentation.mountedReadingThread = nil } }
+        }
     }
 
     private var readingIdentity: JSONText {

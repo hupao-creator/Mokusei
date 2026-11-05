@@ -1291,3 +1291,10 @@ emoji, final reply and ordinary non-work facts, while hiding execution work and
 its process summary. Live Agent execution Sidecards retain their existing
 heading and summary behavior. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
 for lifecycle details and Sprint validation limits.
+
+The outer reading stack can accept a `panelFrontIdentity` for a route-retaining
+Host container. Its default remains the document identity. Report continuation
+uses a stable native slide container inside that single outer stack; the Host
+still keys each production document by route. Retiring a Report therefore cannot
+tear down or replace the new route's outer motion/Close owner. See the
+[continuation slide notes](../../../../../design/execution-route-slide.md).
