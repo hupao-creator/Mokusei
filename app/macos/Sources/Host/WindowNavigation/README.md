@@ -35,6 +35,14 @@ reopens it. Narrow workspaces stack the two panels and wide workspaces allow
 resizing with the shared divider. Escape from the Report or linked webpage folds an open card
 before closing the Report; editable elements and dialogs retain key priority.
 Same-document anchors (including HTTP pages) and non-link navigations retain WebKit behavior.
+The linked Browser opens with the same `NativeSidecardFold` aperture and
+launcher travel as Agent Execution/Browser/Voice and Report related executions:
+380ms with cubic Bézier `(0.22, 1, 0.36, 1)`. Its launcher is the lower 42pt
+right-rail control. The native document takes its destination size once while
+the shell unfolds. Closing retains the existing whole-shell fade and workspace
+movement; after that fade, the opening aperture resets without animation.
+Selection identity fences the reset against rapid reopening. The Report's
+HTML-ready 200ms admission delay is independent of this motion.
 Reduced Motion disables the workspace's folding and stacking animation.
 Outside a Report panel, new-window HTTP(S) GET links use the external browser.
 Non-GET new-window form requests are rejected with an in-document notice; the

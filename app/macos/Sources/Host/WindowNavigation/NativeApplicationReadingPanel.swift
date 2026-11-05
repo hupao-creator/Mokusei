@@ -84,6 +84,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             let size = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: size, open: expanded,
                 preferredWidth: 2.0 / 3, retainedWidth: retainedWidth)
+            let browserLauncher = CGPoint(x: size.width + 38, y: size.height / 2 + 28)
             ZStack(alignment: .topLeading) {
                 content
                     .environment(\.nativeReportSidecards, sidecards)
@@ -118,13 +119,12 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                                 sidecards.close()
                             })
                             .environment(\.nativeReadingNavigation, nil)
-                            .frame(width: layout.surfaceWidth, height: layout.surfaceHeight)
-                            .background(NativePalette.thread.canvas.swiftUI)
-                            .background(NativeReadingPanelFrame(identifier: "report-link-card"))
                             .clipShape(RoundedRectangle(cornerRadius: 21))
-                            .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                            .offset(x: layout.surfaceX, y: layout.surfaceY)
-                            .opacity(expanded ? 1 : 0)
+                            .modifier(NativeReportBrowserOpening(expanded: expanded,
+                                source: CGRect(x: browserLauncher.x - 21, y: browserLauncher.y - 21, width: 42, height: 42),
+                                destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
+                                    width: layout.surfaceWidth, height: layout.surfaceHeight),
+                                animation: dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation))
                             .allowsHitTesting(expanded && !suppressed)
                             .disabled(!expanded || suppressed)
                             .accessibilityHidden(!expanded || suppressed)
@@ -136,7 +136,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                         NativeIcon(name: "Globe2", size: 17, strokeWidth: 1.8)
                             .frame(width: 42, height: 42).contentShape(Circle())
                     }
-                    .position(x: size.width + 38, y: size.height / 2 + 28)
+                    .position(browserLauncher)
                     .disabled(suppressed)
                 }
             }
@@ -160,5 +160,52 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }
             else { onClose() }
         })
+    }
+}
+
+/// Share launcher-to-panel opening without replacing the linked Browser's
+/// existing whole-shell fade on close. Reset the aperture only after that fade;
+/// a reversed selection must not let an old completion fold the reopened page.
+private struct NativeReportBrowserOpening: ViewModifier {
+    let expanded: Bool
+    let source: CGRect
+    let destination: CGRect
+    let animation: Animation?
+    @State private var unfolded = false
+    @State private var visible = false
+    @State private var changeID = UUID()
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(NativeSidecardFold(progress: unfolded ? 1 : 0, source: source,
+                destination: destination, frameIdentifier: "report-link-card"))
+            .animation(animation, value: unfolded)
+            .opacity(visible ? 1 : 0)
+            .animation(expanded ? nil : animation, value: visible)
+            .background {
+                // A link can mount an already-selected Browser. Commit its
+                // launcher-sized aperture before starting the first opening.
+                NativeReadingEntranceStage(enabled: expanded && !unfolded) {
+                    guard expanded else { return }
+                    visible = true; unfolded = true
+                }
+            }
+            .onChange(of: expanded, initial: true) { _, open in
+                let id = UUID()
+                changeID = id
+                if open {
+                    // A reversal during the close fade keeps its full aperture.
+                    if unfolded { visible = true }
+                } else {
+                    withAnimation(animation, completionCriteria: .removed) {
+                        visible = false
+                    } completion: {
+                        guard changeID == id else { return }
+                        var transaction = Transaction(animation: nil)
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) { unfolded = false }
+                    }
+                }
+            }
     }
 }
