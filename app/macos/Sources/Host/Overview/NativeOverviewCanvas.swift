@@ -313,7 +313,11 @@ public struct NativeOverviewCanvas<Content: View>: View {
             .simultaneousGesture(magnification(in: geometry.size))
             .onChange(of: zoomActive) { _, active in if !active { navigationInput.endPinch() } }
             .onChange(of: state.isLayingOut) { _, layingOut in if layingOut { navigationInput.cancel() } }
-            .disabled(interactionPaused)
+            // A presentation pause blocks the canvas, but must not publish a
+            // disabled control state into plugin cards: native Buttons dim their
+            // labels while gesture-based cards keep their ordinary appearance.
+            .allowsHitTesting(!interactionPaused)
+            .accessibilityHidden(interactionPaused)
             .onChange(of: requestKey(viewport)) { _, _ in attach(viewport); enqueue(viewport) }
             .onAppear { attach(viewport); state.camera.setVisible(visible); enqueue(viewport) }
             // Simple array hosts feed the same store as the production model.

@@ -117,6 +117,15 @@ for samples, paired observations and validation limits.
 
 ## Layout, motion and input
 
+Presentation pauses (including the expanded Moku composer) gate canvas hit
+testing and accessibility without disabling the card control tree. Native
+Button labels, including Report cards and Git summaries, therefore keep their
+ordinary colors alongside gesture-based Agent cards. Camera pause, activation
+guards and Moku outside-click dismissal retain their existing owners; transient
+composer growth does not change the layout viewport. See the
+[recording investigation](../../../../../design/moku-input-card-dimming.md)
+for observed behavior and sprint verification limits.
+
 The 1x grid cell is 360pt wide and 220pt high (10% taller than the former
 200pt baseline), with a 16pt gap. Two-row cards are therefore 456pt high.
 Packing, rendered card bounds, transitions, attention visibility and camera
