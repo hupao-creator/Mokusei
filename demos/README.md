@@ -6,6 +6,7 @@
 | --- | --- |
 | [Report Thread 卡片与展开](report-thread/README.md) | 已确认设计对照及正式组件 fixture：emoji / 短介绍 / harness logo 卡片、右侧关联列表 2:8、执行阅读 5:5；生产契约已接入。 |
 | [Agent Thread 面板转场](thread-panel-transition/README.md) | 生产 compositor、身份交接和双向正文揭示的 fixture 回放；保留此前独立提案作对照，Moku 常驻。 |
+| [Execution 完成交接](execution-handoff/README.md) | 独立原生提案：复用生产 reader，主 detail 向下翻到新结果，sidecard 同步吸入主面板；支持重复播放、慢速及减弱动态效果，不修改生产交接。 |
 | [Overview / glass world](../tools/verification/overview-input/README.md) | 当前生产 Canvas、Harness/Report 卡片、Chrome 和 Moku Dock；含浅深色 × 材质开关的隔离截图。 |
 | [Tag morph](tag-filter-morph/README.md) | 当前生产 `NativeOverviewChrome` 标签回放。 |
 | [Overview 搜索](overview-thread-search/README.md) | 当前生产搜索、筛选与几何回放。 |
