@@ -654,7 +654,6 @@ public struct NativeWorkspaceView: View {
         } thread: {
             if (presentation.scene.mokuOpen || presentation.scene.cameraActive), let thread = model.catalog.moku {
                 NativeMokuThreadView(harnessHost: model.harnessHost, thread: thread, draft: presentation.draft,
-                    archiveThreads: model.catalog.threads.filter(\.mokuHistory),
                     readingTarget: presentation.scene.readingTarget,
                     running: presentation.moku.running, disabled: disabled,
                     activeVoiceControls: AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)),

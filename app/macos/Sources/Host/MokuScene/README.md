@@ -15,13 +15,12 @@ subsequent child-owned animations retain their own transactions.
 
 Moku history uses the same bounded reading stack and panel shell as Agent, Git
 and Report reading: shared margins, rounded surface, border, dimmed/blurred
-retained background and panel-owned Close. The current/archived-session menu
-has a 60pt header seat with trailing clearance for Close, independent of window
-traffic lights. The turn index, session switching, transcript, composer and
-voice routes remain owned by the existing reader. The reading card and the
-current-session input capsule are separate siblings, with a 12pt gap and the
+retained background and panel-owned Close. The turn index, transcript, composer
+and voice routes remain owned by the existing reader. The reader displays the
+current Moku session; archived session data remains stored. The reading card and
+the current-session input capsule are separate siblings, with a 12pt gap and the
 same horizontal center; the card alone owns the rounded reading surface and
-Close. Archived sessions remain read-only without an input capsule.
+Close.
 
 Close, the surrounding blank margin and Cmd+B return through the shared motion
 lifetime; native Escape first returns from an internally selected historical
@@ -33,9 +32,8 @@ does not publish scroll-driven traffic-light navigation. Its panel geometry
 adapts to narrow windows using the existing shared contract.
 
 Entering history from Note keeps the existing Note-dismissal behavior. History
-covers the outside Dock and owns its existing current-session composer; archived
-Moku sessions remain read-only. Note layout/closing motion, scrollbar policy and
-Agent composer motion are independent of this migration.
+covers the outside Dock and owns its existing current-session composer. Note
+layout/closing motion, scrollbar policy and Agent composer motion are independent of this migration.
 
 ## Dock and composer
 
@@ -230,8 +228,7 @@ retains the Arc for comparison only.
 ## Talk, dispatch and notes
 
 The expanded note's **Moku history** button opens the existing conversation
-reader, including its archived-session picker. It remains available when the
-note or conversation is empty and supports keyboard and accessibility activation
+reader. It remains available when the note or conversation is empty and supports keyboard and accessibility activation
 with localized labels. History sits before Stop or voice controls in the trailing
 action row beside the persistent eyes. Note covers Talk, dispatch and voice
 transcript ink rather than reserving a second message row. The Dock measures
