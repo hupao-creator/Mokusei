@@ -45,7 +45,7 @@ import MokuseiPluginUI
 struct NativeOverviewSearchTests {
     private func thread(_ id: String, title: String = "修复 Glass Focus", tags: [JSONText] = ["界面设计"],
                         revision: Int = 0, archived: Bool = false, status: PublicExecution.Status? = nil,
-                        cwd: String = "/workspace/项目/Café") throws -> HarnessThread {
+                        cwd: String = "/workspace/项目/Café", mokuInterrupted: Bool = false) throws -> HarnessThread {
         try HarnessThread(id: JSONText(id), harnessID: "fixture", revision: revision,
             sessionState: .object(["privateBody": .text("secret-body-needle")]),
             observation: .init(latestExecution: try status.map {
@@ -54,7 +54,7 @@ struct NativeOverviewSearchTests {
                     interactions: $0 == .waitingForUser ? [.init(id: "permission", kind: .permission, title: "Allow?",
                         actions: [.init(id: "allow", intent: .allow, label: "Allow")], questions: [])] : [])
             }), cwd: JSONText(cwd), settings: .object([:]), createdAt: 1, updatedAt: 2,
-            title: JSONText(title), tags: tags, archived: archived,
+            title: JSONText(title), tags: tags, mokuInterruptedExecutionID: mokuInterrupted ? "execution" : nil, archived: archived,
             tagEmojis: Dictionary(uniqueKeysWithValues: tags.map { ($0, JSONText("🔧")) }))
     }
     private func application(archived: Bool = false, directoryOnly: Bool = false,
@@ -85,6 +85,33 @@ struct NativeOverviewSearchTests {
     }
 
 
+    @Test func attentionVisitsAccumulateOnlyForegroundTimeAcrossOneDetailEntry() async throws {
+        final class Capture {
+            var now: TimeInterval = 100
+            var receipts: [JSONValue] = []
+        }
+        let capture = Capture()
+        let visits = NativeThreadVisitTracker(now: { capture.now }) { capture.receipts.append($0) }
+        visits.update(thread: "a", visible: true, completed: nil, fromSearch: true)
+        capture.now += 10
+        visits.update(thread: "a", visible: true, completed: "B", fromSearch: true)
+        capture.now += 5
+        visits.update(thread: "a", visible: false, completed: "B", fromSearch: true)
+        capture.now += 600
+        visits.update(thread: "a", visible: true, completed: "B", fromSearch: true)
+        capture.now += 5
+        visits.update(thread: nil, visible: false, completed: nil, fromSearch: false)
+        visits.update(thread: "a", visible: true, completed: "B", fromSearch: false)
+        await visits.finish()
+        let first = try #require(capture.receipts.first?["visitId"])
+        let firstVisit = capture.receipts.filter { $0["visitId"] == first }
+        #expect(firstVisit.compactMap { $0["elapsed"]?.numberValue } == [0, 10_000, 15_000, 15_000, 20_000])
+        #expect(firstVisit[1]["alreadyVisible"]?.boolValue == true)
+        #expect(firstVisit[1]["completedExecution"]?.stringValue == "B")
+        #expect(capture.receipts.last?["visitId"] != first)
+        #expect(capture.receipts.last?["searchOpen"]?.boolValue == false)
+    }
+
     private func wait(sourceLocation: SourceLocation = #_sourceLocation, _ predicate: () -> Bool) async throws {
         for _ in 0..<300 {
             if predicate() { return }
@@ -97,12 +124,13 @@ struct NativeOverviewSearchTests {
 
     @Test func publicMetadataTermsAndExistingVisibilityContract() throws {
         let threads = try [thread("visible"), thread("archived", archived: true), thread("failed", status: .failed),
-                           thread("interrupted", status: .interrupted), thread("running", status: .running)]
+                           thread("interrupted", status: .interrupted), thread("moku-stop", status: .interrupted, mokuInterrupted: true),
+                           thread("running", status: .running)]
         let collection = NativeOverviewSelection.select(threads: threads, applications: [try application()])
-        #expect(NativeOverviewSearch("  GLASS\n修复 cafe  ").filter(collection).threads.map(\.id) == ["visible", "running"])
-        #expect(NativeOverviewSearch("项目").filter(collection).threads.count == 2)
-        #expect(NativeOverviewSearch("界面").filter(collection).threads.count == 2)
-        #expect(NativeOverviewSearch("ＣＡＦＥ").filter(collection).threads.count == 2)
+        #expect(NativeOverviewSearch("  GLASS\n修复 cafe  ").filter(collection).threads.map(\.id) == ["visible", "interrupted", "running"])
+        #expect(NativeOverviewSearch("项目").filter(collection).threads.map(\.id) == ["visible", "interrupted", "running"])
+        #expect(NativeOverviewSearch("界面").filter(collection).threads.map(\.id) == ["visible", "interrupted", "running"])
+        #expect(NativeOverviewSearch("ＣＡＦＥ").filter(collection).threads.map(\.id) == ["visible", "interrupted", "running"])
         #expect(NativeOverviewSearch("中文 shared").filter(collection).applications.count == 1)
         #expect(NativeOverviewSearch("  \n\u{3000}").filter(collection).count == collection.count)
         #expect(NativeOverviewSearch("secret-body-needle").filter(collection).count == 0)
@@ -115,7 +143,7 @@ struct NativeOverviewSearchTests {
         #expect(NativeOverviewSearch("Release").filter(NativeOverviewSelection.select(threads: [], applications: [directory], tags: ["Café"], kind: .directory)).count == 1)
         let covered = try application(covers: [.object(["thread": ApplicationThreadRef(threadID: "running", typeID: "agent").json, "executionId": .text("execution")])])
         let merged = NativeOverviewSelection.select(threads: threads, applications: [covered])
-        #expect(NativeOverviewSearch("Glass").filter(merged).threads.map(\.id) == ["visible"])
+        #expect(NativeOverviewSearch("Glass").filter(merged).threads.map(\.id) == ["visible", "interrupted"])
     }
 
     @Test func searchUsesCachedDirectoryTagWithoutWalkingTheFileSystem() throws {
@@ -126,11 +154,14 @@ struct NativeOverviewSearchTests {
         #expect(NativeOverviewSearch("CachedOnly").filter(collection, directoryTags: cache).count == 1)
     }
 
-    @Test func modelSearchIntersectsTagAndReconcilesLatestCatalogWithoutStaleResults() throws {
+    @Test func globalSearchIncludesCollapsedCardsAndRestoresBrowsingMembership() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let workspace = try workspace(directory), model = model(workspace)
-        let all = try [thread("a"), thread("b", title: "Other title", tags: ["Other"]), thread("c", title: "Stable member")]
+        var hidden = try #require(thread("hidden", title: "Other result", tags: ["Other"]).json.objectValue)
+        hidden["attentionHidden"] = .bool(true)
+        let all = try [thread("a"), thread("b", title: "Other title", tags: ["Other"]),
+                       thread("c", title: "Stable member"), HarnessThread(json: .object(hidden))]
         try install(all, in: workspace)
         model.refresh()
         let filter = try #require(model.filters.withChildren.first { $0.matches("界面设计") })
@@ -140,7 +171,7 @@ struct NativeOverviewSearchTests {
         model.beginSearch()
         #expect(model.sceneKey == browseScene)
         model.updateSearch("Other")
-        #expect(model.items.isEmpty && model.tagSelection == selected)
+        #expect(Set(model.items.map(\.id)) == ["b", "hidden"] && model.tagSelection == selected)
         model.updateSearch("glass")
         #expect(model.items.map(\.id) == ["a"])
         let previousScene = model.sceneKey
@@ -570,7 +601,7 @@ extension NativeOverviewSearchTests {
         if searching { overview.beginSearch(); overview.updateSearch("Other result") }
         // Search misses do not hide a tag with positive canonical membership.
         #expect(overview.visibleFilters.withChildren.contains { $0.matches("Target") && $0.count == 1 })
-        if searching { #expect(overview.items.isEmpty) }
+        if searching { #expect(overview.items.map(\.id) == ["b"]) }
         // Archiving/removing the last assignment must also clear the selection.
         try install([thread("a", tags: ["Target"], archived: true),
                      thread("b", title: "Other result", tags: ["Other"], status: .completed)], in: workspace)

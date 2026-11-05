@@ -285,3 +285,5 @@ including inherited and independent Harness forms. Smaller windows, app zoom,
 expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
+
+Attention uses the standard background configuration editor for enablement, inherited Moku configuration and an independent execution profile. Its wake intervals and visible-thread threshold are product constants.

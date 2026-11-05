@@ -465,7 +465,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     private func collection(tags: [String], kind: NativeOverviewTagKind?, scope: String? = nil) -> NativeOverviewCollection {
-        NativeOverviewSelection.select(threads: catalogThreads, applications: catalogApplications,
+        NativeOverviewSelection.select(threads: catalogThreads.filter { !$0.attentionHidden }, applications: catalogApplications,
             tags: tags, kind: kind, scope: scope, directoryTags: directoryTags.values)
     }
 
@@ -494,12 +494,13 @@ public final class NativeOverviewWorkspaceModel {
             tagKeys[tag] = value
             return value
         }
-        filters = NativeOverviewSelection.filters(candidates, directoryTags: directoryTags.values, key: normalized)
+        let browseCandidates = NativeOverviewCollection(threads: candidates.threads.filter { !$0.attentionHidden }, applications: candidates.applications)
+        filters = NativeOverviewSelection.filters(browseCandidates, directoryTags: directoryTags.values, key: normalized)
         // Every exposed filter has one canonical scope. Partition once rather
         // than decoding every thread's scope again for every directory/child.
         // Applications still use the full candidate list: an unscoped document
         // can participate by directory label under the existing selection rules.
-        let threadsByScope = Dictionary(grouping: candidates.threads, by: NativeOverviewSelection.scope)
+        let threadsByScope = Dictionary(grouping: browseCandidates.threads, by: NativeOverviewSelection.scope)
         func members(for filter: NativeOverviewFilter) -> NativeOverviewCollection {
             NativeOverviewSelection.select(threads: threadsByScope[filter.scope] ?? [], applications: candidates.applications,
                 tags: [filter.tag] + filter.aliases, kind: filter.isDirectory ? .directory : .semantic,

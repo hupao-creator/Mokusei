@@ -10,6 +10,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
+	"github.com/hupao-creator/Mokusei/internal/services/threadattention"
 	"github.com/hupao-creator/Mokusei/internal/services/threadsearch"
 	"os"
 	"path/filepath"
@@ -178,6 +179,16 @@ func main() {
 	assert(len(query(r, "离线删除", refs("literal")...).Hits) == 0, "candidate scope")
 	assert(len(query(r, "离线删除 后台", refs("body")...).Hits) == 1, "body AND terms")
 	assert(query(r, "exact-ID-42", refs("body", "literal")...).Hits[0].Ref.ThreadID == "literal", "identifier match")
+	_, err = db.Update(ctx, func(tx *store.Tx) error {
+		if err := tx.Put("attention-thread:body", threadattention.Thread{Hidden: true, Revision: 1}); err != nil {
+			return err
+		}
+		return tx.Put("attention-hidden:body", true)
+	})
+	must(err)
+	assert(len(query(r, "离线删除", refs("body")...).Hits) == 1 && db.Snapshot().Has("attention-hidden:body"), "collapsed card remains hidden and body-indexed on search hit")
+	invoke(r, "thread:record-visit", model.Object{"threadId": "body", "visitId": "aa000000-0000-4000-8000-000000000001", "elapsed": 0, "foreground": true, "completedExecution": "", "alreadyVisible": false, "searchOpen": true})
+	assert(!db.Snapshot().Has("attention-hidden:body"), "opening the search hit restores the ordinary card")
 	must(r.SetArchived(ctx, "body", true))
 	assert(len(query(r, "离线删除", refs("body")...).Hits) == 0, "archive immediately excludes body")
 	must(r.SetArchived(ctx, "body", false))

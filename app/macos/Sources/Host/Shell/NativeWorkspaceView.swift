@@ -26,6 +26,10 @@ public final class NativeWorkspacePresentation {
     public private(set) var selected: ApplicationThreadRef?
     public fileprivate(set) var mountedReadingThread: ApplicationThreadRef?
     public private(set) var performanceOperation: UInt64?
+    @ObservationIgnored private lazy var attentionVisits = NativeThreadVisitTracker { [weak self] payload in
+        guard let self else { throw CancellationError() }
+        _ = try await self.workspace.invoke("thread:record-visit", args: [payload])
+    }
     @ObservationIgnored private var performanceVisit: NativePerformanceSpan?
     public private(set) var readingTarget: HarnessReadingTarget?
     public private(set) var readingPanelSource: CGRect?
@@ -60,6 +64,12 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored public lazy var moku = NativeMokuWorkspacePresentation(workspace: workspace, overview: overview)
     private var focused = false
     private var documentVisible = true
+    private var readingWindowActive = false
+
+    fileprivate func setReadingWindowActive(_ active: Bool) {
+        readingWindowActive = active
+        publishPresence()
+    }
     @ObservationIgnored private var started = false
     public var interactionReady: Bool { started && !workspace.stopping }
     @ObservationIgnored private var restored = false
@@ -355,6 +365,12 @@ public final class NativeWorkspacePresentation {
 
     public func publishPresence() {
         guard started else { return }
+        let agentID = selected?.typeID == "agent" ? selected?.threadID : nil
+        let latest = agentID.flatMap { workspace.catalog.thread($0)?.observation.latestExecution }
+        attentionVisits.update(thread: agentID,
+            visible: focused && documentVisible && readingWindowActive && workspace.connection == .connected && readingEntranceAdmitted && !scene.mokuOpen && !scene.settingsOpen,
+            completed: latest?.status == .completed ? latest?.executionID : nil,
+            fromSearch: overview.isSearching && !overview.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         configureThreadVoice()
         // Keep Dock eligibility continuous while moving between its two routes.
         if selected == nil { scene.overviewVisible = true; scene.readingPanelVisible = false }
@@ -430,6 +446,7 @@ public final class NativeWorkspacePresentation {
               selected == reference, !messageMotion.active else { return false }
         guard !readingEntranceAdmitted else { return true }
         readingEntranceAdmitted = true
+        publishPresence()
         configureDockInput(in: scene)
         if reference.typeID == "agent", !scene.dockCovered, !scene.dockInteractionVisible {
             scene.setInputOpen(true)
@@ -541,6 +558,7 @@ public final class NativeWorkspacePresentation {
         themeTransition.cancel(); scene.settle(); moku.stop(); applicationHost.release()
         if let voiceOwner { workspace.voice.releaseThread(voiceOwner); self.voiceOwner = nil }
         let task = Task {
+            await attentionVisits.finish()
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
         }
@@ -553,6 +571,7 @@ public final class NativeWorkspacePresentation {
 public struct NativeWorkspaceView: View {
     public let model: NativeWorkspaceModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.controlActiveState) private var controlActiveState
     @State private var presentation: NativeWorkspacePresentation
     @State private var canvasInputRegions = NativeCanvasInputRegions()
     public init(model: NativeWorkspaceModel, presentation: NativeWorkspacePresentation? = nil) {
@@ -604,6 +623,7 @@ public struct NativeWorkspaceView: View {
         .nativeLayoutLog("workspace.surface")
         .preferredColorScheme(model.preferences.appearance == .system ? nil : model.preferences.appearance == .dark ? .dark : .light)
         .onChange(of: scenePhase, initial: true) { _, phase in presentation.setScenePhase(phase) }
+        .onChange(of: controlActiveState, initial: true) { _, state in presentation.setReadingWindowActive(state == .key) }
         .focusedSceneValue(\.workspacePresentation, presentation)
         .onAppear { presentation.start() }
         .onDisappear { Task { await presentation.release() } }

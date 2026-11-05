@@ -3,6 +3,7 @@ package claude
 import (
 	"encoding/json"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
@@ -30,4 +31,16 @@ func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage,
 		parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: turn.Text})
 	}
 	return parts, nil
+}
+
+func (StateAdapter) ReadableCharacters(raw json.RawMessage) (int, error) {
+	state, err := ParseState(raw)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, t := range state.Turns {
+		total += utf8.RuneCountInString(t.Text) + utf8.RuneCountInString(t.Error)
+	}
+	return total, nil
 }

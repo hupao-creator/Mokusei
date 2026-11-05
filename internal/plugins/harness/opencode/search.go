@@ -2,6 +2,7 @@ package opencode
 
 import (
 	"encoding/json"
+	"unicode/utf8"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
@@ -33,4 +34,18 @@ func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage,
 		}
 	}
 	return parts, nil
+}
+
+func (StateAdapter) ReadableCharacters(raw json.RawMessage) (int, error) {
+	state, err := DecodeState(raw)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, m := range state.Messages {
+		if m.Role == "assistant" && m.Presentation != "internal" {
+			total += utf8.RuneCountInString(m.Text)
+		}
+	}
+	return total, nil
 }

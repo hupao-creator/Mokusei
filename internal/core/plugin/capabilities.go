@@ -340,3 +340,12 @@ func (e *ApplicationProcessError) Error() string { return e.Message }
 type ApplicationProcessCapability interface {
 	Run(context.Context, ApplicationProcessInput) (ApplicationProcessResult, error)
 }
+
+var AttentionCapabilityKey = CapabilityKey{"mokusei.thread-attention", 1, "runtime"}
+
+type AttentionCapability interface {
+	Pending(context.Context, []LifecycleEvent) ([]LifecycleEvent, error)
+	Schedule(context.Context) error
+	Evidence(context.Context, []LifecycleEvent) ([]model.Object, error)
+	Hide(context.Context, string, uint64, BackgroundWriteOptions) (json.RawMessage, error)
+}

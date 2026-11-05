@@ -23,6 +23,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/platform/environment"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/internal/plugins/applications/attention"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/git"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/report"
 	"github.com/hupao-creator/Mokusei/internal/plugins/applications/tag"
@@ -197,7 +198,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	if b.options.Headless {
 		aaOptions.CacheRoot = filepath.Join(stateRoot, "model-evaluation")
 	}
-	applications := []plugin.Application{report.New(), tag.New(), git.New()}
+	applications := []plugin.Application{report.New(), tag.New(), attention.New(), git.New()}
 	contextPlugins := []plugin.ContextPlugin{artificialanalysis.NewWithOptions(aaOptions)}
 	b.contexts, err = contexthost.New(contexthost.Config{Plugins: contextPlugins, PluginEnabled: b.enabled})
 	if err != nil {

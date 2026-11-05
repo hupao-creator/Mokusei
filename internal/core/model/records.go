@@ -105,6 +105,7 @@ func SnapshotNote(note *ThreadNote) NoteState {
 }
 
 type ThreadRecord struct {
+	AttentionHidden bool `json:"attentionHidden,omitempty"`
 	SessionRecord
 	// DirectoryTag and DirectoryScope are host-derived presentation metadata.
 	// The runtime fills them on public projection, never from client filesystem state.

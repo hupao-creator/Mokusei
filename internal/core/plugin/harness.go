@@ -224,6 +224,12 @@ type Injection struct {
 	Tools          *ToolInjection
 }
 
+// ThreadReadingLength counts readable conversation text across the retained
+// history. Only the count crosses the background-agent boundary.
+type ThreadReadingLength interface {
+	ReadableCharacters(json.RawMessage) (int, error)
+}
+
 // SessionStateAdapter read projections may run concurrently across independent
 // threads. Implementations must keep shared state immutable or synchronized;
 // each projection receives caller-owned native-state bytes.

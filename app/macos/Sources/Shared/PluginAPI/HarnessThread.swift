@@ -26,6 +26,7 @@ public struct HarnessThread: Hashable, Sendable {
     public let metadataRevision: Int?
     public let tags: [JSONText]
     public let tagEmojis: [JSONText: JSONText]
+    public let attentionHidden: Bool
     public let archived: Bool?
     public let moku: Bool?
     public let mokuHistory: Bool
@@ -67,6 +68,7 @@ public struct HarnessThread: Hashable, Sendable {
         metadataRevision = try r.optionalInteger("metadataRevision")
         tags = try r.texts("tags")
         tagEmojis = try SemanticTagLabel.decodeEmojis(r.required("tagEmojis"), names: tags)
+        attentionHidden = try r.optionalBool("attentionHidden") ?? false
         archived = try r.optionalBool("archived")
         moku = try r.optionalBool("moku")
         mokuHistory = try r.optionalBool("mokuHistory") ?? false

@@ -36,6 +36,8 @@ authority to resume execution or become an ordinary Agent Thread.
 
 **Tag Agent**: The private agent that maintains a five-slot semantic tag pool within one Directory Scope and assigns eligible ordinary Agent Threads, including archived threads, to that pool.
 
+**Attention Agent**: The private global agent that uses each ordinary Agent Thread's own reading facts to decide whether to hide its card from normal Overview browsing. Opening a hidden search result or starting a new execution restores the card.
+
 **Directory Scope**: The shared workspace identity of related task conversations and documents. Inbox is the Directory Scope for tasks without a persistent directory; its identity is distinct from its display name.
 
 **Global Agent**: A background agent whose authority spans directory scopes within its declared capabilities. Global authority is explicit and is distinct from Inbox or a missing scope.

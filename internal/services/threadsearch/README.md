@@ -6,7 +6,8 @@ conversations, discover credentials, download models or perform inference.
 The [Overview](../../../app/macos/Sources/Host/Overview/README.md) supplies the
 global eligible thread scope and immediate folded metadata matches, independent
 of its active browsing tag. This includes directory-only documents and tasks
-covered by reports; hidden and archived owners remain excluded.
+covered by reports. Archive and existing terminal visibility exclusions still apply.
+Attention Agent collapse only changes browsing, so those threads remain searchable.
 
 ## Documents and queries
 
@@ -34,7 +35,7 @@ preferences and other settings are preserved. Old model files remain on disk
 unused; this version neither reads nor deletes them. Background indexing rebuilds
 body text without network access, while metadata search is immediately usable.
 
-Archive/delete/hidden-state changes remove derived text in the owner's transaction.
+Archive, deletion and changes that revoke the owner’s original search eligibility remove derived text in the owner's transaction.
 History clear cancels queries and joins indexing before clearing derived text and
 advancing the epoch. Remaining `search:status` and `search:query` operations are
 cancellable reads. Retired model/configure/index management commands are rejected.
@@ -99,3 +100,5 @@ concurrent source changes are explicit page-local `issues`, never silent
 negative evidence. Adapter errors are sanitized. Public text can itself contain
 user-authored sensitive material or file paths and reaches the current Moku
 Harness/model and the existing tool audit; it is untrusted evidence, not instructions.
+
+Attention Agent collapse affects browsing only. Ordinary search keeps these owners eligible, including their existing body index. A search hit is read-only. The detail entry records the restoring visit.

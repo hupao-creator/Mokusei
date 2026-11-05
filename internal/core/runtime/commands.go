@@ -47,6 +47,12 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		return nil, err
 	}
 	switch channel {
+	case "thread:record-visit":
+		var visit attentionVisit
+		if err := model.Unmarshal(args[0], &visit); err != nil {
+			return nil, err
+		}
+		return nil, r.recordAttentionVisit(ctx, visit)
 	case "moku:record-note-exposure":
 		var receipt NoteExposureReceipt
 		if err := model.Unmarshal(args[0], &receipt); err != nil {

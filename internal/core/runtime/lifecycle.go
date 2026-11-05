@@ -44,6 +44,19 @@ func (r *Runtime) threadEvents(tx *store.Tx, old *model.ThreadRecord, next *mode
 		return nil
 	}
 	if !record.Moku && !record.MokuHistory {
+		beforeVisible := old != nil && attentionEligible(*old) && !tx.Has(attentionHiddenPrefix+record.ID)
+		// Streaming content does not change the execution used for read deadlines.
+		if old == nil || next == nil || !same(old.Observation.LatestExecution, next.Observation.LatestExecution) {
+			if err := trackAttentionExecution(tx, record.ID, next); err != nil {
+				return err
+			}
+		}
+		afterVisible := next != nil && attentionEligible(*next) && !tx.Has(attentionHiddenPrefix+record.ID)
+		if beforeVisible != afterVisible {
+			if err := attentionChanged(tx, beforeVisible, afterVisible); err != nil {
+				return err
+			}
+		}
 		if err := rememberDirectoryScope(tx, *record); err != nil {
 			return err
 		}

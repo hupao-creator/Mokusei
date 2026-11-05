@@ -14,7 +14,7 @@ import time
 import unicodedata
 
 import client as api
-from settings_chaos import Runtime
+from settings_chaos import Driver as SettingsDriver, Runtime
 
 
 REPO = Path(__file__).resolve().parents[2]
@@ -43,6 +43,7 @@ def fixture(root):
         rows.append({"threadId": "overview-" + name, "cwd": str(paths[directory] / suffix),
                      "title": "Overview replay needle" + name, "tags": tags, "archived": archived})
     row("leftalpha", "left", ["alpha"])
+    rows[-1]["attentionHidden"] = True
     row("leftbeta", "left", ["beta"])
     row("rightalpha", "right", ["alpha"])
     row("symlink", "alias", ["beta"])
@@ -70,6 +71,60 @@ class Driver:
         self.coverage = Counter()
         self.records = {}
         self.baseline = None
+
+    def attention_recovery(self):
+        target = "overview-leftalpha"
+        def contains(state):
+            return any(card["id"] == target for card in state["overview"]["cards"])
+        def route(action, predicate):
+            self.trace.write({"kind": "attention-action", "action": action})
+            response = self.client.request(action)
+            assert response["ok"], response
+            return self.client.settle(predicate)
+        def hidden():
+            return next(row for row in self.runtime.state()["threads"] if row["id"] == target).get("attentionHidden", False)
+        self.client.settle(lambda state: state["page"] == "overview" and not contains(state))
+        assert hidden(), "Missing initially hidden fixture"
+        settings = SettingsDriver(self.client, self.trace, self.runtime)
+        def agent_config(saved):
+            return next(row["value"] for row in saved["pluginSettings"] if row["id"] == "attention.settings")
+        config = agent_config(self.runtime.state()["settings"])
+        assert config.get("enabled", True) and config["mode"] == "inherit", config
+        # The fixture starts before onboarding with no concrete Moku profile.
+        # Resolve that profile before editing an inherited role, so discovery
+        # cannot race the very first Settings save.
+        moku = self.runtime.state()["settings"]["moku"]
+        host = moku.get("hostHarnessPreference")
+        if host in (None, "", "auto"):
+            host = "codex"
+            self.runtime.update(lambda saved: saved["moku"].update(hostHarnessPreference=host))
+        self.runtime.invoke("harness:settings-presentation",
+                            [{"scope": "global", "harnessId": host, "executionOwner": "moku"}])
+        settings.section("attention.settings")
+        settings.settle(lambda state: state["settings"]["revision"] == self.runtime.state()["settingsRevision"])
+        settings.control("attention.settings.independent", "activate")
+        settings.persisted(lambda saved: agent_config(saved)["mode"] == "override", "attention independent profile")
+        settings.control("attention.settings.off", "activate")
+        settings.persisted(lambda saved: not agent_config(saved)["enabled"], "attention disabled")
+        settings.action({"name": "settings.close"})
+        self.client.settle(lambda state: state["page"] == "overview")
+        assert hidden(), "Disabling the agent restored hidden cards"
+        for reopen in (False, True):
+            route({"name": "search.begin"}, lambda state: state["search"]["active"])
+            route({"name": "search.update", "query": "needleleftalpha"}, contains)
+            assert hidden(), "Search match restored the card without opening it"
+            if reopen:
+                route({"name": "thread.open", "typeId": "agent", "threadId": target},
+                      lambda state: state["page"] == "thread" and not hidden())
+                route({"name": "navigation.back"}, lambda state: state["page"] == "overview")
+            route({"name": "search.end"}, lambda state: not state["search"]["active"] and contains(state) == reopen)
+        settings.section("attention.settings")
+        settings.control("attention.settings.inherit", "activate")
+        settings.persisted(lambda saved: agent_config(saved).get("enabled", True) and agent_config(saved)["mode"] == "inherit",
+                           "attention inherits Moku again")
+        settings.action({"name": "settings.close"})
+        self.client.settle(lambda state: state["page"] == "overview")
+        self.coverage["attention-search-open-restoration"] += 1
 
     def oracle(self):
         state = self.runtime.state()
@@ -198,7 +253,7 @@ class Driver:
                 elif action["name"] == "overview.filters.scroll":
                     target = next(item for item in before["overview"]["filters"] if item["id"] == action["filterId"])
                     if target["kind"] == "directory":
-                        post = lambda s: action["filterId"] in s["overview"]["menu"]["mountedDirectoryIds"]
+                        post = lambda s: action["filterId"] in s["overview"]["menu"]["visibleDirectoryIds"]
                 elif action["name"] == "overview.auto" and not before["overview"]["dock"]["inputOpen"]:
                     post = self.automatic_fit_applied
             if not expected and action["name"] == "overview.directory.select":
@@ -389,6 +444,7 @@ def run_seed(bundle, root, seed, steps):
         client.settle(lambda s: s["runtimeAvailable"] and s["page"] == "overview", timeout=60)
         trace = api.Trace(run / "chaos.jsonl", command="overview-chaos", seed=seed, productionApp=str(bundle))
         driver = Driver(client, trace, Runtime(profile), fixture_value)
+        driver.attention_recovery()
         driver.smoke()
         driver.monkey(seed, steps)
         print(f"PASS Overview seed {seed}: {steps} random actions plus full feature smoke", flush=True)

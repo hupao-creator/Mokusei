@@ -77,7 +77,7 @@ type HistoryEntry struct {
 }
 
 var consumerIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
-var eventTypes = []string{"entity.created", "entity.updated", "entity.deleted", "thread.input-accepted", "thread.inventory", "thread.archived", "thread.restored", "thread.classification-changed", "execution.running", "execution.waiting-for-user", "execution.completed", "execution.failed", "execution.interrupted", "background.started", "background.finished", "settings.changed"}
+var eventTypes = []string{"entity.created", "entity.updated", "entity.deleted", "thread.input-accepted", "thread.inventory", "attention.evaluate", "thread.archived", "thread.restored", "thread.classification-changed", "execution.running", "execution.waiting-for-user", "execution.completed", "execution.failed", "execution.interrupted", "background.started", "background.finished", "settings.changed"}
 
 func validIdentifier(id string) bool {
 	return len(id) > 0 && len(id) <= 128 && !strings.ContainsRune(id, 0)

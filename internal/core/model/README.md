@@ -52,3 +52,5 @@ entries from durable lifecycle evidence at startup.
 successful Moku interrupt tool request for that exact execution. Missing means
 unknown; neither clients nor migrations infer it from `interrupted`. It travels
 with the durable envelope independently of opaque Harness state.
+
+The public thread envelope projects the optional attentionHidden browsing flag. The thread:record-visit command accepts an identified detail visit, cumulative foreground milliseconds, search-entry provenance and the completed execution actually observed by the reader.

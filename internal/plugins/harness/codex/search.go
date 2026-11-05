@@ -2,6 +2,7 @@ package codex
 
 import (
 	"encoding/json"
+	"unicode/utf8"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
@@ -31,4 +32,17 @@ func (sessionStateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchP
 		parts = append(parts, plugin.SearchPassage{ExecutionID: stString(turn["executionId"]), Text: stString(turn["answer"])})
 	}
 	return parts, nil
+}
+
+func (sessionStateAdapter) ReadableCharacters(raw json.RawMessage) (int, error) {
+	state, err := stDecodeRaw(raw)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, v := range stArray(state["turns"]) {
+		t := stMap(v)
+		total += utf8.RuneCountInString(stString(t["answer"])) + utf8.RuneCountInString(stString(t["error"]))
+	}
+	return total, nil
 }

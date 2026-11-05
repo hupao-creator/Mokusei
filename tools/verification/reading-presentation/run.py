@@ -213,7 +213,7 @@ def main():
              1 if "--application-navigation" in sys.argv else
              4 if "--initial-response" in sys.argv else
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
-             15 if "--overview-search" in sys.argv else
+             16 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
              10 if thread_send else
              11 if "--overview-mounting" in sys.argv else

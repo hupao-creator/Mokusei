@@ -49,3 +49,7 @@ work. A responsive socket is not proof of a completed fit. The runner requires
 the camera's real pending-work state to clear and its transform to reach the
 production fit target; unexpected visibility blockers remain failures with their
 reason in the trace.
+
+The fixture initially collapses one otherwise eligible ordinary thread. The real app replay verifies that keyword matching preserves its hidden state, opening the result restores it in Runtime, and returning to ordinary browsing shows the card.
+
+A filter-scroll action checks the requested directory chip actually intersects the scroll viewport. A directory without children can be visible without having an enabled menu registration. Menu-open actions still require the enabled registration.

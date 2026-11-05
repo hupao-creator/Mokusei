@@ -49,6 +49,12 @@ public final class NativeOverviewChromeInteractions {
         if menus[root]?[id] == owner { menus[root]?.removeValue(forKey: id) }
     }
 
+    // Every intersecting directory chip registers geometry, including leaves
+    // without a submenu. Menu admission separately requires an enabled entry.
+    public var visibleDirectoryIDs: [String] {
+        guard let root = chromeOwner else { return [] }
+        return (entries[root] ?? [:]).keys.sorted()
+    }
     public var mountedDirectoryIDs: [String] {
         guard let root = chromeOwner else { return [] }
         return (entries[root] ?? [:]).filter { $0.value.enabled }.keys.sorted()
@@ -209,6 +215,7 @@ extension NativeWorkspacePresentation {
             "placements": .array(placements), "camera": cameraState,
             "menu": .object([
                 "openScope": overview.chromeInteractions.openScope.map(JSONValue.text) ?? .null,
+                "visibleDirectoryIds": .array(overview.chromeInteractions.visibleDirectoryIDs.map(JSONValue.text)),
                 "mountedDirectoryIds": .array(overview.chromeInteractions.mountedDirectoryIDs.map(JSONValue.text)),
                 "mountedMenuIds": .array(overview.chromeInteractions.mountedMenuIDs.map(JSONValue.text))
             ]),

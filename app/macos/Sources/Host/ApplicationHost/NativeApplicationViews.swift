@@ -150,6 +150,6 @@ private struct NativeApplicationSettingsSurface: View {
 
 private func applicationSettingsEnglishLabel(_ label: JSONText) -> String {
     // Existing host translation key; this is copy localization, not dispatch by plugin ID.
-    let labels: [JSONText: String] = ["标签管理": "Tag management"]
+    let labels: [JSONText: String] = ["标签管理": "Tag management", "注意力整理": "Attention"]
     return labels[label] ?? label.string
 }
