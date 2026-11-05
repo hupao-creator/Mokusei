@@ -44,7 +44,7 @@ private struct ApplicationNavigationReplay: View {
 @MainActor @Suite(.serializedNative, .requiresDisplay, .serialized)
 struct NativeApplicationNavigationTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1", "Requires the isolated AppKit event loop: python3 tools/verification/reading-presentation/run.py --application-navigation"),
-          arguments: ["report.document", "git.worktree"])
+          arguments: ["report.document"])
     func applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -58,7 +58,7 @@ struct NativeApplicationNavigationTests {
             openThread: { _, _ in }, openExecution: { _ in }, followUp: { _, _ in }, openExternal: { _ in }))
         defer { host.release() }
         let fixture = ApplicationNavigationFixture()
-        // Missing records deliberately keep both real pages on their local
+        // Missing records deliberately keep the real page on its local
         // unavailable-content path; no runtime, repository or WebKit is needed.
         let window = SwiftUIReplay.window(ApplicationNavigationReplay(host: host,
             thread: .init(threadID: "fixture", typeID: JSONText(type)), fixture: fixture), offscreen: true)

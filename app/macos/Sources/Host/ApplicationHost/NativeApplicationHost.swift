@@ -57,7 +57,7 @@ public final class NativeApplicationHost {
         return result
     }
     public func canOpen(_ typeID: JSONText) -> Bool {
-        typeID == "git.worktree" || (try? workspace.plugins.applications.requireThread(typeID).hasDetail) == true
+        (try? workspace.plugins.applications.requireThread(typeID).hasDetail) == true
     }
     func module(_ id: JSONText) throws -> ApplicationPluginModule {
         if id == "git" { return try NativeGitService.module() }

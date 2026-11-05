@@ -22,7 +22,7 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Host/Settings](Sources/Host/Settings/README.md) | Settings drafts, validation and autosave |
 | [Sources/Host/WindowNavigation](Sources/Host/WindowNavigation/README.md) | Window controls and reading navigation |
 | [Sources/Host/Interaction](Sources/Host/Interaction/README.md) | Typed workspace actions and observable state for script-driven interaction |
-| [Sources/Host/Git](Sources/Host/Git/README.md) | Built-in worktree facts and native diff reader |
+| [Sources/Host/Git](Sources/Host/Git/README.md) | Built-in worktree facts and card extensions |
 | [Sources/Shared/PluginAPI](Sources/Shared/PluginAPI/README.md) | Public presentation/capability contracts |
 | [Sources/Shared/PluginUI](Sources/Shared/PluginUI/README.md) | Reading, forms, composer, cards and design resources |
 | Sources/Plugins/Harnesses | Codex, Claude, Pi and OpenCode projections and views |

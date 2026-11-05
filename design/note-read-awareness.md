@@ -34,7 +34,7 @@
 | 正文 viewport | [NativeMokuNote.swift](../app/macos/Sources/Host/MokuScene/NativeMokuNote.swift)，117–140 | 固定 header + ScrollView + 生产 Markdown；目前仅测总高度 |
 | 生产渲染器 | [NativeMarkdownView.swift](../app/macos/Sources/Shared/PluginUI/Reading/NativeMarkdownView.swift)，52–95、143–155、193–235、318–361 | 异步解析期间保留旧 blocks；代码/表格有横向滚动；图片异步加载 |
 | 源码映射限制 | [NativeMarkdownParser.swift](../app/macos/Sources/Shared/PluginUI/Reading/NativeMarkdownParser.swift)，13–45、69–89；[NativeMarkdownModel.swift](../app/macos/Sources/Shared/PluginUI/Reading/NativeMarkdownModel.swift)，6–40 | blocks 无源码范围，脚注会重排/生成内容；不能用渲染字符 offset 推导原始 Markdown 已读范围 |
-| 窗口信号参考 | [NativeGitDetail.swift](../app/macos/Sources/Host/Git/NativeGitDetail.swift)，200–224；[NativeWorkspaceView.swift](../app/macos/Sources/Host/Shell/NativeWorkspaceView.swift)，120–123 | 可复用 observer 生命周期模式；现有 documentVisible 包含 inactive，不能作为阅读资格 |
+| 窗口信号参考 | 已移除的 NativeGitDetail.swift（历史窗口 observer 参考），200–224；[NativeWorkspaceView.swift](../app/macos/Sources/Host/Shell/NativeWorkspaceView.swift)，120–123 | 可复用 observer 生命周期模式；现有 documentVisible 包含 inactive，不能作为阅读资格 |
 
 ## 采集契约：能观察什么
 

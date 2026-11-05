@@ -1,10 +1,10 @@
-# Native Git reader and card extensions
+# Native Git card extensions
 
 [NativeGitService](NativeGitService.swift) reads bounded metadata pages from the built-in [Go Git application](../../../../../internal/plugins/applications/git/README.md). [NativeGitWorkspaceModel](NativeGitWorkspaceModel.swift) shares typed worktree facts with Harness card composers. Git has no separate Overview thread or enablement switch.
 
-The card extension shows changed-file count, signed added/deleted line counts and branch. The snapshot's independent `lineStatsError` survives decoding, caching and Harness projection. Failed line counts display a reason (limit, timeout or unavailable); unknown counts display an unknown label. Neither state displays signed dashes, zeroes or a loading indicator: observations arrive after the bounded statistics attempt. A status/polling failure retains the last successful values with a visible stale label; a line-only failure keeps fresh file counts at full opacity. A confirmed clean result removes the extension. Clicking it opens [NativeGitReadingPage](NativeGitReadingPage.swift) in the shared Agent-style reading panel. The panel remembers the clicked task card as its animation origin, owns a Close button and keeps Moku available; native Escape returns through the existing route action. The detail model selects observed worktrees and files and requests diffs on demand.
+The card extension shows changed-file count, signed added/deleted line counts and branch. The snapshot's independent `lineStatsError` survives decoding, caching and Harness projection. Failed line counts display a reason (limit, timeout or unavailable); unknown counts display an unknown label. Neither state displays signed dashes, zeroes or a loading indicator: observations arrive after the bounded statistics attempt. A status/polling failure retains the last successful values with a visible stale label; a line-only failure keeps fresh file counts at full opacity. A confirmed clean result removes the extension. The extension is read-only metadata and has no diff action or dedicated reading route. Clicking the owning task card retains normal Agent navigation.
 
-[NativeGitDiff](NativeGitDiff.swift) parses patch data and [NativeGitSyntax](NativeGitSyntax.swift) supplies bounded lexical highlighting outside the main actor. Native text is selectable/copyable with line numbers and synchronized horizontal scrolling. The reader limits display to 12,000 patch lines and 32,768 UTF-16 units per line, in addition to the backend's patch limit. Binary, conflicts, submodules, empty and oversized content have explicit states. Navigation cancellation rejects late results. There is no merge editor or Git write command.
+The native host retains the Git monitor, metadata polling, strict snapshot decoding and Harness card projection. The Go application's `git.files` and `git.diff` queries remain independent on-demand APIs; removing the native panel does not remove those queries or change other diff presentations.
 
 Verification from the repository root:
 
@@ -16,14 +16,6 @@ MOKUSEI_GIT_CONTRACT_EVIDENCE=/tmp/mokusei-git-contract.json \
   --filter 'GitNativeTests|GitThreadExtensionTests|NativeArchivedThreadsTests|NativeOverviewSearchTests'
 ```
 
-Git line numbers follow LF physical lines. Inline Unicode line/paragraph and
-control separators render as visible single-unit glyphs within their source row;
-copy uses the original text, including those separators, rather than the display
-substitution. Native fixtures verify row geometry, tail visibility and exact copy.
+The Go replay creates disposable repositories. The Swift suites consume its production metadata fixtures and cover card composition and known/unknown/failed/stale statistics in Chinese and English. Set `MOKUSEI_GIT_ARTIFACTS` to retain native card captures.
 
-The Go replay creates disposable repositories. The Swift suites consume its production query fixtures; native UI execution requires macOS.
-The replay includes a linked worktree with 3172 ignored cache files, tracked
-ignored paths, nonignored additions, line-budget failure, deadline failure and
-recovery on the same file set. Swift checks failure fixtures from Go and renders
-known/unknown/failed/stale card states in Chinese and English, including the
-normal diff action. Set `MOKUSEI_GIT_ARTIFACTS` to retain native captures.
+For the diff-panel removal Sprint, validation is limited to static checks/builds and local diff review. Tests and replays are not run; pointer behavior and accessibility require later interactive acceptance.

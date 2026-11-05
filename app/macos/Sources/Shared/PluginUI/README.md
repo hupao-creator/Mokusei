@@ -601,7 +601,8 @@ palette is supplied by the Harness rather than selected by identity inside the r
 The Git extension renders signed numeric line counts only when both totals are
 known. A single neutral label explains unknown, limit, timeout or unavailable
 statistics; a separate stale label identifies retained observations. These states
-retain the file count, branch and diff action without changing extension order.
+retain the file count and branch without changing extension order. The extension
+is read-only metadata with no dedicated diff action or button accessibility role.
 
 For standard cards, equally ranked layouts favor Todo's upper row before the
 structural-key tie break, independently of Git visibility. With Todo and Git
@@ -852,7 +853,7 @@ Reading snapshots report the selected history destination, visible row window,
 scroll geometry and disclosure values. Codex lazy rows and shared deferred
 execution groups expose their actual resource loading/error/ready state; mounted
 turns expose the rendered row count. The registry never writes Harness state or
-submits work. It does not claim composer, sidecard, Git reader, link or media
+submits work. It does not claim composer, sidecard, link or media
 coverage. [The reading runner](../../../../../tools/native-interaction/README.md)
 uses these observations for production-app chaos and replay.
 
@@ -935,7 +936,7 @@ onboarding share native field bindings, catalogs and persistence.
 
 ## Reading-panel presentation
 
-The shared reading stack can present Agent, Report, Git and Moku history routes
+The shared reading stack can present Agent, Report and Moku history routes
 as a bounded panel, using a source card frame where available. It retains the same route identity, explicit progress clock,
 close/cancel lifecycle and reduced-motion settling as page navigation. Panel
 content remains reader-owned; Agent title/emoji can use the window-local identity
@@ -947,7 +948,7 @@ keep their existing presentation. `NativeReadingPanelGeometry` is the shared
 viewport/margin contract for production and the standalone native fixture.
 
 `nativeReadingPanelViewport()` reserves an inner frame of 8pt horizontally,
-48pt above and 22pt below by default for Git and Moku history
+48pt above and 22pt below by default for Moku history
 reading panels. Report panels opt into
 `topInset: 8, balancedVerticalInsets: true`, reserving 8pt at both ends. The main
 Agent Thread panel and live execution Sidecard use `topInset: 22`, matching their
@@ -1026,7 +1027,7 @@ inset gives the same 34pt boundary at each scroll limit. Its horizontal insets,
 scrolling, launcher and dismissal ownership remain unchanged. Report uses the
 balanced viewport argument with an 8pt top inset; its related-execution reader
 retains its own page-stack spacing.
-Git/Moku viewport defaults are unchanged.
+Moku viewport defaults are unchanged.
 
 Sprint verification for this viewport adjustment is source/layout review,
 application product build, lint and documentation/diff checks. No tests or
@@ -1065,7 +1066,7 @@ to complete an accepted return for its current visit. Default cancellation still
 preserves the page, and recovery never revives a previously cancelled return.
 
 `nativeReadingEscape` shares the conversation reader’s native viewport-scoped
-Escape owner with Git panels. It rejects events owned by editing/IME, menus or
+Escape owner. It rejects events owned by editing/IME, menus or
 sibling surfaces. HTML panels keep their isolated trusted DOM key boundary.
 
 The shared stack's optional `onPanelOutsideClick` installs a separate native
@@ -1122,7 +1123,7 @@ Agent closing keeps the 420ms native panel return. The complete reader fades
 over the first 80%; scaling and shell travel reach the source card at 86%.
 The shell stays opaque until arrival, then crossfades to the refreshed Overview
 through the final 14%. This final handoff owns transition completion so the
-carrier cannot disappear before reaching the card. Closing has no independent title/emoji travel. Report, Git and nested
+carrier cannot disappear before reaching the card. Closing has no independent title/emoji travel. Report and nested
 history keep their existing motion policies. The panel Close appears only after
 reader admission and fades before return; its position and hit region remain
 owned by the production upper-left control.

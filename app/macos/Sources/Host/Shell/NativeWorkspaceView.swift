@@ -47,7 +47,7 @@ public final class NativeWorkspacePresentation {
     private var readingPanelSourceCardID: String?
     public var usesReadingPanel: Bool {
         guard let type = selected?.typeID else { return false }
-        return type == "agent" || type == "report.document" || type == "git.worktree"
+        return type == "agent" || type == "report.document"
     }
     public var navigation: ThreadDetailBackAction?
     // History overlays a retained route; its nested Back must not replace the
@@ -205,7 +205,6 @@ public final class NativeWorkspacePresentation {
         }
         if let selected {
             let visible = selected.typeID == "agent" ? workspace.catalog.thread(selected.threadID).map { !$0.isHiddenFromUser || readingTarget?.position == .result } ?? false
-                : selected.typeID == "git.worktree" ? applicationHost.git.repository(selected.threadID) != nil
                 : (try? applicationHost.entry(selected)) != nil
             if !visible {
                 if selected.typeID == "agent" { NativeReadingPageMotion.cancelAll(); finishBack() }
@@ -239,7 +238,7 @@ public final class NativeWorkspacePresentation {
             followUpVisible = false; resetNavigation(); nativeApplicationNavigation = false
         }
         if selected != ref {
-            readingPanelSourceCardID = selected == nil ? sourceCardID ?? (ref.typeID == "git.worktree" ? nil : ref.threadID.string) : nil
+            readingPanelSourceCardID = selected == nil ? sourceCardID ?? ref.threadID.string : nil
             readingPanelSource = readingPanelSourceCardID.flatMap { canvas.displayedFrame(for: $0) }
             threadIdentityVisit = ref.typeID == "agent" && target == nil
                 ? readingPanelSourceCardID.flatMap { threadIdentityRegistry.capture($0) } : nil
@@ -939,8 +938,7 @@ public struct NativeWorkspaceView: View {
                     callbacks: NativeOverviewWorkspaceCallbacks(
                         openThread: { id, target in presentation.open(ApplicationThreadRef(threadID: id, typeID: "agent"), target: target) },
                         openApplication: { presentation.open($0, target: $1) },
-                        onSettings: { presentation.openSettings() },
-                        openGitWorktree: { presentation.open(.init(threadID: $0, typeID: "git.worktree"), sourceCardID: $1) }),
+                        onSettings: { presentation.openSettings() }),
                     interactionPaused: presentation.scene.interactionPaused || presentation.messageMotion.active,
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
                     chromeVisible: presentation.selected == nil)
@@ -954,7 +952,7 @@ public struct NativeWorkspaceView: View {
                             onNavigationChange: { if presentation.navigationRouteID == routeID { presentation.navigation = $0 } }))
                         .modifier(NativeApplicationReadingPanel(enabled: presentation.usesReadingPanel,
                             suppressed: applicationSuppressed,
-                            identifier: selected.typeID == "report.document" ? "report-reading-panel" : "git-reading-panel",
+                            identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
                             onClose: { presentation.closeApplication() }))
                         .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
                         .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in
