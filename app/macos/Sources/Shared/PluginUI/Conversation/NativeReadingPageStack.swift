@@ -141,7 +141,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                             .environment(\.nativeReportPanelReturn, reportPanelMotion && panelContentReady && (closing || preparingClose)
                                 ? NativeReportPanelReturn(source: (panelSource ?? panelBounds.insetBy(dx: 24, dy: 24))
                                     .offsetBy(dx: -panelBounds.minX, dy: -panelBounds.minY),
-                                    progress: CGFloat(progress)) : nil))
+                                    progress: CGFloat(progress), duration: duration) : nil))
                 } else if open {
                     ZStack {
                         front.id(identity)

@@ -5,8 +5,13 @@ import SwiftUI
 public struct NativeReportPanelReturn {
     public let source: CGRect
     public let progress: CGFloat
-    public init(source: CGRect, progress: CGFloat) {
-        self.source = source; self.progress = progress
+    public let duration: TimeInterval
+    public init(source: CGRect, progress: CGFloat, duration: TimeInterval) {
+        self.source = source; self.progress = progress; self.duration = duration
+    }
+
+    fileprivate var animation: Animation {
+        .timingCurve(0.42, 0, 0.58, 1, duration: duration)
     }
 }
 
@@ -28,6 +33,10 @@ private struct ReportMainReturn: ViewModifier {
             .modifier(ReportReturnGeometry(progress: returning?.progress ?? 1,
                 source: returning?.source ?? .zero))
             .modifier(ReportReturnOpacity(progress: returning?.progress ?? 1, main: true))
+            // The production reader crosses two NSHostingView.rootView boundaries.
+            // The outer stack's transaction does not cross them; install the
+            // animation where these interpolated effects actually live.
+            .animation(returning?.animation, value: returning?.progress ?? 1)
             .allowsHitTesting(returning == nil)
             .accessibilityHidden(returning != nil)
     }
@@ -37,6 +46,7 @@ private struct ReportSidecardReturn: ViewModifier {
     @Environment(\.nativeReportPanelReturn) private var returning
     func body(content: Content) -> some View {
         content.modifier(ReportReturnOpacity(progress: returning?.progress ?? 1, main: false))
+            .animation(returning?.animation, value: returning?.progress ?? 1)
             .allowsHitTesting(returning == nil)
             .accessibilityHidden(returning != nil)
     }

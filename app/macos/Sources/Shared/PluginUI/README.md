@@ -1331,3 +1331,11 @@ the outer panel's local coordinates; related lists, execution details, Browser
 splits and stacked layouts all keep their original layout seat during return.
 The old native carrier return diagnostic is intentionally absent for this
 independent-surface path. See [Report Close](../../../../../design/report-sidecard-close.md).
+
+Report return effects install their value-scoped animation inside the reader's
+hosting tree, using the duration carried by `NativeReportPanelReturn`. The outer
+reading stack's `withAnimation` transaction cannot be assumed to survive the
+native panel and execution-route `NSHostingView.rootView` assignments. Without
+this local animation, geometry/opacity reach their final values immediately while
+the native completion carrier merely waits. See the 20:20 follow-up in
+[Report Close](../../../../../design/report-sidecard-close.md).

@@ -74,3 +74,33 @@ Static review covers source/local coordinate conversion, retained widths,
 interrupted layout sampling, related-list/detail and Browser paths, input gates,
 selection cleanup, cancellation, and isolation from opening/continuation. This
 is not a claim that actual production animation has been visually confirmed.
+
+## Follow-up: return animation delivery (2026-11-05 20:20)
+
+The user's `录屏2026-11-05 20.20.09.mov` reports that the patched production
+Report disappears instead of visibly shrinking. The earlier build/static result
+therefore did not establish working return motion. Private decoded frames are
+kept only under `.build/sidecard-close-demo/revision-3/`.
+
+The first repair relied on `NativeReadingPageStack.withAnimation` reaching the
+GeometryEffect and opacity modifiers. In production, both `ReadingPanelView`
+and `ExecutionRouteSlideSeat` assign `NSHostingView.rootView` across native
+representable boundaries. They pass values/environment, not the originating
+SwiftUI transaction. The destination progress can consequently arrive without
+animation: main geometry and both opacity effects jump straight to zero while
+the native completion carrier is still waiting. The standalone demo did not
+exercise these two hosting boundaries.
+
+Both return modifiers now install a value-scoped animation inside their own
+hosting tree. The return context carries the stack's actual duration; main and
+auxiliary effects use the same `(0.42, 0, 0.58, 1)` curve. Preparation still holds
+progress at one, accepted Close changes it to zero, and cancellation removes the
+local animation along with the return context. No generic root-view transaction
+forwarding, delay, extra timer, reader replacement or layout expansion is added.
+The existing selection/size retention and generation-fenced cleanup remain.
+
+This follow-up was prepared after syncing local main `16b7653`, preserving its
+send-feedback repair. The production build and architecture/static registration/
+no-Node checks pass, as does `git diff --check`. No tests, replays or remote CI
+were run. The corrected production animation has **not** been visually confirmed;
+the supplied recording is evidence of the preceding revision's failure.
