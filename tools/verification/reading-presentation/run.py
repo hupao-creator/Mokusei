@@ -68,7 +68,8 @@ def main():
     tag_glass = "--tag-glass" in sys.argv or glass_captures
     thread_send_native = "--thread-send-feedback-native" in sys.argv
     thread_send = "--thread-send-feedback" in sys.argv or thread_send_native
-    suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
+    suite = ("SwiftUIMarkdownReadingTests" if "--swiftui-markdown" in sys.argv else
+             "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
@@ -204,6 +205,7 @@ def main():
             replay.export(evidence)
             replay.close()
     count = (
+             7 if "--swiftui-markdown" in sys.argv else
              4 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
@@ -229,6 +231,9 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if "--swiftui-markdown" in sys.argv and any(marker not in result.stdout for marker in (
+            "SWIFTUI_PARAGRAPH_SELECTION_CONFIRMED", "SWIFTUI_MARKDOWN_LINK_CONFIRMED", "SWIFTUI_FOOTNOTE_NAVIGATION_CONFIRMED")):
+        raise SystemExit("FAIL: SwiftUI replay did not confirm selection, Copy and link navigation")
     if thread_send and any(marker not in result.stdout for marker in (
             "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED", "THREAD_SIDECARD_TOGGLES_CONFIRMED", "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED")):
         raise SystemExit("FAIL: thread send replay did not confirm both native boundaries")

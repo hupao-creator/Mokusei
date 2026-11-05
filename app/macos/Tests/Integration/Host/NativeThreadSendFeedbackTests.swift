@@ -418,6 +418,7 @@ struct NativeThreadSendFeedbackTests {
         #expect(window.firstResponder === responder)
         func blockedText(in view: NSView) -> Bool {
             if let text = view as? MarkdownTextView, text.awaitsLineReveal { return true }
+            if let row = view as? ThreadRevealRowView, row.awaitsLineReveal { return true }
             return view.subviews.contains { blockedText(in: $0) }
         }
         #expect(!blockedText(in: root), "Promoted content must not restart the initial-entry reveal and become blank")

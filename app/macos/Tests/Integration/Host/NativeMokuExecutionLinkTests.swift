@@ -258,12 +258,36 @@ struct NativeMokuExecutionLinkTests {
     private func textViews(_ root: NSView) -> [NSTextView] {
         (root as? NSTextView).map { [$0] } ?? root.subviews.flatMap(textViews)
     }
-    private func replyCopies(_ phrase: String, in root: NSView) throws -> [Int] {
-        let views = textViews(root).filter { $0.string.contains(phrase) }
-        // Current and history documents can retain the same reply at once.
-        // Require a complete copy in each owning viewport, never an aggregate.
-        let pages = try Dictionary(grouping: views) { ObjectIdentifier(try #require($0.enclosingScrollView)) }
-        return pages.values.map { $0.reduce(0) { $0 + $1.string.components(separatedBy: phrase).count - 1 } }
+    private func replyOccurrences(_ phrase: String, in root: NSView) throws -> [Int] {
+        @MainActor func scrollViews(_ root: NSView) -> [NSScrollView] {
+            (root as? NSScrollView).map { [$0] } ?? root.subviews.flatMap(scrollViews)
+        }
+        // Count rendered accessibility text per document, independently of the
+        // renderer. SwiftUI Text installs its system text editor only on selection.
+        let counts = scrollViews(root).compactMap { scroll -> Int? in
+            guard let document = scroll.documentView else { return nil }
+            var seen = Set<ObjectIdentifier>()
+            @MainActor func count(_ object: AnyObject) -> Int {
+                guard seen.insert(ObjectIdentifier(object)).inserted, let object = object as? NSObject else { return 0 }
+                let children = NSSelectorFromString("accessibilityChildren")
+                var nested = 0
+                if object.responds(to: children), let values = object.perform(children)?.takeUnretainedValue() as? [AnyObject] {
+                    nested += values.reduce(0) { $0 + count($1) }
+                }
+                if let view = object as? NSView { nested += view.subviews.reduce(0) { $0 + count($1) } }
+                if nested > 0 { return nested }
+                for key in ["accessibilityValue", "accessibilityLabel"] {
+                    let selector = NSSelectorFromString(key)
+                    if object.responds(to: selector), let value = object.perform(selector)?.takeUnretainedValue() as? String,
+                       value.contains(phrase) { return value.components(separatedBy: phrase).count - 1 }
+                }
+                return 0
+            }
+            let result = count(document)
+            return result > 0 ? result : nil
+        }
+        try #require(!counts.isEmpty)
+        return counts
     }
     private func click(_ label: String, in root: NSView) throws {
         if let capsule = element(id: "moku-note-execution-link", nativeOnly: true, label: label, in: root) {
@@ -695,16 +719,16 @@ struct NativeMokuExecutionLinkTests {
         try fixture.update(status: .running, text: firstInput, mixedParts: true)
         record("first-source", inputBytes: firstInput.utf8.count)
         try await Task.sleep(for: .milliseconds(200))
-        #expect(!textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect(!SwiftUIReplay.text(in: root).contains { $0.contains("STREAMING CONTENT") })
         #expect((fixture.scroll?["value"]?["height"]?.numberValue ?? 0) == oldHeight)
         #expect(fixture.thread.observation.latestExecution?.status == .running)
         try fixture.update(status: .waitingForUser, text: firstInput, mixedParts: true)
         try await Task.sleep(for: .milliseconds(200))
-        #expect(!textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect(!SwiftUIReplay.text(in: root).contains { $0.contains("STREAMING CONTENT") })
         #expect(fixture.thread.observation.latestExecution?.status == .waitingForUser)
         try fixture.update(status: .running, text: firstInput, messageStatus: "complete")
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("STREAMING CONTENT") } }
-        #expect(try replyCopies("STREAMING CONTENT", in: root).allSatisfy { $0 == 200 })
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("STREAMING CONTENT") } }
+        #expect(try replyOccurrences("STREAMING CONTENT", in: root).allSatisfy { $0 == 200 })
         try await SwiftUIReplay.wait { (fixture.scroll?["value"]?["height"]?.numberValue ?? 0) > oldHeight }
         record("first-message-complete", inputBytes: firstInput.utf8.count)
         try await SwiftUIReplay.wait {
@@ -721,8 +745,8 @@ struct NativeMokuExecutionLinkTests {
         record("second-source", inputBytes: secondInput.utf8.count)
         try await Task.sleep(for: .milliseconds(200))
         record("second-stream", inputBytes: secondInput.utf8.count)
-        #expect(!textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") })
-        #expect(textViews(root).contains { $0.string.contains("STREAMING CONTENT") })
+        #expect(!SwiftUIReplay.text(in: root).contains { $0.contains("NEW STREAMING CONTENT") })
+        #expect(SwiftUIReplay.text(in: root).contains { $0.contains("STREAMING CONTENT") })
         #expect(fixture.thread.observation.latestExecution?.status == .running)
         #expect((fixture.scroll?["value"]?["top"]?.numberValue ?? 100) < 5)
         let jump = try #require(fixture.controls.snapshot(visit: fixture.visit).first { $0["role"] == .text("jumpLatest") })
@@ -730,8 +754,8 @@ struct NativeMokuExecutionLinkTests {
         try await SwiftUIReplay.wait { fixture.scroll?["value"]?["following"] == .bool(true) }
         record("jump-latest")
         try fixture.update(status: .completed, text: firstInput, successor: true, pendingText: secondInput)
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("NEW STREAMING CONTENT") } }
-        #expect(try replyCopies("NEW STREAMING CONTENT", in: root).allSatisfy { $0 == 220 })
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("NEW STREAMING CONTENT") } }
+        #expect(try replyOccurrences("NEW STREAMING CONTENT", in: root).allSatisfy { $0 == 220 })
         try await Task.sleep(for: .milliseconds(150))
         #expect(fixture.presentation.readingTarget?.executionID == "target")
         window.close(); await fixture.close()
@@ -753,7 +777,7 @@ struct NativeMokuExecutionLinkTests {
         // Pi can retain a streaming marker after execution settlement. Other
         // Harnesses settle their message status along with failure/cancellation.
         try fixture.update(status: status, text: "RETAINED TERMINAL REPLY", messageStatus: harness == "pi" ? "streaming" : status == .failed ? "failed" : "cancelled")
-        try await SwiftUIReplay.wait { textViews(root).contains { $0.string.contains("RETAINED TERMINAL REPLY") } }
+        try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("RETAINED TERMINAL REPLY") } }
         fixture.presentation.openNoteExecution(.init(thread: .init(threadID: "ordinary", typeID: "agent"), executionID: "missing"))
         try await SwiftUIReplay.wait {
             fixture.controls.snapshot(visit: fixture.visit).contains { $0["role"] == .text("conversation") && $0["value"]?["destination"] == .text("unavailable") }
