@@ -1204,7 +1204,52 @@ Agent and Report Sidecards share `NativeSidecardWorkspaceGeometry`,
 `NativeSidecardFold` and `NativeSidecardToggle` in Conversation. The shared
 geometry retains the 16pt gap and switches to vertically stacked panes below
 760pt; the fold owns the visible and interactive aperture without resizing the
-native document on each animation frame. Reduced Motion settles immediately.
+native document on each animation frame. Aperture, travel and opacity interpolate
+in the same animatable presentation with `NativeSidecardTiming.foldAnimation`:
+380ms, cubic Bézier `(0.22, 1, 0.36, 1)`. The shared duration also supplies the
+Agent native-content interaction gate. Reduced Motion settles immediately.
+Report's linked Browser keeps its historical close fade through `fadesOnClose`;
+this changes only return presentation, not opening geometry or timing. Its shell
+is retained before the first URL, so first opening and reopening use the same
+host selection transaction as the other sidecards and the main pane. There is
+no Browser-specific opening state, layout-stage callback or completion reset.
+
+The production opening-path audit against local main `b20c011` covers:
+
+| Sidecard | Entry paths | Opening owner |
+| --- | --- | --- |
+| Agent Execution | Launcher, initial active execution, correlated send reveal | Host selection snapshot → shared fold |
+| Agent Browser | Launcher, plugin URL intent | Host selection snapshot → shared fold |
+| Agent Voice | Launcher (media starts only through an explicit in-card action) | Host selection snapshot → shared fold |
+| Report related executions | Readiness admission, launcher, switch from Browser; list/execution width changes | Report active selection → shared fold |
+| Report linked Browser | HTML main-frame HTTP(S) link, new-window HTTP(S) GET, retained launcher, switch from references | Report active selection → shared fold |
+
+All five use fixed destination-size native content, the same launcher-to-panel
+aperture/offset and opening opacity ramp, including narrow stacked layouts and
+retained widths. Agent drag and Reduced Motion disable travel; Report Browser
+drag and Reduced Motion do likewise. Report references have no divider.
+`NativeApplicationHTMLSurface` routes both HTML link entry points to the native
+workspace; no application-owned CSS/JavaScript sidecard opener exists.
+`BrowserViewport` keeps WebKit inside its representable, inheriting that shell's
+mask and motion rather than adding another webpage transition.
+
+Content admission is separate: Agent Browser suppresses its native page and
+Voice hides its discussion while the 380ms selection gate is active; Report
+waits for current HTML readiness plus 200ms.
+Those existing gates, document loading, Voice message entrances, Browser loading
+and annotation indicators, 220ms Report navigation retraction, the resident Dock's
+620ms response spring and the sequential 420ms execution handoff are not sidecard
+shell opening curves and retain their own policies. External pages keep their
+authored animations. No web content, native suppression, focus, media or navigation
+policy is changed to force content to appear before it is ready.
+
+Sprint validation for this audit is a product build, static lint and diff review;
+no tests/replays or live intermediate-frame captures are performed. Code review
+can establish shared interpolation and transaction ownership, but cannot certify
+rendered frame pacing, WebKit mask composition or rapid reversal appearance on a
+WindowServer. Wide/stacked openings, switches, first-link/reopen, Reduce Motion,
+resize and close/reversal still need visual acceptance when that scope is allowed.
+
 Report commits its initial folded layout through `NativeReadingEntranceStage`
 after primary reading travel. `NativeApplicationHTMLReadinessKey` carries the
 current source, thread, WebKit view generation and main-frame readiness.

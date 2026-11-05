@@ -40,9 +40,12 @@ launcher travel as Agent Execution/Browser/Voice and Report related executions:
 380ms with cubic Bézier `(0.22, 1, 0.36, 1)`. Its launcher is the lower 42pt
 right-rail control. The native document takes its destination size once while
 the shell unfolds. Closing retains the existing whole-shell fade and workspace
-movement; after that fade, the opening aperture resets without animation.
-Selection identity fences the reset against rapid reopening. The Report's
-HTML-ready 200ms admission delay is independent of this motion.
+movement through the shared fold's `fadesOnClose` presentation policy.
+The shell stays mounted even before the first link, while its WebKit session
+still starts only when a URL exists. Selection therefore drives opening in the
+same transaction as the main pane, without a second state, layout callback or
+completion/reset timer. The Report's HTML-ready 200ms admission delay is
+independent of this motion.
 Reduced Motion disables the workspace's folding and stacking animation.
 Outside a Report panel, new-window HTTP(S) GET links use the external browser.
 Non-GET new-window form requests are rejected with an in-document notice; the

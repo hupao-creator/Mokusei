@@ -63,7 +63,12 @@ reader-owned animation transactions remain intact. Sidecard interpolation owns
 only paint, hit aperture, opacity and the native aperture marker, with travel applied as a rendering
 offset outside the document layout. Execution promotion also keeps each native
 document at a fixed width while its shell moves.
-Reduced Motion and divider dragging settle geometry without travel.
+The common opening uses a 380ms cubic Bézier `(0.22, 1, 0.36, 1)` for
+aperture, offset and opacity, with one host selection transaction. The
+[shared opening-path audit](../../Shared/PluginUI/README.md) also covers Report
+references, HTML link/new-window entry, retained Browser reopening and the
+separate native/WebKit content gates. Reduced Motion and divider dragging
+settle geometry without travel.
 The existing selected/suppressed gates disable folded, retiring and covered
 cards; native document suppression, resizing, sessions and dismissal callbacks
 keep their ownership. Completion handoff still promotes the retained execution

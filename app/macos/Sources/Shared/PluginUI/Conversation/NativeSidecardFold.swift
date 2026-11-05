@@ -1,7 +1,8 @@
 import SwiftUI
 
 public enum NativeSidecardTiming {
-    public static let foldAnimation = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
+    public static let duration: TimeInterval = 0.38
+    public static let foldAnimation = Animation.timingCurve(0.22, 1, 0.36, 1, duration: duration)
 }
 
 /// Geometry is in the workspace's coordinates, including the launcher's real
@@ -12,11 +13,14 @@ public struct NativeSidecardFold: ViewModifier {
     let destination: CGRect
     let frameIdentifier: String
     var animatesContentSize = false
+    // Return policy is independent of the common opening presentation.
+    let fadesOnClose: Bool
 
     public init(progress: CGFloat, source: CGRect?, destination: CGRect,
-                frameIdentifier: String, animatesContentSize: Bool = false) {
+                frameIdentifier: String, animatesContentSize: Bool = false, fadesOnClose: Bool = false) {
         self.progress = progress; self.source = source; self.destination = destination
         self.frameIdentifier = frameIdentifier; self.animatesContentSize = animatesContentSize
+        self.fadesOnClose = fadesOnClose
     }
 
     private var origin: CGRect {
@@ -37,8 +41,8 @@ public struct NativeSidecardFold: ViewModifier {
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
             .modifier(NativeSidecardFoldPresentation(rect: geometry.aperture, progress: progress,
-                frameIdentifier: frameIdentifier))
-            .offset(x: geometry.offset.x, y: geometry.offset.y)
+                offset: geometry.offset, destination: destination,
+                fadingReturn: fadesOnClose && progress == 0, frameIdentifier: frameIdentifier))
     }
 }
 
@@ -48,33 +52,45 @@ public struct NativeSidecardFold: ViewModifier {
 private struct NativeSidecardFoldPresentation: ViewModifier, @preconcurrency Animatable {
     var rect: CGRect
     var progress: CGFloat
+    var offset: CGPoint
+    let destination: CGRect
+    let fadingReturn: Bool
     let frameIdentifier: String
 
-    var animatableData: AnimatablePair<AnimatablePair<CGPoint.AnimatableData, CGSize.AnimatableData>, CGFloat> {
-        get { .init(.init(rect.origin.animatableData, rect.size.animatableData), progress) }
+    typealias RectData = AnimatablePair<CGPoint.AnimatableData, CGSize.AnimatableData>
+    typealias FoldData = AnimatablePair<RectData, CGFloat>
+    var animatableData: AnimatablePair<FoldData, CGPoint.AnimatableData> {
+        get { .init(.init(.init(rect.origin.animatableData, rect.size.animatableData), progress), offset.animatableData) }
         set {
-            rect.origin.animatableData = newValue.first.first
-            rect.size.animatableData = newValue.first.second
-            progress = newValue.second
+            rect.origin.animatableData = newValue.first.first.first
+            rect.size.animatableData = newValue.first.first.second
+            progress = newValue.first.second
+            offset.animatableData = newValue.second
         }
     }
 
     func body(content: Content) -> some View {
-        let aperture = NativeSidecardFoldAperture(rect: rect)
+        // The Report link card historically fades in place on return. Keep
+        // that policy in presentation, without a second opening state/timeline
+        // or a completion callback that can race a reopened selection.
+        let presentedRect = fadingReturn ? CGRect(origin: .zero, size: destination.size) : rect
+        let presentedOffset = fadingReturn ? destination.origin : offset
+        let aperture = NativeSidecardFoldAperture(rect: presentedRect)
         content
             .mask(aperture)
             .contentShape(.interaction, aperture)
             // Keep the shell visible through most of the return; the old short
             // independent fade hid the motion before it could reach its button.
-            .opacity(min(1, max(0, progress) * 5))
+            .opacity(min(1, max(0, progress) * (fadingReturn ? 1 : 5)))
             // Measure the exact presented aperture without exposing document
             // controls or relying on their synthesized accessibility union.
             .overlay(alignment: .topLeading) {
                 NativeReadingPanelFrame(identifier: frameIdentifier)
-                    .frame(width: rect.width, height: rect.height)
-                    .offset(x: rect.minX, y: rect.minY)
+                    .frame(width: presentedRect.width, height: presentedRect.height)
+                    .offset(x: presentedRect.minX, y: presentedRect.minY)
                     .allowsHitTesting(false)
             }
+            .offset(x: presentedOffset.x, y: presentedOffset.y)
     }
 }
 

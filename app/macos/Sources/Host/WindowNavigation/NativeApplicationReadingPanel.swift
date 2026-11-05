@@ -102,13 +102,10 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                     .environment(\.nativeReadingAuxiliaryLauncherPosition,
                         CGPoint(x: size.width + 38, y: size.height / 2 - (url == nil ? 0 : 28)))
                     .frame(width: layout.mainWidth, height: layout.mainHeight)
-                if url != nil {
-                    if expanded && !layout.stacked {
-                        NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
-                            onWidthChange: { retainedWidth = $0 }, onDraggingChange: { dragging = $0 })
-                            .frame(width: 6, height: size.height)
-                            .offset(x: layout.mainWidth + 5)
-                    }
+                // Keep the shell mounted before the first HTML link arrives,
+                // so selection animates its existing launcher-sized aperture in
+                // the same transaction as every other sidecard and main pane.
+                ZStack(alignment: .topLeading) {
                     if let url {
                         let browserRequest = requestID
                         let selectionID = sidecards.selectionID
@@ -118,17 +115,25 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                                       sidecards.active == .browser else { return }
                                 sidecards.close()
                             })
-                            .environment(\.nativeReadingNavigation, nil)
-                            .clipShape(RoundedRectangle(cornerRadius: 21))
-                            .modifier(NativeReportBrowserOpening(expanded: expanded,
-                                source: CGRect(x: browserLauncher.x - 21, y: browserLauncher.y - 21, width: 42, height: 42),
-                                destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
-                                    width: layout.surfaceWidth, height: layout.surfaceHeight),
-                                animation: dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation))
-                            .allowsHitTesting(expanded && !suppressed)
-                            .disabled(!expanded || suppressed)
-                            .accessibilityHidden(!expanded || suppressed)
-                            .accessibilityIdentifier("report-link-card")
+                    } else { Color.clear }
+                }
+                .environment(\.nativeReadingNavigation, nil)
+                .clipShape(RoundedRectangle(cornerRadius: 21))
+                .modifier(NativeSidecardFold(progress: expanded ? 1 : 0,
+                    source: CGRect(x: browserLauncher.x - 21, y: browserLauncher.y - 21, width: 42, height: 42),
+                    destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
+                        width: layout.surfaceWidth, height: layout.surfaceHeight),
+                    frameIdentifier: "report-link-card", fadesOnClose: true))
+                .allowsHitTesting(expanded && !suppressed)
+                .disabled(!expanded || suppressed)
+                .accessibilityHidden(!expanded || suppressed)
+                .accessibilityIdentifier("report-link-card")
+                if url != nil {
+                    if expanded && !layout.stacked {
+                        NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
+                            onWidthChange: { retainedWidth = $0 }, onDraggingChange: { dragging = $0 })
+                            .frame(width: 6, height: size.height)
+                            .offset(x: layout.mainWidth + 5)
                     }
                     NativeSidecardToggle(expanded: expanded || sidecards.pending == .browser,
                         label: locale.language.languageCode?.identifier == "zh" ? "网页" : "Browser",
@@ -160,52 +165,5 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }
             else { onClose() }
         })
-    }
-}
-
-/// Share launcher-to-panel opening without replacing the linked Browser's
-/// existing whole-shell fade on close. Reset the aperture only after that fade;
-/// a reversed selection must not let an old completion fold the reopened page.
-private struct NativeReportBrowserOpening: ViewModifier {
-    let expanded: Bool
-    let source: CGRect
-    let destination: CGRect
-    let animation: Animation?
-    @State private var unfolded = false
-    @State private var visible = false
-    @State private var changeID = UUID()
-
-    func body(content: Content) -> some View {
-        content
-            .modifier(NativeSidecardFold(progress: unfolded ? 1 : 0, source: source,
-                destination: destination, frameIdentifier: "report-link-card"))
-            .animation(animation, value: unfolded)
-            .opacity(visible ? 1 : 0)
-            .animation(expanded ? nil : animation, value: visible)
-            .background {
-                // A link can mount an already-selected Browser. Commit its
-                // launcher-sized aperture before starting the first opening.
-                NativeReadingEntranceStage(enabled: expanded && !unfolded) {
-                    guard expanded else { return }
-                    visible = true; unfolded = true
-                }
-            }
-            .onChange(of: expanded, initial: true) { _, open in
-                let id = UUID()
-                changeID = id
-                if open {
-                    // A reversal during the close fade keeps its full aperture.
-                    if unfolded { visible = true }
-                } else {
-                    withAnimation(animation, completionCriteria: .removed) {
-                        visible = false
-                    } completion: {
-                        guard changeID == id else { return }
-                        var transaction = Transaction(animation: nil)
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) { unfolded = false }
-                    }
-                }
-            }
     }
 }

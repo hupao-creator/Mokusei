@@ -240,7 +240,7 @@ final class NativeSidecardWorkspaceModel {
         guard !reduceMotion else { transitionTask = nil; transitioning = false; return }
         transitioning = true
         transitionTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .milliseconds(380)) } catch { return }
+            do { try await Task.sleep(for: .seconds(NativeSidecardTiming.duration)) } catch { return }
             guard let self, !isReleased, !Task.isCancelled else { return }
             transitioning = false; reconcile()
         }
