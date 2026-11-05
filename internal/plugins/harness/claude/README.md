@@ -1,5 +1,9 @@
 # Claude Harness
 
+Shared [private tool diagnostics](../../../platform/diagnostics/README.md) identify
+`CallID` as an MCP request ID, not a Claude tool-use ID, and expose the bridge's
+existing 256-byte identifier truncation without changing receipt identities.
+
 [harness.go](harness.go), [session.go](session.go) and [transport.go](transport.go) adapt the installed Claude CLI's stream-json protocol. Claude owns native account/model configuration and conversation history. Mokusei supplies admitted inputs, public observations and scoped tool injection.
 
 [settings.go](settings.go) owns model, thinking/effort and permission-mode validation. An explicit thread effort takes precedence over inherited environment configuration; unsupported choices are rejected rather than silently omitted or replaced. Empty profiles are accepted for initialization, while execution still requires a resolved valid configuration.

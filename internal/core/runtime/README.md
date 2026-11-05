@@ -14,6 +14,13 @@ does not change `note.updatedAt`, create lifecycle events or wake Moku.
 
 [threads.go](threads.go) owns thread identity, execution admission and serialized session access. Harness session data remains opaque; each Harness validates it and produces its public observation and renderer projection. Accepted work belongs to the service and survives client disconnection.
 
+[tool_audit.go](tool_audit.go) wraps production Moku/Tag/Report injections at the
+shared native Open boundary, capturing execution/owner identity at callback entry.
+Logging, retry-metadata and diagnostic-classification failures preserve callback
+results and original callback panics. Composition supplies the separate
+[private journal sink](../../platform/diagnostics/README.md); coverage, redaction,
+retention and query limits are defined there.
+
 Ordinary Threads retain `executionTitles`, keyed by exact execution ID. A
 successful metadata completion commits its title and ownership atomically with
 its metadata revision; input retention alone never copies the current Thread

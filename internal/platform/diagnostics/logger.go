@@ -1,5 +1,5 @@
-// Package diagnostics writes bounded private service diagnostics. Logging never
-// serializes native state, tool inputs, environment values or credential maps.
+// Package diagnostics writes private, bounded diagnostics. Logger excludes tool
+// bodies; the separate ToolLogger retains explicitly redacted invocation data.
 package diagnostics
 
 import (
@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -34,45 +35,62 @@ type Logger struct {
 }
 
 func New(directory string) (*Logger, error) {
-	if err := os.MkdirAll(directory, 0700); err != nil {
-		return nil, err
-	}
-	info, err := os.Lstat(directory)
-	if err != nil {
-		return nil, err
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, errors.New("runtime log directory must be a regular directory")
-	}
-	if err = os.Chmod(directory, 0700); err != nil {
+	if err := privateDirectory(directory); err != nil {
 		return nil, err
 	}
 	l := &Logger{path: filepath.Join(directory, "service.jsonl")}
-	if err = l.open(); err != nil {
+	if err := l.open(); err != nil {
 		return nil, err
 	}
 	return l, nil
 }
-func (l *Logger) open() error {
-	if info, err := os.Lstat(l.path); err == nil && !info.Mode().IsRegular() {
-		return errors.New("runtime log must be a regular file")
+
+func privateDirectory(directory string) error {
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		return err
 	}
-	f, err := os.OpenFile(l.path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	info, err := os.Lstat(directory)
 	if err != nil {
 		return err
 	}
-	if err = f.Chmod(0600); err != nil {
-		f.Close()
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("runtime log directory must be a regular directory")
+	}
+	return os.Chmod(directory, 0700)
+}
+func (l *Logger) open() error {
+	f, size, err := openPrivateLog(l.path)
+	if err != nil {
 		return err
+	}
+	l.file, l.size = f, size
+	return nil
+}
+
+func openPrivateLog(path string) (*os.File, int64, error) {
+	if info, err := os.Lstat(path); err == nil && !info.Mode().IsRegular() {
+		return nil, 0, errors.New("runtime log must be a regular file")
+	}
+	// Check the opened descriptor too: the pathname can change after Lstat.
+	// Nonblocking open prevents a replaced FIFO from stalling tool callbacks.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_APPEND|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	if err != nil {
+		return nil, 0, err
 	}
 	info, err := f.Stat()
 	if err != nil {
 		f.Close()
-		return err
+		return nil, 0, err
 	}
-	l.file = f
-	l.size = info.Size()
-	return nil
+	if !info.Mode().IsRegular() {
+		f.Close()
+		return nil, 0, errors.New("runtime log must be a regular file")
+	}
+	if err = f.Chmod(0600); err != nil {
+		f.Close()
+		return nil, 0, err
+	}
+	return f, info.Size(), nil
 }
 func (l *Logger) rotate() error {
 	if err := l.file.Close(); err != nil {

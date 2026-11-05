@@ -692,7 +692,12 @@ func (r *Runner) prepareInstance(ctx context.Context) (instancePreparation, erro
 	opening, cancel := context.WithCancel(lifetime)
 	stop := context.AfterFunc(ctx, cancel)
 	bindings := r.behavior.Tools(opening)
-	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: "primary", Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings}}})
+	handle, err = r.sessions.Open(opening, plugin.OpenSessionRequest{SessionKey: "primary", Injection: plugin.Injection{Instructions: r.behavior.Instructions, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: bindings, AuditContext: func() plugin.ToolRetryContext {
+		if work := r.consumer.Work(); work != nil {
+			return plugin.ToolRetryContext{ConsumerID: r.consumer.ID(), BatchID: work.ID, Attempt: work.Attempts, BatchExecutionID: work.ExecutionID}
+		}
+		return plugin.ToolRetryContext{}
+	}}}})
 	stop()
 	if err != nil {
 		cancel()

@@ -43,6 +43,7 @@ type Options struct {
 	Log           func(string, error)
 	SettingsTrace func(string, model.Object)
 	SearchTrace   func(plugin.SearchDiagnostic)
+	ToolTrace     func(plugin.ToolInvocation) error
 	Overview      *transport.OverviewBroker
 }
 type Bootstrap struct {
@@ -278,6 +279,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 	runtimeConfig.TelemetryLedger = b.ledger
 	runtimeConfig.SettingsTrace = b.options.SettingsTrace
 	runtimeConfig.SearchTrace = b.options.SearchTrace
+	runtimeConfig.ToolTrace = b.options.ToolTrace
 	runtimeConfig.ProcessFactory = b.processes.ForCwd
 	runtimeConfig.Diagnostic = b.publishDiagnostic
 	runtimeConfig.OutputLocale = func(ctx context.Context) (string, error) { return readOutputLocale(ctx, b.options.Profile) }

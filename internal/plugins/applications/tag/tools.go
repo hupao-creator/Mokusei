@@ -21,14 +21,14 @@ func mutationTools(lifetime context.Context, execute func(context.Context, plugi
 			return nil, err
 		}
 		if len(input.Assignments) == 0 {
-			return nil, errors.New("Expected tag assignments")
+			return nil, plugin.CallerError(errors.New("Expected tag assignments"))
 		}
 		if len(input.Assignments) > 100 {
-			return nil, errors.New("Too many assignments")
+			return nil, plugin.CallerError(errors.New("Too many assignments"))
 		}
 		for _, entry := range input.Assignments {
 			if len(entry.Tags) != 1 {
-				return nil, errors.New("Each thread must have exactly one tag")
+				return nil, plugin.CallerError(errors.New("Each thread must have exactly one tag"))
 			}
 		}
 		return execute(callCtx, plugin.SemanticTagOperation{Kind: "assign-many", Assignments: input.Assignments}, callID)
@@ -42,7 +42,7 @@ func mutationTools(lifetime context.Context, execute func(context.Context, plugi
 			return nil, err
 		}
 		if len(input.Tags) == 0 {
-			return nil, errors.New("Expected tag names and emojis")
+			return nil, plugin.CallerError(errors.New("Expected tag names and emojis"))
 		}
 		return execute(callCtx, plugin.SemanticTagOperation{Kind: "create-many", Definitions: input.Tags, Description: input.Description}, callID)
 	})
@@ -57,10 +57,10 @@ func mutationTools(lifetime context.Context, execute func(context.Context, plugi
 			return nil, err
 		}
 		if strings.TrimSpace(input.Name) == "" {
-			return nil, errors.New("Missing name")
+			return nil, plugin.CallerError(errors.New("Missing name"))
 		}
 		if strings.TrimSpace(input.NewName) == "" {
-			return nil, errors.New("Missing newName")
+			return nil, plugin.CallerError(errors.New("Missing newName"))
 		}
 		return execute(callCtx, plugin.SemanticTagOperation{Kind: "update", Name: input.Name, NewName: input.NewName, Emoji: input.Emoji, Description: input.Description}, callID)
 	})
@@ -75,13 +75,13 @@ func mutationTools(lifetime context.Context, execute func(context.Context, plugi
 			return nil, err
 		}
 		if len(input.Names) == 0 {
-			return nil, errors.New("Expected tag names")
+			return nil, plugin.CallerError(errors.New("Expected tag names"))
 		}
 		if strings.TrimSpace(input.Target) == "" {
-			return nil, errors.New("Missing target")
+			return nil, plugin.CallerError(errors.New("Missing target"))
 		}
 		if strings.TrimSpace(input.Emoji) == "" {
-			return nil, errors.New("Missing emoji")
+			return nil, plugin.CallerError(errors.New("Missing emoji"))
 		}
 		return execute(callCtx, plugin.SemanticTagOperation{Kind: "merge", Names: input.Names, Target: input.Target, Emoji: &input.Emoji, Description: input.Description}, callID)
 	})
@@ -100,5 +100,5 @@ func decodeToolArguments(args model.Object, out any) error {
 	if err != nil {
 		return err
 	}
-	return appvalue.Decode(raw, out)
+	return plugin.CallerError(appvalue.Decode(raw, out))
 }

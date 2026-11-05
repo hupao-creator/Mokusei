@@ -31,6 +31,16 @@ While cleanup is pending, authenticated `/health` reports `status: stopping`; or
 
 Logs live under the selected profile at `runtime/debug-logs/service.jsonl` and `runtime/process.log`.
 
+Moku/Tag/Report bodies use a separate private
+[`runtime/tool-calls` journal](../diagnostics/README.md), opened under the same
+profile lease and closed after application draining. Service diagnostics do not
+receive its bodies. The journal has independent retention and explicit
+redaction/completeness metadata.
+Journal initialization or close failure is reported without preventing startup
+or changing successful application cleanup; journal initialization retries on the
+next Runtime start. This best-effort policy does not change the existing service
+logger's startup/close contract.
+
 If an `Ensure` child loses the ownership guard before a competing child publishes
 its owner record, it waits for the competitor's existing private launch receipt.
 Pending launches are read before the owner record to cover that handoff; errors

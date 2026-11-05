@@ -67,7 +67,7 @@ func (c *Coordinator) tools(owner string, description ThreadCreationDescription)
 			callID := newID()
 			operationID := newID()
 			created := time.Now().UnixMilli()
-			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "name": binding.Name, "arguments": call.Arguments, "createdAt": created}); err != nil {
+			if err = c.appendTranscript(linked, owner, map[string]any{"type": "tool-operation", "id": operationID, "executionId": execution.ExecutionID, "callId": callID, "invocationId": call.InvocationID, "harnessCallId": call.CallID, "name": binding.Name, "arguments": call.Arguments, "createdAt": created}); err != nil {
 				return nil, err
 			}
 			var result json.RawMessage
