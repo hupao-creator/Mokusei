@@ -4,11 +4,14 @@
 
 Close retains the Report's current split selection and presented main size from
 parent preparation through route completion. The main card's real WebKit reader
-lives inside a native carrier. Core Animation moves/scales that carrier directly
-to the refreshed Overview source card while keeping the reader's bounds fixed.
+lives inside a native carrier. The shared `NativeReadingPanelReturn` used by
+ordinary Agent Thread moves that carrier to the refreshed Overview source card. Its rounded aperture changes size
+while the reader scales uniformly at fixed native bounds.
 The related-execution or linked-Browser carrier fades in place in parallel. Both
 use one monotonic start time, the stack's duration (normally 420ms) and the existing
-return curve `(0.42, 0, 0.58, 1)`. Main opacity hands off during the final 14%.
+Agent return curve `(0.3, 0, 0.2, 1)`. The main reader fades over the first 80%;
+travel and scale finish at 86%, then the shell hands off during the final 14%.
+The previous Report-only nonuniform scale and separate timing are removed.
 
 `NativeReportSidecardPresentation.updateLayout` preserves active/pending selection
 for an accepted return and cancels admission work. Reference refresh and auxiliary
@@ -59,7 +62,7 @@ reader's native bounds and animates a separate CALayer carrier. Captured frames
 show the text and shell shrinking together, preserving line breaks and scroll
 position while the Sidecard fades at its original location.
 
-## Actual verification
+## Earlier native-carrier verification
 
 The user explicitly requested self-verification after two failed deliveries.
 No test cases or remote CI were added/run. Manual native UI operations and
@@ -98,7 +101,7 @@ return hosts and both outer native bridges are real. This does not certify live
 Harness subscriptions, arbitrary authored HTML, Browser navigation or all
 interruption cases. The installed application was not replaced during verification.
 
-## Build and delivery
+## Earlier build and delivery
 
 Production `swift build --product Mokusei --disable-sandbox`, architecture/static
 registration/no-Node checks and `git diff --check` pass. Build/static logs are in
@@ -109,3 +112,56 @@ see `demos/report-thread/README.md` for the launch command.
 The worktree includes local main `5e4b441`, preserving the intervening send-feedback
 fixes. This managed session stays detached and cannot update main or another
 worktree; the final production-fix commit is delivered for caller integration.
+
+## Shared Agent return follow-up (2026-11-05, 21:01 reference)
+
+The new user reference recording shows the reader shrinking uniformly while its
+content fades, then handing off to the source card. The preceding Report-only
+implementation instead scaled x/y independently over the entire return and kept
+content opaque until the final handoff. It did not share Agent's return policy.
+
+`NativeReadingPanelReturn` now contains the existing Agent implementation: native
+position/aperture travel, uniform reader scale, early content fade and final shell
+handoff. Both Agent and Report call it. Report adds the same canvas-colored paper
+behind the fading reader; the sidecard only changes opacity at its retained seat.
+The Report WebKit viewport and selection retention remain unchanged. Opening and
+list/detail width animation and execution send routing are not modified.
+
+The final production build and isolated preview compiled successfully. Architecture,
+static registration and no-Node checks passed; `git diff --check` and the changed
+local documentation links were checked. Review confirmed that Agent still uses
+its existing 420ms phases, uniform scale and curve through the extracted helper;
+this is code review, not a fresh visual run of every Agent scenario.
+
+Actual CUA operations used the final isolated production host with no Runtime or
+user profile: normal 7:3 list close; reopen, select the first execution, scroll
+HTML to 0.608 and close the 5:5 detail; reopen and close the 7:3 list at 5× speed.
+All returned to the source card. The current recording is:
+`/private/tmp/mokusei-native-replay-report-bj9at6gr/evidence/return-1793884313.mp4`.
+
+Decoded intermediate frames were inspected at 21.9–22.3s (normal list),
+67.0–67.4s (scrolled detail), and 102.7–104.8s (slow list). They show continuous
+shrink with uniform text scaling and gradual fade, followed by source-card
+handoff. The auxiliary card stays at its original position while fading. The
+scrolled detail keeps its visible table/Tag Agent section; neither a full-width
+pre-close layout nor a scroll-to-top jump appears. The slow pass exposes the
+same phases, rather than an instant disappearance.
+
+Current-build exports in `.build/sidecard-close-demo/evidence/`:
+
+- `shared-normal-list.mp4`: original recording 21.4–22.9s.
+- `shared-normal-detail.mp4`: 66.4–68.0s, scrolled 5:5 detail.
+- `shared-slow-list.mp4`: 102.3–105.6s, 5× list close.
+- `shared-normal-detail-middle.jpg`: full-resolution 67.1s intermediate frame.
+
+The recording button now falls back to this app's visible window when an
+accessibility click does not make it key, and reports a missing capture window
+instead of silently returning. Capture remains own-window only without audio.
+
+These observations validate Report's complete native hosting chain with synthetic
+HTML/execution data. They do not certify live Harness data, linked Browser,
+all interruptions, Agent return UI scenarios, or the single-column send flow.
+Opening/width and send behavior were preserved by scope and code review; no full
+test suite, automated replay suite or remote PR/CI was run under the session's
+Sprint scope. Main was synchronized read-only into this detached worktree at
+`c8e1c7f`; integration remains caller-owned.

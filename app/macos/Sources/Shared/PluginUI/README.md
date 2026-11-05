@@ -1140,8 +1140,10 @@ Agent closing keeps the 420ms native panel return. The complete reader fades
 over the first 80%; scaling and shell travel reach the source card at 86%.
 The shell stays opaque until arrival, then crossfades to the refreshed Overview
 through the final 14%. This final handoff owns transition completion so the
-carrier cannot disappear before reaching the card. Closing has no independent title/emoji travel. Report and nested
-history keep their existing motion policies. The panel Close appears only after
+carrier cannot disappear before reaching the card. Closing has no independent
+title/emoji travel. `NativeReadingPanelReturn` owns these phases for both Agent
+and Report; nested history keeps its existing motion policy. The panel Close
+appears only after
 reader admission and fades before return; its position and hit region remain
 owned by the production upper-left control.
 
@@ -1323,15 +1325,19 @@ suppression cannot widen the main reader. Completed route unmount calls `cancel`
 explicitly cancelling return restores normal readiness/admission. Covering and
 execution continuation do not opt into this retention policy.
 `nativeReportMainReturn(size:)` retains the real reader in a native carrier and
-animates that carrier's CALayer position/transform. WebKit bounds stay fixed from
+calls the same `NativeReadingPanelReturn` as Agent. The carrier travels with a
+rounded aperture; its reader scales uniformly and fades over the first 80%.
+Travel ends at 86%, followed by the shared shell handoff through the final 14%.
+WebKit bounds stay fixed from
 return preparation through completion; no GeometryEffect or implicit animation
 transaction is required across the panel/route hosting boundaries. The document
 frame memo retains the last interpolated size if Close interrupts width travel.
 Report Sidecards opt into the same native host inside `NativeSidecardFold`; their
 carrier changes opacity only while the fold memo retains its aperture/offset.
 Agent Sidecards do not mount this additional Report host.
-Both carriers use the stack's monotonic start time, duration and existing return
-curve. Native completion remains generation-fenced. Cancelling return removes
+Both carriers use the stack's monotonic start time, duration and Agent return
+curve `(0.3, 0, 0.2, 1)`. Native completion remains generation-fenced. Cancelling
+return removes
 carrier animations and restores its untransformed reader; route unmount retires
 the hosting content. There is one live reader per surface, without a bitmap copy.
 The old native carrier return diagnostic remains absent for this independent

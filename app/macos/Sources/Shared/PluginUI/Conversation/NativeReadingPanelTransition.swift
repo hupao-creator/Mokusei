@@ -228,14 +228,22 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         let fromPosition = wasMoving ? layer.presentation()?.position ?? layer.position : (command.closing ? target.origin : source.origin)
         let fromPath = wasMoving ? aperture.presentation()?.path ?? aperture.path : path(command.closing ? target.size : source.size)
         let fromOpacity = hosting?.layer?.presentation()?.opacity ?? 1
-        let fromTransform = hosting?.layer?.presentation()?.transform ?? CATransform3DIdentity
-        let fromSurfaceOpacity = layer.presentation()?.opacity ?? 1
         startedGeneration = command.generation
         completedGeneration = nil
         let destination = command.closing ? source : target
         let timing = command.emphasized ? NativeReadingPageTiming.emphasizedOpening
             : command.thread ? CAMediaTimingFunction(controlPoints: 0.3, 0, 0.2, 1)
                 : CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1)
+        if command.closing && command.thread, let content = hosting?.layer {
+            NativeReadingPanelReturn.animate(surface: layer, content: content, aperture: aperture, paper: paper,
+                fromPosition: fromPosition, fromPath: fromPath, source: source,
+                readerWidth: target.width, duration: command.duration,
+                generation: command.generation, delegate: self)
+            prepareMeasurement?.end(); prepareMeasurement = nil
+            travelMeasurement = NativePerformance.begin(.readingTransition,
+                context: environment.nativePerformanceOperation, values: ["panel": 1, "closing": 1])
+            return
+        }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         layer.removeAllAnimations()
@@ -247,55 +255,29 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
         aperture.path = path(destination.size)
         CATransaction.commit()
 
-        let phasedReturn = command.closing && command.thread && hosting?.layer != nil
-        let movementDuration = command.duration * (phasedReturn ? 0.86 : 1)
         let travel = CABasicAnimation(keyPath: "position")
         travel.fromValue = NSValue(point: fromPosition)
         travel.toValue = NSValue(point: layer.position)
-        travel.duration = movementDuration
+        travel.duration = command.duration
         travel.timingFunction = timing
         travel.setValue(command.generation, forKey: "generation")
-        travel.delegate = phasedReturn ? nil : self
+        travel.delegate = self
         let clip = CABasicAnimation(keyPath: "path")
         clip.fromValue = fromPath
         clip.toValue = aperture.path
-        clip.duration = movementDuration
+        clip.duration = command.duration
         clip.timingFunction = timing
         if command.closing, let contentLayer = hosting?.layer {
             let fade = CAKeyframeAnimation(keyPath: "opacity")
-            fade.values = command.thread ? [fromOpacity, 0, 0] : [fromOpacity, fromOpacity, 0, 0]
-            fade.keyTimes = command.thread ? [0, 0.8, 1] : [0, 0.2, 0.8, 1]
+            fade.values = [fromOpacity, fromOpacity, 0, 0]
+            fade.keyTimes = [0, 0.2, 0.8, 1]
             fade.duration = command.duration
-            fade.timingFunction = command.thread ? CAMediaTimingFunction(name: .easeOut) : timing
+            fade.timingFunction = timing
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             contentLayer.opacity = 0
             CATransaction.commit()
             contentLayer.add(fade, forKey: "reading.fade")
-            if command.thread {
-                let scale = source.width / max(1, target.width)
-                let transform = CATransform3DMakeScale(scale, scale, 1)
-                CATransaction.begin(); CATransaction.setDisableActions(true)
-                contentLayer.anchorPoint = .zero
-                contentLayer.transform = transform
-                layer.opacity = 0
-                CATransaction.commit()
-                let shrink = CABasicAnimation(keyPath: "transform")
-                shrink.fromValue = NSValue(caTransform3D: fromTransform)
-                shrink.toValue = NSValue(caTransform3D: transform)
-                shrink.duration = movementDuration; shrink.timingFunction = timing
-                contentLayer.add(shrink, forKey: "reading.content.scale")
-                // Keep the carrier opaque until it has reached the source
-                // card. Only then crossfade to the refreshed Overview content.
-                // The handoff owns completion; travel must not unmount it early.
-                let handoff = CAKeyframeAnimation(keyPath: "opacity")
-                handoff.values = [fromSurfaceOpacity, fromSurfaceOpacity, 0]
-                handoff.keyTimes = [0, 0.86, 1]; handoff.duration = command.duration
-                handoff.timingFunction = CAMediaTimingFunction(name: .linear)
-                handoff.setValue(command.generation, forKey: "generation")
-                handoff.delegate = self
-                layer.add(handoff, forKey: "reading.card.handoff")
-            }
         }
         layer.add(travel, forKey: "reading.travel")
         aperture.add(clip, forKey: "reading.aperture")
