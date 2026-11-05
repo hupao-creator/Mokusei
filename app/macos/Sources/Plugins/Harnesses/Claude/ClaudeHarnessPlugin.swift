@@ -13,6 +13,11 @@ public struct ClaudeHarnessPlugin: HarnessPlugin {
     public var harnessSettingsCodec: PluginValueCodec<ClaudeHarnessSettings> { ClaudeHarnessSettings.codec }
     public var settingsPresentationCodec: PluginValueCodec<ClaudeSettingsPresentationData> { ClaudeSettingsPresentationData.codec }
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<ClaudeOverviewView> { try projectClaudeOverview(input: input, availableColumns: availableColumns) }
+    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
+        let state = try ClaudeState(thread.sessionState)
+        guard let turn = state.turns.first(where: { $0.id == executionID }) else { return nil }
+        return try .init(startedAt: turn.createdAt, finishedAt: turn.finishedAt, running: turn.status == "running", excerpt: turn.raw.claudeID("text"))
+    }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? { try claudeExecutionTokenUsage(thread: thread, executionID: executionID) }
     public func projectMokuDock(input: HarnessThreadInput) throws -> HarnessMokuPresentation? { claudeMoku(try ClaudeState(input.thread.sessionState)) }
     public func threadView(input: HarnessThreadInput, actions: HarnessThreadActions, context: HarnessRenderContext) -> some View { ClaudeThreadView(input: input, actions: actions, context: context)

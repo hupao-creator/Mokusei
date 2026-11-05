@@ -26,7 +26,7 @@ import MokuseiHarnessClaude
                     guard let item = sample.executions.first(where: { $0.id == ref.executionID.string }) else { return nil }
                     let codex = item.harness == .codex
                     return .init(reference: ref, title: JSONText(item.title), missing: false, running: false,
-                        harness: .init(id: codex ? "codex" : "claude", displayName: JSONText(item.harness.rawValue), logoSource: codex ? CodexLogo.source : ClaudeLogo.source), usage: nil)
+                        harness: .init(id: codex ? "codex" : "claude", displayName: JSONText(item.harness.rawValue), logoSource: codex ? CodexLogo.source : ClaudeLogo.source), preview: try! .init(startedAt: 0, finishedAt: 138_000, running: false, excerpt: JSONText(item.answer)))
                 }
             }, subscribe: { _ in {} }, logo: { id, size in
                 id == "codex" ? AnyView(CodexLogo(size: size)) : AnyView(ClaudeLogo(size: size))

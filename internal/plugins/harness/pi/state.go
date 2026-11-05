@@ -467,12 +467,9 @@ func (stateAdapter) ProjectRenderer(raw json.RawMessage, scope model.RendererSco
 	out.ExecutionAuthors = state.ExecutionAuthors
 	for _, e := range state.Executions {
 		if e.Summary != nil {
-			if scope.Kind == "thread" || e.ExecutionID == latest {
-				text := clean(*e.Summary, 600)
-				e.Summary = &text
-			} else {
-				e.Summary = nil
-			}
+			// Historical Report links use the same bounded assistant excerpt.
+			text := clean(*e.Summary, 600)
+			e.Summary = &text
 		}
 		if e.Error != nil {
 			text := clean(*e.Error, 1200)

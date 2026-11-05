@@ -112,3 +112,13 @@ without inspecting private Harness state.
 validated ordinary execution reference. The mounted host observes deletion and
 visibility, while `NativeHarnessThreadView` owns acquisition/release and the
 single-execution presentation. Report plugins never decode Harness timelines.
+
+`HarnessPlugin.executionPreview` projects bounded assistant text and validated
+start/end timestamps for the requested execution ID. Each Harness interprets
+its own private state; Host/Report never parse another Harness's timeline.
+`ApplicationExecutionPresentation.preview` carries that value to the related
+list. Titles use the matching `executionTitles` entry (a localized generic
+execution label when absent), never the current Thread title. Missing historical
+preview data stays absent rather than borrowing the latest execution. Preview
+text is capped at 600 characters; a non-running execution with no end time is
+shown as unknown duration rather than ticking indefinitely.

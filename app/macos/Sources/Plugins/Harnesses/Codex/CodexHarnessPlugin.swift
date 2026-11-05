@@ -31,6 +31,11 @@ public struct CodexHarnessPlugin: HarnessPlugin {
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<CodexOverviewView> {
         try projectCodexOverview(input: input, availableColumns: availableColumns)
     }
+    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
+        let state = try CodexState(thread.sessionState, createdAt: thread.createdAt)
+        guard let turn = state.turns.first(where: { $0.executionId == executionID }) else { return nil }
+        return try .init(startedAt: turn.createdAt, finishedAt: turn.finishedAt, running: turn.active, excerpt: JSONText(turn.answer))
+    }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         try codexExecutionTokenUsage(thread: thread, executionID: executionID)
     }

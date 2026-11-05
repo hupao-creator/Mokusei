@@ -95,7 +95,12 @@ shows the document immediately. Loading and error controls remain independent.
 
 Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked
-layout. Details use a floating Liquid Glass back button; the list retains its
+layout. The related list uses individual 16pt Liquid Glass items without
+number prefixes or connector lines. Each item shows its exact execution title,
+a two-line assistant excerpt, Harness identity and elapsed time instead of token
+usage. A single click opens the existing execution reader. Unknown timing is
+explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
+uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list retains its
 heading and count. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
 Report visit, and each selected execution's loaded content fades in once. Later

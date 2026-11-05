@@ -20,6 +20,11 @@ public struct OpenCodeHarnessPlugin: HarnessPlugin {
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<OpenCodeOverviewView> {
         try projectOpenCodeOverview(input: input, availableColumns: availableColumns)
     }
+    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
+        let state = try OpenCodeState(thread.sessionState)
+        guard let turn = state.executions.first(where: { $0.executionID == executionID }) else { return nil }
+        return try .init(startedAt: turn.startedAt, finishedAt: turn.finishedAt, running: turn.status == .running || turn.status == .waitingForUser, excerpt: turn.summary ?? "")
+    }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         let state = try OpenCodeState(thread.sessionState)
         guard let usage = ocExecutionUsage(state.messages.filter { $0.executionID == executionID }, auxiliary: state.auxiliary.filter { $0.ocText("executionId") == executionID }) else { return nil }

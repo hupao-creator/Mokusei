@@ -194,25 +194,21 @@ struct NativeReportDetail: View {
             }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
             Divider()
             NativeScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    if let failure { Text(failure).foregroundStyle(.red) }
-                    if references.isEmpty { Text(applicationText(locale, "暂无关联执行", "No related executions")).foregroundStyle(.secondary).padding(12) }
-                    ForEach(references, id: \.reference) { item in
-                        Button { selected = item.reference } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(item.title.string).font(NativeTypography.inter(size: 13, weight: 550)).lineLimit(3)
-                                HStack(spacing: 5) {
-                                    if let harness = item.harness {
-                                        ThreadCardBrandLogo(logoSource: harness.logoSource, label: harness.displayName.string, brandKey: harness.id.string)
-                                    }
-                                    if item.missing { Text(applicationText(locale, "已删除", "Deleted")) }
-                                    Spacer(minLength: 0)
-                                    if let usage = item.usage { Text(usage.value.string) }
-                                }.font(NativeTypography.inter(size: 10)).foregroundStyle(.secondary)
-                            }.frame(maxWidth: .infinity, alignment: .leading).padding(12).contentShape(Rectangle())
-                        }.buttonStyle(.plain).disabled(item.missing)
-                    }
-                }.padding(8)
+                GlassEffectContainer(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if let failure { Text(failure).foregroundStyle(.red) }
+                        if references.isEmpty {
+                            Text(applicationText(locale, "暂无关联执行", "No related executions"))
+                                .foregroundStyle(.secondary).padding(12)
+                        }
+                        ForEach(references, id: \.reference) { item in
+                            NativeReportExecutionRow(item: item, locale: locale,
+                                visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
+                                selected = item.reference
+                            }
+                        }
+                    }.padding(16)
+                }
             }
         }
     }

@@ -308,7 +308,7 @@ func rendererDirectory(state *State, base Object, scope model.RendererScope, sou
 	}
 	executions := make([]Object, 0, len(state.Executions))
 	for _, execution := range state.Executions {
-		executions = append(executions, rendererCompactExecution(execution, scope.Kind == "thread" || execution.ExecutionID == latest, source))
+		executions = append(executions, rendererCompactExecution(execution, source))
 	}
 	base["executions"] = executions
 	messages := make([]Object, 0)
@@ -472,10 +472,10 @@ func rendererCompactAuxiliary(samples []AuxiliaryUsage, source rendererSource) [
 	}
 	return result
 }
-func rendererCompactExecution(execution *model.PublicExecution, preview bool, source rendererSource) Object {
+func rendererCompactExecution(execution *model.PublicExecution, source rendererSource) Object {
 	result := source.object("executions", execution.ExecutionID, execution)
 	delete(result, "summary")
-	if execution.Summary != nil && *execution.Summary != "" && preview {
+	if execution.Summary != nil && *execution.Summary != "" {
 		result["summary"] = rendererClip(*execution.Summary, rendererDirectoryPreview)
 	}
 	if execution.Status == "failed" && execution.Error != nil && *execution.Error != "" {

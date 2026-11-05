@@ -126,11 +126,11 @@ public struct ApplicationExecutionPresentation: Hashable, Sendable {
     public let missing: Bool
     public let running: Bool
     public let harness: Harness?
-    public let usage: HarnessExecutionTokenUsage?
+    public let preview: HarnessExecutionPreview?
     public init(reference: ApplicationExecutionRef, title: JSONText, missing: Bool, running: Bool,
-                harness: Harness?, usage: HarnessExecutionTokenUsage?) {
+                harness: Harness?, preview: HarnessExecutionPreview?) {
         self.reference = reference; self.title = title; self.missing = missing; self.running = running
-        self.harness = harness; self.usage = usage
+        self.harness = harness; self.preview = preview
     }
 }
 @MainActor

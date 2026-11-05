@@ -37,3 +37,14 @@ python3 demos/report-thread/build.py --skip-build --capture --open
 - `reading-presentation --report-navigation` 四个原生用例通过。首次运行的关闭点击仍定位旧的右上角；修正为实际左上角圆形命中区的边缘位置后，保留并通过原有关闭动画和返回断言。
 - 正式组件 fixture 实际点击卡片、两条关联执行、返回列表及 HTML 内 Escape；HTML 的 WebKit 文档身份保持不变。
 - 用户指定仅合入本地 main；未创建远端 PR、未运行托管 CI，未运行全套 `make check`。数量标记追加前，签名生产 Release 导航（300 次随机交互）及阅读（三个种子与 trace 重放）通过。追加后重新构建最终签名产物，导航 `--steps 10`（30 次随机交互）及阅读 `--steps 10 --seeds 41`（含 trace 重放）通过；正式卡片的 Codex ×3、Claude ×2 已检查实际渲染和辅助功能标签。组件 fixture 不单独认证真实 Harness 订阅。
+
+## 关联执行玻璃列表
+
+正式模式现使用无序号、无连接竖线的 Liquid Glass item；标题下显示两行正文摘录，底部为 Harness 与耗时。`Production.swift` 注入固定耗时和示例正文，实际产品由每个 Harness 按精确 execution ID 提供数据。深浅色、降低透明度和真实导航由正式组件负责；旧设计对照不作为正式样式依据。
+
+### 无序号玻璃列表接入验证（2026-11-05）
+
+- 当前工作树的生产 Swift `Mokusei` product 和 Go `mokusei-runtime` 构建通过；架构检查、Go vet 与 `git diff --check` 通过。
+- 正式组件 fixture 以 Swift 6 warnings-as-errors 编译并签名，实际打开 Report 卡片，确认五条玻璃 item 没有序号或连接线，正文为两行纯文本，底部显示耗时。截图：[生产组件列表](../../.build/report-thread/evidence/production-glass-list.png)。此 fixture 的固定正文/耗时只验证渲染，不认证真实会话数据链路。
+- 初次 Swift 构建的 `guard` 尾随闭包语法已修复；预览首次受沙箱内 Swift 宏进程及 `ps` 限制，获批扩展执行后构建、打开成功。最终生产构建只有 SwiftPM 用户级缓存不可写提示，无源码编译错误。
+- 按本会话 Sprint mode：未新增或运行测试，未运行集成回放、远端 PR/CI，不将本地构建视为 `Complete coverage`。当前 detached 工作树只交付提交，main 集成由调用方负责，未安装或替换用户的生产 App。

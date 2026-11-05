@@ -120,3 +120,10 @@ sample without reasoning usage suppresses the reasoning total; absent/null
 thinking-token metrics do not become zero. The reader uses the persisted turn
 aggregate for live and historical execution summaries. In-flight unreported
 usage is not estimated.
+
+Compact renderer directories retain up to 600 characters of `text` for each
+execution, including historical executions, so Report can display a bounded
+assistant excerpt without acquiring full conversation content. Native
+`executionPreview` pairs that exact execution's text with its own timestamps.
+Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
+fallback is used for historical references.

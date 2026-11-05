@@ -29,6 +29,11 @@ public struct PiHarnessPlugin: HarnessPlugin {
     public func projectOverview(input: HarnessThreadInput, availableColumns: Int) throws -> HarnessOverviewProjection<PiOverviewView> {
         try piOverview(input: input, availableColumns: availableColumns)
     }
+    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
+        let state = try PiState(thread.sessionState)
+        guard let turn = state.executions.first(where: { $0.executionID == executionID }) else { return nil }
+        return try .init(startedAt: turn.startedAt, finishedAt: turn.finishedAt, running: turn.status == .running || turn.status == .waitingForUser, excerpt: turn.summary ?? "")
+    }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         let usage = try PiState(thread.sessionState).executionUsage[executionID]
         return usage.map { HarnessExecutionTokenUsage(value: JSONText(piCompactTokens($0.total)), count: $0.total, suffix: "tokens") }

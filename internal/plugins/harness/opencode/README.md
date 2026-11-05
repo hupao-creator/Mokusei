@@ -167,3 +167,10 @@ search projections exclude internal inputs and user messages with unknown
 visibility. Grep reports `unknown-input-visibility` for omitted inputs, including
 older persisted messages and native messages without a visibility marker. Public
 assistant text remains available even when input coverage is incomplete.
+
+Compact renderer directories retain up to 600 characters of execution `summary` for each
+execution, including historical executions, so Report can display a bounded
+assistant excerpt without acquiring full conversation content. Native
+`executionPreview` pairs that exact execution's text with its own timestamps.
+Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
+fallback is used for historical references.

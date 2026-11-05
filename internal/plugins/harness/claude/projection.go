@@ -208,14 +208,14 @@ func compactTurn(t *Turn, preview, current, overview bool) {
 			t.Timeline = append(t.Timeline, item)
 		}
 	}
+	// Keep bounded assistant text for historical Report links as well.
+	t.Text = clip(t.Text, 600)
 	if preview {
-		t.Text = clip(t.Text, 600)
 		t.Error = clip(t.Error, 1200)
 		if t.LastAssistantMessage != nil {
 			t.LastAssistantMessage["text"] = clip(str(t.LastAssistantMessage["text"]), 1200)
 		}
 	} else {
-		t.Text = ""
 		t.Error = ""
 		t.LastAssistantMessage = nil
 	}

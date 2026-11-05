@@ -355,6 +355,8 @@ func stCompactTurn(turn Map, preview, current, overview bool) Map {
 	if label := stString(turn["statusLabel"]); label != "" {
 		result["statusLabel"] = stHead(label, 1200)
 	}
+	// Historical Report links need a bounded assistant excerpt in the catalog.
+	result["answer"] = stHead(stString(turn["answer"]), 600)
 	if preview {
 		messages := []Map{}
 		for _, value := range stArray(turn["messages"]) {
@@ -371,7 +373,6 @@ func stCompactTurn(turn Map, preview, current, overview bool) Map {
 			projected["content"], projected["attachments"] = stHead(stString(message["content"]), 600), []any{}
 			result["messages"] = append(stArray(result["messages"]), projected)
 		}
-		result["answer"] = stHead(stString(turn["answer"]), 600)
 		if errorText := stString(turn["error"]); errorText != "" {
 			result["error"] = stHead(errorText, 1200)
 		}

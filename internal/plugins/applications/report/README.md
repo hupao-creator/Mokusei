@@ -106,8 +106,15 @@ the count follows the existing one-execution-per-thread contract. Related execut
 context menu. The HTML-derived preview remains available as its existing public
 projection, while the card uses the authored short description.
 
-The right-hand execution list occupies 20% of available panel width (excluding
+The right-hand execution list occupies 30% of available panel width (excluding
 the 16pt gap). Selecting a reference replaces the list with the host's actual
 single-execution Harness reader at 50%. Back restores the list; removal or hiding
 of the selected reference retires its reader. HTML remains mounted across these
 changes. Browser-link navigation retains its existing additional workspace.
+
+The related list uses individual native Liquid Glass items without sequence
+numbers or connector lines. It shows the matching execution title, two lines of
+assistant text, Harness identity and elapsed time; token usage is not displayed.
+The host obtains exact-execution previews through the native Harness contract.
+Missing timing is explicit and empty excerpts remain empty. Existing one-click
+reader navigation and deletion/visibility handling are unchanged.

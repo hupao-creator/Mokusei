@@ -192,14 +192,18 @@ public final class NativeApplicationHost {
             guard let thread else {
                 return ApplicationExecutionPresentation(reference: reference,
                     title: JSONText(workspace.preferences.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
-                    missing: true, running: false, harness: nil, usage: nil)
+                    missing: true, running: false, harness: nil, preview: nil)
             }
             guard !thread.isHiddenFromUser else { return nil }
             let plugin = try workspace.plugins.harnesses.require(thread.harnessID)
-            return ApplicationExecutionPresentation(reference: reference, title: thread.title, missing: false,
-                running: thread.observation.isExecutionActive || thread.observation.backgroundWork != nil,
+            let preview = try plugin.executionPreview(thread: thread, executionID: reference.executionID)
+            // Never use a later execution's title, elapsed time or reply for this link.
+            let title = thread.executionTitles[reference.executionID]
+                ?? JSONText(workspace.preferences.locale.text("执行记录", "Execution"))
+            return ApplicationExecutionPresentation(reference: reference, title: title, missing: false,
+                running: preview?.running ?? false,
                 harness: .init(id: plugin.descriptor.id, displayName: plugin.descriptor.displayName, logoSource: plugin.logoSource),
-                usage: try workspace.harnessHost.executionTokenUsage(thread: thread, executionID: reference.executionID))
+                preview: preview)
         }
     }
     func subscribeReferences(_ listener: @escaping () -> Void, lifetime: PluginLifetime) -> () -> Void {

@@ -89,6 +89,7 @@ public final class AnyHarnessPlugin {
     private let threadBody: (HarnessThreadInput, HarnessThreadActions, HarnessRenderContext) -> AnyView
     private let overview: (HarnessThreadInput, Int) throws -> HarnessOverviewSnapshot
     private let moku: (HarnessThreadInput) throws -> HarnessMokuPresentation?
+    private let preview: (HarnessThread, JSONText) throws -> HarnessExecutionPreview?
     private let usage: (HarnessThread, JSONText) throws -> HarnessExecutionTokenUsage?
     private let settings: (@escaping (Bool) async throws -> JSONValue, @escaping (Error) -> Void) -> HarnessSettingsSession
     public let readingPrefetchScopes: (HarnessThreadInput) -> [HarnessContentScope]
@@ -102,6 +103,7 @@ public final class AnyHarnessPlugin {
         threadBody = { input, actions, context in AnyView(plugin.threadView(input: input, actions: actions, context: context)) }
         overview = { input, columns in try cache.project(input, columns: columns) }
         moku = { try plugin.projectMokuDock(input: $0) }
+        preview = { try plugin.executionPreview(thread: $0, executionID: $1) }
         usage = { try plugin.executionTokenUsage(thread: $0, executionID: $1) }
         clearProjectionCache = { cache.clear() }
         settings = { load, onError in
@@ -144,6 +146,9 @@ public final class AnyHarnessPlugin {
     }
     public func executionTokenUsage(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionTokenUsage? {
         try validate(thread); return try usage(thread, executionID)
+    }
+    public func executionPreview(thread: HarnessThread, executionID: JSONText) throws -> HarnessExecutionPreview? {
+        try validate(thread); return try preview(thread, executionID)
     }
     public func makeSettingsSession(load: @escaping (Bool) async throws -> JSONValue,
                                     onError: @escaping (Error) -> Void) -> HarnessSettingsSession {

@@ -165,3 +165,10 @@ native last-call meaning for existing consumers; neither its snapshots nor the
 session-wide token total is summed. Turns admitted without the map have no
 certified execution total and do not acquire a misleading suffix-only total
 when resumed. Unfinished calls contribute only after reporting usage.
+
+Compact renderer directories retain up to 600 characters of `answer` for each
+execution, including historical executions, so Report can display a bounded
+assistant excerpt without acquiring full conversation content. Native
+`executionPreview` pairs that exact execution's text with its own timestamps.
+Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
+fallback is used for historical references.
