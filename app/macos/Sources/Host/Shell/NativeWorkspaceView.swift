@@ -608,6 +608,11 @@ public final class NativeWorkspacePresentation {
         }
     }
 
+    func didConsumeThreadDraft(_ submission: NativeComposerSubmission, threadID: JSONText, executionID: JSONText?) async {
+        do { try await executionContinuation.didConsumeDraft(threadID: threadID, executionID: executionID, input: submission.input) }
+        catch { workspace.report(error) }
+    }
+
     public func cancelMoku(observed thread: HarnessThread) {
         guard let target = thread.cancellationID else { return }
         perform {
@@ -863,6 +868,9 @@ public struct NativeWorkspaceView: View {
                             try await presentation.sendThread(submission, to: detail.id, from: execution?.executionID, route: routeID)
                         }
                         else { try await presentation.sendMoku(submission) }
+                    }, onSendConsumed: { submission in
+                        guard sidecardComposer == nil, let detail else { return }
+                        await presentation.didConsumeThreadDraft(submission, threadID: detail.id, executionID: execution?.executionID)
                     }, onCancel: {
                         if let detail {
                             guard presentation.navigationRouteID == routeID, presentation.dockThreadID == detail.id,

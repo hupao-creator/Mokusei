@@ -48,6 +48,21 @@ the lock files themselves are never removed or replaced during cleanup.
 
 [RuntimeOfflineStore](RuntimeOfflineStore.swift) and [RuntimeOfflineRecovery](RuntimeOfflineRecovery.swift) keep profile-local cached reading data, drafts and uncertain command identity. Offline reading/editing does not queue automatic sends or cancellations. On reconnect, a mutation with an uncertain response is checked by its original receipt identity; a newer draft cannot be consumed by an older completion.
 
+Execution continuation uses `invoke(... retainingReceipt: true)` with an explicit
+command ID. A successful result remains in the durable command journal until
+its caller consumes the matching draft. `resolveCommandReceipt` is query-only:
+unknown, pending, expired and indeterminate outcomes never fall back to invoke.
+This is deliberately distinct from explicit same-ID invoke retries, which the
+general client API can admit after an unknown receipt.
+Unconsumed fork/follow-up identities block different fork/follow-up request keys,
+including while the first command is active. The admission check is synchronous
+on the client actor, closing a multi-window check-then-invoke race. This is a
+conservative client-scoped barrier, retained in the profile journal; unrelated
+Thread work on that client can be paused too. It is not a cross-process lock.
+Reopening without the original continuation context never guesses a new target
+from catalog state. Receipt lookup/retention cannot establish exactly-once native
+effects after a host crash or expired outcome; the UI keeps the draft and blocks.
+
 [RuntimeHostFiles](RuntimeHostFiles.swift) owns authenticated upload/download and host-file capabilities. Files are selected on the Mac or transferred through the local service. Arbitrary client filesystem paths are not interchangeable with approved host references.
 
 Uploads open without blocking and validate the file descriptor before copying,

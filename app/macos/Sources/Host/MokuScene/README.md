@@ -680,6 +680,15 @@ after catalog admission, fenced to the owning route/composer visit. Ordinary
 current sends keep their existing visit-scoped execution reveal.
 TOC selection changes drafts without acquiring editor focus. Initial input,
 explicit Browser annotation mode and Moku retain their existing autofocus.
+Each continuation phase retains its original source, input, destination and
+command ID. An uncertain retry queries that receipt before any routing decision;
+a confirmed fork can then proceed to its first follow-up, while a confirmed
+follow-up consumes the original draft without sending it again. Changed input
+or missing phase association after reopening blocks new work and identifies
+the protected receipt. Successful follow-up receipts remain protected until the
+captured draft consumption callback, including late/disposed owners. A receipt
+release callback is identity-fenced against a newer operation. This policy is
+shared by Report and Agent input; there is no force-resend button.
 See [Execution continuation](../../../../../design/report-execution-continuation.md)
 for native constraints and the current sprint validation scope.
 

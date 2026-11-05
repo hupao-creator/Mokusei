@@ -89,6 +89,52 @@ session fallback.
 Forking conversation history does not rewind files or the source worktree.
 The existing Runtime workspace admission determines the new Thread's workspace.
 
+## Uncertain command outcomes
+
+Runtime command identity is a timestamp/UUID plus the channel/arguments
+fingerprint. The server retains receipts for 24 hours and deduplicates an
+admitted command ID. Its receipt query is observation only; `unknown` is not
+proof that work never ran. A restarted host can also retain an indeterminate
+outcome. The generic explicit same-ID invoke retry is therefore not the
+continuation recovery operation.
+
+Each window keeps an immutable source/input/phase/command identity after the
+first dispatch attempt. Both fork and follow-up use retained durable receipts.
+Retries in that window query the same ID only, never re-evaluate latest or
+replace the destination/expected-execution parameters. Only a proven
+`EXECUTION_CHANGED` command rejection can transition an original follow-up to
+fork. An unknown/expired/pending/indeterminate receipt, malformed successful
+identity, or failed receipt lookup cannot authorize a new mutation.
+
+A confirmed fork is recorded before its receipt is released; the next phase
+then sends once to that branch. A definite failed follow-up retains the branch
+for a later intentional send. An uncertain follow-up keeps its original branch
+and command identity. A confirmed accepted follow-up returns its original
+execution result to the matching submission and keeps the receipt until the
+draft consumes its captured revision without a storage error. The original
+Dock callback outlives route/view replacement. Late acknowledgements check
+operation identity before clearing state. Failed acknowledgement pauses new
+work; it is retried as receipt cleanup, not as input delivery.
+
+The client actor also rejects different fork/follow-up keys while an unconsumed
+one exists, including active commands. This prevents another window or a new
+sender instance from bypassing a receipt by inventing a new fingerprint.
+The policy is conservative across Threads on the same client. The durable
+profile journal protects a subsequent reopen, but this is not a distributed
+lock across independent app processes/clients.
+When a window reopens without the original source/input/phase association,
+it may query persisted receipt status but does not infer routing or consume a
+possibly edited draft. New sends remain blocked with the receipt ID and a
+manual-reconciliation notice. In-window edits similarly require the original
+submitted content to recover its matching operation; edits are never discarded
+to force recovery. No unsafe-reset/force-resend action is added.
+
+This does not promise exactly-once model/tool effects beyond the native command
+contract. Unknown or indeterminate outcomes can require manual reconciliation,
+and there is no new UI for safely reconstructing a lost phase after restart.
+A crash after a confirmed fork but before follow-up admission may leave an
+unused branch; it cannot justify replaying a possibly admitted follow-up.
+
 ## Sprint verification
 
 This change uses code review, Go builds/vet/architecture checks, the native Swift

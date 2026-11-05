@@ -14,6 +14,13 @@ entry temporarily excluded into the active Sidecard. Row-only renders and
 execution Sidecards do not publish another input owner. Unavailable or aggregate
 history without an execution identity cannot silently become current input.
 
+`NativeComposerDraft.submit` optionally notifies its owner through `didConsume`
+after the captured accepted revision has been consumed without a storage error.
+The resident Dock captures this callback with the original send, so closing or
+replacing its view cannot acknowledge another draft. Execution continuation
+uses it to release a retained accepted receipt; failed/uncertain sends never call
+it. Existing callers without retained receipts keep their ordinary behavior.
+
 The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
 progressively lighter content/interaction/composer fills and warm off-white text.
 SwiftUI, TextKit and the panel transition resolve the same adaptive assets;

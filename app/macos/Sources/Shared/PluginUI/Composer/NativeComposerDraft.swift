@@ -203,7 +203,8 @@ public final class NativeComposerDraft {
 
     /// Clearing a successful send compares its captured revision and contents.
     /// Edits and files added while the runtime admits the input remain intact.
-    public func submit(_ send: (NativeComposerSubmission) async throws -> Void) async {
+    public func submit(_ send: (NativeComposerSubmission) async throws -> Void,
+                       didConsume: ((NativeComposerSubmission) async -> Void)? = nil) async {
         guard canSubmit else { return }
         let revision = editRevision, persistedRevision = savedRevision
         let sentAttachments = attachments.filter { $0.attachment != nil }
@@ -215,6 +216,7 @@ public final class NativeComposerDraft {
         protectedAttachmentIDs = Set(submission.attachments.map(\.id))
         defer { submitting = false }
         var accepted = false
+        var consumed = false
         do {
             try await send(submission)
             accepted = true
@@ -224,7 +226,11 @@ public final class NativeComposerDraft {
                 try consumePersisted(revision: persistedRevision, attachments: sentAttachments, directories: Set(mentionedRevisions.keys))
                 try consumeAcceptedAttachments(sentAttachments)
             }
+            consumed = error == nil
         } catch { record(error) }
+        // Retained command receipts outlive transport success. Release them
+        // only after this revision has been consumed without a storage error.
+        if consumed { await didConsume?(submission) }
         // Removing a chip or disposing a surface cannot delete bytes still
         // referenced by a command waiting for its admission receipt.
         let retired = accepted ? retiredAttachmentIDs.subtracting(protectedAttachmentIDs) : retiredAttachmentIDs

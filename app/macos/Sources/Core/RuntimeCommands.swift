@@ -6,7 +6,8 @@ extension RuntimeClient {
 
     /// Writes require a live authoritative connection. Persisting an ID tracks
     /// one submitted operation; it is never an offline queue or a replay payload.
-    public func invoke(_ channel: String, args: [JSONValue] = [], receiptID: String? = nil) async throws -> JSONValue {
+    public func invoke(_ channel: String, args: [JSONValue] = [], receiptID: String? = nil,
+                       retainingReceipt: Bool = false) async throws -> JSONValue {
         try assertOpen()
         restoreOfflineState()
         if explicitlyStopped { throw RuntimeError("SERVICE_STOPPING", "Runtime service was stopped") }
@@ -23,6 +24,18 @@ extension RuntimeClient {
         // A state load that starts the client must not coalesce with the handshake's
         // hydration load, which would wait recursively for its own startup.
         let key = receiptID.map { "receipt:\($0)" } ?? (readOnly ? UUID().uuidString : fingerprint)
+        // A new fingerprint cannot stand in for unresolved continuation work.
+        // This durable barrier also protects a reopened window that has lost
+        // the original fork/send stage. Same-key ordinary retries still query
+        // their original receipt through deliverWrite.
+        let continuationChannels: Set<String> = ["thread:fork", "thread:follow-up"]
+        if continuationChannels.contains(channel), let held = commandRecords.values.first(where: {
+            continuationChannels.contains($0.channel) && $0.key != key && $0.status != .rejected
+        }) {
+            throw RuntimeError("CONTINUATION_RECEIPT_REQUIRED",
+                "A previous thread command still owns receipt \(held.id). Resolve and consume it before submitting different thread work.",
+                receiptID: held.id)
+        }
         if let receiptID, let previous = explicitReceipts[receiptID], previous != fingerprint {
             throw RuntimeError("RECEIPT_CONFLICT", "A receipt cannot be retried with different command arguments")
         }
@@ -59,9 +72,14 @@ extension RuntimeClient {
                     value["status"]?.stringValue == "conflict" ? .conflict : .completed, flowID: flowID, operationID: id,
                     revision: value["settingsRevision"]?.intValue, durationMs: Date().timeIntervalSince(started) * 1000)) }
                 self.activeCommands.removeValue(forKey: key)
-                self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
-                self.explicitReceipts.removeValue(forKey: id)
-                self.forgetCommand(id)
+                if retainingReceipt && !readOnly {
+                    self.commandRecords[id]?.status = .accepted
+                    try self.persistCommandJournal()
+                } else {
+                    self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
+                    self.explicitReceipts.removeValue(forKey: id)
+                    self.forgetCommand(id)
+                }
                 return value
             } catch {
                 if observed { self.reportSettingsDiagnostic(SettingsDiagnostic(.command, .failed, flowID: flowID, operationID: id,
@@ -71,7 +89,7 @@ extension RuntimeClient {
                    error.kind == .uncertain || error.code == "COMMAND_OUTCOME_INDETERMINATE" || error.code == "COMMAND_OUTCOME_UNCERTAIN" {
                     self.unresolvedCommands[key] = id
                     if self.status == .connected { self.scheduleReceiptRecovery() }
-                } else if (error as? RuntimeError)?.kind == .commandRejected {
+                } else if (error as? RuntimeError)?.kind == .commandRejected && !retainingReceipt {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
                     self.forgetCommand(id)
@@ -93,6 +111,17 @@ extension RuntimeClient {
             } onCancel: { task.cancel() }
         }
         return try await task.value
+    }
+
+    /// Observation only: never falls back to invoke, including for an unknown
+    /// or expired receipt. The caller must consume the original draft/result
+    /// before acknowledging this retained journal entry.
+    public func resolveCommandReceipt(_ id: String) async throws -> JSONValue {
+        try assertOpen(); restoreOfflineState()
+        guard commandRecords[id] != nil, !explicitlyStopped, status == .connected, hydration == nil,
+              let owner = connection else { throw RuntimeError.uncertain(id) }
+        guard let result = try await lookupCommand(id, owner: owner) else { throw RuntimeError.uncertain(id) }
+        return try settledResult(result, id: id)
     }
 
     private func deliverWrite(channel: String, body: Data, receiptID: String,

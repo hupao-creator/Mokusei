@@ -88,6 +88,7 @@ public struct NativeMokuDock: View {
     public var voiceModeActive: Bool
     public var voiceTranscript: NativeMokuTalkMessage?
     public var onSend: (NativeComposerSubmission) async throws -> Void
+    public var onSendConsumed: (NativeComposerSubmission) async -> Void
     public var onCancel: () -> Void
     public var canStartVoice: () -> Bool
     public var startVoice: () -> Void
@@ -154,6 +155,7 @@ public struct NativeMokuDock: View {
                 openExecution: ((ApplicationExecutionRef) -> Void)? = nil,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
+                onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
                 onCancel: @escaping () -> Void,
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
@@ -170,7 +172,7 @@ public struct NativeMokuDock: View {
         self.voiceStatusVisible = voiceStatusVisible
         self.voiceModeActive = voiceModeActive
         self.voiceTranscript = voiceTranscript
-        self.onSend = onSend; self.onCancel = onCancel
+        self.onSend = onSend; self.onSendConsumed = onSendConsumed; self.onCancel = onCancel
         self.canStartVoice = canStartVoice; self.startVoice = startVoice
         self.presentation = presentation
         self.note = note; self.openExternal = openExternal; self.openExecution = openExecution
@@ -1042,13 +1044,13 @@ public struct NativeMokuDock: View {
         guard sidecardComposer?.ready ?? true else { return }
         state.retainDraft(draft, seal: !state.inputPinnedOpen)
         if threadTitle == nil { state.dismissTalk() }
-        let sendingDraft = draft, send = onSend, generation = state.composerGeneration
+        let sendingDraft = draft, send = onSend, consumed = onSendConsumed, generation = state.composerGeneration
         submissionDraft = sendingDraft
         state.setInputOpen(false)
         Task {
             // Capture both the draft and route before yielding. A late receipt
             // consumes only this draft and cannot reopen a replacement visit.
-            await sendingDraft.submit(send)
+            await sendingDraft.submit(send, didConsume: consumed)
             if submissionDraft === sendingDraft { submissionDraft = nil }
             if state.composerGeneration == generation, sendingDraft.error != nil, !state.mokuOpen {
                 state.setInputOpen(true)
