@@ -278,3 +278,14 @@ Report related-card width changes keep the HTML document anchored at its
 left edge and resize its viewport with the shell. Selection travel does not animate newly
 inserted reader geometry; the loaded related reader scopes its 200ms entrance
 to opacity. See the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
+
+Closing a settled Report retains its current split layout from return preparation
+through route completion. The Report main shell scales/translates directly from
+its presented width and height to the refreshed Overview source card; related
+execution and linked Browser Sidecards fade in place on the same 420ms timeline.
+The full-workspace native carrier stays stationary for this return and owns only
+generation-fenced completion, avoiding a second crop/travel over the split panes.
+Closing before primary content admission keeps the existing native opening-reversal
+path. Reduce Motion, resize, cancellation and inactive-scene completion retain
+the reading stack's policies. See the [return investigation](../../../../../design/report-sidecard-close.md)
+for the retained-layout boundary and Sprint validation limits.

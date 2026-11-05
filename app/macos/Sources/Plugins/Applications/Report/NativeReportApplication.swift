@@ -74,6 +74,7 @@ struct NativeReportDetail: View {
     @FocusState private var launcherFocused: Bool
     @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
+    @Environment(\.nativeReportPanelReturn) private var returning
     @Environment(\.nativeReadingAuxiliaryLauncherPosition) private var launcherPosition
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var locale: JSONText { props.context.locale }
@@ -93,11 +94,12 @@ struct NativeReportDetail: View {
                         sidecards.updateDocument(readiness)
                     }
                     .modifier(NativeReportDocumentFrame(size: CGSize(width: layout.mainWidth, height: layout.mainHeight)))
+                    .nativeReportMainReturn()
                 VStack(alignment: .leading, spacing: 0) {
                     if let selected {
                         execution(selected).id(selected)
                             .overlay(alignment: .topLeading) {
-                                Button { self.selected = nil } label: {
+                                Button { if !sidecards.retainingForReturn { self.selected = nil } } label: {
                                     Image(systemName: "chevron.left")
                                         .font(.system(size: 12, weight: .semibold))
                                         .frame(width: 36, height: 36)
@@ -123,6 +125,7 @@ struct NativeReportDetail: View {
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
                     frameIdentifier: "report-executions-sidecard"))
+                .nativeReportSidecardReturn()
                 // Retain the execution reader while folded, but exclude native
                 // controls and accessibility until this surface is expanded.
                 .allowsHitTesting(expanded && !suppressed)
@@ -137,11 +140,11 @@ struct NativeReportDetail: View {
             .background {
                 NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
                     entranceAdmitted = true
-                    sidecards.updateLayout(ready: entranceReady, suppressed: suppressed)
+                    sidecards.updateLayout(ready: entranceReady, suppressed: suppressed, retainingForReturn: returning != nil)
                 }
             }
             .preference(key: NativeReportExecutionInputKey.self,
-                value: expanded && !suppressed ? selected.map {
+                value: expanded && !suppressed && returning == nil ? selected.map {
                     NativeReportExecutionInput(reference: $0, frame: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight))
                 } : nil)
@@ -156,8 +159,10 @@ struct NativeReportDetail: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { referencesRevealed = true }
             }
         }
-        .onChange(of: entranceReady && entranceAdmitted && !suppressed) { _, ready in
-            sidecards.updateLayout(ready: ready, suppressed: suppressed)
+        .onChange(of: [entranceReady && entranceAdmitted && !suppressed, returning != nil]) { _, _ in
+            sidecards.updateLayout(ready: entranceReady && entranceAdmitted && !suppressed,
+                suppressed: suppressed, retainingForReturn: returning != nil)
+            if returning == nil { refresh() }
         }
         .onChange(of: props.entry.view.contentRevision) { _, _ in sidecards.updateDocument(nil) }
         .onChange(of: props.entry.view.relatedExecutions) { _, _ in refresh() }
@@ -195,7 +200,7 @@ struct NativeReportDetail: View {
                         ForEach(references, id: \.reference) { item in
                             NativeReportExecutionRow(item: item, locale: locale,
                                 visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
-                                selected = item.reference
+                                if !sidecards.retainingForReturn { selected = item.reference }
                             }
                         }
                     }.padding(16)
@@ -210,7 +215,7 @@ struct NativeReportDetail: View {
         let reference = selected
         let referenceID = reference.map { $0.thread.threadID.string + ":" + $0.executionID.string } ?? ""
         return NativeReadingAuxiliaryBackAction(id: selectionID.uuidString + referenceID) {
-            guard selectionID == sidecards.selectionID, reference == selected,
+            guard !sidecards.retainingForReturn, selectionID == sidecards.selectionID, reference == selected,
                   sidecards.active == .relatedExecutions || sidecards.pending == .relatedExecutions else { return }
             if expanded && selected != nil { selected = nil }
             else { sidecards.close(); launcherFocused = true }
@@ -218,6 +223,7 @@ struct NativeReportDetail: View {
     }
 
     private func refresh() {
+        guard !sidecards.retainingForReturn else { return }
         do {
             references = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).read(props.entry.view.relatedExecutions)
             if let selected, !references.contains(where: { $0.reference == selected && !$0.missing }) { self.selected = nil }
@@ -237,6 +243,8 @@ struct NativeReportDetail: View {
 /// Keep interpolation below the retained document so only its viewport relayouts.
 private struct NativeReportDocumentFrame: ViewModifier, @MainActor Animatable {
     var size: CGSize
+    @Environment(\.nativeReportPanelReturn) private var returning
+    @State private var presentation = ReportDocumentPresentation()
 
     var animatableData: CGSize.AnimatableData {
         get { size.animatableData }
@@ -244,6 +252,7 @@ private struct NativeReportDocumentFrame: ViewModifier, @MainActor Animatable {
     }
 
     func body(content: Content) -> some View {
+        let size = presentation.size(size, retaining: returning != nil)
         content
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
@@ -254,5 +263,16 @@ private struct NativeReportDocumentFrame: ViewModifier, @MainActor Animatable {
             // `size` already contains this animation frame's interpolation.
             // A second implicit animation would put WebKit behind its shell.
             .transaction(value: size) { $0.animation = nil }
+    }
+}
+
+/// A render-only memo, not observable application state. Save the interpolated
+/// size below the animation boundary so Close during width travel retains the
+/// last presented document layout instead of snapping to its destination width.
+@MainActor private final class ReportDocumentPresentation {
+    private var presented: CGSize?
+    func size(_ proposed: CGSize, retaining: Bool) -> CGSize {
+        if !retaining || presented == nil { presented = proposed }
+        return presented ?? proposed
     }
 }

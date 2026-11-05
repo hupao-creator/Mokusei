@@ -31,6 +31,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public var panelSource: CGRect?
     public var panelIdentity: NativeThreadIdentityVisit?
     public var panelFrontIdentity: JSONText?
+    public var reportPanelMotion: Bool
     public var threadPanelMotion: Bool
     public var emphasizedOpening: Bool
     public var duration: TimeInterval
@@ -61,7 +62,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
                 emphasizedOpening: Bool = false, panel: Bool = false, isolatesParent: Bool = false, panelSource: CGRect? = nil,
-                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
+                panelIdentity: NativeThreadIdentityVisit? = nil, panelFrontIdentity: JSONText? = nil, threadPanelMotion: Bool = false, reportPanelMotion: Bool = false, duration: TimeInterval = NativeReadingPageTiming.duration,
                 axis: Axis = .horizontal,
                 direction: CGFloat = 1,
                 onParentPresentationChange: ((Bool) -> Void)? = nil,
@@ -75,6 +76,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         self.panel = panel; self.panelSource = panelSource
         self.isolatesParent = isolatesParent
         self.panelIdentity = panelIdentity; self.panelFrontIdentity = panelFrontIdentity
+        self.reportPanelMotion = reportPanelMotion
         self.threadPanelMotion = threadPanelMotion
         self.axis = axis
         self.direction = direction
@@ -135,7 +137,11 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                                 parentEntranceReady && panelContentReady && !motion.active && !closing && !preparingClose
                                     && (reduceMotion || panelIdentity?.pending != true))
                             .environment(\.nativeThreadIdentityVisit, reduceMotion ? nil : panelIdentity)
-                            .environment(\.nativeReadingPanelClosing, closing))
+                            .environment(\.nativeReadingPanelClosing, closing)
+                            .environment(\.nativeReportPanelReturn, reportPanelMotion && panelContentReady && (closing || preparingClose)
+                                ? NativeReportPanelReturn(source: (panelSource ?? panelBounds.insetBy(dx: 24, dy: 24))
+                                    .offsetBy(dx: -panelBounds.minX, dy: -panelBounds.minY),
+                                    progress: CGFloat(progress)) : nil))
                 } else if open {
                     ZStack {
                         front.id(identity)
@@ -322,9 +328,10 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             motion.active = true
             if !closing { panelContentReady = false; panelReaderPreloading = false }
             panelTransition = NativeReadingPanelTransition(generation: generation, closing: closing,
-                duration: duration, emphasized: !closing && emphasizedOpening, thread: threadPanelMotion)
-            // Only the backdrop uses SwiftUI interpolation; panel geometry and
-            // its completion belong to the native compositor, with no tick task.
+                duration: duration, emphasized: !closing && emphasizedOpening, thread: threadPanelMotion, report: reportPanelMotion && panelContentReady)
+            // Report returns also use this progress for independent fixed-layout
+            // surface transforms. Native completion still owns the route generation;
+            // opening and other panel returns keep their native geometry driver.
             withAnimation(!closing && emphasizedOpening
                 ? .timingCurve(0.76, 0, 0.24, 1, duration: duration) : curve) {
                 progress = closing ? 0 : 1

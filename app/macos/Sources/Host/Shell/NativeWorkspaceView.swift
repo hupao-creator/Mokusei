@@ -925,6 +925,7 @@ public struct NativeWorkspaceView: View {
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
                 panelFrontIdentity: "workspace-route-slide",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
+                reportPanelMotion: presentation.selected?.typeID == "report.document",
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
                     presentation.overview.setPresentationActive(active)

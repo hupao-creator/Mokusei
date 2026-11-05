@@ -61,6 +61,9 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
 
     func update(content: AnyView, environment: EnvironmentValues, route: UUID,
                 requested: Bool, ready: Bool, animated: Bool) {
+        // A Report return can land outside the open panel's bounds. Only that
+        // return releases this clip; continuation slides still clip both seats.
+        layer?.masksToBounds = environment.nativeReportPanelReturn == nil
         if self.route != route {
             settle()
             if self.route != nil, requested, bounds.width > 0, bounds.height > 0 {
