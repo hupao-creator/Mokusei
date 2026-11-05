@@ -33,7 +33,8 @@ public struct NativeReadingPanelCloseButton: View {
             }
         }
         .nativeLayoutLog("reading.close.target")
-        .focusable()
+        // Clicking Close must not acquire editing focus and flash the keyboard ring.
+        .focusable(interactions: .activate)
         .focused($focused)
         .focusEffectDisabled()
         .onKeyPress(keys: [.space, .return], phases: .down) { _ in

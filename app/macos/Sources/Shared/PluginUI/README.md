@@ -49,7 +49,10 @@ The Report host clips the viewport with a 14pt radius before applying its 8pt
 insets, matching the outer panel's 22pt radius. Spacing outside the circle
 is not a close target. The button follows reading-palette light/dark colors,
 hover/press, disabled and increased-contrast states, with a visible keyboard
-focus ring and caller-owned localized help/accessibility labels. Callers keep
+focus ring and caller-owned localized help/accessibility labels. Close uses
+activation-only focus: pointer clicks do not acquire focus or flash the ring,
+while system Keyboard Navigation retains focus indication and Space/Return
+activation. Callers keep
 their own close callback and Escape/navigation ownership; the button installs
 no global keyboard shortcut. Agent Sidecards use the corresponding right-side
 launcher as their open/close toggle and have no independent Close icon. Browser
