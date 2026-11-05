@@ -3,25 +3,31 @@ package claude
 import (
 	"encoding/json"
 	"slices"
-	"strings"
+
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-func (StateAdapter) SearchText(raw json.RawMessage) (string, error) {
+func (a StateAdapter) SearchText(raw json.RawMessage) (string, error) {
+	passages, err := a.SearchPassages(raw)
+	return plugin.JoinSearchPassages(passages), err
+}
+
+func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage, error) {
 	state, err := ParseState(raw)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	parts := []string{}
+	parts := []plugin.SearchPassage{}
 	for _, turn := range state.Turns {
 		if turn.Status != "completed" {
 			continue
 		}
 		for index, prompt := range turn.Prompts {
 			if !slices.Contains(turn.InternalPromptIndexes, index) {
-				parts = append(parts, prompt)
+				parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: prompt})
 			}
 		}
-		parts = append(parts, turn.Text)
+		parts = append(parts, plugin.SearchPassage{ExecutionID: turn.ExecutionID, Text: turn.Text})
 	}
-	return strings.Join(parts, "\n"), nil
+	return parts, nil
 }

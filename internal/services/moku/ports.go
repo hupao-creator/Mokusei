@@ -45,6 +45,7 @@ type SessionConfiguration struct {
 	PreserveHistory bool
 }
 type Configuration struct {
+	GrepThreads              func(context.Context, json.RawMessage) (any, error)
 	HarnessEnabled           func(string) bool
 	IsDeleting               func(string) bool
 	WithSettingsAdmission    func(context.Context, func(context.Context) error) error

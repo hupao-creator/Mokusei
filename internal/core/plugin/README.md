@@ -87,3 +87,8 @@ reserving a successor. The default is false, preserving other input sources.
 Codex advertises it; Claude, Pi and OpenCode defer lazy-only sends because their
 native input paths cannot prove that a finishing race will not start more work.
 They still receive queued notices with the next independent input.
+
+`SearchPassageAdapter` optionally exposes exact public completed-execution text
+with execution IDs. It shares the `SearchTextAdapter` disclosure boundary;
+`JoinSearchPassages` preserves the existing index text. Core never interprets
+opaque Harness state to infer locators. Empty IDs remain unavailable.

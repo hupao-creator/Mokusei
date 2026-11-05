@@ -138,3 +138,8 @@ therefore wait for the next independently triggered input and travel with its
 system context, even while this Harness is running. An explicit follow-up-only
 Send returns `ErrFollowUpUnavailable` before retaining or dispatching anything;
 ordinary inputs keep their existing behavior.
+
+`search.go` supplies completed-execution public passages with their execution IDs
+for Moku grep. Existing index text joins the same passages, preserving its prior
+exclusions. This extracts only retained Mokusei state, not complete native history;
+see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).

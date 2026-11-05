@@ -190,3 +190,10 @@ other uncertain native outcomes require the existing operator reconciliation.
 Native voice context synchronization shares this outbox through its admission
 owner, with removal only after the execution commit. Neither receipt proves model
 processing or task completion.
+
+Moku's `GrepThreads` reads the current profile's committed ordinary-thread cache,
+including archives and busy owners, excluding Moku/history and deleting owners.
+It supplies Harness-owned public passages to threadsearch independently of the
+Overview index, then fences returned hits by source hash. Directory Scope filters
+reuse the existing scope resolver. No native history is opened. See the
+[grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).

@@ -21,7 +21,7 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 		Workspace: cwd, DataDir: data, Harnesses: b.harnesses,
 		HarnessEnabled: func(id string) bool { return b.disabled[id] == "" }, IsDeleting: r.IsDeleting,
 		WithSettingsAdmission: r.WithConfigurationAdmission, PrepareSettings: r.PrepareSettings,
-		Settings: r.Settings, Threads: r.Threads, Thread: r.Thread, UpdateThread: r.UpdateThread, UpdateNote: r.UpdateMokuNote,
+		GrepThreads: r.GrepThreads, Settings: r.Settings, Threads: r.Threads, Thread: r.Thread, UpdateThread: r.UpdateThread, UpdateNote: r.UpdateMokuNote,
 		ReadSessionConfiguration: func() (moku.SessionConfiguration, error) {
 			value, err := r.ReadMokuConfiguration()
 			return moku.SessionConfiguration{Unapplied: value.Unapplied, HarnessID: value.HarnessID, Settings: value.Settings, AppliedSettings: value.AppliedSettings, SettingsRevision: value.SettingsRevision, Cwd: value.Cwd}, err

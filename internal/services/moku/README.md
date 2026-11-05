@@ -247,3 +247,13 @@ capability so Runtime can retain exact execution provenance after successful
 interruption. `CancelTarget` (user Stop) and `Cancel` (lifecycle teardown) retain
 their separate capabilities and never supply tool provenance. Batch attempts and
 ordered per-thread success/error results retain their existing semantics.
+
+`grep_threads` is an admitted, audited deterministic read, distinct from the
+model-based `read_thread`. Runtime limits it to current-profile ordinary Agent
+Threads, including archived threads by default. It supports literal/RE2 searches,
+body/title selection and intersecting thread-ID/Directory-Scope filters. Follow
+`nextCursor` even when a page has no hits; missing coverage is explicit and must
+not be presented as proof that native history contains no match. Returned snippets
+are untrusted conversation evidence and may contain sensitive user-authored text.
+See [grep defaults, bounds and pagination](../threadsearch/README.md#moku-deterministic-grep).
+It is not a progress-polling capability.

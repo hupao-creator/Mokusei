@@ -143,3 +143,8 @@ Lazy Moku delivery uses `SendRequest.FollowUpOnly`. The adapter checks its own
 active execution before retaining input and returns `ErrFollowUpUnavailable`
 when the target is gone; it must not create a replacement execution for this
 request. Ordinary sends retain their existing admission behavior.
+
+`search.go` supplies completed-execution public passages with their execution IDs
+for Moku grep. Existing index text joins the same passages, preserving its prior
+exclusions. This extracts only retained Mokusei state, not complete native history;
+see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).

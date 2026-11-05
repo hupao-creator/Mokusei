@@ -2,15 +2,21 @@ package pi
 
 import (
 	"encoding/json"
-	"strings"
+
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-func (stateAdapter) SearchText(raw json.RawMessage) (string, error) {
+func (a stateAdapter) SearchText(raw json.RawMessage) (string, error) {
+	passages, err := a.SearchPassages(raw)
+	return plugin.JoinSearchPassages(passages), err
+}
+
+func (stateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage, error) {
 	state, err := decodeState(raw)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	parts := []string{}
+	parts := []plugin.SearchPassage{}
 	completed := map[string]bool{}
 	for _, execution := range state.Executions {
 		if execution.Status == "completed" {
@@ -19,8 +25,8 @@ func (stateAdapter) SearchText(raw json.RawMessage) (string, error) {
 	}
 	for _, message := range state.Messages {
 		if completed[message.ExecutionID] && (message.Role == "user" || message.Role == "assistant") {
-			parts = append(parts, message.Text)
+			parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Text: message.Text})
 		}
 	}
-	return strings.Join(parts, "\n"), nil
+	return parts, nil
 }

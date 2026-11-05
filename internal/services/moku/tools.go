@@ -132,6 +132,15 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 	}
 	encode := func(value any) (json.RawMessage, error) { return json.Marshal(value) }
 	switch name {
+	case "grep_threads":
+		if c.config.GrepThreads == nil {
+			return nil, errors.New("grep_threads unavailable")
+		}
+		value, err := c.config.GrepThreads(ctx, raw)
+		if err != nil {
+			return nil, err
+		}
+		return encode(value)
 	case "list_threads":
 		records, err := c.config.Threads()
 		if err != nil {
