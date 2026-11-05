@@ -81,7 +81,7 @@ struct NativeReportDetail: View {
     var body: some View {
         GeometryReader { geometry in
             let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
-                preferredWidth: selected == nil ? 0.2 : 0.5)
+                preferredWidth: selected == nil ? 0.3 : 0.5)
             let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
             ZStack(alignment: .topLeading) {
                 NativeReportHTML(props: props)
