@@ -93,3 +93,46 @@ No new tests, regression runs, automated captures, CI or push are performed.
 The repaired application's intermediate frames have not been captured or
 visually accepted in a running application; the source recording establishes
 the original defect, not post-fix visual acceptance.
+
+## Referenced execution expansion follow-up (2026-11-05 19:01:54)
+
+The supplied 6.38s recording starts with Report references already expanded.
+At approximately 0.30–0.37s the second item is selected; this is the list-to-reader
+30%-to-50% width change, not the initial launcher fold. Dense source-frame
+inspection shows the HTML heading shifting sideways immediately, followed by
+reader text admission and further horizontal movement around 0.40–0.60s.
+AVFoundation decoding needed access to the system decoder outside the build
+sandbox; exact-time image extraction was used, rather than keyframe sampling.
+The recording does not establish a main-thread stall or its CPU duration.
+
+Two animation boundaries were leaking geometry into this transition. Report
+copied Agent's center-compensating offsets around its fixed-size document: the
+inner offset adopted the new half-width immediately, while the outer offset
+animated from its previous value. That displaced HTML at the start of the width
+change. Report now anchors both document and shell at top-leading and animates
+only the shell's bounds. Responsive HTML still reflows once to its destination
+width; it is not scaled or laid out at every intermediate shell width.
+
+The selection animation also covered the newly inserted execution subtree, and
+the ready reader started its 200ms fade with a subtree-wide `withAnimation`.
+Selection transactions are now cleared below the related-card shell, and the
+ready-reader fade is scoped to opacity with its transaction cleared before the
+rendered content. This keeps asynchronous native text admission out of that fade's
+geometry animation. Later reader-owned transactions, resource subscriptions,
+selection/Back, fold duration, input placement and Reduce Motion retain their
+existing ownership. The fade still runs once per mounted related reader.
+
+Sprint scope: no tests, replays, application launch or post-fix frame capture.
+Source recording inspection diagnoses the original behavior; source review and
+compilation cannot certify the repaired application's frame pacing. Live visual
+acceptance of list-to-execution, execution-to-list, folded reopen and stacked
+layout remains unperformed. The managed detached worktree supplies a commit for
+caller-owned integration and does not change local main or another worktree.
+
+Validation completed: `swift build --package-path app/macos --product Mokusei`
+(with the SwiftPM sandbox disabled and an isolated module cache) succeeded;
+`make lint` passed architecture/static registration/no-Node checks, formatting
+and `go vet`; `git diff --check` and the changed documentation link passed.
+The effective remote main ruleset still requires a PR and strict `Complete
+coverage`; current remote state was inspected, but no hosted run was requested
+and no historical run is claimed as validation of this change.

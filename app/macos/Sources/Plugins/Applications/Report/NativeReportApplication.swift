@@ -94,13 +94,12 @@ struct NativeReportDetail: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
-                    .frame(width: layout.mainWidth, height: layout.mainHeight)
-                    // Match Agent reflow: commit the native document's final
-                    // size once while its surrounding shell travels.
-                    .offset(x: -layout.mainWidth / 2)
+                    .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
+                    // Reflow WebKit once, anchored to the stationary left edge.
+                    // Center compensation would jump the document by half the
+                    // width delta before travelling back with the shell.
                     .transaction(value: CGSize(width: layout.mainWidth, height: layout.mainHeight)) { $0.animation = nil }
-                    .offset(x: layout.mainWidth / 2)
-                    .frame(width: layout.mainWidth, height: layout.mainHeight)
+                    .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
                     .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 22))
                     // The document adopts its destination size before the shell
                     // arrives; clip after the animated frame, not only inside HTML.
@@ -127,6 +126,10 @@ struct NativeReportDetail: View {
                     }
                 }
                 .environment(\.nativeReadingNavigation, nil)
+                // Selection animates the shell, not insertion/removal or the
+                // initial native layout of its newly mounted execution reader.
+                // Later reader-owned animation transactions remain independent.
+                .transaction(value: selected) { $0.animation = nil }
                 .clipShape(RoundedRectangle(cornerRadius: 21))
                 .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,

@@ -266,3 +266,8 @@ ready; enabling those policies during travel or resizing settles immediately.
 This is limited to accepted Report continuation navigation, including historical
 forks; ordinary Agent sends, manual navigation and completion promotion retain
 their existing transitions. See the [Sprint implementation notes](../../../../../design/execution-route-slide.md).
+
+Report list-to-execution width changes keep the HTML document anchored at its
+left edge while its shell resizes. Selection travel does not animate newly
+inserted reader geometry; the loaded related reader scopes its 200ms entrance
+to opacity. See the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#referenced-execution-expansion-follow-up-2026-11-05-190154).
