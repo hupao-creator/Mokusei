@@ -31,6 +31,13 @@ inside a Sidecard and no plugin input ownership changes. See the
 [Reading-panel Dock contract](../../Host/MokuScene/README.md#reading-panel-dock)
 for fit, editor lifetime and Sprint validation limits.
 
+When the Agent reader selects a historical execution, the resident input stays
+under main even if a newer execution owns the expanded Conversation Sidecard.
+Its send uses the shared exact-execution continuation boundary also used by
+Report. Returning to the ordinary current document restores latest-Thread input.
+Browser annotation mode keeps its explicit activity draft and current-Thread
+send authority; merely reading history does not retarget that separate action.
+
 The host, execution pane and nested history route SwiftUI Escape through
 `nativeReadingExitCommand`, sharing resident-input priority with native reading
 without replacing focused-child dispatch. Native editors/marked text, menus,

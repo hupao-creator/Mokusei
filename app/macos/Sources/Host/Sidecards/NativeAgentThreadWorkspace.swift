@@ -67,6 +67,10 @@ private extension EnvironmentValues {
     @Entry var nativeAgentHasNestedNavigation = false
 }
 
+extension EnvironmentValues {
+    @Entry var nativeAgentInputTargetChanged: ((UUID, ThreadConversationInputTarget?) -> Void)?
+}
+
 @MainActor
 private struct NativeThreadWorkspaceBody: View {
     let harnessHost: NativeHarnessHost
@@ -152,12 +156,15 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
+    @Environment(\.nativeAgentInputTargetChanged) private var inputTargetChanged
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedLauncher: JSONText?
     @State private var launcherFrames: [JSONText: CGRect] = [:]
     @State private var handoffProgress: CGFloat = 0
     @State private var handoffResized = false
     @State private var absorbedCardID: JSONText?
+    @State private var inputTarget: ThreadConversationInputTarget?
+    @State private var inputOwner = UUID()
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
@@ -292,7 +299,8 @@ struct NativeSidecardWorkspaceLayout: View {
         if card.view.composer != nil {
             return CGRect(x: layout.surfaceX, y: layout.surfaceY, width: layout.surfaceWidth, height: layout.surfaceHeight)
         }
-        if snapshot.input.thread.observation.isExecutionActive,
+        let historicalInput = inputTarget.map { !$0.followsLatest && $0.executionID != snapshot.input.thread.observation.latestExecution?.executionID } ?? false
+        if !historicalInput, snapshot.input.thread.observation.isExecutionActive,
            let executionID = snapshot.input.thread.observation.latestExecution?.executionID,
            card.view.excludeExecutionID == executionID {
             return CGRect(x: layout.surfaceX, y: layout.surfaceY, width: layout.surfaceWidth, height: layout.surfaceHeight)
@@ -328,6 +336,11 @@ struct NativeSidecardWorkspaceLayout: View {
             if preparing { status = .init() }
         }
         .onPreferenceChange(NativeReadingContentRevealStatusKey.self, perform: onContentRevealChange)
+        .onPreferenceChange(ThreadConversationInputTargetKey.self) { target in
+            inputTarget = target
+            inputTargetChanged?(inputOwner, target)
+        }
+        .onDisappear { inputTargetChanged?(inputOwner, nil) }
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)

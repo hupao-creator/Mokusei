@@ -7,6 +7,13 @@ reference and destination frame to its Host shell. It is absent in list, folded,
 Browser and suppressed states. The Host converts that geometry through the same
 passive native marker as Agent Sidecards and owns the composer and send routing.
 
+`ThreadConversationInputTargetKey` publishes the main reader's actual selection,
+entry request and motion readiness. Ordinary current documents follow latest;
+explicit TOC/history/result visits retain their exact execution, including an
+entry temporarily excluded into the active Sidecard. Row-only renders and
+execution Sidecards do not publish another input owner. Unavailable or aggregate
+history without an execution identity cannot silently become current input.
+
 The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
 progressively lighter content/interaction/composer fills and warm off-white text.
 SwiftUI, TextKit and the panel transition resolve the same adaptive assets;

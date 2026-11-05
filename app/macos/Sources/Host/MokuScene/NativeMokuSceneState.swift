@@ -31,6 +31,7 @@ import MokuseiPluginUI
     }
     public private(set) var inputLeaving = false
     public private(set) var composerGeneration = UUID()
+    public private(set) var composerAutofocus = true
     @ObservationIgnored private var composerIdentity: ObjectIdentifier?
     public private(set) var talkPresentation = NativeMokuTalkState()
     public private(set) var settingsOpen = false
@@ -162,7 +163,7 @@ import MokuseiPluginUI
     /// Draft ownership changes synchronously with navigation. Retiring ink and
     /// editor selection must never cross from Moku or one Thread to another.
     public func setComposerContext(_ draft: NativeComposerDraft, opensInput: Bool, keepsInputOpen: Bool = false,
-                                   inputAdmissionReady: Bool = true) {
+                                   inputAdmissionReady: Bool = true, autofocus: Bool = true) {
         inputPinnedOpen = keepsInputOpen
         if self.inputAdmissionReady != inputAdmissionReady {
             self.inputAdmissionReady = inputAdmissionReady
@@ -178,6 +179,7 @@ import MokuseiPluginUI
         let identity = ObjectIdentifier(draft)
         guard composerIdentity != identity else { return }
         composerIdentity = identity
+        composerAutofocus = autofocus
         composerGeneration = UUID()
         capsuleTask?.cancel(); capsuleTask = nil
         inputOpen = false; inputLeaving = false; capsuleSealed = false

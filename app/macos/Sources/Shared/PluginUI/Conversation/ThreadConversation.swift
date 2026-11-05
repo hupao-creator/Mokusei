@@ -53,6 +53,24 @@ private enum ConversationDestination: Equatable {
     case history(JSONText)
     case unavailable
 }
+
+/// The main reader owns selection, including TOC choices absent from the Host's
+/// entry request. An ordinary document follows latest even when that execution
+/// is currently displayed in a Sidecard; a historical/result visit stays exact.
+public struct ThreadConversationInputTarget: Equatable, Sendable {
+    public let threadID: JSONText
+    public let requestID: JSONText?
+    public let executionID: JSONText?
+    public let followsLatest: Bool
+    public let ready: Bool
+}
+
+public struct ThreadConversationInputTargetKey: PreferenceKey {
+    public static let defaultValue: ThreadConversationInputTarget? = nil
+    public static func reduce(value: inout ThreadConversationInputTarget?, nextValue: () -> ThreadConversationInputTarget?) {
+        if let next = nextValue() { value = next }
+    }
+}
 private struct HistoryVisitID: Hashable {
     let row: JSONText?
     let request: JSONText?
@@ -88,6 +106,7 @@ public struct ThreadConversation: View {
     @State private var manualWork: Bool?
     @State private var destination: ConversationDestination = .document(inline: nil)
     @State private var consumedRequest: JSONText?
+    @State private var inputEntryRequest: JSONText?
     @State private var requestedDestination: ConversationDestination?
     @State private var acceptedAnchor: JSONText?
     @State private var locatedRequest: JSONText?
@@ -181,6 +200,20 @@ public struct ThreadConversation: View {
         return ThreadTimelineReadingTarget(requestId: consumedRequest, anchorId: anchor,
             follow: runningStartVisit || (readingTarget?.position == .result && readingTarget?.follow == true))
     }
+    private var inputTarget: ThreadConversationInputTarget? {
+        if executionCard { return nil }
+        if case .row = context?.content { return nil }
+        // An explicitly requested active execution can live in the Sidecard
+        // and be excluded from main. Keep its input exact until TOC navigation
+        // relinquishes the entry, just as a result document does.
+        let sidecardEntry = readingTarget.flatMap { target in
+            inputEntryRequest == target.requestId && excluded.contains(target.executionId) ? target.executionId : nil
+        }
+        let followsLatest = destination == .document(inline: nil) && sidecardEntry == nil
+        let executionID = sidecardEntry ?? visibleRows.first { $0.id == selectedRowID }?.execution?.id
+        return ThreadConversationInputTarget(threadID: threadId, requestID: readingTarget?.requestId, executionID: followsLatest ? nil : executionID,
+            followsLatest: followsLatest, ready: initializedThread == threadId && !pageMotion.active)
+    }
     public var body: some View {
         Group {
             if case let .row(id) = context?.content {
@@ -209,15 +242,17 @@ public struct ThreadConversation: View {
         .environment(\.nativeInteractionQuestionInDocument, true)
         .foregroundStyle(NativePalette.thread.ink.swiftUI)
         .background(NativePalette.thread.canvas.swiftUI)
+        .preference(key: ThreadConversationInputTargetKey.self, value: inputTarget)
         .onChange(of: threadId, initial: true) { _, _ in
             userMessages = false; manualWork = nil
             hasMountedCurrentDocument = false
             destination = .document(inline: nil); consumedRequest = nil; requestedDestination = nil; acceptedAnchor = nil; locatedRequest = nil
+            inputEntryRequest = readingTarget?.requestId
             consumeReadingTarget()
             initializedThread = threadId
         }
         .onChange(of: effectiveRunningID) { _, _ in manualWork = nil }
-        .onChange(of: readingTarget) { _, _ in consumeReadingTarget() }
+        .onChange(of: readingTarget) { _, target in inputEntryRequest = target?.requestId; consumeReadingTarget() }
         .onChange(of: visibleRows.map(\.id)) { _, _ in promoteCurrentPage(); consumeReadingTarget() }
         .onChange(of: visibleRows.map { $0.execution?.readable }) { _, _ in consumeReadingTarget() }
         .onChange(of: readingPage && !entryRoute, initial: true) { _, open in
@@ -399,6 +434,7 @@ public struct ThreadConversation: View {
         pageMotion.close()
     }
     private func finishClosingHistory() {
+        inputEntryRequest = nil
         destination = .document(inline: nil); requestedDestination = nil; acceptedAnchor = nil
         navigationRevision += 1; sidebarFocusRevision += 1
     }
@@ -410,9 +446,14 @@ public struct ThreadConversation: View {
         // Invalidate an interrupted Back animation before selecting another
         // turn; its delayed completion must not replace the new destination.
         pageMotion.cancel()
+        inputEntryRequest = nil
         setPageDirection(toward: id, returning: id == currentRow?.id && readingPage)
         requestedDestination = nil; acceptedAnchor = nil
-        if id == currentRow?.id {
+        // The last visible main row is still historical when a newer execution
+        // is excluded into the Sidecard. An explicit TOC click must retain that
+        // row's identity rather than turn back into latest-Thread input.
+        let latestExcluded = rows.last { $0.execution != nil }?.execution.map { excluded.contains($0.id) } ?? false
+        if id == currentRow?.id && !latestExcluded {
             if readingPage { pageMotion.close(); return }
             destination = .document(inline: nil)
         } else {

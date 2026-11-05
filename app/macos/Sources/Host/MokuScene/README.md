@@ -611,11 +611,14 @@ Overview, Report/Git and Settings restore Moku's eyes. Reduce Motion replaces
 marks without spatial travel. Identity transitions use SwiftUI's retained views,
 without delayed callbacks that could restore a stale Harness or acquire focus.
 The logo is separate from placeholder/draft text and never replaces the editor.
-The window owns a persisted draft (text, directory mentions and attachments) per
-Thread, separately from Moku history/Overview. Sending keeps the Agent editor
-expanded and live rather than sealing retained animation ink, and calls
-`thread:follow-up` with the Thread identity captured before the first suspension;
-Runtime chooses steer or a successor execution. Stop uses that Thread's observed cancellation identity.
+The window owns persisted drafts (text, directory mentions and attachments) per
+Thread for ordinary current input and per exact Thread/execution for fixed
+history/result input, separately from Moku history/Overview. Agent and Report
+readers share `NativeExecutionContinuation`: latest input follows up on its
+original Thread, while historical input forks at the native checkpoint before
+following up on the admitted branch. The source identity is captured before
+the first suspension. Runtime chooses steer or a successor execution for a
+latest follow-up. Stop uses the viewed current execution's cancellation identity.
 Unavailable/archived Threads cannot send. Failed sends keep their draft and error;
 late receipts consume only their original draft and cannot reopen another visit.
 Retiring composer callbacks may refresh the capsule's retained text, directories
@@ -661,19 +664,23 @@ and error, and late receipts cannot alter another target's presentation.
 See the [routing investigation and sprint limits](../../../../../design/thread-detail-input-dismissal.md).
 
 Report execution details borrow that same Agent composer and native column
-placement. Their persisted drafts are scoped to the exact Thread/execution pair,
-separately from ordinary Thread input and Moku. The placeholder uses the exact
+placement. Exact-execution drafts are shared with Agent history/result readers
+for the same Thread/execution pair. The placeholder uses the exact
 execution title (neutral fallback), never a newer execution's Thread title.
 The editor opens after its horizontal travel settles. Returning to the list,
 folding, Browser selection or departure restores Moku and retains the draft;
 editor Escape follows Report's auxiliary Back. Only the viewed current active
 execution exposes Stop; historical input cannot stop a newer execution.
-Latest-execution sends use the existing follow-up admission with an expected
-execution fence. Historical sends fork at the native execution checkpoint before
-using the same follow-up path. A failed follow-up retains both the draft and its
-admitted fork for retry within the window. Successful sends open the accepted
-Agent execution after catalog admission, fenced to the Report/composer visit.
-See [Report execution continuation](../../../../../design/report-execution-continuation.md)
+The shared sender uses the existing expected-execution admission fence. An
+explicit pre-admission `EXECUTION_CHANGED` rejection takes the historical fork
+path once; uncertain writes are never automatically resent. A failed follow-up
+retains both the exact draft and its admitted fork for retry across these readers
+within the window. Successful exact sends open the accepted Agent execution
+after catalog admission, fenced to the owning route/composer visit. Ordinary
+current sends keep their existing visit-scoped execution reveal.
+TOC selection changes drafts without acquiring editor focus. Initial input,
+explicit Browser annotation mode and Moku retain their existing autofocus.
+See [Execution continuation](../../../../../design/report-execution-continuation.md)
 for native constraints and the current sprint validation scope.
 
 Sprint verification for the current change is static review and the application

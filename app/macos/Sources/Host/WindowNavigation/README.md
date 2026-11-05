@@ -245,3 +245,9 @@ Browser, covering or leaving revokes that input target. Editor Escape uses the
 same auxiliary Back action as the reader. Accepted input opens the resulting
 ordinary Agent execution only while the same Report/composer visit still owns
 navigation; catalog publication may arrive after the command receipt.
+
+Agent TOC/history/result reading uses that same execution continuation policy.
+The actual main reader publishes its selection rather than relying solely on
+the Host's entry `readingTarget`. Request and reader-owner identities fence late
+publications; history travel and unavailable/non-execution pages disable send.
+Returning to the ordinary current document relinquishes the exact input target.
