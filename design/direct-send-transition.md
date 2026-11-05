@@ -26,7 +26,7 @@ reverse even with only one target.
 
 - Capturing a Thread submission immediately admits orbit feedback around the
   existing capsule; the pinned editor and captured draft retain their ownership.
-  The orbit starts after the authored prelude, with static dots for Reduce Motion.
+  The orbit skips the authored prelude, with static dots for Reduce Motion.
 - Pending feedback does not set execution activity, expose a speculative Stop,
   clear input or open a result. Failure and uncertain-receipt errors use the
   existing draft error and receipt-recovery behavior.
@@ -66,5 +66,3 @@ rendered orbit timing, glass clipping and travel remain visually unverified.
 
 The parallel Report-close change on local main is integrated separately; this
 repair does not replace its retained split layout or sidecard fade policy.
-This managed worktree remains detached. Its commit is handed to the caller for
-integration; it does not update local main or another worktree.
