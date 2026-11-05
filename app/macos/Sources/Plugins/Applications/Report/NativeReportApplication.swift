@@ -106,21 +106,27 @@ struct NativeReportDetail: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        if selected != nil {
-                            Button { selected = nil } label: {
-                                Label(applicationText(locale, "关联执行", "Related executions"), systemImage: "chevron.left")
-                            }.buttonStyle(.plain)
-                        } else {
-                            Text(applicationText(locale, "关联执行", "Related executions"))
-                            Text(String(references.count)).foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 0)
-                    }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
-                    Divider()
                     if let selected {
                         execution(selected).id(selected)
+                            .overlay(alignment: .topLeading) {
+                                Button { self.selected = nil } label: {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .frame(width: 36, height: 36)
+                                        .contentShape(Circle())
+                                        .glassEffect(.regular.interactive(), in: Circle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(applicationText(locale, "返回关联执行", "Back to related executions"))
+                                .padding(12)
+                            }
                     } else {
+                        HStack {
+                            Text(applicationText(locale, "关联执行", "Related executions"))
+                            Text(String(references.count)).foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                        }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
+                        Divider()
                         NativeScrollView {
                             VStack(alignment: .leading, spacing: 6) {
                                 if let failure { Text(failure).foregroundStyle(.red) }

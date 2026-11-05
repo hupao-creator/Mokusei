@@ -89,6 +89,10 @@ content and error admission policies remain owned by their existing boundaries.
 See the [manual investigation](../../design/thread-open-animation-investigation.md)
 for evidence and the limits of the isolated measurements.
 
+Report related execution details use a floating Liquid Glass back button; the
+related execution list retains its heading and count. Returning preserves the
+existing sidecard navigation and execution reader scroll ownership.
+
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
 
 `make check` runs the complete `swift test` suite as well as building it. Native
