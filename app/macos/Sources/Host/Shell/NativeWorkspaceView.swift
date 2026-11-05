@@ -20,6 +20,9 @@ public final class NativeWorkspacePresentation {
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
+    public private(set) var sidecardComposer: SidecardComposerRequest?
+    @ObservationIgnored private var sidecardDraft: NativeComposerDraft?
+    @ObservationIgnored private var sidecardComposerThread: JSONText?
     public private(set) var threadExecutionReveal: SidecardExecutionReveal?
     public private(set) var readingEntranceAdmitted = false
     @ObservationIgnored private var threadDrafts: [JSONText: NativeComposerDraft] = [:]
@@ -206,6 +209,7 @@ public final class NativeWorkspacePresentation {
 
     public func open(_ ref: ApplicationThreadRef, target: HarnessReadingTarget? = nil, sourceCardID: String? = nil) {
         guard !onboarding.blocksWorkspace, !scene.settingsOpen else { return }
+        sidecardComposer?.cancel()
         if ref.typeID == "agent" {
             guard let thread = workspace.catalog.thread(ref.threadID) else { return }
             if thread.moku == true { scene.setMokuOpen(true, readingTarget: target); return }
@@ -340,6 +344,7 @@ public final class NativeWorkspacePresentation {
     }
 
     private func resetNavigation() {
+        clearSidecardComposer()
         readingEntranceAdmitted = false
         threadExecutionReveal = nil
         navigation = nil
@@ -419,6 +424,32 @@ public final class NativeWorkspacePresentation {
 
     public var dockThread: HarnessThread? { dockThreadID.flatMap(workspace.catalog.thread) }
 
+    private func clearSidecardComposer() {
+        let request = sidecardComposer, oldDraft = sidecardDraft
+        sidecardComposer = nil; sidecardDraft = nil; sidecardComposerThread = nil
+        request?.cancel()
+        if let oldDraft { Task { await oldDraft.dispose() } }
+    }
+
+    private func updateSidecardComposer(thread: JSONText, request: SidecardComposerRequest?) {
+        guard selected == ApplicationThreadRef(threadID: thread, typeID: "agent") else { return }
+        if request == nil && sidecardComposerThread != thread { return }
+        if sidecardComposer?.id == request?.id,
+           sidecardComposer?.ready == request?.ready,
+           sidecardComposer?.placeholder == request?.placeholder { return }
+        if sidecardComposer?.id != request?.id {
+            clearSidecardComposer()
+            if request != nil {
+                sidecardDraft = NativeComposerDraft(services: NativeComposerServices(stageFiles: { _, _ in
+                    throw PluginContractError("Annotation descriptions accept text only.")
+                }, discardAttachments: { _ in }))
+            }
+        }
+        sidecardComposerThread = request == nil ? nil : thread
+        sidecardComposer = request
+        configureDockInput(in: scene)
+    }
+
     private func configureDockInput(in state: NativeMokuSceneState) {
         let thread = selected.flatMap { ref -> HarnessThread? in
             guard ref.typeID == "agent", !state.mokuOpen, !state.cameraActive,
@@ -427,14 +458,17 @@ public final class NativeWorkspacePresentation {
             return thread
         }
         dockThreadID = thread?.id
+        if sidecardComposer != nil, sidecardComposerThread != thread?.id { clearSidecardComposer() }
+        let normalDraft: NativeComposerDraft
         if let thread {
             if threadDrafts[thread.id] == nil {
                 let scope = JSONText(codeUnits: Array("thread-detail:".utf16) + thread.id.codeUnits)
                 threadDrafts[thread.id] = NativeComposerDraft(services: workspace.services.composer(),
                     persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory, scope: scope))
             }
-            dockDraft = threadDrafts[thread.id]!
-        } else { dockDraft = draft }
+            normalDraft = threadDrafts[thread.id]!
+        } else { normalDraft = draft }
+        dockDraft = sidecardComposer != nil ? sidecardDraft ?? normalDraft : normalDraft
         state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
             inputAdmissionReady: selected == nil || readingEntranceAdmitted)
     }
@@ -516,7 +550,8 @@ public final class NativeWorkspacePresentation {
     }
 
     public func sidecardServices() -> NativeSidecardWorkspaceServices {
-        NativeSidecardWorkspaceServices(send: { [weak self] thread, input in
+        let route = navigationRouteID
+        return NativeSidecardWorkspaceServices(send: { [weak self] thread, input in
             guard let self else { throw CancellationError() }
             let parts = input["parts"]?.arrayValue ?? []
             let text = parts.compactMap { $0["kind"] == .text("text") ? $0["text"]?.stringValue : nil }.joined(separator: "\n")
@@ -544,7 +579,11 @@ public final class NativeWorkspacePresentation {
         }, policy: { [weak self] lifetime in
             guard let self else { throw CancellationError() }
             return try await self.workspace.services.composer().attachmentPolicy!(lifetime)
-        }), compose: { [weak self] id, draft in self?.openFollowUp(id, draft: draft) })
+        }), compose: { [weak self] id, draft in self?.openFollowUp(id, draft: draft) },
+        composer: { [weak self] thread, request in
+            guard let self, navigationRouteID == route else { return }
+            updateSidecardComposer(thread: thread, request: request)
+        })
     }
 
     public func release(runtimeStopped: Bool = false) async {
@@ -552,6 +591,7 @@ public final class NativeWorkspacePresentation {
         if let releaseTask { await releaseTask.value; return }
         guard started else { return }
         started = false
+        clearSidecardComposer()
         scene.resetNoteExposureAuthority()
         workspace.onCatalogChange = nil; workspace.onConnectionChange = nil
         workspace.onOverviewFilter = nil; workspace.onFollowUp = nil; workspace.onStopped = nil
@@ -678,6 +718,7 @@ public struct NativeWorkspaceView: View {
         } dock: {
             if presentation.onboarding.mountDock, let thread = model.catalog.moku {
                 let detail = presentation.dockThread
+                let sidecardComposer = presentation.sidecardComposer
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && presentation.moku.landing,
                     threadID: detail?.id,
@@ -689,8 +730,9 @@ public struct NativeWorkspaceView: View {
                               !presentation.messageMotion.active else { return }
                         presentation.showOverview()
                     },
+                    sidecardComposer: sidecardComposer,
                     mode: detail.map { $0.observation.isExecutionActive ? .running : .idle } ?? presentation.moku.dockMode,
-                    running: detail?.observation.isExecutionActive ?? presentation.moku.running,
+                    running: sidecardComposer == nil && (detail?.observation.isExecutionActive ?? presentation.moku.running),
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
                     disabled: disabled || (detail.map { !model.canExecute($0) } ?? false),
                     interaction: presentation.moku.interaction, interactionIsQuestion: presentation.moku.interactionIsQuestion,
@@ -707,7 +749,11 @@ public struct NativeWorkspaceView: View {
                     openExecution: presentation.openNoteExecution,
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     onSend: { submission in
-                        if let detail { try await presentation.sendThread(submission, to: detail.id) }
+                        if let sidecardComposer {
+                            guard presentation.sidecardComposer?.id == sidecardComposer.id,
+                                  presentation.navigationRouteID == routeID else { throw CancellationError() }
+                            try await sidecardComposer.submit(submission.text)
+                        } else if let detail { try await presentation.sendThread(submission, to: detail.id) }
                         else { try await presentation.sendMoku(submission) }
                     }, onCancel: {
                         if let detail { presentation.perform { try await model.harnessHost.actions(for: detail).interrupt() } }

@@ -499,6 +499,20 @@ production bell during headless verification.
 
 ## Reading-panel Dock
 
+Browser annotation mode temporarily lends the resident composer to the selected
+Browser card. The same native destination marker and spring center it below that
+card, fitting its column. Page focus remains with selection until an element or
+region is chosen, then the text editor receives focus. A separate ephemeral text
+draft describes that selection; normal Thread and Moku drafts remain retained.
+Return/Send captures and submits the annotation through Browser's existing
+attachment/send route. Escape, the accessible Cancel annotation control and the
+Browser toolbar cancel only this mode. Switching/folding cards, page navigation,
+covering or closing returns to the ordinary draft and send route. Annotation
+input admits text, without file, directory or voice controls. Failed capture
+keeps the description; failed sends keep the captured batch for the existing
+retry/text-only controls. See the
+[annotation input contract and Sprint limits](../../../../../design/browser-annotation-resident-input.md).
+
 While the selected Sidecard owns the current running/waiting execution, the
 resident input is centered below that panel and fits its width with the ordinary
 24pt horizontal insets and 560pt cap. Its reading baseline stays fixed. The

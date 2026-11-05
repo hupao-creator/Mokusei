@@ -288,8 +288,11 @@ struct NativeSidecardWorkspaceLayout: View {
     private func dockFrame(in layout: NativeSidecardWorkspaceGeometry) -> CGRect? {
         guard !preparing, !snapshot.suppressed, snapshot.handoff == nil,
               let card = snapshot.cards.first(where: { $0.id == snapshot.selected && $0.view.available }) else { return nil }
-        // Position expresses the Thread input's execution scope. Other activities
-        // leave that scope in main, even when its execution has already finished.
+        // Activity-specific input belongs to that card's column. Otherwise the
+        // Thread input follows execution ownership, with other activities in main.
+        if card.view.composer != nil {
+            return CGRect(x: layout.surfaceX, y: layout.surfaceY, width: layout.surfaceWidth, height: layout.surfaceHeight)
+        }
         if snapshot.input.thread.observation.isExecutionActive,
            let executionID = snapshot.input.thread.observation.latestExecution?.executionID,
            card.view.excludeExecutionID == executionID {

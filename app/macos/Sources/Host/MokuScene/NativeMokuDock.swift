@@ -72,6 +72,7 @@ public struct NativeMokuDock: View {
     public var threadTitle: String?
     public var threadHarness: AnyHarnessPlugin?
     public var onThreadClose: (() -> Void)?
+    public var sidecardComposer: SidecardComposerRequest?
     public var landing: Bool
     public var mode: MokuCharacterMode
     public var running: Bool
@@ -139,6 +140,7 @@ public struct NativeMokuDock: View {
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
                 landing: Bool = false, threadID: JSONText? = nil, threadTitle: String? = nil,
                 threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
+                sidecardComposer: SidecardComposerRequest? = nil,
                 mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
                 talk: String? = nil,
                 reply: NativeMokuDockReply? = nil, disabled: Bool = false,
@@ -163,6 +165,7 @@ public struct NativeMokuDock: View {
         self.threadID = threadID
         self.threadTitle = threadTitle
         self.threadHarness = threadHarness; self.onThreadClose = onThreadClose
+        self.sidecardComposer = sidecardComposer
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
         self.interactionIsQuestion = interactionIsQuestion; self.voiceControls = voiceControls
         self.voiceBackground = voiceBackground
@@ -331,7 +334,7 @@ public struct NativeMokuDock: View {
     }
     private var completionVisible: Bool { inputPresent && !retaining && directoryMentions.isOpen }
     private var mentionsEnabled: Bool {
-        state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
+        sidecardComposer == nil && state.dockRouteVisible && state.inputOpen && !disabled && !state.dockCovered && state.windowVisible && interaction == nil
     }
     private var reminder: NativeMokuDockReply? {
         guard let reply, !state.readReplies.contains(JSONText(reply.readKey)),
@@ -647,6 +650,12 @@ public struct NativeMokuDock: View {
         }
         .onChange(of: draft.text) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: draft.attachments) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
+        .onChange(of: sidecardComposer?.ready) { _, ready in
+            if ready == true { focusRequest += 1 }
+        }
+        .onChange(of: submitting) { _, busy in
+            if !busy, sidecardComposer?.ready == true { focusRequest += 1 }
+        }
         .onChange(of: draft.directories) { _, _ in if state.dockRouteVisible && state.inputOpen { state.retainDraft(draft) } }
         .onChange(of: reply?.readKey, initial: true) { _, key in
             state.liveReplyKey = key
@@ -1013,14 +1022,16 @@ public struct NativeMokuDock: View {
                   window.attachedSheet == nil, NSApp.modalWindow == nil,
                   !(window.childWindows ?? []).contains(where: { $0.isVisible }) else { return }
             if directoryMentions.dismiss() { return }
-            onThreadClose?()
+            if let sidecardComposer { sidecardComposer.cancel() }
+            else { onThreadClose?() }
         }
         else { _ = state.dismissInputForEscape() }
     }
     private func composer(room: CGFloat, compact: Bool) -> some View {
-        NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || submitting,
-            threadTitle: threadTitle,
-            readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady,
+        NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || (submitting && sidecardComposer == nil),
+            busy: submitting && sidecardComposer != nil,
+            threadTitle: threadTitle, sidecardComposer: sidecardComposer,
+            readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && focusReady && (sidecardComposer?.ready ?? true),
             focusRequestKey: focusRequest, maxHeight: min(landing ? 156 : 126, room), landing: landing, compact: compact,
             retainedText: retaining ? state.retainedText : nil,
             retainedAttachments: retaining ? state.retainedAttachments : nil,
@@ -1049,6 +1060,7 @@ public struct NativeMokuDock: View {
 
     private func send() {
         guard state.ownsComposer(draft), !state.settingsOpen, !submitting, !disabled, state.inputOpen, draft.canSubmit else { return }
+        guard sidecardComposer?.ready ?? true else { return }
         state.retainDraft(draft, seal: !state.inputPinnedOpen)
         if threadTitle == nil { state.dismissTalk() }
         let sendingDraft = draft, send = onSend, generation = state.composerGeneration

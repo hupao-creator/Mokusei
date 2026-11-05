@@ -33,6 +33,16 @@ boundary before supplying these facts to Harnesses.
 
 Presentation implementations use [PluginUI](../PluginUI/README.md). New plugins implement these boundaries and are composed explicitly rather than adding hidden global discovery.
 
+`SidecardView.composer` optionally supplies a `SidecardComposerRequest` for the
+selected activity. Its stable operation ID, localized placeholder, readiness,
+submit and cancellation callbacks let the Host lend the resident text composer
+without transferring the normal Thread/Moku draft or runtime authority. Only an
+available, selected and unsuppressed card publishes a request. Losing selection,
+covering or release retires it; callbacks remain fenced to their owning operation
+and reading visit. Browser uses this for annotation descriptions; execution
+Sidecards continue to own no composer. See the
+[annotation input contract](../../../../../design/browser-annotation-resident-input.md).
+
 `ClientWebNavigation.localFileURL` parses absolute local paths and local `file:`
 URLs once, retaining literal spaces/Unicode and file-URL query/fragment escapes.
 It rejects remote authorities, credentials, ports, network-path references and

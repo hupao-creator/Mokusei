@@ -22,6 +22,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     var error: String?
     var terminated = false
     var annotating = false
+    var annotationID = UUID()
     var selection: BrowserSelection?
     var comment = ""
     var captureError = ""
@@ -29,11 +30,12 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     var suppressed = true
     @ObservationIgnored var backToOverview: (() -> Void)?
     @ObservationIgnored var translate: (String) -> String = { $0 }
-    @ObservationIgnored var onAnnotation: ((BrowserPendingAnnotation) -> Void)?
+    @ObservationIgnored var onAnnotation: ((BrowserPendingAnnotation) throws -> Void)?
     @ObservationIgnored weak var viewport: BrowserViewportNativeView?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var annotationTask: Task<Void, Never>?
     @ObservationIgnored private var captureTask: Task<Void, Never>?
+    @ObservationIgnored private var captureCompletion: CheckedContinuation<Void, Error>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var annotationGeneration = 0
     @ObservationIgnored private var activeNavigation: WKNavigation?
@@ -145,7 +147,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     func retry() { if let pendingURL { navigate(pendingURL) } else { reload() } }
     func setSuppressed(_ hidden: Bool) {
         suppressed = hidden
-        if hidden { cancelPageDialog() }
+        if hidden { cancelPageDialog(); if annotating { cancelAnnotation() } }
         viewport?.setSuppressed(hidden)
     }
     private func syncState() {
@@ -402,7 +404,8 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping @MainActor (URL?) -> Void) { completionHandler(nil); download.cancel() }
 
     func beginAnnotation() {
-        guard !released, ready, !loading, !annotating, BrowserURL.absolute(url) != nil else { return }
+        guard !released, !suppressed, ready, !loading, !annotating, BrowserURL.absolute(url) != nil else { return }
+        annotationID = UUID()
         annotating = true; comment = ""; captureError = ""; annotationGeneration += 1
         webView.annotationActive = true
         if !suppressed { webView.focusDocument() }
@@ -415,8 +418,8 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 let raw = try await self.evaluateJSON("globalThis.__mokuseiAnnotationHints = {touch: \(String(decoding: touchHint, as: UTF8.self)), mouse: \(String(decoding: mouseHint, as: UTF8.self))}; return await (\(BrowserPageScripts.selection));")
                 guard self.currentAnnotation(token), raw != .null else { if self.currentAnnotation(token) { self.cancelAnnotation() }; return }
                 self.selection = try BrowserSelection(raw)
-                self.viewport?.refreshEditor()
-                // Escape/pagehide cancellation also dismisses the native editor.
+                self.viewport?.refreshAnnotationGeometry()
+                // Escape/pagehide retires the resident composer's request too.
                 _ = try await self.evaluateJSON("return await (globalThis.__mokuseiAnnotationClosed ?? null);")
                 if self.currentAnnotation(token) { self.cancelAnnotation() }
             } catch {
@@ -428,13 +431,27 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     func cancelAnnotation(keepError: Bool = false) {
         let wasAnnotating = annotating
         annotationGeneration += 1; annotationTask?.cancel(); annotationTask = nil; captureTask?.cancel(); captureTask = nil
+        captureCompletion?.resume(throwing: CancellationError()); captureCompletion = nil
         annotating = false; selection = nil; capturing = false; webView.annotationActive = false
         if !keepError { captureError = "" }
-        viewport?.refreshEditor()
+        viewport?.refreshAnnotationGeometry()
         if wasAnnotating, !released {
             webView.evaluateJavaScript("globalThis.__mokuseiAnnotationCancel?.();", in: nil, in: .world(name: "MokuseiBrowser")) { _ in }
         }
     }
+    func captureAnnotation(comment: String) async throws {
+        let trimmed = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.utf16.count <= 10_000 else {
+            throw PluginContractError("批注内容不能为空，且不能超过 10000 个字符")
+        }
+        guard annotating, selection != nil, !capturing, !suppressed else { throw CancellationError() }
+        self.comment = trimmed
+        try await withCheckedThrowingContinuation { continuation in
+            captureCompletion = continuation
+            captureAnnotation()
+        }
+    }
+
     func captureAnnotation() {
         let comment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !comment.isEmpty, comment.utf16.count <= 10_000, !capturing, selection != nil else { return }
@@ -448,6 +465,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 guard raw != .null else { throw PluginContractError("网页选区已变化，请重新选择") }
                 let selection = try BrowserSelection(raw)
                 let titleValue = try await self.evaluateJSON("return document.title.slice(0, 2048);")
+                guard self.currentAnnotation(token) else { return }
                 let title: JSONText
                 if case let .string(text) = titleValue { title = text } else { title = "" }
                 _ = try await self.evaluateJSON("await globalThis.__mokuseiAnnotationCapture?.(true); return null;")
@@ -467,13 +485,16 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
                 try Task.checkCancellation()
                 guard self.currentAnnotation(token) else { return }
                 guard png.count <= 20 * 1024 * 1024 else { throw PluginContractError("截图超过 20 MB") }
-                self.onAnnotation?(BrowserPendingAnnotation(id: UUID(), comment: comment, url: self.url,
+                try self.onAnnotation?(BrowserPendingAnnotation(id: UUID(), comment: comment, url: self.url,
                     title: title, selection: selection, png: png))
+                self.captureCompletion?.resume(); self.captureCompletion = nil
                 self.cancelAnnotation()
             } catch {
                 guard self.currentAnnotation(token) else { return }
                 _ = try? await self.evaluateJSON("await globalThis.__mokuseiAnnotationCapture?.(false); return null;")
+                guard self.currentAnnotation(token) else { return }
                 self.captureError = error.localizedDescription; self.capturing = false
+                self.captureCompletion?.resume(throwing: error); self.captureCompletion = nil
             }
         }
     }
@@ -492,7 +513,7 @@ final class BrowserWebSession: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             guard let self, let raw = try? await self.evaluateJSON("return globalThis.__mokuseiAnnotationRead?.() ?? null;"), self.currentAnnotation(token) else { return }
             guard let selection = try? BrowserSelection(raw) else { self.cancelAnnotation(); return }
             self.selection = selection
-            self.viewport?.refreshEditor()
+            self.viewport?.refreshAnnotationGeometry()
         }
     }
     private func snapshot(_ configuration: WKSnapshotConfiguration) async throws -> NativePlatformImage {

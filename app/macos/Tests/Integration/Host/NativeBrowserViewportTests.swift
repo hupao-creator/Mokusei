@@ -379,7 +379,7 @@ struct NativeBrowserViewportTests {
             #expect(zoom == (upper ? 5 : 0.25))
             let marker = upper ? "upper" : "lower"
             // The fixture supplies only DOM geometry. Production selection
-            // refresh and native portal placement still run on every zoom action.
+            // refresh and native document placement still run on every zoom action.
             let raw = try await session.evaluateJSON("""
                 globalThis.__mokuseiAnnotationRead = () => {
                     const r = document.getElementById('\(marker)').getBoundingClientRect();
@@ -390,8 +390,9 @@ struct NativeBrowserViewportTests {
                 """)
             session.selection = try BrowserSelection(raw)
             session.annotating = true
-            viewport.refreshEditor(); viewport.layoutSubtreeIfNeeded()
-            let portal = try #require(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-annotation-portal" })
+            viewport.refreshAnnotationGeometry(); viewport.layoutSubtreeIfNeeded()
+            let portal = try #require(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-document-portal" })
+            #expect(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-annotation-portal" } == nil)
             let before = try await settledFrame(of: portal, in: host, window: window)
             let level = session.webView.documentZoomLevel
             for _ in 0..<8 {
@@ -401,7 +402,7 @@ struct NativeBrowserViewportTests {
             // Await WebKit's queued geometry reads before comparing the portal.
             let afterRaw = try await session.evaluateJSON("return globalThis.__mokuseiAnnotationRead();")
             session.selection = try BrowserSelection(afterRaw)
-            viewport.refreshEditor(); host.layoutSubtreeIfNeeded(); viewport.layoutSubtreeIfNeeded()
+            viewport.refreshAnnotationGeometry(); host.layoutSubtreeIfNeeded(); viewport.layoutSubtreeIfNeeded()
             let after = try await settledFrame(of: portal, in: host, window: window)
             #expect(afterRaw == raw)
             #expect(session.webView.pageZoom == zoom)
@@ -461,22 +462,22 @@ struct NativeBrowserViewportTests {
             "rect": .object(["x": .number(10), "y": .number(10), "width": .number(100), "height": .number(60)]),
             "viewport": .object(["width": .number(900), "height": .number(600), "scrollX": .number(0), "scrollY": .number(0)])]))
         session.annotating = true
-        viewport.refreshEditor()
+        viewport.refreshAnnotationGeometry()
         state.revision += 1
         try await Task.sleep(for: .milliseconds(100))
-        let editor = try #require(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-annotation-portal" })
-        #expect(editor.superview === viewport)
-        #expect(attached(editor.layer, to: host.layer))
+        #expect(session.selection != nil && session.annotating)
+        #expect(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-annotation-portal" } == nil)
+        #expect(attached(session.webView.layer, to: host.layer))
 
         state.suppressed = true
         try await Task.sleep(for: .milliseconds(100))
-        #expect(session.webView.window == nil && editor.window == nil)
+        #expect(session.webView.window == nil)
         #expect(viewport.hitTest(.zero) == nil)
         state.suppressed = false
         try await Task.sleep(for: .milliseconds(100))
         #expect(session.webView.window === window)
         #expect(attached(session.webView.layer, to: host.layer))
-        #expect(attached(editor.layer, to: host.layer))
+        #expect(descendant(viewport) { $0.identifier?.rawValue == "mokusei-browser-annotation-portal" } == nil)
     }
 
     @Test func nativeWebsiteCookiesStayWithTheirThread() async throws {

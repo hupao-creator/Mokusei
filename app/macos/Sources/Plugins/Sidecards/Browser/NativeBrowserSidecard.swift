@@ -20,7 +20,7 @@ public struct NativeBrowserSidecard: SidecardPlugin {
     }
     public func sidecard(context: SidecardContext, presentation: BrowserSidecardPresentation) throws -> SidecardView<BrowserSidecardPane> {
         try SidecardView(available: presentation.requestedURL != nil, label: JSONText(context.translate("网页")),
-                        preferredWidth: 2.0 / 3, focusContentOnOpen: false) {
+                        preferredWidth: 2.0 / 3, focusContentOnOpen: false, composer: presentation.composer) {
             BrowserSidecardPane(presentation: presentation)
         }
     }
@@ -101,7 +101,6 @@ final class BrowserAnnotationDraft {
 
 @MainActor @Observable
 public final class BrowserSidecardPresentation {
-    let coordinateSpaceID = UUID()
     var context: SidecardContext
     var session: BrowserWebSession?
     private var draft: BrowserAnnotationDraft
@@ -148,11 +147,11 @@ public final class BrowserSidecardPresentation {
     }
 
     var annotationDisabled: Bool {
-        pending.count >= 20 || context.executionDisabled || context.thread.archived == true
+        sending || pending.count >= 20 || context.executionDisabled || context.thread.archived == true
             || BrowserURL.absolute(session?.url ?? "") == nil
     }
     var canSend: Bool {
-        !context.executionDisabled && !sending && (!supplementalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
+        !context.executionDisabled && !sending && session?.annotating != true && (!supplementalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pending.isEmpty)
             && pending.allSatisfy { !$0.comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
     var nativeHidden: Bool { released || context.suppressed || context.transitioning || !context.expanded || session?.error != nil }
@@ -169,7 +168,7 @@ public final class BrowserSidecardPresentation {
         }
         context = next
         if next.expanded, session == nil, let requestedURL { open(requestedURL) }
-        if !next.expanded {
+        if !next.expanded || next.suppressed || next.executionDisabled || next.thread.archived == true {
             session?.cancelAnnotation()
             annotationError = ""
         }
@@ -187,7 +186,8 @@ public final class BrowserSidecardPresentation {
             next.backToOverview = { [weak self] in self?.context.backToOverview() }
             next.translate = { [weak self] in self?.context.translate($0) ?? $0 }
             next.onAnnotation = { [weak self] annotation in
-                guard let self, !self.released, self.pending.count < 20 else { return }
+                guard let self, !self.released else { throw CancellationError() }
+                guard self.pending.count < 20 else { throw PluginContractError("批注数量不能超过 20 条") }
                 self.pending.append(annotation)
             }
             session = next
@@ -208,6 +208,27 @@ public final class BrowserSidecardPresentation {
         else if !annotationDisabled { session.beginAnnotation() }
     }
 
+    var composer: SidecardComposerRequest? {
+        guard let session, session.annotating else { return nil }
+        let id = session.annotationID, owner = contextGeneration
+        return SidecardComposerRequest(id: id,
+            placeholder: context.translate(session.selection == nil ? "请先在网页中选择标注区域…" : "描述要修改的内容…"),
+            ready: session.selection != nil && !session.capturing && !sending,
+            submit: { [weak self, weak session] text in
+                guard let self, let session, !released, contextGeneration == owner,
+                      self.session === session, session.annotationID == id, session.annotating,
+                      context.expanded, !context.suppressed, !context.executionDisabled,
+                      context.thread.archived != true else { throw CancellationError() }
+                try await session.captureAnnotation(comment: text)
+                // Capture has already transferred this exact selection and text
+                // into the recoverable batch. Submission retains that draft.
+                try await self.submitAnnotations()
+            }, cancel: { [weak session] in
+                guard session?.annotationID == id, session?.annotating == true else { return }
+                session?.cancelAnnotation()
+            })
+    }
+
     func remove(_ id: UUID) {
         guard !sending else { return }
         pending.removeAll { $0.id == id }
@@ -217,66 +238,74 @@ public final class BrowserSidecardPresentation {
 
     func send(textOnly: Bool = false) {
         guard canSend, !released else { return }
-        if context.thread.archived == true { sendError = "此 Thread 已归档，请取消归档后发送。"; return }
+        sendTask = Task { [weak self] in try? await self?.submitAnnotations(textOnly: textOnly) }
+    }
+
+    private func submitAnnotations(textOnly: Bool = false) async throws {
+        guard canSend, !released else { throw CancellationError() }
+        if context.thread.archived == true {
+            sendError = "此 Thread 已归档，请取消归档后发送。"; throw PluginContractError(sendError)
+        }
         if context.thread.observation.latestExecution?.status == .waitingForUser {
-            sendError = "请先处理此 Thread 等待中的交互，再发送批注。"; return
+            sendError = "请先处理此 Thread 等待中的交互，再发送批注。"; throw PluginContractError(sendError)
         }
         let draft = self.draft
         let batch = pending, text = supplementalText
         let boundContext = context
         let owner = contextGeneration
         sending = true; sendError = ""
-        sendTask = Task { [weak self] in
-            defer { draft.sending = false }
-            var staged: [JSONText] = []
-            var directory: URL?
-            do {
-                var attachments: [SidecardStagedAttachment] = []
-                if !textOnly && !batch.isEmpty {
-                    let prepared = try await BrowserAnnotationFiles.shared.write(batch.map(\.png))
-                    directory = prepared.directory
-                    try Task.checkCancellation()
-                    guard let self, !self.released, self.contextGeneration == owner else { throw CancellationError() }
-                    let files = prepared.files
-                    attachments = try await boundContext.stageAttachments(files)
-                    staged = attachments.map(\.id)
-                    guard attachments.count == batch.count else { throw PluginContractError("批注截图数量不匹配") }
-                }
-                guard let self, !self.released, self.contextGeneration == owner else { throw CancellationError() }
-                var parts: [JSONValue] = []
-                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { parts.append(.object(["kind": .text("text"), "text": .text(trimmed)])) }
-                let annotations = try batch.enumerated().map { index, annotation in
-                    let attachment = index < attachments.count ? attachments[index].id : nil
-                    parts.append(.object(["kind": .text("text"), "text": .text(try annotation.modelContext(screenshotID: attachment)), "annotationId": .text(annotation.id.uuidString.lowercased())]))
-                    if let attachment { parts.append(.object(["kind": .text("image"), "file": .object(["id": .string(attachment)])])) }
-                    return annotation.json(screenshotID: attachment)
-                }
-                var input: [JSONText: JSONValue] = ["parts": .array(parts)]
-                if !annotations.isEmpty { input["annotations"] = .array(annotations) }
-                let receipt = try await boundContext.send(.object(input))
-                // An accepted receipt consumes its exact batch even if navigation
-                // released the presentation while the runtime admitted the send.
-                let execution = draft.latestExecution
-                let outcome = execution?.executionID == receipt.executionID ? execution?.status : nil
-                if outcome == .failed { throw PluginContractError("执行失败，批注仍保留。详情见线程记录。") }
-                if outcome == .interrupted { throw PluginContractError("执行已停止，批注仍保留。") }
-                if outcome != .completed {
-                    let previous = draft.submitted[receipt.executionID]
-                    draft.submitted[receipt.executionID] = BrowserSubmittedAnnotations(batch: (previous?.batch ?? []) + batch,
-                        text: [previous?.text ?? "", text].filter { !$0.isEmpty }.joined(separator: " "))
-                }
-                let ids = Set(batch.map(\.id))
-                draft.pending.removeAll { ids.contains($0.id) }
-                if draft.supplementalText.utf16.elementsEqual(text.utf16) { draft.supplementalText = "" }
-                if self.contextGeneration == owner { self.preview = false; self.selectedAnnotationID = nil; self.detailsExpanded = false }
-            } catch {
-                if !(error is CancellationError) { draft.sendError = error.localizedDescription }
+        defer { draft.sending = false }
+        var submissionError: Error?
+        var staged: [JSONText] = []
+        var directory: URL?
+        do {
+            var attachments: [SidecardStagedAttachment] = []
+            if !textOnly && !batch.isEmpty {
+                let prepared = try await BrowserAnnotationFiles.shared.write(batch.map(\.png))
+                directory = prepared.directory
+                try Task.checkCancellation()
+                guard !self.released, self.contextGeneration == owner else { throw CancellationError() }
+                let files = prepared.files
+                attachments = try await boundContext.stageAttachments(files)
+                staged = attachments.map(\.id)
+                guard attachments.count == batch.count else { throw PluginContractError("批注截图数量不匹配") }
             }
-            // Runtime retention protects attachments referenced by accepted input.
-            if !staged.isEmpty { try? await boundContext.discardAttachments(staged) }
-            if let directory { await BrowserAnnotationFiles.shared.remove(directory) }
+            guard !self.released, self.contextGeneration == owner else { throw CancellationError() }
+            var parts: [JSONValue] = []
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { parts.append(.object(["kind": .text("text"), "text": .text(trimmed)])) }
+            let annotations = try batch.enumerated().map { index, annotation in
+                let attachment = index < attachments.count ? attachments[index].id : nil
+                parts.append(.object(["kind": .text("text"), "text": .text(try annotation.modelContext(screenshotID: attachment)), "annotationId": .text(annotation.id.uuidString.lowercased())]))
+                if let attachment { parts.append(.object(["kind": .text("image"), "file": .object(["id": .string(attachment)])])) }
+                return annotation.json(screenshotID: attachment)
+            }
+            var input: [JSONText: JSONValue] = ["parts": .array(parts)]
+            if !annotations.isEmpty { input["annotations"] = .array(annotations) }
+            let receipt = try await boundContext.send(.object(input))
+            // An accepted receipt consumes its exact batch even if navigation
+            // released the presentation while the runtime admitted the send.
+            let execution = draft.latestExecution
+            let outcome = execution?.executionID == receipt.executionID ? execution?.status : nil
+            if outcome == .failed { throw PluginContractError("执行失败，批注仍保留。详情见线程记录。") }
+            if outcome == .interrupted { throw PluginContractError("执行已停止，批注仍保留。") }
+            if outcome != .completed {
+                let previous = draft.submitted[receipt.executionID]
+                draft.submitted[receipt.executionID] = BrowserSubmittedAnnotations(batch: (previous?.batch ?? []) + batch,
+                    text: [previous?.text ?? "", text].filter { !$0.isEmpty }.joined(separator: " "))
+            }
+            let ids = Set(batch.map(\.id))
+            draft.pending.removeAll { ids.contains($0.id) }
+            if draft.supplementalText.utf16.elementsEqual(text.utf16) { draft.supplementalText = "" }
+            if self.contextGeneration == owner { self.preview = false; self.selectedAnnotationID = nil; self.detailsExpanded = false }
+        } catch {
+            if !(error is CancellationError) { draft.sendError = error.localizedDescription }
+            submissionError = error
         }
+        // Runtime retention protects attachments referenced by accepted input.
+        if !staged.isEmpty { try? await boundContext.discardAttachments(staged) }
+        if let directory { await BrowserAnnotationFiles.shared.remove(directory) }
+        if let submissionError { throw submissionError }
     }
 
     func release() {

@@ -236,6 +236,23 @@ private final class SidecardCancellation {
 
 public enum SidecardIndicator: String, Hashable, Sendable { case active, attention }
 
+/// A selected activity can temporarily use the resident text composer. The
+/// request owns its operation; the host owns a separate draft and keyboard UI.
+@MainActor
+public struct SidecardComposerRequest {
+    public let id: UUID
+    public let placeholder: String
+    public let ready: Bool
+    public let submit: (String) async throws -> Void
+    public let cancel: () -> Void
+
+    public init(id: UUID, placeholder: String, ready: Bool,
+                submit: @escaping (String) async throws -> Void, cancel: @escaping () -> Void) {
+        self.id = id; self.placeholder = placeholder; self.ready = ready
+        self.submit = submit; self.cancel = cancel
+    }
+}
+
 @MainActor
 public struct SidecardView<Content: View> {
     public let available: Bool
@@ -247,17 +264,18 @@ public struct SidecardView<Content: View> {
     /// Some activities preserve reading focus until the user enters a control.
     public let focusContentOnOpen: Bool
     public let excludeExecutionID: JSONText?
+    public let composer: SidecardComposerRequest?
     public let content: Content
 
     public init(available: Bool, label: JSONText, indicator: SidecardIndicator? = nil,
                 acceptsInput: Bool? = nil, preferredWidth: Double, focusContentOnOpen: Bool = true,
-                excludeExecutionID: JSONText? = nil,
+                excludeExecutionID: JSONText? = nil, composer: SidecardComposerRequest? = nil,
                 @ViewBuilder content: () -> Content) throws {
         guard preferredWidth.isFinite else { throw PluginContractError("Sidecard preferred width must be finite") }
         self.available = available; self.label = label; self.indicator = indicator
         self.acceptsInput = acceptsInput; self.preferredWidth = preferredWidth
         self.focusContentOnOpen = focusContentOnOpen
-        self.excludeExecutionID = excludeExecutionID; self.content = content()
+        self.excludeExecutionID = excludeExecutionID; self.composer = composer; self.content = content()
     }
 }
 
@@ -344,7 +362,7 @@ public final class AnySidecardPlugin {
                     return try SidecardView(available: output.available, label: output.label,
                         indicator: output.indicator, acceptsInput: output.acceptsInput,
                         preferredWidth: output.preferredWidth, focusContentOnOpen: output.focusContentOnOpen,
-                        excludeExecutionID: output.excludeExecutionID) {
+                        excludeExecutionID: output.excludeExecutionID, composer: output.composer) {
                         AnyView(output.content)
                     }
                 }

@@ -1,4 +1,5 @@
 import MokuseiCore
+import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
@@ -78,7 +79,9 @@ struct NativeMokuComposerInput: View {
     let draft: NativeComposerDraft
     var cwd: JSONText = ""
     var disabled = false
+    var busy = false
     var threadTitle: String?
+    var sidecardComposer: SidecardComposerRequest?
     var placeholderIcon: AnyView?
     var readOnly = false
     var focusEnabled = true
@@ -129,6 +132,7 @@ struct NativeMokuComposerInput: View {
             || !(retainedDirectories ?? draft.directories).isEmpty
     }
     private var placeholder: String {
+        if let sidecardComposer { return sidecardComposer.placeholder }
         if let threadTitle {
             return localize("发送给「\(threadTitle)」…", "Message \(threadTitle)…")
         }
@@ -172,14 +176,23 @@ struct NativeMokuComposerInput: View {
                 .disabled(unavailable || readOnly)
             NativeMokuComposerRowLayout(compact: compact) {
                 eyeSeat
-                attachmentButton
+                if let sidecardComposer {
+                    Button(action: sidecardComposer.cancel) {
+                        NativeIcon(name: "X", size: 16).frame(width: 28, height: 32).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                        .help(localize("取消标注", "Cancel annotation"))
+                        .accessibilityLabel(localize("取消标注", "Cancel annotation"))
+                        .accessibilityIdentifier("moku-cancel-annotation")
+                } else { attachmentButton }
                 editor
                 HStack(spacing: 0) { actions }
             }.padding(.leading, 6).padding(.trailing, 13)
                 .onGeometryChange(for: CGFloat.self) { compact ? 34 : $0.size.height } action: { editorRowHeight = $0 }
                 .animation(reduceMotion ? nil : .smooth(duration: 0.42, extraBounce: 0), value: voiceControlsVisible)
             if let error = draft.error {
-                Text(composerLocalized(error, locale: locale)).font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
+                Text(sidecardComposer == nil ? composerLocalized(error, locale: locale)
+                    : NativePluginLocalization.localize(error, locale: locale))
+                    .font(.system(size: 11)).foregroundStyle(.red).padding(.bottom, 10)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { errorHeight = $0 }
                     .onDisappear { errorHeight = 0 }
             }
@@ -207,15 +220,15 @@ struct NativeMokuComposerInput: View {
     private var editor: some View {
         NativeComposerTextInput(value: Binding(get: { retainedText ?? draft.text }, set: { draft.text = $0 }),
             placeholder: placeholder, placeholderIcon: placeholderIcon, placeholderLineLimit: 1,
-            disabled: editingUnavailable, readOnly: readOnly,
+            disabled: editingUnavailable || busy, readOnly: readOnly || busy,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, focusContext: "moku-dock",
             suppressInitialFocus: suppressInitialFocus,
             minHeight: compact ? 32 : (landing ? 76 : 58), maxHeight: compact ? max(32, maxHeight - 40) : maxHeight,
             fontSize: landing ? 16 : 14, lineHeight: landing ? 24 : 20,
             insets: .init(top: compact ? 6 : (landing ? 26 : 19), left: 6,
                          bottom: compact ? 6 : (landing ? 26 : 19), right: 6),
-            onSubmit: { if !unavailable { onSend() } }, onEscape: onEscape,
-            onFiles: { files in if !unavailable { await draft.importFiles(files) } }, preparePaste: draft.preparePaste,
+            onSubmit: { if !unavailable && (sidecardComposer?.ready ?? true) { onSend() } }, onEscape: onEscape,
+            onFiles: importFiles, preparePaste: preparePaste,
             selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
                 onEditorStateChange?(state)
             }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
@@ -225,9 +238,7 @@ struct NativeMokuComposerInput: View {
                     canStart: canStartVoice, start: startVoice)
                     .allowsHitTesting(false)
             }
-            .help(threadTitle == nil
-                ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
-                : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread"))
+            .help(editorHelp)
             .accessibilityActions {
                 if threadTitle == nil {
                     Button(localize("开始语音", "Start voice")) {
@@ -235,6 +246,22 @@ struct NativeMokuComposerInput: View {
                     }
                 }
             }
+    }
+    private var importFiles: (([NativeComposerFile]) async -> Void)? {
+        guard sidecardComposer == nil else { return nil }
+        return { files in if !unavailable { await draft.importFiles(files) } }
+    }
+    private var preparePaste: (() -> NativeComposerPastePreparation?)? {
+        guard sidecardComposer == nil else { return nil }
+        return draft.preparePaste
+    }
+    private var editorHelp: String {
+        if sidecardComposer != nil {
+            return localize("描述当前网页选区；Return 发送，Shift+Return 换行，Esc 取消标注", "Describe the selected page area; Return sends, Shift+Return adds a line, Escape cancels annotation")
+        }
+        return threadTitle == nil
+            ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
+            : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
     }
     @ViewBuilder private var actions: some View {
         // Keep the seat while it opens, without mounting an inactive
@@ -266,9 +293,9 @@ struct NativeMokuComposerInput: View {
                 Button(action: onSend) {
                     NativeIcon(name: "ArrowUp", size: 16).frame(width: 32, height: 32)
                         .background(Color.primary.opacity(0.18), in: Circle())
-                }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly)
-                    .opacity(!unavailable && draft.canSubmit ? 1 : 0.3)
-                    .accessibilityLabel(localize("发送", "Send")).accessibilityIdentifier("moku-send")
+                }.buttonStyle(.plain).disabled(unavailable || !draft.canSubmit || readOnly || !(sidecardComposer?.ready ?? true))
+                    .opacity(!unavailable && draft.canSubmit && (sidecardComposer?.ready ?? true) ? 1 : 0.3)
+                    .accessibilityLabel(sidecardComposer == nil ? localize("发送", "Send") : localize("发送批注", "Send annotation")).accessibilityIdentifier("moku-send")
             }
         }.frame(width: 32, height: 32)
     }

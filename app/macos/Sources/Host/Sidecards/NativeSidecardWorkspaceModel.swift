@@ -211,6 +211,7 @@ final class NativeSidecardWorkspaceModel {
         transitionTask?.cancel(); transitionTask = nil
         for session in sessions.values { session.release() }
         sessions.removeAll(); handlers.removeAll()
+        services.composer(configuration.input.thread.id, nil)
         if lastVisibility { onVisibilityChange(false) }
     }
 
@@ -417,6 +418,9 @@ final class NativeSidecardWorkspaceModel {
             entranceReady: configuration.entranceReady, handoff: handoff,
             focusLauncherOnClose: focusLauncherOnClose)
         let visible = configuration.entranceReady && cards.contains { $0.id == selected && $0.view.acceptsInput == true }
+        let composer = configuration.entranceReady && !configuration.suppressed
+            ? cards.first(where: { $0.id == selected && $0.view.available })?.view.composer : nil
+        services.composer(configuration.input.thread.id, composer)
         if lastVisibility != visible { lastVisibility = visible; onVisibilityChange(visible) }
     }
 

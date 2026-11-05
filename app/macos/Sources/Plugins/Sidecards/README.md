@@ -23,7 +23,8 @@ finishes that travel before input expansion is admitted. Later card choices keep
 the editor mounted and open. Dragging/resizing settles directly; stacked layout
 uses the panels' shared full column width. Choosing Browser/Voice or another
 non-owning activity centers and fits input below main, including for a completed
-Thread; its send target remains that Thread. Folding, suppression, losing
+Thread; its send target remains that Thread. Browser annotation mode uses its
+own column and description route as specified below. Folding, suppression, losing
 selected-card eligibility or promoting a completed execution returns input to
 the workspace center. No composer mounts
 inside a Sidecard and no plugin input ownership changes. See the
@@ -157,6 +158,18 @@ available after returning to a web page.
 Browser pages and their frames retain their own scrollbar styling. The native
 annotation list and its comment TextEditor use the shared trackless policy on
 their respective viewports; system scrollbar preferences remain in effect.
+
+Annotation selection no longer mounts a floating editor or native annotation
+portal over the page. The selected Browser publishes a visit-scoped resident
+composer request: Moku moves to the Browser column's horizontal center, retains
+page focus until selection completes, then accepts a text description. Return
+captures the current selection and submits the recoverable batch to the owning
+Thread. Capture checks and failures, attachment staging/cleanup and receipt
+consumption keep their existing owners. Cancel, navigation, covering, folding
+and card switches revoke the request and restore normal Thread/Moku input.
+The pending-annotation list, editing, preview and retry controls remain in Browser.
+See the [resident annotation input contract](../../../../../design/browser-annotation-resident-input.md)
+for lifecycle and Sprint verification limits.
 
 Loading state follows the main frame. Address editing, page navigation and external URL intents retain their distinct focus ownership. A web view suppressed by host transitions does not paint over other surfaces. Annotations are assembled into shared attachments and sent through the current thread's admitted send capability; failed submission preserves the recoverable annotation batch. The footer's material/shadow belongs inside the browser's own surface.
 

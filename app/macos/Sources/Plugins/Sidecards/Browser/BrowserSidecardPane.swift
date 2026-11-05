@@ -27,11 +27,7 @@ public struct BrowserSidecardPane: View {
                 if let session, !session.captureError.isEmpty && !session.annotating { errorLabel(session.captureError) }
                 ZStack(alignment: .bottom) {
                     if let session {
-                        GeometryReader { page in
-                            let origin = page.frame(in: .named(presentation.coordinateSpaceID)).origin
-                            BrowserViewport(session: session, suppressed: presentation.nativeHidden, coveredBottom: detailsHeight,
-                                cardRect: CGRect(x: -origin.x, y: -origin.y, width: geometry.size.width, height: geometry.size.height))
-                        }
+                        BrowserViewport(session: session, suppressed: presentation.nativeHidden, coveredBottom: detailsHeight)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .padding(.horizontal, 8)
                     }
@@ -54,7 +50,6 @@ public struct BrowserSidecardPane: View {
                 else { Color.clear.frame(height: 8) }
             }
             .foregroundStyle(palette.ink)
-            .coordinateSpace(name: presentation.coordinateSpaceID)
         }
     }
 
