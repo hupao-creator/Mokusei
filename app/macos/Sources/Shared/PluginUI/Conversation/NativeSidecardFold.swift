@@ -15,12 +15,13 @@ public struct NativeSidecardFold: ViewModifier {
     var animatesContentSize = false
     // Return policy is independent of the common opening presentation.
     let fadesOnClose: Bool
+    let reportReturn: Bool
 
     public init(progress: CGFloat, source: CGRect?, destination: CGRect,
-                frameIdentifier: String, animatesContentSize: Bool = false, fadesOnClose: Bool = false) {
+                frameIdentifier: String, animatesContentSize: Bool = false, fadesOnClose: Bool = false, reportReturn: Bool = false) {
         self.progress = progress; self.source = source; self.destination = destination
         self.frameIdentifier = frameIdentifier; self.animatesContentSize = animatesContentSize
-        self.fadesOnClose = fadesOnClose
+        self.fadesOnClose = fadesOnClose; self.reportReturn = reportReturn
     }
 
     private var origin: CGRect {
@@ -40,6 +41,7 @@ public struct NativeSidecardFold: ViewModifier {
             .frame(width: destination.width, height: destination.height, alignment: .topLeading)
             .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 21))
             .overlay(RoundedRectangle(cornerRadius: 21).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+            .modifier(ReportSidecardReturnHost(enabled: reportReturn, size: destination.size))
             .modifier(NativeSidecardFoldPresentation(rect: geometry.aperture, progress: progress,
                 offset: geometry.offset, destination: destination,
                 fadingReturn: fadesOnClose && progress == 0, frameIdentifier: frameIdentifier))
@@ -134,5 +136,14 @@ private struct NativeSidecardFoldAperture: Shape {
         let next = Pose(rect: rect, offset: offset, progress: progress)
         if !retaining || presented == nil { presented = next }
         return presented ?? next
+    }
+}
+
+private struct ReportSidecardReturnHost: ViewModifier {
+    let enabled: Bool
+    let size: CGSize
+    func body(content: Content) -> some View {
+        if enabled { content.nativeReportSidecardReturn(size: size) }
+        else { content }
     }
 }

@@ -1322,20 +1322,18 @@ admission while retaining active selection for this phase; readiness loss or
 suppression cannot widen the main reader. Completed route unmount calls `cancel`;
 explicitly cancelling return restores normal readiness/admission. Covering and
 execution continuation do not opt into this retention policy.
-`nativeReportMainReturn` transforms the already sized document shell without
-intermediate viewport proposals. Its document-frame memo retains the last
-interpolated size if Close interrupts a width transition. Sidecard presentation
-similarly retains its current aperture/offset while independent opacity fades it.
-These render-only memos do not publish observable state. The source frame is in
-the outer panel's local coordinates; related lists, execution details, Browser
-splits and stacked layouts all keep their original layout seat during return.
-The old native carrier return diagnostic is intentionally absent for this
-independent-surface path. See [Report Close](../../../../../design/report-sidecard-close.md).
-
-Report return effects install their value-scoped animation inside the reader's
-hosting tree, using the duration carried by `NativeReportPanelReturn`. The outer
-reading stack's `withAnimation` transaction cannot be assumed to survive the
-native panel and execution-route `NSHostingView.rootView` assignments. Without
-this local animation, geometry/opacity reach their final values immediately while
-the native completion carrier merely waits. See the 20:20 follow-up in
-[Report Close](../../../../../design/report-sidecard-close.md).
+`nativeReportMainReturn(size:)` retains the real reader in a native carrier and
+animates that carrier's CALayer position/transform. WebKit bounds stay fixed from
+return preparation through completion; no GeometryEffect or implicit animation
+transaction is required across the panel/route hosting boundaries. The document
+frame memo retains the last interpolated size if Close interrupts width travel.
+Report Sidecards opt into the same native host inside `NativeSidecardFold`; their
+carrier changes opacity only while the fold memo retains its aperture/offset.
+Agent Sidecards do not mount this additional Report host.
+Both carriers use the stack's monotonic start time, duration and existing return
+curve. Native completion remains generation-fenced. Cancelling return removes
+carrier animations and restores its untransformed reader; route unmount retires
+the hosting content. There is one live reader per surface, without a bitmap copy.
+The old native carrier return diagnostic remains absent for this independent
+surface path. See [Report Close](../../../../../design/report-sidecard-close.md)
+for observed failures, native-host repair and actual window capture evidence.

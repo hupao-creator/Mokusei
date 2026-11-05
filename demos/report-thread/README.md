@@ -48,3 +48,21 @@ python3 demos/report-thread/build.py --skip-build --capture --open
 - 正式组件 fixture 以 Swift 6 warnings-as-errors 编译并签名，实际打开 Report 卡片，确认五条玻璃 item 没有序号或连接线，正文为两行纯文本，底部显示耗时。截图：[生产组件列表](../../.build/report-thread/evidence/production-glass-list.png)。此 fixture 的固定正文/耗时只验证渲染，不认证真实会话数据链路。
 - 初次 Swift 构建的 `guard` 尾随闭包语法已修复；预览首次受沙箱内 Swift 宏进程及 `ps` 限制，获批扩展执行后构建、打开成功。最终生产构建只有 SwiftPM 用户级缓存不可写提示，无源码编译错误。
 - 按本会话 Sprint mode：未新增或运行测试，未运行集成回放、远端 PR/CI，不将本地构建视为 `Complete coverage`。当前 detached 工作树只交付提交，main 集成由调用方负责，未安装或替换用户的生产 App。
+
+## Report 关闭的生产宿主验证
+
+`python3 demos/report-thread/build.py --production --open` 现在包含完整的正式
+`NativeReadingPageStack`、native panel、`NativeExecutionRouteSlide` 和
+`NativeReportDetail`/WebKit，点击来源卡打开，左上角 × 通过正式 motion.close 返回。
+列表采用生产 7:3，执行详情采用 5:5。已有当前构建时可加 `--skip-build`。
+这是手动交互 fixture，不连接 Runtime；execution factory 仍使用合成正文。
+
+右下角「慢速 ×5」改变本次阅读转场时长（正常 420ms）；「录制本窗口」通过
+ScreenCaptureKit 只录制自身窗口、无音频和麦克风，停止后写入隔离 app 同级
+`evidence/return-<timestamp>.mp4`。这两个控件不自动点击、不触发测试。
+从 `.build/report-thread/app-path.txt` 可找到当前隔离 app 和录屏目录。
+旧 `--capture` 仍是独立提案的历史截图入口，不能认证生产返回。
+
+已用真实原生 UI 手动复现旧实现瞬隐，随后观察原生 carrier 修正的慢速/正常列表返回、
+5:5 详情滚动后返回，并解码窗口录屏检查中间帧。证据与边界见
+[Report 关闭调查](../../design/report-sidecard-close.md)。

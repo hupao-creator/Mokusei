@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import Observation
 import MokuseiCore
 import SwiftUI
@@ -53,6 +54,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @State private var panelReaderPreloading = false
     @State private var closing = false
     @State private var preparingClose = false
+    @State private var reportReturnStartedAt: TimeInterval?
     @State private var replacing = false
     @State private var generation = 0
     @State private var mountedIdentity: JSONText?
@@ -141,7 +143,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                             .environment(\.nativeReportPanelReturn, reportPanelMotion && panelContentReady && (closing || preparingClose)
                                 ? NativeReportPanelReturn(source: (panelSource ?? panelBounds.insetBy(dx: 24, dy: 24))
                                     .offsetBy(dx: -panelBounds.minX, dy: -panelBounds.minY),
-                                    progress: CGFloat(progress), duration: duration) : nil))
+                                    startedAt: closing ? reportReturnStartedAt : nil, duration: duration) : nil))
                 } else if open {
                     ZStack {
                         front.id(identity)
@@ -270,6 +272,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             panelReaderPreloading = false
             closing = false
             preparingClose = false
+            reportReturnStartedAt = nil
             replacing = false
             motion.active = false
         }
@@ -301,6 +304,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     private func finishPanelTransition(_ token: Int, _ wasClosing: Bool) {
         guard generation == token, panelTransition?.generation == token else { return }
         panelTransition = nil
+        reportReturnStartedAt = nil
         motion.active = false
         closing = false
         if wasClosing { onClose() }
@@ -325,13 +329,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             generation += 1
             replacing = false
             self.closing = closing
+            reportReturnStartedAt = closing && reportPanelMotion && panelContentReady ? CACurrentMediaTime() : nil
             motion.active = true
             if !closing { panelContentReady = false; panelReaderPreloading = false }
             panelTransition = NativeReadingPanelTransition(generation: generation, closing: closing,
                 duration: duration, emphasized: !closing && emphasizedOpening, thread: threadPanelMotion, report: reportPanelMotion && panelContentReady)
-            // Report returns also use this progress for independent fixed-layout
-            // surface transforms. Native completion still owns the route generation;
-            // opening and other panel returns keep their native geometry driver.
+            // The backdrop uses SwiftUI progress. Report surfaces share the
+            // monotonic return start above and animate their native carriers;
+            // native completion still owns this route generation.
             withAnimation(!closing && emphasizedOpening
                 ? .timingCurve(0.76, 0, 0.24, 1, duration: duration) : curve) {
                 progress = closing ? 0 : 1

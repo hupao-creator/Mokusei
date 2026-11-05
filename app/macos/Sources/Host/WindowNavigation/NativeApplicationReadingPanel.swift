@@ -129,8 +129,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                     source: CGRect(x: browserLauncher.x - 21, y: browserLauncher.y - 21, width: 42, height: 42),
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
-                    frameIdentifier: "report-link-card", fadesOnClose: true))
-                .nativeReportSidecardReturn()
+                    frameIdentifier: "report-link-card", fadesOnClose: true, reportReturn: true))
                 .allowsHitTesting(expanded && !suppressed)
                 .disabled(!expanded || suppressed)
                 .accessibilityHidden(!expanded || suppressed)

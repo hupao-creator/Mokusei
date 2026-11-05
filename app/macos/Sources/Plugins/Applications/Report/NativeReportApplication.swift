@@ -94,7 +94,6 @@ struct NativeReportDetail: View {
                         sidecards.updateDocument(readiness)
                     }
                     .modifier(NativeReportDocumentFrame(size: CGSize(width: layout.mainWidth, height: layout.mainHeight)))
-                    .nativeReportMainReturn()
                 VStack(alignment: .leading, spacing: 0) {
                     if let selected {
                         execution(selected).id(selected)
@@ -124,8 +123,7 @@ struct NativeReportDetail: View {
                 .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
-                    frameIdentifier: "report-executions-sidecard"))
-                .nativeReportSidecardReturn()
+                    frameIdentifier: "report-executions-sidecard", reportReturn: true))
                 // Retain the execution reader while folded, but exclude native
                 // controls and accessibility until this surface is expanded.
                 .allowsHitTesting(expanded && !suppressed)
@@ -263,6 +261,7 @@ private struct NativeReportDocumentFrame: ViewModifier, @MainActor Animatable {
             // `size` already contains this animation frame's interpolation.
             // A second implicit animation would put WebKit behind its shell.
             .transaction(value: size) { $0.animation = nil }
+            .nativeReportMainReturn(size: size)
     }
 }
 
