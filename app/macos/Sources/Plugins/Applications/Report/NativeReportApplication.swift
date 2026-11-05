@@ -65,19 +65,32 @@ struct NativeReportDetail: View {
     @State private var selected: ApplicationExecutionRef?
     @State private var unsubscribe: (() -> Void)?
     @State private var failure: String?
+    @State private var expanded = false
+    @State private var entranceAdmitted = false
+    @FocusState private var launcherFocused: Bool
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
+    @Environment(\.nativeReadingAuxiliarySuppressed) private var suppressed
+    @Environment(\.nativeReadingAuxiliaryLauncherPosition) private var launcherPosition
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var locale: JSONText { props.context.locale }
     var body: some View {
         GeometryReader { geometry in
-            let width = max(0, geometry.size.width - 16)
-            let sideWidth = width * (selected == nil ? 0.2 : 0.5)
-            HStack(spacing: 16) {
+            let layout = NativeSidecardWorkspaceGeometry(size: geometry.size, open: expanded,
+                preferredWidth: selected == nil ? 0.2 : 0.5)
+            let source = launcherPosition.map { CGRect(x: $0.x - 21, y: $0.y - 21, width: 42, height: 42) }
+            ZStack(alignment: .topLeading) {
                 NativeReportHTML(props: props)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
+                    .frame(width: layout.mainWidth, height: layout.mainHeight)
+                    // Match Agent reflow: commit the native document's final
+                    // size once while its surrounding shell travels.
+                    .offset(x: -layout.mainWidth / 2)
+                    .transaction(value: CGSize(width: layout.mainWidth, height: layout.mainHeight)) { $0.animation = nil }
+                    .offset(x: layout.mainWidth / 2)
+                    .frame(width: layout.mainWidth, height: layout.mainHeight)
                     .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
-                    .frame(width: width - sideWidth)
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
                         if selected != nil {
@@ -116,11 +129,30 @@ struct NativeReportDetail: View {
                             }.padding(8)
                         }
                     }
-                }.frame(width: sideWidth).background(NativePalette.thread.canvas.swiftUI)
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI, lineWidth: 1))
+                }
+                .environment(\.nativeReadingNavigation, nil)
+                .clipShape(RoundedRectangle(cornerRadius: 21))
+                .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source,
+                    destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
+                        width: layout.surfaceWidth, height: layout.surfaceHeight),
+                    frameIdentifier: "report-executions-sidecard"))
+                // Retain the execution reader while folded, but exclude native
+                // controls and accessibility until this surface is expanded.
+                .allowsHitTesting(expanded && !suppressed)
+                .disabled(!expanded || suppressed)
+                .accessibilityHidden(!expanded || suppressed)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(applicationText(locale, "关联执行", "Related executions"))
             }
-            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: selected)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: selected)
+            .animation(reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
+            .background {
+                NativeReadingEntranceStage(enabled: entranceReady && !suppressed && !entranceAdmitted) {
+                    entranceAdmitted = true
+                    expanded = true
+                }
+            }
         }
         .onAppear {
             do { unsubscribe = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).subscribe(refresh); refresh() }
@@ -128,10 +160,27 @@ struct NativeReportDetail: View {
         }
         .onDisappear { unsubscribe?(); unsubscribe = nil }
         .onChange(of: props.entry.view.relatedExecutions) { _, _ in refresh() }
-        .preference(key: NativeReadingAuxiliaryBackKey.self, value: selected.map { reference in
-            NativeReadingAuxiliaryBackAction(id: reference.thread.threadID.string + ":" + reference.executionID.string) { selected = nil }
-        })
+        .preference(key: NativeReadingAuxiliaryToolbarKey.self, value: AnyView(
+            NativeSidecardToggle(expanded: expanded,
+                label: applicationText(locale, "关联执行", "Related executions"), action: {
+                    expanded.toggle()
+                    launcherFocused = !expanded
+                }) {
+                    NativeIcon(name: "PanelRight", size: 17, strokeWidth: 1.8)
+                }
+                .focused($launcherFocused)
+                .disabled(!entranceAdmitted)
+                .accessibilityIdentifier("sidecard-toggle-report-executions")
+        ))
+        .preference(key: NativeReadingAuxiliaryBackKey.self, value: expanded ?
+            NativeReadingAuxiliaryBackAction(id: selected.map {
+                $0.thread.threadID.string + ":" + $0.executionID.string
+            } ?? "report-executions") {
+                if selected != nil { selected = nil }
+                else { expanded = false; launcherFocused = true }
+            } : nil)
     }
+
     private func refresh() {
         do {
             references = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).read(props.entry.view.relatedExecutions)

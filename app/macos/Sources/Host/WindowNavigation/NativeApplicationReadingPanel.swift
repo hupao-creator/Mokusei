@@ -91,6 +91,9 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                         if let auxiliaryBack { auxiliaryBack.perform(); return true }
                         return false
                     })
+                    .environment(\.nativeReadingAuxiliarySuppressed, suppressed)
+                    .environment(\.nativeReadingAuxiliaryLauncherPosition,
+                        CGPoint(x: size.width + 38, y: size.height / 2 - (url == nil ? 0 : 28)))
                     .frame(width: layout.mainWidth, height: layout.mainHeight)
                 if url != nil {
                     if expanded && !layout.stacked {
@@ -115,22 +118,24 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                             .accessibilityHidden(!expanded || suppressed)
                             .accessibilityIdentifier("report-link-card")
                     }
-                    Button { expanded.toggle() } label: {
+                    NativeSidecardToggle(expanded: expanded,
+                        label: locale.language.languageCode?.identifier == "zh" ? "网页" : "Browser",
+                        action: { expanded.toggle() }) {
                         NativeIcon(name: "Globe2", size: 17, strokeWidth: 1.8)
                             .frame(width: 42, height: 42).contentShape(Circle())
                     }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.tint(expanded ? .blue.opacity(0.18) : .clear).interactive(), in: .circle)
-                    .position(x: size.width + 38, y: size.height / 2)
+                    .position(x: size.width + 38, y: size.height / 2 + 28)
                     .disabled(suppressed)
-                    .accessibilityValue(locale.language.languageCode?.identifier == "zh"
-                        ? (expanded ? "已展开" : "已收起") : (expanded ? "Expanded" : "Collapsed"))
-                    .help(locale.language.languageCode?.identifier == "zh" ? "网页" : "Browser")
-                    .accessibilityLabel(locale.language.languageCode?.identifier == "zh" ? "网页" : "Browser")
                 }
             }
-            .animation(dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: expanded)
-            .animation(dragging || reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.38), value: layout.stacked)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+            .overlayPreferenceValue(NativeReadingAuxiliaryToolbarKey.self) { toolbar in
+                toolbar
+                    .position(x: size.width + 38, y: size.height / 2 - (url == nil ? 0 : 28))
+                    .disabled(suppressed)
+            }
+            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
+            .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
         }
         .onPreferenceChange(NativeReadingAuxiliaryBackKey.self) { auxiliaryBack = $0 }
         .nativeReadingEscape(perform: suppressed ? nil : {

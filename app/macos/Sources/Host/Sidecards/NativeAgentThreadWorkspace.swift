@@ -363,7 +363,8 @@ struct NativeSidecardWorkspaceLayout: View {
         GlassEffectContainer(spacing: 8) {
             VStack(spacing: 14) {
                 ForEach(snapshot.available) { card in
-                    Button { model.activate(card.id) } label: {
+                    NativeSidecardToggle(expanded: snapshot.selected == card.id, label: card.view.label.string,
+                        action: { model.activate(card.id) }) {
                         card.icon.frame(width: 42, height: 42).contentShape(Circle())
                             .overlay(alignment: .topTrailing) {
                                 if let indicator = card.view.indicator {
@@ -373,12 +374,8 @@ struct NativeSidecardWorkspaceLayout: View {
                             }
                     }
                     .anchorPreference(key: NativeSidecardLauncherAnchors.self, value: .bounds) { [card.id: $0] }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.tint(snapshot.selected == card.id ? .blue.opacity(0.18) : .clear).interactive(), in: .circle)
                     .focused($focusedLauncher, equals: card.id)
                     .accessibilityIdentifier("sidecard-toggle-" + card.id.string)
-                    .help(card.view.label.string).accessibilityLabel(card.view.label.string)
-                    .accessibilityValue(localize(snapshot.selected == card.id ? "已展开" : "已收起", snapshot.selected == card.id ? "Expanded" : "Collapsed"))
                 }
             }
         }
@@ -392,37 +389,12 @@ struct NativeSidecardWorkspaceLayout: View {
     }
 }
 
-@MainActor
-public struct NativeSidecardWorkspaceGeometry {
-    public let size: CGSize
-    public let stacked: Bool
-    public let cardWidth: CGFloat
-    public let maximumCardWidth: CGFloat
-    public let mainWidth: CGFloat
-    public let mainHeight: CGFloat
-    public let surfaceWidth: CGFloat
-    public let surfaceHeight: CGFloat
-    public let surfaceX: CGFloat
-    public let surfaceY: CGFloat
-
+extension NativeSidecardWorkspaceGeometry {
     init(size: CGSize, snapshot: NativeSidecardWorkspaceSnapshot) {
         let owner = snapshot.selected ?? snapshot.lastSelected
         self.init(size: size, open: snapshot.selected != nil,
             preferredWidth: snapshot.cards.first(where: { $0.id == owner })?.view.preferredWidth ?? 1 / 3,
             retainedWidth: owner.flatMap { snapshot.widths[$0] })
-    }
-    public init(size: CGSize, open: Bool, preferredWidth: Double = 1 / 3, retainedWidth: CGFloat? = nil) {
-        self.size = size; stacked = size.width > 0 && size.width < 760
-        let usableWidth = max(0, size.width - 16)
-        maximumCardWidth = max(320, usableWidth - 360)
-        let fraction = preferredWidth.isFinite ? preferredWidth : 1 / 3
-        cardWidth = min(maximumCardWidth, max(320, retainedWidth ?? (usableWidth * fraction).rounded()))
-        mainWidth = max(0, size.width - (!stacked && open ? cardWidth + 16 : 0))
-        mainHeight = max(0, stacked && open ? (size.height - 16) / 2 : size.height)
-        surfaceWidth = max(0, stacked ? size.width : cardWidth)
-        surfaceHeight = max(0, stacked ? (size.height - 16) / 2 : size.height)
-        surfaceX = max(0, size.width - surfaceWidth)
-        surfaceY = stacked ? (size.height + 16) / 2 : 0
     }
 }
 
