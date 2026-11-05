@@ -105,6 +105,10 @@ heading and count. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
 Report visit, and each selected execution's loaded content fades in once. Later
 data updates do not replay the entrance; Reduce Motion shows content immediately.
+When the related card changes width or folds, the retained Report HTML viewport
+and shell share one interpolated size. Responsive content reflows during travel
+instead of jumping to the destination width before the shell moves. See the
+[recording diagnosis and validation limits](../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
 
 New shared features register once through `NativePlugins.make()`. Platform-specific capabilities live behind their declared interfaces rather than a second copy of the page or plugin tree. [Build and packaging](build/README.md) describes Mac requirements and commands. Functional tests live under `Tests`; executable cross-language/native replays live in [tools/verification](../../tools/verification/README.md).
 

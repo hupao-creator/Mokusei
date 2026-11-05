@@ -92,19 +92,7 @@ struct NativeReportDetail: View {
                               readiness.source.contentRevision == props.entry.view.contentRevision else { return }
                         sidecards.updateDocument(readiness)
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
-                    .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
-                    // Reflow WebKit once, anchored to the stationary left edge.
-                    // Center compensation would jump the document by half the
-                    // width delta before travelling back with the shell.
-                    .transaction(value: CGSize(width: layout.mainWidth, height: layout.mainHeight)) { $0.animation = nil }
-                    .frame(width: layout.mainWidth, height: layout.mainHeight, alignment: .topLeading)
-                    .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 22))
-                    // The document adopts its destination size before the shell
-                    // arrives; clip after the animated frame, not only inside HTML.
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+                    .modifier(NativeReportDocumentFrame(size: CGSize(width: layout.mainWidth, height: layout.mainHeight)))
                 VStack(alignment: .leading, spacing: 0) {
                     if let selected {
                         execution(selected).id(selected)
@@ -241,5 +229,30 @@ struct NativeReportDetail: View {
         case .success(let view): view
         case .failure(let error): NativeApplicationFailure(message: error.localizedDescription)
         }
+    }
+}
+
+/// HTML must receive the shell's presented size, not its final size ahead of
+/// travel: a centered responsive page otherwise jumps before the shell moves.
+/// Keep interpolation below the retained document so only its viewport relayouts.
+private struct NativeReportDocumentFrame: ViewModifier, @MainActor Animatable {
+    var size: CGSize
+
+    var animatableData: CGSize.AnimatableData {
+        get { size.animatableData }
+        set { size.animatableData = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .nativeReadingPanelViewport(topInset: 8, balancedVerticalInsets: true)
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 22))
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
+            // `size` already contains this animation frame's interpolation.
+            // A second implicit animation would put WebKit behind its shell.
+            .transaction(value: size) { $0.animation = nil }
     }
 }

@@ -40,11 +40,11 @@ an unwanted execution-process summary.
   summary while preserving the final reply, independent errors, interactions,
   author, status, timestamps and usage. The live Agent execution Sidecard keeps
   its existing heading/work policy.
-- The main Report reader adopts its destination document size once when a
-  sidecard changes. Its 14pt HTML viewport clip follows that destination size;
-  a separate 22pt outer clip follows the animated shell frame and border.
-  This prevents the wider document escaping the shell during sidecard collapse
-  without introducing per-frame WebKit layout or changing the 380ms fold curve.
+- The main Report reader, 14pt HTML viewport clip and 22pt shell/border use one
+  interpolated size when the related sidecard changes. WebKit receives the
+  presented viewport size throughout the existing 380ms fold, including height
+  changes in stacked layouts. The retained HTML document reflows during travel
+  rather than adopting the final width before the shell starts moving.
 
 ## Ownership and validation
 
@@ -72,6 +72,9 @@ inspected, not executed or bypassed for this local Sprint delivery.
 
 ## Report shell clipping follow-up
 
+This records the earlier fixed-document implementation; the continuous viewport
+follow-up below supersedes its destination-size transaction.
+
 The supplied 2026-11-05 13:59:00 recording shows the loaded HTML background
 escaping the main panel's right border at approximately 1.5s and 3.2s while
 the related card folds. The document immediately takes its larger destination
@@ -95,6 +98,9 @@ visually accepted in a running application; the source recording establishes
 the original defect, not post-fix visual acceptance.
 
 ## Referenced execution expansion follow-up (2026-11-05 19:01:54)
+
+The continuous viewport follow-up below supersedes the fixed document size
+described here; the left anchor and reader transaction isolation remain.
 
 The supplied 6.38s recording starts with Report references already expanded.
 At approximately 0.30–0.37s the second item is selected; this is the list-to-reader
@@ -136,3 +142,45 @@ and `go vet`; `git diff --check` and the changed documentation link passed.
 The effective remote main ruleset still requires a PR and strict `Complete
 coverage`; current remote state was inspected, but no hosted run was requested
 and no historical run is claimed as validation of this change.
+
+## Continuous Report viewport follow-up (2026-11-05 19:13:03)
+
+This recording shows Overview-to-Report entry, rather than selecting an execution
+in the related list. Exact source-time frames around 3.40–3.58s isolate the
+remaining discontinuity. The full-width HTML is visible through approximately
+3.48s. At 3.50s its viewport has already narrowed, clipping the still-wide page;
+by 3.52s WebKit's responsive layout has moved the centered content left. The outer
+shell and related card are still travelling. These are observed geometry/paint
+discontinuities, not evidence of a measured main-thread or CPU stall.
+
+The fixed destination-size transaction deliberately sent the final viewport to
+WebKit ahead of the animated outer shell. The HTML's own centered layout could
+therefore jump even with the native document anchored left. Report now uses a
+private animatable frame modifier to interpolate one width/height for the actual
+HTML viewport, its 14pt clip, and the 22pt shell/border. The modifier clears the
+implicit transaction inside each already-interpolated frame, so there is no
+second frame animation or independently moving inner clip. The HTML view and
+WebKit generation retain their identity; no page load, snapshot, visibility gate,
+timer or additional selection state is introduced.
+
+This intentionally trades the old single WebKit reflow for continuous viewport
+layout during related-sidecard travel. It removes the deterministic endpoint
+size jump; it does not prove WebKit paint keeps up with every animation frame.
+Authored CSS breakpoints can still change layout discretely. The 380ms curve,
+readiness/200ms admission gate, HTML fade, related-reader policy and cancellation
+ownership stay unchanged. Size interpolation handles width and stacked height,
+and selection reversal retargets the same modifier. Ordinary resize follows its
+current geometry proposal; Reduce Motion supplies no fold animation. Agent and
+Browser sidecard native content retain their separate fixed-size policy.
+
+Sprint scope remains source recording inspection, source/lifecycle review,
+application build and static checks. No tests, replay, application launch or
+post-fix frame capture is performed, so smoothness and WebKit's additional layout
+cost still require live acceptance. Current main protection and remote run/PR
+state were inspected before validation; no hosted check is triggered or bypassed.
+
+Validation completed for this follow-up: the Mokusei product build succeeded
+(12.78s); `make lint` passed architecture/static registration/no-Node checks,
+formatting and `go vet`; diff and changed documentation links passed review.
+The final source was reviewed after Astra high's implementation. These checks
+establish compilation/static correctness, not post-fix animation frame pacing.

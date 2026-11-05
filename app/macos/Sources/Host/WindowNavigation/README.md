@@ -229,10 +229,10 @@ references, fold references with focus restored to their launcher, then close
 the report. The action also cancels a pending related card before it opens, and
 is removed when neither an active nor pending related card belongs to the visit.
 Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
-of the Sidecard. Its main shell also clips at the animated 22pt outer frame,
-after the fixed-size document's transaction boundary: a document adopting its
-larger destination size during folding cannot paint beyond the travelling
-border. Browser routing, divider resizing and retained documents keep
+of the Sidecard. For related-card width/height changes, the actual HTML viewport,
+inner clip and 22pt outer shell/border share one interpolated size. The retained
+WebKit document reflows during travel, avoiding a final-width layout jump ahead
+of its shell. Browser routing, divider resizing and retained documents keep
 their existing ownership.
 See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
 for readiness, cancellation, screenshot diagnosis and Sprint verification limits.
@@ -267,7 +267,7 @@ This is limited to accepted Report continuation navigation, including historical
 forks; ordinary Agent sends, manual navigation and completion promotion retain
 their existing transitions. See the [Sprint implementation notes](../../../../../design/execution-route-slide.md).
 
-Report list-to-execution width changes keep the HTML document anchored at its
-left edge while its shell resizes. Selection travel does not animate newly
+Report related-card width changes keep the HTML document anchored at its
+left edge and resize its viewport with the shell. Selection travel does not animate newly
 inserted reader geometry; the loaded related reader scopes its 200ms entrance
-to opacity. See the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#referenced-execution-expansion-follow-up-2026-11-05-190154).
+to opacity. See the [recording investigation and Sprint limits](../../../../../design/report-sidecard-admission.md#continuous-report-viewport-follow-up-2026-11-05-191303).
