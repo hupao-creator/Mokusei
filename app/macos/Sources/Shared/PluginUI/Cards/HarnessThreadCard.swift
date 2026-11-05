@@ -107,7 +107,7 @@ private struct ThreadCardIdentity: View {
     let harnessLogo: AnyView?
     @Environment(\.locale) private var locale
     @Environment(\.threadCardProviderColor) private var providerColor
-    private var cornerClearance: CGFloat { ThreadCardProviderStatus.diameter + 8 }
+    private var cornerClearance: CGFloat { ThreadCardProviderStatus.cornerClearance }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let state { state.padding(.bottom, 6).padding(.trailing, cornerClearance) }
@@ -165,7 +165,7 @@ private struct ThreadCardIdentity: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .overlay(alignment: .topTrailing) {
+        .threadCardBadge {
             Group {
                 if let providerStatus { providerStatus }
                 else if let status {
@@ -176,7 +176,7 @@ private struct ThreadCardIdentity: View {
                 } else if emoji != nil {
                     ThreadCardProviderStatus(label: identity.title, brandKey: identity.harness?.brandKey ?? "", emoji: emoji)
                 }
-            }.padding(.top, 12).padding(.trailing, 17)
+            }
         }
         .clipped()
     }

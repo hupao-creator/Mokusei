@@ -568,8 +568,8 @@ completed, neutral surface-strong otherwise, including under Reduce Transparency
 It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
 panning Overview. Overview card shells remain neutral after completion. The emoji
 stays 21pt, with the existing terminal mark preserving a non-color status cue.
-The badge is status content, with an
-accessible label and tooltip, and has no Send button, hover swap, focus stop or
+Agent and Report cards share its upper-right placement and title clearance.
+The badge is status content, with an accessible label and tooltip, and has no Send button, hover swap, focus stop or
 message callback. Card activation stays with the surrounding host. Empty plans
 render no section.
 The shared controls keep their original materials outside a card; this internal

@@ -19,7 +19,8 @@ import SwiftUI
             VStack(alignment: .leading, spacing: 0) {
                 Text(props.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))
                     .lineLimit(1, reservesSpace: true).fixedSize(horizontal: false, vertical: true)
-                    .padding(.trailing, 52).help(props.entry.title.string)
+                    .padding(.trailing, ThreadCardProviderStatus.cornerClearance).help(props.entry.title.string)
+                    .accessibilityLabel(props.entry.title.string)
                 HStack(spacing: 5) {
                     ForEach(harnesses, id: \.id) { harness in
                         let count = references.filter { $0.harness?.id == harness.id }.count
@@ -33,14 +34,13 @@ import SwiftUI
                     }
                     TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
                 }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
-                    .padding(.top, 5).padding(.trailing, 52)
+                    .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
                 ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(5)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
                 if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
             }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .overlay(alignment: .topTrailing) {
+                .threadCardBadge {
                     ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string)
-                        .padding(.top, 12).padding(.trailing, 17)
                 }.contentShape(Rectangle())
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)

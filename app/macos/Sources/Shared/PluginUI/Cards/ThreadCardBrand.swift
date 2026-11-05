@@ -2,7 +2,8 @@ import ImageIO
 import SwiftUI
 
 public struct ThreadCardProviderStatus: View {
-    static let diameter: CGFloat = 44
+    public static let diameter: CGFloat = 44
+    public static let cornerClearance: CGFloat = diameter + 8
     public let label: String
     public let brandKey: String
     public let emoji: String?
@@ -151,5 +152,14 @@ private struct BrandFallback: Shape {
             p.move(to: points[0]); points.dropFirst().forEach { p.addLine(to: $0) }
         }
         return p.applying(.init(scaleX: rect.width / 24, y: rect.height / 24))
+    }
+}
+
+public extension View {
+    /// Places card status in the shared upper-right badge seat.
+    func threadCardBadge<Badge: View>(@ViewBuilder badge: () -> Badge) -> some View {
+        overlay(alignment: .topTrailing) {
+            badge().padding(.top, 12).padding(.trailing, 17)
+        }
     }
 }

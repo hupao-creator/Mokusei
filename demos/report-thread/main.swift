@@ -212,7 +212,8 @@ private struct ReportCard: View {
                 Text(report.title).font(NativeTypography.inter(size: 15, weight: 620))
                     .lineLimit(1, reservesSpace: true).truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.trailing, 52).help(report.title)
+                    .padding(.trailing, ThreadCardProviderStatus.cornerClearance).help(report.title)
+                    .accessibilityLabel(report.title)
                 HStack(spacing: 5) {
                     ForEach(report.harnesses, id: \.self) { harness in
                         HStack(spacing: 3) {
@@ -224,13 +225,12 @@ private struct ReportCard: View {
                     }
                     Text("13 小时前").font(NativeTypography.inter(size: 11))
                         .foregroundStyle(NativePalette.overview.faint.swiftUI)
-                }.padding(.top, 5).padding(.trailing, 52)
+                }.padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
                 ThreadCardExcerpt(content: report.shortDescription)
                     .lineLimit(5).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
             }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .overlay(alignment: .topTrailing) {
+                .threadCardBadge {
                     ThreadCardProviderStatus(label: report.title, brandKey: "", emoji: report.emoji)
-                        .padding(.top, 12).padding(.trailing, 17)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 22))
         }
