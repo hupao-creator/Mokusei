@@ -103,6 +103,7 @@ public final class NativeWorkspacePresentation {
         let state = NativeMokuSceneState(overviewState: canvas,
             replyReadFileURL: workspace.client.storageDirectory.appendingPathComponent("native-moku-reply-read.json"),
             readingPanelMotion: messageMotion)
+        state.executionDockPlacement.beginRoute(navigationRouteID)
         state.submitNoteExposure = { [weak self] noteID, revision in
             guard let self else { throw CancellationError() }
             return try await NativeMokuNoteExposureSender.submit(workspace: self.workspace,
@@ -360,6 +361,7 @@ public final class NativeWorkspacePresentation {
         navigation = nil
         mountedReadingThread = nil
         navigationRouteID = UUID()
+        scene.executionDockPlacement.beginRoute(navigationRouteID)
     }
 
     public var canOpenSettings: Bool {
@@ -490,9 +492,19 @@ public final class NativeWorkspacePresentation {
         guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
         executionSendNavigation = nil
         let slidesFromReport = selected?.typeID == "report.document"
+        let previousDockFrame = scene.executionDockPlacement.frame
+        // Even a continuation in the same Thread is a new exact-result visit.
+        // Its retained predecessor must not publish layout/input for this one.
+        if selected == pending.destination.thread { resetNavigation() }
         open(pending.destination.thread, target: HarnessReadingTarget(executionID: pending.destination.executionID,
             requestID: JSONText(UUID().uuidString), mode: thread.observation.latestExecution?.executionID == pending.destination.executionID ? .current : .history,
             position: .result))
+        if selected == pending.destination.thread {
+            // Receipt admission permits this route handoff, not a speculative
+            // central stop while its readers and final column are preparing.
+            scene.executionDockPlacement.beginRoute(navigationRouteID, retaining: previousDockFrame,
+                threadID: pending.destination.thread.threadID, continuing: true)
+        }
         if slidesFromReport, selected == pending.destination.thread {
             executionRouteSlide.destinationRoute = navigationRouteID
         }
@@ -954,6 +966,7 @@ public struct NativeWorkspaceView: View {
                     ready: presentation.readingEntranceAdmitted,
                     enabled: !applicationSuppressed && presentation.selected != nil) {
                     readingFront.id(routeID)
+                        .environment(\.nativeExecutionDockRoute, routeID)
                 }
             }
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {

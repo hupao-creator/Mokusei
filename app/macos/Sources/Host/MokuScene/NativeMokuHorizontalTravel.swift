@@ -110,21 +110,13 @@ struct NativeMokuHorizontalTravelCommand: NSViewRepresentable {
             return
         }
 
-        let animation: CABasicAnimation
-        if previous?.frame != next.frame, next.frame != nil {
-            let spring = CASpringAnimation(keyPath: "transform.translation.x")
-            let frequency = 2 * Double.pi / 0.62
-            spring.mass = 1; spring.stiffness = frequency * frequency
-            spring.damping = 2 * 0.78 * frequency
-            spring.duration = spring.settlingDuration
-            animation = spring
-        } else {
-            animation = CABasicAnimation(keyPath: "transform.translation.x")
-            animation.duration = previous?.frame != next.frame ? 0.38 : 0.42
-            animation.timingFunction = previous?.frame != next.frame
-                ? CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
-                : next.reading ? NativeReadingPageTiming.emphasizedOpening : CAMediaTimingFunction(name: .easeInEaseOut)
-        }
+        // Column ownership has one destination. A damped spring overshoots it
+        // and visibly reverses even when no second layout target was published.
+        let animation = CABasicAnimation(keyPath: "transform.translation.x")
+        animation.duration = previous?.frame != next.frame ? 0.38 : 0.42
+        animation.timingFunction = previous?.frame != next.frame
+            ? CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            : next.reading ? NativeReadingPageTiming.emphasizedOpening : CAMediaTimingFunction(name: .easeInEaseOut)
         animation.fromValue = delta; animation.toValue = 0
         animation.delegate = self; animation.setValue(current, forKey: "generation")
         layer.add(animation, forKey: "moku-horizontal")

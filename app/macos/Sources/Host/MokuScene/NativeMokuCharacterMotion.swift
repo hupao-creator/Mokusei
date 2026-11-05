@@ -16,6 +16,7 @@ struct NativeMokuCharacterInput: Equatable {
     var motion: Bool
     var reduceMotion: Bool
     var dark: Bool
+    var immediateOrbit = false
 }
 
 struct NativeMokuCharacterPose {
@@ -115,6 +116,12 @@ struct NativeMokuCharacterPose {
             replacementGlyphs = []
             // A new execution cannot restore a retired source from the old one.
             if isThinking { retiredGlyphs = [] }
+        }
+        if next.running, next.immediateOrbit,
+           previous?.running != true || previous?.executionKey != next.executionKey {
+            // Direct-send feedback must move immediately, without the authored
+            // three-beat prelude. Pending -> active keeps the same orbit clock.
+            runningElapsed = MokuRunningStory.beatMS * 1.22
         }
         input = next
         stationaryTarget = nil

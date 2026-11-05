@@ -692,6 +692,25 @@ shared by Report and Agent input; there is no force-resend button.
 See [Execution continuation](../../../../../design/report-execution-continuation.md)
 for native constraints and the current sprint validation scope.
 
+Direct Thread sends start the three-dot orbit as soon as the Dock captures the
+submission, including while the pinned editor is present. This feedback skips
+the running choreography's initial three-beat prelude; it does not grant Stop
+authority, consume a draft or navigate before a confirmed receipt. Failure or
+an unresolved receipt retires submission feedback and leaves the existing draft
+and error/recovery path intact. Confirmed execution activity can continue the
+same orbit clock; unrelated Moku execution updates cannot restart it. Reduce
+Motion retains static dots.
+
+An accepted exact-execution continuation retains the previous Dock column,
+expanded shell and face seat while its new reading visit prepares. Native column
+markers belong to a route and publish only after auxiliary layout admission;
+retained outgoing Report markers cannot overwrite the destination. The Dock
+travels once to that committed column with a monotone curve. Replacements use
+the currently presented horizontal position; resize, dragging, deactivation and
+Reduce Motion settle travel directly. This preserves the existing draft,
+receipt, input-readiness and late-callback fences. See the
+[recording diagnosis and Sprint limits](../../../../../design/direct-send-transition.md).
+
 Sprint verification for the current change is static review and the application
 product build only: no new tests, test runs, replays, manual interaction fixture,
 CI or publishing. Earlier investigation results below that document's current

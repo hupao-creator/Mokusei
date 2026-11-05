@@ -243,7 +243,8 @@ struct NativeSidecardWorkspaceLayout: View {
                 .background(alignment: .topLeading) {
                     // Measure the destination, never the animated aperture.
                     NativeExecutionDockRegion(placement: executionPlacement,
-                        active: dockFrame != nil, dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
+                        active: dockFrame != nil, ready: snapshot.entranceReady && !preparing,
+                        dragging: snapshot.dragging, threadID: snapshot.input.thread.id,
                         onSettled: onDockSettled)
                         .destinationFrame(dockFrame)
                         .allowsHitTesting(false)

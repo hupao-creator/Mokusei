@@ -228,7 +228,10 @@ public struct NativeMokuDock: View {
         guard visibleVoiceTranscript == nil else { return nil }
         return visibleTalk?.id
     }
-    private var rowExpanded: Bool { (!voiceModeActive && state.inputOpen) || displayedMessage != nil }
+    private var continuationPresenting: Bool {
+        threadID != nil && sidecardComposer == nil && executionPlacement?.continuing == true
+    }
+    private var rowExpanded: Bool { (!voiceModeActive && (state.inputOpen || continuationPresenting)) || displayedMessage != nil }
     private var expanded: Bool { state.settingsExpanded || noteExpanded || rowExpanded }
     private var capsuleFraction: CGFloat { expanded ? 1 : 0 }
     private var surfaceAnimation: Animation? {
@@ -343,7 +346,15 @@ public struct NativeMokuDock: View {
         return reply
     }
     private var runningFeedback: Bool {
-        !state.settingsOpen && running && (mode == .running || incomingReasoning != nil)
+        guard !state.settingsOpen, !state.notePanelOpen, !noteMounted, interaction == nil, !voiceModeActive,
+              presentation?.workspace.runtimeAvailable ?? true else { return false }
+        if threadID != nil, sidecardComposer == nil {
+            // Submission is pending feedback only. It grants neither success,
+            // Stop authority nor permission to consume the captured draft.
+            // The pinned Thread editor must not suppress its own busy signal.
+            return (submitting && draft.error == nil) || continuationPresenting || (!disabled && running && draft.error == nil)
+        }
+        return running && (mode == .running || incomingReasoning != nil)
             && !expanded && !state.notePanelOpen && !noteMounted && !inputPresent && interaction == nil && !voiceModeActive
             && !disabled && (presentation?.workspace.runtimeAvailable ?? true)
     }
@@ -418,7 +429,7 @@ public struct NativeMokuDock: View {
             let noteButtonRect: CGRect? = nil
             let destination = NativeMokuHorizontalDestination(offset: placement.surface.midX - geometry.size.width / 2,
                 frame: executionFrame, revision: executionPlacement?.travelRevision ?? 0, viewport: geometry.size,
-                dragging: executionPlacement?.dragging == true, reduced: reduceMotion,
+                dragging: executionPlacement?.dragging == true, reduced: reduceMotion || scenePhase != .active,
                 composer: state.composerGeneration, reading: state.readingPanelVisible)
             ZStack(alignment: .topLeading) {
                 capsule(width: width, room: max(58, frame.height - 18),
@@ -759,7 +770,7 @@ public struct NativeMokuDock: View {
         let idleWidth = min(NativeMokuCapsuleLayout.idleSize.width, width)
         let idleHeight = NativeMokuCapsuleLayout.idleSize.height
         let composerVisible = inputPresent && state.inputOpen
-        let followsEditor = (inputPresent && displayedMessage == nil) || composerSeatHeld
+        let followsEditor = (inputPresent && displayedMessage == nil) || composerSeatHeld || continuationPresenting
         // Settings always settles the composer expansion at 1 and retires the
         // row above the face, so the seat it lands on is known without reading
         // any animated geometry back. The face keeps its layout seat and is
@@ -778,12 +789,12 @@ public struct NativeMokuDock: View {
             editorBottomInset: editorBottomInset, followsEditor: followsEditor)
         let characterInput = NativeMokuCharacterInput(expression: eyeExpression, focus: expanded ? 1 : 0,
             running: runningFeedback, reasoning: reasoningEligible ? incomingReasoning : nil,
-            presentsReasoning: reasoningEligible && reasoningReady, executionKey: presentation?.executionKey,
+            presentsReasoning: reasoningEligible && reasoningReady, executionKey: threadID?.string ?? presentation?.executionKey,
             capsuleSize: CGSize(width: surface.width, height: rowHeight - historyBand), cornerRadius: NativeMokuCapsuleLayout.cornerRadius,
             // Settings covers the Dock but keeps the face on screen in the page's
             // header, so its blink and expression keep their clock.
             motion: scenePhase == .active && state.windowVisible && (!state.dockCovered || state.settingsOpen),
-            reduceMotion: reduceMotion, dark: true)
+            reduceMotion: reduceMotion, dark: true, immediateOrbit: threadID != nil)
         return Color.clear
         .frame(width: surface.width, height: surface.height)
         .nativeLayoutLog("moku.capsule")
