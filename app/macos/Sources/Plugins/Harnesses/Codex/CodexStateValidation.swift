@@ -61,7 +61,7 @@ private enum CodexStateAdmission {
     }
 
     static func turn(_ value: JSONValue, at stateUpdatedAt: Double) -> Bool {
-        guard keys(value, ["executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "diff", "review", "contextCompacted", "error"]),
+        guard keys(value, ["executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "reasoningTokensByGeneration", "diff", "review", "contextCompacted", "error"]),
               canonical(value["executionId"], 1_024),
               let createdAt = timestamp(value["createdAt"]), let updatedAt = timestamp(value["updatedAt"]),
               updatedAt >= createdAt, updatedAt <= stateUpdatedAt,
@@ -84,6 +84,7 @@ private enum CodexStateAdmission {
               let notices = value["notices"]?.arrayValue,
               optional(value, "planExplanation", { bounded($0, detail) }),
               optional(value, "usage", usage),
+              optional(value, "reasoningTokensByGeneration", reasoningSamples),
               optional(value, "diff", { bounded($0, answer) }),
               optional(value, "review", { bounded($0, answer) }),
               optional(value, "contextCompacted", { $0.boolValue != nil }),
@@ -206,6 +207,13 @@ private enum CodexStateAdmission {
         keys(value, ["id", "level", "message"]) && canonical(value["id"], 1_024) &&
             member(value["level"], ["info", "warning", "error"]) && bounded(value["message"], notice)
     }
+    static func reasoningSamples(_ value: JSONValue) -> Bool {
+        guard let samples = value.objectValue, samples.count <= 10_000 else { return false }
+        return samples.allSatisfy { id, count in
+            canonical(.string(id), 1_024) && (count == .null || integer(count, minimum: 0))
+        }
+    }
+
     static func usage(_ value: JSONValue) -> Bool {
         guard keys(value, ["inputTokens", "cachedInputTokens", "outputTokens", "reasoningTokens", "contextWindow"]),
               let values = value.objectValue else { return false }

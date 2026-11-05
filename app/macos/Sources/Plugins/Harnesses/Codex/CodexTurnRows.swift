@@ -20,7 +20,7 @@ struct CodexTurnRows: View {
 
     var body: some View {
         ThreadDetailTurn(id: turn.executionId, author: author, rows: rows,
-            reasoningUsage: turn.usage?["reasoningTokens"]?.numberValue.map { ThreadReasoningUsage(tokens: $0, scope: .lastCall) },
+            reasoningUsage: executionReasoningTokens.map { ThreadReasoningUsage(tokens: $0, scope: .turn) },
             createdAt: turn.createdAt, updatedAt: turn.finishedAt ?? turn.updatedAt,
             status: statusLabel, completedAt: turn.status == "completed" ? turn.finishedAt : nil,
             usage: AnyView(ThreadTokenUsage(input: turn.usage?["inputTokens"]?.numberValue,
@@ -33,6 +33,12 @@ struct CodexTurnRows: View {
                     self.busyInteractionID = nil
                 }
             }
+    }
+
+    private var executionReasoningTokens: Double? {
+        guard let samples = turn.raw["reasoningTokensByGeneration"]?.objectValue, !samples.isEmpty,
+              samples.values.allSatisfy({ $0.numberValue != nil }) else { return nil }
+        return samples.values.reduce(0) { $0 + ($1.numberValue ?? 0) }
     }
 
     private var author: JSONValue {

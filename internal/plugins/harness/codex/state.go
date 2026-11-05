@@ -78,7 +78,7 @@ func StageExecutionChecked(state Map, id string, input Map, at int64, settings M
 	if messageID == "" {
 		messageID = "message:" + id
 	}
-	turn := Map{"executionId": id, "createdAt": timestamp, "updatedAt": timestamp, "status": "running", "statusLabel": "正在连接 Codex", "messages": []any{stMessage(input, messageID, "prompt", timestamp)}, "timeline": []any{Map{"id": fmt.Sprintf("tl:%d:user-message:0", timestamp), "kind": "user-message", "createdAt": timestamp, "messageId": messageID}}, "answer": "", "reasoning": "", "plan": []any{}, "activities": []any{}, "interactions": []any{}, "notices": []any{}}
+	turn := Map{"executionId": id, "createdAt": timestamp, "updatedAt": timestamp, "status": "running", "statusLabel": "正在连接 Codex", "messages": []any{stMessage(input, messageID, "prompt", timestamp)}, "timeline": []any{Map{"id": fmt.Sprintf("tl:%d:user-message:0", timestamp), "kind": "user-message", "createdAt": timestamp, "messageId": messageID}}, "answer": "", "reasoning": "", "plan": []any{}, "activities": []any{}, "interactions": []any{}, "notices": []any{}, "reasoningTokensByGeneration": Map{}}
 	if settings != nil {
 		author := Map{}
 		if model := strings.TrimSpace(stString(settings["model"])); model != "" {
@@ -129,14 +129,15 @@ func RejectFollowUp(state Map, id, message string, at int64, noticeID string) Ma
 }
 
 // ReduceEvent uses event.at when supplied, allowing deterministic native replay.
-// Telemetry and public-final are consumed by the controller, not durable state.
+// Generation usage also contributes execution-scoped reasoning totals; public-final
+// remains controller-owned.
 func ReduceEvent(state Map, executionID string, event Map) Map {
 	kind := stString(event["type"])
 	at := time.Now().UnixMilli()
 	if value, ok := event["at"]; ok {
 		at = stInt(value)
 	}
-	if kind == "public-final" || kind == "generation-usage" {
+	if kind == "public-final" {
 		return state
 	}
 	if kind == "session" {
@@ -294,6 +295,21 @@ func ReduceEvent(state Map, executionID string, event Map) Map {
 		if turn["status"] == "waiting-input" && !waiting {
 			turn["status"], turn["statusLabel"] = "running", "正在工作"
 		}
+	case "generation-usage":
+		// Replace by identity, never add repeated usage snapshots. A missing
+		// count poisons the total rather than silently contributing zero.
+		samples := stMap(turn["reasoningTokensByGeneration"])
+		id := stString(event["generationId"])
+		if samples == nil || !stCanonical(id, 1024) {
+			return state
+		}
+		count, ok := stNumber(stMap(event["usage"])["reasoningOutputTokens"])
+		if ok && count >= 0 && count == math.Trunc(count) && count <= 9007199254740991 {
+			samples[id] = count
+		} else {
+			samples[id] = nil
+		}
+		turn["reasoningTokensByGeneration"] = samples
 	case "usage":
 		turn["usage"] = stClone(stMap(event["usage"]))
 	case "warning", "error":
@@ -964,7 +980,7 @@ func stValidState(state Map) bool {
 }
 
 func stValidTurn(turn Map, stateUpdated int64) bool {
-	if !stOnly(turn, "executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "diff", "review", "contextCompacted", "error") || !stCanonical(turn["executionId"], 1024) || !stTimestamp(turn["createdAt"]) || !stWithin(turn["updatedAt"], stInt(turn["createdAt"]), stateUpdated) || !stOneOf(stString(turn["status"]), "running", "waiting-input", "completed", "failed", "interrupted") {
+	if !stOnly(turn, "executionId", "createdAt", "updatedAt", "finishedAt", "status", "statusLabel", "foreground", "reasoningBreak", "author", "runtimeModel", "runtimeServiceTier", "messages", "timeline", "answer", "lastAssistantMessage", "reasoning", "plan", "planExplanation", "activities", "interactions", "notices", "usage", "reasoningTokensByGeneration", "diff", "review", "contextCompacted", "error") || !stCanonical(turn["executionId"], 1024) || !stTimestamp(turn["createdAt"]) || !stWithin(turn["updatedAt"], stInt(turn["createdAt"]), stateUpdated) || !stOneOf(stString(turn["status"]), "running", "waiting-input", "completed", "failed", "interrupted") {
 		return false
 	}
 	created, updated := stInt(turn["createdAt"]), stInt(turn["updatedAt"])
@@ -1067,6 +1083,24 @@ func stValidTurn(turn Map, stateUpdated int64) bool {
 		item := stMap(value)
 		if !stOnly(item, "id", "level", "message") || !stCanonical(item["id"], 1024) || !stOneOf(stString(item["level"]), "info", "warning", "error") || !stBounded(item["message"], stMaxNotice) {
 			return false
+		}
+	}
+	if value, exists := turn["reasoningTokensByGeneration"]; exists {
+		samples := stMap(value)
+		if samples == nil || len(samples) > 10000 {
+			return false
+		}
+		for id, value := range samples {
+			if !stCanonical(id, 1024) {
+				return false
+			}
+			if value == nil {
+				continue
+			}
+			n, ok := stNumber(value)
+			if !ok || n < 0 || n != math.Trunc(n) || n > 9007199254740991 {
+				return false
+			}
 		}
 	}
 	if usage, exists := turn["usage"]; exists {

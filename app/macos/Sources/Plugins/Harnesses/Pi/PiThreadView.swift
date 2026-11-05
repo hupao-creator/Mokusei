@@ -140,13 +140,10 @@ private struct PiTurn: View {
     private var active: Bool { current && [.running, .waitingForUser].contains(input.thread.observation.latestExecution?.status ?? .completed) }
     var body: some View {
         let usage = state.executionUsage[execution.executionID]
-        let assistants = messages.filter { $0.role == "assistant" }
-        let reasoning = !assistants.isEmpty && assistants.allSatisfy { $0.status != "streaming" && $0.usage?.reasoning != nil }
-            ? assistants.reduce(0) { $0 + ($1.usage?.reasoning ?? 0) } : nil
         VStack(alignment: .leading, spacing: 8) {
             if let failure { PiFailure(message: failure) }
             ThreadDetailTurn(id: execution.executionID, author: author, rows: rows,
-                reasoningUsage: reasoning.map { ThreadReasoningUsage(tokens: $0, scope: .turn) },
+                reasoningUsage: usage?.reasoning.map { ThreadReasoningUsage(tokens: $0, scope: .turn) },
                 createdAt: execution.startedAt, updatedAt: execution.finishedAt ?? execution.startedAt,
                 status: execution.status.rawValue, completedAt: execution.status == .completed ? execution.finishedAt : nil,
                 usage: usage.map { AnyView(ThreadTokenUsage(input: $0.prompt, output: $0.output, cached: $0.cacheRead,

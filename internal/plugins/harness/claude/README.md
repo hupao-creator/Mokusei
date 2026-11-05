@@ -113,3 +113,10 @@ ordinary inputs keep their existing behavior.
 for Moku grep. Existing index text joins the same passages, preserving its prior
 exclusions. This extracts only retained Mokusei state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
+
+Reasoning usage totals are recomputed from the parser's replacement map keyed by
+native message ID, not added from cumulative turn snapshots. A reported usage
+sample without reasoning usage suppresses the reasoning total; absent/null
+thinking-token metrics do not become zero. The reader uses the persisted turn
+aggregate for live and historical execution summaries. In-flight unreported
+usage is not estimated.
