@@ -521,7 +521,11 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 		author, _ := json.Marshal(authorValue)
 		h.state.ExecutionAuthors[id] = author
 	}
-	h.state.Messages = append(h.state.Messages, MessageState{ID: echo.ID, ExecutionID: request.ExecutionID, Role: "user", Text: visible, Annotations: append(json.RawMessage(nil), request.Input.Annotations...)})
+	presentation := request.Input.Presentation
+	if presentation == "" {
+		presentation = "ordinary"
+	}
+	h.state.Messages = append(h.state.Messages, MessageState{ID: echo.ID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation, Text: visible, Annotations: append(json.RawMessage(nil), request.Input.Annotations...)})
 	if err = h.commitLocked(); err != nil {
 		_ = json.Unmarshal(backup, &h.state)
 		h.mu.Unlock()

@@ -59,6 +59,8 @@ matching threads (maximum 50). Literal queries preserve spaces and support Chine
 without tokenization; no diacritic/width normalization occurs. Regex uses Go's
 linear-time RE2 syntax, including inline flags; invalid patterns fail. Matches
 cannot cross passage boundaries. `field:title` searches only current thread titles.
+Invalid arguments, patterns and mismatched cursors are caller-correctable tool
+errors; cancellation and Runtime failures retain their original classification.
 `threadIds` (up to 100; empty means unrestricted) and exact `directoryScopeId`
 intersect within the current profile. Inbox uses `inbox`; scope follows the existing
 Directory Scope resolver, not a display tag or execution worktree directory.
@@ -86,6 +88,12 @@ Coverage is only public completed-execution text retained in Mokusei state.
 Running, waiting, failed/interrupted execution text, reasoning, tool payloads,
 attachments, internal prompts, private Report/Tag agents, Moku and Moku history
 are excluded. Native compaction or earlier retention limits cannot be undone.
+Internal-input exclusion relies on the Harness's retained visibility markers:
+Pi/OpenCode user inputs without those markers are omitted, with the explicit
+`unknown-input-visibility` issue even when another passage matches. Their public
+assistant text remains searchable. Public assistant text may quote internal or
+sensitive input; grep does not redact public text or infer its origin. Shared
+index extraction also omits these unknown-visibility inputs on its next rebuild.
 Unsupported Harnesses, missing/invalid/oversized state, no public text and
 concurrent source changes are explicit page-local `issues`, never silent
 negative evidence. Adapter errors are sanitized. Public text can itself contain

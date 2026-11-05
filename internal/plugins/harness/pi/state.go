@@ -11,20 +11,21 @@ import (
 )
 
 type MessageState struct {
-	ID          string          `json:"id"`
-	ExecutionID string          `json:"executionId"`
-	Role        string          `json:"role"`
-	Text        string          `json:"text"`
-	Status      string          `json:"status,omitempty"`
-	Thinking    string          `json:"thinking,omitempty"`
-	ToolCallID  string          `json:"toolCallId,omitempty"`
-	ToolName    string          `json:"toolName,omitempty"`
-	IsError     bool            `json:"isError,omitempty"`
-	Todos       []Todo          `json:"todos,omitzero"`
-	Model       string          `json:"model,omitempty"`
-	Provider    string          `json:"provider,omitempty"`
-	Usage       *Usage          `json:"usage,omitempty"`
-	Annotations json.RawMessage `json:"annotations,omitempty"`
+	ID           string          `json:"id"`
+	ExecutionID  string          `json:"executionId"`
+	Role         string          `json:"role"`
+	Presentation string          `json:"presentation,omitempty"`
+	Text         string          `json:"text"`
+	Status       string          `json:"status,omitempty"`
+	Thinking     string          `json:"thinking,omitempty"`
+	ToolCallID   string          `json:"toolCallId,omitempty"`
+	ToolName     string          `json:"toolName,omitempty"`
+	IsError      bool            `json:"isError,omitempty"`
+	Todos        []Todo          `json:"todos,omitzero"`
+	Model        string          `json:"model,omitempty"`
+	Provider     string          `json:"provider,omitempty"`
+	Usage        *Usage          `json:"usage,omitempty"`
+	Annotations  json.RawMessage `json:"annotations,omitempty"`
 }
 type ForkSource struct {
 	JSONL string `json:"jsonl"`

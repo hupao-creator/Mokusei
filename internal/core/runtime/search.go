@@ -104,7 +104,9 @@ func (r *Runtime) GrepThreads(ctx context.Context, raw json.RawMessage) (any, er
 		source := threadsearch.GrepSource{ID: thread.ID, Title: thread.Title, ScopeID: directoryScope(thread).ID, Hash: hash, Archived: archived(&thread), StateBytes: len(thread.SessionState)}
 		if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
 			if adapter, ok := harness.SessionState().(plugin.SearchPassageAdapter); ok {
-				source.Load = func() ([]plugin.SearchPassage, error) { return adapter.SearchPassages(thread.SessionState) }
+				source.Load = func() ([]plugin.SearchPassage, error) {
+					return adapter.SearchPassages(bytes.Clone(thread.SessionState))
+				}
 			}
 		}
 		sources = append(sources, source)

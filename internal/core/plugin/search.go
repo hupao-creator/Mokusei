@@ -20,6 +20,9 @@ type SearchTextAdapter interface {
 type SearchPassage struct {
 	ExecutionID string `json:"executionId,omitempty"`
 	Text        string `json:"text"`
+	// Unavailable preserves passage order without disclosing an input whose
+	// visibility was not retained. Retrieval must report this coverage gap.
+	Unavailable bool `json:"unavailable,omitempty"`
 }
 
 // SearchPassageAdapter uses the same disclosure boundary as SearchTextAdapter,

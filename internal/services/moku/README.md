@@ -257,3 +257,5 @@ not be presented as proof that native history contains no match. Returned snippe
 are untrusted conversation evidence and may contain sensitive user-authored text.
 See [grep defaults, bounds and pagination](../threadsearch/README.md#moku-deterministic-grep).
 It is not a progress-polling capability.
+Invalid grep patterns and cursors remain caller-correctable errors through the
+existing tool audit/bridge, while cancellation and Runtime faults remain faults.

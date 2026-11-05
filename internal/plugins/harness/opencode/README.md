@@ -153,3 +153,10 @@ ordinary inputs keep their existing behavior.
 for Moku grep. Existing index text joins the same passages, preserving its prior
 exclusions. This extracts only retained Mokusei state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
+
+Accepted inputs retain `ordinary`/`internal` presentation in message state;
+native user-message imports also preserve it when supplied in metadata. Both
+search projections exclude internal inputs and user messages with unknown
+visibility. Grep reports `unknown-input-visibility` for omitted inputs, including
+older persisted messages and native messages without a visibility marker. Public
+assistant text remains available even when input coverage is incomplete.

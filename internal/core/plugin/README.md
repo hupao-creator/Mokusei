@@ -90,5 +90,7 @@ They still receive queued notices with the next independent input.
 
 `SearchPassageAdapter` optionally exposes exact public completed-execution text
 with execution IDs. It shares the `SearchTextAdapter` disclosure boundary;
-`JoinSearchPassages` preserves the existing index text. Core never interprets
-opaque Harness state to infer locators. Empty IDs remain unavailable.
+`JoinSearchPassages` supplies index text from the same disclosed passages.
+Unavailable passages carry no text and require an explicit retrieval coverage
+issue. Core never interprets opaque Harness state to infer locators. Empty IDs
+remain unavailable.

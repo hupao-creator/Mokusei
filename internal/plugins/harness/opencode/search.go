@@ -24,7 +24,11 @@ func (StateAdapter) SearchPassages(raw json.RawMessage) ([]plugin.SearchPassage,
 		}
 	}
 	for _, message := range state.Messages {
-		if completed[message.ExecutionID] && (message.Role == "user" || message.Role == "assistant") {
+		if completed[message.ExecutionID] && message.Presentation != "internal" && (message.Role == "user" || message.Role == "assistant") {
+			if message.Role == "user" && message.Presentation != "ordinary" {
+				parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Unavailable: true})
+				continue
+			}
 			parts = append(parts, plugin.SearchPassage{ExecutionID: message.ExecutionID, Text: message.Text})
 		}
 	}

@@ -27,6 +27,7 @@ type Message struct {
 	ID              string          `json:"id"`
 	ExecutionID     string          `json:"executionId"`
 	Role            string          `json:"role"`
+	Presentation    string          `json:"presentation,omitempty"`
 	Text            string          `json:"text"`
 	NativeSessionID string          `json:"nativeSessionId,omitempty"`
 	NativeMessageID string          `json:"nativeMessageId,omitempty"`
@@ -386,8 +387,11 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 		at := int64(number(object(v["time"])["created"]))
 		if kind == "user" {
 			if known == nil {
-				s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Text: str(v["text"]), CreatedAt: at, Inherited: inherited})
+				s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Presentation: str(object(v["metadata"])["mokuseiPresentation"]), Text: str(v["text"]), CreatedAt: at, Inherited: inherited})
 			} else {
+				if presentation := str(object(v["metadata"])["mokuseiPresentation"]); presentation != "" && known.Presentation == "" {
+					known.Presentation = presentation
+				}
 				known.NativeMessageID = id
 				known.NativeSessionID = session
 			}
@@ -564,7 +568,8 @@ func (s *State) Reduce(event Event, owner string) error {
 		item := object(data["item"])
 		id := str(data["inboxID"])
 		if item["type"] == "user" && s.message("user", id, session) == nil {
-			s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Text: str(object(item["payload"])["text"]), CreatedAt: event.Created})
+			payload := object(item["payload"])
+			s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Presentation: str(object(payload["metadata"])["mokuseiPresentation"]), Text: str(payload["text"]), CreatedAt: event.Created})
 		}
 	}
 	if (t == "session.compaction.ended" || t == "session.compaction.failed") && owner != "" {

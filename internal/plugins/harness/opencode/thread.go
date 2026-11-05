@@ -1010,7 +1010,11 @@ func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
 		}
 	}
 	promptID := newMessageID()
-	message := &Message{ID: promptID, NativeMessageID: promptID, NativeSessionID: t.state.NativeSessionID, ExecutionID: request.ExecutionID, Role: "user", Text: prepared.VisibleText, Status: "complete", CreatedAt: time.Now().UnixMilli(), Annotations: append(json.RawMessage{}, request.Input.Annotations...)}
+	presentation := request.Input.Presentation
+	if presentation == "" {
+		presentation = "ordinary"
+	}
+	message := &Message{ID: promptID, NativeMessageID: promptID, NativeSessionID: t.state.NativeSessionID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation, Text: prepared.VisibleText, Status: "complete", CreatedAt: time.Now().UnixMilli(), Annotations: append(json.RawMessage{}, request.Input.Annotations...)}
 	if active == nil {
 		t.state.Messages = append(t.state.Messages, message)
 		if t.state.NativeSessionID != "" {
@@ -1084,10 +1088,6 @@ func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
 			}
 		}
 		if err == nil {
-			presentation := request.Input.Presentation
-			if presentation == "" {
-				presentation = "ordinary"
-			}
 			dispatched = true
 			err = runtime.Request(ctx, "POST", sessionPath(id, "/prompt"), Object{"id": promptID, "text": prepared.Text, "files": prepared.Files, "metadata": Object{"mokuseiExecutionId": request.ExecutionID, "mokuseiPresentation": presentation}, "delivery": "steer"}, nil)
 			received = err == nil

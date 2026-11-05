@@ -74,29 +74,29 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 	request := grepRequest{Mode: "literal", Field: "body", IncludeArchived: true, Limit: 20}
 	var object map[string]json.RawMessage
 	if json.Unmarshal(raw, &object) != nil || object == nil {
-		return result, errors.New("grep_threads requires an object")
+		return result, plugin.CallerError(errors.New("grep_threads requires an object"))
 	}
 	for _, value := range object {
 		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
-			return result, errors.New("grep_threads does not accept null fields")
+			return result, plugin.CallerError(errors.New("grep_threads does not accept null fields"))
 		}
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&request); err != nil {
-		return result, errors.New("invalid grep_threads arguments")
+		return result, plugin.CallerError(errors.New("invalid grep_threads arguments"))
 	}
 	if request.Query == "" || !utf8.ValidString(request.Query) || utf8.RuneCountInString(request.Query) > 1024 || strings.ContainsRune(request.Query, 0) || request.Limit < 1 || request.Limit > 50 || len(request.ThreadIDs) > 100 || len(request.DirectoryScopeID) > 4096 || strings.ContainsRune(request.DirectoryScopeID, 0) || len(request.Cursor) > 2048 {
-		return result, errors.New("grep_threads argument exceeds limits")
+		return result, plugin.CallerError(errors.New("grep_threads argument exceeds limits"))
 	}
 	if _, ok := object["directoryScopeId"]; ok && request.DirectoryScopeID == "" {
-		return result, errors.New("directoryScopeId must not be empty")
+		return result, plugin.CallerError(errors.New("directoryScopeId must not be empty"))
 	}
 	if _, ok := object["cursor"]; ok && request.Cursor == "" {
-		return result, errors.New("cursor must not be empty")
+		return result, plugin.CallerError(errors.New("cursor must not be empty"))
 	}
 	if request.Mode != "literal" && request.Mode != "regex" || request.Field != "body" && request.Field != "title" {
-		return result, errors.New("grep_threads mode must be literal/regex and field must be body/title")
+		return result, plugin.CallerError(errors.New("grep_threads mode must be literal/regex and field must be body/title"))
 	}
 	if request.Field == "title" {
 		result.Coverage = "Current ordinary-thread titles only; no execution or native-history coverage. Live pages: refresh for edits behind the cursor."
@@ -104,7 +104,7 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 	ids := map[string]bool{}
 	for _, id := range request.ThreadIDs {
 		if id == "" || len(id) > 128 || strings.ContainsAny(id, " \t\r\n\x00") {
-			return result, errors.New("invalid grep_threads threadId")
+			return result, plugin.CallerError(errors.New("invalid grep_threads threadId"))
 		}
 		ids[id] = true
 	}
@@ -125,7 +125,7 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 		data, err := base64.RawURLEncoding.DecodeString(cursorText)
 		var cursor grepCursor
 		if err != nil || json.Unmarshal(data, &cursor) != nil || cursor.Filter != filter || cursor.After == "" || len(cursor.After) > 128 {
-			return result, errors.New("invalid grep_threads cursor; restart without cursor")
+			return result, plugin.CallerError(errors.New("invalid grep_threads cursor; restart without cursor"))
 		}
 		after = cursor.After
 	}
@@ -138,7 +138,7 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 	}
 	matcher, err := regexp.Compile(pattern)
 	if err != nil {
-		return result, errors.New("invalid grep_threads RE2 regular expression")
+		return result, plugin.CallerError(errors.New("invalid grep_threads RE2 regular expression"))
 	}
 	sort.Slice(sources, func(i, j int) bool { return sources[i].ID < sources[j].ID })
 	selected := make([]GrepSource, 0, len(sources))
@@ -182,10 +182,14 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 				continue
 			}
 		}
-		hasText := false
+		hasText, unavailable := false, false
 		for passageIndex, passage := range passages {
 			if err := ctx.Err(); err != nil {
 				return GrepResult{}, err
+			}
+			if passage.Unavailable {
+				unavailable = true
+				continue
 			}
 			if passage.Text == "" {
 				continue
@@ -206,7 +210,18 @@ func Grep(ctx context.Context, raw json.RawMessage, sources []GrepSource, valid 
 				end += size
 			}
 			result.Hits = append(result.Hits, GrepHit{ThreadID: source.ID, ExecutionID: passage.ExecutionID, PassageIndex: passageIndex, Field: request.Field, Archived: source.Archived, Snippet: passage.Text[start:end], Start: loc[0], End: loc[1], SnippetStart: start, MatchTruncated: loc[1] > end})
+			// Keep walking omitted passages so a hit does not hide incomplete
+			// input coverage later in this thread.
+			for _, remaining := range passages[passageIndex+1:] {
+				if err := ctx.Err(); err != nil {
+					return GrepResult{}, err
+				}
+				unavailable = unavailable || remaining.Unavailable
+			}
 			break
+		}
+		if unavailable {
+			result.Issues = append(result.Issues, GrepIssue{source.ID, "unknown-input-visibility"})
 		}
 		if !hasText {
 			result.Issues = append(result.Issues, GrepIssue{source.ID, "no-public-text"})
