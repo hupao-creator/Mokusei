@@ -219,7 +219,10 @@ references, fold references with focus restored to their launcher, then close
 the report. The action also cancels a pending related card before it opens, and
 is removed when neither an active nor pending related card belongs to the visit.
 Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
-of the Sidecard. Browser routing, divider resizing and retained documents keep
+of the Sidecard. Its main shell also clips at the animated 22pt outer frame,
+after the fixed-size document's transaction boundary: a document adopting its
+larger destination size during folding cannot paint beyond the travelling
+border. Browser routing, divider resizing and retained documents keep
 their existing ownership.
 See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
 for readiness, cancellation, screenshot diagnosis and Sprint verification limits.

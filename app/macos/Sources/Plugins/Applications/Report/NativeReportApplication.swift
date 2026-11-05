@@ -101,6 +101,9 @@ struct NativeReportDetail: View {
                     .offset(x: layout.mainWidth / 2)
                     .frame(width: layout.mainWidth, height: layout.mainHeight)
                     .background(NativePalette.thread.canvas.swiftUI, in: RoundedRectangle(cornerRadius: 22))
+                    // The document adopts its destination size before the shell
+                    // arrives; clip after the animated frame, not only inside HTML.
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.thread.line.swiftUI.opacity(0.6)))
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {

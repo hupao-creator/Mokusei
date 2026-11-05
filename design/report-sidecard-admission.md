@@ -40,6 +40,11 @@ an unwanted execution-process summary.
   summary while preserving the final reply, independent errors, interactions,
   author, status, timestamps and usage. The live Agent execution Sidecard keeps
   its existing heading/work policy.
+- The main Report reader adopts its destination document size once when a
+  sidecard changes. Its 14pt HTML viewport clip follows that destination size;
+  a separate 22pt outer clip follows the animated shell frame and border.
+  This prevents the wider document escaping the shell during sidecard collapse
+  without introducing per-frame WebKit layout or changing the 380ms fold curve.
 
 ## Ownership and validation
 
@@ -64,3 +69,27 @@ the Go compiler cache; rerunning these same build/static commands with the
 required environment access succeeded. Effective remote main rules require
 strict `Complete coverage` and a pull request; those remote gates were only
 inspected, not executed or bypassed for this local Sprint delivery.
+
+## Report shell clipping follow-up
+
+The supplied 2026-11-05 13:59:00 recording shows the loaded HTML background
+escaping the main panel's right border at approximately 1.5s and 3.2s while
+the related card folds. The document immediately takes its larger destination
+width, while the main shell still interpolates from its narrower width. The
+inner HTML clip also takes the destination size, so it cannot contain pixels
+within that intermediate shell. Report was missing the outer animated-frame
+clip already used by the Agent main panel.
+
+The main Report shell now applies a 22pt rounded clip after the animated outer
+frame and background, before the border. That clip shares the border's current
+presentation bounds while the document keeps its existing destination-size
+transaction. This also contains vertical growth in stacked layouts. The
+retained WebKit view, 8pt viewport inset, inner 14pt clip, fold timing,
+Reduced Motion handling and sidecard admission/selection keep their ownership.
+
+Sprint verification for this follow-up is inspection of the supplied recording,
+source/layout review, product compilation, static lint and diff/link checks.
+No new tests, regression runs, automated captures, CI or push are performed.
+The repaired application's intermediate frames have not been captured or
+visually accepted in a running application; the source recording establishes
+the original defect, not post-fix visual acceptance.
