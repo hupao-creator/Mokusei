@@ -90,8 +90,14 @@ Report documents persist `emoji` (one complete Unicode emoji) and
 `shortDescription` (1–220 Unicode scalars, whitespace normalized) independently
 of HTML. Create requires both; update can replace either without changing the
 HTML content revision. Read/list and the native catalog expose these fields.
-The Report Agent supplies them through its tool schema. Missing or invalid
-metadata is rejected; this unreleased contract has no legacy migration.
+The Report Agent supplies them through its tool schema. Its instructions ask for
+a substantive, evidence-grounded card snapshot, with flexible Chinese and English
+length targets suited to the five-line display; the 220-scalar limit remains a
+hard validation boundary, not a target to fill. On report updates the agent
+revisits the introduction when new evidence changes the report or can make the
+card more useful. Existing descriptions are not rewritten in bulk; they change
+only when a report update supplies a replacement. Missing or invalid metadata is
+rejected; this unreleased contract has no legacy migration.
 
 Overview uses the shared Agent card typography, excerpt renderer and upper-right
 emoji badge. The metadata row displays unique source Harness logos and update

@@ -62,7 +62,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 	id := model.Object{"type": "string", "minLength": 1, "maxLength": MaxIdentifierLength}
 	title := model.Object{"type": "string", "minLength": 1, "maxLength": MaxTitleLength, "pattern": "\\S", "description": "Report title."}
 	emoji := model.Object{"type": "string", "description": "One complete emoji representing this report."}
-	description := model.Object{"type": "string", "minLength": 1, "maxLength": MaxPreviewLength, "description": "Short standalone introduction for the report card."}
+	description := model.Object{"type": "string", "minLength": 1, "maxLength": MaxPreviewLength, "description": "Substantive standalone report card introduction, grounded in evidence; follow the system instructions for content and length."}
 	html := model.Object{"type": "string", "minLength": 1, "maxLength": MaxHTMLCharacters, "pattern": "\\S", "description": "Report HTML document. Follow the current system instructions for content and presentation."}
 	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
 	write := func(operation string) background.ToolHandler {
