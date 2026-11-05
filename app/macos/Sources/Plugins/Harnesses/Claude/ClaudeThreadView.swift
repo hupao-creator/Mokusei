@@ -140,6 +140,7 @@ struct ClaudeTurnView: View {
             usage: AnyView(ThreadTokenUsage(input: inputs.allSatisfy { $0 != nil } ? inputs.compactMap { $0 }.reduce(0,+) : nil,
                 output: usage?["outputTokens"]?.numberValue, cached: usage?["cachedTokens"]?.numberValue,
                 cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active)
+            .nativeReadingExecutionReady(turn.id, settled: turn.status != "running")
     }
     private var rows: [ThreadDetailRow] {
         let timeline = claudeProjectTimeline(turn).filter { agentDetail ? claudeDetailIncludes($0) : $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)

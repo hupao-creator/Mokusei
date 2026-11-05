@@ -169,6 +169,7 @@ private struct OpenCodeTurn: View {
             usage: usage.map { AnyView(ThreadTokenUsage(input: $0.input + $0.cacheRead + $0.cacheWrite,
                 output: $0.output + $0.reasoning, cached: $0.cacheRead, cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) },
             active: current && input.thread.observation.isExecutionActive)
+            .nativeReadingExecutionReady(execution.executionID, settled: !executionActive)
     }
     private var statusLabel: String {
         switch execution.status { case .failed: "失败"; case .interrupted: "已中断"; case .waitingForUser: "等待你的响应"; case .running: "运行中"; case .completed: "已完成" }

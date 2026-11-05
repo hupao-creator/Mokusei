@@ -460,12 +460,19 @@ decorative emoji and visible document title, use a compact 12pt timeline top ins
 and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets.
 
-The Sidecard-to-main handoff uses `NativeReadingPageTiming.replacementAnimation`.
+The Sidecard-to-main handoff uses `NativeReadingPageTiming.replacementAnimation`
+and its compositor timing function, sequentially absorbing the original-size
+Sidecard into the widening main panel before turning down to the next execution.
 `NativeReadingContentHandoff` scopes a readiness callback to the exact execution;
 `ThreadConversation` forwards it only through that row. Mounted production content
 and readable errors acknowledge readiness with `nativeReadingContentReady()`;
-placeholders do not. The retained source covers data acquisition and decoder
-loading at landing. This signal does not change reading destinations, scroll
+placeholders do not. During handoff, `NativeReadingContentPreparation` additionally
+waits for Markdown parsing and the content owner's `nativeReadingExecutionReady`
+terminal state. Codex, Claude, Pi and OpenCode provide that state from their admitted
+opaque content, independently of catalog completion. Running cached data cannot
+release the handoff. Readable errors remain an alternate landing destination.
+The Host retains the actual outgoing reader through preparation and travel, then
+keeps the same incoming native host. This signal does not change reading destinations, scroll
 following, data ownership or keyboard/accessibility focus.
 
 A horizontal return requested during opening starts from the current AppKit

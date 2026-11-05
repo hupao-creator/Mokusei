@@ -49,10 +49,11 @@ struct NativeSidecardWorkspaceSnapshot {
     let focusLauncherOnClose: Bool
 
     var available: [NativeSidecardWorkspaceCard] { cards.filter { $0.view.available } }
-    // Folding never gives the main view ownership of a sidecard's execution.
+    // Folding never gives main ownership. A handoff admits a hidden destination
+    // immediately; the native host retains the previous visible reader.
     var excludedExecutionIDs: [JSONText] {
         cards.compactMap { card in
-            if handoff?.cardID == card.id, handoff?.travelComplete == true { return nil }
+            if handoff?.cardID == card.id { return nil }
             return card.view.excludeExecutionID
         }
     }
@@ -157,7 +158,8 @@ final class NativeSidecardWorkspaceModel {
     func closeThread() { onBack() }
 
     func completeHandoffTravel(_ id: UUID) {
-        guard !isReleased, handoff?.id == id else { return }
+        guard !isReleased, handoff?.id == id, handoff?.contentReady == true,
+              handoff?.travelComplete == false else { return }
         handoff?.travelComplete = true
         reconcile()
     }
@@ -167,7 +169,7 @@ final class NativeSidecardWorkspaceModel {
         // an elapsed animation timer. A late row cannot finish another handoff.
         Task { @MainActor [weak self] in
             guard let self, !isReleased, handoff?.id == handoffID, handoff?.executionID == executionID,
-                  handoff?.travelComplete == true, handoff?.contentReady == false else { return }
+                  handoff?.contentReady == false else { return }
             handoff?.contentReady = true
             reconcile()
         }

@@ -26,6 +26,7 @@ struct CodexTurnRows: View {
             usage: AnyView(ThreadTokenUsage(input: turn.usage?["inputTokens"]?.numberValue,
                 output: turn.usage?["outputTokens"]?.numberValue, cached: turn.usage?["cachedInputTokens"]?.numberValue,
                 reasoning: turn.usage?["reasoningTokens"]?.numberValue)), active: active)
+            .nativeReadingExecutionReady(turn.executionId, settled: !["running", "waiting-input"].contains(turn.status))
             .onChange(of: turn.interactions) { _, interactions in
                 if let busyInteractionID, !interactions.contains(where: { $0.id == busyInteractionID && $0.status == "pending" && $0.blocksTurn }) {
                     self.busyInteractionID = nil

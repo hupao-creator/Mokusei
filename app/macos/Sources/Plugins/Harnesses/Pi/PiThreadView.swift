@@ -151,6 +151,7 @@ private struct PiTurn: View {
                 status: execution.status.rawValue, completedAt: execution.status == .completed ? execution.finishedAt : nil,
                 usage: usage.map { AnyView(ThreadTokenUsage(input: $0.prompt, output: $0.output, cached: $0.cacheRead,
                     cacheWrite: $0.cacheWrite, reasoning: $0.reasoning)) }, active: active)
+                .nativeReadingExecutionReady(execution.executionID, settled: ![.running, .waitingForUser].contains(execution.status))
         }
     }
     private var author: JSONValue {

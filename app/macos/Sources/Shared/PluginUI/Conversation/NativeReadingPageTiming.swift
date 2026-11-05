@@ -15,6 +15,9 @@ public enum NativeReadingPageTiming {
     public static var replacementAnimation: Animation {
         .timingCurve(0.42, 0, 0.58, 1, duration: duration)
     }
+    public static var replacementTimingFunction: CAMediaTimingFunction {
+        CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1)
+    }
     public static var emphasizedOpening: CAMediaTimingFunction {
         CAMediaTimingFunction(controlPoints: Float(x1), 0, Float(x2), 1)
     }

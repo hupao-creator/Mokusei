@@ -28,8 +28,8 @@ public struct NativeSidecardFold: ViewModifier {
         content
             .frame(width: destination.width, height: destination.height, alignment: .topLeading)
             // A card choice can also change retained width. Its reader takes
-            // that final size once; execution promotion retains its own live
-            // resize and SwiftUI completion contract.
+            // that final size once; execution absorption also moves a fixed-size
+            // document behind the independently widening main shell.
             .transaction(value: destination.size) { if !animatesContentSize { $0.animation = nil } }
             // The shell may resize independently of the fixed-size document
             // when switching cards with different preferred/retained widths.

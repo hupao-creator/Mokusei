@@ -32,6 +32,7 @@ public struct NativeMarkdownView: View {
     @State private var hasStreamed = false
     @State private var revealDocument = UUID()
     @Environment(\.nativeThreadReveal) private var threadReveal
+    @Environment(\.nativeReadingContentPreparation) private var handoffPreparation
     @Environment(\.nativePerformanceOperation) private var performanceOperation
 
     public init(text: String, streaming: Bool = false, fontSize: CGFloat = 16,
@@ -89,7 +90,10 @@ public struct NativeMarkdownView: View {
             // whole-document parse replaces its final page.
             if value { hasStreamed = true }
         }
-        .onAppear { threadReveal?.beginDocument(revealDocument) }
+        .onAppear {
+            threadReveal?.beginDocument(revealDocument)
+            handoffPreparation?.require(revealDocument, ready: streaming || model.hasParsedContent)
+        }
         .task(id: MarkdownRevision(text: text, streaming: streaming, token: documentToken)) {
             model.submit(text: text, streaming: streaming, token: documentToken, context: performanceOperation,
                 paceInitialMount: threadReveal != nil && !hasStreamed)
@@ -99,11 +103,17 @@ public struct NativeMarkdownView: View {
         }
         .onChange(of: model.hasParsedContent, initial: true) { _, value in
             if value { threadReveal?.documentReady(revealDocument) }
+            handoffPreparation?.require(revealDocument, ready: streaming || value)
         }
         .onChange(of: streaming, initial: true) { _, value in
             if value { threadReveal?.documentReady(revealDocument) }
+            handoffPreparation?.require(revealDocument, ready: value || model.hasParsedContent)
         }
-        .onDisappear { threadReveal?.endDocument(revealDocument); model.cancel() }
+        .onDisappear {
+            threadReveal?.endDocument(revealDocument)
+            handoffPreparation?.remove(revealDocument)
+            model.cancel()
+        }
     }
 }
 

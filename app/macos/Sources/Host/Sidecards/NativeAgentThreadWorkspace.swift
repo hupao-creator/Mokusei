@@ -152,10 +152,12 @@ struct NativeSidecardWorkspaceLayout: View {
     @Environment(\.nativeAgentHasNestedNavigation) private var hasNestedNavigation
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
+    @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focusedLauncher: JSONText?
     @State private var launcherFrames: [JSONText: CGRect] = [:]
     @State private var handoffProgress: CGFloat = 0
-    @State private var handoffOpacity: Double = 1
+    @State private var handoffResized = false
+    @State private var absorbedCardID: JSONText?
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
 
     private var animation: Animation? {
@@ -171,8 +173,9 @@ struct NativeSidecardWorkspaceLayout: View {
             // outside the reader; native hit testing must reach that background.
             let panelSize = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: panelSize, snapshot: snapshot)
-            let mainSize = snapshot.handoff?.travelComplete == true ? panelSize
-                : CGSize(width: layout.mainWidth, height: layout.mainHeight)
+            let mainSize = CGSize(
+                width: layout.mainWidth + (panelSize.width - layout.mainWidth) * handoffProgress,
+                height: layout.mainHeight + (panelSize.height - layout.mainHeight) * handoffProgress)
             launchers
                 .position(x: panelSize.width + 38, y: panelSize.height / 2)
                 .frame(width: geometry.size.width, height: geometry.size.height)
@@ -180,7 +183,12 @@ struct NativeSidecardWorkspaceLayout: View {
                     GeometryReader { proxy in
                         let frames = anchors.mapValues { proxy[$0] }
                         ZStack(alignment: .topLeading) {
-                            mainConversation
+                            NativeExecutionHandoffReader(handoff: snapshot.handoff,
+                                destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
+                                workspaceSize: geometry.size, reduceMotion: reduceMotion || handoffResized || scenePhase != .active,
+                                onComplete: model.finishHandoff) {
+                                mainConversation
+                            }
                                 .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
                                 // Reflow the reader once at its destination width.
                                 // Animate its center and the surrounding shell
@@ -199,8 +207,7 @@ struct NativeSidecardWorkspaceLayout: View {
                                 .nativeReadingPanelClose(label: localize("关闭 Thread", "Close thread"), onClose: model.closeThread)
                                 .accessibilityIdentifier("agent-reading-panel")
                                 .nativeLayoutLog("agent.reading.panel")
-                                .allowsHitTesting(snapshot.handoff == nil)
-                                .accessibilityHidden(snapshot.handoff != nil)
+                                .zIndex(snapshot.handoff == nil ? 0 : 2)
                             if snapshot.selected != nil && !layout.stacked && snapshot.handoff == nil {
                                 NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                                     onWidthChange: { model.resize($0, maximum: layout.maximumCardWidth) },
@@ -234,6 +241,11 @@ struct NativeSidecardWorkspaceLayout: View {
                         .offset(x: layout.surfaceX, y: layout.surfaceY)
                         .allowsHitTesting(false)
                 }
+                .onChange(of: geometry.size) { _, _ in
+                    guard let handoff = snapshot.handoff else { return }
+                    handoffResized = true
+                    if handoff.contentReady { absorb(handoff.id, animated: false) }
+                }
         }
         .nativeReadingExitCommand {
             closeTopLevel()
@@ -241,28 +253,35 @@ struct NativeSidecardWorkspaceLayout: View {
         .onChange(of: snapshot.selected) { previous, selected in
             if selected == nil, snapshot.focusLauncherOnClose { focusedLauncher = previous }
             else { focusedLauncher = nil }
+            if selected != nil && selected == absorbedCardID { absorbedCardID = nil }
         }
         .onChange(of: snapshot.handoff?.id, initial: true) { _, id in
             var transaction = Transaction(); transaction.disablesAnimations = true
-            withTransaction(transaction) { handoffProgress = 0; handoffOpacity = 1 }
-            guard let id else { return }
-            withAnimation(reduceMotion ? nil : NativeReadingPageTiming.replacementAnimation, completionCriteria: .removed) {
-                handoffProgress = 1
-            } completion: { model.completeHandoffTravel(id) }
+            withTransaction(transaction) { handoffProgress = 0; handoffResized = false }
+            if id != nil || snapshot.input.thread.observation.isExecutionActive { absorbedCardID = nil }
+        }
+        .onChange(of: snapshot.handoff?.travelComplete) { _, complete in
+            if complete == true { absorbedCardID = snapshot.handoff?.cardID }
         }
         .onChange(of: snapshot.handoff?.contentReady) { _, ready in
             guard ready == true, let id = snapshot.handoff?.id else { return }
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16), completionCriteria: .removed) {
-                handoffOpacity = 0
-            } completion: { model.finishHandoff(id) }
+            absorb(id, animated: !reduceMotion && !handoffResized && scenePhase == .active)
         }
         .onChange(of: reduceMotion) { _, reduced in
             guard reduced, let handoff = snapshot.handoff else { return }
-            var transaction = Transaction(); transaction.disablesAnimations = true
-            withTransaction(transaction) { handoffProgress = 1 }
-            model.completeHandoffTravel(handoff.id)
-            if handoff.contentReady { model.finishHandoff(handoff.id) }
+            if handoff.contentReady { absorb(handoff.id, animated: false) }
         }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active, let handoff = snapshot.handoff else { return }
+            handoffResized = true
+            if handoff.contentReady { absorb(handoff.id, animated: false) }
+        }
+    }
+
+    private func absorb(_ id: UUID, animated: Bool) {
+        withAnimation(animated ? NativeReadingPageTiming.replacementAnimation : nil, completionCriteria: .removed) {
+            handoffProgress = 1
+        } completion: { model.completeHandoffTravel(id) }
     }
 
     private var executionOwnsDock: Bool {
@@ -275,7 +294,7 @@ struct NativeSidecardWorkspaceLayout: View {
     }
 
     private var contentHandoff: NativeReadingContentHandoff? {
-        guard let handoff = snapshot.handoff, handoff.travelComplete else { return nil }
+        guard let handoff = snapshot.handoff else { return nil }
         return NativeReadingContentHandoff(id: handoff.id, executionID: handoff.executionID) {
             model.receiveMainExecutionReady(handoff.executionID, handoffID: handoff.id)
         }
@@ -327,9 +346,9 @@ struct NativeSidecardWorkspaceLayout: View {
         let promoting = snapshot.handoff?.cardID == card.id
         let progress = promoting ? handoffProgress : 0
         let destination = CGRect(
-            x: layout.surfaceX * (1 - progress), y: layout.surfaceY * (1 - progress),
-            width: layout.surfaceWidth + (layout.size.width - layout.surfaceWidth) * progress,
-            height: layout.surfaceHeight + (layout.size.height - layout.surfaceHeight) * progress)
+            x: layout.surfaceX - (layout.stacked ? 0 : layout.surfaceWidth * 0.8 + 16) * progress,
+            y: layout.surfaceY * (1 - progress),
+            width: layout.surfaceWidth, height: layout.surfaceHeight)
         return Group {
             if preparing { Color.clear } else { card.view.content }
         }
@@ -340,14 +359,16 @@ struct NativeSidecardWorkspaceLayout: View {
             .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
             .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source, destination: destination,
-                frameIdentifier: "sidecard-aperture-" + card.id.string, animatesContentSize: promoting))
-            .opacity(promoting ? handoffOpacity : 1)
-            .zIndex(promoting ? 3 : expanded ? 1 : 0)
-            .allowsHitTesting(expanded && !snapshot.suppressed)
+                frameIdentifier: "sidecard-aperture-" + card.id.string))
+            // Once occluded, retire the source invisibly through its normal
+            // fold. Removing handoff must not expose a second closing flight.
+            .opacity(card.id == absorbedCardID ? 0 : 1)
+            .zIndex(expanded ? 1 : 0)
+            .allowsHitTesting(expanded && !snapshot.suppressed && !promoting)
             // Native documents retain their suppression policy during travel;
             // the separate launcher remains available to reverse the choice.
-            .disabled(!expanded || snapshot.suppressed)
-            .accessibilityHidden(!expanded || snapshot.suppressed)
+            .disabled(!expanded || snapshot.suppressed || promoting)
+            .accessibilityHidden(!expanded || snapshot.suppressed || promoting)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(card.view.label.string)
             .background {

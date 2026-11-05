@@ -41,7 +41,7 @@ launcher toggles open/closed and selecting another launcher switches activity.
 The main Thread's Close remains separate. Conversation, Browser and Voice retain
 their programmatic/Escape dismissal without ending execution, drafts or media.
 The host's animated
-[NativeSidecardFold](../../Host/Sidecards/NativeSidecardFold.swift) resolves the
+[NativeSidecardFold](../../Shared/PluginUI/Conversation/NativeSidecardFold.swift) resolves the
 corresponding launcher's actual bounds through SwiftUI layout anchors. One
 interpolated presentation step moves the rounded paint and pointer aperture from
 that button to the panel and back, including stacked layouts, retained widths
@@ -57,8 +57,8 @@ fold tick. Line wrapping therefore settles at the start of travel rather than
 continuously reflowing. Only size changes clear inherited animation; subsequent
 reader-owned animation transactions remain intact. Sidecard interpolation owns
 only paint, hit aperture, opacity and the native aperture marker, with travel applied as a rendering
-offset outside the document layout. Execution promotion retains its existing
-live resize, readiness and completion path.
+offset outside the document layout. Execution promotion also keeps each native
+document at a fixed width while its shell moves.
 Reduced Motion and divider dragging settle geometry without travel.
 The existing selected/suppressed gates disable folded, retiring and covered
 cards; native document suppression, resizing, sessions and dismissal callbacks
@@ -199,16 +199,28 @@ Browser annotation imports and send receipts retain their existing independent
 capabilities and ownership. Removing the Conversation composer does not remove
 Browser annotation sending or the Runtime follow-up command.
 
-When the expanded execution terminates, the Host retains that same execution
-reader while it travels and expands into the main panel, using the shared
-reading replacement curve. At landing, main admits the matching execution; the
-source remains visible until that row or its readable error mounts, then fades
-out. Animation/readiness callbacks are fenced by handoff and execution identity.
+When the expanded execution terminates, the Host retains the current main reader
+and its scroll position while a second production main reader prepares the exact
+completed execution behind an opacity gate. The opaque content owner must confirm
+termination and Markdown must finish parsing; a readable loading error can also
+acknowledge readiness. Placeholders and cached running content cannot start travel.
+The Host then uses the shared reading replacement curve for two sequential phases:
+420ms of full-size Sidecard absorption behind the widening opaque main panel,
+followed by a 420ms downward page turn to the latest execution. The first animation's
+actual completion starts the page turn. The outgoing main column retains its width;
+the incoming column lays out once at destination width. Core Animation moves the
+native page seats, keeping TextKit's model viewport onscreen. Landing keeps the same
+incoming host and scroll state; the absorbed source retires invisibly through its
+normal fold, without another visible close flight.
+Animation/readiness callbacks are fenced by handoff and execution identity.
 Folding, card choice, replacement execution, archive, covering routes, release or
 a different reading target cancels the old handoff. Main history navigation
-remains in place rather than being replaced by this animation. Reduced Motion
-removes travel/fade while retaining the content-readiness gate. The handoff
+remains in place rather than being replaced by this animation. Resize, an inactive
+scene and Reduced Motion settle to the latest reader once its content is ready;
+enabling Reduced Motion during travel also settles immediately. The handoff
 never requests editor/content/launcher focus. Retained widths, stacked layout
-and input ownership keep their existing boundaries.
+and input ownership keep their existing boundaries. See the
+[production handoff notes](../../../../../design/execution-handoff-production.md)
+for the demo comparison and Sprint observation scope.
 
 Same-document SPA history keeps the current address and annotation source synchronized. Unsupported protocol links and popup non-GET requests display a non-destructive notice; the latter are never rewritten as GET. The source document and unsent DOM input remain usable.
