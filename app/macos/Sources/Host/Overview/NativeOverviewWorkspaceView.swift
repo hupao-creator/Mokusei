@@ -63,6 +63,7 @@ public struct NativeOverviewWorkspaceView: View {
         return GeometryReader { geometry in
             let viewport = Self.viewport(in: geometry.size, hasFilters: !model.filters.isEmpty,
                                          hasDock: model.workspace.catalog.hasMoku)
+            let hideSearchCards = model.isSearching && NativeOverviewSearch(model.searchQuery).terms.isEmpty
             ZStack {
                 NativeOverviewCanvas(contentSource: model.content, sceneKey: model.sceneKey, state: model.canvasState,
                     selectionID: selectionID,
@@ -79,10 +80,10 @@ public struct NativeOverviewWorkspaceView: View {
                             .environment(\.locale, Locale(identifier: model.workspace.preferences.locale.rawValue))
                             .environment(\.threadCardNativeDecorationsEnabled, true)
                     }
-                    .opacity(landing ? 0 : 1)
-                    .allowsHitTesting(!landing)
-                    .accessibilityHidden(landing)
-                if !landing && model.content.isEmpty && model.error == nil {
+                    .opacity(landing || hideSearchCards ? 0 : 1)
+                    .allowsHitTesting(!landing && !hideSearchCards)
+                    .accessibilityHidden(landing || hideSearchCards)
+                if !landing && !hideSearchCards && model.content.isEmpty && model.error == nil {
                     NativeOverviewEmptyState(title: emptyTitle, detail: emptyDetail)
                 }
                 if let error = model.error ?? model.canvasState.layoutError {
@@ -101,7 +102,7 @@ public struct NativeOverviewWorkspaceView: View {
                     }
                     .accessibilityLabel(error)
                 }
-                if model.canvasState.overflowAttentionCount > 0 {
+                if !hideSearchCards && model.canvasState.overflowAttentionCount > 0 {
                     VStack {
                         Spacer()
                         NativeOverviewAttentionIndicator(text: locale.text("\(model.canvasState.overflowAttentionCount) 待介入", "\(model.canvasState.overflowAttentionCount) need attention"))
