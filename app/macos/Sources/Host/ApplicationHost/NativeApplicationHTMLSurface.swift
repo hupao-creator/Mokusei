@@ -27,6 +27,9 @@ public struct NativeApplicationHTMLSurface: View {
     @Environment(\.nativeApplicationCloseLinkCard) private var closeLinkCard
     @Environment(\.nativeApplicationOpenLinkCard) private var openLinkCard
     @Environment(\.nativeHTMLPreloader) private var preloader
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Survives revision-scoped sessions, but resets with the reader visit.
+    @State private var hasRevealedDocument = false
 
     public init(source: ApplicationHTMLSource, thread: ApplicationThreadRef, theme: PluginTheme,
                 suppressed: Bool, locale: JSONText = "zh-CN", zoomPreferencesURL: URL? = nil,
@@ -45,6 +48,7 @@ public struct NativeApplicationHTMLSurface: View {
     public var body: some View {
         HTMLDocumentSession(source: source, thread: thread, theme: theme, suppressed: suppressed, panel: panel,
             locale: locale, zoomPreferencesURL: zoomPreferencesURL, preloader: preloader,
+            hasRevealedDocument: $hasRevealedDocument, reduceMotion: reduceMotion,
             readDocument: readDocument, openExternal: openExternal, openLinkCard: openLinkCard,
             onBack: { if closeLinkCard?() != true { onBack() } }, onSettings: onSettings,
             onNativeNavigationChange: onNativeNavigationChange, onFailure: onFailure)
@@ -67,6 +71,8 @@ private struct HTMLDocumentSession: View {
     let locale: JSONText
     let zoomPreferencesURL: URL?
     let preloader: NativeApplicationHTMLPreloader?
+    @Binding var hasRevealedDocument: Bool
+    let reduceMotion: Bool
     let readDocument: @MainActor (ApplicationHTMLSource) async throws -> ApplicationHTMLDocument
     let openExternal: @MainActor (URL) async throws -> Void
     let openLinkCard: ((URL) -> Void)?
@@ -97,6 +103,9 @@ private struct HTMLDocumentSession: View {
                         ready = false; onNativeNavigationChange(false)
                     }, onReady: {
                         ready = true; onNativeNavigationChange(!panel)
+                        if !hasRevealedDocument {
+                            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { hasRevealedDocument = true }
+                        }
                     }, onFailure: fail, onNavigation: { intent in
                         guard !suppressed else { return }
                         switch intent {
@@ -107,6 +116,7 @@ private struct HTMLDocumentSession: View {
                         scrollHidden = hidden
                     }, onHover: { hovered = $0 }, onNavigationNotice: { navigationNotice = $0 })
                     .id(loadedGeneration)
+                    .opacity(hasRevealedDocument ? 1 : 0)
             }
             if let failure {
                 VStack(spacing: 12) {
