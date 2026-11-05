@@ -137,8 +137,9 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		return nil, r.ClearHistory(ctx)
 	case "thread:follow-up":
 		var request struct {
-			ThreadID string          `json:"threadId"`
-			Input    json.RawMessage `json:"input"`
+			ThreadID            string          `json:"threadId"`
+			Input               json.RawMessage `json:"input"`
+			ExpectedExecutionID string          `json:"expectedExecutionId,omitempty"`
 		}
 		if err := model.Unmarshal(args[0], &request); err != nil {
 			return nil, err
@@ -146,6 +147,9 @@ func (r *Runtime) Invoke(ctx context.Context, channel string, args []json.RawMes
 		input, err := model.ParsePublicAgentInput(request.Input)
 		if err != nil {
 			return nil, err
+		}
+		if request.ExpectedExecutionID != "" {
+			ctx = context.WithValue(ctx, expectedUserExecutionKey{}, request.ExpectedExecutionID)
 		}
 		return r.sendThread(ctx, request.ThreadID, input, true)
 	case "thread:interrupt":

@@ -20,6 +20,12 @@ public final class NativeWorkspacePresentation {
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
+    public private(set) var reportExecution: ApplicationExecutionRef?
+    private var reportInputReady = false
+    @ObservationIgnored private var executionDrafts: [ApplicationExecutionRef: NativeComposerDraft] = [:]
+    @ObservationIgnored private var executionForks: [ApplicationExecutionRef: JSONText] = [:]
+    @ObservationIgnored private var reportInputBack: (() -> Void)?
+    @ObservationIgnored private var reportSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef)?
     public private(set) var sidecardComposer: SidecardComposerRequest?
     @ObservationIgnored private var sidecardDraft: NativeComposerDraft?
     @ObservationIgnored private var sidecardComposerThread: JSONText?
@@ -345,6 +351,7 @@ public final class NativeWorkspacePresentation {
 
     private func resetNavigation() {
         clearSidecardComposer()
+        reportExecution = nil; reportInputReady = false; reportInputBack = nil; reportSendNavigation = nil
         readingEntranceAdmitted = false
         threadExecutionReveal = nil
         navigation = nil
@@ -383,6 +390,7 @@ public final class NativeWorkspacePresentation {
         scene.disabled = workspace.stopping || workspace.catalog.moku == nil
             || (onboarding.blocksWorkspace && onboarding.step != .landing)
         configureDockInput(in: scene)
+        finishReportSendNavigation()
         overview.setPresentation(NativeOverviewPresentationFacts(
             overviewVisible: selected == nil && !scene.mokuOpen && !scene.cameraActive,
             mokuOpen: scene.mokuOpen, settingsOpen: scene.settingsOpen,
@@ -424,6 +432,32 @@ public final class NativeWorkspacePresentation {
 
     public var dockThread: HarnessThread? { dockThreadID.flatMap(workspace.catalog.thread) }
 
+    func updateReportExecution(_ reference: ApplicationExecutionRef?, ready: Bool, onBack: (() -> Void)?, route: UUID) {
+        guard navigationRouteID == route, selected?.typeID == "report.document" else { return }
+        reportInputBack = onBack
+        if reportExecution == reference, reportInputReady == ready { return }
+        reportExecution = reference; reportInputReady = ready
+        configureDockInput(in: scene)
+        if reference != nil, ready { scene.setInputOpen(true) }
+    }
+
+    func closeReportExecutionInput() { reportInputBack?() }
+
+    private func finishReportSendNavigation() {
+        guard let pending = reportSendNavigation else { return }
+        guard navigationRouteID == pending.route, reportExecution == pending.reference,
+              scene.composerGeneration == pending.generation, !scene.dockCovered else {
+            reportSendNavigation = nil; return
+        }
+        // The command receipt may precede the public catalog event, especially
+        // for a new fork. Wait for that event without delaying draft admission.
+        guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
+        reportSendNavigation = nil
+        open(pending.destination.thread, target: HarnessReadingTarget(executionID: pending.destination.executionID,
+            requestID: JSONText(UUID().uuidString), mode: thread.observation.latestExecution?.executionID == pending.destination.executionID ? .current : .history,
+            position: .result))
+    }
+
     private func clearSidecardComposer() {
         let request = sidecardComposer, oldDraft = sidecardDraft
         sidecardComposer = nil; sidecardDraft = nil; sidecardComposerThread = nil
@@ -452,15 +486,27 @@ public final class NativeWorkspacePresentation {
 
     private func configureDockInput(in state: NativeMokuSceneState) {
         let thread = selected.flatMap { ref -> HarnessThread? in
-            guard ref.typeID == "agent", !state.mokuOpen, !state.cameraActive,
-                  let thread = workspace.catalog.thread(ref.threadID),
+            let id: JSONText
+            if ref.typeID == "agent" { id = ref.threadID }
+            else if ref.typeID == "report.document", let reference = reportExecution { id = reference.thread.threadID }
+            else { return nil }
+            guard !state.mokuOpen, !state.cameraActive,
+                  let thread = workspace.catalog.thread(id),
                   thread.moku != true, !thread.mokuHistory else { return nil }
             return thread
         }
         dockThreadID = thread?.id
         if sidecardComposer != nil, sidecardComposerThread != thread?.id { clearSidecardComposer() }
         let normalDraft: NativeComposerDraft
-        if let thread {
+        if let reference = reportExecution, let thread, reference.thread.threadID == thread.id {
+            if executionDrafts[reference] == nil {
+                let scope = JSONText(codeUnits: JSONText("report-execution:\(thread.id.codeUnits.count):").codeUnits
+                    + thread.id.codeUnits + reference.executionID.codeUnits)
+                executionDrafts[reference] = NativeComposerDraft(services: workspace.services.composer(),
+                    persistence: NativeComposerDraftPersistence(storageDirectory: workspace.client.storageDirectory, scope: scope))
+            }
+            normalDraft = executionDrafts[reference]!
+        } else if let thread {
             if threadDrafts[thread.id] == nil {
                 let scope = JSONText(codeUnits: Array("thread-detail:".utf16) + thread.id.codeUnits)
                 threadDrafts[thread.id] = NativeComposerDraft(services: workspace.services.composer(),
@@ -470,7 +516,44 @@ public final class NativeWorkspacePresentation {
         } else { normalDraft = draft }
         dockDraft = sidecardComposer != nil ? sidecardDraft ?? normalDraft : normalDraft
         state.setComposerContext(dockDraft, opensInput: thread != nil, keepsInputOpen: thread != nil,
-            inputAdmissionReady: selected == nil || readingEntranceAdmitted)
+            inputAdmissionReady: (selected == nil || readingEntranceAdmitted) && (reportExecution == nil || reportInputReady))
+    }
+
+    func sendReportExecution(_ submission: NativeComposerSubmission, reference: ApplicationExecutionRef, route: UUID) async throws {
+        guard navigationRouteID == route, reportExecution == reference, reportInputReady,
+              !onboarding.blocksWorkspace, let source = workspace.catalog.thread(reference.thread.threadID),
+              source.moku != true, !source.mokuHistory, workspace.canExecute(source) else {
+            throw PluginContractError(workspace.preferences.locale.text("关联执行当前无法接收输入，草稿已保留。", "This execution cannot accept input right now. Your draft has been kept."))
+        }
+        workspace.dismissOperationError()
+        let generation = scene.composerGeneration
+        var destination = executionForks[reference]
+        if destination == nil, source.observation.latestExecution?.executionID != reference.executionID {
+            let result = try await workspace.invoke("thread:fork", args: [.object([
+                "threadId": .string(source.id), "request": .object(["executionId": .string(reference.executionID)])
+            ])])
+            guard case .string(let id) = result["threadId"], !id.codeUnits.isEmpty else {
+                throw PluginContractError("Thread fork returned no thread identity")
+            }
+            // Retain an admitted fork across a failed follow-up. Retrying must
+            // continue that same branch rather than create another empty Thread.
+            executionForks[reference] = id; destination = id
+        }
+        let id = destination ?? source.id
+        await overview.recordUserAction(kind: "thread-input", thread: .init(threadID: id, typeID: "agent"), text: JSONText(submission.text))
+        var request: [JSONText: JSONValue] = ["threadId": .string(id), "input": submission.input]
+        if destination == nil { request["expectedExecutionId"] = .string(reference.executionID) }
+        let result = try await workspace.invoke("thread:follow-up", args: [.object(request)])
+        guard case .string(let executionID) = result["executionId"] else {
+            throw PluginContractError("The runtime returned no accepted execution identity")
+        }
+        executionForks[reference] = nil
+        // Sending owns its captured draft even after closing/switching. Only a
+        // still-current composer visit may navigate to the accepted execution.
+        if navigationRouteID == route, reportExecution == reference, scene.composerGeneration == generation {
+            reportSendNavigation = (route, generation, reference, .init(thread: .init(threadID: id, typeID: "agent"), executionID: executionID))
+            finishReportSendNavigation()
+        }
     }
 
     fileprivate func admitReadingEntrance(routeID: UUID, reference: ApplicationThreadRef) -> Bool {
@@ -482,7 +565,7 @@ public final class NativeWorkspacePresentation {
         readingEntranceAdmitted = true
         publishPresence()
         configureDockInput(in: scene)
-        if reference.typeID == "agent", !scene.dockCovered, !scene.dockInteractionVisible {
+        if dockThreadID != nil, !scene.dockCovered, !scene.dockInteractionVisible {
             scene.setInputOpen(true)
         }
         return true
@@ -601,6 +684,7 @@ public final class NativeWorkspacePresentation {
             await attentionVisits.finish()
             await overview.stop(); await draft.dispose(discardRemoteAttachments: !runtimeStopped)
             for draft in threadDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
+            for draft in executionDrafts.values { await draft.dispose(discardRemoteAttachments: !runtimeStopped) }
         }
         releaseTask = task
         await task.value
@@ -628,7 +712,7 @@ public struct NativeWorkspaceView: View {
     }
     private var applicationSuppressed: Bool {
         presentation.scene.settingsOpen || presentation.scene.cameraActive || presentation.scene.mokuOpen
-            || presentation.scene.inputOpen || presentation.moku.interaction != nil
+            || (presentation.scene.inputOpen && presentation.dockThreadID == nil) || presentation.moku.interaction != nil
     }
     private var sidecardsSuppressed: Bool {
         presentation.scene.settingsOpen || presentation.scene.cameraActive || presentation.scene.mokuOpen
@@ -718,21 +802,32 @@ public struct NativeWorkspaceView: View {
         } dock: {
             if presentation.onboarding.mountDock, let thread = model.catalog.moku {
                 let detail = presentation.dockThread
+                let reportExecution = presentation.reportExecution
                 let sidecardComposer = presentation.sidecardComposer
+                let detailRunning = detail.map {
+                    $0.observation.isExecutionActive && (reportExecution == nil || reportExecution?.executionID == $0.observation.latestExecution?.executionID)
+                }
+                let detailTitle = detail.map { thread in
+                    if let reportExecution {
+                        return thread.executionTitles[reportExecution.executionID]?.string ?? model.preferences.locale.text("关联执行", "Related execution")
+                    }
+                    return thread.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : thread.title.string
+                }
                 NativeMokuDock(state: presentation.scene, draft: presentation.dockDraft, cwd: detail?.cwd ?? JSONText(model.catalog.defaultCwd),
                     landing: detail == nil && presentation.moku.landing,
                     threadID: detail?.id,
-                    threadTitle: detail.map { $0.title.string.isEmpty ? model.preferences.locale.text("当前 Thread", "Current thread") : $0.title.string },
+                    threadTitle: detailTitle,
                     threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
                     onThreadClose: {
                         guard let detail, presentation.navigationRouteID == routeID,
                               presentation.dockThreadID == detail.id, !presentation.scene.dockCovered,
                               !presentation.messageMotion.active else { return }
-                        presentation.showOverview()
+                        if reportExecution != nil { presentation.closeReportExecutionInput() }
+                        else { presentation.showOverview() }
                     },
                     sidecardComposer: sidecardComposer,
-                    mode: detail.map { $0.observation.isExecutionActive ? .running : .idle } ?? presentation.moku.dockMode,
-                    running: sidecardComposer == nil && (detail?.observation.isExecutionActive ?? presentation.moku.running),
+                    mode: detailRunning.map { $0 ? .running : .idle } ?? presentation.moku.dockMode,
+                    running: sidecardComposer == nil && (detailRunning ?? presentation.moku.running),
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
                     disabled: disabled || (detail.map { !model.canExecute($0) } ?? false),
                     interaction: presentation.moku.interaction, interactionIsQuestion: presentation.moku.interactionIsQuestion,
@@ -753,7 +848,8 @@ public struct NativeWorkspaceView: View {
                             guard presentation.sidecardComposer?.id == sidecardComposer.id,
                                   presentation.navigationRouteID == routeID else { throw CancellationError() }
                             try await sidecardComposer.submit(submission.text)
-                        } else if let detail { try await presentation.sendThread(submission, to: detail.id) }
+                        } else if let reportExecution { try await presentation.sendReportExecution(submission, reference: reportExecution, route: routeID) }
+                        else if let detail { try await presentation.sendThread(submission, to: detail.id) }
                         else { try await presentation.sendMoku(submission) }
                     }, onCancel: {
                         if let detail { presentation.perform { try await model.harnessHost.actions(for: detail).interrupt() } }
@@ -837,6 +933,9 @@ public struct NativeWorkspaceView: View {
                             identifier: selected.typeID == "report.document" ? "report-reading-panel" : "git-reading-panel",
                             onClose: { presentation.closeApplication() }))
                         .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
+                        .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in
+                            presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)
+                        })
                         .environment(\.nativeReadingNavigation, presentation.usesReadingPanel ? nil : presentation.readingNavigation)
                         .background {
                             NativeWorkspaceApplicationEntrance(admitted: presentation.readingEntranceAdmitted) {

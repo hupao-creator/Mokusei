@@ -2,6 +2,11 @@
 
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
+`NativeReportExecutionInputKey` carries the expanded Report execution's exact
+reference and destination frame to its Host shell. It is absent in list, folded,
+Browser and suppressed states. The Host converts that geometry through the same
+passive native marker as Agent Sidecards and owns the composer and send routing.
+
 The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
 progressively lighter content/interaction/composer fills and warm off-white text.
 SwiftUI, TextKit and the panel transition resolve the same adaptive assets;

@@ -1,10 +1,13 @@
 package claude
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -25,13 +28,47 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 	}
 	var request struct {
 		CheckpointID string `json:"checkpointId,omitempty"`
+		ExecutionID  string `json:"executionId,omitempty"`
 	}
 	if !model.IsNull(r.Request) {
 		if e = model.Unmarshal(r.Request, &request); e != nil {
 			return plugin.ForkResult{}, e
 		}
 	}
+	executionCheckpoint := ""
+	if request.ExecutionID != "" {
+		if request.CheckpointID != "" {
+			return plugin.ForkResult{}, errors.New("choose either a Claude execution or checkpoint")
+		}
+		index := -1
+		for i, turn := range source.Turns {
+			if turn.ExecutionID == request.ExecutionID {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			return plugin.ForkResult{}, errors.New("Claude execution does not belong to source thread")
+		}
+		turn := source.Turns[index]
+		messageID := ""
+		for _, item := range turn.Timeline {
+			if item["kind"] == "assistant" && str(item["messageId"]) != "" {
+				messageID = str(item["messageId"])
+			}
+		}
+		executionCheckpoint, e = h.forkCheckpoint(ctx, source.PrimarySessionID, messageID)
+		if e != nil {
+			return plugin.ForkResult{}, e
+		}
+		source.Turns = source.Turns[:index+1]
+	}
 	items := []any{}
+	if request.ExecutionID != "" {
+		if inherited, ok := source.ForkHistory["items"].([]any); ok {
+			items = append(items, inherited...)
+		}
+	}
 	found := request.CheckpointID == ""
 	stop := false
 	for _, turn := range source.Turns {
@@ -150,6 +187,10 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 		history["checkpointId"] = request.CheckpointID
 		pending["checkpointId"] = request.CheckpointID
 	}
+	if executionCheckpoint != "" {
+		history["checkpointId"] = executionCheckpoint
+		pending["checkpointId"] = executionCheckpoint
+	}
 	state := NewState()
 	state.PendingFork = pending
 	state.ForkHistory = history
@@ -161,6 +202,74 @@ func (h *Harness) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 		return plugin.ForkResult{}, errors.New("Claude fork history exceeds size limit")
 	}
 	return plugin.ForkResult{SessionState: raw}, nil
+}
+
+// Claude's API message.id is not the transcript UUID accepted by
+// --resume-session-at. Resolve that UUID only in the selected native session.
+func (h *Harness) forkCheckpoint(ctx context.Context, sessionID, messageID string) (string, error) {
+	failure := errors.New("Claude native checkpoint for this execution is unavailable")
+	if messageID == "" || sessionID == "" || filepath.Base(sessionID) != sessionID || sessionID == "." || sessionID == ".." {
+		return "", failure
+	}
+	_, env, err := h.resolveEnvironment(ctx)
+	if err != nil {
+		return "", err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	root := filepath.Join(nonempty(env["CLAUDE_CONFIG_DIR"], filepath.Join(nonempty(env["HOME"], home), ".claude")), "projects")
+	projects, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	for _, project := range projects {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		if !project.IsDir() {
+			continue
+		}
+		file, err := os.Open(filepath.Join(root, project.Name(), sessionID+".jsonl"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		checkpoint := ""
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 8192), 4*1024*1024)
+		for scanner.Scan() {
+			if err = ctx.Err(); err != nil {
+				break
+			}
+			var entry struct {
+				Type      string `json:"type"`
+				UUID      string `json:"uuid"`
+				SessionID string `json:"sessionId"`
+				Message   struct {
+					ID string `json:"id"`
+				} `json:"message"`
+			}
+			if err = json.Unmarshal(scanner.Bytes(), &entry); err != nil {
+				break
+			}
+			if entry.Type == "assistant" && entry.Message.ID == messageID && entry.SessionID == sessionID {
+				checkpoint = entry.UUID
+			}
+		}
+		readErr := errors.Join(err, scanner.Err(), file.Close())
+		if readErr != nil {
+			return "", readErr
+		}
+		if checkpoint == "" {
+			return "", failure
+		}
+		return checkpoint, nil
+	}
+	return "", failure
 }
 func intContains(a []int, v int) bool {
 	for _, x := range a {

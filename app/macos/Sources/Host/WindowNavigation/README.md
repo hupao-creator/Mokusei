@@ -217,7 +217,7 @@ current HTML document's WebKit main-frame completion, a cancellable 200ms gate
 admits the related-execution Sidecard's fold from its right-rail launcher.
 The launcher toggles expansion without discarding the selected execution.
 Agent and Report share the fold, toggle chrome and workspace geometry (including
-minimum pane widths and narrow-window stacking). References prefer 20% width,
+minimum pane widths and narrow-window stacking). References prefer 30% width,
 then 50% for a selected execution, subject to that shared geometry.
 The outer workspace reserves one real toolbar rail for Report and Browser
 controls, and supplies the Report launcher's seat in its local coordinates.
@@ -237,3 +237,10 @@ border. Browser routing, divider resizing and retained documents keep
 their existing ownership.
 See the [admission and referenced-execution contract](../../../../../design/report-sidecard-admission.md)
 for readiness, cancellation, screenshot diagnosis and Sprint verification limits.
+
+An expanded referenced execution lends its exact identity and destination column
+to the resident composer. Returning to references, folding, replacing it with a
+Browser, covering or leaving revokes that input target. Editor Escape uses the
+same auxiliary Back action as the reader. Accepted input opens the resulting
+ordinary Agent execution only while the same Report/composer visit still owns
+navigation; catalog publication may arrive after the command receipt.

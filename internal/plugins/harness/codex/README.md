@@ -1,5 +1,12 @@
 # Codex Harness
 
+Exact execution forks accept `{executionId}` through the existing Forker. The
+adapter resolves the native user-message client identity, requests `lastTurnId`
+on `thread/fork`, verifies the returned history boundary and trims public fork
+history to that execution. Missing/unsupported checkpoints fail closed; the
+source must satisfy the existing idle/native-work gates. See
+[Report continuation](../../../../design/report-execution-continuation.md).
+
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
 ## Settings, tools and execution

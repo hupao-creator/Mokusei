@@ -89,10 +89,12 @@ func (a *Adapter) Fork(ctx context.Context, input plugin.ForkRequest) (plugin.Fo
 	if err := ctx.Err(); err != nil {
 		return plugin.ForkResult{}, err
 	}
+	var selector struct {
+		ExecutionID string `json:"executionId,omitempty"`
+	}
 	if !model.IsNull(input.Request) {
-		object, err := model.DecodeObject(input.Request)
-		if err != nil || len(object) > 0 {
-			return plugin.ForkResult{}, errors.New("Pi forks clone current branch; historical selectors unsupported")
+		if err := model.Unmarshal(input.Request, &selector); err != nil {
+			return plugin.ForkResult{}, err
 		}
 	}
 	state, err := decodeState(input.Source.SessionState)
@@ -106,6 +108,12 @@ func (a *Adapter) Fork(ctx context.Context, input plugin.ForkRequest) (plugin.Fo
 	}
 	if state.NativeSessionJSONL == "" {
 		return plugin.ForkResult{}, errors.New("Pi has no persisted native session to fork; complete conversation first")
+	}
+	if selector.ExecutionID != "" {
+		state, err = forkExecution(state, selector.ExecutionID)
+		if err != nil {
+			return plugin.ForkResult{}, err
+		}
 	}
 	state.ForkSource = &ForkSource{JSONL: state.NativeSessionJSONL}
 	state.SessionFile = ""

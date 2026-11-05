@@ -251,8 +251,8 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		allowed = []string{"threadId", "expectedCancellationId"}
 		required = allowed
 	case "thread:follow-up":
-		allowed = []string{"threadId", "input"}
-		required = allowed
+		allowed = []string{"threadId", "input", "expectedExecutionId"}
+		required = []string{"threadId", "input"}
 	case "thread:fork":
 		allowed = []string{"threadId", "request"}
 		required = allowed
@@ -299,7 +299,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"threadId", "executionId", "expectedCancellationId", "interactionId", "actionId", "method", "applicationSettings"} {
+	for _, key := range []string{"threadId", "executionId", "expectedExecutionId", "expectedCancellationId", "interactionId", "actionId", "method", "applicationSettings"} {
 		if entry, exists := object[key]; exists {
 			if err = text(entry, 128); err != nil {
 				return err

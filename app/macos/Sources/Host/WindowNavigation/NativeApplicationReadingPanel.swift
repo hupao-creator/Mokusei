@@ -1,4 +1,5 @@
 import MokuseiSidecardBrowser
+import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
@@ -6,6 +7,7 @@ extension EnvironmentValues {
     @Entry var nativeApplicationReadingPanel = false
     @Entry var nativeApplicationOpenLinkCard: ((URL) -> Void)?
     @Entry var nativeApplicationCloseLinkCard: (() -> Bool)?
+    @Entry var nativeReportExecutionInputChanged: ((ApplicationExecutionRef?, Bool, (() -> Void)?) -> Void)?
 }
 
 struct NativeApplicationReadingPanel: ViewModifier {
@@ -75,6 +77,9 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @State private var sidecards = NativeReportSidecardPresentation()
     @State private var retainedWidth: CGFloat?
     @State private var dragging = false
+    @State private var executionInput: NativeReportExecutionInput?
+    @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
+    @Environment(\.nativeReportExecutionInputChanged) private var inputChanged
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var expanded: Bool { sidecards.active == .browser }
@@ -154,16 +159,33 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
             .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
         }
+        .background(alignment: .topLeading) {
+            NativeExecutionDockRegion(placement: executionPlacement,
+                active: executionInput != nil && !suppressed,
+                threadID: executionInput?.reference.thread.threadID,
+                onSettled: { inputChanged?(executionInput?.reference, true, returnFromExecution) })
+                .destinationFrame(executionInput?.frame)
+                .allowsHitTesting(false)
+        }
+        .onPreferenceChange(NativeReportExecutionInputKey.self) { next in
+            executionInput = next
+            inputChanged?(next?.reference, false, returnFromExecution)
+        }
         .onPreferenceChange(NativeReadingAuxiliaryBackKey.self) { auxiliaryBack = $0 }
         .onChange(of: suppressed) { _, hidden in
             if hidden { sidecards.updateLayout(ready: false, suppressed: true) }
         }
-        .onDisappear { sidecards.cancel(); auxiliaryBack = nil }
+        .onDisappear { sidecards.cancel(); auxiliaryBack = nil; inputChanged?(nil, false, nil) }
         .nativeReadingEscape(perform: suppressed ? nil : {
             if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close() }
             else if let auxiliaryBack { auxiliaryBack.perform() }
             else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }
             else { onClose() }
         })
+    }
+
+    private func returnFromExecution() {
+        if let auxiliaryBack { auxiliaryBack.perform() }
+        else { sidecards.close() }
     }
 }

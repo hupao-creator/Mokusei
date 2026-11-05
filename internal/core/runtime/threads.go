@@ -760,6 +760,10 @@ func (r *Runtime) SendThread(ctx context.Context, id string, input model.AgentIn
 	return r.sendThread(ctx, id, input, false)
 }
 
+// A referenced execution must still be the latest at input admission, after
+// native owner recovery and while successor reservations are excluded.
+type expectedUserExecutionKey struct{}
+
 // Only the public follow-up command represents direct user communication.
 // Moku tools and background capabilities continue to use SendThread.
 func (r *Runtime) sendThread(ctx context.Context, id string, input model.AgentInput, user bool) (SendResult, error) {
@@ -858,6 +862,11 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if err != nil {
 		unlockAdmission()
 		return SendResult{}, err
+	}
+	if expected, _ := ctx.Value(expectedUserExecutionKey{}).(string); expected != "" &&
+		(t.Observation.LatestExecution == nil || t.Observation.LatestExecution.ExecutionID != expected) {
+		unlockAdmission()
+		return SendResult{}, model.NewError("EXECUTION_CHANGED", "The referenced execution is no longer latest. Retry to fork from that execution; your draft has been kept.")
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		if e.Status == "waiting-for-user" {

@@ -173,6 +173,11 @@ struct NativeReportDetail: View {
                     sidecards.updateLayout(ready: entranceReady, suppressed: suppressed)
                 }
             }
+            .preference(key: NativeReportExecutionInputKey.self,
+                value: expanded && !suppressed ? selected.map {
+                    NativeReportExecutionInput(reference: $0, frame: CGRect(x: layout.surfaceX, y: layout.surfaceY,
+                        width: layout.surfaceWidth, height: layout.surfaceHeight))
+                } : nil)
         }
         .onAppear {
             do { unsubscribe = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).subscribe(refresh); refresh() }

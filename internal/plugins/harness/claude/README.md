@@ -1,5 +1,12 @@
 # Claude Harness
 
+Exact execution forks accept `{executionId}` beside the existing checkpoint
+selector (mutually exclusive). The adapter retains the public prefix and
+resolves the final assistant's API message ID to its native transcript UUID in
+that source session, then uses the existing `--resume-session-at` fork path.
+Unavailable native history/checkpoints fail without sending. See
+[Report continuation](../../../../design/report-execution-continuation.md).
+
 Shared [private tool diagnostics](../../../platform/diagnostics/README.md) identify
 `CallID` as an MCP request ID, not a Claude tool-use ID, and expose the bridge's
 existing 256-byte identifier truncation without changing receipt identities.

@@ -653,12 +653,28 @@ Agent input does not expose Moku voice-start actions, transcripts or Talk; an
 existing workspace voice session is not stopped. Execution Sidecards stay usable
 beside the open composer and own no text/attachment input.
 
-Overview, landing, Report/Git and Moku history retain their existing input and
+Overview, landing, Git and Moku history retain their existing input and
 cancellation policies. Closing detail or changing targets retains unsent text,
 attachments and directories through the window-owned persisted Thread draft.
 Sending still consumes only the accepted revision; failed sends retain the draft
 and error, and late receipts cannot alter another target's presentation.
 See the [routing investigation and sprint limits](../../../../../design/thread-detail-input-dismissal.md).
+
+Report execution details borrow that same Agent composer and native column
+placement. Their persisted drafts are scoped to the exact Thread/execution pair,
+separately from ordinary Thread input and Moku. The placeholder uses the exact
+execution title (neutral fallback), never a newer execution's Thread title.
+The editor opens after its horizontal travel settles. Returning to the list,
+folding, Browser selection or departure restores Moku and retains the draft;
+editor Escape follows Report's auxiliary Back. Only the viewed current active
+execution exposes Stop; historical input cannot stop a newer execution.
+Latest-execution sends use the existing follow-up admission with an expected
+execution fence. Historical sends fork at the native execution checkpoint before
+using the same follow-up path. A failed follow-up retains both the draft and its
+admitted fork for retry within the window. Successful sends open the accepted
+Agent execution after catalog admission, fenced to the Report/composer visit.
+See [Report execution continuation](../../../../../design/report-execution-continuation.md)
+for native constraints and the current sprint validation scope.
 
 Sprint verification for the current change is static review and the application
 product build only: no new tests, test runs, replays, manual interaction fixture,

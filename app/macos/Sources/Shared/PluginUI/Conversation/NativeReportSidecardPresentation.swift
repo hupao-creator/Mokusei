@@ -2,6 +2,23 @@ import MokuseiPluginAPI
 import Observation
 import SwiftUI
 
+/// Destination geometry and the exact execution shown by the Report reader.
+/// The host owns the resident composer; the application contributes no input.
+public struct NativeReportExecutionInput: Equatable, Sendable {
+    public let reference: ApplicationExecutionRef
+    public let frame: CGRect
+    public init(reference: ApplicationExecutionRef, frame: CGRect) {
+        self.reference = reference; self.frame = frame
+    }
+}
+
+public struct NativeReportExecutionInputKey: PreferenceKey {
+    public static let defaultValue: NativeReportExecutionInput? = nil
+    public static func reduce(value: inout NativeReportExecutionInput?, nextValue: () -> NativeReportExecutionInput?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
 /// A document observation, scoped to the current HTML read/retry and WebKit view.
 public struct NativeApplicationHTMLReadiness: Equatable, Sendable {
     public let source: ApplicationHTMLSource

@@ -2,6 +2,12 @@
 
 Public DTOs, command schemas and validation live in this package. Native session state remains owned by each Harness.
 
+`thread:follow-up` optionally accepts a bounded nonempty `expectedExecutionId`.
+Runtime checks it at admission so an exact execution reader cannot silently send
+to a newer execution. Fork checkpoint selectors remain Harness-owned inside
+`thread:fork.request`; the built-in Harnesses accept `executionId` for exact
+historical continuation.
+
 - `model.Object` 用于动态 JSON 对象；`model.Decode` 使用 `json.Number`，避免原生长整数在 Go 中转时变成 `float64`。
 - `SessionRecord.SessionState`、Harness settings、metadata 和 application record value 使用 `json.RawMessage`。读写边界复制这些字节；接收方不得修改共享权威状态。
 - Harness 解释自己的原生会话。Core 只读取 `PublicObservation`、身份、时间和配置边界。

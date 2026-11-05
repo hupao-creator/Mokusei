@@ -279,11 +279,45 @@ func Fork(ctx context.Context, request plugin.ForkRequest) (plugin.ForkResult, e
 		}
 	}
 	for key := range selector {
-		if key != "messageId" {
+		if key != "messageId" && key != "executionId" {
 			return plugin.ForkResult{}, errors.New("unknown OpenCode fork selector")
 		}
 	}
 	id := str(selector["messageId"])
+	if execution, exists := selector["executionId"]; exists {
+		executionID, ok := execution.(string)
+		if !ok || executionID == "" || id != "" {
+			return plugin.ForkResult{}, errors.New("invalid OpenCode execution selector")
+		}
+		found := false
+		for _, e := range source.Executions {
+			if e.ExecutionID == executionID {
+				found = e.Terminal()
+				break
+			}
+		}
+		if !found {
+			return plugin.ForkResult{}, errors.New("OpenCode completed execution does not belong to source thread")
+		}
+		checkpoints := map[string]bool{}
+		for _, message := range source.Messages {
+			if message.ExecutionID == executionID && !message.Inherited && message.NativeMessageID != "" &&
+				(message.NativeSessionID == "" || message.NativeSessionID == source.NativeSessionID) {
+				checkpoints[message.NativeMessageID] = true
+			}
+		}
+		// Native order, not public tool-row insertion order, defines the end
+		// of an execution with multiple assistant/tool rounds.
+		for _, value := range array(source.NativeTranscript["messages"]) {
+			candidate := str(object(value)["id"])
+			if checkpoints[candidate] {
+				id = candidate
+			}
+		}
+		if id == "" {
+			return plugin.ForkResult{}, errors.New("OpenCode native checkpoint for this execution is unavailable")
+		}
+	}
 	if value, ok := selector["messageId"]; ok {
 		if _, ok := value.(string); !ok || !strings.HasPrefix(id, "msg_") {
 			return plugin.ForkResult{}, errors.New("invalid OpenCode fork message identity")
@@ -323,7 +357,9 @@ func Fork(ctx context.Context, request plugin.ForkRequest) (plugin.ForkResult, e
 	if sourceID == "" {
 		return plugin.ForkResult{}, errors.New("fork source identity unavailable")
 	}
-	state.NativeContextEntries = clone(source.NativeContextEntries)
+	if selector["executionId"] == nil {
+		state.NativeContextEntries = clone(source.NativeContextEntries)
+	}
 	state.ForkSource = &ForkSource{SessionID: sourceID, MessageID: id, Transcript: transcript}
 	copied := map[string]bool{}
 	for _, raw := range messages {

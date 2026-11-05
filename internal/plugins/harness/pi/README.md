@@ -1,5 +1,12 @@
 # Pi adapter
 
+Exact execution forks accept `{executionId}`. The adapter verifies the complete
+ordered native/public assistant sequence and linear JSONL ancestry before
+trimming to that execution's native prefix, then uses the existing independent
+snapshot fork. Missing/nonmatching/branched history or an execution without an
+assistant checkpoint fails without sending. Source idle/native-work gates stay
+in force. See [Report continuation](../../../../design/report-execution-continuation.md).
+
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
 at least 0.83.0. Mokusei does not launch a Node renderer, bridge server, or

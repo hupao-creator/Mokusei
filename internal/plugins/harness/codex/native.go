@@ -13,6 +13,7 @@ import (
 
 type NativeOptions struct {
 	Cwd, SessionID, ForkSessionID, Instructions, ToolMode string
+	ForkLastTurnID                                        string
 	RequireExplicitSettings                               bool
 	Settings                                              Map
 	Tools                                                 []plugin.ToolBinding
@@ -186,6 +187,9 @@ func (n *NativeSession) prepare(ctx context.Context, o NativeOptions) (string, e
 	if o.ForkSessionID != "" {
 		method = "thread/fork"
 		base["threadId"] = o.ForkSessionID
+		if o.ForkLastTurnID != "" {
+			base["lastTurnId"] = o.ForkLastTurnID
+		}
 		base["excludeTurns"] = true
 		base["ephemeral"] = o.Settings["ephemeral"] == true
 	} else if o.SessionID != "" {

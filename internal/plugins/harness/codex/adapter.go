@@ -1078,8 +1078,14 @@ func runSteerableAnswer(ctx context.Context, n *NativeSession, o NativeOptions, 
 	return strings.TrimSpace(first(answer, stream)), nil
 }
 func (a *Adapter) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkResult, error) {
-	if len(rawMap(r.Request)) != 0 || string(r.Request) == "null" {
-		return plugin.ForkResult{}, errors.New("Codex fork request 必须是空 object")
+	if model.IsNull(r.Request) {
+		return plugin.ForkResult{}, errors.New("Codex fork request must be an object")
+	}
+	var selector struct {
+		ExecutionID string `json:"executionId,omitempty"`
+	}
+	if e := model.Unmarshal(r.Request, &selector); e != nil {
+		return plugin.ForkResult{}, e
 	}
 	state, e := DecodeState(rawMap(r.Source.SessionState))
 	if e != nil {
@@ -1113,19 +1119,58 @@ func (a *Adapter) Fork(ctx context.Context, r plugin.ForkRequest) (plugin.ForkRe
 	}
 	n := NewNativeSession(s)
 	defer n.Close()
-	id, e := n.Prepare(ctx, NativeOptions{Cwd: r.Source.Cwd, ForkSessionID: sourceID, Settings: settings})
+	history := append(append([]any{}, arr(state["forkHistory"])...), arr(state["turns"])...)
+	lastTurnID := ""
+	if selector.ExecutionID != "" {
+		index := -1
+		for i, value := range history {
+			if obj(value)["executionId"] == selector.ExecutionID {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			return plugin.ForkResult{}, errors.New("Codex execution does not belong to source thread")
+		}
+		history = history[:index+1]
+		nativeHistory, err := n.History(ctx, sourceID)
+		if err != nil {
+			return plugin.ForkResult{}, err
+		}
+		for _, value := range nativeHistory {
+			turn := obj(value)
+			for _, rawItem := range arr(turn["items"]) {
+				item := obj(rawItem)
+				if item["type"] == "userMessage" && (item["clientId"] == selector.ExecutionID || item["id"] == selector.ExecutionID) {
+					lastTurnID = str(turn["id"])
+				}
+			}
+		}
+		if lastTurnID == "" {
+			return plugin.ForkResult{}, errors.New("Codex native checkpoint for this execution is unavailable")
+		}
+	}
+	id, e := n.Prepare(ctx, NativeOptions{Cwd: r.Source.Cwd, ForkSessionID: sourceID, ForkLastTurnID: lastTurnID, Settings: settings})
 	if e != nil {
 		return plugin.ForkResult{}, e
 	}
 	if id == sourceID {
 		return plugin.ForkResult{}, errors.New("Codex fork 未创建独立 Native Session")
 	}
+	if lastTurnID != "" {
+		forked, err := n.History(ctx, id)
+		if err != nil {
+			return plugin.ForkResult{}, err
+		}
+		if len(forked) == 0 || obj(forked[len(forked)-1])["id"] != lastTurnID {
+			return plugin.ForkResult{}, errors.New("Codex did not retain the requested execution boundary")
+		}
+	}
 	next := EmptyState(int64(num(state["updatedAt"])))
 	next["primarySessionId"] = id
 	if state["nativeHistorySeed"] != nil {
 		next["nativeHistorySeed"] = state["nativeHistorySeed"]
 	}
-	history := append(arr(state["forkHistory"]), arr(state["turns"])...)
 	if len(history) > 200 {
 		history = history[len(history)-200:]
 	}

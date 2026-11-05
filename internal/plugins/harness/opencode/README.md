@@ -1,5 +1,12 @@
 # OpenCode Go adapter
 
+Exact execution forks accept `{executionId}` beside the existing message
+selector (mutually exclusive). A completed execution resolves to its last root
+message in native transcript order and uses the existing checkpoint/import
+path. Newer context-entry state is omitted from historical forks. Missing native
+checkpoints fail without sending. See
+[Report continuation](../../../../design/report-execution-continuation.md).
+
 `New(plugin.HostContext)` composes the OpenCode Harness, settings, native model catalog,
 installation, workspace discovery, isolated completion, fork/read and Moku telemetry.
 The adapter accepts stable OpenCode 2.x releases beginning with 2.0.25. Protocol routes,

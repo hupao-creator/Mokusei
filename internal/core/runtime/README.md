@@ -58,6 +58,15 @@ form preflight passes typed native values through the internal response handoff.
 
 Commands validate their execution/interaction identity before mutation. A follow-up whose reserved execution ended before input was retained may reserve a successor once. A dispatched failure is not automatically resent or used to rewrite an already terminal execution. Cancellation is fenced to its admitted execution, so a late interrupt cannot cancel a successor.
 
+Direct execution readers can supply `expectedExecutionId` on follow-up. The
+Runtime compares it with the authoritative latest execution after native-owner
+recovery, under the existing cancellation/admission gate. A mismatch returns
+`EXECUTION_CHANGED` before dispatch/reservation; ordinary follow-ups omit the
+field and keep their existing behavior. Historical continuation uses the same
+`ForkThread` ownership, archive, native-work and revision gates, with an opaque
+Harness-owned `executionId` selector. Busy sources remain unavailable for fork;
+the caller retains its draft instead of steering the source or truncating it.
+
 Ordinary Threads retain optional `mokuInterruptedExecutionId` only after the
 `interrupt_thread` capability successfully stops the captured execution and its
 committed outcome is `interrupted`. The dedicated capability captures execution
