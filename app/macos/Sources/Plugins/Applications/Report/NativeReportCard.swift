@@ -40,7 +40,8 @@ import SwiftUI
                 if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
             }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .threadCardBadge {
-                    ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string)
+                    ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
+                                             completedBackground: true)
                 }.contentShape(Rectangle())
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)

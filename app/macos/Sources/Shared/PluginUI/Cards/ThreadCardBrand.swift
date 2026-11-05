@@ -8,10 +8,12 @@ public struct ThreadCardProviderStatus: View {
     public let brandKey: String
     public let emoji: String?
     public let terminal: ThreadCardTerminalStatus?
+    public let completedBackground: Bool
     @Environment(\.threadCardProviderColor) private var providerColor
     public init(label: String, brandKey: String, emoji: String? = nil,
-                terminal: ThreadCardTerminalStatus? = nil) {
+                terminal: ThreadCardTerminalStatus? = nil, completedBackground: Bool = false) {
         self.label = label; self.brandKey = brandKey; self.emoji = emoji; self.terminal = terminal
+        self.completedBackground = completedBackground
     }
     public var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -22,7 +24,7 @@ public struct ThreadCardProviderStatus: View {
             if let terminal { TerminalBadge(terminal: terminal, tone: tone).id(terminal) }
         }
         .frame(width: Self.diameter, height: Self.diameter).foregroundStyle(tone)
-        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, completed: terminal == .completed))
+        .modifier(ThreadCardBadgeMaterial(hasEmoji: emoji?.isEmpty == false, completed: terminal == .completed || completedBackground))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .help(label)

@@ -569,6 +569,8 @@ It contains no Liquid Glass effect, avoiding per-card spatial glass updates when
 panning Overview. Overview card shells remain neutral after completion. The emoji
 stays 21pt, with the existing terminal mark preserving a non-color status cue.
 Agent and Report cards share its upper-right placement and title clearance.
+Report uses the completed badge's accent-soft background without an execution
+terminal mark; Agent execution status and its terminal mark remain independent.
 The badge is status content, with an accessible label and tooltip, and has no Send button, hover swap, focus stop or
 message callback. Card activation stays with the surrounding host. Empty plans
 render no section.
