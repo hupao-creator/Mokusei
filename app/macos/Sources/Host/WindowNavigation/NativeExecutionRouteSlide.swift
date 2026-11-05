@@ -34,12 +34,14 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
 }
 
 /// Retain the real Report/WebKit surface while the new production Agent workspace
-/// prepares. Both cards share one native seat, so their spacing and text widths
-/// stay fixed during compositor travel. No captured bitmap or second renderer.
+/// prepares. The incoming main takes the referenced execution's existing seat;
+/// only Report retires. Moving two disjoint workspaces would show that execution
+/// twice. No captured bitmap or alternate reader is used.
 @MainActor final class ExecutionRouteSlideView: NSView {
     private var current = ExecutionRouteSlideSeat()
     private var outgoing: ExecutionRouteSlideSeat?
     private var route: UUID?
+    private var sourceExecutionFrame: CGRect?
     private var travelling = false
     private var ready = false
     private var animated = false
@@ -63,6 +65,7 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
             settle()
             if self.route != nil, requested, bounds.width > 0, bounds.height > 0 {
                 outgoing = current
+                sourceExecutionFrame = current.panelFrame("report-executions-sidecard-frame")
                 // Keep its exact root and native document alive, but revoke
                 // reader interaction without changing the retained layout.
                 outgoing?.deactivate()
@@ -120,17 +123,36 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
 
     private func startTravel(_ token: Int) {
         guard let outgoing, let oldLayer = outgoing.layer, let newLayer = current.layer else { settle(); return }
+        // Measure inside each real hosting tree: Report and Agent reserve
+        // different toolbar space and can have different column widths. A
+        // viewport-width translation invents a fourth card between them.
+        guard let source = sourceExecutionFrame,
+              let destination = current.panelFrame("agent-reading-panel-frame"),
+              source.minX > destination.minX + 1,
+              abs(source.minY - destination.minY) < 2 else {
+            // Stacked/missing geometry has no horizontal shared seat. Keep the
+            // preparation cover until ready, then replace without false travel.
+            settle(); return
+        }
+        let distance = source.minX - destination.minX
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        // Revoke the outgoing execution's paint in the same transaction that
+        // reveals its destination. Even if the destination is narrower, the
+        // old execution cannot leak out beside it as a second card.
+        let reportMask = CALayer()
+        reportMask.backgroundColor = NSColor.black.cgColor
+        reportMask.frame = CGRect(x: 0, y: 0, width: source.minX, height: bounds.height)
+        oldLayer.mask = reportMask
         travelling = true
         layoutSeats()
-        CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             DispatchQueue.main.async { [weak self] in
                 guard let self, generation == token else { return }
                 settle()
             }
         }
-        translate(oldLayer, from: 0, to: -bounds.width)
-        translate(newLayer, from: bounds.width, to: 0)
+        translate(oldLayer, from: 0, to: -distance)
+        translate(newLayer, from: distance, to: 0)
         CATransaction.commit()
     }
 
@@ -146,7 +168,9 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
     private func settle() {
         generation += 1; startScheduled = false; travelling = false
         current.layer?.removeAnimation(forKey: "execution.route.slide")
+        outgoing?.layer?.mask = nil
         outgoing?.removeFromSuperview(); outgoing = nil
+        sourceExecutionFrame = nil
         refreshCurrent()
         layoutSeats()
     }
@@ -178,6 +202,21 @@ struct NativeExecutionRouteSlide<Content: View>: NSViewRepresentable {
         host.rootView = AnyView(content.allowsHitTesting(active).accessibilityHidden(!active)
             .environment(\.self, environment))
     }
+    func panelFrame(_ identifier: String) -> CGRect? {
+        func find(in view: NSView) -> NSView? {
+            if view.identifier?.rawValue == identifier { return view }
+            for child in view.subviews {
+                if let match = find(in: child) { return match }
+            }
+            return nil
+        }
+        guard let marker = find(in: host) else { return nil }
+        let rect = convert(marker.bounds, from: marker)
+        guard !rect.isEmpty, rect.minX.isFinite, rect.minY.isFinite,
+              rect.width.isFinite, rect.height.isFinite else { return nil }
+        return rect
+    }
+
     func deactivate() {
         if let content { update(content: content, environment: environment, active: false) }
     }
