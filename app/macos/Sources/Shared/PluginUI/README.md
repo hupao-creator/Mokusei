@@ -1175,8 +1175,23 @@ There is no additional cross-visit attributed-string or native-view cache.
 Existing immutable parse/content caches and layout-local measurements retain their
 own lifetimes; every reader owns fresh native text, callbacks and selection.
 
-Report uses `NativeReadingAuxiliaryBackKey` to offer its selected execution's
+Report uses `NativeReadingAuxiliaryBackKey` to offer its expanded auxiliary
 Back action to the outer reading workspace. The preference carries a stable
 identity and a main-actor callback; equality ignores closure allocation so
-ordinary redraws cannot republish a fresh navigation action. Removing selection
+ordinary redraws cannot republish a fresh navigation action. Folding the card
 removes the preference. The Host keeps Close and browser-first cancellation.
+
+Agent and Report Sidecards share `NativeSidecardWorkspaceGeometry`,
+`NativeSidecardFold` and `NativeSidecardToggle` in Conversation. The shared
+geometry retains the 16pt gap and switches to vertically stacked panes below
+760pt; the fold owns the visible and interactive aperture without resizing the
+native document on each animation frame. Reduced Motion settles immediately.
+Report commits its initial folded layout through `NativeReadingEntranceStage`
+after primary reading travel, then opens related executions once per visit.
+Folding retains the selected execution reader, with hit testing and accessibility
+excluded until reopening. Returning from an execution restores the reference
+list; the next Escape folds it and returns focus to its launcher.
+`NativeReadingAuxiliaryToolbarKey` contributes the Report launcher to the host's
+reserved rail, alongside a retained Browser launcher when links have been opened.
+`nativeReadingAuxiliaryLauncherPosition` supplies its actual workspace seat to
+the fold, including Browser splits and narrow-window stacking.

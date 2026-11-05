@@ -2,20 +2,6 @@ import MokuseiPluginUI
 import SwiftUI
 import AppKit
 
-/// A noninteractive native frame anchor lets mounted replay/diagnostics measure
-/// the panel rather than the union of its synthesized accessibility children.
-struct NativeReadingPanelFrame: NSViewRepresentable {
-    var identifier = "agent-reading-panel"
-    func makeNSView(context: Context) -> NSView {
-        let view = FrameView(); view.identifier = NSUserInterfaceItemIdentifier(identifier + "-frame")
-        view.setAccessibilityElement(false); return view
-    }
-    func updateNSView(_ view: NSView, context: Context) {}
-    private final class FrameView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    }
-}
-
 struct NativeSidecardDivider: View {
     let width: CGFloat
     let maximumWidth: CGFloat

@@ -1,24 +1,29 @@
-import MokuseiPluginUI
 import SwiftUI
 
-enum NativeSidecardTiming {
-    static let foldAnimation = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
+public enum NativeSidecardTiming {
+    public static let foldAnimation = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.38)
 }
 
 /// Geometry is in the workspace's coordinates, including the launcher's real
 /// layout bounds. Paint, travel and pointer aperture share one presentation step.
-struct NativeSidecardFold: ViewModifier {
+public struct NativeSidecardFold: ViewModifier {
     let progress: CGFloat
     let source: CGRect?
     let destination: CGRect
     let frameIdentifier: String
     var animatesContentSize = false
 
+    public init(progress: CGFloat, source: CGRect?, destination: CGRect,
+                frameIdentifier: String, animatesContentSize: Bool = false) {
+        self.progress = progress; self.source = source; self.destination = destination
+        self.frameIdentifier = frameIdentifier; self.animatesContentSize = animatesContentSize
+    }
+
     private var origin: CGRect {
         source ?? CGRect(x: destination.maxX - 42, y: destination.midY - 21, width: 42, height: 42)
     }
 
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         let geometry = NativeSidecardFoldGeometry(source: origin, destination: destination, progress: progress)
         content
             .frame(width: destination.width, height: destination.height, alignment: .topLeading)

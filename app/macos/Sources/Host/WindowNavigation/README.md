@@ -87,8 +87,8 @@ Agent entry now keeps line reveal separate from auxiliary presentation: after th
 outer panel/title handoff, only the active main document reveals; its last line
 and footer must complete before Moku input and Sidecard admission. Nested reading
 stacks retain the parent's entrance gate, and a moving empty/error history page
-also holds content readiness until its own travel finishes. Report/Git keep their
-primary-only admission. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
+also holds content readiness until its own travel finishes. Report admits its
+auxiliary card after primary travel and a committed folded layout; Git keeps primary-only admission. See the [three-stage contract and sprint validation limits](../../../../../design/reading-entrance-choreography.md).
 The [Report navigation replay](../../../../../tools/verification/reading-presentation/README.md#report-navigation-and-native-window-controls)
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
@@ -200,10 +200,19 @@ Overview over the final 14%. There is no separate closing identity travel. Other
 panel routes retain their previous fade policy. Route generations, refreshed parent
 layout, cancellation and resize completion remain owned by the reading stack.
 
-Report now owns its two reading shells: HTML on the left and associated execution
-references on the right (80/20, then 50/50 when selected). The outer workspace
-keeps Close and Browser routing. `NativeReadingAuxiliaryBackKey` forwards the
-selected execution's Back action upward; native and HTML Escape first fold a
-linked browser, then return to references, then close the report. The action is
-removed when selection or the report visit disappears. Report HTML keeps its
-8pt viewport inset and 14pt inner clipping independently of the sidecard.
+Report owns its HTML and associated-execution reading shells. The HTML first
+commits at full width; after primary travel, the shared native entrance stage
+admits the related-execution Sidecard's fold from its right-rail launcher.
+The launcher toggles expansion without discarding the selected execution.
+Agent and Report share the fold, toggle chrome and workspace geometry (including
+minimum pane widths and narrow-window stacking). References prefer 20% width,
+then 50% for a selected execution, subject to that shared geometry.
+The outer workspace reserves one real toolbar rail for Report and Browser
+controls, and supplies the Report launcher's seat in its local coordinates.
+`NativeReadingAuxiliaryBackKey` forwards the current auxiliary Back action upward;
+native and HTML Escape first fold a linked browser, return from an execution to
+references, fold references with focus restored to their launcher, then close
+the report. The action is removed while folded or when the visit disappears.
+Report HTML keeps its 8pt viewport inset and 14pt inner clipping independently
+of the Sidecard. Browser routing, divider resizing and retained documents keep
+their existing ownership.
