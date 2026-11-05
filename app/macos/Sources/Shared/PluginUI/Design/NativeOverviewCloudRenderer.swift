@@ -1,6 +1,7 @@
 import Foundation
 import Metal
 import QuartzCore
+import SwiftUI
 
 /// Immutable Metal objects shared by Overview clouds. No drawable is allocated
 /// while deciding whether the native path is available.
@@ -47,6 +48,39 @@ struct NativeOverviewCloudFrame: Sendable {
     let pointSize: SIMD2<Float>
 }
 
+/// Value-only input admitted on the main actor. No view or environment lookup is
+/// allowed from the render driver; color resolution remains at the UI boundary.
+struct NativeOverviewCloudInput: Sendable {
+    let palette: NativeCloudPalette
+    let colors: [SIMD4<Float16>]
+    let colorScheme: ColorScheme
+    let size: CGSize
+    let seed: UInt64
+    let startedAt: Date
+    let frozenMotionTime: TimeInterval
+    let animates: Bool
+    let targetIntensity: Double
+    let fadeFrom: Double?
+    let fadeStartedAt: TimeInterval?
+
+    func sample() -> (frame: NativeOverviewCloudFrame, continues: Bool) {
+        let progress = fadeStartedAt.map { min(1, max(0, (CACurrentMediaTime() - $0) / 0.4)) } ?? 1
+        let value = fadeFrom.map { $0 + (targetIntensity - $0) * UnitCurve.easeInOut.value(at: progress) }
+            ?? targetIntensity
+        let time = animates ? Date().timeIntervalSince(startedAt) : frozenMotionTime
+        // A zero-energy terminal frame clears the Metal surface without waiting
+        // for a main-actor callback to hide it after a fade-out.
+        var lights = NativeCloudField(palette: palette, intensity: max(value, 0.000001),
+            time: time * 1.4 + palette.phase, seed: seed).lights(in: size, colorScheme: colorScheme)
+        if value <= 0 {
+            for index in stride(from: 4, to: lights.geometry.count, by: 5) { lights.geometry[index] = 0 }
+        }
+        return (NativeOverviewCloudFrame(geometry: lights.geometry, colors: colors,
+            pointSize: SIMD2(Float(size.width), Float(size.height))),
+            progress < 1 || (animates && value > 0))
+    }
+}
+
 /// The main actor owns the layer's geometry/visibility; this serial queue alone
 /// requests drawables and encodes commands. Mutable buffers belong to that queue.
 /// A locked generation retires queued work, and one permit bounds submitted work
@@ -62,6 +96,9 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
     private var loggedFailure = false
     private var geometryBuffer: MTLBuffer?
     private var colorBuffer: MTLBuffer?
+    // Timer and immutable input are owned exclusively by queue.
+    private var timer: DispatchSourceTimer?
+    private var driverRevision: UInt64 = 0
 
     init(layer: CAMetalLayer, pipeline: NativeOverviewCloudPipeline) {
         self.layer = layer
@@ -76,25 +113,66 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
     }
 
     func stop() {
+        pause()
         lock.lock(); defer { lock.unlock() }
         stopped = true
         generation &+= 1
     }
 
+    func pause() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.driverRevision &+= 1
+            self.timer?.cancel()
+            self.timer = nil
+        }
+    }
+
+    /// Independent, screen-rate-capped sampling; nextDrawable and the one-frame
+    /// permit provide backpressure. This is not a display-link/FPS guarantee.
+    func drive(_ input: NativeOverviewCloudInput, generation: UInt64, interval: Double,
+               completion: @escaping @Sendable (Bool) -> Void) {
+        queue.async { [weak self] in
+            guard let self, self.accepts(generation) else { return }
+            self.timer?.cancel()
+            self.driverRevision &+= 1
+            let revision = self.driverRevision
+            let timer = DispatchSource.makeTimerSource(queue: self.queue)
+            var first = true
+            timer.setEventHandler { [weak self] in
+                // Cancellation can leave a delivered event queued behind a new input.
+                guard let self, self.driverRevision == revision else { return }
+                guard self.accepts(generation) else {
+                    self.timer?.cancel(); self.timer = nil; return
+                }
+                guard self.permit.wait(timeout: .now()) == .success else { return }
+                autoreleasepool {
+                    let sample = input.sample()
+                    // Static draws and terminal fade frames stop only after success;
+                    // a missing drawable must remain retryable without main ticks.
+                    let notify = first
+                    first = false
+                    self.encode(sample.frame, generation: generation) { [weak self] succeeded in
+                        if notify { completion(succeeded) }
+                        if succeeded && !sample.continues {
+                            self?.queue.async { [weak self] in
+                                guard let self, self.driverRevision == revision else { return }
+                                self.timer?.cancel()
+                                self.timer = nil
+                            }
+                        }
+                    }
+                }
+            }
+            timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(1))
+            self.timer = timer
+            timer.resume()
+        }
+    }
+
     private func accepts(_ value: UInt64) -> Bool {
         lock.lock(); defer { lock.unlock() }
         return !stopped && generation == value
-    }
-
-    /// Completion is optional for the ordinary motion frames. It is used when
-    /// revealing a surface or completing a requested static redraw.
-    func submit(_ frame: NativeOverviewCloudFrame, generation: UInt64,
-                completion: (@Sendable (Bool) -> Void)? = nil) -> Bool {
-        guard accepts(generation), permit.wait(timeout: .now()) == .success else { return false }
-        queue.async { [self] in
-            autoreleasepool { encode(frame, generation: generation, completion: completion) }
-        }
-        return true
     }
 
     private func encode(_ frame: NativeOverviewCloudFrame, generation: UInt64,

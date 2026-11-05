@@ -364,6 +364,15 @@ alignment require review of those real images; neither callbacks nor these
 capture samples certify optical FPS or GPU time. The required success marker is
 `NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED`.
 
+The same fixture also holds the main thread for 200ms after initial rendering.
+Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
+complete frames with presentation timestamps inside the hold (excluding the
+first 30ms). At least three frames and cloud changes in both halves above the
+static control are required. A production Codex spinner in a separate corner
+must change pixels in both halves too; hiding/resuming its native view must
+remove/restore its compositor animation. `main-hold` PNGs and measurements retain
+the evidence; this does not certify input responsiveness, physical FPS or energy.
+
 The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
 This test requires an actual `NSApplication.run` loop before observing an opening

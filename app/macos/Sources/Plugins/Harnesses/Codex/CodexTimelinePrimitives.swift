@@ -7,14 +7,7 @@ struct CodexStatusSpinner: View {
     var size: CGFloat = 12
     var lineWidth: CGFloat = 1.5
     var body: some View {
-        TimelineView(.animation(minimumInterval: NativeFrameRate.interval)) { clock in
-            let rotation = clock.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 0.8) / 0.8 * 360
-            ZStack {
-                Circle().stroke(NativePalette.pair(0xc5c4bd, 0x686b60).swiftUI, lineWidth: lineWidth)
-                Circle().trim(from: 0, to: 0.25).stroke(NativePalette.thread.accent.swiftUI, lineWidth: lineWidth)
-                    .rotationEffect(.degrees(rotation - 135))
-            }.padding(lineWidth / 2)
-        }.frame(width: size, height: size).accessibilityHidden(true)
+        NativeStatusSpinner(size: size, lineWidth: lineWidth)
     }
 }
 

@@ -814,7 +814,7 @@ Window visibility, detachment, cancellation and explicit pause are separate life
 `threadCardNativeDecorationsEnabled` defaults to false; only the production
 Overview card closure opts in. Its cloud uses
 [NativeOverviewCloudView](Design/NativeOverviewCloudView.swift), a stable native
-view with its own display link and transparent Metal layer, instead of a SwiftUI
+view with a screen-rate-capped serial render timer and transparent Metal layer, instead of a SwiftUI
 timeline or nested hosting graph. The existing seeded, point-space
 `NativeCloudField` and the shader's `cloudField` function serve both renderers.
 Palette colors resolve from the current SwiftUI environment into premultiplied
@@ -828,6 +828,25 @@ from the surrounding card. Inactive completed views do not request drawables;
 bounded rendering work runs off the UI thread and removal retires its driver.
 The existing shared SwiftUI renderer remains the capability fallback and the
 renderer for other cloud consumers.
+
+The render queue samples immutable inputs independently of the main run loop.
+Only geometry, resolved colors, activity and visibility cross from AppKit;
+first-frame reveal still returns to main. One in-flight GPU frame bounds work,
+missing drawables retry, and generation/revision fences retire stale work.
+Static fields stop after a successful draw; a zero-energy terminal frame finishes
+fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
+the last image and cancels sampling; detach/removal retires the generation.
+The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
+still delays newly requested state, layout, visibility and interaction changes.
+
+[NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
+Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
+resolved colors, line width and size retain the original geometry. Background
+scenes, hidden/occluded windows, detachment and Reduce Motion stop rotation.
+Resume rejoins the existing wall-clock phase. The decoration owns no input or
+accessibility, and its native layer changes never publish a SwiftUI frame value.
+See the [implementation and validation record](../../../../../design/animation-main-thread.md)
+for main-thread admission boundaries and remaining performance limits.
 
 [NativeCardScan](Design/NativeCardScan.swift) moves the existing gradient through
 Core Animation's 3.4-second linear cycle. Pausing retains its displayed position;

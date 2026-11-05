@@ -4,7 +4,7 @@ import QuartzCore
 import SwiftUI
 
 /// Overview's native driver for the existing point-space cloud shader. Geometry,
-/// palette and lifecycle arrive from SwiftUI; frame callbacks do not publish state
+/// palette and lifecycle arrive from SwiftUI; independent sampling does not publish state
 /// or ask its hosting graph to lay out or draw.
 @MainActor
 struct NativeOverviewCloudView: NSViewRepresentable {
@@ -46,10 +46,8 @@ final class NativeOverviewCloudSurface: NSView {
     private let seed = UInt64.random(in: .min ... .max)
     private let startedAt = Date()
     private var frozenMotionTime: TimeInterval = 0
-    private var frameLink: CADisplayLink?
-    private var linkTarget: NativeOverviewCloudLinkTarget?
+
     private var frameGeneration: UInt64 = 0
-    private var needsFrame = true
     private var redrawVersion: UInt64 = 0
     private var nextFrameID: UInt64 = 0
     private var awaitingFrame: UInt64?
@@ -88,7 +86,6 @@ final class NativeOverviewCloudSurface: NSView {
 
     required init?(coder: NSCoder) { return nil }
     isolated deinit {
-        frameLink?.invalidate()
         renderer?.stop()
         NotificationCenter.default.removeObserver(self)
     }
@@ -125,7 +122,7 @@ final class NativeOverviewCloudSurface: NSView {
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeOcclusionStateNotification, object: window)
         NotificationCenter.default.removeObserver(self, name: NSWindow.didChangeScreenNotification, object: window)
-        if newWindow == nil { suspendSurface(); stopLink() }
+        if newWindow == nil { suspendSurface(); stopDriver() }
         super.viewWillMove(toWindow: newWindow)
     }
 
@@ -152,7 +149,7 @@ final class NativeOverviewCloudSurface: NSView {
     override func viewDidHide() {
         super.viewDidHide()
         suspendSurface()
-        frameLink?.isPaused = true
+        renderer?.pause()
     }
 
     override func viewDidUnhide() {
@@ -184,7 +181,6 @@ final class NativeOverviewCloudSurface: NSView {
 
     @objc private func windowVisibilityChanged(_ notification: Notification) {
         updateGeometry()
-        frameLink?.preferredFrameRateRange = NativeFrameRate.preferredRange(for: window?.screen)
         requestFrame()
         refreshDriver()
     }
@@ -205,55 +201,28 @@ final class NativeOverviewCloudSurface: NSView {
         let now = CACurrentMediaTime()
         if let fade, now - fade.startedAt >= 0.4 { self.fade = nil }
         guard renderer != nil, !colors.isEmpty, intensity(at: now) > 0 || fade != nil else {
-            clearSurface(); frameLink?.isPaused = true; return
+            clearSurface(); renderer?.pause(); return
         }
         // Visibility pauses preserve the most recent image, including while an
         // Overview transition still exposes part of its outgoing contents.
-        guard canRenderCloud else { suspendSurface(); frameLink?.isPaused = true; return }
+        guard canRenderCloud else { suspendSurface(); renderer?.pause(); return }
         suspended = false
-        if frameLink == nil {
-            let target = NativeOverviewCloudLinkTarget(view: self)
-            let link = displayLink(target: target, selector: #selector(NativeOverviewCloudLinkTarget.tick(_:)))
-            link.preferredFrameRateRange = NativeFrameRate.preferredRange(for: window?.screen)
-            link.add(to: .main, forMode: .common)
-            linkTarget = target
-            frameLink = link
-        }
-        // A static or paused field draws once. A pending first frame stays on the
-        // link until a drawable is ready; no setNeedsDisplay/layout propagation.
-        frameLink?.isPaused = !(animates || fade != nil || needsFrame || awaitingFrame != nil)
-    }
-
-    fileprivate func tick() {
-        refreshDriver()
-        guard canRenderCloud, let renderer, frameLink?.isPaused == false else { return }
-        // Wait for the requested static frame's completion without submitting
-        // duplicate frames when the GPU has finished but its main-actor task has
-        // not yet run. A new input change still requests a replacement frame.
-        guard animates || fade != nil || needsFrame else { return }
-        let value = intensity(at: CACurrentMediaTime())
-        guard value > 0 else { return }
-        let motionTime = animates ? Date().timeIntervalSince(startedAt) : frozenMotionTime
-        let lights = NativeCloudField(palette: palette, intensity: value,
-            time: motionTime * 1.4 + palette.phase, seed: seed).lights(in: bounds.size, colorScheme: colorScheme)
-        let frame = NativeOverviewCloudFrame(geometry: lights.geometry, colors: colors,
-                                            pointSize: SIMD2(Float(bounds.width), Float(bounds.height)))
         let generation = frameGeneration
         let version = redrawVersion
-        let requestCompletion = needsFrame || metal.isHidden
         nextFrameID &+= 1
         let frameID = nextFrameID
-        let completion: (@Sendable (Bool) -> Void)?
-        if requestCompletion {
-            completion = { [weak self] succeeded in
-                Task { @MainActor [weak self] in
-                    self?.completedFrame(succeeded, generation: generation, version: version, id: frameID)
-                }
+        awaitingFrame = frameID
+        renderer?.drive(NativeOverviewCloudInput(
+            palette: palette, colors: colors, colorScheme: colorScheme, size: bounds.size,
+            seed: seed, startedAt: startedAt, frozenMotionTime: frozenMotionTime,
+            animates: animates, targetIntensity: targetIntensity,
+            fadeFrom: fade?.from, fadeStartedAt: fade?.startedAt),
+            generation: generation,
+            interval: 1 / Double(NativeFrameRate.preferredRange(for: window?.screen).maximum)
+        ) { [weak self] succeeded in
+            Task { @MainActor [weak self] in
+                self?.completedFrame(succeeded, generation: generation, version: version, id: frameID)
             }
-        } else { completion = nil }
-        if renderer.submit(frame, generation: generation, completion: completion) {
-            needsFrame = false
-            if requestCompletion { awaitingFrame = frameID }
         }
     }
 
@@ -266,13 +235,12 @@ final class NativeOverviewCloudSurface: NSView {
                 metal.isHidden = false
                 CATransaction.commit()
             }
-        } else { needsFrame = true }
-        refreshDriver()
+        }
+        if !succeeded { refreshDriver() }
     }
 
     private func requestFrame() {
         redrawVersion &+= 1
-        needsFrame = true
     }
 
     private func suspendSurface() {
@@ -281,7 +249,6 @@ final class NativeOverviewCloudSurface: NSView {
             suspended = true
         }
         awaitingFrame = nil
-        needsFrame = true
     }
 
     private func clearSurface() {
@@ -293,18 +260,14 @@ final class NativeOverviewCloudSurface: NSView {
         }
     }
 
-    private func stopLink() {
-        frameLink?.invalidate()
-        frameLink = nil
-        linkTarget = nil
-    }
+    private func stopDriver() { renderer?.pause() }
 
     func dismantle() {
         guard !dismantled else { return }
         dismantled = true
         NotificationCenter.default.removeObserver(self)
         clearSurface()
-        stopLink()
+        stopDriver()
         renderer?.stop()
         renderer = nil
         metal.removeFromSuperlayer()
@@ -332,15 +295,5 @@ final class NativeOverviewCloudSurface: NSView {
         let from: Double
         let to: Double
         let startedAt: TimeInterval
-    }
-}
-
-@MainActor
-private final class NativeOverviewCloudLinkTarget: NSObject {
-    weak var view: NativeOverviewCloudSurface?
-    init(view: NativeOverviewCloudSurface) { self.view = view }
-    @objc func tick(_ link: CADisplayLink) {
-        guard let view else { link.invalidate(); return }
-        view.tick()
     }
 }

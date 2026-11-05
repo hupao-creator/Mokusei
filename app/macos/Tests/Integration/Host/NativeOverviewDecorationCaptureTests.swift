@@ -123,6 +123,7 @@ struct NativeOverviewDecorationCaptureTests {
             NativeOverviewWorkspaceView(model: fixture.overview,
                 callbacks: .init(openThread: { _, _ in }, openApplication: { _, _ in }, onSettings: {}))
                 .background(DecorationCaptureBackdrop())
+                .overlay(alignment: .topTrailing) { NativeStatusSpinner(size: 24).padding(12) }
                 .preferredColorScheme(.dark).environment(\.scenePhase, .active),
             width: 840, height: 420)
         window.appearance = NSAppearance(named: .darkAqua)
@@ -185,6 +186,34 @@ struct NativeOverviewDecorationCaptureTests {
             let measurements = try motion(first, geometry: firstGeometry)
             report["motion"] = measurements.report
 
+            // The capture queue continues while this isolated fixture holds main.
+            // Only presentation timestamps strictly inside the hold count; queued
+            // frames from before/after the hold cannot prove independent playback.
+            let spinner = try #require(spinnerView(root), "Production spinner must have a compositor animation")
+            let spinnerRect = spinner.convert(spinner.bounds, to: nil)
+            let scale = window.backingScaleFactor
+            let spinnerPixels = CGRect(x: spinnerRect.minX * scale,
+                y: (window.frame.height - spinnerRect.maxY) * scale,
+                width: spinnerRect.width * scale, height: spinnerRect.height * scale).integral
+            let held = try await capture(window, seconds: 0.2, holdMain: true)
+            evidence.append(("main-hold", held))
+            try requireFullFrames(held, size: firstGeometry.imageSize)
+            try #require(held.count >= 3, "Insufficient complete frames inside the main-thread hold")
+            let heldPixels = try held.map { try DecorationPixels($0.image) }
+            let middle = held.count / 2
+            var holdChanges: [[String: Any]] = []
+            for (lower, upper) in [(0, middle), (middle, held.count - 1)] {
+                let cloud = heldPixels[upper].change(from: heldPixels[lower], in: firstGeometry.cloud)
+                let control = heldPixels[upper].change(from: heldPixels[lower], in: firstGeometry.control)
+                let ring = heldPixels[upper].change(from: heldPixels[lower], in: spinnerPixels)
+                try #require(ring.mean > 0.1, "Spinner pixels must rotate during both halves of the main hold")
+                holdChanges.append(["from": held[lower].presentationTime, "to": held[upper].presentationTime,
+                    "cloudMean": cloud.mean, "controlMean": control.mean, "spinnerMean": ring.mean])
+                try #require(cloud.mean > control.mean + 0.005,
+                             "Cloud pixels did not advance independently during both halves of the main hold")
+            }
+            report["mainHold"] = holdChanges
+
             // One geometry change, on the same mounted card and native layers.
             // Its actual PNGs and coordinate map are retained for alignment,
             // clear background and rounded-corner inspection, without goldens.
@@ -205,6 +234,10 @@ struct NativeOverviewDecorationCaptureTests {
                          "Observation incomplete or stopped cloud: quiet card pixels did not move above the static-background control")
             try #require(measurements.scanMoved,
                          "Observation incomplete or stopped scan: no ordered narrow-band pixel motion crossed the derived row")
+            spinner.isHidden = true
+            try #require(spinner.layer?.sublayers?.allSatisfy { $0.animation(forKey: "spin") == nil } == true)
+            spinner.isHidden = false
+            try await SwiftUIReplay.wait { spinnerView(root) === spinner }
             report["assertionsPassed"] = true
             print("NATIVE_OVERVIEW_DECORATION_MOTION_CONFIRMED native=true cloudPixels=true scanPixels=true retained=true appearanceReviewPending=true")
             await fixture.close()
@@ -257,6 +290,14 @@ struct NativeOverviewDecorationCaptureTests {
         return DecorationNodes(cloud: cloud, metal: metal, scan: scan, gradient: gradient)
     }
 
+    private func spinnerView(_ view: NSView) -> NSView? {
+        if view.layer?.sublayers?.contains(where: { $0.animation(forKey: "spin") != nil }) == true { return view }
+        for child in view.subviews {
+            if let result = spinnerView(child) { return result }
+        }
+        return nil
+    }
+
     private func requireForeground(_ window: NSWindow) throws {
         try #require(NSApp.isActive && window.isVisible && window.isKeyWindow
                      && window.occlusionState.contains(.visible),
@@ -304,7 +345,7 @@ struct NativeOverviewDecorationCaptureTests {
         return result
     }
 
-    private func capture(_ window: NSWindow, seconds: Double) async throws -> [TagGlassFrames.Sample] {
+    private func capture(_ window: NSWindow, seconds: Double, holdMain: Bool = false) async throws -> [TagGlassFrames.Sample] {
         try requireForeground(window)
         let available = try await SCShareableContent.currentProcess
         let target = try #require(available.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
@@ -317,7 +358,7 @@ struct NativeOverviewDecorationCaptureTests {
         configuration.colorSpaceName = CGColorSpace.sRGB
         // Fifteen capture samples per second resolve this 3.4s scan. This is a
         // sampling request, not a renderer or physical-display rate assertion.
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 15)
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: holdMain ? 60 : 15)
         configuration.queueDepth = 3
         let frames = TagGlassFrames()
         let stream = SCStream(filter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration, delegate: nil)
@@ -327,18 +368,35 @@ struct NativeOverviewDecorationCaptureTests {
         var samples: [TagGlassFrames.Sample] = []
         do {
             try await SwiftUIReplay.wait { frames.ready }
-            let deadline = ProcessInfo.processInfo.systemUptime + seconds
-            while ProcessInfo.processInfo.systemUptime < deadline {
+            if holdMain {
+                try await Task.sleep(for: .milliseconds(100))
+                _ = frames.takeSamples()
+                let start = CACurrentMediaTime()
+                blockMain(seconds)
+                let end = CACurrentMediaTime()
+                try await Task.sleep(for: .milliseconds(100))
+                try await stream.stopCapture()
+                samples = frames.takeSamples().filter {
+                    $0.presentationTime > start + 0.03 && $0.presentationTime < end
+                }
+            } else {
+                let deadline = ProcessInfo.processInfo.systemUptime + seconds
+                while ProcessInfo.processInfo.systemUptime < deadline {
+                    samples.append(contentsOf: frames.takeSamples())
+                    try await Task.sleep(for: .milliseconds(40))
+                }
+                try await stream.stopCapture()
                 samples.append(contentsOf: frames.takeSamples())
-                try await Task.sleep(for: .milliseconds(40))
             }
-            try await stream.stopCapture()
-            samples.append(contentsOf: frames.takeSamples())
         } catch {
             try? await stream.stopCapture()
             throw error
         }
         return samples
+    }
+
+    private func blockMain(_ seconds: Double) {
+        Thread.sleep(forTimeInterval: seconds)
     }
 
     private func requireFullFrames(_ samples: [TagGlassFrames.Sample], size: CGSize) throws {
