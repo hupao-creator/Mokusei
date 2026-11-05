@@ -208,6 +208,7 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	if publicThread && !t.Moku {
 		metadata = metadataStore{owner}
 	}
+	injection = r.auditToolInjection(t, injection)
 	native, err := h.Open(lifetime, plugin.OpenContext{ThreadID: t.ID, ReadThread: func() model.SessionRecord {
 		current, e := r.sessionThread(t.ID)
 		if e != nil {

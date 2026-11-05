@@ -219,6 +219,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 		call.Arguments = json.RawMessage("null")
 	}
 	callID := ""
+	callIDTruncated := false
 	if len(call.CallID) != 0 {
 		if value, err := model.Decode(call.CallID); err == nil {
 			switch value := value.(type) {
@@ -229,6 +230,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 			}
 		}
 		if len(callID) > 256 {
+			callIDTruncated = true
 			callID = callID[:256]
 		}
 	}
@@ -256,7 +258,7 @@ func (b *ToolBridge) handleRequest(w http.ResponseWriter, request *http.Request)
 			done <- outcome{err: err}
 			return
 		}
-		result, err := tool.Execute(ctx, plugin.ToolCall{CallID: callID, Arguments: call.Arguments})
+		result, err := tool.Execute(ctx, plugin.ToolCall{CallID: callID, Arguments: call.Arguments, CallIDTruncated: callIDTruncated})
 		done <- outcome{result: result, err: err}
 	}()
 	select {

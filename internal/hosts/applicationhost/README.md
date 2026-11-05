@@ -87,6 +87,10 @@ Host.Start 在全部定义冻结后创建一代 participants。Stop 先撤销工
 不再先记 `failed`；独立超时和真实失败仍按原有次数上限与退避重试。
 取消不吞掉原生 Handle 的清理失败，也不额外结算或增加关闭中的批次尝试。
 
+The runner snapshots consumer/batch/attempt facts at each injected callback entry
+for the [private tool journal](../../platform/diagnostics/README.md). These facts
+are diagnostic context; batch fences and receipts retain write/dedup authority.
+
 后台批次与工具读取 lifecycle 历史时，每一页开始前检查调用取消。已进入的单页读取仍由无 context 的 snapshot 能力完成；取消后不再继续读取后续页。
 
 ## Composition and implementations

@@ -13,6 +13,11 @@
 - `PublishActivity` 提供有序、短暂的前台活动；它不取代持久化状态。
 - `Injection` 携带 instructions、context、seed 和 tool bindings。ToolBinding 通过 `Execute(ctx, ToolCall)` 返回 JSON；取消必须沿 context 传播。
 
+Production Moku/Tag/Report tools receive `ToolCall.InvocationID` independently
+of Harness `CallID`. `ToolInjection.AuditContext` snapshots diagnostic batch facts,
+not write authority. See the [private journal contract](../../platform/diagnostics/README.md)
+for bounded redaction, retention and callback-only coverage.
+
 Handle.Send 接收 `SendRequest`。存在 `Admitted` 回调时，适配器在本次输入持久保留后调用一次；新执行在 native dispatch 前准入，follow-up 可等待原生接受后确认，避免把被拒绝的 steering 标记为已送达；旧输入的流式更新不能为新 steering 输入代办准入。Interrupt 和 Close 必须撤销接纳并排空本 Handle 的 native 工作和子进程。
 
 `Handle.Respond` may return `InteractionResponseNotSentError` only when no native

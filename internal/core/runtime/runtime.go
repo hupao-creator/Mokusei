@@ -60,6 +60,7 @@ type Config struct {
 	Diagnostic         func(string)
 	SettingsTrace      func(string, model.Object)
 	SearchTrace        func(plugin.SearchDiagnostic)
+	ToolTrace          func(plugin.ToolInvocation) error
 	ProcessFactory     func(string) plugin.ApplicationProcessCapability
 	ExtraCapabilities  map[string]any
 	Workspaces         *workspaces.Manager

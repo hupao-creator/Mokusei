@@ -171,6 +171,9 @@ type SeedItem struct {
 type ToolCall struct {
 	CallID    string
 	Arguments json.RawMessage
+	// InvocationID identifies this host callback, independently of native call IDs.
+	InvocationID    string
+	CallIDTruncated bool
 }
 type ToolBinding struct {
 	Name         string
@@ -210,6 +213,9 @@ func CallerError(err error) error {
 type ToolInjection struct {
 	Mode     string
 	Bindings []ToolBinding
+	// AuditContext snapshots retry facts at callback entry, never after settlement.
+	// This is diagnostic context, not authority to execute or write a batch.
+	AuditContext func() ToolRetryContext `json:"-"`
 }
 type Injection struct {
 	Instructions   []string

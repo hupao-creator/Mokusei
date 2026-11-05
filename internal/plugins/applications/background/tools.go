@@ -30,7 +30,7 @@ func UUID() string {
 func String(args model.Object, key string) (string, error) {
 	value, ok := args[key].(string)
 	if !ok || strings.TrimSpace(value) == "" {
-		return "", fmt.Errorf("Missing %s", key)
+		return "", plugin.CallerError(fmt.Errorf("Missing %s", key))
 	}
 	return value, nil
 }
@@ -41,11 +41,11 @@ func Integer(args model.Object, key string, fallback int) (int, error) {
 	}
 	number, ok := value.(json.Number)
 	if !ok {
-		return 0, fmt.Errorf("Invalid %s", key)
+		return 0, plugin.CallerError(fmt.Errorf("Invalid %s", key))
 	}
 	n, err := strconv.ParseInt(string(number), 10, 64)
 	if err != nil || n < 0 || n > 9007199254740991 {
-		return 0, fmt.Errorf("Invalid %s", key)
+		return 0, plugin.CallerError(fmt.Errorf("Invalid %s", key))
 	}
 	return int(n), nil
 }
@@ -66,16 +66,16 @@ func Tool(lifetime context.Context, name, description string, properties model.O
 		}
 		args, err := model.DecodeObject(call.Arguments)
 		if err != nil {
-			return nil, err
+			return nil, plugin.CallerError(err)
 		}
 		for key := range args {
 			if _, ok := properties[key]; !ok {
-				return nil, fmt.Errorf("Invalid arguments for %s", name)
+				return nil, plugin.CallerError(fmt.Errorf("Invalid arguments for %s", name))
 			}
 		}
 		for _, key := range required {
 			if _, ok := args[key]; !ok {
-				return nil, fmt.Errorf("Invalid arguments for %s", name)
+				return nil, plugin.CallerError(fmt.Errorf("Invalid arguments for %s", name))
 			}
 		}
 		result, err := run(ctx, args, call.CallID)
@@ -124,7 +124,7 @@ func JSONPage(lifetime context.Context, name, description string, properties mod
 		}
 		limit, err := Integer(args, "limit", 24000)
 		if err != nil || limit < 1 || limit > 64000 {
-			return nil, errors.New("Invalid limit")
+			return nil, plugin.CallerError(errors.New("Invalid limit"))
 		}
 		query := model.Object{}
 		for key, value := range args {
@@ -151,7 +151,7 @@ func JSONPage(lifetime context.Context, name, description string, properties mod
 		}
 		cache.mu.Unlock()
 		if entry == nil {
-			return nil, errors.New("Background evidence snapshot expired or unavailable; restart at offset 0")
+			return nil, plugin.CallerError(errors.New("Background evidence snapshot expired or unavailable; restart at offset 0"))
 		}
 		if fresh {
 			value, loadErr := load(ctx, query, callID)

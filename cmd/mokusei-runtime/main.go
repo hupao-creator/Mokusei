@@ -90,6 +90,7 @@ func run(args []string, input io.Reader, output io.Writer) error {
 			Log:      bootstrap.event, Overview: overview,
 			SettingsTrace: bootstrap.settingsEvent,
 			SearchTrace:   bootstrap.searchEvent,
+			ToolTrace:     bootstrap.toolEvent,
 		})
 		err = daemon.Serve(ctx, daemon.ServeOptions{
 			Profile: p, Bootstrap: bootstrap, Output: output, Overview: overview,
@@ -146,6 +147,7 @@ type loggedBootstrap struct {
 	directory   string
 	mu          sync.Mutex
 	logger      *diagnostics.Logger
+	tools       *diagnostics.ToolLogger
 	initialized bool
 }
 
@@ -154,8 +156,13 @@ func (b *loggedBootstrap) Initialize(ctx context.Context) (transport.Host, error
 	if err != nil {
 		return nil, err
 	}
+	tools, err := diagnostics.NewToolLogger(filepath.Join(filepath.Dir(b.directory), "tool-calls"))
+	if err != nil {
+		return nil, errors.Join(err, logger.Close())
+	}
 	b.mu.Lock()
 	b.logger = logger
+	b.tools = tools
 	b.initialized = true
 	b.mu.Unlock()
 	return b.inner.Initialize(ctx)
@@ -181,7 +188,7 @@ func (b *loggedBootstrap) settingsEvent(event string, fields model.Object) {
 
 func (b *loggedBootstrap) Close(ctx context.Context) error {
 	b.mu.Lock()
-	logger, initialized := b.logger, b.initialized
+	logger, tools, initialized := b.logger, b.tools, b.initialized
 	b.mu.Unlock()
 	var err error
 	if initialized {
@@ -190,7 +197,7 @@ func (b *loggedBootstrap) Close(ctx context.Context) error {
 	if err != nil {
 		b.event("runtime.shutdown.failed", err)
 	}
-	return errors.Join(err, logger.Close())
+	return errors.Join(err, tools.Close(), logger.Close())
 }
 
 func parseCommand(args []string) (command, dataDir string, err error) {
@@ -234,4 +241,11 @@ func (b *loggedBootstrap) searchEvent(event plugin.SearchDiagnostic) {
 	if logger != nil {
 		logger.SearchEvent(event)
 	}
+}
+
+func (b *loggedBootstrap) toolEvent(event plugin.ToolInvocation) error {
+	b.mu.Lock()
+	logger := b.tools
+	b.mu.Unlock()
+	return logger.Record(event)
 }
