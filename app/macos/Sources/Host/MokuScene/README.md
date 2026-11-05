@@ -581,7 +581,10 @@ a travel wait. Once input is admitted, later card choices move the retained edit
 without folding it. Reduce Motion and direct resizing settle without a delay.
 Scene-level input admission also gates interaction restoration,
 input controls and focus; navigation cannot bypass it by reconfiguring the draft.
-Focus uses its existing 180ms delay from input expansion, with draft/generation checks;
+Automatic focus uses its existing 180ms delay from input expansion, with
+draft/generation checks. That delay does not disable admitted native click/Tab
+focus. Cmd+Shift+B explicitly focuses a pinned Agent editor after TOC navigation,
+without changing its draft, send generation or suppressed automatic-focus policy;
 accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock
@@ -680,6 +683,10 @@ after catalog admission, fenced to the owning route/composer visit. Ordinary
 current sends keep their existing visit-scoped execution reveal.
 TOC selection changes drafts without acquiring editor focus. Initial input,
 explicit Browser annotation mode and Moku retain their existing autofocus.
+Pending focus requests wait for editor eligibility and are applied once, so an
+unavailable first render cannot lose the request and later availability cannot
+repeatedly steal the reader's focus. See the
+[recording, focus chain and manual validation limits](../../../../../design/execution-composer-focus.md).
 Each continuation phase retains its original source, input, destination and
 command ID. An uncertain retry queries that receipt before any routing decision;
 a confirmed fork can then proceed to its first follow-up, while a confirmed

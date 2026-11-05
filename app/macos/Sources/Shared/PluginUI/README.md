@@ -21,6 +21,13 @@ replacing its view cannot acknowledge another draft. Execution continuation
 uses it to release a retained accepted receipt; failed/uncertain sends never call
 it. Existing callers without retained receipts keep their ordinary behavior.
 
+`NativeComposerTextInput` keeps an unconsumed focus request pending while the
+editor is unavailable or focus is suspended. Eligibility changes retry that
+intent once; already consumed requests do not reacquire focus on passive
+availability changes. Hosts can turn off automatic initial focus and supply
+explicit requests independently of native click/Tab eligibility. See the
+[execution focus investigation](../../../../../design/execution-composer-focus.md).
+
 The shared `NativePalette.thread` dark reading surfaces use a charcoal canvas,
 progressively lighter content/interaction/composer fills and warm off-white text.
 SwiftUI, TextKit and the panel transition resolve the same adaptive assets;

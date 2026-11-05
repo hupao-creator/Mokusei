@@ -70,6 +70,7 @@ public struct NativeComposerTextInput: View {
     private let submitOnReturn: Bool
     private let emphasizedInsertionPoint: Bool
     @State private var focused = false
+    @State private var appliedFocusRequest: FocusRequest?
     @State private var pasting = false
     @State private var pasteOwnerID = UUID()
     @State private var selection: NSRange?
@@ -175,8 +176,16 @@ public struct NativeComposerTextInput: View {
                 paste(providers)
             }
             .onChange(of: focused) { _, value in onFocusChange?(value) }
-            .task(id: FocusRequest(key: focusRequestKey, context: focusContext)) {
-                if focusEnabled && !unavailable && (focusRequestKey > 0 || automaticFocus && !suppressInitialFocus) { focused = true }
+            .task(id: FocusAttempt(request: FocusRequest(key: focusRequestKey, context: focusContext),
+                enabled: focusEnabled && !unavailable,
+                requested: focusRequestKey > 0 || automaticFocus && !suppressInitialFocus)) {
+                let request = FocusRequest(key: focusRequestKey, context: focusContext)
+                guard focusEnabled, !unavailable, appliedFocusRequest != request,
+                      focusRequestKey > 0 || automaticFocus && !suppressInitialFocus else { return }
+                // Availability may settle after the request arrives. Retry that
+                // pending intent once, without refocusing on later rerenders.
+                appliedFocusRequest = request
+                focused = true
             }
             .onChange(of: unavailable) { _, unavailable in if unavailable { focused = false } }
             .onChange(of: focusEnabled) { _, enabled in if !enabled { focused = false } }
@@ -220,6 +229,7 @@ public struct NativeComposerTextInput: View {
         }
     }
     private struct FocusRequest: Equatable { let key: Int; let context: String }
+    private struct FocusAttempt: Equatable { let request: FocusRequest; let enabled: Bool; let requested: Bool }
     private var nativeFont: CTFont { CTFontCreateUIFontForLanguage(.system, fontSize, nil)! }
     private var spacing: CGFloat {
         let font = nativeFont
