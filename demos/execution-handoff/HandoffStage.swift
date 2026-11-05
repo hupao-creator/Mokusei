@@ -154,7 +154,7 @@ private struct ReaderSeat: View {
             catch { return }
             guard let self, generation == visit, playing else { return }
             layoutSubtreeIfNeeded()
-            if reduced { settle() } else { turnPage(visit: visit) }
+            if reduced { settle() } else { absorbAndExpand(visit: visit) }
         }
     }
 
@@ -201,7 +201,7 @@ private struct ReaderSeat: View {
 
     private func turnPage(visit: UUID) {
         guard bounds.height > 0 else { return }
-        report("向下翻到新结果 · sidecard 吸入主面板", busy: true)
+        report("第二段 · 向下翻到最新结果", busy: true)
         latest.isHidden = false
         let duration = NativeReadingPageTiming.duration * (slow ? 3 : 1)
         CATransaction.begin(); CATransaction.setDisableActions(true)
@@ -209,59 +209,46 @@ private struct ReaderSeat: View {
         CATransaction.commit()
         animate(previous.layer!, key: "transform.translation.y", from: 0, to: -bounds.height,
             duration: duration, retain: true)
-        absorbSidecard(duration: duration)
         animate(latest.layer!, key: "transform.translation.y", from: bounds.height, to: 0, duration: duration) { [weak self] in
             guard let self, generation == visit, playing else { return }
             previous.isHidden = true
-            sideShell.isHidden = true
-            expandMain(visit: visit)
-        }
-    }
-
-    private func absorbSidecard(duration: Double) {
-        // Pull the retained source into the lower-right area of the arriving
-        // page. Geometry stays inside the main panel, never at the launcher.
-        // Scale the rendered source as a whole, preserving native text layout.
-        // Presentation-only travel keeps its model viewport alive until hidden.
-        let scale = 0.08
-        let destination = CGPoint(x: mainRect.width * 0.72 - sideRect.width * scale / 2,
-            y: mainRect.height * 0.64 - sideRect.height * scale / 2)
-        let source = NSValue(point: sideShell.layer!.position)
-        // A brief shared onset leaves the result legible, then the source
-        // accelerates into the incoming page and disappears at the same landing.
-        keyframes(sideShell.layer!, key: "position", values: [source, source, NSValue(point: destination)],
-            times: [0, 0.12, 1], duration: duration)
-        keyframes(sideShell.layer!, key: "transform.scale", values: [1, 1, scale],
-            times: [0, 0.12, 1], duration: duration)
-        keyframes(sideShell.layer!, key: "opacity", values: [1, 1, 0], times: [0, 0.62, 1], duration: duration)
-        keyframes(side.layer!, key: "opacity", values: [1, 1, 0], times: [0, 0.32, 1], duration: duration)
-    }
-
-    private func expandMain(visit: UUID) {
-        report("sidecard 已吸入 · 新结果停靠，主面板展开", busy: true)
-        let duration = 0.30 * (slow ? 3 : 1)
-        let mainPosition = mainShell.layer!.position
-        let mainBounds = mainShell.layer!.bounds
-        let pagePosition = latest.layer!.position
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        mainShell.frame = fullRect
-        latest.frame.origin.x = (fullRect.width - pageWidth) / 2
-        CATransaction.commit()
-        animate(mainShell.layer!, key: "position", from: mainPosition, to: mainShell.layer!.position, duration: duration)
-        animate(latest.layer!, key: "position", from: pagePosition, to: latest.layer!.position, duration: duration)
-        animate(mainShell.layer!, key: "bounds", from: mainBounds, to: mainShell.layer!.bounds, duration: duration) { [weak self] in
-            guard let self, generation == visit, playing else { return }
             settle()
         }
     }
 
-    private func keyframes(_ layer: CALayer, key: String, values: [Any], times: [NSNumber], duration: Double) {
-        let animation = CAKeyframeAnimation(keyPath: key)
-        animation.values = values; animation.keyTimes = times; animation.duration = duration
-        animation.isRemovedOnCompletion = false; animation.fillMode = .forwards
-        animation.timingFunctions = [CAMediaTimingFunction(name: .linear),
-            CAMediaTimingFunction(controlPoints: 0.42, 0, 0.2, 1)]
-        layer.add(animation, forKey: key)
+    private func absorbSidecard(duration: Double) {
+        // Slide the full-size card behind the widening opaque main panel.
+        // Occlusion alone communicates absorption; no scale or fade is needed.
+        // Its model viewport stays alive until the first stage has completed.
+        sideShell.layer?.zPosition = -1
+        let destination = CGPoint(x: mainRect.width - sideRect.width * 0.2, y: sideRect.minY)
+        animate(sideShell.layer!, key: "position", from: sideShell.layer!.position, to: destination,
+            duration: duration, retain: true)
+    }
+
+    private func absorbAndExpand(visit: UUID) {
+        report("第一段 · sidecard 收入，主面板变宽", busy: true)
+        let duration = NativeReadingPageTiming.duration * (slow ? 3 : 1)
+        let mainPosition = mainShell.layer!.position
+        let mainBounds = mainShell.layer!.bounds
+        let previousPosition = previous.layer!.position
+        let latestPosition = latest.layer!.position
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        mainShell.frame = fullRect
+        previous.frame.origin.x = (fullRect.width - pageWidth) / 2
+        latest.frame.origin.x = (fullRect.width - pageWidth) / 2
+        CATransaction.commit()
+        absorbSidecard(duration: duration)
+        animate(mainShell.layer!, key: "position", from: mainPosition, to: mainShell.layer!.position, duration: duration)
+        animate(previous.layer!, key: "position", from: previousPosition, to: previous.layer!.position, duration: duration)
+        animate(latest.layer!, key: "position", from: latestPosition, to: latest.layer!.position, duration: duration)
+        animate(mainShell.layer!, key: "bounds", from: mainBounds, to: mainShell.layer!.bounds, duration: duration) { [weak self] in
+            guard let self, generation == visit, playing else { return }
+            sideShell.isHidden = true
+            // The actual width-animation completion owns this phase boundary;
+            // no timer can start page travel while the first stage is moving.
+            turnPage(visit: visit)
+        }
     }
 
     private func animate(_ layer: CALayer, key: String, from: Any, to: Any, duration: Double,
