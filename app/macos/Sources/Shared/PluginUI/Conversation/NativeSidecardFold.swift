@@ -56,6 +56,8 @@ private struct NativeSidecardFoldPresentation: ViewModifier, @preconcurrency Ani
     let destination: CGRect
     let fadingReturn: Bool
     let frameIdentifier: String
+    @Environment(\.nativeReportPanelReturn) private var returning
+    @State private var presentation = SidecardReturnPresentation()
 
     typealias RectData = AnimatablePair<CGPoint.AnimatableData, CGSize.AnimatableData>
     typealias FoldData = AnimatablePair<RectData, CGFloat>
@@ -75,22 +77,24 @@ private struct NativeSidecardFoldPresentation: ViewModifier, @preconcurrency Ani
         // or a completion callback that can race a reopened selection.
         let presentedRect = fadingReturn ? CGRect(origin: .zero, size: destination.size) : rect
         let presentedOffset = fadingReturn ? destination.origin : offset
-        let aperture = NativeSidecardFoldAperture(rect: presentedRect)
+        let pose = presentation.pose(rect: presentedRect, offset: presentedOffset, progress: progress,
+            retaining: returning != nil)
+        let aperture = NativeSidecardFoldAperture(rect: pose.rect)
         content
             .mask(aperture)
             .contentShape(.interaction, aperture)
             // Keep the shell visible through most of the return; the old short
             // independent fade hid the motion before it could reach its button.
-            .opacity(min(1, max(0, progress) * (fadingReturn ? 1 : 5)))
+            .opacity(min(1, max(0, pose.progress) * (fadingReturn ? 1 : 5)))
             // Measure the exact presented aperture without exposing document
             // controls or relying on their synthesized accessibility union.
             .overlay(alignment: .topLeading) {
                 NativeReadingPanelFrame(identifier: frameIdentifier)
-                    .frame(width: presentedRect.width, height: presentedRect.height)
-                    .offset(x: presentedRect.minX, y: presentedRect.minY)
+                    .frame(width: pose.rect.width, height: pose.rect.height)
+                    .offset(x: pose.rect.minX, y: pose.rect.minY)
                     .allowsHitTesting(false)
             }
-            .offset(x: presentedOffset.x, y: presentedOffset.y)
+            .offset(x: pose.offset.x, y: pose.offset.y)
     }
 }
 
@@ -117,5 +121,18 @@ private struct NativeSidecardFoldAperture: Shape {
 
     func path(in bounds: CGRect) -> Path {
         Path(roundedRect: rect, cornerRadius: min(21, min(rect.width, rect.height) / 2))
+    }
+}
+
+/// Retain the last interpolated aperture when a Report returns during a fold.
+/// This memo never publishes state or changes document layout; the independent
+/// Report opacity owns departure while the fold's existing timeline can settle.
+@MainActor private final class SidecardReturnPresentation {
+    struct Pose { let rect: CGRect; let offset: CGPoint; let progress: CGFloat }
+    private var presented: Pose?
+    func pose(rect: CGRect, offset: CGPoint, progress: CGFloat, retaining: Bool) -> Pose {
+        let next = Pose(rect: rect, offset: offset, progress: progress)
+        if !retaining || presented == nil { presented = next }
+        return presented ?? next
     }
 }

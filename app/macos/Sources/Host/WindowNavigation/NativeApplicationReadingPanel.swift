@@ -78,6 +78,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @State private var dragging = false
     @State private var executionInput: NativeReportExecutionInput?
     @Environment(\.nativeExecutionDockPlacement) private var executionPlacement
+    @Environment(\.nativeReportPanelReturn) private var returning
     @Environment(\.nativeReportExecutionInputChanged) private var inputChanged
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -97,6 +98,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                         url = target; requestID = UUID(); sidecards.open(.browser)
                     })
                     .environment(\.nativeApplicationCloseLinkCard, {
+                        if returning != nil { return true }
                         if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close(); return true }
                         if let auxiliaryBack { auxiliaryBack.perform(); return true }
                         if sidecards.active != nil || sidecards.pending != nil { sidecards.close(); return true }
@@ -128,12 +130,13 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                     destination: CGRect(x: layout.surfaceX, y: layout.surfaceY,
                         width: layout.surfaceWidth, height: layout.surfaceHeight),
                     frameIdentifier: "report-link-card", fadesOnClose: true))
+                .nativeReportSidecardReturn()
                 .allowsHitTesting(expanded && !suppressed)
                 .disabled(!expanded || suppressed)
                 .accessibilityHidden(!expanded || suppressed)
                 .accessibilityIdentifier("report-link-card")
                 if url != nil {
-                    if expanded && !layout.stacked {
+                    if expanded && !layout.stacked && returning == nil {
                         NativeSidecardDivider(width: layout.cardWidth, maximumWidth: layout.maximumCardWidth,
                             onWidthChange: { retainedWidth = $0 }, onDraggingChange: { dragging = $0 })
                             .frame(width: 6, height: size.height)
@@ -146,14 +149,16 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
                             .frame(width: 42, height: 42).contentShape(Circle())
                     }
                     .position(browserLauncher)
-                    .disabled(suppressed)
+                    .disabled(suppressed || returning != nil)
+                    .opacity(returning == nil ? 1 : 0)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             .overlayPreferenceValue(NativeReadingAuxiliaryToolbarKey.self) { toolbar in
                 toolbar
                     .position(x: size.width + 38, y: size.height / 2 - (url == nil ? 0 : 28))
-                    .disabled(suppressed)
+                    .disabled(suppressed || returning != nil)
+                    .opacity(returning == nil ? 1 : 0)
             }
             .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: expanded)
             .animation(dragging || reduceMotion ? nil : NativeSidecardTiming.foldAnimation, value: layout.stacked)
@@ -172,10 +177,10 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
         }
         .onPreferenceChange(NativeReadingAuxiliaryBackKey.self) { auxiliaryBack = $0 }
         .onChange(of: suppressed) { _, hidden in
-            if hidden { sidecards.updateLayout(ready: false, suppressed: true) }
+            if hidden { sidecards.updateLayout(ready: false, suppressed: true, retainingForReturn: returning != nil) }
         }
         .onDisappear { sidecards.cancel(); auxiliaryBack = nil; inputChanged?(nil, false, nil) }
-        .nativeReadingEscape(perform: suppressed ? nil : {
+        .nativeReadingEscape(perform: suppressed || returning != nil ? nil : {
             if sidecards.active == .browser || sidecards.pending == .browser { sidecards.close() }
             else if let auxiliaryBack { auxiliaryBack.perform() }
             else if sidecards.active != nil || sidecards.pending != nil { sidecards.close() }

@@ -35,6 +35,8 @@ reverse even with only one target.
   only confirmed acceptance consumes the captured revision. Late receipts do
   not gain presentation authority over a replacement visit.
 - An accepted exact continuation starts a new route even for the same Thread.
+  While its destination is still absent from the catalog, its existing pending
+  navigation owns feedback without changing the source or resubmitting input.
   It carries the previous column into the new route until the real auxiliary
   layout is ready. The expanded shell and face seat remain in place while the
   replacement editor awaits admission. Marker route identity excludes retained
@@ -50,7 +52,14 @@ reverse even with only one target.
 ## Sprint verification
 
 Scope: source/state review, Swift parsing, diff/link checks and an application
-product build. No tests were added or run; no replay, interaction fixture,
+product build. The final application-only `swift build --product Mokusei`
+passed after integrating main's `4e7dc3d` Report-close repair. Swift parsing,
+`git diff --check`, local documentation links and the repository's static lint
+(architecture/static registration/no-Node, Go formatting and `go vet ./...`)
+passed. The first build stopped because source edits were made while it was
+compiling; subsequent builds used settled sources, and the final incremental
+build completed in 14.93s without warnings or errors.
+No tests were added or run; no replay, interaction fixture,
 remote PR or CI was used. The original recording was inspected via extracted
 frames. The fixed application has not been run for visual verification, so
 rendered orbit timing, glass clipping and travel remain visually unverified.

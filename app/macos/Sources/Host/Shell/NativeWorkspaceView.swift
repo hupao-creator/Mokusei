@@ -28,7 +28,12 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private var executionDrafts: [ApplicationExecutionRef: NativeComposerDraft] = [:]
     @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
     @ObservationIgnored private var reportInputBack: (() -> Void)?
-    @ObservationIgnored private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef)?
+    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef)?
+    var awaitingExecutionContinuation: Bool {
+        guard let pending = executionSendNavigation else { return false }
+        return pending.route == navigationRouteID && pending.generation == scene.composerGeneration
+            && pending.reference == dockExecution && !scene.dockCovered
+    }
     public private(set) var sidecardComposer: SidecardComposerRequest?
     @ObservationIgnored private var sidecardDraft: NativeComposerDraft?
     @ObservationIgnored private var sidecardComposerThread: JSONText?
@@ -858,6 +863,7 @@ public struct NativeWorkspaceView: View {
                         else { presentation.showOverview() }
                     },
                     sidecardComposer: sidecardComposer,
+                    awaitingContinuation: presentation.awaitingExecutionContinuation,
                     mode: detailRunning.map { $0 ? .running : .idle } ?? presentation.moku.dockMode,
                     running: sidecardComposer == nil && (detailRunning ?? presentation.moku.running),
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
@@ -937,6 +943,7 @@ public struct NativeWorkspaceView: View {
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
                 panelFrontIdentity: "workspace-route-slide",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
+                reportPanelMotion: presentation.selected?.typeID == "report.document",
                 onParentPresentationChange: { active in
                     guard presentation.navigationRouteID == routeID, active || presentation.selected != nil else { return }
                     presentation.overview.setPresentationActive(active)

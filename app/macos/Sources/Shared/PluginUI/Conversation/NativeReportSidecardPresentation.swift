@@ -54,20 +54,30 @@ public final class NativeReportSidecardPresentation {
     @ObservationIgnored private var document: NativeApplicationHTMLReadiness?
     @ObservationIgnored private var layoutReady = false
     @ObservationIgnored private var suppressed = false
+    @ObservationIgnored public private(set) var retainingForReturn = false
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var admission: Task<Void, Never>?
 
     public init() {}
 
     public func updateDocument(_ next: NativeApplicationHTMLReadiness?) {
-        guard document != next else { return }
+        guard !retainingForReturn, document != next else { return }
         document = next
         invalidateAdmission()
         admitWhenReady()
     }
 
-    public func updateLayout(ready: Bool, suppressed: Bool) {
-        guard layoutReady != ready || self.suppressed != suppressed else { return }
+    public func updateLayout(ready: Bool, suppressed: Bool, retainingForReturn: Bool = false) {
+        if retainingForReturn {
+            // Close preparation must revoke admission/input without folding the
+            // visible selection. Unmounting the completed visit calls cancel().
+            self.retainingForReturn = true
+            generation = UUID(); admission?.cancel(); admission = nil
+            return
+        }
+        let wasReturning = self.retainingForReturn
+        self.retainingForReturn = false
+        guard wasReturning || layoutReady != ready || self.suppressed != suppressed else { return }
         layoutReady = ready; self.suppressed = suppressed
         if suppressed { active = nil; pending = nil }
         if !ready || suppressed { invalidateAdmission() }
@@ -75,22 +85,26 @@ public final class NativeReportSidecardPresentation {
     }
 
     public func toggle(_ card: Card) {
-        guard !suppressed else { return }
+        guard !suppressed, !retainingForReturn else { return }
         if active == card || pending == card { close(); return }
         open(card)
     }
 
     public func open(_ card: Card) {
-        guard !suppressed else { return }
+        guard !suppressed, !retainingForReturn else { return }
         if active == card || pending == card { return }
         selectionID = UUID()
         if admitted { pending = nil; active = card }
         else { active = nil; pending = card }
     }
 
-    public func close() { selectionID = UUID(); active = nil; pending = nil }
+    public func close() {
+        guard !retainingForReturn else { return }
+        selectionID = UUID(); active = nil; pending = nil
+    }
 
     public func cancel() {
+        retainingForReturn = false
         close(); invalidateAdmission(); document = nil; layoutReady = false
     }
 

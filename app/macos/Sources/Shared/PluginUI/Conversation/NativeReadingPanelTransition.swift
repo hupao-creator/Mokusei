@@ -9,6 +9,7 @@ struct NativeReadingPanelTransition: Equatable {
     let duration: TimeInterval
     let emphasized: Bool
     var thread = false
+    var report = false
 }
 
 /// The compositor owns panel travel. Agent readers may prepare once native
@@ -190,6 +191,30 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
     private func startIfReady() {
         guard window != nil, bounds.width > 0, bounds.height > 0,
               let command, startedGeneration != command.generation, let layer = surface.layer else { return }
+        // Report's main and auxiliary surfaces return independently. The native
+        // carrier stays fixed and only owns generation-fenced completion; applying
+        // its normal full-workspace aperture would widen/crop the split reader.
+        if command.closing && command.report {
+            flight?.retire(); flight = nil
+            startedGeneration = command.generation
+            completedGeneration = nil
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            layer.removeAllAnimations(); aperture.removeAllAnimations()
+            layer.mask = nil
+            layer.position = target.origin
+            paper.isHidden = true
+            CATransaction.commit()
+            let completion = CABasicAnimation(keyPath: "opacity")
+            completion.fromValue = layer.opacity; completion.toValue = layer.opacity
+            completion.duration = command.duration
+            completion.setValue(command.generation, forKey: "generation")
+            completion.delegate = self
+            layer.add(completion, forKey: "reading.report.return")
+            prepareMeasurement?.end(); prepareMeasurement = nil
+            travelMeasurement = NativePerformance.begin(.readingTransition,
+                context: environment.nativePerformanceOperation, values: ["panel": 1, "closing": 1])
+            return
+        }
         if command.closing { flight?.retire(); flight = nil }
         else if flight == nil, let identity, identity.pending {
             guard prepared else { return }
@@ -282,7 +307,8 @@ final class ReadingPanelView: NSView, CAAnimationDelegate {
 
     /// Native presentation geometry for the existing transition replay.
     var returnPresentation: (frame: CGRect, opacity: Float, source: CGRect)? {
-        guard command?.closing == true, let layer = surface.layer?.presentation(),
+        guard command?.closing == true, command?.report != true,
+              let layer = surface.layer?.presentation(),
               let bounds = aperture.presentation()?.path?.boundingBoxOfPath else { return nil }
         return (CGRect(origin: layer.position, size: bounds.size), layer.opacity, source)
     }

@@ -89,6 +89,7 @@ public struct NativeMokuDock: View {
     public var voiceTranscript: NativeMokuTalkMessage?
     public var onSend: (NativeComposerSubmission) async throws -> Void
     public var onSendConsumed: (NativeComposerSubmission) async -> Void
+    public var awaitingContinuation: Bool
     public var onCancel: () -> Void
     public var canStartVoice: () -> Bool
     public var startVoice: () -> Void
@@ -140,6 +141,7 @@ public struct NativeMokuDock: View {
                 landing: Bool = false, threadID: JSONText? = nil, threadTitle: String? = nil,
                 threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
                 sidecardComposer: SidecardComposerRequest? = nil,
+                awaitingContinuation: Bool = false,
                 mode: MokuCharacterMode = .idle, running: Bool = false, reasoning: MokuReasoningContent? = nil,
                 talk: String? = nil,
                 reply: NativeMokuDockReply? = nil, disabled: Bool = false,
@@ -160,6 +162,7 @@ public struct NativeMokuDock: View {
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
         self.state = state; self.draft = draft; self.cwd = cwd; self.mode = mode; self.running = running
+        self.awaitingContinuation = awaitingContinuation
         self.reasoning = reasoning
         self.landing = landing
         self.threadID = threadID
@@ -229,7 +232,7 @@ public struct NativeMokuDock: View {
         return visibleTalk?.id
     }
     private var continuationPresenting: Bool {
-        threadID != nil && sidecardComposer == nil && executionPlacement?.continuing == true
+        threadID != nil && sidecardComposer == nil && (awaitingContinuation || executionPlacement?.continuing == true)
     }
     private var rowExpanded: Bool { (!voiceModeActive && (state.inputOpen || continuationPresenting)) || displayedMessage != nil }
     private var expanded: Bool { state.settingsExpanded || noteExpanded || rowExpanded }

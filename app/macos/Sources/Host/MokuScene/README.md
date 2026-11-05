@@ -697,7 +697,8 @@ submission, including while the pinned editor is present. This feedback skips
 the running choreography's initial three-beat prelude; it does not grant Stop
 authority, consume a draft or navigate before a confirmed receipt. Failure or
 an unresolved receipt retires submission feedback and leaves the existing draft
-and error/recovery path intact. Confirmed execution activity can continue the
+and error/recovery path intact. Accepted continuation keeps its pending feedback
+while waiting for a new Thread's catalog event. Confirmed execution activity can continue the
 same orbit clock; unrelated Moku execution updates cannot restart it. Reduce
 Motion retains static dots.
 

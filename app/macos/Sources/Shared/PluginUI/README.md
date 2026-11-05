@@ -1315,3 +1315,19 @@ uses a stable native slide container inside that single outer stack; the Host
 still keys each production document by route. Retiring a Report therefore cannot
 tear down or replace the new route's outer motion/Close owner. See the
 [continuation slide notes](../../../../../design/execution-route-slide.md).
+
+Report Close supplies `NativeReportPanelReturn` during parent preparation and
+return only. `NativeReportSidecardPresentation.updateLayout` cancels pending
+admission while retaining active selection for this phase; readiness loss or
+suppression cannot widen the main reader. Completed route unmount calls `cancel`;
+explicitly cancelling return restores normal readiness/admission. Covering and
+execution continuation do not opt into this retention policy.
+`nativeReportMainReturn` transforms the already sized document shell without
+intermediate viewport proposals. Its document-frame memo retains the last
+interpolated size if Close interrupts a width transition. Sidecard presentation
+similarly retains its current aperture/offset while independent opacity fades it.
+These render-only memos do not publish observable state. The source frame is in
+the outer panel's local coordinates; related lists, execution details, Browser
+splits and stacked layouts all keep their original layout seat during return.
+The old native carrier return diagnostic is intentionally absent for this
+independent-surface path. See [Report Close](../../../../../design/report-sidecard-close.md).
