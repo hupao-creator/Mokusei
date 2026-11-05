@@ -2,6 +2,15 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.SwiftUIMarkdownReadingTests/footnoteLinkScrollsToItsBlock()": {
+        "group": "native", "check": "swiftui-markdown", "marker": "SWIFTUI_FOOTNOTE_NAVIGATION_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.SwiftUIMarkdownReadingTests/swiftUILinkRoutesThroughTheDocumentAction()": {
+        "group": "native", "check": "swiftui-markdown", "marker": "SWIFTUI_MARKDOWN_LINK_CONFIRMED",
+    },
+    "MokuseiSettingsIntegrationTests.SwiftUIMarkdownReadingTests/singleParagraphSelectionCopiesThroughTheSystemResponder()": {
+        "group": "native", "check": "swiftui-markdown", "marker": "SWIFTUI_PARAGRAPH_SELECTION_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/sidecardApertureTravelsBetweenItsActualLauncherAndPanel(width:)": {
         "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED",
     },
