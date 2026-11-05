@@ -31,8 +31,9 @@ position. The card shares Agent Browser navigation chrome, WebKit URL/download
 policy, dialogs, focused document commands and native viewport, but exposes no
 annotation controls, drafts or execution-send capability. Its partition belongs
 to the reading visit. Closing folds the retained page; the Browser launcher
-reopens it. Narrow workspaces stack the two panels and wide workspaces allow
-resizing with the shared divider. Escape from the Report or linked webpage folds an open card
+reopens it. Wide workspaces initially split Report and Browser equally, subject
+to the shared minimum widths, and allow resizing with the shared divider. Narrow
+workspaces stack the two panels. Escape from the Report or linked webpage folds an open card
 before closing the Report; editable elements and dialogs retain key priority.
 Same-document anchors (including HTTP pages) and non-link navigations retain WebKit behavior.
 The linked Browser opens with the same `NativeSidecardFold` aperture and

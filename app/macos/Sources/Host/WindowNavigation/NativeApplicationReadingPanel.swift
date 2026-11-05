@@ -88,7 +88,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
         GeometryReader { geometry in
             let size = CGSize(width: max(1, geometry.size.width - 76), height: geometry.size.height)
             let layout = NativeSidecardWorkspaceGeometry(size: size, open: expanded,
-                preferredWidth: 2.0 / 3, retainedWidth: retainedWidth)
+                preferredWidth: 0.5, retainedWidth: retainedWidth)
             let browserLauncher = CGPoint(x: size.width + 38, y: size.height / 2 + 28)
             ZStack(alignment: .topLeading) {
                 content
