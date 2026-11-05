@@ -7,6 +7,7 @@ enum NativePluginEnglishCatalog {
         "{count} 段思考": "{count} reasoning segments",
         "1 次工具调用": "1 tool call",
         "{count} 次工具调用": "{count} tool calls",
+        "总共思考 {count} tokens": "{count} reasoning tokens in total",
         "本轮思考 {count} tokens": "{count} reasoning tokens this turn",
         "本轮已上报思考 {count} tokens": "{count} reported reasoning tokens this turn",
         "最近一次思考 {count} tokens": "{count} reasoning tokens in the last model call",

@@ -632,7 +632,6 @@ func (h *Handle) receiveFrom(source *NativeSession, event Map) {
 	}
 	if kind == "generation-usage" {
 		go h.recordUsage(event)
-		return
 	}
 	// Native reasoning chunks each repeat this status. The first one must
 	// publish immediately; later copies must not flush the 50 ms delta batch.

@@ -155,3 +155,13 @@ request. Ordinary sends retain their existing admission behavior.
 for Moku grep. Existing index text joins the same passages, preserving its prior
 exclusions. This extracts only retained Mokusei state, not complete native history;
 see the [search contract](../../../services/threadsearch/README.md#moku-deterministic-grep).
+
+Execution reasoning summaries persist `reasoningTokensByGeneration` on newly
+admitted turns. Final `rawResponse/completed` usage replaces the count for its
+stable response ID; duplicate observations cannot add another call. Missing or
+invalid reasoning counts remain null, suppressing the summary total. The map is
+retained in full, compact, historical and fork projections. `usage` retains its
+native last-call meaning for existing consumers; neither its snapshots nor the
+session-wide token total is summed. Turns admitted without the map have no
+certified execution total and do not acquire a misleading suffix-only total
+when resumed. Unfinished calls contribute only after reporting usage.

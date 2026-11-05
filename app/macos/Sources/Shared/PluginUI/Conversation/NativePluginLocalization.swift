@@ -35,6 +35,7 @@ public enum NativePluginLocalization {
         "输入": "Input", "输出": "Output", "缓存读取": "Cache read", "缓存写入": "Cache write", "推理": "Reasoning",
         "执行过程": "Execution details", "1 段思考": "1 reasoning segment", "{count} 段思考": "{count} reasoning segments",
         "1 次工具调用": "1 tool call", "{count} 次工具调用": "{count} tool calls",
+        "总共思考 {count} tokens": "{count} reasoning tokens in total",
         "本轮思考 {count} tokens": "Turn reasoning: {count} tokens",
         "本轮已上报思考 {count} tokens": "Reported turn reasoning: {count} tokens",
         "最近一次思考 {count} tokens": "Last-call reasoning: {count} tokens",

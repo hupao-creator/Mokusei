@@ -347,7 +347,7 @@ func stCompactTurns(turns []any, previews map[int]bool, all, overview bool) []an
 
 func stCompactTurn(turn Map, preview, current, overview bool) Map {
 	result := Map{"executionId": turn["executionId"], "createdAt": turn["createdAt"], "updatedAt": turn["updatedAt"], "status": turn["status"], "messages": []any{}, "timeline": []any{}, "answer": "", "reasoning": "", "plan": []any{}, "activities": []any{}, "interactions": []any{}, "notices": []any{}}
-	for _, key := range []string{"finishedAt", "author", "runtimeModel", "runtimeServiceTier", "usage"} {
+	for _, key := range []string{"finishedAt", "author", "runtimeModel", "runtimeServiceTier", "usage", "reasoningTokensByGeneration"} {
 		if value, exists := turn[key]; exists {
 			result[key] = stCloneValue(value)
 		}

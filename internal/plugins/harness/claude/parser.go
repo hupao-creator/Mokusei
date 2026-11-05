@@ -476,7 +476,7 @@ func nativeUsage(raw map[string]any) map[string]any {
 			result[field] = number(v)
 		}
 	}
-	if value, ok := obj(raw["output_tokens_details"])["thinking_tokens"]; ok {
+	if value, ok := obj(raw["output_tokens_details"])["thinking_tokens"]; ok && value != nil {
 		result["reasoningTokens"] = number(value)
 	}
 	return result
@@ -486,6 +486,14 @@ func (p *frameParser) projectUsage(t *Turn) {
 	for _, usage := range p.usage {
 		for k, v := range usage {
 			result[k] = number(result[k]) + number(v)
+		}
+	}
+	// A partial sum cannot certify a reasoning total when a reported call
+	// omits that metric. Per-message snapshots above replace, rather than add.
+	for _, usage := range p.usage {
+		if _, reported := usage["reasoningTokens"]; !reported {
+			delete(result, "reasoningTokens")
+			break
 		}
 	}
 	for _, cost := range p.costs {

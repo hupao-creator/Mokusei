@@ -118,6 +118,9 @@ public struct ThreadExecutionProcess: View {
     public let reasoningUsage: ThreadReasoningUsage?
     public let running: Bool
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @Environment(\.threadExecutionLoader) private var loader
     @Environment(\.threadAgentDetail) private var agentDetail
     @Environment(\.nativeThreadReveal) private var reveal
@@ -143,16 +146,23 @@ public struct ThreadExecutionProcess: View {
         }
     }
 
+    private var loadingMotionEnabled: Bool {
+        running && agentDetail && entranceReady && !reduceMotion && scenePhase == .active
+    }
+
     private var summaryRow: some View {
         HStack(spacing: 7) {
             NativeIcon(name: "Wrench", size: 13)
                 .frame(width: 20)
                 .accessibilityHidden(true)
             summaryText
+                // Dim only the moving label: the bright center must differ from
+                // both the leading and trailing text, not just the canvas.
+                .foregroundStyle(NativePalette.thread.muted.swiftUI.opacity(loadingMotionEnabled ? 0.55 : 1))
                 .overlay {
-                    if running && agentDetail {
+                    if loadingMotionEnabled {
                         ThreadExecutionLoadingSweep()
-                            .mask { summaryText }
+                            .mask { summaryText.foregroundStyle(.white) }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,13 +193,8 @@ public struct ThreadExecutionProcess: View {
             parts.append(localize(tools == 1 ? "1 次工具调用" : "{count} 次工具调用")
                 .replacingOccurrences(of: "{count}", with: tools.formatted(.number.locale(locale))))
         }
-        if let reasoningUsage, reasoningUsage.hasValidTokens {
-            let label: String
-            switch reasoningUsage.scope {
-            case .turn: label = "本轮思考 {count} tokens"
-            case .reportedTurn: label = "本轮已上报思考 {count} tokens"
-            case .lastCall: label = "最近一次思考 {count} tokens"
-            }
+        if let reasoningUsage, reasoningUsage.scope != .lastCall, reasoningUsage.hasValidTokens {
+            let label = "总共思考 {count} tokens"
             parts.append(localize(label).replacingOccurrences(of: "{count}",
                 with: reasoningUsage.tokens.formatted(.number.precision(.fractionLength(0)).locale(locale))))
         }
@@ -213,18 +218,11 @@ private extension ThreadReasoningUsage {
 
 /// Keep the clock in the decorative leaf: counts and accessibility remain static.
 private struct ThreadExecutionLoadingSweep: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.nativeReadingEntranceReady) private var entranceReady
     @State private var visible = false
     @State private var startedAt = Date()
 
-    private var animates: Bool {
-        visible && entranceReady && !reduceMotion && scenePhase == .active
-    }
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !animates)) { context in
+        TimelineView(.animation(minimumInterval: NativeFrameRate.interval, paused: !visible)) { context in
             GeometryReader { geometry in
                 // A fixed-width soft highlight keeps long summaries from becoming
                 // a whole-line pulse. The reset happens beyond both text edges.
@@ -243,11 +241,10 @@ private struct ThreadExecutionLoadingSweep: View {
                     .offset(x: -width + travel * min(phase, 1))
             }
         }
-        .opacity(animates ? 1 : 0)
+        .opacity(visible ? 1 : 0)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onAppear { startedAt = Date(); visible = true }
         .onDisappear { visible = false }
-        .onChange(of: animates) { _, value in if value { startedAt = Date() } }
     }
 }
