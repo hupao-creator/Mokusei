@@ -50,7 +50,12 @@ the lock files themselves are never removed or replaced during cleanup.
 
 Execution continuation uses `invoke(... retainingReceipt: true)` with an explicit
 command ID. A successful result remains in the durable command journal until
-its caller consumes the matching draft. `resolveCommandReceipt` is query-only:
+its caller consumes the matching draft. Acknowledgement waits only for that
+receipt's own active command; unrelated reads/writes do not prevent cleanup.
+After an accepted continuation consumes its draft, cleanup failures are logged
+without presenting a send error. The retained operation and durable receipt still
+block new input until cleanup succeeds on the next send attempt; no input is
+replayed by cleanup. `resolveCommandReceipt` is query-only:
 unknown, pending, expired and indeterminate outcomes never fall back to invoke.
 This is deliberately distinct from explicit same-ID invoke retries, which the
 general client API can admit after an unknown receipt.

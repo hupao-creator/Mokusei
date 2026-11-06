@@ -678,8 +678,7 @@ public final class NativeWorkspacePresentation {
     }
 
     func didConsumeThreadDraft(_ submission: NativeComposerSubmission, threadID: JSONText, executionID: JSONText?) async {
-        do { try await executionContinuation.didConsumeDraft(threadID: threadID, executionID: executionID, input: submission.input) }
-        catch { workspace.report(error) }
+        await executionContinuation.didConsumeDraft(threadID: threadID, executionID: executionID, input: submission.input)
     }
 
     public func cancelMoku(observed thread: HarnessThread) {

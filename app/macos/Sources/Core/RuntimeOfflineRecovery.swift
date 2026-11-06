@@ -173,7 +173,9 @@ extension RuntimeClient {
     /// The user may dismiss a settled receipt after reviewing current host state.
     /// Unknown/indeterminate entries deliberately remain until explicitly acknowledged.
     public func acknowledgeCommandOutcome(_ id: String, allowResubmission: Bool = false) throws {
-        guard activeCommands.values.isEmpty, let previous = commandRecords[id] else { return }
+        guard let previous = commandRecords[id], activeCommands[previous.key] == nil else { return }
+        // Unrelated reads/writes cannot hold a settled receipt after its draft
+        // is consumed. Its own active command still owns journal settlement.
         // A successful send may still be in a persisted draft. Keep its
         // fingerprint until the original action consumes the receipt and clears
         // that draft. Dismissing a status must not turn it into a new execution.

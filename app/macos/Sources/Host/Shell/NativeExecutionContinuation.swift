@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import MokuseiCore
 import MokuseiPluginAPI
 
@@ -155,11 +156,19 @@ final class NativeExecutionContinuation {
         }
     }
 
-    func didConsumeDraft(threadID: JSONText, executionID: JSONText?, input: JSONValue) async throws {
+    func didConsumeDraft(threadID: JSONText, executionID: JSONText?, input: JSONValue) async {
         guard let current = operation, current.accepted != nil,
               current.matches(threadID: threadID, executionID: executionID, input: input) else { return }
         current.draftConsumed = true
-        try await release(current)
+        do { try await release(current) }
+        catch {
+            // Sending already succeeded. Retain the operation and durable barrier
+            // for send() to release before admitting new input, without turning
+            // post-send housekeeping into a visible send failure.
+            Logger(subsystem: "Mokusei", category: "ExecutionContinuation")
+                .error("Accepted send receipt cleanup deferred: \(error.localizedDescription, privacy: .public)")
+            return
+        }
         // A newly mounted draft may already be finalizing this same receipt
         // and starting another operation while the acknowledgement is awaited.
         if operation === current { operation = nil }
