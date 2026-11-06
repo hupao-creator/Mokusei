@@ -156,7 +156,9 @@ private struct ThreadCardIdentity: View {
                 }.font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.muted.swiftUI)
                     .padding(.top, 8).help(steer)
             }
-            ThreadCardBody(identity: identity, expanded: expanded).padding(.top, 10)
+            // The excerpt yields height to identity metadata and tools, then
+            // truncates to the remaining proposal rather than a fixed row count.
+            ThreadCardBody(identity: identity).padding(.top, 10).layoutPriority(-1)
             if expanded {
                 ForEach(Array(recentTools.enumerated()), id: \.offset) { index, tool in
                     ThreadCardLatestTool(tool: tool).padding(.top, index == 0 ? 14 : 7)
