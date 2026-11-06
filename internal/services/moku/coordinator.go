@@ -800,7 +800,10 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			instructions = append(instructions, "Model routing guidance:\n"+guidance)
 		}
 		tools := c.tools(current.ID, description)
-		injection = &plugin.Injection{Instructions: instructions, ContextEntries: entries, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: tools}}
+		ownerID, capturedSettings, capturedDescription := current.ID, applied.AppliedSettings, description
+		injection = &plugin.Injection{AdmitNewExecution: func(ctx context.Context) error {
+			return c.validateTargetAdmission(ctx, ownerID, capturedSettings, capturedDescription)
+		}, Instructions: instructions, ContextEntries: entries, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: tools}}
 		if err = c.config.OpenSession(ctx, current.ID, injection); err != nil {
 			return current, err
 		}

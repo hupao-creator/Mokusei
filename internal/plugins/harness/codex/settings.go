@@ -637,6 +637,9 @@ func (s *SettingsAPI) DefaultThread(raw json.RawMessage) (json.RawMessage, error
 	}
 	return json.Marshal(value["threadSettings"])
 }
+
+var codexCatalogSource = plugin.CatalogSourceEvidence{Basis: "model/list proves pagination only; the native manager can silently return bundled or old data without provider/account/client-bound source completion"}
+
 func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, error) {
 	if _, err := s.Normalize(request.Settings); err != nil {
 		return nil, err
@@ -655,7 +658,8 @@ func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsReque
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{ID: csString(entry["value"]), Name: csString(entry["displayName"]), UnavailableReason: reason})
 	}
-	return plugin.ModelCatalogSchema(SettingsSchemaForModels(models), inventory, csString(catalog["catalogIdentity"]))
+	source, _ := catalog["catalogSource"].(plugin.CatalogSourceEvidence)
+	return plugin.ModelCatalogSchema(SettingsSchemaForModels(models), inventory, csString(catalog["catalogIdentity"]), source)
 }
 func (s *SettingsAPI) ResolveThread(ctx context.Context, request plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	merged, err := model.DecodeObject(request.Merged)

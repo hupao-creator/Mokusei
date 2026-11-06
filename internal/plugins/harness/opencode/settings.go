@@ -47,38 +47,29 @@ type settingsCatalogFlight struct {
 	nativeDone  chan struct{}
 	nativeValue *CatalogSnapshot
 	refresh     bool
-	background  bool
 	cancel      context.CancelFunc
 	readers     int
 	value       *CatalogSnapshot
 	err         error
 }
 type SettingsAPI struct {
-	host       plugin.HostContext
-	launch     func(context.Context, Settings, string) (*Runtime, error)
-	mu         sync.Mutex
-	generation uint64
-	cache      map[string]catalogCacheEntry
-	pending    map[string]*settingsCatalogFlight
-	publishers map[string]*settingsCatalogFlight
-	active     map[*settingsCatalogFlight]struct{}
-	closed     bool
-	cleanupErr error
-	retryAfter map[string]time.Time
-	closeOnce  sync.Once
-	closeErr   error
+	host            plugin.HostContext
+	launch          func(context.Context, Settings, string) (*Runtime, error)
+	mu              sync.Mutex
+	generation      uint64
+	cache           map[string]catalogCacheEntry
+	pending         map[string]*settingsCatalogFlight
+	publishers      map[string]*settingsCatalogFlight
+	active          map[*settingsCatalogFlight]struct{}
+	closed          bool
+	cleanupErr      error
+	retryAfter      map[string]time.Time
+	closeOnce       sync.Once
+	closeErr        error
+	routingCatalogs discovery.Cache[*CatalogSnapshot]
 }
 
 func NewSettings(host plugin.HostContext, launch func(context.Context, Settings, string) (*Runtime, error)) *SettingsAPI {
-	if launch == nil {
-		launch = func(ctx context.Context, settings Settings, cwd string) (*Runtime, error) {
-			env, err := hostEnvironment(ctx, host)
-			if err != nil {
-				return nil, err
-			}
-			return NewRuntime(ctx, Options{CWD: cwd, ConfigurationCWD: settings.ConfigurationCWD, ExecutablePath: settings.ExecutablePath, Environment: env})
-		}
-	}
 	return &SettingsAPI{host: host, launch: launch, cache: map[string]catalogCacheEntry{}, pending: map[string]*settingsCatalogFlight{}, publishers: map[string]*settingsCatalogFlight{}, active: map[*settingsCatalogFlight]struct{}{}}
 }
 
@@ -86,6 +77,7 @@ func NewSettings(host plugin.HostContext, launch func(context.Context, Settings,
 // probes detached by refresh or by cancellation of their final reader.
 func (s *SettingsAPI) Close() error {
 	s.closeOnce.Do(func() {
+		routingErr := s.routingCatalogs.Close()
 		s.mu.Lock()
 		s.closed = true
 		s.generation++
@@ -102,7 +94,7 @@ func (s *SettingsAPI) Close() error {
 			<-flight.done
 		}
 		s.mu.Lock()
-		s.closeErr = s.cleanupErr
+		s.closeErr = errors.Join(routingErr, s.cleanupErr)
 		s.mu.Unlock()
 	})
 	return s.closeErr
@@ -242,15 +234,33 @@ func (s *SettingsAPI) Invalidate() {
 		return
 	}
 	s.generation++
-	s.retryAfter = map[string]time.Time{}
 	s.cache = map[string]catalogCacheEntry{}
 	s.pending = map[string]*settingsCatalogFlight{}
 	s.publishers = map[string]*settingsCatalogFlight{}
 }
+
+type catalogSource struct {
+	key         string
+	settings    Settings
+	environment map[string]string
+}
+
 func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd string) (string, error) {
+	source, err := s.resolveCatalogSource(ctx, settings, cwd, false)
+	return source.key, err
+}
+
+func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Settings, cwd string, routing bool) (catalogSource, error) {
 	env, err := hostEnvironment(ctx, s.host)
 	if err != nil {
-		return "", err
+		return catalogSource{}, err
+	}
+	executable := settings.ExecutablePath
+	if s.launch == nil {
+		executable, err = ResolveExecutable(executable, env)
+		if err != nil {
+			return catalogSource{}, err
+		}
 	}
 	config := env["XDG_CONFIG_HOME"]
 	if config == "" {
@@ -266,16 +276,25 @@ func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd str
 	}
 	accountIdentity, err := catalogAccountIdentity(ctx, env)
 	if err != nil {
-		return "", err
+		return catalogSource{}, err
 	}
 	configDirectory := env["OPENCODE_CONFIG_DIR"]
 	if configDirectory == "" {
 		configDirectory = filepath.Join(config, "opencode")
 	}
-	identity := discovery.Identity(env, settings.ExecutablePath, env["OPENCODE_CONFIG"],
+	files := []string{env["OPENCODE_CONFIG"],
 		filepath.Join(configDirectory, "opencode.json"), filepath.Join(configDirectory, "opencode.jsonc"),
-		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc"))
-	return cwd + "\x00" + settings.ConfigurationCWD + "\x00" + settings.ExecutablePath + "\x00" + identity + "\x00" + accountIdentity, nil
+		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc")}
+	identity := discovery.Identity(env, append(files, executable)...)
+	if routing {
+		identity, err = discovery.SourceIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
+		if err != nil {
+			return catalogSource{}, err
+		}
+	}
+	key := cwd + "\x00" + settings.ConfigurationCWD + "\x00" + executable + "\x00" + identity + "\x00" + accountIdentity
+	settings.ExecutablePath = executable
+	return catalogSource{key: key, settings: settings, environment: env}, nil
 }
 
 type catalogReadMode uint8
@@ -290,25 +309,44 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	key, err := s.catalogKey(ctx, settings, cwd)
-	if err != nil {
-		return nil, err
-	}
 	mode := completeCatalogRead
 	if len(modes) > 0 {
 		mode = modes[0]
+	}
+	source, err := s.resolveCatalogSource(ctx, settings, cwd, mode == routingCatalogRead)
+	if err != nil {
+		return nil, err
+	}
+	key := source.key
+	if mode == routingCatalogRead {
+		return s.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 55*time.Second, func(probeCtx context.Context) (*CatalogSnapshot, error) {
+			// Keep unsupported-source rejection inside the cache probe: a prior
+			// trusted same-key snapshot still returns immediately. Do not launch
+			// a native fetch whose protocol cannot supply the required evidence.
+			if err := opencodeCatalogSource.RequireComplete(); err != nil {
+				return nil, err
+			}
+			value, err := s.observe(probeCtx, settings, cwd, false, completeCatalogRead)
+			if err != nil {
+				return value, err
+			}
+			current, err := s.resolveCatalogSource(probeCtx, settings, cwd, true)
+			if err != nil {
+				return nil, err
+			}
+			if current.key != key {
+				return nil, errors.New("OpenCode routing source changed during discovery")
+			}
+			copy := *value
+			copy.identity = key
+			return &copy, copy.sourceProof.RequireComplete()
+		})
 	}
 	early := mode == presentationCatalogRead
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return nil, errors.New("OpenCode settings are closed")
-	}
-	cached, exists := s.cache[key]
-	background := mode == routingCatalogRead && exists && cached.value != nil && len(cached.value.NativeModels) > 0 && !cached.value.AccountCheckPending
-	if background && (time.Since(cached.at) < 5*time.Minute || s.pending[key] != nil || time.Now().Before(s.retryAfter[key]) || s.cleanupErr != nil) {
-		s.mu.Unlock()
-		return cached.value, nil
 	}
 	if s.cleanupErr != nil {
 		err := s.cleanupErr
@@ -329,7 +367,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	}
 	if flight == nil {
 		probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), 55*time.Second)
-		flight = &settingsCatalogFlight{done: make(chan struct{}), nativeDone: make(chan struct{}), cancel: cancel, refresh: refresh, background: background}
+		flight = &settingsCatalogFlight{done: make(chan struct{}), nativeDone: make(chan struct{}), cancel: cancel, refresh: refresh}
 		s.pending[key] = flight
 		s.publishers[key] = flight
 		s.active[flight] = struct{}{}
@@ -338,7 +376,13 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			defer cancel()
 			deadline := time.AfterFunc(30*time.Second, cancel)
 			defer deadline.Stop()
-			runtime, err := s.launch(probe, settings, cwd)
+			var runtime *Runtime
+			var err error
+			if s.launch != nil {
+				runtime, err = s.launch(probe, source.settings, cwd)
+			} else {
+				runtime, err = NewRuntime(probe, Options{CWD: cwd, ConfigurationCWD: source.settings.ConfigurationCWD, ExecutablePath: source.settings.ExecutablePath, Environment: source.environment})
+			}
 			var cleanupErr error
 			if err == nil {
 				flight.value, err = readCatalog(probe, s.host, runtime, func(value *CatalogSnapshot) error {
@@ -380,14 +424,6 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			delete(s.active, flight)
 			s.cleanupErr = errors.Join(s.cleanupErr, cleanupErr)
 			if s.pending[key] == flight {
-				if s.retryAfter == nil {
-					s.retryAfter = map[string]time.Time{}
-				}
-				if _, retained := s.cache[key]; err != nil && retained {
-					s.retryAfter[key] = time.Now().Add(30 * time.Second)
-				} else {
-					delete(s.retryAfter, key)
-				}
 				delete(s.pending, key)
 			}
 			if err == nil && probe.Err() == nil && !s.closed && generation == s.generation && s.publishers[key] == flight {
@@ -403,10 +439,6 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			s.mu.Unlock()
 		}(flight)
 	}
-	if background {
-		s.mu.Unlock()
-		return cached.value, nil
-	}
 	flight.readers++
 	s.mu.Unlock()
 	defer func() {
@@ -416,7 +448,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 		// Once native facts were published, optional billing belongs to this
 		// settings source until its bounded completion or Close. Before that
 		// point the last departing reader cancels native startup immediately.
-		if flight.readers == 0 && flight.nativeValue == nil && !flight.background {
+		if flight.readers == 0 && flight.nativeValue == nil {
 			select {
 			case <-flight.done:
 			default:
@@ -878,6 +910,9 @@ func (s *SettingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	}
 	return json.Marshal(result)
 }
+
+var opencodeCatalogSource = plugin.CatalogSourceEvidence{Basis: "plugin activation and /api/model enumerate a registry, but expose no proof that every configured source completed; remote configuration failures and later discovery are not attested"}
+
 func (s *SettingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
 	current, err := s.defaults(input.Settings)
 	if err != nil {
@@ -964,7 +999,7 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.ProviderID, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
 	}
-	return plugin.ModelCatalogSchema(result, inventory, observed.identity)
+	return plugin.ModelCatalogSchema(result, inventory, observed.identity, observed.sourceProof)
 }
 func (s *SettingsAPI) Probe(ctx context.Context, input plugin.SettingsRequest, toolMode string) (plugin.Availability, error) {
 	selected, err := s.defaults(input.Settings)

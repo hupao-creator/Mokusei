@@ -145,6 +145,14 @@ on failure. Configuration identities fence publication and native admission;
 execution/default resolution retains strict reads. Caches are Harness-owned,
 memory-only and drained on Close, not persisted across application restarts.
 
-Catalog probes inspect native effective settings. Gateway discovery with a custom
-base URL is rejected because initialization has no discovery-completion proof;
-waiting for its timeout is not a substitute. See [evidence limits](../../../services/moku/catalog-evidence.md).
+The Moku-only routing cache requires source-completion evidence. Shared
+`readCatalog` no longer queries/rejects gateway completeness: normal explicit
+models remain valid candidates, including gateway configurations. Waiting for
+a gateway timeout is not evidence for Moku. See [evidence limits](../../../services/moku/catalog-evidence.md).
+
+Moku routing now uses a separate source-evidence-checked cache. This adapter's
+current list response is not certified as source-complete; without a previously
+trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
+explicit-model creation/validation still consumes the enumeration result. Unknown
+refresh results cannot replace trusted routing data. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).

@@ -53,7 +53,7 @@ func (f orchestratorSettings) Describe(context.Context, plugin.SettingsRequest) 
 	if modelID == "" {
 		modelID = "mock-model"
 	}
-	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration")
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration", plugin.CatalogSourceEvidence{Complete: true, Basis: "authoritative fixture registry"})
 }
 func (f orchestratorSettings) ResolveThread(_ context.Context, r plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	if len(r.Requested) > 0 {

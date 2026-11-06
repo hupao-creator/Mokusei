@@ -100,9 +100,10 @@ Unavailable passages carry no text and require an explicit retrieval coverage
 issue. Core never interprets opaque Harness state to infer locators. Empty IDs
 remain unavailable.
 
-`ModelCatalogSchema` binds a complete nonempty native model inventory to creation
-options. Adapters must finish the entire read (including pagination) before using
-it; errors and empty/partial inventories cannot supply completeness evidence.
+`ModelCatalogSchema` binds completed enumeration and independent source evidence
+to creation options. It validates response shape, not provider completeness.
+Adapters must finish every page and supply source evidence separately; neither
+nonempty data nor a finished page sequence certifies the source.
 The inventory includes unsupported model identities independently of executable
 branches. Moku checks the evidence before starting any task and exposes the whole
 inventory in the standard tool schema description. Optional `MokuTargetDiscoverer`
@@ -115,3 +116,11 @@ creation and execution validation keep strict reads. Completeness evidence also
 contains a configuration hash, which Moku retains outside the exposed schema.
 This distinguishes a same-configuration catalog refresh from a source change at
 native admission. Snapshot descriptions explicitly allow outdated information.
+
+`Injection.AdmitNewExecution` is an in-process, non-serialized authority callback
+used at Runtime's final Moku execution reservation boundary. It must not reopen
+handles or acquire coordinator/media queues from that boundary. Source evidence
+in `CompleteModelCatalog` is distinct from its enumeration marker. A true source
+assertion requires an authoritative native completion/provenance contract, never
+only a nonempty list. Each native snapshot retains its own evidence; ordinary
+model validation may use enumeration data without asserting routing completeness.

@@ -37,3 +37,25 @@ Callers must only publish complete, nonempty model inventories on this path.
 Execution/default resolution keeps using strict `Get` and native admission.
 Caches are in memory and instance-owned, not persisted across process restarts.
 Close seals even stale reads, cancels every active probe and joins cleanup.
+
+`SourceIdentity` is a bounded routing dependency fingerprint for a resolved
+launch. It visits lexical and canonical workspace ancestors, the owning native
+namespace, symlinks and recognized literal references (including `{file:...}`).
+Configuration text is hashed, not logged or persisted. The bound is 4096 paths,
+4 MiB per text file and 16 MiB per read. Inspection errors/limits reject identity
+rather than silently skipping inputs. Runtime-owned caches/history and dependency
+package directories are excluded from implicit directory walking. Computed
+imports and arbitrary native reference syntax are not a complete dependency
+manifest; they cannot support an affirmative source attestation. The probe must
+use the captured resolved executable/environment and compare the source again
+after acquisition. External editors are not part of a filesystem transaction.
+
+Evidence-checked routing caches are separate from ordinary enumeration caches.
+An unknown-source result may remain useful for ordinary explicit selection, but
+cannot publish over a trusted routing snapshot. Cache presence alone does not
+establish the caller's source evidence.
+
+File generation fingerprints include replacement/change metadata where the
+platform provides it (device/inode/ctime), excluding access time. Keeping an old
+mtime/size while replacing a binary therefore does not silently reuse its version
+fact, and merely reading/executing it does not invalidate the lookup.

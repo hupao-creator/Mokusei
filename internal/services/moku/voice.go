@@ -885,11 +885,11 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	}
 	v.mu.Unlock()
 	if lease == nil {
-		return v.c.validateNativeTargetCatalog(ctx, owner)
+		return nil
 	}
 	syncer, ok := lease.session.(plugin.VoiceContextSync)
 	if !ok {
-		return v.c.validateNativeTargetCatalog(ctx, owner)
+		return nil
 	}
 	ctx, finish, err := v.c.begin(ctx)
 	if err != nil {

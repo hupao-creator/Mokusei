@@ -190,7 +190,7 @@ func (s replayNativeSettings) Describe(ctx context.Context, _ plugin.SettingsReq
 	if modelID == "" {
 		modelID = "fixture-model"
 	}
-	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string"}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration")
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string"}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration", plugin.CatalogSourceEvidence{Complete: true, Basis: "authoritative fixture registry"})
 }
 func (s replayNativeSettings) DefaultThread(r json.RawMessage) (json.RawMessage, error) {
 	var envelope struct {

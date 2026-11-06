@@ -18,16 +18,32 @@ type ModelCatalogEntry struct {
 	UnavailableReason string `json:"unavailableReason,omitempty"`
 }
 
+// CatalogSourceEvidence is separate from finishing enumeration. Adapters must
+// identify an authoritative source boundary; a nonempty list is not evidence.
+type CatalogSourceEvidence struct {
+	Complete bool   `json:"complete"`
+	Basis    string `json:"basis"`
+}
+
+func (e CatalogSourceEvidence) RequireComplete() error {
+	if !e.Complete || strings.TrimSpace(e.Basis) == "" {
+		return fmt.Errorf("Moku catalog source completeness is unproven: %s", e.Basis)
+	}
+	return nil
+}
+
 type CompleteModelCatalog struct {
-	ConfigurationID string              `json:"configurationId,omitempty"`
-	Models          []ModelCatalogEntry `json:"models"`
+	EnumerationComplete bool                  `json:"enumerationComplete"`
+	Source              CatalogSourceEvidence `json:"source"`
+	ConfigurationID     string                `json:"configurationId,omitempty"`
+	Models              []ModelCatalogEntry   `json:"models"`
 }
 
 // ModelCatalogSchema records complete protocol enumeration, not an attestation
 // that native remote sources finished discovery. See Moku catalog-evidence.md.
 // The inventory is distinct from executable schema branches: omitting unsupported
 // choices must not hide their model identities from cross-Harness routing.
-func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, identity string) (json.RawMessage, error) {
+func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, identity string, source CatalogSourceEvidence) (json.RawMessage, error) {
 	if identity == "" {
 		return nil, errors.New("native model catalog configuration identity is missing")
 	}
@@ -42,7 +58,7 @@ func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, ident
 		}
 		seen[key] = true
 	}
-	catalog := CompleteModelCatalog{Models: models}
+	catalog := CompleteModelCatalog{Models: models, EnumerationComplete: true, Source: source}
 	inventory, err := json.Marshal(catalog)
 	if err != nil {
 		return nil, err

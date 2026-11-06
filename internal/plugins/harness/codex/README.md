@@ -215,3 +215,10 @@ App-server spawn fixes the originator to the same `mokusei_desktop` client used
 by initialize, including pre-initialize model discovery. Full pagination still
 cannot attest whether native discovery silently fell back to bundled metadata;
 see [evidence limits](../../../services/moku/catalog-evidence.md).
+
+Moku routing now uses a separate source-evidence-checked cache. This adapter's
+current list response is not certified as source-complete; without a previously
+trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
+explicit-model creation/validation still consumes the enumeration result. Unknown
+refresh results cannot replace trusted routing data. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).

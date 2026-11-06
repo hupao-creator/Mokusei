@@ -202,3 +202,10 @@ identity includes native database credential selection/revision columns without
 reading secrets or invalidating on unrelated session writes. Neither activation
 nor repeated stable model lists attest every remote provider completed discovery;
 see [evidence limits](../../../services/moku/catalog-evidence.md).
+
+Moku routing now uses a separate source-evidence-checked cache. This adapter's
+current list response is not certified as source-complete; without a previously
+trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
+explicit-model creation/validation still consumes the enumeration result. Unknown
+refresh results cannot replace trusted routing data. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).

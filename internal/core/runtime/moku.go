@@ -364,9 +364,17 @@ func (r *Runtime) SendMokuThread(ctx context.Context, id string, input model.Age
 		return SendResult{}, err
 	}
 	defer r.operations.Done()
+	ctx, cancelOperation := r.operationContext(ctx)
+	defer cancelOperation()
 	if err := validateInput(input); err != nil {
 		return SendResult{}, err
 	}
+	unlockConfiguration, err := r.configurationLock(ctx)
+	if err != nil {
+		return SendResult{}, err
+	}
+	defer unlockConfiguration()
+	ctx = context.WithValue(ctx, configurationContextKey{}, r)
 	lock := r.threadLock(id)
 	lock.Lock()
 	defer lock.Unlock()

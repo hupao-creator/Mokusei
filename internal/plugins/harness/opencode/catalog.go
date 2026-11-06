@@ -100,6 +100,7 @@ type CatalogSelection struct {
 	Variant  string `json:"variant,omitempty"`
 }
 type CatalogSnapshot struct {
+	sourceProof         plugin.CatalogSourceEvidence
 	identity            string
 	AccountCheckPending bool
 	ExecutablePath      string
@@ -162,7 +163,7 @@ func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime,
 			return nil, fmt.Errorf("OpenCode plugin %s has activation state %q; model catalog completeness is unknown", str(entry["id"]), status)
 		}
 	}
-	value := &CatalogSnapshot{ExecutablePath: runtime.ExecutablePath, Version: runtime.Version, Models: []CatalogModel{}, Agents: []CatalogAgent{}, NativeAccounts: map[string]bool{}, ExcludedModels: map[string]string{}, NativeModels: models, Providers: providers}
+	value := &CatalogSnapshot{sourceProof: opencodeCatalogSource, ExecutablePath: runtime.ExecutablePath, Version: runtime.Version, Models: []CatalogModel{}, Agents: []CatalogAgent{}, NativeAccounts: map[string]bool{}, ExcludedModels: map[string]string{}, NativeModels: models, Providers: providers}
 	agentOverridesAccount := false
 	for _, agent := range agents {
 		if !agent.Hidden && agent.Mode != "subagent" && (hasCatalogAccountHeader(agent.Request.Headers) || hasCatalogField(agent.Request.Body, "model")) {

@@ -218,10 +218,14 @@ type ToolInjection struct {
 	AuditContext func() ToolRetryContext `json:"-"`
 }
 type Injection struct {
-	Instructions   []string
-	ContextEntries []ContextEntry
-	Seed           []SeedItem
-	Tools          *ToolInjection
+	// Runtime calls this under admission ownership only when reserving a new
+	// execution, before retaining input or invoking native Send/project.
+	// It is an in-process authority callback, never serialized to the model.
+	AdmitNewExecution func(context.Context) error `json:"-"`
+	Instructions      []string
+	ContextEntries    []ContextEntry
+	Seed              []SeedItem
+	Tools             *ToolInjection
 }
 
 // ThreadReadingLength counts readable conversation text across the retained

@@ -1,12 +1,31 @@
 # Native catalog evidence and unresolved limits
 
-The cache change guarantees immediate reuse of a complete same-key **native
-response inventory**, background refresh with failure retention, and no partial
-pagination publication. It does not prove that a native engine exposed every
-model its remote providers could eventually discover. The stronger end-to-end
-"all models for every selected Harness" acceptance criterion is therefore **not
-established for all configurations** by this change. Build/lint and static review
-are not native protocol or account tests.
+Moku now requires **both** complete enumeration and authenticated source
+completeness at its final Runtime new-execution boundary. These are separate
+fields in the snapshot. Nonempty data, all pagination pages, initialization,
+plugin activation, stable reads and elapsed time do not promote source evidence.
+
+The currently audited Codex, OpenCode, Claude and Pi interfaces have no source
+attestation this implementation can substantiate. Their adapters explicitly
+produce unknown source evidence. Therefore a Moku target using any of these
+interfaces **blocks a cold start without a trusted matching snapshot**. This is
+a deliberate safety/availability tradeoff required by the strict acceptance
+criterion, not a usable full-directory implementation or a claimed native pass.
+An older enumeration-only cache is not migrated/promoted into trust.
+
+Ordinary explicit-model selection and validation remain available. Enumeration
+caches and evidence-checked routing caches are separate. Only successful source
+verification may publish to the latter; unknown source refreshes leave trusted
+older snapshots and their original evidence intact. A trusted matching snapshot
+returns immediately even when expired. Unsupported evidence is checked inside
+the cache probe, so it cannot hide an already trusted same-key value. No source
+attestation override, static replacement catalog or timing heuristic is provided.
+
+A future authoritative adapter must obtain a native completion/provenance result
+bound to the exact provider/account/client/configuration and any asynchronous
+source failures, then validate it before setting the snapshot's source evidence.
+Simply flipping `Complete` on the existing list response is not an implementation
+of that contract. This Sprint does not change external native clients.
 
 ## Evidence inspected
 
@@ -41,18 +60,54 @@ are not native protocol or account tests.
   supporting arbitrary such sources requires native completion/provenance
   evidence, not a longer timeout or a static list.
 - [Claude gateway discovery in T3 Code](https://github.com/pingdotgg/t3code/blob/2e39f1d7dec44c98a4cabdaf99d3d99209f770c0/apps/server/src/provider/ClaudeProvider.ts#L340)
-  continues after initialization. Moku now checks the native effective settings
-  and rejects gateway discovery with a custom base URL when completion cannot
-  be established; an omitted effective-settings response also fails. It does
-  not sleep for the gateway timeout and relabel initialization as complete.
-  Ordinary Claude evidence is the correlated successful initialize response's
-  model list, not elapsed time. This is not proof for arbitrary gateways or
-  future clients with different initialization semantics.
+  continues after initialization. This uncertainty is now confined to Moku
+  routing. Shared Claude `readCatalog` does not query or reject gateway
+  completeness, so normal explicit-model creation can use the initialized list.
+  `initialize` is enumeration evidence only, not a source-completion signal.
+- [Pi's RPC model list](https://raw.githubusercontent.com/badlogic/pi-mono/main/packages/coding-agent/src/modes/rpc/rpc-mode.ts)
+  returns `getAvailableSnapshot`; the
+  [registry facade](https://raw.githubusercontent.com/badlogic/pi-mono/main/packages/coding-agent/src/core/model-registry.ts)
+  exposes load errors separately. RPC model results do not attest that source
+  loading completed without fallback/errors. Offline mode and disabled
+  extensions do not supply that missing evidence, so Pi is also unknown rather
+  than an assumed exception.
+
+## Final admission and unconsumed input
+
+Runtime checks initial Send, exact-ended successor renewal and native Accept
+through one guard before its only three execution-ID reservations. `Commit`
+already refuses unreserved IDs. The prepared injection binds immutable catalog
+and settings evidence to its handle; native Open cannot start Moku work before
+that handle is published. Direct Runtime Send callers also own configuration
+admission. Background work and coordinator `live` observations cannot bypass the
+final guard. Unknown source failure does not allocate a new execution or call
+native Send/project.
+
+Only exact configuration-pending responses permit automatic reprepare. Core
+pre-consumption failures carry an exact `MokuAdmissionRejectedError` so pending
+outbox attempts can be released safely, including after exact native
+`ErrExecutionEnded`. Wrapped/uncertain native outcomes never become proof of
+non-consumption. Existing executions may still be steered with their originally
+admitted configuration; new foreground work with pending settings waits for
+background work to drain.
 
 ## Configuration, account and client scope
 
-Each retained directory is bound to the adapter's native environment, workspace,
-configured executable and tracked source-file fingerprint. Cached entries are
+Moku routing identity uses the actual resolved executable/environment from the
+probe launch. Codex captures its selected `ExecutableTarget` and starts that exact
+client; OpenCode similarly captures the executable/environment before startup.
+Claude and Pi retain their resolved launch inputs. Routing inspection includes
+lexical/canonical ancestors, native namespaces (`.codex`, `.opencode`, `.claude`,
+`.pi`), symlinks and recognized literal file references. It rechecks dependencies
+and launch identity after acquisition. Reads are bounded and failures reject
+identity rather than treating missing evidence as a match.
+
+This is not a complete parser for arbitrary native imports, commands or remote
+includes. Computed dependencies, unknown reference syntax, external credential
+helpers and concurrent filesystem ABA changes do not gain an affirmative source
+attestation from a local hash. Such sources remain unverified and cannot seed a
+trusted Moku cache. Native ordinary validation keeps its existing enumeration
+path instead of receiving this extra Moku-only completeness gate. Cached entries are
 memory-only and never imported from another application process or historic
 conversation. Known source changes cannot reuse an older configuration's cache;
 matching old directories are allowed to be outdated and are labeled accordingly.

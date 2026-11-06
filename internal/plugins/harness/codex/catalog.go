@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
 	"regexp"
 	"strconv"
@@ -17,6 +18,7 @@ type CatalogTransport interface {
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
 type catalogEntry struct {
+	sourceProof        plugin.CatalogSourceEvidence
 	identity           string
 	models             []Map
 	modelsError        error
@@ -28,13 +30,15 @@ type catalogEntry struct {
 	cli                Map
 }
 type Catalog struct {
-	factory  CatalogFactory
-	identity func(context.Context, string, string) (string, error)
-	reads    discovery.Cache[catalogEntry]
+	source       func(context.Context, string, string, bool) (CatalogFactory, string, error)
+	factory      CatalogFactory
+	identity     func(context.Context, string, string) (string, error)
+	reads        discovery.Cache[catalogEntry]
+	routingReads discovery.Cache[catalogEntry]
 }
 
 func NewCatalog(factory CatalogFactory) *Catalog { return &Catalog{factory: factory} }
-func (c *Catalog) Close() error                  { return c.reads.Close() }
+func (c *Catalog) Close() error                  { return errors.Join(c.routingReads.Close(), c.reads.Close()) }
 func (c *Catalog) Load(ctx context.Context, cwd, configured string, routing ...bool) (Map, error) {
 	entry, err := c.observe(ctx, cwd, configured, false, len(routing) > 0 && routing[0])
 	if err != nil {
@@ -43,7 +47,7 @@ func (c *Catalog) Load(ctx context.Context, cwd, configured string, routing ...b
 	if entry.modelsError != nil {
 		return nil, entry.modelsError
 	}
-	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse, "catalogIdentity": entry.identity}, nil
+	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse, "catalogIdentity": entry.identity, "catalogSource": entry.sourceProof}, nil
 }
 func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, refresh bool) (Map, error) {
 	entry, err := c.observe(ctx, cwd, configured, refresh, false)
@@ -70,7 +74,15 @@ var errIncompleteCatalog = errors.New("native catalog is incomplete")
 func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
 	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
-	if c.identity != nil {
+	factory := c.factory
+	if c.source != nil {
+		var err error
+		factory, identity, err = c.source(ctx, cwd, configured, routing)
+		if err != nil {
+			return catalogEntry{}, err
+		}
+		key += "\x00" + identity
+	} else if c.identity != nil {
 		var err error
 		identity, err = c.identity(ctx, cwd, configured)
 		if err != nil {
@@ -79,9 +91,15 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 		key += "\x00" + identity
 	}
 	probe := func(shared context.Context) (catalogEntry, error) {
-		value, err := c.probe(shared, cwd, configured)
-		if err == nil && c.identity != nil {
-			current, sourceErr := c.identity(shared, cwd, configured)
+		value, err := c.probe(shared, cwd, configured, factory)
+		if err == nil && (c.source != nil || c.identity != nil) {
+			var current string
+			var sourceErr error
+			if c.source != nil {
+				_, current, sourceErr = c.source(shared, cwd, configured, routing)
+			} else {
+				current, sourceErr = c.identity(shared, cwd, configured)
+			}
 			if sourceErr != nil {
 				return catalogEntry{}, sourceErr
 			}
@@ -100,27 +118,43 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 	var entry catalogEntry
 	var err error
 	if routing {
-		entry, err = c.reads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, probe)
+		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, func(probeCtx context.Context) (catalogEntry, error) {
+			// Keep unsupported-source rejection inside the cache probe: a prior
+			// trusted same-key snapshot still returns immediately. Do not launch
+			// a native fetch whose protocol cannot supply the required evidence.
+			if err := codexCatalogSource.RequireComplete(); err != nil {
+				return catalogEntry{}, err
+			}
+			value, err := c.reads.Get(probeCtx, key, false, 5*time.Minute, 60*time.Second, probe)
+			if err != nil {
+				return value, err
+			}
+			return value, value.sourceProof.RequireComplete()
+		})
 	} else {
 		entry, err = c.reads.Get(ctx, key, refresh, 5*time.Minute, 60*time.Second, probe)
 	}
 	// Partial native facts remain useful to their own projection, but do not
 	// earn the successful cache TTL or turn a failed defaults read into success.
-	if errors.Is(err, errIncompleteCatalog) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+	if !routing && errors.Is(err, errIncompleteCatalog) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 		err = nil
 	}
 	return entry, err
 }
-func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry catalogEntry, err error) {
-	if c.factory == nil {
+func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories ...CatalogFactory) (entry catalogEntry, err error) {
+	factory := c.factory
+	if len(factories) > 0 {
+		factory = factories[0]
+	}
+	if factory == nil {
 		return catalogEntry{}, fmt.Errorf("Codex model catalog has no target runtime")
 	}
-	server, err := c.factory(ctx, cwd, configured)
+	server, err := factory(ctx, cwd, configured)
 	if err != nil {
 		return catalogEntry{}, err
 	}
 	defer func() { err = errors.Join(err, discovery.Cleanup(server.Close())) }()
-	entry = catalogEntry{models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
+	entry = catalogEntry{sourceProof: codexCatalogSource, models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {

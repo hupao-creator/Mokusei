@@ -12,6 +12,14 @@ import (
 // Native Harness errors and uncertain acknowledgements must never use it.
 var ErrMokuConfigurationPending = errors.New("Moku configuration must be applied before new execution admission")
 
+// MokuAdmissionRejectedError is issued only by Core's final new-execution
+// boundary. Its exact, unwrapped value proves that input was not consumed.
+// Native errors and joined/uncertain failures cannot authorize this release.
+type MokuAdmissionRejectedError struct{ Cause error }
+
+func (e *MokuAdmissionRejectedError) Error() string { return e.Cause.Error() }
+func (e *MokuAdmissionRejectedError) Unwrap() error { return e.Cause }
+
 // ErrMokuIdle means a lazy notification was not consumed and must await another trigger.
 var ErrMokuIdle = errors.New("Moku is idle; notification remains queued")
 

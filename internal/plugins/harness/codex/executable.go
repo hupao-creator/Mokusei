@@ -131,7 +131,9 @@ func ReadCodexVersion(ctx context.Context, executable string, env []string) (str
 	codexVersions.Lock()
 	cached, exists := codexVersions.entries[key]
 	codexVersions.Unlock()
-	if exists && time.Since(cached.at) < 5*time.Minute {
+	// Version is immutable for this binary/environment fingerprint. Catalog TTL
+	// expiry must not force a new version subprocess for an unchanged client.
+	if exists {
 		return cached.value, nil
 	}
 	output, err := ceProcessOutput(ctx, executable, []string{"--version"}, env, "", 5*time.Second, 64*1024)

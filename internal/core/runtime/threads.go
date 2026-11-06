@@ -43,6 +43,7 @@ type CreatedThread struct {
 type SendResult = plugin.SessionSendResult
 type threadHandle struct {
 	runtime               *Runtime
+	moku                  bool
 	id                    string
 	generation            uint64
 	harness               plugin.Harness
@@ -63,6 +64,7 @@ type threadHandle struct {
 	closeOnce             sync.Once
 	closeErr              error
 	beforeNativeAdmission func(context.Context) error
+	admitNewExecution     func(context.Context) error
 	admissionMu           sync.Mutex
 	admission             *sendAdmission
 }
@@ -191,7 +193,10 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	lifetime, cancel := context.WithCancel(generationCtx)
 	// Native Open may restore and admit work before returning its handle.
 	// Install the authority check before exposing ExecutionAdmission to it.
-	owner := &threadHandle{runtime: r, id: t.ID, generation: generation, harness: h, beforeNativeAdmission: before, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
+	owner := &threadHandle{runtime: r, moku: t.Moku, id: t.ID, generation: generation, harness: h, beforeNativeAdmission: before, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
+	if injection != nil {
+		owner.admitNewExecution = injection.AdmitNewExecution
+	}
 	r.mu.Lock()
 	stale := r.closed || r.resetting || r.generation != generation || r.deleting[t.ID] || ctx.Err() != nil
 	if !stale {
@@ -353,11 +358,21 @@ func (h *threadHandle) commit(ctx context.Context, state json.RawMessage, cancel
 	return nil
 }
 func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.RawMessage, error)) (string, error) {
+	if h.moku {
+		select {
+		case <-h.opened:
+		default:
+			// Open can invoke native callbacks synchronously while the caller
+			// owns configuration admission. Never deadlock or start work before
+			// the prepared handle has been published.
+			return "", &plugin.MokuAdmissionRejectedError{Cause: errors.New("Moku native execution is blocked until session preparation completes")}
+		}
+	}
 	// Moku's native starts must see one saved/applied configuration through
 	// durable admission. Take this gate before the execution locks, matching
 	// ordinary sends and avoiding a settings-save/native-start lock inversion.
 	h.mu.Lock()
-	configuredAdmission := h.beforeNativeAdmission != nil
+	configuredAdmission := h.moku || h.beforeNativeAdmission != nil || h.admitNewExecution != nil
 	h.mu.Unlock()
 	if configuredAdmission {
 		unlock, err := h.runtime.configurationLock(ctx)
@@ -415,6 +430,9 @@ func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.Ra
 	}
 	if e := t.Observation.LatestExecution; e != nil && !e.Terminal() {
 		return "", errors.New("another execution is already active")
+	}
+	if err := h.runtime.admitMokuExecution(ctx, h, t); err != nil {
+		return "", err
 	}
 	if h.runtime.config.Workspaces != nil {
 		if _, err := h.runtime.config.Workspaces.AdmitThread(ctx, t); err != nil {
@@ -880,7 +898,7 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 			unlockAdmission()
 			return SendResult{}, plugin.ErrMokuIdle
 		}
-		if err := r.checkMokuSendConfiguration(t); err != nil {
+		if err := r.admitMokuExecution(ctx, owner, t); err != nil {
 			unlockAdmission()
 			return SendResult{}, err
 		}
@@ -1053,7 +1071,17 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	}
 }
 
-func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, admission *sendAdmission) (string, error) {
+func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, admission *sendAdmission) (result string, resultErr error) {
+	// Pair exact ErrExecutionEnded with its required durable terminal outcome.
+	// Contract violations or races before that check are not replay evidence.
+	confirmedUnconsumed := false
+	defer func() {
+		if confirmedUnconsumed && owner.moku && resultErr != nil && resultErr != plugin.ErrMokuConfigurationPending {
+			if _, rejected := resultErr.(*plugin.MokuAdmissionRejectedError); !rejected {
+				resultErr = &plugin.MokuAdmissionRejectedError{Cause: resultErr}
+			}
+		}
+	}()
 	cancellation, releaseCancellation := r.cancellationState(owner.id)
 	defer releaseCancellation()
 	cancellation.mu.Lock()
@@ -1084,7 +1112,8 @@ func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, a
 	if e := t.Observation.LatestExecution; e == nil || e.ExecutionID != admission.executionID || !e.Terminal() {
 		return "", errors.New("ended execution has no durable terminal outcome")
 	}
-	if err := r.checkMokuSendConfiguration(t); err != nil {
+	confirmedUnconsumed = true
+	if err := r.admitMokuExecution(ctx, owner, t); err != nil {
 		return "", err
 	}
 	id, err := newID()
@@ -1103,11 +1132,28 @@ func (r *Runtime) renewSendAdmission(ctx context.Context, owner *threadHandle, a
 	return id, nil
 }
 
+// All new Moku executions (Send, successor renewal, native Accept) meet here
+// under their final cancellation/admission ownership, even with background work.
+func (r *Runtime) admitMokuExecution(ctx context.Context, owner *threadHandle, thread model.ThreadRecord) error {
+	if !thread.Moku {
+		return nil
+	}
+	err := r.checkMokuSendConfiguration(thread)
+	if err == nil {
+		if owner.admitNewExecution == nil {
+			err = plugin.ErrMokuConfigurationPending
+		} else {
+			err = owner.admitNewExecution(ctx)
+		}
+	}
+	if err != nil && err != plugin.ErrMokuConfigurationPending {
+		return &plugin.MokuAdmissionRejectedError{Cause: err}
+	}
+	return err
+}
+
 func (r *Runtime) checkMokuSendConfiguration(thread model.ThreadRecord) error {
-	if !thread.Moku || thread.Observation.BackgroundWork != nil {
-		// Native background work pins the handle's configuration even after its
-		// foreground execution ends. New foreground input can use that same
-		// admitted configuration until the background owner has drained.
+	if !thread.Moku {
 		return nil
 	}
 	change, err := r.MokuConfigurationChange(thread.HarnessID)

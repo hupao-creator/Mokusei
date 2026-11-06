@@ -182,9 +182,14 @@ on failure. Configuration identities fence publication and native admission;
 execution/default resolution retains strict reads. Caches are Harness-owned,
 memory-only and drained on Close, not persisted across application restarts.
 
-Complete Pi directories are indexed by native source identity separately from
-selected-model observations. Moku can reuse a directory warmed by the settings
-page or join its in-flight full read without launching another selected-model
-process. A source-level publication sequence fences older model-selection
-flights even when a newer refresh fails; execution state/levels keep their own
-selection keys and are never borrowed as execution authority.
+Pi's `get_available_models` returns a snapshot of the registry, but the RPC reply
+omits its load-error/completion state. Offline startup and disabling extensions
+do not prove model-source completeness. Moku therefore keeps this evidence
+unknown; it does not infer trust from a valid response.
+
+Moku routing now uses a separate source-evidence-checked cache. This adapter's
+current list response is not certified as source-complete; without a previously
+trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
+explicit-model creation/validation still consumes the enumeration result. Unknown
+refresh results cannot replace trusted routing data. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).

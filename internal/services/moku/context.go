@@ -117,27 +117,31 @@ func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Ha
 	if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
 		return target, fmt.Errorf("invalid native catalog schema: %w", err)
 	}
-	if envelope.Catalog == nil || len(envelope.Catalog.Models) == 0 || envelope.Catalog.ConfigurationID == "" {
+	if envelope.Catalog == nil || !envelope.Catalog.EnumerationComplete || len(envelope.Catalog.Models) == 0 || envelope.Catalog.ConfigurationID == "" {
 		return target, errors.New("complete nonempty native model inventory is missing")
+	}
+	if err := envelope.Catalog.Source.RequireComplete(); err != nil {
+		return target, err
 	}
 	return target, nil
 }
 
-// Native-initiated executions also cross the catalog gate, even without an
-// active voice lease. This callback cannot reopen the handle that owns admission.
-func (c *Coordinator) validateNativeTargetCatalog(ctx context.Context, owner string) error {
+// The immutable prepared description is bound to the handle's injection. The
+// Runtime invokes this at every final new-execution boundary, not only while
+// the coordinator happens to observe an idle conversation.
+func (c *Coordinator) validateTargetAdmission(ctx context.Context, owner string, applied model.Settings, prepared ThreadCreationDescription) error {
 	c.mu.Lock()
-	applied, previous, id := c.applied, c.description, c.id
+	id := c.id
 	c.mu.Unlock()
-	if id != owner || applied == nil || previous == nil {
-		return errors.New("Moku native admission has no prepared model catalog")
+	if id != owner {
+		return plugin.ErrMokuConfigurationPending
 	}
-	description, err := c.describeTargets(ctx, applied.AppliedSettings)
+	description, err := c.describeTargets(ctx, applied)
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(previous.CatalogIdentities, description.CatalogIdentities) {
-		return errors.New("Moku model catalog changed before native admission; a fresh session preparation is required")
+	if !reflect.DeepEqual(prepared.CatalogIdentities, description.CatalogIdentities) {
+		return plugin.ErrMokuConfigurationPending
 	}
 	return nil
 }

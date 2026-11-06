@@ -105,10 +105,21 @@ retain their existing save behavior. Voice preparation adopts a saved Harness
 preference before preparing media; the preparation's own admission does not
 block that replacement, while any other concurrent admission still does.
 
-Moku rechecks pending configuration before reserving a successor execution,
-including when a prepared follow-up races its predecessor's completion. A
-confirmed unconsumed input returns to the coordinator for fresh settings,
-instructions and context. Uncertain native outcomes are never retried this way.
+Every new Moku execution crosses the same `admitMokuExecution` guard in
+[threads.go](threads.go): initial Send, successor renewal after a proven
+unconsumed end, and native Accept. Configuration admission covers direct Runtime
+SendMokuThread callers as well as coordinator callers. Background work does not
+exempt a new foreground execution. The guard uses an in-process callback captured
+in the prepared injection, installed before native Open; missing authority blocks.
+Native new work during Open is rejected before reentrant locking or projection.
+All three host execution-ID reservation sites precede native input/project with
+this guard; Commit still rejects unreserved execution IDs.
+
+Exact configuration-pending results permit one coordinator reprepare. Other
+Core pre-consumption rejections use `MokuAdmissionRejectedError`, preserving the
+reason and allowing durable outbox release after completed rejection. Exact native
+`ErrExecutionEnded` is the only native result that enters successor renewal;
+wrapped/uncertain native outcomes never gain this retry/release permission.
 Background configuration discovery also fences reuse of an existing idle
 session. A settings-save race re-resolves the configuration without spending a
 batch execution attempt; admitted batches and their retries retain their profile.
