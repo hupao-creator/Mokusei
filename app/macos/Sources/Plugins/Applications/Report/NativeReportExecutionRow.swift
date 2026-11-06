@@ -18,6 +18,9 @@ struct NativeReportExecutionRow: View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 8) {
+                    Text(item.emoji ?? "📝")
+                        .font(.system(size: 16))
+                        .accessibilityHidden(true)
                     Text(item.title.string)
                         .font(NativeTypography.inter(size: 13, weight: 600))
                         .lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)

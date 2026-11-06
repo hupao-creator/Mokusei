@@ -123,13 +123,15 @@ public struct ApplicationExecutionPresentation: Hashable, Sendable {
     }
     public let reference: ApplicationExecutionRef
     public let title: JSONText
+    /// Validated source Thread metadata; there is no per-execution emoji history.
+    public let emoji: String?
     public let missing: Bool
     public let running: Bool
     public let harness: Harness?
     public let preview: HarnessExecutionPreview?
-    public init(reference: ApplicationExecutionRef, title: JSONText, missing: Bool, running: Bool,
+    public init(reference: ApplicationExecutionRef, title: JSONText, emoji: String?, missing: Bool, running: Bool,
                 harness: Harness?, preview: HarnessExecutionPreview?) {
-        self.reference = reference; self.title = title; self.missing = missing; self.running = running
+        self.reference = reference; self.title = title; self.emoji = emoji; self.missing = missing; self.running = running
         self.harness = harness; self.preview = preview
     }
 }

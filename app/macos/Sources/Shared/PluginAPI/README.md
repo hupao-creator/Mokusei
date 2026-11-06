@@ -117,7 +117,11 @@ single-execution presentation. Report plugins never decode Harness timelines.
 start/end timestamps for the requested execution ID. Each Harness interprets
 its own private state; Host/Report never parse another Harness's timeline.
 `ApplicationExecutionPresentation.preview` carries that value to the related
-list. Titles use the matching `executionTitles` entry (a localized generic
+list. `ApplicationExecutionPresentation.emoji` uses the same validated generated
+Thread metadata as all Harness cards/readers. Emoji is Thread-scoped, not an
+execution history field; absent/invalid metadata and deleted Threads yield nil.
+The related list uses the reader's 📝 fallback and hides decorative emoji from
+accessibility. Titles use the matching `executionTitles` entry (a localized generic
 execution label when absent), never the current Thread title. Missing historical
 preview data stays absent rather than borrowing the latest execution. Preview
 text is capped at 600 characters; a non-running execution with no end time is

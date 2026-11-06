@@ -192,7 +192,7 @@ public final class NativeApplicationHost {
             guard let thread else {
                 return ApplicationExecutionPresentation(reference: reference,
                     title: JSONText(workspace.preferences.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
-                    missing: true, running: false, harness: nil, preview: nil)
+                    emoji: nil, missing: true, running: false, harness: nil, preview: nil)
             }
             guard !thread.isHiddenFromUser else { return nil }
             let plugin = try workspace.plugins.harnesses.require(thread.harnessID)
@@ -200,7 +200,8 @@ public final class NativeApplicationHost {
             // Never use a later execution's title, elapsed time or reply for this link.
             let title = thread.executionTitles[reference.executionID]
                 ?? JSONText(workspace.preferences.locale.text("执行记录", "Execution"))
-            return ApplicationExecutionPresentation(reference: reference, title: title, missing: false,
+            return ApplicationExecutionPresentation(reference: reference, title: title,
+                emoji: nativeGeneratedThreadEmoji(metadata: thread.metadataState), missing: false,
                 running: preview?.running ?? false,
                 harness: .init(id: plugin.descriptor.id, displayName: plugin.descriptor.displayName, logoSource: plugin.logoSource),
                 preview: preview)
