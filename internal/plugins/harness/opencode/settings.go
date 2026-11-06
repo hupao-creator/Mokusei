@@ -246,11 +246,11 @@ type catalogSource struct {
 }
 
 func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd string) (string, error) {
-	source, err := s.resolveCatalogSource(ctx, settings, cwd, false)
+	source, err := s.resolveCatalogSource(ctx, settings, cwd)
 	return source.key, err
 }
 
-func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Settings, cwd string, routing bool) (catalogSource, error) {
+func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Settings, cwd string) (catalogSource, error) {
 	var env map[string]string
 	var err error
 	executable := settings.ExecutablePath
@@ -289,12 +289,11 @@ func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Setting
 	files := []string{env["OPENCODE_CONFIG"],
 		filepath.Join(configDirectory, "opencode.json"), filepath.Join(configDirectory, "opencode.jsonc"),
 		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc")}
-	identity := discovery.Identity(env, append(files, executable)...)
-	if routing {
-		identity, err = discovery.ObservedIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
-		if err != nil {
-			return catalogSource{}, err
-		}
+	// Every cache layer uses this same dependency identity. A routing read must
+	// never wrap a shallow-key editor snapshot in a newer configuration's key.
+	identity, err := discovery.ObservedIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
+	if err != nil {
+		return catalogSource{}, err
 	}
 	key := cwd + "\x00" + settings.ConfigurationCWD + "\x00" + executable + "\x00" + identity + "\x00" + accountIdentity
 	settings.ExecutablePath = executable
@@ -317,7 +316,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	if len(modes) > 0 {
 		mode = modes[0]
 	}
-	source, err := s.resolveCatalogSource(ctx, settings, cwd, mode == routingCatalogRead)
+	source, err := s.resolveCatalogSource(ctx, settings, cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -328,19 +327,23 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			if err != nil {
 				return value, err
 			}
-			current, err := s.resolveCatalogSource(probeCtx, settings, cwd, true)
+			current, err := s.resolveCatalogSource(probeCtx, settings, cwd)
 			if err != nil {
 				return nil, err
 			}
 			if current.key != key {
 				return nil, errors.New("OpenCode routing source changed during discovery")
 			}
-			copy := *value
-			copy.identity = key
-			return &copy, nil
+			if value == nil || value.identity != key {
+				return nil, errors.New("OpenCode catalog snapshot does not match its captured source")
+			}
+			return value, nil
 		})
 		if readErr != nil {
 			return nil, readErr
+		}
+		if snapshot == nil || snapshot.identity != key {
+			return nil, errors.New("OpenCode routing cache does not match its source")
 		}
 		copy := *snapshot
 		if s.routingCatalogs.RefreshFailed(key) {
@@ -359,7 +362,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 		s.mu.Unlock()
 		return nil, err
 	}
-	if cached, ok := s.cache[key]; !refresh && ok && s.pending[key] == nil && time.Since(cached.at) < 5*time.Minute {
+	if cached, ok := s.cache[key]; !refresh && ok && cached.value != nil && cached.value.identity == key && s.pending[key] == nil && time.Since(cached.at) < 5*time.Minute {
 		s.mu.Unlock()
 		return cached.value, nil
 	}
@@ -403,6 +406,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 					s.mu.Lock()
 					// The callback publishes an immutable native projection. Billing
 					// filters a separate copy; presentation is never an auth verdict.
+					value.identity = key
 					flight.nativeValue = value
 					close(flight.nativeDone)
 					s.mu.Unlock()
@@ -1220,7 +1224,7 @@ func (h *Harness) cachedCatalog(ctx context.Context, input plugin.SettingsReques
 	if closed {
 		return nil, current, errors.New("OpenCode settings are closed")
 	}
-	if ok && time.Since(cached.at) < 5*time.Minute {
+	if ok && cached.value != nil && cached.value.identity == key && time.Since(cached.at) < 5*time.Minute {
 		return cached.value, current, nil
 	}
 	h.background("catalog:"+key, func(life context.Context) { _, _ = h.settings.observe(life, current, input.Cwd, false) })

@@ -155,3 +155,8 @@ completeness remains unknown in the schema. A matching old snapshot returns
 immediately; failed refreshes retain it and add a retained-snapshot note. Cold
 acquisition failure still reports an error. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+[T3 comparison](../../../services/moku/t3-native-discovery.md) documents Claude's
+bundled/version/custom-model fallback and optional gateway cache grace period.
+This adapter retains its native initialized inventory plus matching old snapshots;
+it does not invent a bundled catalog or add an unconditional wait for provenance.

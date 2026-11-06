@@ -196,8 +196,10 @@ fallback is used for historical references.
 Catalog caches live on the Harness instance and are not persisted to disk. Close
 cancels and joins background refreshes; Moku handle replacement retains caches.
 
-The startup RPC crosses OpenCode 2.0.25 plugin activation readiness; failed or
-missing plugin inventories cannot publish a replacement directory. Account cache
+The startup RPC crosses OpenCode 2.0.25 plugin activation readiness. The separate
+plugin inventory is advisory with a three-second request budget: failure, absence
+or unsettled activation is reported in provenance without discarding a working
+native model response. Account cache
 identity includes native database credential selection/revision columns without
 reading secrets or invalidating on unrelated session writes. Neither activation
 nor repeated stable model lists attest every remote provider completed discovery;
@@ -215,3 +217,11 @@ same `captureLaunch` helper as ordinary startup. It passes those captured values
 directly to the runtime, rather than invoking a closure that resolves them again.
 Before publication and after discovery, the source resolver is checked again;
 changed launch/configuration/account identities reject the observation.
+
+Editor, complete, advisory and routing reads now use the same detailed observed
+source key, including project namespaces and referenced configuration files.
+Snapshots carry their acquisition identity before publication, and cache hits
+must match it. The outer routing cache verifies that identity rather than
+relabeling an inner result. A source change during acquisition rejects that
+observation; an old same-key directory remains available on failed refresh.
+See [OpenCode/Claude T3 comparison](../../../services/moku/t3-native-discovery.md).

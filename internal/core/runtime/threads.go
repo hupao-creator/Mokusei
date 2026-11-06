@@ -44,6 +44,7 @@ type SendResult = plugin.SessionSendResult
 type threadHandle struct {
 	runtime               *Runtime
 	moku                  bool
+	recoveryOnly          bool // Moku opened without injection; never reuse for prepared execution
 	id                    string
 	generation            uint64
 	harness               plugin.Harness
@@ -168,6 +169,17 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	if deleting {
 		return nil, errors.New("thread deletion is in progress")
 	}
+	if cached != nil && cached.recoveryOnly && injection != nil {
+		if err := r.retireMokuRecoveryHandle(ctx, cached); err != nil {
+			return nil, &plugin.MokuAdmissionRejectedError{Cause: err}
+		}
+		var err error
+		t, err = r.sessionThread(t.ID)
+		if err != nil {
+			return nil, err
+		}
+		cached = nil
+	}
 	if cached != nil {
 		if err := cached.active(); err != nil {
 			return nil, err
@@ -193,7 +205,7 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	lifetime, cancel := context.WithCancel(generationCtx)
 	// Native Open may restore and admit work before returning its handle.
 	// Install the authority check before exposing ExecutionAdmission to it.
-	owner := &threadHandle{runtime: r, moku: t.Moku, id: t.ID, generation: generation, harness: h, beforeNativeAdmission: before, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
+	owner := &threadHandle{runtime: r, moku: t.Moku, recoveryOnly: t.Moku && injection == nil, id: t.ID, generation: generation, harness: h, beforeNativeAdmission: before, ctx: lifetime, cancel: cancel, changed: make(chan struct{}, 1), opened: make(chan struct{})}
 	if injection != nil {
 		owner.admitNewExecution = injection.AdmitNewExecution
 	}
@@ -252,6 +264,63 @@ func (r *Runtime) openThreadWithAdmission(ctx context.Context, t model.ThreadRec
 	}
 	return owner, nil
 }
+
+// The caller owns threadLock. Do not patch an admission callback into the old
+// native handle: its tools/instructions were also absent at Open. Fence stop and
+// native admission while claiming an idle owner, then release every state gate
+// before Close drains native callbacks. Failed cleanup keeps the owner fenced.
+func (r *Runtime) retireMokuRecoveryHandle(ctx context.Context, owner *threadHandle) error {
+	cancellation, release := r.cancellationState(owner.id)
+	defer release()
+	err := func() error {
+		cancellation.mu.Lock()
+		defer cancellation.mu.Unlock()
+		if cancellation.cancelling {
+			return model.NewError("EXECUTION_CANCELLING", "Moku recovery is being stopped; retry after cancellation finishes")
+		}
+		owner.admissionMu.Lock()
+		defer owner.admissionMu.Unlock()
+		owner.stateMu.Lock()
+		defer owner.stateMu.Unlock()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := owner.active(); err != nil {
+			return err
+		}
+		current, err := r.sessionThread(owner.id)
+		if err != nil {
+			return err
+		}
+		if e := current.Observation.LatestExecution; e != nil && !e.Terminal() {
+			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has an active execution; stop or wait before preparing")
+		}
+		if current.Observation.BackgroundWork != nil {
+			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has native background work; stop or wait before preparing")
+		}
+		owner.mu.Lock()
+		defer owner.mu.Unlock()
+		if owner.activeSends != 0 || owner.admission != nil {
+			return model.NewError("MOKU_RECOVERY_BUSY", "Moku recovery still has pending native input")
+		}
+		// Future native Accept observes closed before a new owner can open.
+		owner.closed = true
+		return nil
+	}()
+	if err != nil {
+		return err
+	}
+	if err := owner.close(); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	if r.handles[owner.id] == owner {
+		delete(r.handles, owner.id)
+	}
+	r.mu.Unlock()
+	return nil
+}
+
 func (h *threadHandle) Read() json.RawMessage {
 	h.stateMu.Lock()
 	defer h.stateMu.Unlock()
@@ -358,6 +427,12 @@ func (h *threadHandle) commit(ctx context.Context, state json.RawMessage, cancel
 	return nil
 }
 func (h *threadHandle) Accept(ctx context.Context, project func(string) (json.RawMessage, error)) (string, error) {
+	if h.recoveryOnly {
+		// Recovery cannot create work. Reject before taking configuration
+		// admission: Close may be draining this callback while preparation
+		// owns that gate and is replacing this uninjected handle.
+		return "", plugin.ErrMokuConfigurationPending
+	}
 	if h.moku {
 		select {
 		case <-h.opened:
@@ -857,6 +932,9 @@ func (r *Runtime) sendLockedAdmitted(ctx context.Context, id string, input model
 	if err != nil {
 		return SendResult{}, err
 	}
+	if owner.recoveryOnly {
+		return SendResult{}, &plugin.MokuAdmissionRejectedError{Cause: plugin.ErrMokuConfigurationPending}
+	}
 	cancellation, releaseCancellation := r.cancellationState(id)
 	defer releaseCancellation()
 	cancellation.mu.Lock()
@@ -1330,6 +1408,9 @@ func (r *Runtime) RespondThread(ctx context.Context, id string, response model.R
 	owner, err := r.openThread(ctx, t, nil)
 	if err != nil {
 		return err
+	}
+	if owner.recoveryOnly {
+		return plugin.ErrMokuConfigurationPending
 	}
 	ctx, cancelOwner := owner.operationContext(ctx)
 	defer cancelOwner()

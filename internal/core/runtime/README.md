@@ -226,3 +226,30 @@ reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Attention visits, the scheduler clock and hidden-card projections are profile-local. Search reads the ordinary source independently of the attention marker. New executions and search visits fence old decisions through the same SQLite writer. See the [Attention Agent contract](../../plugins/applications/attention/README.md).
+
+## Moku recovery-only handles
+
+Stopping a restored Moku execution may open its native session before model
+catalog preparation, without any injection. Such an owner is marked
+`recoveryOnly`; it can restore/settle/interrupt but cannot admit new native work,
+receive user sends or interaction responses, or acquire a new native voice lease.
+Ordinary Thread recovery and existing fully prepared Moku handles are unchanged.
+
+A later Open/Send with injection does not retrofit the callback onto this owner.
+Under the thread lock, Runtime checks cancellation, native admission, pending
+sends and the latest foreground/background state. An idle recovery owner is
+fenced closed, then all admission/state gates are released before native Close
+and callback draining. Only successful cleanup removes that exact cached owner;
+Runtime rereads durable state and opens a new native handle with the complete
+injection, including tools, instructions, context and AdmitNewExecution.
+
+Concurrent Stop is fenced by the cancellation gate. Active/background recovery
+reports busy instead of being replaced; cancellation remains available. Native
+Accept on a recovery owner rejects before the configuration lock, so a Close
+performed by normal preparation cannot deadlock on such a callback. The native
+voice entry requires a prepared owner rather than creating an uninjected one.
+Fully prepared voice owners are not candidates for this replacement. Early send
+rejection remains explicitly unconsumed; interaction replies reject before
+claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
+native owner from overlapping it. No new execution ID or input is reserved merely
+by replacing the idle recovery handle.

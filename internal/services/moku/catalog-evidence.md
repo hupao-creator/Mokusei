@@ -65,7 +65,10 @@ account-specific attestation. Moku sets the same originator at spawn and initial
 and uses the timestamp only to decide whether to enumerate again.
 
 **OpenCode.** Startup still crosses native activation, and existing native
-catalog/account checks run. The captured launch fix is retained: production
+catalog/account checks run. The separate plugin list is advisory and bounded to
+three seconds, so its failure does not reject a usable model response. All cache
+layers share and verify the detailed acquisition identity; the outer layer does
+not relabel an older shallow-key result. The captured launch fix is retained: production
 fingerprinting and launch use the same executable/environment, then recheck before
 publication. A successful native snapshot is accepted without inventing remote
 completeness. The
@@ -102,3 +105,10 @@ No tests were added or run; no native replay, CI, PR, push, system-prompt change
 or main integration is part of this Sprint. Removing unconditional gates makes
 normal native acquisition reachable; it is not a claim that all four installed
 clients have been exercised successfully with the current user's accounts.
+
+The follow-up [OpenCode/Claude T3 comparison](t3-native-discovery.md) records the
+upstream best-effort behavior and differences. Runtime also distinguishes an
+uninjected recovery-only Moku handle from a prepared execution owner: once idle,
+normal preparation closes it and reopens with the complete injection instead of
+reusing an owner without tools/callbacks. Native voice cannot attach to that
+cleanup-only owner. See [Runtime recovery](../../core/runtime/README.md#moku-recovery-only-handles).
