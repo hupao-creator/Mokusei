@@ -73,7 +73,9 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
     @State private var auxiliaryBack: NativeReadingAuxiliaryBackAction?
     @State private var requestID = UUID()
     @State private var url: URL?
-    @State private var sidecards = NativeReportSidecardPresentation()
+    @State private var localSidecards = NativeReportSidecardPresentation()
+    @Environment(\.nativeReportSidecards) private var sharedSidecards
+    private var sidecards: NativeReportSidecardPresentation { sharedSidecards ?? localSidecards }
     @State private var retainedWidth: CGFloat?
     @State private var dragging = false
     @State private var executionInput: NativeReportExecutionInput?
@@ -166,7 +168,7 @@ private struct NativeReportLinkWorkspace<Content: View>: View {
             NativeExecutionDockRegion(placement: executionPlacement,
                 active: executionInput != nil && !suppressed,
                 threadID: executionInput?.reference.thread.threadID,
-                onSettled: { inputChanged?(executionInput?.reference, true, returnFromExecution) })
+                onSettled: { inputChanged?(executionInput?.reference, executionInput?.ready == true, returnFromExecution) })
                 .destinationFrame(executionInput?.frame)
                 .allowsHitTesting(false)
         }

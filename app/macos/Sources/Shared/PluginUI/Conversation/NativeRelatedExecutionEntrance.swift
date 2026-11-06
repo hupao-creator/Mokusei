@@ -6,12 +6,16 @@ import SwiftUI
 /// row resource revisions. Hidden preparation keeps the real reader mounted.
 public struct NativeRelatedExecutionEntrance<Content: View>: View {
     private let content: Content
+    private let fades: Bool
+    private let onReady: () -> Void
     @State private var preparation = NativeReadingContentPreparation()
     @State private var admitted = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.nativeReadingInteractionActive) private var interactionActive
 
-    public init(@ViewBuilder content: () -> Content) { self.content = content() }
+    public init(fades: Bool = true, onReady: @escaping () -> Void = {}, @ViewBuilder content: () -> Content) {
+        self.fades = fades; self.onReady = onReady; self.content = content()
+    }
 
     public var body: some View {
         ZStack {
@@ -19,7 +23,7 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            RelatedExecutionFade(admitted: admitted, reduceMotion: reduceMotion) {
+            RelatedExecutionFade(admitted: admitted, reduceMotion: reduceMotion || !fades) {
                 content
                 // A manifest mounts before its row and asynchronous Markdown.
                 // Use the reader's content signal plus the existing parse gate;
@@ -29,7 +33,8 @@ public struct NativeRelatedExecutionEntrance<Content: View>: View {
                 .onPreferenceChange(NativeReadingContentRevealStatusKey.self) { status in
                     guard status.complete, !admitted else { return }
                     preparation.admit {
-                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { admitted = true }
+                        admitted = true
+                        onReady()
                     }
                 }
                 .transaction(value: admitted) { $0.animation = nil }

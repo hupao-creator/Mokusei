@@ -229,7 +229,7 @@ private struct NativeApplicationReferencedExecution: View {
     let host: NativeApplicationHost
     let reference: ApplicationExecutionRef
     var body: some View {
-        NativeRelatedExecutionEntrance {
+        Group {
             if let thread = host.workspace.catalog.thread(reference.thread.threadID), !thread.isHiddenFromUser {
                 NativeHarnessThreadView(host: host.workspace.harnessHost,
                     input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))

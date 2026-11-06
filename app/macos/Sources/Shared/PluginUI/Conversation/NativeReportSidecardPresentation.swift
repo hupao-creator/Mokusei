@@ -7,8 +7,9 @@ import SwiftUI
 public struct NativeReportExecutionInput: Equatable, Sendable {
     public let reference: ApplicationExecutionRef
     public let frame: CGRect
-    public init(reference: ApplicationExecutionRef, frame: CGRect) {
-        self.reference = reference; self.frame = frame
+    public let ready: Bool
+    public init(reference: ApplicationExecutionRef, frame: CGRect, ready: Bool = true) {
+        self.reference = reference; self.frame = frame; self.ready = ready
     }
 }
 
@@ -51,6 +52,10 @@ public final class NativeReportSidecardPresentation {
     public private(set) var pending: Card? = .relatedExecutions
     public private(set) var admitted = false
     public private(set) var selectionID = UUID()
+    public private(set) var selectedExecution: ApplicationExecutionRef?
+    public private(set) var executionVisit = UUID()
+    public private(set) var continuedExecution = false
+    public private(set) var executionReady = false
     @ObservationIgnored private var document: NativeApplicationHTMLReadiness?
     @ObservationIgnored private var layoutReady = false
     @ObservationIgnored private var suppressed = false
@@ -59,6 +64,24 @@ public final class NativeReportSidecardPresentation {
     @ObservationIgnored private var admission: Task<Void, Never>?
 
     public init() {}
+
+    public func selectExecution(_ reference: ApplicationExecutionRef?) {
+        guard !retainingForReturn else { return }
+        selectionID = UUID(); executionVisit = UUID()
+        selectedExecution = reference; continuedExecution = false; executionReady = false
+    }
+
+    public func continueExecution(_ reference: ApplicationExecutionRef, from source: ApplicationExecutionRef, selection: UUID) {
+        guard !retainingForReturn, !suppressed, active == .relatedExecutions,
+              selectionID == selection, selectedExecution == source, reference != source else { return }
+        selectExecution(reference)
+        continuedExecution = true
+    }
+
+    public func admitExecution(visit: UUID) {
+        guard executionVisit == visit, selectedExecution != nil else { return }
+        executionReady = true
+    }
 
     public func updateDocument(_ next: NativeApplicationHTMLReadiness?) {
         guard !retainingForReturn, document != next else { return }
@@ -105,6 +128,7 @@ public final class NativeReportSidecardPresentation {
 
     public func cancel() {
         retainingForReturn = false
+        selectExecution(nil)
         close(); invalidateAdmission(); document = nil; layoutReady = false
     }
 

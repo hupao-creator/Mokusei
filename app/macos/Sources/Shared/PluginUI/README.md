@@ -3,7 +3,7 @@
 This target supplies design resources, Harness cards, Markdown reading, conversation layout, composer and forms to the macOS application. AppKit adapts native text, input and viewport behavior within the Swift package.
 
 `NativeReportExecutionInputKey` carries the expanded Report execution's exact
-reference and destination frame to its Host shell. It is absent in list, folded,
+reference, content/landing readiness and destination frame to its Host shell. It is absent in list, folded,
 Browser and suppressed states. The Host converts that geometry through the same
 passive native marker as Agent Sidecards and owns the composer and send routing.
 
@@ -1388,3 +1388,13 @@ existing owners. Its preparation indicator stays visible until admission and
 hidden readers are excluded from pointer, keyboard and accessibility interaction.
 Reduce Motion bypasses or removes the compositor animation. Streaming, refresh,
 and read-error recovery do not repeat it; selection identity owns a fresh visit.
+
+`NativeReportExecutionScroll` wraps the related-execution capability with that
+admission gate. Manual reference selection retains the fade; a send-created
+execution instead waits behind the actual outgoing reader and enters from below
+while the outgoing viewport moves up. Both model viewports remain at their final
+size. Landing retains the new host and its scroll model, and stale visit callbacks
+cannot reenable input. The Report's Back button lives outside this carrier.
+`NativeReportSidecardPresentation` owns the selection and execution visit alongside
+Browser/list admission; accepted continuations are visit-local and independent of
+the authored reference list. The window supplies one presentation per route.

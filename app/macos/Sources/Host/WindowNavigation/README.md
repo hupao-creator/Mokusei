@@ -240,9 +240,10 @@ for readiness, cancellation, screenshot diagnosis and Sprint verification limits
 An expanded referenced execution lends its exact identity and destination column
 to the resident composer. Returning to references, folding, replacing it with a
 Browser, covering or leaving revokes that input target. Editor Escape uses the
-same auxiliary Back action as the reader. Accepted input opens the resulting
-ordinary Agent execution only while the same Report/composer visit still owns
-navigation; catalog publication may arrive after the command receipt.
+same auxiliary Back action as the reader. Accepted input selects the resulting
+exact execution in the same Report sidecard only while the same Report/composer
+and sidecard-selection visit still owns navigation. Catalog publication may
+arrive after the command receipt; the Report route and HTML remain mounted.
 
 Agent TOC/history/result reading uses that same execution continuation policy.
 The actual main reader publishes its selection rather than relying solely on
@@ -250,29 +251,26 @@ the Host's entry `readingTarget`. Request and reader-owner identities fence late
 publications; history travel and unavailable/non-execution pages disable send.
 Returning to the ordinary current document relinquishes the exact input target.
 
-Accepted input from a Report's referenced execution requests a shared-column
-leftward slide into the resulting Agent execution. The Host retains the actual
-outgoing Report and execution surfaces while the new production Agent workspace
-finishes its existing content, auxiliary-layout and Dock admission. At travel
-start, the incoming main reader takes the old referenced execution's horizontal
-origin and the outgoing execution is masked out atomically. Only Report moves
-out; the incoming main and new execution Sidecard travel together over 420ms
-using the reading replacement curve. The horizon contains three card roles,
-not two disjoint two-card workspaces with a duplicate main execution.
-The existing native panel frame markers supply the actual column displacement,
-including toolbar space and width constraints. Incoming readers lay out at their
-destination widths once; native text is neither scaled nor reflowed per tick.
-Landing retains the incoming hosting tree. This is a visual column handoff,
-not a transfer of the Report reader's local scroll model into the Agent reader.
-Native pointer/accessibility and reading interaction gates exclude both workspaces
-during preparation/travel; resident input keeps its existing owner. The route UUID
-scopes the request and completion, and a replacement route retires old work.
-Reduce Motion and inactive/covered scenes switch directly once ready; enabling
-those policies during travel or resizing settles immediately. Stacked or missing
-column geometry also settles once ready instead of inventing horizontal travel.
-This is limited to accepted Report continuation navigation, including historical
-forks; ordinary Agent sends, manual navigation and completion promotion retain
-their existing transitions. See the [Sprint implementation notes](../../../../../design/execution-route-slide.md).
+Accepted Report continuation keeps the existing 5:5 detail layout and resident
+composer column. `NativeReportExecutionScroll` retains the old reader's actual
+scroll position while the accepted exact execution prepares its scoped row and
+Markdown. Once ready, the old viewport moves up and the new one enters from
+below over the shared 420ms reading replacement curve. The incoming native host
+survives landing; neither text layout nor document scroll offsets animate.
+The floating upper-left Back button stays outside the moving viewport and
+returns to the authored related-execution list, including during preparation.
+New continuations need not occur in that list; catalog refresh does not discard
+them or alter Report references. Same-execution steering updates in place without
+another transition. Normal list selection keeps its 200ms readiness fade.
+
+Pointer/accessibility and reading controls are gated during replacement; input
+waits for content, landing and existing Dock geometry admission. Route, composer
+and sidecard-selection identities fence late receipts; reader-visit identities
+fence readiness/completion. Folding, Browser selection, covering and return
+revoke pending send navigation. Reduce Motion, inactive/covered scenes and resize
+settle admitted content without travel. Returning to the list or unmounting retires
+both reader leases. Ordinary Agent sends, Agent history navigation and completion
+promotion retain their own behavior. See the [implementation notes](../../../../../design/execution-route-slide.md).
 
 Report related-card width changes keep the HTML document anchored at its
 left edge and resize its viewport with the shell. Selection travel does not animate newly

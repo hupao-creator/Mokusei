@@ -64,7 +64,6 @@ private struct NativeReportHTML: View {
 struct NativeReportDetail: View {
     let props: ApplicationThreadProps<NativeReportView>
     @State private var references: [ApplicationExecutionPresentation] = []
-    @State private var selected: ApplicationExecutionRef?
     @State private var unsubscribe: (() -> Void)?
     @State private var failure: String?
     @State private var localSidecards = NativeReportSidecardPresentation()
@@ -79,6 +78,7 @@ struct NativeReportDetail: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var locale: JSONText { props.context.locale }
     private var sidecards: NativeReportSidecardPresentation { sharedSidecards ?? localSidecards }
+    private var selected: ApplicationExecutionRef? { sidecards.selectedExecution }
     private var expanded: Bool { sidecards.active == .relatedExecutions }
     var body: some View {
         GeometryReader { geometry in
@@ -96,9 +96,19 @@ struct NativeReportDetail: View {
                     .modifier(NativeReportDocumentFrame(size: CGSize(width: layout.mainWidth, height: layout.mainHeight)))
                 VStack(alignment: .leading, spacing: 0) {
                     if let selected {
-                        execution(selected).id(selected)
+                        let visit = sidecards.executionVisit
+                        NativeReportExecutionScroll(visit: visit, continuing: sidecards.continuedExecution,
+                            active: expanded && !suppressed && returning == nil,
+                            onReady: { sidecards.admitExecution(visit: visit) }) {
+                            execution(selected).id(selected)
+                        }
+                            .overlay(alignment: .topTrailing) {
+                                if sidecards.continuedExecution && !sidecards.executionReady {
+                                    ProgressView().controlSize(.small).padding(18)
+                                }
+                            }
                             .overlay(alignment: .topLeading) {
-                                Button { if !sidecards.retainingForReturn { self.selected = nil } } label: {
+                                Button { if !sidecards.retainingForReturn { sidecards.selectExecution(nil) } } label: {
                                     Image(systemName: "chevron.left")
                                         .font(.system(size: 12, weight: .semibold))
                                         .frame(width: 36, height: 36)
@@ -144,7 +154,7 @@ struct NativeReportDetail: View {
             .preference(key: NativeReportExecutionInputKey.self,
                 value: expanded && !suppressed && returning == nil ? selected.map {
                     NativeReportExecutionInput(reference: $0, frame: CGRect(x: layout.surfaceX, y: layout.surfaceY,
-                        width: layout.surfaceWidth, height: layout.surfaceHeight))
+                        width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady)
                 } : nil)
         }
         .onAppear {
@@ -198,7 +208,7 @@ struct NativeReportDetail: View {
                         ForEach(references, id: \.reference) { item in
                             NativeReportExecutionRow(item: item, locale: locale,
                                 visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
-                                if !sidecards.retainingForReturn { selected = item.reference }
+                                if !sidecards.retainingForReturn { sidecards.selectExecution(item.reference) }
                             }
                         }
                     }.padding(16)
@@ -215,7 +225,7 @@ struct NativeReportDetail: View {
         return NativeReadingAuxiliaryBackAction(id: selectionID.uuidString + referenceID) {
             guard !sidecards.retainingForReturn, selectionID == sidecards.selectionID, reference == selected,
                   sidecards.active == .relatedExecutions || sidecards.pending == .relatedExecutions else { return }
-            if expanded && selected != nil { selected = nil }
+            if expanded && selected != nil { sidecards.selectExecution(nil) }
             else { sidecards.close(); launcherFocused = true }
         }
     }
@@ -224,14 +234,16 @@ struct NativeReportDetail: View {
         guard !sidecards.retainingForReturn else { return }
         do {
             references = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).read(props.entry.view.relatedExecutions)
-            if let selected, !references.contains(where: { $0.reference == selected && !$0.missing }) { self.selected = nil }
+            // Accepted continuations belong to this visit, not the authored
+            // Report reference list. Catalog refresh must not evict them.
+            if let selected, !sidecards.continuedExecution, !references.contains(where: { $0.reference == selected && !$0.missing }) { sidecards.selectExecution(nil) }
             failure = nil
         } catch { failure = error.localizedDescription }
     }
     @ViewBuilder private func execution(_ reference: ApplicationExecutionRef) -> some View {
         switch Result(catching: { try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).execution(reference) }) {
         case .success(let view): view
-        case .failure(let error): NativeApplicationFailure(message: error.localizedDescription)
+        case .failure(let error): NativeApplicationFailure(message: error.localizedDescription).nativeReadingContentReady()
         }
     }
 }

@@ -1,78 +1,51 @@
-# Report execution continuation slide
+# Report send execution transition
 
-## Recording diagnosis
+## Current contract
 
-The supplied 12.13s recording (`录屏2026-11-05 19.29.31.mov`) begins with
-Report HTML on the left and its referenced completed execution, titled
-“制作侧卡收起动画原生演示”, on the right. After sending, that execution is
-shown in the Agent main reader and the new execution (19:29:35, connecting to
-Codex) occupies the Conversation Sidecard. At 6.50s, two copies of the completed
-execution are visible side by side. They are the outgoing Report reference
-reader and the incoming Agent main reader, not two executions created by Send.
-Exact AVFoundation frames at 50ms intervals establish the intermediate state;
-keyframe-tolerant extraction misses this short transition.
+Report send no longer navigates to an Agent workspace or requests the former
+three-card horizontal handoff. The Report HTML, sidecard shell, 5:5 detail layout
+and resident composer column remain in place. Only the exact execution displayed
+inside the sidecard changes. This supersedes the shared-column handoff developed
+from the `录屏2026-11-05 19.29.31.mov` recording.
 
-`NativeWorkspacePresentation.finishExecutionSendNavigation` waits for an accepted
-continuation and its catalog thread, fenced by route, exact source reference,
-composer generation and coverage. `NativeExecutionContinuation` sends to the
-latest referenced execution's Thread, or forks historical references before
-sending; receipt recovery and draft consumption retain their existing ownership.
-The destination route targets the accepted execution. The Conversation Sidecard
-owns/excludes the active execution from main, leaving the previous execution in
-main. The Report capability renders the selected exact execution independently.
+`NativeWorkspacePresentation` still uses the shared continuation sender: latest
+input follows up or steers, historical input forks, and accepted receipts consume
+only their original drafts. It waits for the destination Thread's catalog event,
+then updates the route-owned `NativeReportSidecardPresentation`. Route, composer,
+source reference and sidecard-selection identities fence the result. Returning to
+the list, folding, choosing Browser or leaving cannot be undone by a late receipt.
+Same-execution steering leaves the reader and its scroll position untouched.
 
-The former transition retained both complete workspaces and moved each by the
-whole viewport width: `[Report, reference] → [main, new execution]`. Because
-reference and main show the same preceding execution in this scenario, this
-created four visual seats instead of the intended three card roles.
+`NativeReportExecutionScroll` retains the actual outgoing native reader at its
+current scroll position. The incoming exact reader loads through the ordinary
+capability, including scoped row/Markdown readiness, errors and unavailable
+content. A small progress indicator remains visible while it prepares. When
+ready, both viewports move upward by one viewport height: the new execution
+enters from below, expressing scrolling down. Core Animation owns the shared
+420ms reading replacement curve; model frames and TextKit widths stay fixed.
+Landing retains the new host rather than reconstructing its reader. Streaming
+and retries do not replay the transition.
 
-## Shared-column handoff
+The floating upper-left Back button stays stationary and usable during loading
+and travel. It returns to the original related-execution list. Accepted successors
+are local to this Report visit, including forks into another Thread; they do not
+rewrite the Report's references and are not evicted by reference-list refresh.
+Returning to the list ends that temporary detail visit. Ordinary reference
+selection retains the existing readiness fade, empty list and missing-item policy.
 
-`NativeExecutionRouteSlide` keeps the Report workspace covering hidden Agent
-preparation. The existing `readingEntranceAdmitted` signal still acknowledges
-main content reveal, auxiliary layout and Dock travel. The source reference
-column is captured from its native aperture marker before deactivation; after
-incoming native layout commits, the main panel marker supplies its destination.
-Both measurements are local to their respective hosting seats, including actual
-Report/Agent toolbar space and width constraints.
+Reader controls/accessibility are excluded during replacement. The composer uses
+the incoming exact draft, with Send waiting for content/landing and existing Dock
+geometry admission. Visit identities reject stale preparation and animation
+callbacks. Reduce Motion, inactive/covered scenes and resizing settle ready
+content directly; leaving/unmounting retires retained readers. Folding retains
+the current reader without replaying an already completed transition on reopen.
 
-At travel start, one Core Animation transaction masks the outgoing workspace to
-the Report region, reveals the incoming workspace at the old reference column's
-origin, and installs the two translations. Both move by the same column distance,
-using the shared 420ms replacement curve. At progress `p`, incoming main's left
-edge is `sourceX - p * (sourceX - destinationX)`. Report moves left by that same
-progress distance; new execution keeps its destination spacing beside main.
-The old reference cannot paint beside or underneath the incoming main, even
-when their widths differ. Its former toolbar is masked out as well.
+## Sprint verification boundary
 
-The incoming main uses the production Agent reader and its destination width;
-this changes reader presentation at the shared origin rather than sending a
-second copy in from beyond the viewport. Text is not scaled or reflowed on each
-animation frame. Report's retained WebKit layout is unchanged by this handoff.
-Landing keeps the incoming host and its scroll state; it does not migrate the
-Report reference reader's separate scroll model. The resident Dock stays outside
-the moving seats, and dispatch/fork/receipt/Sidecard policies are unchanged.
+This change is scoped to source review, diff/architecture lint and a native
+`Mokusei` product build. No tests are added, and no regression tests, integration
+replays, PRs, hosted CI, push, merge, installation or release are performed.
 
-Only accepted Report continuation navigation requests this motion, scoped to the
-destination route UUID. Later streaming revisions do not replay it. Start and
-completion remain generation-fenced; replacement navigation, resize and
-teardown retire old geometry and masks. Pointer, accessibility and reading
-interaction gates exclude preparing/travelling surfaces. Reduced Motion and
-inactive/covered scenes keep the preparation cover until ready, then settle;
-changing policy during travel settles immediately. Stacked or missing geometry
-has no horizontal shared column and also settles directly after preparation.
-
-## Sprint validation boundary
-
-The original recording was decoded and inspected; this is pre-fix evidence,
-not visual verification of the changed animation. Per the user's Sprint scope,
-no tests were added or run, no replay or manual application scenario was run,
-and no remote PR/CI was requested. Validation consists of source review,
-diff/static checks and a native `Mokusei` product build.
-
-The rendered handoff, text reflow at reader replacement, native/WebKit clipping,
-focus, rapid navigation, stacked layout, Reduce Motion and resize during travel
-remain unverified at runtime. Build success cannot certify those behaviors.
-The change avoids the Report expansion implementation, which is being integrated
-separately. The detached commit is supplied for caller-owned integration into
-local main.
+Rendered direction/smoothness, native clipping, focus, rapid navigation,
+Reduce Motion, resize and live asynchronous Harness behavior have not been
+observed at runtime. Static review and compilation do not certify those behaviors.

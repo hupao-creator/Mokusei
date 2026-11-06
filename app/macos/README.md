@@ -111,6 +111,12 @@ loading indicator covers preparation; hidden reader controls and accessibility
 are excluded. Read errors and unavailable executions also admit readable content.
 Later data updates and retries do not replay the entrance. Reduce Motion shows
 ready content immediately and settles an in-flight fade.
+Sending from a referenced execution keeps Report open and updates that sidecard
+in place. A successor execution enters through a downward reading scroll: the
+old viewport moves up and the new one enters from below after content readiness.
+The floating Back button still returns to the related list. Same-execution steer
+keeps its reader and scroll position; historical forks use the accepted branch's
+exact execution. See the [continuation contract](../../design/execution-route-slide.md).
 When the related card changes width or folds, the retained Report HTML viewport
 and shell share one interpolated size. Responsive content reflows during travel
 instead of jumping to the destination width before the shell moves. See the

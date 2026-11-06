@@ -17,7 +17,7 @@ public final class NativeWorkspacePresentation {
     public let themeTransition = NativeThemeTransitionController()
     public let readingNavigation = NativeReadingNavigationState()
     public let readingInteractions = NativeReadingInteractions()
-    let executionRouteSlide = NativeExecutionRouteSlideRequest()
+    public private(set) var reportSidecards = NativeReportSidecardPresentation()
     public let draft: NativeComposerDraft
     public private(set) var dockDraft: NativeComposerDraft
     public private(set) var dockThreadID: JSONText?
@@ -28,7 +28,7 @@ public final class NativeWorkspacePresentation {
     @ObservationIgnored private var executionDrafts: [ApplicationExecutionRef: NativeComposerDraft] = [:]
     @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
     @ObservationIgnored private var reportInputBack: (() -> Void)?
-    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef)?
+    private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?)?
     var awaitingExecutionContinuation: Bool {
         guard let pending = executionSendNavigation else { return false }
         return pending.route == navigationRouteID && pending.generation == scene.composerGeneration
@@ -359,6 +359,7 @@ public final class NativeWorkspacePresentation {
 
     private func resetNavigation() {
         clearSidecardComposer()
+        reportSidecards = NativeReportSidecardPresentation()
         reportExecution = nil; reportInputReady = false; reportInputBack = nil; executionSendNavigation = nil
         agentInputTarget = nil; agentInputOwner = nil
         readingEntranceAdmitted = false
@@ -459,7 +460,10 @@ public final class NativeWorkspacePresentation {
             guard let target = agentInputTarget, target.requestID == readingTarget?.requestID else { return false }
             return target.ready && (target.followsLatest || target.executionID != nil)
         }
-        return reportExecution == nil || reportInputReady
+        guard let reportExecution else { return true }
+        return reportInputReady && reportSidecards.executionReady
+            && reportSidecards.active == .relatedExecutions
+            && reportSidecards.selectedExecution == reportExecution && !reportSidecards.retainingForReturn
     }
 
     func updateAgentInput(owner: UUID, target: ThreadConversationInputTarget?, route: UUID) {
@@ -492,11 +496,20 @@ public final class NativeWorkspacePresentation {
               scene.composerGeneration == pending.generation, !scene.dockCovered else {
             executionSendNavigation = nil; return
         }
+        if let selection = pending.reportSelection {
+            guard reportSidecards.selectionID == selection,
+                  reportSidecards.active == .relatedExecutions,
+                  reportSidecards.selectedExecution == pending.reference,
+                  !reportSidecards.retainingForReturn else { executionSendNavigation = nil; return }
+        }
         // The command receipt may precede the public catalog event, especially
         // for a new fork. Wait for that event without delaying draft admission.
         guard let thread = workspace.catalog.thread(pending.destination.thread.threadID) else { return }
         executionSendNavigation = nil
-        let slidesFromReport = selected?.typeID == "report.document"
+        if let selection = pending.reportSelection {
+            reportSidecards.continueExecution(pending.destination, from: pending.reference, selection: selection)
+            return
+        }
         let previousDockFrame = scene.executionDockPlacement.frame
         // Even a continuation in the same Thread is a new exact-result visit.
         // Its retained predecessor must not publish layout/input for this one.
@@ -509,9 +522,6 @@ public final class NativeWorkspacePresentation {
             // central stop while its readers and final column are preparing.
             scene.executionDockPlacement.beginRoute(navigationRouteID, retaining: previousDockFrame,
                 threadID: pending.destination.thread.threadID, continuing: true)
-        }
-        if slidesFromReport, selected == pending.destination.thread {
-            executionRouteSlide.destinationRoute = navigationRouteID
         }
     }
 
@@ -603,6 +613,7 @@ public final class NativeWorkspacePresentation {
         }
         workspace.dismissOperationError()
         let route = route ?? navigationRouteID, generation = scene.composerGeneration, request = UUID()
+        let reportSelection = selected?.typeID == "report.document" ? reportSidecards.selectionID : nil
         if executionID == nil, selected == ApplicationThreadRef(threadID: id, typeID: "agent"), !scene.dockCovered {
             threadExecutionReveal = SidecardExecutionReveal(id: request)
         }
@@ -619,7 +630,7 @@ public final class NativeWorkspacePresentation {
             if let executionID, navigationRouteID == route, scene.composerGeneration == generation {
                 let reference = ApplicationExecutionRef(thread: .init(threadID: id, typeID: "agent"), executionID: executionID)
                 if dockExecution == reference {
-                    executionSendNavigation = (route, generation, reference, accepted)
+                    executionSendNavigation = (route, generation, reference, accepted, reportSelection)
                     finishExecutionSendNavigation()
                 }
             }
@@ -941,7 +952,7 @@ public struct NativeWorkspaceView: View {
                 focusBlur: true, stationaryParent: true, emphasizedOpening: true,
                 panel: presentation.usesReadingPanel, isolatesParent: true, panelSource: presentation.readingPanelSource,
                 panelIdentity: presentation.selected?.typeID == "agent" ? presentation.threadIdentityVisit : nil,
-                panelFrontIdentity: "workspace-route-slide",
+                panelFrontIdentity: "workspace-reading-front",
                 threadPanelMotion: presentation.selected?.typeID == "agent",
                 reportPanelMotion: presentation.selected?.typeID == "report.document",
                 onParentPresentationChange: { active in
@@ -968,13 +979,8 @@ public struct NativeWorkspaceView: View {
                     clickExclusions: presentation.scene.outsideClickExclusions, landing: presentation.moku.landing,
                     chromeVisible: presentation.selected == nil)
             } front: {
-                NativeExecutionRouteSlide(route: routeID,
-                    requestedRoute: presentation.executionRouteSlide.destinationRoute,
-                    ready: presentation.readingEntranceAdmitted,
-                    enabled: !applicationSuppressed && presentation.selected != nil) {
-                    readingFront.id(routeID)
-                        .environment(\.nativeExecutionDockRoute, routeID)
-                }
+                readingFront.id(routeID)
+                    .environment(\.nativeExecutionDockRoute, routeID)
             }
             .task(id: [readingIdentity, presentation.readingTarget?.executionID ?? ""]) {
                 guard let selected = presentation.selected, selected.typeID == "agent",
@@ -1003,6 +1009,7 @@ public struct NativeWorkspaceView: View {
                     suppressed: applicationSuppressed,
                     identifier: selected.typeID == "report.document" ? "report-reading-panel" : "application-reading-panel",
                     onClose: { presentation.closeApplication() }))
+                .environment(\.nativeReportSidecards, presentation.reportSidecards)
                 .environment(\.nativeApplicationReadingPanel, presentation.usesReadingPanel)
                 .environment(\.nativeReportExecutionInputChanged, { reference, ready, onBack in
                     presentation.updateReportExecution(reference, ready: ready, onBack: onBack, route: routeID)

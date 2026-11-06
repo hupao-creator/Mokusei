@@ -46,12 +46,15 @@ without an execution identity cannot originate an ambiguous send.
   then uses ordinary `thread:follow-up` on the admitted fork. If the second step
   fails, the window retains the fork identity for retry and the draft stays
   intact. There is no automatic retry of uncertain native input.
-- An accepted send opens its exact Agent execution through the existing result
-  reading route. Catalog events can lag the receipt. Pending navigation waits
-  for the destination Thread and is fenced by route, reference and composer
-  generation; closing/switching cannot be undone by a late receipt. The same
-  route applies when an Agent history input creates a new branch. Ordinary
-  current Agent sends keep the existing active-execution reveal behavior.
+- An accepted Report send updates its exact execution in the existing sidecard,
+  keeping Report HTML and its Back-to-relations action. A new execution enters
+  from below after scoped content is ready; same-execution steering stays put.
+  Catalog events can lag the receipt. Pending selection waits for the destination
+  Thread and is fenced by route, reference, composer generation and sidecard
+  selection; closing/switching cannot be undone by a late receipt. The accepted
+  execution need not be in the authored relation list. Agent history input keeps
+  its existing exact-result route, including new branches; ordinary current Agent
+  sends keep the existing active-execution reveal behavior.
 - Stop is available only when the viewed execution is the current active one.
   It uses the existing observed cancellation identity. A historical reader never
   offers Stop for the newer source execution. Pending interactions retain the
