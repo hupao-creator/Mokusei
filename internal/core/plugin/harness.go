@@ -359,9 +359,10 @@ type CachedModelCatalogSource interface {
 	CachedModelCatalog(context.Context, SettingsRequest) (json.RawMessage, error)
 }
 
-// MokuTargetDiscoverer advertises an installed native target without waiting for
-// its model/account catalog. A nil schema defers exact options to the on-demand
-// describe_native_harness tool. Execution always performs full native admission.
+// MokuTargetDiscoverer discovers target options independently of the configured
+// default model. An available target must return its creation schema before
+// routing; nil is incomplete, not deferred discovery. Execution still performs
+// full native admission.
 type MokuTargetDiscoverer interface {
 	DiscoverMokuTarget(context.Context, SettingsRequest) (json.RawMessage, Availability, error)
 }

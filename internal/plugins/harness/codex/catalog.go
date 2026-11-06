@@ -175,65 +175,97 @@ func (c *Catalog) ProbeAutoReview(ctx context.Context, cwd, configured string) (
 }
 
 func ListModels(ctx context.Context, transport CatalogTransport) ([]Map, error) {
-	response, err := transport.Call(ctx, "model/list", Map{"limit": 100, "includeHidden": false})
-	if err != nil {
-		return nil, err
-	}
 	models := []Map{}
-	for _, raw := range csArray(response["data"]) {
-		model, ok := csRecord(raw)
+	cursor := ""
+	seenCursors := map[string]bool{}
+	seenModels := map[string]bool{}
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		request := Map{"limit": 100, "includeHidden": true}
+		if cursor != "" {
+			request["cursor"] = cursor
+		}
+		response, err := transport.Call(ctx, "model/list", request)
+		if err != nil {
+			return nil, err
+		}
+		data, ok := csSlice(response["data"])
 		if !ok {
-			continue
+			return nil, errors.New("Codex native model catalog page is malformed")
 		}
-		id, name := csString(model["model"]), csString(model["displayName"])
-		if id == "" || name == "" {
-			continue
-		}
-		efforts := []Map{}
-		levels := []string{}
-		rawEfforts, reported := csSlice(model["supportedReasoningEfforts"])
-		for _, entry := range rawEfforts {
-			item, _ := csRecord(entry)
-			value := csString(item["reasoningEffort"])
-			if value == "" {
-				continue
+		for _, raw := range data {
+			model, ok := csRecord(raw)
+			if !ok {
+				return nil, errors.New("Codex native model catalog entry is malformed")
 			}
-			level := Map{"value": value}
-			if description := csString(item["description"]); description != "" {
-				level["description"] = description
+			id, name := csString(model["model"]), csString(model["displayName"])
+			if id == "" || seenModels[id] {
+				return nil, errors.New("Codex native model catalog has a missing or duplicate model identifier")
 			}
-			efforts = append(efforts, level)
-			levels = append(levels, value)
-		}
-		tiers := []Map{}
-		for _, entry := range csArray(model["serviceTiers"]) {
-			item, _ := csRecord(entry)
-			id := csString(item["id"])
-			if id == "" {
-				continue
+			seenModels[id] = true
+			if name == "" {
+				name = id
 			}
-			tier := Map{"value": id}
-			if name := csString(item["name"]); name != "" {
-				tier["displayName"] = name
+			efforts := []Map{}
+			levels := []string{}
+			rawEfforts, reported := csSlice(model["supportedReasoningEfforts"])
+			for _, entry := range rawEfforts {
+				item, _ := csRecord(entry)
+				value := csString(item["reasoningEffort"])
+				if value == "" {
+					continue
+				}
+				level := Map{"value": value}
+				if description := csString(item["description"]); description != "" {
+					level["description"] = description
+				}
+				efforts = append(efforts, level)
+				levels = append(levels, value)
 			}
-			tiers = append(tiers, tier)
-		}
-		thinking := NativeThinkingCapability(levels, reported, model["supportsReasoning"])
-		out := Map{"value": id, "displayName": name, "thinking": thinking, "supportedReasoningEfforts": efforts, "serviceTiers": tiers}
-		for _, key := range []string{"description", "defaultReasoningEffort"} {
-			if value := csString(model[key]); value != "" {
-				out[key] = value
+			tiers := []Map{}
+			for _, entry := range csArray(model["serviceTiers"]) {
+				item, _ := csRecord(entry)
+				id := csString(item["id"])
+				if id == "" {
+					continue
+				}
+				tier := Map{"value": id}
+				if name := csString(item["name"]); name != "" {
+					tier["displayName"] = name
+				}
+				tiers = append(tiers, tier)
 			}
+			thinking := NativeThinkingCapability(levels, reported, model["supportsReasoning"])
+			out := Map{"value": id, "displayName": name, "thinking": thinking, "supportedReasoningEfforts": efforts, "serviceTiers": tiers}
+			for _, key := range []string{"description", "defaultReasoningEffort"} {
+				if value := csString(model[key]); value != "" {
+					out[key] = value
+				}
+			}
+			if model["isDefault"] == true {
+				out["isDefault"] = true
+			}
+			if value, exists := model["defaultServiceTier"]; exists && (value == nil || csString(value) != "") {
+				out["defaultServiceTier"] = value
+			}
+			models = append(models, out)
 		}
-		if model["isDefault"] == true {
-			out["isDefault"] = true
+		next, exists := response["nextCursor"]
+		if !exists {
+			return nil, errors.New("Codex native model catalog omitted pagination completion")
 		}
-		if value, exists := model["defaultServiceTier"]; exists && (value == nil || csString(value) != "") {
-			out["defaultServiceTier"] = value
+		if next == nil || next == "" {
+			return models, nil
 		}
-		models = append(models, out)
+		var valid bool
+		cursor, valid = next.(string)
+		if !valid || seenCursors[cursor] {
+			return nil, errors.New("Codex native model catalog pagination is invalid or repeated")
+		}
+		seenCursors[cursor] = true
 	}
-	return models, nil
 }
 func NativeThinkingCapability(efforts []string, reported bool, supportsReasoning any) Map {
 	if supportsReasoning == false {

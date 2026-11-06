@@ -25,7 +25,7 @@ tests or account-based model probes. The user's existing native profile is not u
 
 | Case | Evidence |
 | --- | --- |
-| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, stable cold/warm deferred Target with exact on-demand options, HTTP/SSE and termination |
+| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, complete cold/warm Target catalogs before routing with exact creation options, HTTP/SSE and termination |
 | `settings` | JSONC/YAML discovery and ordered permissions, credential-free catalog, concurrent reader cancellation, native default agent without `default_agent` (a non-`build` first agent), exact thinking selection/update/snapshot, live variant change rejection, process cleanup |
 | `timeout` | Cancelled startup joins its single server before returning |
 | `renderer` | 25 fixed projections from the pre-migration renderer across overview/thread/turn/execution/history scopes, including deferred content, tool display, usage and Unicode boundaries |

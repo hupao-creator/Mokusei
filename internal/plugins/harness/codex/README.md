@@ -9,6 +9,11 @@ source must satisfy the existing idle/native-work gates. See
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
+Moku rejects empty model catalogs and reports partial creation capabilities
+when thinking controls are unknown. Target discovery reads the catalog independently of the default
+execution profile; configuration-keyed cache snapshots never replace native
+creation validation.
+
 ## Settings, tools and execution
 
 [settings.go](settings.go) requires explicit model, thinking and service-tier choices for ordinary task creation. `default` is the standard tier; other tiers must be advertised by the selected model. A missing/null/boolean tier is not inheritance. Native replies confirm the effective tier; explicit null means known standard, while absence is unreported. [presentation.go](presentation.go) uses reported execution facts for Fast status before falling back to requested settings.
@@ -192,3 +197,10 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Moku requires the full nonempty native model inventory before task admission.
+Unknown thinking capabilities remain named in that inventory but cannot authorize
+creation. Failed or empty reads block preparation, including after cache expiry.
+The native reader includes hidden models, follows every `model/list` cursor, and
+rejects malformed pages, duplicate identities and cursor cycles instead of
+reporting a truncated directory as complete.

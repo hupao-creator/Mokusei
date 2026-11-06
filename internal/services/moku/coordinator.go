@@ -716,7 +716,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				}
 				current = latest
 				if live(current) {
-					return current, nil
+					return current, errors.New("Moku configuration changed while native work became active; retry after that work settles")
 				}
 				if profileChanged {
 					resolved, resolveErr := c.resolveHost(ctx, settings, revision, current.HarnessID)
@@ -750,31 +750,19 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 	previousDescription := c.description
 	c.mu.Unlock()
 	var prepared *ThreadCreationDescription
-	if injection != nil && !live(current) && !c.voice.ownsNative(current.ID) {
+	if injection != nil && !live(current) {
 		description, describeErr := c.describeTargets(ctx, applied.AppliedSettings)
 		if describeErr != nil {
-			var unavailable *targetRefreshUnavailable
-			if ctx.Err() == nil && errors.As(describeErr, &unavailable) {
-				c.report("moku-settings-refresh", describeErr)
-				return c.config.Thread(current.ID)
-			}
 			return current, describeErr
 		}
-		if previousDescription != nil {
-			for _, adopted := range previousDescription.TargetHarnessIDs {
-				found := false
-				for _, target := range description.TargetHarnessIDs {
-					if target == adopted {
-						found = true
-					}
-				}
-				if !found {
-					c.report("moku-settings-refresh", fmt.Errorf("已采用的 Moku Target Harness 暂时不可用: %s", adopted))
-					return c.config.Thread(current.ID)
-				}
-			}
-		}
 		if !reflect.DeepEqual(previousDescription, &description) {
+			latest, readErr := c.config.Thread(current.ID)
+			if readErr != nil {
+				return current, readErr
+			}
+			if live(latest) {
+				return latest, errors.New("Moku native work began during catalog refresh; retry after that work settles")
+			}
 			c.voice.captureReplies(current.ID)
 			if err = c.voice.stopForConfiguration(ctx, current.ID); err != nil {
 				return current, err

@@ -320,11 +320,16 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 	if home == "" {
 		home = filepath.Join(env["HOME"], ".claude")
 	}
-	key := path + "\x00" + cwd + "\x00" + discovery.Identity(env, path,
-		filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"),
-		filepath.Join(cwd, ".claude", "settings.json"), filepath.Join(cwd, ".claude", "settings.local.json"))
+	identityPaths := []string{path, filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"),
+		filepath.Join(cwd, ".claude", "settings.json"), filepath.Join(cwd, ".claude", "settings.local.json")}
+	identity := discovery.Identity(env, identityPaths...)
+	key := path + "\x00" + cwd + "\x00" + identity
 	result, err := a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, func(shared context.Context) (catalog, error) {
-		return a.readCatalog(shared, path, cwd, env)
+		value, err := a.readCatalog(shared, path, cwd, env)
+		if err == nil && discovery.Identity(env, identityPaths...) != identity {
+			return catalog{}, errors.New("Claude native configuration changed during discovery")
+		}
+		return value, err
 	})
 	if err != nil && ctx.Err() == nil {
 		return catalog{CLI: map[string]any{"status": "unavailable", "executablePath": path, "message": err.Error()}, Models: []modelPresentation{}}, nil
@@ -348,8 +353,8 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 	for _, v := range arr(value["models"]) {
 		m := obj(v)
 		id := nonempty(str(m["value"]), nonempty(str(m["id"]), str(m["model"])))
-		if id == "" || m["disabled"] == true || seen[id] {
-			continue
+		if id == "" || seen[id] {
+			return result, errors.New("Claude native catalog has a missing or duplicate model identifier")
 		}
 		seen[id] = true
 		advertised := []string{}
@@ -361,6 +366,9 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 		thinking := model.ThinkingCapability{Kind: "unknown", Reason: "Claude native catalog does not provide accurately encodable thinking controls"}
 		if len(advertised) > 0 {
 			thinking = model.ThinkingCapability{Kind: "effort", Efforts: advertised}
+		}
+		if m["disabled"] == true {
+			thinking = model.ThinkingCapability{Kind: "unknown", Reason: "Model is disabled in the native catalog"}
 		}
 		result.Models = append(result.Models, modelPresentation{Value: id, DisplayName: nonempty(str(m["displayName"]), nonempty(str(m["display_name"]), id)), Description: str(m["description"]), SupportedEfforts: advertised, Thinking: thinking})
 	}
@@ -419,10 +427,30 @@ func (a *settingsAdapter) Presentation(ctx context.Context, r plugin.SettingsPre
 	return json.Marshal(c)
 }
 func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest) (json.RawMessage, error) {
-	c, e := a.load(ctx, "claude", r.Cwd, false)
+	raw, e := a.DefaultThread(r.Settings)
 	if e != nil {
 		return nil, e
 	}
+	selected, e := parseSettings(raw)
+	if e != nil {
+		return nil, e
+	}
+	c, e := a.load(ctx, selected.ExecutablePath, r.Cwd, false)
+	if e != nil {
+		return nil, e
+	}
+	if c.CLI["status"] != "available" {
+		return nil, fmt.Errorf("Claude model catalog unavailable: %s", str(c.CLI["message"]))
+	}
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(c.Models))
+	for _, entry := range c.Models {
+		reason := ""
+		if entry.Thinking.Kind == "unknown" {
+			reason = "Thinking capability is unknown; creation is unavailable"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{ID: entry.Value, Name: entry.DisplayName, UnavailableReason: reason})
+	}
+	omitted := 0
 	groups := []any{}
 	for _, m := range c.Models {
 		if strings.EqualFold(m.Value, "default") {
@@ -435,12 +463,20 @@ func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest
 		case "effort":
 			schema = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"mode", "effort"}, "properties": map[string]any{"mode": map[string]any{"const": "effort"}, "effort": map[string]any{"type": "string", "enum": m.Thinking.Efforts}}}
 		}
+		if m.Thinking.Kind == "unknown" {
+			omitted++
+		}
 		groups = append(groups, map[string]any{"properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{m.Value}}, "thinking": schema}, "required": []string{"model", "thinking"}})
 	}
+	status := "ready"
+	if omitted > 0 {
+		status = "partial"
+	}
 	if len(groups) == 0 {
+		status = "empty"
 		groups = append(groups, map[string]any{"not": map[string]any{}})
 	}
-	return json.Marshal(map[string]any{"type": "object", "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups})
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "description": fmt.Sprintf("Creation capability status: %s; %d models have unknown thinking capabilities and cannot be selected. Native snapshot only; execution is revalidated at admission.", status, omitted), "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups}, inventory)
 }
 func (a *settingsAdapter) SnapshotExecution(ctx context.Context, r plugin.SettingsRequest, initial bool) (json.RawMessage, error) {
 	raw, e := a.DefaultThread(r.Settings)

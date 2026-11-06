@@ -324,6 +324,14 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 					s.mu.Unlock()
 					return nil
 				}, runtime.Close)
+				if err == nil {
+					current, sourceErr := s.catalogKey(probe, settings, cwd)
+					if sourceErr != nil {
+						err = sourceErr
+					} else if current != key {
+						err = errors.New("OpenCode native configuration changed during discovery")
+					}
+				}
 				cleanupErr = runtime.Close()
 				err = errors.Join(err, cleanupErr)
 			}
@@ -824,19 +832,21 @@ func (s *SettingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return json.Marshal(Object{"type": "object", "not": Object{}, "description": err.Error()})
+		return nil, fmt.Errorf("OpenCode model catalog unavailable: %w", err)
 	}
 	return describeCatalog(current, observed)
 }
 func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessage, error) {
 	permissions := Object{"type": "string", "enum": []string{"auto", "default"}, "default": current.PermissionMode, "description": "auto approves native permission requests once while preserving deny rules; default asks the user."}
 	choices := []any{}
+	omitted := 0
 	defaultAgent := current.Agent
 	if defaultAgent == "" {
 		defaultAgent = observed.DefaultAgent
 	}
 	for _, entry := range observed.Models {
-		if entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+		if entry.UnavailableReason != "" || entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+			omitted++
 			continue
 		}
 		agents := []string{}
@@ -847,6 +857,7 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		}
 		allowed := defaultAgent == "" || slices.Contains(agents, defaultAgent)
 		if len(agents) == 0 && !allowed {
+			omitted++
 			continue
 		}
 		required := []string{"provider", "model", "thinking"}
@@ -860,12 +871,40 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		choices = append(choices, Object{"type": "object", "additionalProperties": false, "required": required, "properties": properties})
 	}
 	result := Object{"type": "object", "description": "OpenCode ordinary Threads require an exact provider, model, and explicit supported thinking choice. Agent choices are native primary agents.", "additionalProperties": false, "required": []string{"provider", "model", "thinking"}, "properties": Object{"provider": Object{"type": "string", "minLength": 1}, "model": Object{"type": "string", "minLength": 1}, "thinking": Object{"type": "object"}, "agent": Object{"type": "string", "minLength": 1}, "permissionMode": permissions}}
+	status := "ready"
+	if len(choices) == 0 {
+		status = "empty"
+	}
+	if omitted > 0 {
+		status = "partial"
+	}
+	result["description"] = fmt.Sprintf("Creation capability status: %s; %d model choices, %d models omitted from creation branches because their creation capabilities are unavailable or unknown, %d models excluded by account evidence. This is a native catalog snapshot, not a guarantee of credentials, quota or future execution. %s", status, len(choices), omitted, len(observed.ExcludedModels), result["description"])
 	if len(choices) > 0 {
 		result["oneOf"] = choices
 	} else {
 		result["not"] = Object{}
 	}
-	return json.Marshal(result)
+	restrictions := make(map[string]string, len(observed.Models))
+	for _, entry := range observed.Models {
+		if entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+			restrictions[ModelKey(entry.Provider, entry.ID)] = "Thinking capability is unknown; creation is unavailable"
+		} else if entry.UnavailableReason != "" {
+			restrictions[ModelKey(entry.Provider, entry.ID)] = entry.UnavailableReason
+		}
+	}
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(observed.NativeModels))
+	for _, entry := range observed.NativeModels {
+		key := ModelKey(entry.ProviderID, entry.ID)
+		reason := observed.ExcludedModels[key]
+		if reason == "" {
+			reason = restrictions[key]
+		}
+		if !entry.Enabled || !entry.Capabilities.Tools || !slices.Contains(entry.Capabilities.Input, "text") {
+			reason = "Native model is disabled or does not support text and tools"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.ProviderID, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
+	}
+	return plugin.ModelCatalogSchema(result, inventory)
 }
 func (s *SettingsAPI) Probe(ctx context.Context, input plugin.SettingsRequest, toolMode string) (plugin.Availability, error) {
 	selected, err := s.defaults(input.Settings)
@@ -1084,9 +1123,6 @@ func (h *Harness) cachedCatalog(ctx context.Context, input plugin.SettingsReques
 		return cached.value, current, nil
 	}
 	h.background("catalog:"+key, func(life context.Context) { _, _ = h.settings.observe(life, current, input.Cwd, false) })
-	if ok {
-		return cached.value, current, nil
-	}
 	return nil, current, nil
 }
 func (h *Harness) CachedModelCatalog(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
@@ -1095,36 +1131,18 @@ func (h *Harness) CachedModelCatalog(ctx context.Context, input plugin.SettingsR
 		return nil, err
 	}
 	if cached == nil {
-		return json.RawMessage(`{"models":[]}`), nil
+		return nil, errors.New("OpenCode model catalog is loading or expired; options are unknown")
 	}
 	return catalogProjection(cached)
 }
 
-// DiscoverMokuTarget always advertises stable on-demand native discovery. A
-// background catalog becoming ready must not replace Moku's tool schema and
-// force a second session preparation before its first message.
+// DiscoverMokuTarget waits for exact options before Moku's first routing decision.
+// The shared settings flight reuses warm discovery and joins native cleanup;
+// an installation-only or stale snapshot cannot stand in for this catalog.
 func (h *Harness) DiscoverMokuTarget(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
-	current, err := h.settings.defaults(input.Settings)
+	schema, err := h.settings.Describe(ctx, input)
 	if err != nil {
 		return nil, plugin.Availability{}, err
 	}
-	env, err := hostEnvironment(ctx, h.host)
-	if err != nil {
-		return nil, plugin.Availability{}, err
-	}
-	if h.host.ResolveExecutable != nil {
-		_, err = h.host.ResolveExecutable(ctx, "opencode", input.Cwd, current.ExecutablePath)
-	} else {
-		_, err = ResolveExecutable(current.ExecutablePath, env)
-	}
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, plugin.Availability{}, ctx.Err()
-		}
-		return nil, plugin.Availability{Reason: err.Error()}, nil
-	}
-	if _, _, err := h.cachedCatalog(ctx, input); err != nil {
-		return nil, plugin.Availability{}, err
-	}
-	return nil, plugin.Availability{Available: true}, nil
+	return schema, plugin.Availability{Available: true}, nil
 }

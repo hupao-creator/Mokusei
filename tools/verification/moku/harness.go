@@ -184,7 +184,13 @@ func (s replayNativeSettings) Describe(ctx context.Context, _ plugin.SettingsReq
 			return nil, e
 		}
 	}
-	return json.RawMessage(`{"type":"object","properties":{"model":{"type":"string"}},"required":["model"],"additionalProperties":false}`), nil
+	s.h.mu.Lock()
+	modelID := s.h.nativeModel
+	s.h.mu.Unlock()
+	if modelID == "" {
+		modelID = "fixture-model"
+	}
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string"}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}})
 }
 func (s replayNativeSettings) DefaultThread(r json.RawMessage) (json.RawMessage, error) {
 	var envelope struct {

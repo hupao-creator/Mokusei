@@ -254,7 +254,8 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	if home == "" {
 		home = filepath.Join(env["HOME"], ".pi", "agent")
 	}
-	identity := discovery.Identity(env, executable, filepath.Join(home, "settings.json"), filepath.Join(home, "models.json"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".pi", "settings.json"))
+	identityPaths := []string{executable, filepath.Join(home, "settings.json"), filepath.Join(home, "models.json"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".pi", "settings.json")}
+	identity := discovery.Identity(env, identityPaths...)
 	keyBytes, _ := json.Marshal([]any{settings, cwd, identity})
 	key := string(keyBytes)
 	flightKey := key
@@ -299,6 +300,9 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 				defer s.mu.Unlock()
 				return flight.catalog
 			})
+			if probeErr == nil && discovery.Identity(env, identityPaths...) != identity {
+				probeErr = errors.New("Pi native configuration changed during discovery")
+			}
 			s.mu.Lock()
 			flight.value = value
 			flight.err = probeErr
@@ -715,13 +719,30 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models})
 }
 func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
-	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{Settings: input.Settings, Cwd: input.Cwd})
+	defaults, err := s.DefaultThread(input.Settings)
+	if err != nil {
+		return nil, err
+	}
+	selected, err := normalizeThread(defaults)
+	if err != nil {
+		return nil, err
+	}
+	catalogSettings, err := json.Marshal(ThreadSettings{ExecutablePath: selected.ExecutablePath})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{ThreadSettings: catalogSettings, Cwd: input.Cwd})
 	if err != nil {
 		return nil, err
 	}
 	var presentation struct {
+		CLI struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		} `json:"cli"`
 		Models []struct {
 			Provider string                   `json:"provider"`
+			Name     string                   `json:"name"`
 			ID       string                   `json:"id"`
 			Thinking model.ThinkingCapability `json:"thinking"`
 		}
@@ -729,15 +750,20 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 	if err = json.Unmarshal(raw, &presentation); err != nil {
 		return nil, err
 	}
+	if presentation.CLI.Status != "ready" {
+		return nil, fmt.Errorf("Pi model catalog unavailable: %s", presentation.CLI.Message)
+	}
 	type group struct {
 		Provider string
 		Models   []string
 		Thinking model.ThinkingCapability
 	}
+	omitted := 0
 	groups := []group{}
 	indices := map[string]int{}
 	for _, m := range presentation.Models {
 		if m.Thinking.Kind == "unknown" {
+			omitted++
 			continue
 		}
 		key, _ := json.Marshal([]any{m.Provider, m.Thinking})
@@ -775,7 +801,23 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 		delete(result, "oneOf")
 		result["not"] = model.Object{}
 	}
-	return json.Marshal(result)
+	status := "ready"
+	if len(branches) == 0 {
+		status = "empty"
+	}
+	if omitted > 0 {
+		status = "partial"
+	}
+	result["description"] = fmt.Sprintf("Creation capability status: %s; %d models omitted from creation branches because thinking capabilities are unknown. Native snapshot only; execution is revalidated at admission. %s", status, omitted, result["description"])
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(presentation.Models))
+	for _, entry := range presentation.Models {
+		reason := ""
+		if entry.Thinking.Kind == "unknown" {
+			reason = "Thinking capability is unknown; creation is unavailable"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.Provider, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
+	}
+	return plugin.ModelCatalogSchema(result, inventory)
 }
 
 func (s *settingsAPI) recordInstallation(cwd, path string) {

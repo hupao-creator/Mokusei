@@ -11,7 +11,8 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-const ThreadCreationSchemaMaxBytes = 64 * 1024
+// Full multi-provider inventories must not inherit the old small-candidate budget.
+const ThreadCreationSchemaMaxBytes = 1024 * 1024
 const ThreadCreationOptionsMaxBytes = 64 * 1024
 const ThreadCreationPromptMaxCharacters = 1_000_000
 const ThreadCreationCwdMaxCharacters = 4096
@@ -83,6 +84,9 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 		if err != nil {
 			return result, err
 		}
+		// Completeness evidence is consumed by admission. The standard description
+		// already carries every model for native tool serializers.
+		delete(schema, "x-mokusei-model-catalog")
 		if schema["type"] != "object" {
 			return result, errors.New("Harness settings schema must describe an object")
 		}

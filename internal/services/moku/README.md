@@ -38,7 +38,53 @@ Moku guidance defaults to managed `worktree:true` for tasks in a committed Git w
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
 
-Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. Deferred native targets use `describe_native_harness` for the exact current schema; cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
+Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
+
+Every new Moku task requires a complete, nonempty model inventory from **every
+selected target**, before the native model receives the input. Target discovery
+runs concurrently (at most four probes) during session preparation, including
+asynchronous startup recovery. It does not use the configured default model as an
+availability gate. Missing, disabled, failed, empty or incomplete targets block
+preparation with a named error; they are never silently removed from routing.
+Each native schema has a 1 MiB budget; size/validation failures block preparation
+instead of truncating the inventory. Large complete catalogs increase input tokens. Automatic deliveries remain pending and user submissions receive the
+failure; no task input is sent on that attempt.
+
+Harnesses attach `x-mokusei-model-catalog` as internal completeness evidence to
+creation schemas, using `plugin.ModelCatalogSchema` only after a full native read.
+Moku requires that evidence. The complete model inventory is also serialized in
+the standard schema description, so native serializers cannot drop it as an
+unknown extension. The extension is removed when composing the actual tool schema.
+Inventory includes models with unknown thinking controls or known restrictions;
+creation branches remain limited to supported choices. Partial **capabilities**
+are distinct from a partial **inventory**, which cannot start a task. Native
+catalogs cannot prove provider credentials, quota or future execution success.
+
+Before each new task, configuration fingerprints and adapter TTLs govern
+cache reuse. This implementation refreshes expired entries and blocks on failure;
+it does not use expired fallback entries, even though an intact older directory
+would be permitted. There is no persisted catalog fallback across app restarts.
+A changed configuration requires its own complete catalog. Changes to selected
+Harnesses, tracked native files or enablement during discovery reject the result.
+Changed schemas reopen the native session with preserved history; failed refresh
+never authorizes a new task through the old session. Running work retains its
+admitted configuration, including steering within that execution. Native voice validates catalogs before input admission and
+uses the confirmed-unconsumed reconnect path for changed tools; active native work
+blocks reconfiguration rather than allowing new input with changed catalogs.
+
+Creation resolves the actual destination workspace, discovers its schema again,
+validates exact options and performs Harness-native admission. Keychain, remote
+account and untracked include-file changes may remain invisible until TTL expiry,
+manual native-settings refresh or live admission. These limitations do not turn
+an unknown/empty directory into a complete one.
+
+OpenCode cold preparation waits for the complete shared catalog/account-filter
+flight: native discovery has a 30-second cancellation timer, the whole probe a
+55-second budget, and cleanup is joined. This can delay first input; application
+startup itself does not synchronously wait. Fresh five-minute entries and in-flight
+warmups are reused. The four Harnesses are read concurrently, not serially. Model
+inventory and creation rules stay in tool schemas, never in Moku, Tag or Report
+system prompts or dynamic system instructions.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
 user choices take precedence over general routing guidance and belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
@@ -77,7 +123,7 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
   limits; it neither replaces the base nor overrides explicit
   user routing choices.
 - Existing tool descriptions and schemas retain their full contracts: exact
-  native options and deferred discovery, routing, worktree naming, Talk/Timer
+  native options and catalog status, routing, worktree naming, Talk/Timer
   limits, note evidence and compare-and-swap rules, and bounded Thread queries.
   Those contracts already existed separately and are unchanged by this budget.
 - `ContextEntries` contain session-start workspace context and before-send note,

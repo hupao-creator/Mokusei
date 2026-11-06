@@ -885,11 +885,11 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	}
 	v.mu.Unlock()
 	if lease == nil {
-		return nil
+		return v.c.validateNativeTargetCatalog(ctx, owner)
 	}
 	syncer, ok := lease.session.(plugin.VoiceContextSync)
 	if !ok {
-		return nil
+		return v.c.validateNativeTargetCatalog(ctx, owner)
 	}
 	ctx, finish, err := v.c.begin(ctx)
 	if err != nil {
@@ -904,7 +904,9 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if err != nil || current.ID != owner || lease.owner != owner {
 		return errors.New("Moku native owner replaced")
 	}
-	if err := v.rejectStaleNativeConfiguration(lease); err != nil {
+	linked, cancel := voiceLeaseContext(ctx, lease)
+	defer cancel()
+	if err := v.rejectStaleNativeConfiguration(linked, lease); err != nil {
 		return err
 	}
 	v.mu.Lock()
@@ -913,8 +915,6 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if !active {
 		return errors.New("Voice owner 已失效")
 	}
-	linked, cancel := voiceLeaseContext(ctx, lease)
-	defer cancel()
 	entries, err := v.c.sendContext(linked, model.AgentInput{}, nil, nil)
 	if err != nil {
 		return err

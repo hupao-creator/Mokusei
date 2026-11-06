@@ -3,6 +3,7 @@ package moku
 import (
 	"context"
 	"errors"
+	"reflect"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
@@ -94,15 +95,10 @@ func (v *voiceController) ensureReconfigurationLocked(lease *mokuVoiceLease) *vo
 	return v.reconfiguration
 }
 
-func (v *voiceController) rejectStaleNativeConfiguration(lease *mokuVoiceLease) error {
+func (v *voiceController) rejectStaleNativeConfiguration(ctx context.Context, lease *mokuVoiceLease) error {
 	current, err := v.c.current()
 	if err != nil {
 		return err
-	}
-	// A native background owner still belongs to the admitted configuration.
-	// Its new foreground work must not close the process underneath that work.
-	if current.Observation.BackgroundWork != nil {
-		return nil
 	}
 	settings, _, err := v.c.config.Settings()
 	if err != nil {
@@ -110,8 +106,19 @@ func (v *voiceController) rejectStaleNativeConfiguration(lease *mokuVoiceLease) 
 	}
 	v.c.mu.Lock()
 	applied := v.c.applied
+	previousDescription := v.c.description
 	pending := applied != nil && !sameMokuSettings(applied.AppliedSettings, settings)
 	v.c.mu.Unlock()
+	if !pending && applied != nil {
+		// A native voice peer pins its tools. Reuse the existing pre-admission
+		// reconnect path when catalog refresh changes those tools, before any
+		// input can be consumed with the old model options.
+		description, err := v.c.describeTargets(ctx, applied.AppliedSettings)
+		if err != nil {
+			return err
+		}
+		pending = !reflect.DeepEqual(previousDescription, &description)
+	}
 	v.mu.Lock()
 	if v.reconfiguration != nil && v.reconfiguration.ownership == lease.requestID {
 		pending = true
@@ -121,6 +128,9 @@ func (v *voiceController) rejectStaleNativeConfiguration(lease *mokuVoiceLease) 
 		return nil
 	}
 	defer v.mu.Unlock()
+	if live(current) {
+		return errors.New("Moku model catalog or configuration changed while native work is active; new input is blocked until that work settles")
+	}
 	retiring := v.reconfiguration != nil && v.reconfiguration.ownership == lease.requestID && v.retiredLease == lease
 	if !retiring && (v.active != lease || lease.ctx.Err() != nil) {
 		return errors.New("Voice owner 已失效")

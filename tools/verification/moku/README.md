@@ -100,8 +100,8 @@ media events are fixed local fixtures.
   avoids a full Thread read. Selected-scope resolution still reads one snapshot and retains
   its workspace hint and failure behavior, excluding another directory with the same basename.
 - Shared fixed tool schemas preserve concurrent validation, caller errors and
-  completed audit rows. A deferred target's current native schema is discovered
-  again for each creation, even within one tool binding generation.
+  completed audit rows. Every target's current native schema is discovered
+  before routing and again for each creation, even within one tool binding generation.
 
 These are runnable integration replays, not unit-test files. They validate real
 coordinator/runtime/storage behavior against controlled native boundaries. They
@@ -201,9 +201,9 @@ go build -o /tmp/mokusei-moku-replay ./tools/verification/moku
 go vet ./tools/verification/moku
 ```
 
-The coordinator replay also blocks a deferred native Target catalog while admitting
-the Host first message, then checks on-demand `describe_native_harness` and exact
-creation validation (including rejection of empty and invalid options).
+The existing cold-target replay holds the native catalog and requires the first
+Host message to wait. After release it checks the complete initial inventory and
+exact creation validation, including rejection of empty and invalid options.
 
 Target discovery gates prove concurrent Probe/Describe, stable configured schema
 and error order under reversed completion, and cancellation/Stop joining every

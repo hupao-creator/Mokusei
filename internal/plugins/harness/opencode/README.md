@@ -57,11 +57,24 @@ OAuth refresh stays in the native server. Model services and credentials are
 configured by OpenCode. Account telemetry helpers live within this Harness.
 Credential material is excluded from durable session/UI state.
 
-Moku target discovery always advertises a stable on-demand
-`describe_native_harness` tool, whose exact options can reuse the completed catalog.
-Background cache warming does not replace Moku tools or repeat session preparation. Advisory catalog and account telemetry
-read snapshots and refresh in the background. Exact options and live model
-admission still use the full native APIs. Workspace context does not fetch accounts.
+Moku target discovery waits for the complete shared native catalog and exposes
+exact options in its initial creation tool schema. It no longer returns an
+installation-only deferred target. Cold discovery waits for account filtering;
+fresh five-minute entries and concurrent warmups are reused. The native phase has
+a 30-second cancellation timer and the whole flight a 55-second budget, with
+process cleanup joined. The editor can still show the earlier native projection
+with `accountCheckPending`; Moku routing does not use that partial projection.
+
+The full native model inventory accompanies creation options, including disabled,
+unsupported and account-excluded models. Unknown capabilities may block a model's
+creation branch, but never remove its identity from Moku's routing inventory.
+Missing/empty catalogs and read errors block Moku preparation. Configuration
+identity is checked both at native publication and after account filtering.
+Freshness expires after five minutes; expired reads must refresh successfully,
+without falling back to stale data. Advisory catalog reads also report cold or
+expired state explicitly. Keychain, remote and untracked include-file changes
+still rely on TTL/manual refresh or live admission. Workspace context does not
+fetch accounts; creation and live model admission retain their native checks.
 
 Ordinary threads require exact provider/model/thinking choices. Native variants are
 validated from their effective request encoding, including at model admission.

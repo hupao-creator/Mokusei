@@ -28,6 +28,11 @@ deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
+Failed or empty Pi catalogs block Moku task preparation. Unknown thinking
+capabilities restrict creation branches without omitting model identities. Discovery
+does not require the configured default model to be usable. Native admission
+remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
+
 ## Native ownership
 
 - RPC framing and native event decoding remain ordered, with an 8 MiB record
@@ -163,3 +168,10 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Discovery rejects results when tracked native configuration files change during
+the probe, so an in-flight read cannot publish a known-obsolete snapshot.
+
+Moku requires the full nonempty native model inventory before task admission.
+Unknown thinking capabilities remain named in that inventory but cannot authorize
+creation. Failed or empty reads block preparation, including after cache expiry.

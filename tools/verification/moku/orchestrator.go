@@ -53,7 +53,7 @@ func (f orchestratorSettings) Describe(context.Context, plugin.SettingsRequest) 
 	if modelID == "" {
 		modelID = "mock-model"
 	}
-	return mokuReplayRaw(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}), nil
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}})
 }
 func (f orchestratorSettings) ResolveThread(_ context.Context, r plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	if len(r.Requested) > 0 {
@@ -973,7 +973,7 @@ func runOrchestratorReplay() error {
 	}{
 		{"tools, configuration CAS and target generation", replayOrchestratorBasics},
 		{"batch interruption and per-thread failures", replayOrchestratorBatchInterrupt},
-		{"deferred native target admission", replayOrchestratorDeferredTarget},
+		{"eager native target admission", replayOrchestratorDeferredTarget},
 		{"parallel Target discovery ownership", replayOrchestratorParallelTargets},
 		{"workspace avoids native account discovery", replayWorkspaceWithoutAccounts},
 		{"queued admission cancellation", replayOrchestratorPendingCancel},
@@ -991,7 +991,7 @@ func runOrchestratorReplay() error {
 }
 
 // A target whose native probe/catalog cannot complete until explicitly released.
-// Moku must still admit its host's first input and advertise on-demand discovery.
+// Moku must wait for this catalog before admitting its host's first input.
 type deferredNativeHarness struct {
 	orchestratorHarness
 	ready   <-chan struct{}
@@ -1004,8 +1004,13 @@ func (h deferredNativeHarness) Descriptor() plugin.HarnessDescriptor {
 	d.DisplayName = "Deferred OpenCode"
 	return d
 }
-func (h deferredNativeHarness) DiscoverMokuTarget(context.Context, plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
-	return nil, plugin.Availability{Available: true}, nil
+func (h deferredNativeHarness) DiscoverMokuTarget(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
+	availability, err := h.Probe(ctx, request, "")
+	if err != nil {
+		return nil, availability, err
+	}
+	schema, err := h.Settings().Describe(ctx, request)
+	return schema, availability, err
 }
 func (h deferredNativeHarness) Probe(ctx context.Context, _ plugin.SettingsRequest, _ string) (plugin.Availability, error) {
 	select {
@@ -1051,31 +1056,29 @@ func replayOrchestratorDeferredTarget() {
 	ctx, cancel := context.WithTimeout(mokuReplayContext(), 2*time.Second)
 	defer cancel()
 	mokuReplayMust(c.Start(ctx, plugin.RuntimeStartContext{Reason: "manual"}))
-	mokuReplayMust(c.Submit(ctx, orchestratorInput("first message while native catalog blocked")))
-	select {
-	case <-entered:
-		panic("deferred target probe blocked first admission")
-	default:
-	}
-	schema := w.binding("create_thread").InputSchema
-	mokuReplayCheck(strings.Contains(string(schema), "opencode") && strings.Contains(string(schema), "describe_native_harness"), "deferred native target not advertised")
-	_, err = w.call("create_thread", `{"worktree":false,"prompt":"invalid defaults","harnessId":"opencode","options":{}}`)
-	mokuReplayCheck(err != nil, "deferred native target accepted empty options")
 	completed := make(chan error, 1)
-	go func() { _, err := w.call("describe_native_harness", `{"harnessId":"opencode"}`); completed <- err }()
-	mokuReplayAwait("on-demand native probe", entered)
+	go func() { completed <- c.Submit(ctx, orchestratorInput("first message while native catalog blocked")) }()
+	mokuReplayAwait("initial native catalog", entered)
 	select {
 	case <-completed:
-		panic("on-demand description skipped native probe")
+		panic("first admission skipped the native catalog")
 	default:
 	}
+	w.mu.Lock()
+	sends := len(w.sends)
+	w.mu.Unlock()
+	mokuReplayCheck(sends == 0, "Moku input reached the host without a model catalog")
 	close(ready)
 	mokuReplayMust(<-completed)
+	schema := w.binding("create_thread").InputSchema
+	mokuReplayCheck(strings.Contains(string(schema), "opencode") && strings.Contains(string(schema), "Complete native model inventory"), "initial native model inventory not advertised")
+	_, err = w.call("create_thread", `{"worktree":false,"prompt":"invalid defaults","harnessId":"opencode","options":{}}`)
+	mokuReplayCheck(err != nil, "native target accepted empty options")
 	_, err = w.call("create_thread", `{"worktree":false,"prompt":"reject invalid model","harnessId":"opencode","options":{"model":"unadvertised"}}`)
 	mokuReplayCheck(err != nil, "deferred target bypassed native schema")
 	_, err = w.call("create_thread", `{"worktree":false,"prompt":"native task","harnessId":"opencode","options":{"model":"mock-model"}}`)
 	mokuReplayMust(err)
-	fmt.Println("PASS deferred native target: first Moku admission before blocked catalog; on-demand exact schema; empty and invalid options rejected")
+	fmt.Println("PASS eager native target: first Moku admission waits for the complete catalog; empty and invalid options rejected")
 }
 
 // Every probe and description has an independent gate. A sequential coordinator
@@ -1109,6 +1112,14 @@ func (h parallelTargetHarness) Probe(ctx context.Context, _ plugin.SettingsReque
 		h.gates.finished <- h.id
 		return plugin.Availability{}, ctx.Err()
 	}
+}
+func (h parallelTargetHarness) DiscoverMokuTarget(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
+	availability, err := h.Probe(ctx, request, "")
+	if err != nil {
+		return nil, availability, err
+	}
+	schema, err := h.Settings().Describe(ctx, request)
+	return schema, availability, err
 }
 func (h parallelTargetHarness) Settings() plugin.HarnessSettings {
 	return parallelTargetSettings{orchestratorSettings: orchestratorSettings{w: h.w}, id: h.id, gates: h.gates}

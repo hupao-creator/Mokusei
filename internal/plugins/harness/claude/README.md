@@ -35,6 +35,10 @@ Verification: [Claude runner](../../../../tools/verification/claude/README.md) a
 Package fixtures also exercise escaped MCP identifiers, concurrent bridge close
 and delayed tool cancellation cleanup without launching an installed CLI.
 
+Moku target schemas use the configured executable and native catalog independently
+of the selected default model. Catalog failures and empty catalogs block task preparation;
+models with unknown thinking controls remain identified in the schema. Catalog snapshots remain subject to native admission and cache TTL.
+
 ## Native configuration controls
 
 The [native Claude settings view](../../../../app/macos/Sources/Plugins/Harnesses/Claude/ClaudeSettings.swift)
@@ -127,3 +131,10 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Discovery rejects results when tracked native configuration files change during
+the probe, so an in-flight read cannot publish a known-obsolete snapshot.
+
+Moku requires the full nonempty native model inventory before task admission.
+Unknown thinking capabilities remain named in that inventory but cannot authorize
+creation. Failed or empty reads block preparation, including after cache expiry.
