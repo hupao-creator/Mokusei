@@ -241,15 +241,15 @@ When the expanded execution terminates, the Host retains the current main reader
 and its scroll position while a second production main reader prepares the exact
 completed execution behind an opacity gate. The opaque content owner must confirm
 termination and Markdown must finish parsing; a readable loading error can also
-acknowledge readiness. Placeholders and cached running content cannot start travel.
-The Host then uses the shared reading replacement curve for two sequential phases:
-420ms of full-size Sidecard absorption behind the widening opaque main panel,
-followed by a 420ms downward page turn to the latest execution. The first animation's
-actual completion starts the page turn. The outgoing main column retains its width;
-the incoming column lays out once at destination width. Core Animation moves the
-native page seats, keeping TextKit's model viewport onscreen. Landing keeps the same
-incoming host and scroll state; the absorbed source retires invisibly through its
-normal fold, without another visible close flight.
+acknowledge readiness. Placeholders and cached running content cannot start the page turn.
+The Host first folds the Sidecard back to its launcher using the shared 380ms fold
+curve while widening the main shell. Only after that animation's actual completion
+and destination content readiness does the 420ms downward page turn begin. These
+independent gates accept either delivery order; delayed content leaves the old main
+reader visible with the Sidecard already folded. The outgoing main column retains
+its width; the incoming column lays out once at destination width. Core Animation
+moves the native page seats, keeping TextKit's model viewport onscreen. Landing
+keeps the same incoming host and scroll state; the folded source stays hidden.
 Animation/readiness callbacks are fenced by handoff and execution identity.
 Folding, card choice, replacement execution, archive, covering routes, release or
 a different reading target cancels the old handoff. Main history navigation

@@ -1,3 +1,29 @@
+# 当前调整：先收起，再滚动（2026-11-06）
+
+当前生产行为替代下文历史版本的横向收入：先用共享 380ms fold 将 execution
+Sidecard 收回真实 launcher，同时扩宽主面板；fold 的 `.removed` completion
+独立记录完成，目标正文 readiness 独立记录就绪。两者齐备后才启动既有 420ms
+纵向阅读滚动。正文晚到时保留旧主 reader，源卡已收起；减少动态效果、窗口调整
+及后台状态仍按相同门槛直接完成。旧回调以 handoff UUID 隔离，取消后的回调不能
+收起或滚动新的 execution。收起完成时先隐藏源卡，再发布状态，避免即时落地闪回。
+
+沿用真实 reader、最新 execution 选择、阅读锚点及输入/焦点归属，不改
+`ThreadConversation`、`ThreadTimeline` 或逐行 reveal 实现。并行 reveal 工作若修改
+`NativeAgentThreadWorkspace.swift`，集成时需保留 handoff 期间关闭重复 reveal 的
+环境值，以及这里只改变 fold/scroll 编排的边界。
+
+本次 Sprint 不新增或运行测试/回归、CI，不推送或创建 PR。仅做产品构建、静态 lint
+和 diff 审查；下文截图、回放与测试说明均为历史记录，不认证本次提交。快速连续
+操作、延迟内容、Reduce Motion 中途切换、窄窗和实际焦点/选择保持尚未实机验证。
+
+本次验证：`xcrun swift build --package-path app/macos --product Mokusei --disable-sandbox`
+通过（115.35s），`make lint` 与 `git diff --check` 通过。初次受限构建无法访问
+GitHub，lint 无法访问 Go 缓存；获准使用网络/编译缓存后重试通过。产品构建未带
+`--build-tests`。日志位于 `/tmp/sidecard-promotion-build.log` 和
+`/tmp/sidecard-promotion-lint.log`。
+
+---
+
 # Execution 交接进入生产 Thread Detail
 
 基线：`740e725`。确认提案来自

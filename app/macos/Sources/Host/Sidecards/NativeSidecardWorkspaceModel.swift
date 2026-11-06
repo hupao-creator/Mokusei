@@ -158,8 +158,9 @@ final class NativeSidecardWorkspaceModel {
     func closeThread() { onBack() }
 
     func completeHandoffTravel(_ id: UUID) {
-        guard !isReleased, handoff?.id == id, handoff?.contentReady == true,
-              handoff?.travelComplete == false else { return }
+        // Folding and content admission can finish in either order. Retain the
+        // completion even when a refreshed execution body has not arrived yet.
+        guard !isReleased, handoff?.id == id, handoff?.travelComplete == false else { return }
         handoff?.travelComplete = true
         reconcile()
     }
