@@ -5,13 +5,30 @@ completeness at its final Runtime new-execution boundary. These are separate
 fields in the snapshot. Nonempty data, all pagination pages, initialization,
 plugin activation, stable reads and elapsed time do not promote source evidence.
 
-The currently audited Codex, OpenCode, Claude and Pi interfaces have no source
-attestation this implementation can substantiate. Their adapters explicitly
-produce unknown source evidence. Therefore a Moku target using any of these
-interfaces **blocks a cold start without a trusted matching snapshot**. This is
-a deliberate safety/availability tradeoff required by the strict acceptance
-criterion, not a usable full-directory implementation or a claimed native pass.
-An older enumeration-only cache is not migrated/promoted into trust.
+One narrow production source is now supported: **Codex 0.166.0's native
+explicit-config static catalog**, for the unmodified OpenAI provider. Its
+`model_catalog_json` must already select the absolute `CODEX_HOME/models.json`
+path (`~/.codex/models.json` with the default home). Moku does not manufacture or
+truncate this file. Routing launches the captured client with `--strict-config`,
+checks effective `config/read`, rejects managed model/provider overrides via
+`configRequirements/read`, checks the initialized client version and every configured
+model ID against the fully paginated native list, and unchanged file/configuration
+before publication. Missing auth-filtered IDs also reject this conservative path.
+The file's absence/content and binary/account/environment belong to the cache key
+before lookup. This is completeness of the **explicitly configured native
+catalog**, not a claim to list every model an upstream service might offer.
+
+This supplies an actual production writer to the routing cache. Complete matching
+snapshots remain immediately usable when stale, with background refresh and
+failure retention. The cache is still memory-only: a new adapter repeats strict
+native acquisition; no previous-process cache is silently trusted. Cold startup
+has the existing 60-second discovery budget (including native managed-config or
+account loading); a warm same-source lookup does not wait for network refresh.
+Changing the file, account inputs, selected executable, environment or tracked
+configuration requires a new snapshot. Unsupported versions/providers/paths,
+default remote Codex discovery, OpenCode, Claude and Pi still block Moku without
+proof. **This is not all-Harness acceptance and must not be integrated as such.**
+The selected Harness set is never silently reduced to this supported subset.
 
 Ordinary explicit-model selection and validation remain available. Enumeration
 caches and evidence-checked routing caches are separate. Only successful source
@@ -19,9 +36,9 @@ verification may publish to the latter; unknown source refreshes leave trusted
 older snapshots and their original evidence intact. A trusted matching snapshot
 returns immediately even when expired. Unsupported evidence is checked inside
 the cache probe, so it cannot hide an already trusted same-key value. No source
-attestation override, static replacement catalog or timing heuristic is provided.
+attestation override, manufactured replacement catalog or timing heuristic is provided.
 
-A future authoritative adapter must obtain a native completion/provenance result
+Other authoritative adapters must obtain a native completion/provenance result
 bound to the exact provider/account/client/configuration and any asynchronous
 source failures, then validate it before setting the snapshot's source evidence.
 Simply flipping `Complete` on the existing list response is not an implementation
@@ -64,7 +81,7 @@ of that contract. This Sprint does not change external native clients.
   routing. Shared Claude `readCatalog` does not query or reject gateway
   completeness, so normal explicit-model creation can use the initialized list.
   `initialize` is enumeration evidence only, not a source-completion signal.
-- [Pi's RPC model list](https://raw.githubusercontent.com/badlogic/pi-mono/main/packages/coding-agent/src/modes/rpc/rpc-mode.ts)
+- Historical [Pi's RPC model list](https://raw.githubusercontent.com/badlogic/pi-mono/main/packages/coding-agent/src/modes/rpc/rpc-mode.ts)
   returns `getAvailableSnapshot`; the
   [registry facade](https://raw.githubusercontent.com/badlogic/pi-mono/main/packages/coding-agent/src/core/model-registry.ts)
   exposes load errors separately. RPC model results do not attest that source
@@ -140,3 +157,66 @@ Sprint. Existing fixtures were adjusted only for changed contracts. Local
 cover compilation and structural correctness, not the unresolved native-source
 claims above. These limits must be reported with the local commit, not presented
 as a successful full-model-directory acceptance result.
+
+## Follow-up source audit and usable alternatives
+
+Codex source selection is checked against revision
+`6ff1e1ca3b30fc8b914720681fcf5fe62e95f856`:
+
+- [`build_models_manager`](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/thread_manager.rs#L509)
+  passes the loaded configured catalog into the selected provider.
+- [`ConfiguredModelProvider::create_models_manager`](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/model-provider/src/provider.rs#L549)
+  selects `StaticModelsManager` before the remote manager when that catalog exists.
+  Bedrock/GCP and overridden provider configurations are outside this implementation's proof.
+- [Startup fallback](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/app-server/src/lib.rs#L575)
+  is disabled by strict config. The same flag also prevents catalog reload fallback
+  in `config_manager.rs`. Ordinary Thread launch does not gain this extra flag.
+- [`load_model_catalog`](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/config/mod.rs#L2280)
+  parses native `ModelsResponse`; this is not a generic list of model names.
+  To use this path, supply the complete authoritative native-format file, select
+  it in native config, use audited Codex 0.166.0 and select only supported Harnesses
+  in Moku. Mokusei does not generate this authority from a possibly partial list.
+
+Pi was additionally inspected from installed npm package
+`@earendil-works/pi-coding-agent@1.3.0`, including its nested `@earendil-works/pi-ai@1.3.0` implementation:
+
+- `dist/core/model-runtime.js:587`: `refresh` returns `aborted` and provider
+  `errors`, but the compatibility path synthesizes an empty error map if an older
+  dependency returns void. Availability failures can instead appear in `getError`
+  (`:335`). A successful return alone is insufficient.
+- Nested `@earendil-works/pi-ai/dist/models.js:175`: cached provider state is
+  restored first. Missing resolved credentials skip the network phase without an
+  error. A legitimate unconfigured provider must be distinguished using native
+  `getProviderAuthStatus`/`checkAuth` and the available-model snapshot; it is not a
+  failed configured provider. Credential resolution failures are errors.
+- `dist/core/remote-catalog-provider.js:79`: 404/501 persists a zero
+  `lastModified` and succeeds with old/bundled data; 304 reuses the stored body;
+  successful remote overlays only apply when newer than the bundled generation.
+  OpenRouter personalization can also fall back when its list is empty. Therefore
+  `aborted == false` plus `errors.size == 0` is not a source attestation.
+
+A Pi SDK bridge is a viable next implementation route only if it observes each
+configured provider's actual publication/source receipts, validates dependency
+versions, checks configuration/composition/availability errors, distinguishes
+missing credentials from fallback, and binds the same SDK, model store and auth
+inputs used by RPC execution. None of that is claimed by the current RPC adapter.
+Adding a bridge that merely calls `refresh` would certify the known counterexample.
+For OpenCode/Claude, the concrete protocol extension needed is an atomic inventory
+snapshot with source completion/failure and configuration/account generation;
+activation/initialization alone is not that contract. Until available, ordinary
+explicit-model Threads are usable; strict cross-Harness Moku including these
+sources remains unavailable. Disabling the guard is not an alternative delivered
+by this patch.
+
+OpenCode production discovery now uses `NewSettings(host, nil)` and the shared
+`captureLaunch` resolver. The environment and absolute executable used in its key
+are passed directly to `NewRuntime`; the old production callback that resolved
+again is gone. Publication and final acquisition re-resolve and compare the
+source key, rejecting changes. Injected test factories remain separate from this
+production path. This fixes launch identity, not native source completeness.
+
+For reproducible Pi source review, SHA-256 of the installed files above:
+`model-runtime.js`: `578b742bea061fed029b8e139c6c0bcfe31e60665e9c0c6a08769761ef169dfd`;
+`remote-catalog-provider.js`: `17e8f3482422aed20ba638b99a8862405f7d3be51c4ffc9eb7ffff1b030a421b`;
+`pi-ai/dist/models.js`: `5624951d7fa7c436427b28ef6975051b91690e5e6341d84ab89ad3f1e1adc3d8`.
+These are static inspection records, not native execution results.

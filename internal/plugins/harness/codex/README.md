@@ -216,9 +216,18 @@ by initialize, including pre-initialize model discovery. Full pagination still
 cannot attest whether native discovery silently fell back to bundled metadata;
 see [evidence limits](../../../services/moku/catalog-evidence.md).
 
-Moku routing now uses a separate source-evidence-checked cache. This adapter's
-current list response is not certified as source-complete; without a previously
+Moku routing now uses a separate source-evidence-checked cache. The default remote
+list response is not certified as source-complete; without a previously
 trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
 explicit-model creation/validation still consumes the enumeration result. Unknown
 refresh results cannot replace trusted routing data. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+Moku can certify the native explicit-config catalog on audited Codex 0.166.0:
+`model_catalog_json` must select the absolute native-home `models.json`, with the
+unmodified OpenAI provider. Routing alone uses strict configuration startup and
+compares every configured ID against complete pagination before caching. A
+complete matching stale snapshot returns immediately during background refresh;
+a new adapter performs native acquisition again. Default remote sources remain
+unverified. This is the configured catalog's completeness, not an upstream service
+inventory guarantee. See [source evidence and setup limits](../../../services/moku/catalog-evidence.md).

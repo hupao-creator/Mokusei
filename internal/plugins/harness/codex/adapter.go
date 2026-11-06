@@ -47,7 +47,7 @@ func New(host plugin.HostContext) *Adapter {
 		if home == "" {
 			home = filepath.Join(env["HOME"], ".codex")
 		}
-		files := []string{filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"),
+		files := []string{filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"), filepath.Join(home, "models.json"),
 			filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db")}
 		identity := discovery.Identity(env, append(files, target.Executable)...)
 		if routing {
@@ -56,7 +56,7 @@ func New(host plugin.HostContext) *Adapter {
 				return nil, "", err
 			}
 		}
-		launch := LaunchOptions{Executable: target.Executable, Cwd: cwd, Environment: values, Identity: target.Identity, Version: target.Version}
+		launch := LaunchOptions{Executable: target.Executable, Cwd: cwd, Environment: values, Identity: target.Identity, Version: target.Version, StrictConfig: routing}
 		open := func(probeCtx context.Context, _, _ string) (*AppServer, error) {
 			prepared, err := a.prepareLaunch(probeCtx, launch, "", "")
 			if err != nil {

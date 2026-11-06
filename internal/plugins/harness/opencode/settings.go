@@ -251,13 +251,17 @@ func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd str
 }
 
 func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Settings, cwd string, routing bool) (catalogSource, error) {
-	env, err := hostEnvironment(ctx, s.host)
-	if err != nil {
-		return catalogSource{}, err
-	}
+	var env map[string]string
+	var err error
 	executable := settings.ExecutablePath
 	if s.launch == nil {
-		executable, err = ResolveExecutable(executable, env)
+		options, captureErr := captureLaunch(ctx, s.host, settings, cwd)
+		if captureErr != nil {
+			return catalogSource{}, captureErr
+		}
+		executable, env = options.ExecutablePath, options.Environment
+	} else {
+		env, err = hostEnvironment(ctx, s.host)
 		if err != nil {
 			return catalogSource{}, err
 		}

@@ -119,13 +119,7 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 	var err error
 	if routing {
 		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, func(probeCtx context.Context) (catalogEntry, error) {
-			// Keep unsupported-source rejection inside the cache probe: a prior
-			// trusted same-key snapshot still returns immediately. Do not launch
-			// a native fetch whose protocol cannot supply the required evidence.
-			if err := codexCatalogSource.RequireComplete(); err != nil {
-				return catalogEntry{}, err
-			}
-			value, err := c.reads.Get(probeCtx, key, false, 5*time.Minute, 60*time.Second, probe)
+			value, err := probe(probeCtx)
 			if err != nil {
 				return value, err
 			}
@@ -155,6 +149,13 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories .
 	}
 	defer func() { err = errors.Join(err, discovery.Cleanup(server.Close())) }()
 	entry = catalogEntry{sourceProof: codexCatalogSource, models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
+	var authority *staticCatalogAuthority
+	if server.launch.StrictConfig {
+		authority, err = captureStaticCatalogAuthority(ctx, server, cwd)
+		if err != nil {
+			return entry, err
+		}
+	}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {
@@ -196,6 +197,12 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories .
 	}
 	if entry.cli["available"] != true {
 		return entry, errors.New("Codex executable version could not be confirmed")
+	}
+	if authority != nil && entry.modelsError == nil {
+		entry.sourceProof, err = authority.verify(ctx, server, cwd, entry.models)
+		if err != nil {
+			return entry, err
+		}
 	}
 	return entry, nil
 }

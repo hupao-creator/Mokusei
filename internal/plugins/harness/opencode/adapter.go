@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -28,9 +29,9 @@ type Harness struct {
 func New(host plugin.HostContext) *Harness {
 	lifetime, stop := context.WithCancel(context.Background())
 	h := &Harness{host: host, lifetime: lifetime, stop: stop, pending: map[string]bool{}, telemetry: map[string]telemetryCacheEntry{}}
-	h.settings = NewSettings(host, func(ctx context.Context, s Settings, cwd string) (*Runtime, error) {
-		return h.launch(ctx, s, cwd, false)
-	})
+	// Production discovery launches the captured source directly. A callback here
+	// would resolve the environment and executable again after fingerprinting.
+	h.settings = NewSettings(host, nil)
 	return h
 }
 func (h *Harness) Descriptor() plugin.HarnessDescriptor {
@@ -85,20 +86,41 @@ func (h *Harness) Install(ctx context.Context) error {
 	return cmd.Run()
 }
 func (h *Harness) launch(ctx context.Context, s Settings, cwd string, isolated bool) (*Runtime, error) {
-	env, err := hostEnvironment(ctx, h.host)
+	options, err := captureLaunch(ctx, h.host, s, cwd)
 	if err != nil {
 		return nil, err
 	}
-	if h.host.ResolveExecutable != nil {
-		path, resolveErr := h.host.ResolveExecutable(ctx, "opencode", cwd, s.ExecutablePath)
+	options.IsolateConfig = isolated
+	return NewRuntime(ctx, options)
+}
+
+// Capture once so fingerprinting and process startup use the same resolver and
+// environment. NewRuntime receives an absolute executable, never a PATH lookup.
+func captureLaunch(ctx context.Context, host plugin.HostContext, s Settings, cwd string) (Options, error) {
+	env, err := hostEnvironment(ctx, host)
+	if err != nil {
+		return Options{}, err
+	}
+	executable := s.ExecutablePath
+	if host.ResolveExecutable != nil {
+		path, resolveErr := host.ResolveExecutable(ctx, "opencode", cwd, executable)
 		if resolveErr == nil {
-			s.ExecutablePath = path
-		} else if s.ExecutablePath != "" {
-			return nil, resolveErr
+			executable = path
+		} else if executable != "" {
+			return Options{}, resolveErr
 		}
 	}
-	return NewRuntime(ctx, Options{CWD: cwd, ConfigurationCWD: s.ConfigurationCWD, ExecutablePath: s.ExecutablePath, Environment: env, IsolateConfig: isolated})
+	executable, err = ResolveExecutable(executable, env)
+	if err != nil {
+		return Options{}, err
+	}
+	executable, err = filepath.Abs(executable)
+	if err != nil {
+		return Options{}, err
+	}
+	return Options{CWD: cwd, ConfigurationCWD: s.ConfigurationCWD, ExecutablePath: executable, Environment: env}, nil
 }
+
 func (h *Harness) Open(ctx context.Context, open plugin.OpenContext) (plugin.Handle, error) {
 	handle, err := OpenThread(ctx, open, h.launch)
 	if err != nil {

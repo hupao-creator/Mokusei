@@ -209,3 +209,9 @@ trusted matching snapshot it returns an explicit Moku completeness error. Ordina
 explicit-model creation/validation still consumes the enumeration result. Unknown
 refresh results cannot replace trusted routing data. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+Production discovery captures its absolute executable and environment through the
+same `captureLaunch` helper as ordinary startup. It passes those captured values
+directly to the runtime, rather than invoking a closure that resolves them again.
+Before publication and after discovery, the source resolver is checked again;
+changed launch/configuration/account identities reject the observation.
