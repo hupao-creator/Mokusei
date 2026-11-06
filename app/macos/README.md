@@ -111,7 +111,15 @@ layout. The related list uses individual 16pt Liquid Glass items without
 number prefixes or connector lines. Each item shows its source Thread's validated
 generated emoji (📝 when absent), its exact execution title, a two-line assistant
 excerpt, Harness identity and elapsed time instead of token
-usage. A single click opens the existing execution reader. Unknown timing is
+usage. Thread name, current/report execution status and execution UUID are
+omitted from the card body. Binding-conflict warnings remain visible. A single
+click queries `report.relations` again and opens the source Thread's latest
+execution, including running executions, in the existing sidecard reader.
+The card's title, excerpt and timing still describe the report's cited execution;
+this navigation never rewrites report references or Thread bindings. Missing,
+out-of-scope or execution-less Threads leave the list open with an unavailable
+notice; query failures remain retryable by clicking again. Closing, covering or
+replacing the sidecard invalidates pending navigation. Unknown timing is
 explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
 uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list retains its
 heading and count. Returning preserves the existing sidecard navigation and

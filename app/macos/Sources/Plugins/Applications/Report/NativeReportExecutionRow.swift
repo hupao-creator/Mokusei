@@ -3,7 +3,7 @@ import MokuseiPluginAPI
 import MokuseiPluginUI
 import SwiftUI
 
-/// A reference opens the existing reader; no secondary navigation or selection owner.
+/// A cited execution card opens its Thread through the existing reader owner.
 struct NativeReportExecutionRow: View {
     let item: ApplicationExecutionPresentation
     let locale: JSONText
@@ -31,29 +31,12 @@ struct NativeReportExecutionRow: View {
                         .opacity(hovered ? 1 : 0.4).padding(.top, 3)
                         .accessibilityHidden(true)
                 }
-                VStack(alignment: .leading, spacing: 5) {
-                    if let relation {
-                        if let title = relation.threadTitle {
-                            Text("Thread: \(title.string)").lineLimit(2)
-                            Text(applicationText(locale, "当前：", "Now: ") + status(relation.current?.status)
-                                + (relation.backgroundRunning ? applicationText(locale, " · 后台运行中", " · Background running") : "")
-                                + (relation.archived ? applicationText(locale, " · 已归档", " · Archived") : ""))
-                        }
-                        Text(applicationText(locale, relation.historical ? "报告关联的历史执行：" : "报告关联执行：",
-                            relation.historical ? "Historical report execution: " : "Report execution: ")
-                            + executionStatus(relation))
-                        if relation.bindingCount > 1 {
-                            Text(applicationText(locale, "绑定冲突：此 Thread 关联了多个 Super Thread，原始关联已保留。",
-                                "Binding conflict: this Thread belongs to multiple Super Threads. Original links are preserved."))
-                                .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
-                        }
-                    } else {
-                        Text(applicationText(locale, "运行状态暂不可用", "Execution status unavailable"))
-                    }
-                    Text(item.reference.executionID.string)
-                        .font(.system(size: 10, design: .monospaced)).lineLimit(1).truncationMode(.middle)
-                        .accessibilityLabel("Execution ID: " + item.reference.executionID.string)
-                }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
+                if let relation, relation.bindingCount > 1 {
+                    Text(applicationText(locale, "绑定冲突：此 Thread 关联了多个 Super Thread，原始关联已保留。",
+                        "Binding conflict: this Thread belongs to multiple Super Threads. Original links are preserved."))
+                        .font(NativeTypography.inter(size: 11)).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let excerpt, excerpt.source == item.preview?.excerpt, !excerpt.text.isEmpty {
                     Text(excerpt.text).font(NativeTypography.inter(size: 12))
                         .foregroundStyle(NativePalette.thread.muted.swiftUI)
@@ -86,7 +69,7 @@ struct NativeReportExecutionRow: View {
             .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(ReportExecutionGlassStyle())
-        .disabled(item.missing || relation.map { !$0.unavailable.isEmpty } == true)
+        .disabled(item.missing)
         .opacity(item.missing ? 0.45 : 1)
         .onHover { hovered = $0 }
         .help(item.title.string)
@@ -101,26 +84,6 @@ struct NativeReportExecutionRow: View {
         .onChange(of: visible, initial: true) { _, value in visibility.isVisible = value }
         .onDisappear { visibility.isVisible = false }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
-    }
-
-    private func status(_ value: PublicExecution.Status?) -> String {
-        switch value {
-        case .running: applicationText(locale, "运行中", "Running")
-        case .waitingForUser: applicationText(locale, "等待输入", "Waiting for input")
-        case .completed: applicationText(locale, "已完成", "Completed")
-        case .failed: applicationText(locale, "失败", "Failed")
-        case .interrupted: applicationText(locale, "已中断", "Interrupted")
-        case nil: applicationText(locale, "暂无执行", "No execution")
-        }
-    }
-
-    private func executionStatus(_ relation: NativeReportRelation) -> String {
-        switch relation.unavailable {
-        case "thread-missing": return applicationText(locale, "Thread 已删除或缺失", "Thread deleted or missing")
-        case "execution-missing": return applicationText(locale, "执行记录缺失", "Execution missing")
-        case "outside-scope": return applicationText(locale, "来源已不在当前目录范围", "Source is outside this directory scope")
-        default: return status(relation.execution?.status)
-        }
     }
 }
 

@@ -64,6 +64,7 @@ private struct NativeReportHTML: View {
 struct NativeReportDetail: View {
     let props: ApplicationThreadProps<NativeReportView>
     @State private var references: [ApplicationExecutionPresentation] = []
+    @State private var openingReference: ApplicationExecutionRef?
     @State private var relations: NativeReportRelations?
     @State private var relationsRefresh = 0
     @State private var relationsLoading = false
@@ -203,6 +204,32 @@ struct NativeReportDetail: View {
                 relations = nil; relationsFailure = error.localizedDescription
             }
         }
+        .task(id: openingReference) {
+            guard let reference = openingReference else { return }
+            let selectionID = sidecards.selectionID
+            defer { openingReference = nil }
+            guard expanded, !suppressed, !sidecards.retainingForReturn else { return }
+            do {
+                // Resolve at click time, independently of the report's evidence
+                // reference and the possibly older list snapshot.
+                let result = try await props.context.domain.query(NativeReportContracts.relations,
+                    input: props.entry.ref.threadID, lifetime: props.context.lifetime)
+                try Task.checkCancellation()
+                guard expanded, !suppressed, !sidecards.retainingForReturn,
+                      sidecards.selectionID == selectionID else { return }
+                guard result.reportID == props.entry.ref.threadID,
+                      let relation = result.items.first(where: { $0.reference == reference }),
+                      let current = relation.current else {
+                    failure = applicationText(locale, "此 Thread 暂无可用执行。", "No execution is available for this Thread.")
+                    return
+                }
+                sidecards.selectExecution(.init(thread: reference.thread, executionID: current.id))
+            } catch is CancellationError {} catch {
+                guard !Task.isCancelled, expanded, !suppressed,
+                      !sidecards.retainingForReturn, sidecards.selectionID == selectionID else { return }
+                failure = error.localizedDescription
+            }
+        }
         .preference(key: NativeReadingAuxiliaryToolbarKey.self, value: AnyView(
             NativeSidecardToggle(expanded: expanded || sidecards.pending == .relatedExecutions,
                 label: applicationText(locale, "关联执行", "Related executions"), action: {
@@ -224,6 +251,7 @@ struct NativeReportDetail: View {
                 Text(applicationText(locale, "关联执行", "Related executions"))
                 Text(String(references.count)).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
+                if openingReference != nil { ProgressView().controlSize(.small) }
             }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
             Divider()
             NativeScrollView {
@@ -239,8 +267,11 @@ struct NativeReportDetail: View {
                             NativeReportExecutionRow(item: item, locale: locale,
                                 relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
                                 visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
-                                if !sidecards.retainingForReturn { sidecards.selectExecution(item.reference) }
+                                guard !sidecards.retainingForReturn else { return }
+                                failure = nil
+                                openingReference = item.reference
                             }
+                            .disabled(openingReference != nil)
                         }
                     }.padding(16)
                 }
@@ -274,9 +305,13 @@ struct NativeReportDetail: View {
         guard !sidecards.retainingForReturn else { return }
         do {
             references = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).read(props.entry.view.relatedExecutions)
-            // Accepted continuations belong to this visit, not the authored
-            // Report reference list. Catalog refresh must not evict them.
-            if let selected, !sidecards.continuedExecution, !references.contains(where: { $0.reference == selected && !$0.missing }) { sidecards.selectExecution(nil) }
+            // List clicks can select a newer execution than the cited one.
+            // Retain it while its Thread remains linked; accepted continuations
+            // belong to this visit even if the authored list later changes.
+            if let selected, !sidecards.continuedExecution,
+               !references.contains(where: { $0.reference.thread == selected.thread && !$0.missing }) {
+                sidecards.selectExecution(nil)
+            }
             failure = nil
         } catch { failure = error.localizedDescription }
     }
