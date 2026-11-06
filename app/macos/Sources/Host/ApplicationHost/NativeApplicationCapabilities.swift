@@ -229,14 +229,17 @@ private struct NativeApplicationReferencedExecution: View {
     let host: NativeApplicationHost
     let reference: ApplicationExecutionRef
     var body: some View {
-        if let thread = host.workspace.catalog.thread(reference.thread.threadID), !thread.isHiddenFromUser {
-            NativeHarnessThreadView(host: host.workspace.harnessHost,
-                input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
-                .environment(\.threadRelatedExecution, true)
-                .environment(\.nativeReadingNavigation, nil)
-        } else {
-            Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))
-                .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        NativeRelatedExecutionEntrance {
+            if let thread = host.workspace.catalog.thread(reference.thread.threadID), !thread.isHiddenFromUser {
+                NativeHarnessThreadView(host: host.workspace.harnessHost,
+                    input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
+                    .environment(\.threadRelatedExecution, true)
+                    .environment(\.nativeReadingNavigation, nil)
+            } else {
+                Text(host.workspace.preferences.locale.text("关联执行不可用", "Related execution unavailable"))
+                    .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .nativeReadingContentReady()
+            }
+        }.id(reference)
     }
 }

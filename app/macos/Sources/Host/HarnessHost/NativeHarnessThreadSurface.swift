@@ -179,11 +179,7 @@ public final class NativeHarnessThreadSurface {
 private struct NativeHarnessContentView: View {
     let surface: NativeHarnessThreadSurface
     @State private var resource: HarnessContentResource?
-    // Resource refreshes can revisit loading; only the mounted reader owns an entrance.
-    @State private var relatedContentRevealed = false
     @Environment(\.nativePerformanceOperation) private var performanceOperation
-    @Environment(\.threadRelatedExecution) private var relatedExecution
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -196,16 +192,6 @@ private struct NativeHarnessContentView: View {
                     }
                 case .ready(let value):
                     render(value)
-                        // The first ready reader can still be laying out native
-                        // text. Only its opacity owns the related-content fade;
-                        // inheriting that transaction also animates text geometry.
-                        .transaction(value: relatedContentRevealed) { $0.animation = nil }
-                        .opacity(!relatedExecution || reduceMotion || relatedContentRevealed ? 1 : 0)
-                        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: relatedContentRevealed)
-                        .onAppear {
-                            guard relatedExecution, !relatedContentRevealed else { return }
-                            relatedContentRevealed = true
-                        }
                 }
             } else { NativeHarnessStatusView.loading }
         }

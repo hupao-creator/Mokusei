@@ -104,8 +104,12 @@ explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
 uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list retains its
 heading and count. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
-Report visit, and each selected execution's loaded content fades in once. Later
-data updates do not replay the entrance; Reduce Motion shows content immediately.
+Report visit. Each selected execution waits for its scoped row and Markdown
+parse readiness, then fades its entire native reader in once over 200ms. A visible
+loading indicator covers preparation; hidden reader controls and accessibility
+are excluded. Read errors and unavailable executions also admit readable content.
+Later data updates and retries do not replay the entrance. Reduce Motion shows
+ready content immediately and settles an in-flight fade.
 When the related card changes width or folds, the retained Report HTML viewport
 and shell share one interpolated size. Responsive content reflows during travel
 instead of jumping to the destination width before the shell moves. See the
