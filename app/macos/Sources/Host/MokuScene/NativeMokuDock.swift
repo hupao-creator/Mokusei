@@ -1056,10 +1056,13 @@ public struct NativeMokuDock: View {
             availableHeight: room,
             mentions: directoryMentions, includesCompletion: false, onMentionFrame: { state.dockMentionHitRect = $0 },
             selectionRequest: directoryMentions.selectionRequest,
-            initialSelection: state.retainedSelection,
+            initialSelection: state.selectionForReopening(text: retaining ? state.retainedText : draft.text),
             onEditorStateChange: { editor in
                 guard state.ownsComposer(draft) else { return }
-                if state.inputOpen, !editor.composing { state.retainSelection(editor.selection) }
+                if state.inputOpen, editor.focused, !editor.composing,
+                   editor.text.utf16.elementsEqual(draft.text.utf16) {
+                    state.retainSelection(editor.selection, text: editor.text)
+                }
                 directoryMentions.update(editor)
             },
             onKeyDown: { state.ownsComposer(draft) && directoryMentions.handle($0, draft: draft) },

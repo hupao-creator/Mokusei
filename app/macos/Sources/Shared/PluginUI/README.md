@@ -703,6 +703,16 @@ stay local. Core retains schema validation and native answer conversion.
 Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
+`NativeComposerTextInput.preservesSelection` opts Moku into native selection
+retention across temporary focus/availability suspension. It snapshots before
+selection is disabled, restores after selection is enabled, and reveals the
+restored range in the multiline viewport. It restores only against identical
+UTF-16 text; changed text uses an insertion point at the end. Marked text is
+never snapshotted or replaced by this suspension path. Explicit selection
+requests retain priority, and restoration does not request focus. The Host
+retains a text-associated initial selection for full Dock editor remounts.
+This sprint uses source review and targeted Swift parsing only; mounted UI,
+IME and regression replays were not run.
 
 `NativeComposerTextInput` optionally emphasizes its insertion mark through
 [NativeComposerCaret](Composer/NativeComposerCaret.swift). Moku uses a

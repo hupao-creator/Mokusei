@@ -60,6 +60,7 @@ public struct NativeComposerTextInput: View {
     private let insets: NativeComposerInsets
     private let selectionRequest: NativeComposerSelectionRequest?
     private let initialSelection: NSRange?
+    private let preservesSelection: Bool
     private let onSubmit: () -> Void
     private let onEscape: (() -> Void)?
     private let onFiles: (([NativeComposerFile]) async -> Void)?
@@ -92,7 +93,7 @@ public struct NativeComposerTextInput: View {
                 onFiles: (([NativeComposerFile]) async -> Void)? = nil,
                 preparePaste: (() -> NativeComposerPastePreparation?)? = nil, onFocusChange: ((Bool) -> Void)? = nil,
                 selectionRequest: NativeComposerSelectionRequest? = nil,
-                initialSelection: NSRange? = nil,
+                initialSelection: NSRange? = nil, preservesSelection: Bool = false,
                 onEditorStateChange: ((NativeComposerEditorState) -> Void)? = nil,
                 onKeyDown: ((NativeComposerKeyEvent) -> Bool)? = nil,
                 submitOnReturn: Bool = false, emphasizedInsertionPoint: Bool = false) {
@@ -107,6 +108,7 @@ public struct NativeComposerTextInput: View {
         self.fontSize = fontSize; self.lineHeight = lineHeight; self.insets = insets
         self.selectionRequest = selectionRequest
         self.initialSelection = initialSelection
+        self.preservesSelection = preservesSelection
         self.onSubmit = onSubmit; self.onEscape = onEscape; self.onFiles = onFiles; self.preparePaste = preparePaste; self.onFocusChange = onFocusChange
         self.onEditorStateChange = onEditorStateChange; self.onKeyDown = onKeyDown
         self.submitOnReturn = submitOnReturn
@@ -118,7 +120,7 @@ public struct NativeComposerTextInput: View {
         let placeholderCapHeight = CTFontGetCapHeight(nativeFont)
         NativeComposerEditor(value: $value, selection: $selection, focused: $focused,
             pasteOwnerID: pasteOwnerID,
-            selectionRequest: selectionRequest, initialSelection: initialSelection, focusEnabled: focusEnabled, unavailable: unavailable,
+            selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: preservesSelection, focusEnabled: focusEnabled, unavailable: unavailable,
             fontSize: fontSize, spacing: spacing, showsScroller: measuredHeight > maxHeight,
             onState: onEditorStateChange, onKeyDown: onKeyDown, onSubmit: { if !pasting { onSubmit() } }, onEscape: onEscape,
             submitOnReturn: submitOnReturn, emphasizedInsertionPoint: emphasizedInsertionPoint,

@@ -77,6 +77,7 @@ import MokuseiPluginUI
     /// Caret/selection of the last open Dock editor. It outlives the editor
     /// view so reopening restores the reader's place instead of resetting it.
     @ObservationIgnored var retainedSelection: NSRange?
+    @ObservationIgnored private var retainedSelectionText: String?
     @ObservationIgnored var capsuleSealed = false
     @ObservationIgnored var coordinatorFrame: CGRect?
     /// The normal-flow operation notice can scroll the shell without resizing
@@ -189,7 +190,7 @@ import MokuseiPluginUI
         composerGeneration = UUID()
         capsuleTask?.cancel(); capsuleTask = nil
         inputOpen = false; inputLeaving = false; capsuleSealed = false
-        retainedSelection = nil
+        retainedSelection = nil; retainedSelectionText = nil
         retainDraft(draft)
         setInputOpen(opensInput)
         command?(.position)
@@ -339,9 +340,16 @@ import MokuseiPluginUI
         retainedText = draft.text; retainedAttachments = draft.attachments; retainedDirectories = draft.directories
         capsuleSealed = seal
     }
-    func retainSelection(_ selection: NSRange) {
+    func retainSelection(_ selection: NSRange, text: String) {
         guard selection.location != NSNotFound else { return }
-        retainedSelection = selection
+        retainedSelection = selection; retainedSelectionText = text
+    }
+    func selectionForReopening(text: String) -> NSRange? {
+        guard let retainedSelection, let retainedSelectionText else { return nil }
+        // A send, paste or external draft replacement may have changed the
+        // UTF-16 buffer while hidden. Never apply offsets from different text.
+        return retainedSelectionText.utf16.elementsEqual(text.utf16)
+            ? retainedSelection : NSRange(location: text.utf16.count, length: 0)
     }
     public func openSettings() {
         guard canOpenSettings else { return }

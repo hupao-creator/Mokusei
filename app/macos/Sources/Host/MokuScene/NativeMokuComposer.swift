@@ -236,7 +236,7 @@ struct NativeMokuComposerInput: View {
                          bottom: compact ? 6 : (landing ? 26 : 19), right: 6),
             onSubmit: { if !unavailable && (sidecardComposer?.ready ?? true) { onSend() } }, onEscape: onEscape,
             onFiles: importFiles, preparePaste: preparePaste,
-            selectionRequest: selectionRequest, initialSelection: initialSelection, onEditorStateChange: { state in
+            selectionRequest: selectionRequest, initialSelection: initialSelection, preservesSelection: true, onEditorStateChange: { state in
                 onEditorStateChange?(state)
             }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
             .overlay {

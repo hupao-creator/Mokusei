@@ -9,6 +9,7 @@ struct NativeComposerEditor: NSViewRepresentable {
     var pasteOwnerID: UUID
     var selectionRequest: NativeComposerSelectionRequest?
     var initialSelection: NSRange?
+    var preservesSelection = false
     var focusEnabled: Bool
     var unavailable: Bool
     var fontSize: CGFloat
@@ -65,6 +66,20 @@ struct NativeComposerEditor: NSViewRepresentable {
             coordinator.updating = false
             coordinator.schedulePublish()
         }
+        let active = focusEnabled && !unavailable
+        // Closing keeps the native view alive during travel. Capture before
+        // AppKit disables selection or resigns focus, not from a later report.
+        if preservesSelection, coordinator.active == true, !active, !editor.hasMarkedText() {
+            coordinator.suspendedSelection = (editor.string, editor.selectedRange())
+        }
+        if preservesSelection, coordinator.active == false, active,
+           let saved = coordinator.suspendedSelection {
+            coordinator.pendingSelection = saved.text.utf16.elementsEqual(value.utf16)
+                ? saved.range : NSRange(location: value.utf16.count, length: 0)
+            coordinator.suspendedSelection = nil
+        }
+        coordinator.active = active
+        var restoredSelection = false
         var replacedText = false
         // Remember ignored model updates too: they must not be replayed after commit.
         if coordinator.lastModel?.utf16.elementsEqual(value.utf16) != true {
@@ -76,11 +91,14 @@ struct NativeComposerEditor: NSViewRepresentable {
                 editor.setSelectedRange(coordinator.clamped(oldSelection))
             }
         }
+        editor.isEditable = !unavailable
+        editor.isSelectable = !unavailable
         // A remounted editor restores the draft before applying the caret saved
         // by the previous surface. Completion requests below still take priority.
-        if let pending = coordinator.pendingSelection, !editor.hasMarkedText() {
+        if let pending = coordinator.pendingSelection, !editor.hasMarkedText(), !preservesSelection || active {
             coordinator.pendingSelection = nil
             editor.setSelectedRange(coordinator.clamped(pending))
+            restoredSelection = true
         }
         // Caret/focus rerenders must not invalidate glyph layout after scrolling.
         if !editor.hasMarkedText(), replacedText || coordinator.fontSize != fontSize || coordinator.spacing != spacing {
@@ -101,8 +119,6 @@ struct NativeComposerEditor: NSViewRepresentable {
         editor.composerTextInsets = textInsets
         editor.pasteOwnerID = pasteOwnerID
         editor.pasteAttachments = unavailable ? nil : onPaste
-        editor.isEditable = !unavailable
-        editor.isSelectable = !unavailable
         editor.emphasizedInsertionPoint = emphasizedInsertionPoint
         editor.reduceCaretMotion = reduceCaretMotion
         scroll.hasVerticalScroller = showsScroller
@@ -113,6 +129,7 @@ struct NativeComposerEditor: NSViewRepresentable {
             // SwiftUI focus report. Only explicit availability changes may blur it.
             else if (!focusEnabled || unavailable) && window.firstResponder === editor { window.makeFirstResponder(nil) }
         }
+        if restoredSelection { editor.scrollRangeToVisible(editor.selectedRange()) }
     }
 
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
@@ -123,6 +140,8 @@ struct NativeComposerEditor: NSViewRepresentable {
         var fontSize: CGFloat?
         var spacing: CGFloat?
         var pendingSelection: NSRange?
+        var active: Bool?
+        var suspendedSelection: (text: String, range: NSRange)?
         private var lastRequest: UUID?
         private var lastState: NativeComposerEditorState?
         private var publishScheduled = false
