@@ -72,33 +72,10 @@ struct NativeReportRelations: Sendable {
 }
 
 extension NativeReportContracts {
-    static var unlink: ApplicationOperation<NativeReportUnlink, JSONValue> {
-        .init(id: "report.unlink", ownerPluginID: "report", kind: .command,
-            input: .init(decode: NativeReportUnlink.init, encode: { $0.json }),
-            output: .init(decode: { $0 }, encode: { $0 }))
-    }
     static var relations: ApplicationOperation<JSONText, NativeReportRelations> {
         .init(id: "report.relations", ownerPluginID: "report", kind: .query,
             input: .init(decode: { try NativeApplicationRecord($0, path: "report identity", keys: ["reportId"]).identifier("reportId") },
                 encode: { .object(["reportId": .string($0)]) }),
             output: .init(decode: NativeReportRelations.init, encode: { $0.json }))
-    }
-}
-
-struct NativeReportUnlink {
-    let reportID: JSONText
-    let reference: ApplicationExecutionRef
-    let revision: Int
-    init(reportID: JSONText, reference: ApplicationExecutionRef, revision: Int) {
-        self.reportID = reportID; self.reference = reference; self.revision = revision
-    }
-    init(json: JSONValue) throws {
-        let r = try NativeApplicationRecord(json, path: "report unlink", keys: ["reportId", "threadId", "executionId", "expectedRevision"])
-        reportID = try r.identifier("reportId"); revision = try r.integer("expectedRevision")
-        reference = try .init(thread: .init(threadID: r.identifier("threadId"), typeID: "agent"), executionID: r.identifier("executionId"))
-    }
-    var json: JSONValue {
-        .object(["reportId": .string(reportID), "threadId": .string(reference.thread.threadID),
-            "executionId": .string(reference.executionID), "expectedRevision": .integer(revision)])
     }
 }

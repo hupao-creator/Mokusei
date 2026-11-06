@@ -198,9 +198,8 @@ concurrent binding and legacy-data interactions require later validation.
 
 ## Explicit user unlink
 
-Each related-list row offers **Unlink from this report**, including missing sources
-and legacy binding conflicts. Confirmation names its scope: only that exact link
-is removed; report HTML, ordinary Thread, execution history and other reports remain.
+The related-list UI does not offer an unlink action. The underlying
+command remains available independently of that UI.
 `report.unlink` is a user-only command with report ID, Thread ID, execution ID and
 observed report revision. Its serialized collection transaction rejects a changed
 link/revision, removes the associated tag-source entry, and permits an already-absent
