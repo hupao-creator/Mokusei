@@ -193,3 +193,14 @@ Closing retains the 420ms native return: reader content fades over the first
 80%, travel reaches the source card at 86%, and the shell crossfades to the
 refreshed card over the final 14%. See the shared PluginUI and WindowNavigation
 documentation for lifecycle boundaries and the production fixture command.
+
+Super Thread cards with an authored cover occupy the shared 1×2 Overview footprint
+(360×456pt). A passive 360×308 HTML/CSS cover and the original metadata share one
+outer card, separated by 4pt; the introduction is limited to two lines. The Report
+plugin fetches `report.cover` by the independent catalog cover revision instead
+of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
+blocks script execution, navigation and external resources. Closing/unmounting
+cancels the card's load; cover failure leaves the native open/archive actions usable.
+The generation tool describes only the cover purpose and dimensions. See the
+[Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
+and [production-component demo](../../demos/report-thread/README.md).

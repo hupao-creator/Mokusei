@@ -113,8 +113,7 @@ Report documents persist `emoji` (one complete Unicode emoji) and
 of HTML. Create requires both; update can replace either without changing the
 HTML content revision. Read/list and the native catalog expose these fields.
 Super Thread Agent supplies them through its tool schema. Its instructions ask for
-a substantive, evidence-grounded card snapshot, with flexible Chinese and English
-length targets suited to the five-line display; the 220-scalar limit remains a
+a concise, evidence-grounded two-line card snapshot; the 220-scalar limit remains a
 hard validation boundary, not a target to fill. On report updates the agent
 revisits the introduction when new evidence changes the report or can make the
 card more useful. Existing descriptions are not rewritten in bulk; they change
@@ -226,3 +225,30 @@ Missing versions receive `REPORT_REVISION_REQUIRED` in the reducer. This preserv
 old successful receipt replay, which the host resolves before reduction, while
 unreceipted old writes must reread. Persisted report data is unchanged, existing
 reports remain readable, and create/new binding uses the existing authority.
+
+## Cover cards
+
+New Super Thread tool calls supply `coverHTML`; updates may replace it independently
+of the report document. The field description is only “Cover image, 360 × 308 px.”
+No additional cover art-direction prompt is injected. The report introduction now
+targets a concise two-line card. Cover markup is HTML/CSS, limited to 64,000 Unicode
+scalars; inline SVG, scripts and embedded documents are rejected at admission.
+
+`coverHTML` and `coverRevision` persist with the report. Cover changes allocate a
+new cover revision without reloading the report HTML; unchanged updates retain the
+revision and existing CAS/receipt semantics. Full report reads expose the cover;
+the catalog exposes only its revision. `report.cover` loads markup on demand for
+mounted native cards. Covers are excluded from search text. Documents without a
+cover stay one grid row until authored cover content is supplied; no bulk generation
+or rewrite runs on startup.
+
+The production card uses one shell, one open action and its existing archive menu.
+A cover makes its Overview footprint 1×2 (360×456pt on the current grid): 308pt
+cover, 4pt gap and the original metadata/content region with a two-line introduction.
+The passive native WebKit surface uses a nonpersistent store, disabled JavaScript,
+a host-owned document response with a sandbox CSP blocking external resources.
+It neither navigates nor handles input; theme follows the native appearance.
+A failed cover leaves the native card usable with an unavailable label.
+
+Sprint validation for this change is limited to Go/Swift builds and manual native
+component display. No new tests, regression suite or hosted CI are run.

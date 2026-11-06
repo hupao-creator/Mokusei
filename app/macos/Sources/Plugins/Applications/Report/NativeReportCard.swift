@@ -16,33 +16,16 @@ import SwiftUI
     private var locale: JSONText { props.context.locale }
     var body: some View {
         Button(action: openThread) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(props.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))
-                    .lineLimit(1, reservesSpace: true).fixedSize(horizontal: false, vertical: true)
-                    .padding(.trailing, ThreadCardProviderStatus.cornerClearance).help(props.entry.title.string)
-                    .accessibilityLabel(props.entry.title.string)
-                HStack(spacing: 5) {
-                    ForEach(harnesses, id: \.id) { harness in
-                        let count = references.filter { $0.harness?.id == harness.id }.count
-                        HStack(spacing: 3) {
-                            relationLogo(harness)
-                            if count > 1 { Text("×\(count)").monospacedDigit() }
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(applicationText(locale, "\(harness.displayName.string)，\(count) 个关联 Thread", "\(harness.displayName.string), \(count) related threads"))
-                        .help(applicationText(locale, "\(harness.displayName.string)：\(count) 个关联 Thread", "\(harness.displayName.string): \(count) related threads"))
-                    }
-                    TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
-                }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
-                    .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
-                ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(5)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
-                if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
-            }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .threadCardBadge {
-                    ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
-                                             completedBackground: true)
-                }.contentShape(Rectangle())
+            VStack(spacing: 4) {
+                if props.entry.view.hasCover {
+                    NativeReportCover(props: props)
+                        .frame(height: 308)
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                }
+                metadata
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .clipShape(RoundedRectangle(cornerRadius: 22))
+                .contentShape(Rectangle())
         }.buttonStyle(.plain).foregroundStyle(NativePalette.overview.ink.swiftUI)
             .environment(\.threadCardUsesFlatMaterials, true)
             .contextMenu {
@@ -55,6 +38,36 @@ import SwiftUI
             .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; readReferences() }
             .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
     }
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(props.entry.title.string).font(NativeTypography.inter(size: 15, weight: 620))
+                .lineLimit(1, reservesSpace: true).fixedSize(horizontal: false, vertical: true)
+                .padding(.trailing, ThreadCardProviderStatus.cornerClearance).help(props.entry.title.string)
+                .accessibilityLabel(props.entry.title.string)
+            HStack(spacing: 5) {
+                ForEach(harnesses, id: \.id) { harness in
+                    let count = references.filter { $0.harness?.id == harness.id }.count
+                    HStack(spacing: 3) {
+                        relationLogo(harness)
+                        if count > 1 { Text("×\(count)").monospacedDigit() }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(applicationText(locale, "\(harness.displayName.string)，\(count) 个关联 Thread", "\(harness.displayName.string), \(count) related threads"))
+                    .help(applicationText(locale, "\(harness.displayName.string)：\(count) 个关联 Thread", "\(harness.displayName.string): \(count) related threads"))
+                }
+                TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
+            }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
+                .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
+            ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
+            if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
+        }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .threadCardBadge {
+                ThreadCardProviderStatus(label: props.entry.title.string, brandKey: "", emoji: props.entry.view.emoji.string,
+                                         completedBackground: true)
+            }.contentShape(Rectangle())
+    }
+
     private var harnesses: [ApplicationExecutionPresentation.Harness] {
         var seen = Set<JSONText>()
         return references.compactMap(\.harness).filter { seen.insert($0.id).inserted }

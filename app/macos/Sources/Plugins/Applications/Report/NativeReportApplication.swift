@@ -7,7 +7,7 @@ import SwiftUI
     public static func make() throws -> ApplicationPluginModule {
         let manifest = try ApplicationPluginManifest(id: "report", displayName: "Super Thread Agent", contributes: .init(
             backgroundAgents: ["report.agent"], threadTypes: ["report.document"], settings: ["report.settings"],
-            collections: ["report.records"], queries: ["report.read", "report.list", "report.html", "report.relations", "report.context"], commands: ["report.create", "report.update", "report.unlink"]))
+            collections: ["report.records"], queries: ["report.read", "report.list", "report.html", "report.cover", "report.relations", "report.context"], commands: ["report.create", "report.update", "report.unlink"]))
         return try ApplicationPluginModule(manifest: manifest, threads: [AnyApplicationThreadPlugin(ReportThreadPlugin())],
                                            settings: [AnyApplicationSettingsPlugin(ReportSettingsPlugin())])
     }
@@ -21,7 +21,7 @@ import SwiftUI
     }
     func projectCard(entry: ApplicationThreadCatalogEntry<NativeReportView>, availableColumns: Int,
                      capabilities: ApplicationCapabilityAccess<ApplicationProjectionPhase>) throws -> HarnessOverviewProjection<NativeReportCardProjection> {
-        .init(footprint: .init(columns: 1, rows: 1), structureKey: "report:1x1", excerpt: entry.view.shortDescription,
+        .init(footprint: .init(columns: 1, rows: entry.view.hasCover ? 2 : 1), structureKey: entry.view.hasCover ? "report:1x2:cover" : "report:1x1", excerpt: entry.view.shortDescription,
               view: .init(previewText: entry.view.shortDescription, relatedThreadCount: entry.view.relatedExecutions.count))
     }
     func card(props: ApplicationThreadProps<NativeReportView>, projection: NativeReportCardProjection, openThread: @escaping () -> Void) -> some View {

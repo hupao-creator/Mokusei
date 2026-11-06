@@ -3,13 +3,17 @@ import MokuseiCore
 import MokuseiPluginAPI
 
 struct NativeReportView: Hashable, Sendable {
+    let coverRevision: JSONText
+    var hasCover: Bool { !coverRevision.string.isEmpty }
     let emoji: JSONText
     let shortDescription: JSONText
     let previewText: JSONText
     let contentRevision: JSONText
     let relatedExecutions: [ApplicationExecutionRef]
     init(json: JSONValue) throws {
-        let r = try NativeApplicationRecord(json, path: "report view", keys: ["emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"])
+        let r = try NativeApplicationRecord(json, path: "report view", keys: ["coverRevision", "emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"])
+        coverRevision = r.fields["coverRevision"] == nil ? "" : try r.text("coverRevision")
+        if !coverRevision.string.isEmpty { _ = try r.identifier("coverRevision") }
         emoji = try r.text("emoji"); shortDescription = try r.text("shortDescription")
         guard SemanticTagLabel.isValidEmoji(emoji.string), !shortDescription.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, shortDescription.string.unicodeScalars.count <= 220 else { throw PluginContractError("Invalid report card metadata") }
         previewText = try r.text("previewText"); contentRevision = try r.identifier("contentRevision")
@@ -24,7 +28,7 @@ struct NativeReportView: Hashable, Sendable {
         }
     }
     var json: JSONValue {
-        .object(["emoji": .string(emoji), "shortDescription": .string(shortDescription), "previewText": .string(previewText), "contentRevision": .string(contentRevision),
+        .object(["coverRevision": .string(coverRevision), "emoji": .string(emoji), "shortDescription": .string(shortDescription), "previewText": .string(previewText), "contentRevision": .string(contentRevision),
                  "relatedExecutions": .array(relatedExecutions.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })])
     }
 }
@@ -37,6 +41,18 @@ struct NativeReportCardProjection {
 @MainActor enum NativeReportContracts {
     static var thread: ApplicationValueKey<NativeReportView> {
         .init(id: "report.document", ownerPluginID: "report", codec: .init(decode: NativeReportView.init, encode: { $0.json }))
+    }
+    static var cover: ApplicationOperation<JSONText, ApplicationHTMLDocument> {
+        .init(id: "report.cover", ownerPluginID: "report", kind: .query,
+              input: .init(decode: { try NativeApplicationRecord($0, path: "report identity", keys: ["reportId"]).identifier("reportId") },
+                           encode: { .object(["reportId": .string($0)]) }),
+              output: .init(decode: { json in
+                  let r = try NativeApplicationRecord(json, path: "report cover", keys: ["html", "contentRevision"])
+                  let html = try r.text("html")
+                  guard !html.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        html.string.unicodeScalars.count <= 64_000 else { throw PluginContractError("Invalid report cover size") }
+                  return try ApplicationHTMLDocument(html: html, contentRevision: r.identifier("contentRevision"))
+              }, encode: { .object(["html": .string($0.html), "contentRevision": .string($0.contentRevision)]) }))
     }
     static var html: ApplicationOperation<JSONText, ApplicationHTMLDocument> {
         .init(id: "report.html", ownerPluginID: "report", kind: .query,

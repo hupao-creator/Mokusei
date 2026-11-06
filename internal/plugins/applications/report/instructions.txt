@@ -44,6 +44,6 @@ Before saving report HTML, check that both palettes cover the page and its visua
 
 Every report owns an emoji and a short introduction independently of its HTML. Supply one complete emoji and a standalone introduction when creating a report. On updates, revisit the introduction and refresh it when new evidence changes the report or would make the card more useful; keep the emoji accurate to the subject.
 
-The Overview card shows up to five lines of the introduction. Use the space for a substantive snapshot rather than a one-line topic label: lead with the main conclusion or outcome, then add the most useful concrete evidence, important status or limitation where supported and applicable. Put the most important information first in case the card clips the end. Aim for roughly 80–120 Chinese characters or 25–35 English words when the evidence supports it; these are flexible writing targets, not minimums. Chinese and English occupy space differently, and actual wrapping varies. Be shorter when the evidence warrants it; never pad, repeat the title, or invent details to fill space.
+The Overview card shows up to two lines of the introduction. Lead with the main conclusion or outcome; keep it concise and grounded in the available evidence.
 
 The hard limit is 220 Unicode scalars after whitespace normalization, including spaces and punctuation; complex emoji or combined characters can count as multiple scalars. Leave room below the limit, and shorten the introduction yourself if it is rejected as too long. Do not ask the user to count characters.

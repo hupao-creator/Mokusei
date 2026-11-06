@@ -316,8 +316,10 @@ private struct FixtureHarnessLogo: View {
         window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
         window.minSize = .init(width: 1060, height: 680)
         window.isReleasedWhenClosed = false
-        if CommandLine.arguments.contains("--production") {
-            window.contentView = NSHostingView(rootView: ProductionReportPreview())
+        let showsCover = CommandLine.arguments.contains("--cover") || FileManager.default.fileExists(
+            atPath: Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("cover-preview").path)
+        if CommandLine.arguments.contains("--production") || showsCover {
+            window.contentView = NSHostingView(rootView: ProductionReportPreview(showsCover: showsCover))
         } else { window.contentView = NSHostingView(rootView: ReportDemo(state: state)) }
         window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate()
         let menu = NSMenu()

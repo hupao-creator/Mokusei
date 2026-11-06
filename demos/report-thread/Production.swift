@@ -11,6 +11,8 @@ import MokuseiHarnessClaude
 @testable import MokuseiUI
 
 @MainActor @Observable private final class ProductionReportFixture {
+    let showsCover: Bool
+    init(showsCover: Bool) { self.showsCover = showsCover }
     var open = false
     let motion = NativeReadingPageMotion()
     let sample = ReportFixture.groupedSample
@@ -28,7 +30,7 @@ import MokuseiHarnessClaude
                 requested.compactMap { ref in
                     guard let item = sample.executions.first(where: { $0.id == ref.executionID.string }) else { return nil }
                     let codex = item.harness == .codex
-                    return .init(reference: ref, title: JSONText(item.title), missing: false, running: false,
+                    return .init(reference: ref, title: JSONText(item.title), emoji: item.emoji, missing: false, running: false,
                         harness: .init(id: codex ? "codex" : "claude", displayName: JSONText(item.harness.rawValue), logoSource: codex ? CodexLogo.source : ClaudeLogo.source), preview: try! .init(startedAt: 0, finishedAt: 138_000, running: false, excerpt: JSONText(item.answer)))
                 }
             }, subscribe: { _ in {} }, logo: { id, size in
@@ -44,34 +46,62 @@ import MokuseiHarnessClaude
             })
         ])
         let view = try! NativeReportView(json: .object([
+            "coverRevision": .text(showsCover ? "cover-preview" : ""),
             "emoji": .text(sample.emoji), "shortDescription": .text(sample.shortDescription), "previewText": .text(sample.shortDescription),
             "contentRevision": .text("preview"), "relatedExecutions": .array(refs.map { .object(["thread": $0.thread.json, "executionId": .string($0.executionID)]) })
         ]))
         return .init(entry: .init(ref: reference, revision: 1, createdAt: 0, updatedAt: Date().addingTimeInterval(-46800).timeIntervalSince1970 * 1000,
             title: JSONText(sample.title), archived: false, tags: .init(tags: [], semanticTags: [], directoryTags: [], tagEmojis: [:]), presentations: [], view: view),
-            context: .init(theme: .light, locale: "zh-CN", lifetime: PluginLifetime(), domain: .init(pluginID: "report", invoke: { _, _, _, _, _ in throw PluginContractError("Fixture only") }),
+            context: .init(theme: .light, locale: "zh-CN", lifetime: PluginLifetime(), domain: .init(pluginID: "report", invoke: { [sample] _, operation, _, _, _ in
+                    if operation == "report.cover" {
+                        return .object(["html": .text(ReportCoverDocument.html), "contentRevision": .text("cover-preview")])
+                    }
+                    guard operation == "report.relations" else { throw PluginContractError("Fixture only") }
+                    return .object(["reportId": .text("report-preview"), "revision": .number(1), "items": .array(sample.executions.map { item in
+                        let facts: JSONValue = .object(["executionId": .text(item.id), "status": .text("completed"),
+                            "startedAt": .number(0), "finishedAt": .number(138_000)])
+                        return .object([
+                            "reference": .object(["thread": .object(["typeId": .text("agent"), "threadId": .text(item.id)]), "executionId": .text(item.id)]),
+                            "thread": .object(["title": .text(item.title), "archived": .bool(false),
+                                "currentExecution": facts, "backgroundRunning": .bool(false)]),
+                            "execution": facts, "unavailable": .text(""), "bindingCount": .number(1)
+                        ])
+                    })])
+                }),
                 capabilities: capabilities, openThread: { _, _ in }, openExecution: { _ in }))
     }
 }
 
 struct ProductionReportPreview: View {
-    @State private var fixture = ProductionReportFixture()
+    var showsCover = false
+    private var cardWidth: CGFloat { NativeOverviewLayout.columnWidth }
+    private var rowHeight: CGFloat { showsCover ? NativeOverviewLayout.rowHeight : 200 }
+    private var cardHeight: CGFloat { showsCover ? rowHeight * 2 + NativeOverviewLayout.gap : rowHeight }
+    @State private var fixture: ProductionReportFixture
+    init(showsCover: Bool = false) {
+        self.showsCover = showsCover
+        _fixture = State(initialValue: ProductionReportFixture(showsCover: showsCover))
+    }
     @State private var slow = false
     @State private var recording = ProductionReportRecording()
     var body: some View {
         NativeReadingPageStack(open: fixture.open, identity: "report-preview", motion: fixture.motion,
             stationaryParent: true, emphasizedOpening: true, panel: true,
-            panelSource: CGRect(x: 180, y: 160, width: 360, height: 200),
+            panelSource: CGRect(x: 180, y: 160, width: cardWidth, height: cardHeight),
             panelFrontIdentity: "workspace-route-slide", reportPanelMotion: true,
             duration: slow ? 2.1 : 0.42,
             prepareParent: { await Task.yield() }, onClose: { fixture.open = false }) {
             ZStack(alignment: .topLeading) {
                 Color(white: 0.14)
-                NativeReportCard(props: fixture.props, projection: .init(previewText: fixture.props.entry.view.shortDescription, relatedThreadCount: 2), openThread: { fixture.open = true })
-                    .frame(width: 360, height: 200)
-                    .background(NativePalette.overview.surface.swiftUI, in: RoundedRectangle(cornerRadius: 22))
-                    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI))
-                    .offset(x: 180, y: 160)
+                NativeReportCard(props: fixture.props,
+                    projection: .init(previewText: fixture.props.entry.view.shortDescription, relatedThreadCount: fixture.sample.executions.count),
+                    openThread: { fixture.open = true })
+                .frame(width: cardWidth, height: cardHeight)
+                .background(NativePalette.overview.surface.swiftUI)
+                .clipShape(RoundedRectangle(cornerRadius: 22))
+                .overlay(RoundedRectangle(cornerRadius: 22).stroke(NativePalette.overview.lineSoft.swiftUI))
+                .contentShape(RoundedRectangle(cornerRadius: 22))
+                .offset(x: 180, y: 160)
             }
         } front: {
             ProductionReportRoute(fixture: fixture)
@@ -92,14 +122,10 @@ struct ProductionReportPreview: View {
 
 private struct ProductionReportRoute: View {
     let fixture: ProductionReportFixture
-    @Environment(\.nativeReadingEntranceReady) private var ready
-    private let route = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
     var body: some View {
-        NativeExecutionRouteSlide(route: route, requestedRoute: nil, ready: ready, enabled: true) {
-            NativeReportDetail(props: fixture.props)
-                .modifier(NativeApplicationReadingPanel(enabled: true, identifier: "report-reading-panel", onClose: { fixture.motion.close() }))
-                .environment(\.nativeApplicationReadingPanel, true)
-        }
+        NativeReportDetail(props: fixture.props)
+            .modifier(NativeApplicationReadingPanel(enabled: true, identifier: "report-reading-panel", onClose: { fixture.motion.close() }))
+            .environment(\.nativeApplicationReadingPanel, true)
     }
 }
 
@@ -159,4 +185,24 @@ private struct ProductionReportRoute: View {
         let message = String(describing: error)
         Task { @MainActor in status = message; active = false }
     }
+}
+
+private enum ReportCoverDocument {
+    static let html = """
+    <!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+    <style>
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
+    body{background:#dddcd3;color:#282e2c;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+    article{height:100%;padding:22px;position:relative;background:linear-gradient(125deg,#efeee7,#d1d6ca)}
+    small{font-size:9px;letter-spacing:2px}h1{font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.6px;margin:21px 0 12px;position:relative;z-index:1}
+    footer{font-size:10px;color:#596358;position:absolute;bottom:21px;left:22px}
+    .bars{position:absolute;right:22px;bottom:25px;height:113px;display:flex;gap:8px;align-items:end;opacity:.32}
+    .bars i{display:block;width:17px;background:#657b62;border-radius:3px 3px 0 0}
+    .bars i:nth-child(1){height:28%}.bars i:nth-child(2){height:48%}.bars i:nth-child(3){height:39%}.bars i:nth-child(4){height:74%}.bars i:nth-child(5){height:100%}
+    </style></head><body><article><small>MOKUSEI / REPORT</small>
+    <h1>Report 与 Tag<br>工具留存分析</h1><div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <footer>调用频次 · 成功情况 · 统计边界</footer></article></body></html>
+    """
 }

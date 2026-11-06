@@ -70,3 +70,67 @@ ScreenCaptureKit 只录制自身窗口、无音频和麦克风，停止后写入
 共享 Agent 返回动画的后续复核保留同一入口。录制按钮在预览未成为 key window
 时仍只选择本 app 的可见窗口，并显示无法录制的原因，不静默退出。最新验证以
 [Report 关闭调查](../../design/report-sidecard-close.md) 的共享返回后续记录为准。
+
+## Super Thread HTML/CSS 封面（2026-11-06）
+
+```sh
+python3 demos/report-thread/build.py --cover --disable-sandbox --skip-update --open
+```
+
+基于当前源码 `1d50be3`，不使用旧快照。封面模式在现有 production fixture
+中复用 `NativeOverviewLayout` 当前 360×220pt 网格，在同一张 360×456pt
+卡片内放入 HTML/CSS 封面行和生产 `NativeReportCard` 内容行，内部间距 4pt，
+与普通 Agent Thread extension 的两行占位一致。封面占 308pt（约 68%），
+内容区 144pt，短介绍最多两行；生产卡片统一限制为两行。
+整张卡片只有一个背景、边框
+和外层圆角；封面、内容和内部间距均可打开报告，动画起点为整张两行卡片。
+原内容的字体、emoji、来源计数沿用生产组件。封面无 SVG、脚本和外部资源。
+默认模式与 `--production` 保留原入口；`--cover` 自动选择生产组件。
+
+构建使用当前工作树的生产模块，再将 demo 和资源签名打包至独立临时目录。
+`.build/report-thread/app-path.txt` 记录最近成功打包的 App；封面构建旁的
+`cover-preview` 标记让直接双击也进入封面模式。App 不启动 Runtime，不读取真实会话，
+不安装或替换生产 App。关联列表与执行正文为确定性 fixture，非真实业务数据验证。
+现有 fixture 已对齐当前 emoji 参数、Report 面板组合与 `report.relations` 查询接口。
+
+`--disable-sandbox` 同时传入 SwiftPM 与 demo 的 swiftc，仅禁用编译器的嵌套
+子进程沙箱，不改变系统权限或外层文件访问限制。`--skip-update` 跳过远端依赖
+更新并锁定 Package.resolved；依赖须已缓存，缺失时不承诺完全离线。
+SwiftPM 提示 skip-update 已弃用，但当前工具链仍支持。
+生产模块已完成构建且源码未变化时可将 `--skip-update` 换成 `--skip-build`。
+仅编译阶段直接清理自身临时文件，不调用用于运行中回放的进程扫描。
+
+手动查看：第一屏确认同一卡片内上封面、下原内容；点击原卡片打开报告，再关闭返回完整两行卡片。
+`--capture` 是历史提案的自动截图入口，与 `--cover` 不兼容。
+本次按 sprint mode 不新增测试、不运行回归或 CI。
+
+本次验证：生产 `Mokusei` Debug 增量构建通过；最终 demo 以 Swift 6
+warnings-as-errors 编译、签名和动态依赖检查通过。通过桌面 UI 打开隔离 App，
+实际检查封面与原卡片、点击展开的 Report HTML/四行关联摘录，以及关闭返回完整两行卡片。
+未验证真实会话订阅或执行详情导航，不将手动展示检查计为回归通过。
+
+环境记录：SwiftPM 和 swiftc 各自的嵌套沙箱都曾报 `sandbox_apply: Operation not permitted`，
+各自传入标准 disable-sandbox 参数后解决。仅编译清理曾因 `/bin/ps` 权限失败，
+已移除这个阶段不需要的进程扫描。命令行 `open` 曾报 `kLSNoExecutableErr (-10827)`，
+尽管二进制存在且签名通过；同一构建经桌面 UI 打开成功。若命令行启动仍失败，
+可在 Finder 中前往 app-path.txt 所列路径并双击 App，无须更改系统权限。
+远端门禁/PR/run 查询返回 `error connecting to api.github.com`，未认证远端合并门禁。
+
+后续比例修正：以同一完整外壳承载两行，总高 456pt；封面调整为 280pt，
+短介绍由生产组件限制为两行。最终生产增量构建和 demo 编译签名通过，
+已打开新版隔离 App 并目视确认统一边框、大封面与两行短介绍。
+本轮未重做展开/返回检查；前述展开/返回记录属于此前布局版本。
+
+
+生产落地：`--cover` 现由 fixture 提供 `coverRevision` 和 `report.cover` 的
+确定性 HTML 响应，整张卡片直接使用生产 `NativeReportCard` / `NativeReportCover`。
+Demo 不再持有自己的 WKWebView 或重复拼装封面与元信息；封面最终高 308pt，
+内部间距 4pt，总高 456pt。默认 `--production` 注入无封面文档。
+
+生产接入验证（2026-11-06）：最终 Go Runtime 与 Swift `Mokusei` 构建通过，
+demo 编译和签名通过。手动查看生产 `NativeReportCard`，确认 308pt 封面、
+4pt 间距、两行短介绍及整卡点击展开/关闭返回。最初的 srcdoc 容器显示空白，
+改用本地 `mokusei-cover` 文档响应后实际渲染正常；WebKit delegate 签名警告已修复。
+Go 默认缓存权限不足时仅改用项目 `.build/go-cover-cache`，Swift 使用标准
+`--disable-sandbox`。没有运行测试、集成回放、回归或 CI，也未安装/重启生产 App。
+本次 fixture 只认证生产组件展示，不认证后台模型实际生成封面的质量。

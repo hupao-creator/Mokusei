@@ -27,6 +27,7 @@ const (
 	MaxIdentifierLength = 128
 	MaxHTMLCharacters   = 1_000_000
 	MaxPreviewLength    = 220
+	MaxCoverCharacters  = 64_000
 	MaxRelatedThreads   = 256
 	MaxDocuments        = 10_000
 )
@@ -37,6 +38,8 @@ type TagSource struct {
 	DirectoryTags []string          `json:"directoryTags"`
 }
 type Data struct {
+	CoverHTML         string               `json:"coverHTML"`
+	CoverRevision     string               `json:"coverRevision"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
 	Scope             string               `json:"scope"`
@@ -48,6 +51,7 @@ type Data struct {
 	TagSources        map[string]TagSource `json:"tagSources"`
 }
 type View struct {
+	CoverRevision     string               `json:"coverRevision"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
 	PreviewText       string               `json:"previewText"`
@@ -67,6 +71,8 @@ type Summary struct {
 	Archived           bool   `json:"archived"`
 }
 type Content struct {
+	CoverHTML         string               `json:"coverHTML"`
+	CoverRevision     string               `json:"coverRevision"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
 	ID                string               `json:"id"`
@@ -81,6 +87,7 @@ type Content struct {
 	model.TagProjection
 }
 type CreateInput struct {
+	CoverHTML         string               `json:"coverHTML"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
 	Title             string               `json:"title"`
@@ -88,6 +95,7 @@ type CreateInput struct {
 	RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
 }
 type UpdateInput struct {
+	CoverHTML         *string               `json:"coverHTML,omitempty"`
 	ExpectedRevision  *int64                `json:"expectedRevision,omitempty"`
 	Emoji             *string               `json:"emoji,omitempty"`
 	ShortDescription  *string               `json:"shortDescription,omitempty"`
@@ -214,6 +222,16 @@ func ParseData(raw json.RawMessage) (Data, error) {
 	}
 	if value.HTML, err = ParseHTML(value.HTML); err != nil {
 		return value, err
+	}
+	if value.CoverHTML != "" {
+		if value.CoverHTML, err = ParseCoverHTML(value.CoverHTML); err != nil {
+			return value, err
+		}
+		if !validID(value.CoverRevision) {
+			return value, errors.New("invalid report cover revision")
+		}
+	} else if value.CoverRevision != "" {
+		return value, errors.New("cover revision without cover")
 	}
 	if !validID(value.ContentRevision) {
 		return value, errors.New("invalid report content revision")
@@ -368,4 +386,38 @@ var readerBlockTags = map[string]bool{
 	"li": true, "main": true, "nav": true, "ol": true, "p": true,
 	"pre": true, "section": true, "summary": true, "table": true,
 	"td": true, "th": true, "tr": true, "ul": true, "textarea": true,
+}
+
+// Cover markup is passive HTML/CSS; the native renderer additionally blocks
+// scripts, navigation and network access independently of this input boundary.
+func ParseCoverHTML(value string) (string, error) {
+	if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > MaxCoverCharacters {
+		return "", errors.New("coverHTML must contain 1 to 64000 Unicode characters")
+	}
+	if _, err := ParseHTML(value); err != nil {
+		return "", err
+	}
+	root, err := htmlnode.Parse(strings.NewReader(value))
+	if err != nil {
+		return "", err
+	}
+	var visit func(*htmlnode.Node) error
+	visit = func(node *htmlnode.Node) error {
+		if node.Type == htmlnode.ElementNode {
+			switch strings.ToLower(node.Data) {
+			case "svg", "script", "iframe", "frame", "object", "embed", "base":
+				return errors.New("coverHTML supports passive HTML/CSS only")
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			if err := visit(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := visit(root); err != nil {
+		return "", err
+	}
+	return value, nil
 }

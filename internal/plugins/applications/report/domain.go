@@ -204,6 +204,22 @@ func RegisterDomain(registry plugin.Registry) error {
 	}}); err != nil {
 		return err
 	}
+	if err := registry.Query(plugin.QueryDefinition{Operation: operation("report.cover", identityContract("report.cover.input"), typedContract[htmlOutput]("report.cover.output", []string{"html", "contentRevision"}, nil)), Audience: plugin.QueryAudience{User: true}, Read: func(raw json.RawMessage, context plugin.ReadContext) (json.RawMessage, error) {
+		var input IdentityInput
+		if err := model.Unmarshal(raw, &input); err != nil {
+			return nil, err
+		}
+		_, value, err := requireRecord(input.ReportID, context.Records)
+		if err != nil {
+			return nil, err
+		}
+		if value.CoverHTML == "" {
+			return nil, errors.New("report has no cover")
+		}
+		return json.Marshal(htmlOutput{value.CoverHTML, value.CoverRevision})
+	}}); err != nil {
+		return err
+	}
 	createInput := typedContract[CreateInput]("report.create.input", []string{"emoji", "shortDescription", "title", "html", "relatedExecutions"}, func(input *CreateInput) error {
 		var err error
 		if input.Emoji, err = ParseEmoji(input.Emoji); err != nil {
@@ -214,6 +230,11 @@ func RegisterDomain(registry plugin.Registry) error {
 		}
 		if input.Title, err = ParseTitle(input.Title); err != nil {
 			return err
+		}
+		if input.CoverHTML != "" {
+			if input.CoverHTML, err = ParseCoverHTML(input.CoverHTML); err != nil {
+				return err
+			}
 		}
 		if input.HTML, err = ParseHTML(input.HTML); err != nil {
 			return err
@@ -253,7 +274,10 @@ func RegisterDomain(registry plugin.Registry) error {
 			if err := validateBindings(rows, "", nil, input.RelatedExecutions); err != nil {
 				return nil, err
 			}
-			value := Data{Emoji: input.Emoji, ShortDescription: input.ShortDescription, Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
+			value := Data{CoverHTML: input.CoverHTML, Emoji: input.Emoji, ShortDescription: input.ShortDescription, Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
+			if value.CoverHTML != "" {
+				value.CoverRevision = context.AllocateID("cover")
+			}
 			encoded, err := json.Marshal(value)
 			if err != nil {
 				return nil, err
@@ -274,7 +298,7 @@ func RegisterDomain(registry plugin.Registry) error {
 		if input.ExpectedRevision != nil && (*input.ExpectedRevision < 0 || *input.ExpectedRevision > model.MaximumSafeInteger) {
 			return errors.New("invalid report expectedRevision")
 		}
-		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil && input.Emoji == nil && input.ShortDescription == nil {
+		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil && input.Emoji == nil && input.ShortDescription == nil && input.CoverHTML == nil {
 			return errors.New("Report update must change at least one field")
 		}
 		if input.Emoji != nil {
@@ -297,6 +321,13 @@ func RegisterDomain(registry plugin.Registry) error {
 				return err
 			}
 			input.Title = &value
+		}
+		if input.CoverHTML != nil {
+			value, err := ParseCoverHTML(*input.CoverHTML)
+			if err != nil {
+				return err
+			}
+			input.CoverHTML = &value
 		}
 		if input.HTML != nil {
 			value, err := ParseHTML(*input.HTML)
@@ -352,6 +383,10 @@ func RegisterDomain(registry plugin.Registry) error {
 			}
 			if input.ShortDescription != nil {
 				value.ShortDescription = *input.ShortDescription
+			}
+			if input.CoverHTML != nil && *input.CoverHTML != value.CoverHTML {
+				value.CoverHTML = *input.CoverHTML
+				value.CoverRevision = context.AllocateID("cover")
 			}
 			if input.HTML != nil && *input.HTML != value.HTML {
 				value.HTML = *input.HTML
@@ -411,7 +446,7 @@ func RegisterDomain(registry plugin.Registry) error {
 		if err != nil {
 			return plugin.ThreadProjection{}, err
 		}
-		view, err := json.Marshal(View{value.Emoji, value.ShortDescription, HTMLPreview(value.HTML, value.Title), value.ContentRevision, value.RelatedExecutions})
+		view, err := json.Marshal(View{CoverRevision: value.CoverRevision, Emoji: value.Emoji, ShortDescription: value.ShortDescription, PreviewText: HTMLPreview(value.HTML, value.Title), ContentRevision: value.ContentRevision, RelatedExecutions: value.RelatedExecutions})
 		return plugin.ThreadProjection{Scope: value.Scope, Title: value.Title, View: view}, err
 	}, SearchText: func(record model.ApplicationThreadRecord) (string, error) {
 		value, err := ParseData(record.Value)
@@ -520,6 +555,8 @@ func tagSources(refs []model.ExecutionRef, access plugin.CapabilityAccess, scope
 }
 
 type contentOutput struct {
+	CoverHTML         string               `json:"coverHTML"`
+	CoverRevision     string               `json:"coverRevision"`
 	Emoji             string               `json:"emoji"`
 	ShortDescription  string               `json:"shortDescription"`
 	ID                string               `json:"id"`
@@ -535,7 +572,7 @@ type contentOutput struct {
 }
 
 func content(record model.VersionedRecord, value Data) contentOutput {
-	return contentOutput{value.Emoji, value.ShortDescription, record.ID, record.Revision, record.CreatedAt, record.UpdatedAt, value.Title, value.HTML, value.ContentRevision, value.RelatedExecutions, value.Archived, ProjectTags(value)}
+	return contentOutput{value.CoverHTML, value.CoverRevision, value.Emoji, value.ShortDescription, record.ID, record.Revision, record.CreatedAt, record.UpdatedAt, value.Title, value.HTML, value.ContentRevision, value.RelatedExecutions, value.Archived, ProjectTags(value)}
 }
 
 type threadExtensions struct{}
