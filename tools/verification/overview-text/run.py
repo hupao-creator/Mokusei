@@ -10,7 +10,10 @@ import uuid
 source = Path(__file__).resolve().parent
 repo = source.parents[2]
 package = repo / "app/macos"
-output = repo / ".build/overview-text"
+height_replay = "--card-height" in sys.argv
+if height_replay:
+    sys.argv.remove("--card-height")
+output = repo / (".build/overview-card-height" if height_replay else ".build/overview-text")
 destination = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else output / "captures"
 destination.mkdir(parents=True, exist_ok=True)
 bundle = output / "OverviewTextReplay.app"
@@ -44,6 +47,6 @@ for include in [package / ".build/checkouts/swift-cmark/src/include",
                 package / ".build/checkouts/swift-markdown/Sources/CAtomic/include",
                 package / ".build/checkouts/swift-system/Sources/CSystem/include"]:
     compiler += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]
-subprocess.run([*compiler, str(source / "main.swift"), *objects, "-o", str(executable)], cwd=repo, check=True)
+subprocess.run([*compiler, str(source / ("height.swift" if height_replay else "main.swift")), *objects, "-o", str(executable)], cwd=repo, check=True)
 subprocess.run([str(executable)], cwd=repo, check=True, timeout=90)
 print(destination)

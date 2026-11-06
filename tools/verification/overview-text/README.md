@@ -30,3 +30,20 @@ The drawingGroup controls contain only SwiftUI drawing primitives.
 
 This is a static rendering check. Physical input, animation and navigation remain
 covered by the existing overview input replay and native integration tests.
+
+## Execution-card height investigation
+
+```sh
+python3 tools/verification/overview-text/run.py --card-height
+```
+
+This separate static replay mounts production `HarnessThreadCard` with synthetic
+fixtures and writes PNGs to `.build/overview-card-height/captures`. It covers the
+reported Chinese paragraph/blank-line layout at 220/260pt, long numbered lines
+at 180/220/340pt, short/empty replies, narrow width plus steer, absent metadata,
+expanded identity with three tools, a Todo extension and 2× text rasterization.
+Review the captures for whole-line tail truncation, increasing visible content,
+stable title/metadata/emoji placement and independent tool/extension space.
+It captures its own WindowServer window at rest, without animation frames. This
+is visual evidence, not an automated pixel oracle or a CI coverage replacement. Existing
+excerpt lifecycle and native ink-motion replays retain their separate ownership.

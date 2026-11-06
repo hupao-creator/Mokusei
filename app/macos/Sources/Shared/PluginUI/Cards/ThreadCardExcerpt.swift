@@ -36,19 +36,19 @@ public struct ThreadCardExcerpt: View {
         let update = ExcerptUpdate(input: .init(content: content, id: messageId, text: messageText ?? content),
                                    visible: isVisible, animates: !reduceMotion)
         text(display?.text ?? placeholder)
-            // The first pass still lays out the raw snapshot at full line-limit
-            // height (never collapsed), but stays invisible until the lifecycle
+            // The first pass lays out the raw snapshot under the same height
+            // proposal, but stays invisible until the lifecycle
             // installs the processed preview, so the unprocessed placeholder
             // text is never shown and no artificial delay is introduced.
             .opacity(display != nil && reveal == nil ? 1 : 0)
             .overlay(alignment: .topLeading) {
                 if let reveal {
+                    // Reveal and settled text must share vertical compression;
+                    // intrinsic-height layers would clip without a tail ellipsis.
                     ZStack(alignment: .topLeading) {
                         text(reveal.incoming)
-                            .fixedSize(horizontal: false, vertical: true)
                             .mask(ExcerptInkMask(progress: revealProgress, outgoing: false))
                         text(reveal.previous)
-                            .fixedSize(horizontal: false, vertical: true)
                             .mask(ExcerptInkMask(progress: revealProgress, outgoing: true))
                     }
                     // A disabled-animation reset does not retire an offset's
@@ -108,7 +108,7 @@ public struct ThreadCardExcerpt: View {
         Text(verbatim: value)
             .cardFont(size: 11.5, lineSpacing: ExcerptTextStyle.lineSpacing)
             .foregroundStyle(NativePalette.pair(0x10110f, 0xe0e5da, alpha: 0.56).swiftUI)
-            .lineLimit(inheritedLineLimit ?? 5)
+            .lineLimit(inheritedLineLimit)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
     }

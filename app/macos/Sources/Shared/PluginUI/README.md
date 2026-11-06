@@ -599,9 +599,15 @@ The identity title uses one measured line in every state, including while
 running and before the first reply. Long titles truncate at the tail; the full
 current title remains in help and the accessibility label. One line stays
 reserved under vertical compression, with no second-line title space. A generated
-title replacing a prompt cannot change the title seat's height. Card footprints,
-body line limits and independent state/model/runtime rows retain their existing
-contracts; the excerpt can use the height released by the former second line.
+title replacing a prompt cannot change the title seat's height. Card footprints
+and independent state/model/runtime rows retain their existing contracts.
+The execution excerpt uses the remaining identity-cell height after metadata,
+steer and expanded recent-tool rows, with native tail truncation under compression.
+There is no fixed five/eight-line execution limit; larger cells admit more whole
+lines and short replies keep their natural height. Extension cells retain their
+own space. Excerpt reveal layers use the same height proposal as settled text,
+including when the card resizes; Report descriptions keep their explicit five-line
+limit. The bounded source preview and streaming batch policy remain unchanged.
 `HarnessThreadCard` and the Overview semantic boundary supply
 `threadCardUsesFlatMaterials`: terminal badges and provider badges without an
 emoji use static palette fills, and the in-progress plan row uses the accent-soft

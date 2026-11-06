@@ -83,7 +83,6 @@ struct ThreadCardInitialResponseView: View {
 /// subsequent text revisions use the excerpt's existing scheduling unchanged.
 struct ThreadCardBody: View {
     let identity: ThreadCardIdentityView
-    let expanded: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.threadCardCloudAnimationsEnabled) private var enabled
     @Environment(\.threadCardAnimationVisibility) private var visibility
@@ -96,7 +95,7 @@ struct ThreadCardBody: View {
                 ThreadCardInitialResponseView(value: initial)
             } else {
                 ThreadCardExcerpt(content: identity.excerpt, messageId: identity.message?.id, messageText: identity.message?.text)
-                    .lineLimit(expanded ? 8 : 5).opacity(opacity)
+                    .lineLimit(nil).opacity(opacity)
             }
         }
         .task(id: identity.initialResponse != nil) {
