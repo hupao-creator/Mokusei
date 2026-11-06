@@ -1,18 +1,5 @@
 # Reading-page background presentation replay
 
-## SwiftUI Thread body text
-
-`python3 tools/verification/reading-presentation/run.py --swiftui-markdown`
-mounts the production SwiftUI reader and the unchanged standalone native reader.
-It checks AX text, native-view absence, system double-click/Copy, link dispatch
-and local pasteboard export of parsed tables (including empty cells and Unicode).
-The three system-pointer methods belong to the mandatory `native/swiftui-markdown`
-CI owner and must emit their `SWIFTUI_*_CONFIRMED` markers; the ordinary
-SwiftPM host cannot certify its AppKit tracking loop. Cross-paragraph selection
-is outside the requested contract. These checks do not
-certify full VoiceOver behavior or pixel/performance equivalence; see the
-[migration record](../../../design/thread-swiftui-text.md).
-
 ## Thread send, execution entry and completion handoff
 
 ```sh

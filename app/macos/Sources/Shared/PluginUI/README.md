@@ -396,20 +396,6 @@ Markdown renderer or other conversation surfaces.
 
 A streaming page is the visible content height of the owning `HarnessMessageTimeline` (viewport minus its fixed top/bottom insets, in points). Only complete top-level blocks are parsed, so a page break can never fall inside a fenced code block, table, list, blockquote or indented code block; an atomic block that alone exceeds a page is revealed whole. The open page stays invisible until the next settled block would not fit (or its measured height already fills the page), and completion flushes the remainder after reparsing the whole source. The reparse resolves reference definitions and footnotes that point at later chunks; pages rebuild only when that whole-document result differs from the already displayed blocks. Flushes reuse `NativeReadingPageTiming.replacementAnimation` for the vertical page entrance and honor Reduce Motion. A message that is one unsplittable block (for example a single long list or an unfinished paragraph) therefore appears when that block closes or at completion; multiple chunks in one state update coalesce into one flush. Because only closed blocks render, a following timeline's content height and follow scroll change at page flushes, not once per streamed token; the follow, pause-on-user-scroll and jump-to-latest contract is unchanged and settles after each flush.
 
-### Agent Thread SwiftUI body text
-
-Agent `ThreadConversation` opts into `MarkdownReadingText`'s SwiftUI `Text` path.
-Standalone Markdown and Moku readers retain the TextKit behavior described below.
-The SwiftUI path supports system selection within a paragraph; cross-paragraph
-selection/copy is explicitly outside the requested scope. Tables have a complete
-table copy action preserving empty columns. The parser and block layout remain
-shared. Loaded images render on their own line, inline-code backgrounds have no
-native rounded padding, and line spacing uses SwiftUI metrics. Entrance admission
-reuses `NativeThreadRevealRow` at block granularity; the individual TextKit line
-reveal description below applies to native text consumers. See the
-[migration contract and validation limits](../../../../../design/thread-swiftui-text.md)
-and run `python3 tools/verification/reading-presentation/run.py --swiftui-markdown`.
-
 [Reading/NativeMarkdownParser.swift](Reading/NativeMarkdownParser.swift), [NativeMarkdownText.swift](Reading/NativeMarkdownText.swift) and [NativeMarkdownTypography.swift](Reading/NativeMarkdownTypography.swift) own parsing and native text layout. Inline-code URL links retain link actions and selection; tables derive height from laid-out content. Mermaid fences display source. Native selection uses the active reading selection palette consistently across blocks. Local absolute paths and local `file:` URLs render image syntax and add an inline preview below ordinary file links, while retaining native link actions. Local files bypass attachment resolvers and network loading; the composer ImageIO thumbnail loader decodes off the main actor (2048px maximum edge, 64MiB source limit). Text attachments fit the reading width and a 480pt height while preserving aspect ratio. Missing, unreadable and non-image sources retain their link/alternative text. Remote file hosts and executable URL schemes are rejected; relative paths have no inferred filesystem base. Local rasters live only with mounted Markdown blocks and refresh on remount.
 
 Markdown tables reserve the native mini horizontal-scroller gutter in their

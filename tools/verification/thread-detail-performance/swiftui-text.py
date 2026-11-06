@@ -13,6 +13,11 @@ from native_replay import NativeReplay
 
 
 def main():
+    renderer = ROOT / "app/macos/Sources/Shared/PluginUI/Reading/SwiftUIMarkdownText.swift"
+    if not renderer.is_file():
+        raise SystemExit("Historical benchmark: SwiftUI text migration is reverted. "
+                         "Use revision 39d0941 with matching rebuilt Release modules; "
+                         "see swiftui-text-results.md. No benchmark was run.")
     output = ROOT / ".scratch/thread-swiftui-performance" / datetime.now().strftime("%Y%m%d-%H%M%S")
     output.mkdir(parents=True, exist_ok=True)
     print("Evidence:", output, flush=True)

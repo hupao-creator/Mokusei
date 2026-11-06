@@ -1,5 +1,9 @@
 # SwiftUI reading text: measured renderer cost
 
+The migration was subsequently reverted at the user's request. This report
+records the historical implementation; it does not describe current rendering.
+The retained benchmark requires revision `39d0941` and matching Release modules.
+
 Measured product revision: `7a9b962140c0f326b0bc8cc5fb16f2eef63dc15e`.
 Date: 2026-11-06. Apple M1 Pro, macOS 26.5.1 (25F80), Swift 6.3.2.
 Production modules: Release with `-enable-testing`; standalone probe: `-O`.

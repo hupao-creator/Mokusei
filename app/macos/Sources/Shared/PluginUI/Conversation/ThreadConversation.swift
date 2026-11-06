@@ -237,7 +237,6 @@ public struct ThreadConversation: View {
         // This layout owns the rail. Nested loading/error rows already sit to
         // its right and must not reserve another rail of their own.
         .environment(\.nativeThreadReservesHistoryRail, false)
-        .environment(\.nativeMarkdownUsesSwiftUIText, agentDetail)
         .nativeLayoutLog("conversation.reader")
         .font(NativeTypography.inter(size: 16))
         .environment(\.nativeInteractionQuestionInDocument, true)
