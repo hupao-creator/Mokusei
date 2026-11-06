@@ -40,7 +40,7 @@ struct NativeReportExecutionRow: View {
                 if let excerpt, excerpt.source == item.preview?.excerpt, !excerpt.text.isEmpty {
                     Text(excerpt.text).font(NativeTypography.inter(size: 12))
                         .foregroundStyle(NativePalette.thread.muted.swiftUI)
-                        .lineSpacing(4).lineLimit(2)
+                        .lineSpacing(4).lineLimit(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 HStack(spacing: 5) {

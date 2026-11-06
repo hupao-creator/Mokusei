@@ -109,7 +109,7 @@ Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked
 layout. The related list uses individual 16pt Liquid Glass items without
 number prefixes or connector lines. Each item shows its source Thread's validated
-generated emoji (📝 when absent), its exact execution title, a two-line assistant
+generated emoji (📝 when absent), its exact execution title, a four-line assistant
 excerpt, Harness identity and elapsed time instead of token
 usage. Thread name, current/report execution status and execution UUID are
 omitted from the card body. Binding-conflict warnings remain visible. A single
