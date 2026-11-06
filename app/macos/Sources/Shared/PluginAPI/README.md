@@ -109,8 +109,7 @@ the client preserves it through catalog snapshots, deltas and offline storage
 without inspecting private Harness state.
 
 `ApplicationExecutionReferencesUI.execution` supplies a host-owned reader for a
-validated ordinary execution reference. The mounted host observes deletion and
-visibility, while `NativeHarnessThreadView` owns acquisition/release and the
+validated ordinary execution reference. The mounted host observes deletion and excludes private Moku conversations, while `NativeHarnessThreadView` owns acquisition/release and the
 single-execution presentation. Report plugins never decode Harness timelines.
 
 `HarnessPlugin.executionPreview` projects bounded assistant text and validated
@@ -125,4 +124,6 @@ accessibility. Titles use the matching `executionTitles` entry (a localized gene
 execution label when absent), never the current Thread title. Missing historical
 preview data stays absent rather than borrowing the latest execution. Preview
 text is capped at 600 characters; a non-running execution with no end time is
-shown as unknown duration rather than ticking indefinitely.
+shown as unknown duration rather than ticking indefinitely. Super Thread relations
+now obtain authoritative exact-execution state/timing from `report.relations`,
+separate from current Thread state. Bounded native previews remain exact-ID-only.

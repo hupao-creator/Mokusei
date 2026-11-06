@@ -35,7 +35,7 @@ public final class NativeVoiceCoordinator {
         let thread: NativeThreadVoice
         if let existing = threads[threadID] { thread = existing }
         else {
-            thread = NativeThreadVoice(threadID: threadID, client: client, ownership: mediaOwnership, beforeCommand: beforeCommand)
+            thread = NativeThreadVoice(threadID: threadID, client: client)
             threads[threadID] = thread
         }
         thread.configure(enabled: enabled, connected: connected, identity: identity)
@@ -72,127 +72,69 @@ public final class NativeVoiceCoordinator {
         for thread in all { thread.release() }
         threads.removeAll()
         await moku.stop()
-        for thread in all { await thread.media.stop() }
     }
 }
 
+/// Historical transcripts remain readable; this object owns no media client,
+/// microphone, start route or task execution capability.
 @MainActor
 private final class NativeThreadVoice {
-    let media: NativeVoiceMediaClient
-    private let command: (JSONValue) async throws -> NativeVoiceResult
     private let threadID: JSONText
-    private var enabled = false
+    private let client: RuntimeClient
     private var connected = false
     private var released = false
-    private var eligible = false
-    private var configuration: JSONText?
     private var revision = 0
-    private var supported = false
+    private var configuration: JSONText?
     private var loading = true
     private var historyError: JSONText = ""
     private var messages: [VoiceTranscriptMessage] = []
     private var refreshTask: Task<Void, Never>?
 
     lazy var capability = SidecardVoiceCapability(state: snapshot(),
-        start: { [weak self] in await self?.start() },
-        stop: { [weak self] in await self?.stop() },
-        toggleMute: { [weak self] in self?.media.toggleMute() },
-        refresh: { [weak self] in await self?.refresh() })
+        start: { throw NativeVoiceError("线程内语音已移除，请在 Overview 使用全局 Moku 语音。") },
+        stop: {}, toggleMute: {}, refresh: { [weak self] in await self?.refresh() })
 
-    init(threadID: JSONText, client: RuntimeClient, ownership: NativeVoiceMediaOwnership, beforeCommand: @escaping () async throws -> Void) {
-        self.threadID = threadID
-        let command: (JSONValue) async throws -> NativeVoiceResult = { request in
-            let action = request["action"]?.stringValue
-            let channel = action == "poll" || action == "history" ? "thread:voice-events" : "thread:voice"
-            return try NativeVoiceResult(await client.invoke(channel,
-                args: [.object(["threadId": .string(threadID), "request": request])]))
-        }
-        self.command = command
-        media = NativeVoiceMediaClient(role: .thread, ownership: ownership, beforeStart: beforeCommand, command: command)
-        media.onStateChange = { [weak self] in self?.publish() }
-        media.onEvent = { [weak self] event in
-            guard let self, let message = event.transcript else { return }
-            if let index = self.messages.firstIndex(where: { $0.id == message.id }) { self.messages[index] = message }
-            else { self.messages.append(message) }
-            self.publish()
-        }
+    init(threadID: JSONText, client: RuntimeClient) {
+        self.threadID = threadID; self.client = client
     }
-
     private func snapshot() -> SidecardVoiceState {
-        let state = media.state
-        return SidecardVoiceState(phase: state.phase, supported: supported, available: state.available,
-            loading: loading, muted: state.muted, error: state.error.codeUnits.isEmpty ? historyError : state.error, messages: messages)
-    }
-    private func publish() { capability.publish(snapshot()) }
-    private func updateAvailability() {
-        media.setOwner(threadID, available: !released && enabled && connected && eligible)
+        .init(phase: .closed, supported: false, available: false, loading: loading,
+            muted: false, error: historyError, messages: messages)
     }
     func configure(enabled: Bool, connected: Bool, identity: JSONText) {
         guard !released else { return }
-        let first = configuration == nil
-        let changed = configuration != nil && configuration != identity
-        self.enabled = enabled; self.connected = connected; configuration = identity
-        if changed { eligible = false; revision += 1 }
-        updateAvailability()
-        if first || changed { scheduleRefresh(afterStop: changed) }
+        let changed = configuration != identity || self.connected != connected
+        configuration = identity; self.connected = connected
+        if changed { scheduleRefresh() }
     }
     func setConnected(_ connected: Bool) {
-        let changed = self.connected != connected
-        self.connected = connected
-        if !connected { revision += 1 }
-        updateAvailability()
-        if changed && connected { scheduleRefresh() }
+        guard self.connected != connected else { return }
+        self.connected = connected; scheduleRefresh()
     }
-    func reset() {
-        eligible = false; revision += 1
-        updateAvailability()
-        scheduleRefresh(afterStop: true)
-    }
-    private func scheduleRefresh(afterStop: Bool = false) {
-        refreshTask?.cancel()
-        refreshTask = Task { [weak self] in
-            guard let self else { return }
-            if afterStop { await self.media.stop() }
-            guard !Task.isCancelled, !self.released, self.connected else { return }
-            await self.refresh()
-        }
-    }
+    func reset() { scheduleRefresh() }
     func release() {
-        released = true; enabled = false; revision += 1
+        released = true; revision += 1
         refreshTask?.cancel(); refreshTask = nil
-        updateAvailability()
+    }
+    private func scheduleRefresh() {
+        revision += 1; refreshTask?.cancel()
+        guard connected, !released else { return }
+        refreshTask = Task { [weak self] in await self?.refresh() }
     }
     private func refresh() async {
-        guard !released, connected else { return }
+        guard connected, !released else { return }
         revision += 1
         let expected = revision
-        loading = true; publish()
+        loading = true; capability.publish(snapshot())
         do {
-            let result = try await command(.object(["action": .text("history")]))
-            guard !released, expected == revision, !Task.isCancelled else { return }
-            historyError = ""; eligible = result.available; supported = result.supported
-            var fresh = result.messages
-            if [.preparing, .connecting, .listening].contains(media.state.phase) {
-                for message in messages {
-                    if let index = fresh.firstIndex(where: { $0.id == message.id }) { fresh[index] = message }
-                    else { fresh.append(message) }
-                }
-            }
-            messages = fresh; loading = false
-            updateAvailability(); publish()
+            let result = try NativeVoiceResult(await client.invoke("thread:voice-events", args: [
+                .object(["threadId": .string(threadID), "request": .object(["action": .text("history")])])]))
+            guard !Task.isCancelled, !released, revision == expected else { return }
+            messages = result.messages; historyError = ""
         } catch {
-            guard !released, expected == revision, !Task.isCancelled else { return }
-            loading = false; historyError = JSONText(error.localizedDescription)
-            publish()
+            guard !Task.isCancelled, !released, revision == expected else { return }
+            historyError = JSONText(error.localizedDescription)
         }
-    }
-    private func start() async {
-        guard media.state.available, !loading, !released else { return }
-        historyError = ""; publish()
-        await media.start()
-    }
-    private func stop() async {
-        await media.stop()
-        if enabled && connected && !released { await refresh() }
+        loading = false; capability.publish(snapshot())
     }
 }

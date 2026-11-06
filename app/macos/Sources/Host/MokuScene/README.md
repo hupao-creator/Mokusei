@@ -79,7 +79,7 @@ Talk, character-transition and voice-cloud replays described below.
 
 The shared input row places the attachment plus between Moku's eyes and the editor. It reuses the workspace draft's device file chooser; hosts with file browsing also offer host files and directories through the existing picker. The control has a localized help/accessibility label and is disabled while attachment import or the owning surface is unavailable.
 
-[NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
+[NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 The eyes retain the last open editor seat while the composer retires. Geometry
 reported by the shrinking, read-only composer cannot move that seat; reopening
@@ -589,7 +589,7 @@ accepted Close also suspends input hit testing/focus through the panel's live
 motion state without folding the retained shell. Reduce Motion removes the focus
 delay and spatial animations. The fitted Dock
 bottom moves down by up to 16pt, keeping at least
-12pt below it; Report/Git retain their normal input policy in that same lower seat.
+12pt below it; Super Thread pins Moku input open when no execution is selected; Git retains its normal input policy in that same lower seat.
 Landing and Settings keep their existing positions. The bottom-anchored editor,
 reasoning envelope and hit regions still use the fitted surface. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md).
@@ -635,8 +635,8 @@ is observed running/waiting and qualifies for its Sidecard. A receipt alone cann
 open it. Card choices, navigation, suppression and failed admission retire the
 request; a fresh send may reveal again even when steering the same execution.
 Navigation resets retained editor ink, selection and completion ownership before
-admitting the replacement draft. Returning to Overview, Report, Git or Moku history
-restores the existing Moku send route. No Overview card send entrance is added.
+admitting the replacement draft. Returning to Overview, Git or Moku history restores the existing Moku send route.
+An unselected Super Thread restores Moku with that document as its send source. No Overview card send entrance is added.
 
 Agent detail pins the composer open: Escape, outside clicks, the input toggle
 and successful sends cannot fold it. The editor's Escape callback closes the
@@ -655,8 +655,9 @@ before delivery so mouse-up cannot close the reading panel after AppKit commits 
 mark or removes a popup. No forced unmark/discard or delayed close is added.
 Existing Moku interventions/covering routes keep their surface priority and release
 the Agent editor afterward; its draft remains owned by the same Thread.
-Agent input does not expose Moku voice-start actions, transcripts or Talk; an
-existing workspace voice session is not stopped. Execution Sidecards stay usable
+Agent input does not expose Moku voice-start actions, live transcripts or Talk.
+Switching to that send route stops Moku media; a separate route-stop notice keeps
+the received original-call transcription and teardown status accessible. Execution Sidecards stay usable
 beside the open composer and own no text/attachment input.
 
 Overview, landing, Git and Moku history retain their existing input and
@@ -744,3 +745,21 @@ including inherited and independent Harness forms. Smaller windows, app zoom,
 expanded editors and notices retain native scrolling; extreme zoom also scrolls
 the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
+
+
+Super Thread document/list input pins the resident Moku composer open with an
+explicit Moku/Super Thread placeholder and Moku's eyes. Escape follows the report's
+auxiliary Back or normal close; IME, completions, covering routes and input-admission
+gates keep their existing precedence. Each report has a persisted Moku draft;
+Overview and exact-execution drafts retain their existing storage identities.
+Send captures `superThreadId` before suspending, while the Runtime resolves the
+current report and its precise source references. Route fences prevent a retiring
+composer from assigning its input to another report. Selecting an execution still
+borrows the ordinary Agent composer with its existing historical continuation,
+Stop authority and receipt handling. No associated Agent receives unselected input.
+Voice is now restricted to Overview. Entering an ordinary Agent, Super Thread or
+Moku history reader stops the global call before its controls are hidden, retaining
+a visible cleanup notice and received transcript. Reader inputs mount no long-press
+monitor, voice accessibility action or live controls. Overview retains its production
+Moku voice controls and must be explicitly started after a return. Selecting an
+execution continues to select ordinary Agent text/attachment input.

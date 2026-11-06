@@ -9,31 +9,31 @@ struct VoiceMessageBubble: View {
     let maximumWidth: CGFloat
     let label: String
     @State private var entered = false
+    @Environment(\.locale) private var locale
+    private var displayText: String {
+        message.text.codeUnits.isEmpty
+            ? (locale.language.languageCode?.identifier == "zh" ? "转写未完成" : "Incomplete transcript")
+            : message.text.string
+    }
     private var user: Bool { message.role == .user }
     private var color: Color { user ? VoicePalette.blue.swiftUI : VoicePalette.incoming.swiftUI }
     private var width: CGFloat {
-        guard !message.text.codeUnits.isEmpty else { return min(maximumWidth, 55) }
         let font = NativeTypography.interPlatformFont(size: 13)
         let paragraph = NSMutableParagraphStyle()
         paragraph.minimumLineHeight = 20.8; paragraph.maximumLineHeight = 20.8
         paragraph.lineBreakMode = .byWordWrapping
-        let measured = (message.text.string as NSString).boundingRect(
+        let measured = (displayText as NSString).boundingRect(
             with: CGSize(width: max(8, maximumWidth - 28), height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .paragraphStyle: paragraph])
         return min(maximumWidth, max(36, ceil(measured.width) + 28))
     }
     var body: some View {
-        Group {
-            if message.text.codeUnits.isEmpty { VoiceTypingDots() }
-            else {
-                Text(message.text.string)
-                    .font(NativeTypography.inter(size: 13))
-                    .modifier(VoiceLineHeight(size: 13, height: 20.8))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(minHeight: message.text.codeUnits.isEmpty ? 20 : 20.8, alignment: .leading)
+        Text(displayText)
+            .font(NativeTypography.inter(size: 13))
+            .modifier(VoiceLineHeight(size: 13, height: 20.8))
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+        .frame(minHeight: 20.8, alignment: .leading)
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(width: width, alignment: .leading)
         .foregroundStyle(user ? .white : NativePalette.thread.ink.swiftUI)
@@ -58,35 +58,4 @@ struct VoiceMessageBubble: View {
         .accessibilityLabel(label)
     }
 
-}
-
-private struct VoiceTypingDots: View {
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3) { index in VoiceTypingDot(delay: Double(index) * 0.15) }
-        }.frame(minHeight: 20).padding(.horizontal, 2).accessibilityHidden(true)
-    }
-}
-private struct VoiceTypingDot: View {
-    let delay: Double
-    @State private var running = false
-    var body: some View {
-        Group {
-            if running {
-                PhaseAnimator([0, 1, 2, 3]) { phase in
-                    Circle().fill(.foreground).frame(width: 5, height: 5)
-                        .opacity(phase == 1 ? 0.8 : 0.3).offset(y: phase == 1 ? -2 : 0)
-                } animation: { phase in
-                    switch phase {
-                    case 1, 2: .easeInOut(duration: 0.455)
-                    case 3: .linear(duration: 0.39)
-                    default: .linear(duration: 0)
-                    }
-                }
-            } else { Circle().fill(.foreground).frame(width: 5, height: 5).opacity(0.4) }
-        }
-        .task {
-            do { try await Task.sleep(for: .seconds(delay)); running = true } catch {}
-        }
-    }
 }

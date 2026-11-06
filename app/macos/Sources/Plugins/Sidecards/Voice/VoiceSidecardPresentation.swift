@@ -28,17 +28,7 @@ public final class VoiceSidecardPresentation {
     }
     public var active: Bool { state.phase == .preparing || state.phase == .connecting || state.phase == .listening }
     public var error: String { state.error.codeUnits.isEmpty ? actionError : state.error.string }
-    public var status: String {
-        let source: String = switch state.phase {
-        case .preparing: "正在准备讨论…"
-        case .connecting: "正在连接…"
-        case .stopping: "正在结束…"
-        case .listening: state.muted ? "麦克风已静音" : "正在聆听"
-        case .failed: "连接已结束"
-        case .closed: state.messages.isEmpty ? "只读讨论" : "通话已结束"
-        }
-        return translate(source)
-    }
+    public var status: String { translate("历史语音记录（只读）") }
     public func translate(_ text: String) -> String { context.translate(text) }
 
     public func update(context: SidecardContext) {
@@ -49,7 +39,6 @@ public final class VoiceSidecardPresentation {
         if changedCapability {
             capabilityGeneration += 1
             unsubscribe?(); unsubscribe = nil
-            if let previous { Task { try? await previous.stop() } }
             capability = context.voice
             actionError = ""
             if let voice = context.voice {
@@ -62,9 +51,6 @@ public final class VoiceSidecardPresentation {
             } else {
                 receive(.init(phase: .closed, supported: false, available: false, loading: false, muted: false, error: "", messages: []))
             }
-        }
-        if !context.expanded && (changedCapability || previousExpanded != false), let voice = context.voice {
-            Task { try? await voice.stop() }
         }
         if previousExpanded != context.expanded { messagesChanged() }
         previousExpanded = context.expanded
@@ -108,18 +94,9 @@ public final class VoiceSidecardPresentation {
         let announcement = message.map { "\(translate($0.role == .user ? "你" : "助手")): \($0.text.string)" } ?? ""
         if lastCompletedAnnouncement != announcement { lastCompletedAnnouncement = announcement }
     }
-    public func start() async {
-        guard context.expanded, state.available, !state.loading, !lifetime.isCancelled, let voice = capability else { return }
-        await run(voice) { try await $0.start() }
-    }
-    public func stop() async {
-        guard state.phase != .stopping, let voice = capability else { return }
-        await run(voice) { try await $0.stop() }
-    }
-    public func toggleMute() {
-        guard state.phase == .listening, !lifetime.isCancelled else { return }
-        capability?.toggleMute()
-    }
+    public func start() async { actionError = translate("线程内语音已移除，请在 Overview 使用全局 Moku 语音。") }
+    public func stop() async {}
+    public func toggleMute() {}
     public func refresh() async {
         guard !lifetime.isCancelled, let voice = capability else { return }
         await run(voice) { try await $0.refresh() }
@@ -136,7 +113,6 @@ public final class VoiceSidecardPresentation {
     private func release() {
         capabilityGeneration += 1
         unsubscribe?(); unsubscribe = nil
-        if let voice = capability { Task { try? await voice.stop() } }
         capability = nil
     }
 }

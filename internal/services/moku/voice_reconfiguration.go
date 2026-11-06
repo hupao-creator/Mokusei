@@ -12,7 +12,7 @@ import (
 type voiceReconfiguration struct {
 	owner, device, ownership, session string
 	ready                             chan struct{}
-	pending                           *plugin.VoiceDelegation
+	pending                           *recoveredVoiceInput
 	err                               error
 }
 
@@ -143,11 +143,11 @@ func (v *voiceController) recoveredNativeConfiguration(lease *mokuVoiceLease, re
 		reconnect.err = cleanupErr
 	}
 	if cleanupErr == nil && reconnect.err == nil {
-		if reconnect.pending != nil && *reconnect.pending != request {
+		input := recoveredVoiceInput{Request: request, Source: lease.source}
+		if reconnect.pending != nil && *reconnect.pending != input {
 			reconnect.err = errors.New("多条语音请求仍在交接，未自动重送；请查看原始转写")
 		} else {
-			copy := request
-			reconnect.pending = &copy
+			reconnect.pending = &input
 		}
 	}
 	if reconnect.ready != nil {
@@ -180,12 +180,13 @@ func (v *voiceController) waitConfigurationRecovery(ctx context.Context, reconne
 
 func (v *voiceController) resumeConfigurationInput(lease *mokuVoiceLease) {
 	v.mu.Lock()
-	request := lease.resume
+	input := lease.resume
 	lease.resume = nil
 	v.mu.Unlock()
-	if request == nil {
+	if input == nil {
 		return
 	}
+	request, source := input.Request, input.Source.reportID()
 	v.c.launch(func(ctx context.Context) {
 		waitCtx, finish := voiceLeaseContext(ctx, lease)
 		err := takeVoiceQueue(waitCtx, v.admissions)
@@ -204,7 +205,7 @@ func (v *voiceController) resumeConfigurationInput(lease *mokuVoiceLease) {
 		// The fresh media has no native handoff with the retired ID. Bind speech
 		// to this accepted input generation without inventing a native handoff.
 		delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: lease.id + ":" + request.ID, generation: lease.session.InputGeneration(), lease: lease}
-		err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text)}, delivery, request.Context)
+		err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text), SuperThreadID: source}, delivery, request.Context)
 		v.c.report("voice-configuration-input", err)
 		if err != nil && !lease.session.Closed() {
 			speechCtx, cancel := voiceLeaseContext(ctx, lease)

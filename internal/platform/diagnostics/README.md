@@ -1,6 +1,6 @@
 # Private tool invocation journal
 
-Production Moku, Tag Agent and Report Agent injected Go tool callbacks are
+Production Moku, Tag Agent and Super Thread Agent injected Go tool callbacks are
 recorded locally at `<profile>/runtime/tool-calls/tools-YYYY-MM-DD-NNNN.jsonl`.
 There is no upload, UI projection or report-generation context injection. Never
 paste retained bodies into analysis reports. The daemon opens/closes this sink

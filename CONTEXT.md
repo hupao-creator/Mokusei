@@ -32,7 +32,9 @@ Mokusei coordinates work performed by native agent runtimes.
 changing its coordinating Harness. It remains Moku-owned history, with no
 authority to resume execution or become an ordinary Agent Thread.
 
-**Report Agent**: The private agent that reviews task evidence and maintains report documents within one Directory Scope. Its conversation is distinct from those documents.
+**Super Thread Agent**: The private agent that reviews task evidence and maintains report documents within one Directory Scope. Its conversation is distinct from those documents.
+
+_Avoid_: Report Agent
 
 **Tag Agent**: The private agent that maintains a five-slot semantic tag pool within one Directory Scope and assigns eligible ordinary Agent Threads, including archived threads, to that pool.
 
@@ -44,11 +46,15 @@ authority to resume execution or become an ordinary Agent Thread.
 
 **Scoped Agent**: A background agent whose authority is limited to one Directory Scope. Its scope does not determine whether its native session remains open while idle.
 
-**Report Thread**: A persistent report document prepared by Report Agent for the user. It has no model execution or conversation lifecycle.
+**Super Thread**: A persistent report document prepared by Super Thread Agent for the user, linking at most one execution from each associated ordinary Agent Thread. It has no model execution or conversation lifecycle; an ordinary Agent Thread belongs to at most one Super Thread.
+
+_Avoid_: Report Thread
+
+**Report execution reference**: The particular execution whose evidence a Super Thread report cites, independent of the ordinary Thread’s current or latest execution.
 
 **Git worktree extension**: Read-only worktree facts attached to ordinary task cards. The built-in Git monitor reconciles currently referenced execution directories and supplies on-demand file/diff queries. It does not create separate Git Threads or control task execution.
 
-**Thread type**: The domain kind of a thread, including executing conversations and non-conversational views such as Report Threads.
+**Thread type**: The domain kind of a thread, including executing conversations and non-conversational views such as Super Threads.
 
 **Thread metadata**: Descriptive information owned by a thread's plugin, distinct from its execution history. Its content may be generated, authored by the user, or obtained from an external source.
 

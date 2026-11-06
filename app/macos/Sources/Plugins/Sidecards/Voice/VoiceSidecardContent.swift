@@ -26,7 +26,7 @@ public struct VoiceSidecardContent: View {
             .font(NativeTypography.inter(size: 13))
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(presentation.translate("语音讨论"))
+        .accessibilityLabel(presentation.translate("历史语音记录"))
         .tint(VoicePalette.blue.swiftUI)
         .opacity(presentation.context.suppressed ? 0 : 1)
         .allowsHitTesting(presentation.context.expanded && !presentation.context.suppressed)
@@ -60,7 +60,7 @@ public struct VoiceSidecardContent: View {
                 .frame(width: 36, height: 36)
                 .background(VoicePalette.avatar.swiftUI, in: Circle()).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(presentation.translate("语音讨论"))
+                Text(presentation.translate("历史语音记录"))
                     .font(NativeTypography.inter(size: 14, weight: 650)).tracking(-0.28)
                 Text(presentation.context.thread.title.string)
                     .font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
@@ -88,7 +88,7 @@ public struct VoiceSidecardContent: View {
                             VoiceMessageBubble(message: message,
                                 tail: next == nil || next?.role != message.role || next?.sessionID != message.sessionID,
                                 maximumWidth: max(36, (geometry.size.width - 40) * 0.85),
-                                label: "\(presentation.translate(message.role == .user ? "你" : "助手")): \(message.text.codeUnits.isEmpty ? presentation.translate("正在转写") : message.text.string)")
+                                label: "\(presentation.translate(message.role == .user ? "你" : "助手")): \(message.text.codeUnits.isEmpty ? presentation.translate("转写未完成") : message.text.string)")
                                 .frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
                                 .padding(.top, !newCall && previous?.role == message.role ? 4 : 10)
                         }
@@ -137,7 +137,7 @@ public struct VoiceSidecardContent: View {
                 .padding(.bottom, compact ? 10 : 18).accessibilityHidden(true)
             Text(emptyTitle)
                 .font(NativeTypography.inter(size: 17, weight: 550)).tracking(-0.34)
-            Text(presentation.translate(presentation.active ? "双方的语音会实时显示在这里。" : "带着当前对话的上下文，开始只读讨论。"))
+            Text(presentation.translate("历史记录保留；线程内不再提供语音通话。"))
                 .font(NativeTypography.inter(size: 12)).modifier(VoiceLineHeight(size: 12, height: 20.4))
                 .foregroundStyle(NativePalette.thread.muted.swiftUI)
                 .multilineTextAlignment(.center).frame(maxWidth: 230).padding(.top, 10)
@@ -146,14 +146,12 @@ public struct VoiceSidecardContent: View {
         .frame(maxWidth: .infinity)
     }
     private var emptyTitle: String {
-        if presentation.state.loading { return presentation.translate("正在读取语音记录…") }
-        if presentation.state.phase == .listening { return presentation.translate("可以开始说话了") }
-        return presentation.active ? presentation.status : presentation.translate("聊聊这个任务")
+        presentation.translate(presentation.state.loading ? "正在读取语音记录…" : "暂无历史语音记录")
     }
     private func callTime(_ timestamp: Double) -> some View {
         VStack(spacing: 4) {
             Text(VoiceTimestamp.string(timestamp)).font(NativeTypography.inter(size: 10, weight: 550)).frame(minHeight: 14)
-            Text(presentation.translate("语音讨论")).font(NativeTypography.inter(size: 10)).frame(minHeight: 14).opacity(0.7)
+            Text(presentation.translate("历史语音记录")).font(NativeTypography.inter(size: 10)).frame(minHeight: 14).opacity(0.7)
         }
         .foregroundStyle(NativePalette.thread.muted.swiftUI)
         .frame(maxWidth: .infinity)
@@ -173,46 +171,9 @@ public struct VoiceSidecardContent: View {
                 .padding(.bottom, 12)
                 .accessibilityLabel(presentation.error)
             }
-            HStack(spacing: 7) {
-                VoiceStatusDot(live: presentation.state.phase == .listening && !presentation.state.muted)
-                Text(presentation.status)
-            }
-            .font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
-            .frame(maxWidth: .infinity, minHeight: 16).padding(.bottom, 13)
-            .accessibilityElement(children: .combine)
-            if presentation.active || presentation.state.phase == .stopping {
-                HStack(spacing: 10) {
-                    Button(action: presentation.toggleMute) {
-                        HStack(spacing: 8) {
-                            NativeIcon(name: presentation.state.muted ? "MicOff" : "Mic", size: 18)
-                            Text(presentation.translate(presentation.state.muted ? "取消静音" : "静音"))
-                        }.font(NativeTypography.inter(size: 12)).frame(maxWidth: .infinity, minHeight: 42)
-                    }
-                    .buttonStyle(VoiceButtonStyle(kind: presentation.state.muted ? .muted : .mute))
-                    .disabled(presentation.state.phase != .listening)
-                    .accessibilityLabel(presentation.translate(presentation.state.muted ? "取消静音" : "静音麦克风"))
-                    .accessibilityAddTraits(presentation.state.muted ? .isSelected : [])
-                    Button { Task { await presentation.stop() } } label: {
-                        HStack(spacing: 8) {
-                            NativeIcon(name: "PhoneOff", size: 18)
-                            Text(presentation.translate("结束通话"))
-                        }.font(NativeTypography.inter(size: 12)).frame(maxWidth: .infinity, minHeight: 42)
-                    }
-                    .buttonStyle(VoiceButtonStyle(kind: .end)).disabled(presentation.state.phase == .stopping)
-                }
-            } else {
-                Button { Task { await presentation.start() } } label: {
-                    HStack(spacing: 8) {
-                        NativeIcon(name: "Mic", size: 17)
-                        Text(presentation.translate("开始语音"))
-                    }.font(NativeTypography.inter(size: 13, weight: 550)).frame(maxWidth: .infinity, minHeight: 42)
-                }
-                .buttonStyle(VoiceButtonStyle(kind: .start))
-                .disabled(!presentation.state.available || presentation.state.loading || !presentation.context.expanded)
-            }
-            Text(presentation.translate(presentation.active ? "收起卡片即结束通话" : "每次开始使用当前任务的最新上下文"))
-                .font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.thread.muted.swiftUI)
-                .modifier(VoiceLineHeight(size: 10, height: 15)).multilineTextAlignment(.center).padding(.top, 10)
+            Text(presentation.translate("历史记录保留；线程内不再提供语音通话。"))
+                .font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.thread.muted.swiftUI)
+                .frame(maxWidth: .infinity).multilineTextAlignment(.center)
         }
         .padding(.horizontal, 20).padding(.top, compact ? 11 : 15).padding(.bottom, compact ? 10 : 16)
         .overlay(alignment: .top) { Rectangle().fill(NativePalette.thread.lineSoft.swiftUI).frame(height: 1) }

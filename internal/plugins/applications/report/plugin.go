@@ -22,7 +22,7 @@ type Plugin struct{}
 
 func New() *Plugin { return &Plugin{} }
 func (*Plugin) Manifest() plugin.ApplicationManifest {
-	return plugin.ApplicationManifest{ID: "report", DisplayName: "Report", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.html"}, Commands: []string{"report.create", "report.update"}}}
+	return plugin.ApplicationManifest{ID: "report", DisplayName: "Super Thread Agent", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.html", "report.relations", "report.context"}, Commands: []string{"report.create", "report.update", "report.unlink"}}}
 }
 func (*Plugin) Register(registry plugin.Registry) error {
 	if err := background.RegisterSettings(registry, "report", SettingsID); err != nil {
@@ -64,7 +64,8 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 	emoji := model.Object{"type": "string", "description": "One complete emoji representing this report."}
 	description := model.Object{"type": "string", "minLength": 1, "maxLength": MaxPreviewLength, "description": "Substantive standalone report card introduction, grounded in evidence; follow the system instructions for content and length."}
 	html := model.Object{"type": "string", "minLength": 1, "maxLength": MaxHTMLCharacters, "pattern": "\\S", "description": "Report HTML document. Follow the current system instructions for content and presentation."}
-	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
+	revision := model.Object{"type": "integer", "minimum": 0, "maximum": model.MaximumSafeInteger, "description": "The revision returned by read_report for the report used to decide this edit. On REPORT_REVISION_CHANGED, reread the full report and reconsider all supplied fields; never attach a newer revision to a stale association list."}
+	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread. Each Thread may belong to only one Super Thread, including archived documents. Update the existing owner or explicitly unlink before rebinding; retained historical conflicts must be resolved without deleting report content.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
 	write := func(operation string) background.ToolHandler {
 		return func(ctx context.Context, args model.Object, callID string) (any, error) {
 			input := model.Object{}
@@ -92,8 +93,8 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 		}
 	}
 	return []plugin.ToolBinding{
-		background.Tool(lifetime, "create_report", "Create a persistent read-only Report Thread.", model.Object{"emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"title", "emoji", "shortDescription", "html"}, write("create")),
-		background.JSONPage(lifetime, "list_reports", "List Report Thread summaries. Offset and limit paginate the JSON text.", model.Object{}, nil, func(ctx context.Context, _ model.Object, _ string) (any, error) {
+		background.Tool(lifetime, "create_report", "Create a persistent read-only Super Thread.", model.Object{"emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"title", "emoji", "shortDescription", "html"}, write("create")),
+		background.JSONPage(lifetime, "list_reports", "List Super Thread summaries. Offset and limit paginate the JSON text.", model.Object{}, nil, func(ctx context.Context, _ model.Object, _ string) (any, error) {
 			raw, err := domain.Query(ctx, "report.list", json.RawMessage(`{"limit":10000,"includeArchived":true}`))
 			if err != nil {
 				return nil, err
@@ -104,7 +105,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 			}
 			return model.Object{"reports": page.Items}, nil
 		}),
-		background.JSONPage(lifetime, "read_report", "Read one complete Report Thread. Offset and limit paginate the JSON text.", model.Object{"reportId": id}, []string{"reportId"}, func(ctx context.Context, args model.Object, _ string) (any, error) {
+		background.JSONPage(lifetime, "read_report", "Read one complete Super Thread. Offset and limit paginate the JSON text.", model.Object{"reportId": id}, []string{"reportId"}, func(ctx context.Context, args model.Object, _ string) (any, error) {
 			id, err := background.String(args, "reportId")
 			if err != nil {
 				return nil, err
@@ -132,7 +133,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 			value["relatedExecutions"] = refs
 			return value, nil
 		}),
-		background.Tool(lifetime, "update_report", "Replace supplied Report Thread fields.", model.Object{"reportId": id, "emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId"}, write("update")),
+		background.Tool(lifetime, "update_report", "Replace supplied Super Thread fields only if the report still has the revision you read.", model.Object{"reportId": id, "expectedRevision": revision, "emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId", "expectedRevision"}, write("update")),
 	}
 }
 func toolReferences(value any) ([]model.ExecutionRef, error) {

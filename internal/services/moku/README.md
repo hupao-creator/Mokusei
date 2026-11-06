@@ -170,8 +170,9 @@ do not load unrelated Thread histories.
 [voice.go](voice.go) owns media leases and device/owner fencing. A Codex Moku uses its native voice capability and fails if unavailable; it does not fall back to a relay. Other hosts use the Codex relay with their normal target admission. Preparation adopts a saved host preference first; its own service admission is not treated as competing work for that replacement. Ending Moku media leaves already admitted task work running. Typed dispatch and accepted handoffs fence old delivery; caption fragments do not create a new task generation. See [Codex voice](../../plugins/harness/codex/README.md#voice) and the [native media client](../../../app/macos/Sources/Voice/README.md).
 
 Relay requests still waiting for target admission belong to the media lease and
-leave the queue when that lease ends. Once admission begins, the service owns
-the request independently of media cancellation.
+leave the queue when that lease ends. Once the native admitted callback confirms input retention, the service owns
+the request independently of media cancellation. Before that callback, closing
+media cancels settings, context and native-admission waits as well.
 
 Relay media belongs to the Moku conversation and survives same-owner model,
 routing and target-schema changes. Reopening the task engine retains the media
@@ -309,3 +310,44 @@ See [grep defaults, bounds and pagination](../threadsearch/README.md#moku-determ
 It is not a progress-polling capability.
 Invalid grep patterns and cursors remain caller-correctable errors through the
 existing tool audit/bridge, while cancellation and Runtime faults remain faults.
+
+
+## Super Thread send source
+
+A user submit may carry `superThreadId`, a document identity, never a client HTML
+payload or a replacement destination. The coordinator asks the application host
+for `report.context` at admission and still sends to Moku. That snapshot includes
+the complete current report, only its same-scope ordinary Thread identities and
+workspaces, current execution state and separately resolved referenced execution
+facts. Missing facts and legacy binding counts are explicit. Report content and
+summaries remain untrusted evidence. Source resolution failure preserves the draft
+and prevents a context-free send. Inputs without this identity explicitly clear
+previous Super Thread source context; no catalog/history enumeration is added to
+ordinary user submits. Lifecycle delivery and model discovery are unchanged.
+
+Global voice preparation rejects `superThreadId`: live voice is offered only in
+Overview, and thread readers retain text/attachment input. Each global media Attempt
+still has immutable ownership/source-generation facts for reconnection. The native
+client closes local media on leaving Overview and requires explicit Start after
+confirmed cleanup when returning. Existing typed Super Thread context is unchanged.
+
+Explicit Stop records a device/ownership preparation revocation before queue waits,
+including when no prepare has arrived. That identity and reconnect-from identity
+cannot prepare again for this coordinator lifetime; new calls use new UUIDs. The
+client joins the original prepare Task and performs a final identity-fenced Stop
+after its outcome, so an early Stop receipt cannot hide a late allocated session.
+Cleanup failure retains the exact ownership/session for retry and blocks new Start.
+The service does not evict these ephemeral revocations before its lifetime ends.
+
+The native admission hook receives `plugin.WithVoiceAdmission` only for actual
+Codex voice handoffs. It validates that exact session against the active/retiring
+lease and rejects revoked voice. Codex background replies, Claude native starts and
+OpenCode automatic continuations carry no marker and continue through their normal
+Core admission; lack of a microphone lease does not reject those executions.
+
+Relay/recovered input retains media cancellation through settings/context/Core
+admission until native retention is confirmed. Recovered request/source pairs and
+accepted task work keep their existing lifetimes. Typed text/attachments capture
+playback fences before suspension; a vanished or mismatched media owner cannot
+redirect or block their ordinary submission. No tests or timing replays ran during
+this sprint.

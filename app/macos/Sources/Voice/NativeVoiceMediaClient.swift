@@ -10,6 +10,8 @@ public final class NativeVoiceMediaClient {
     // Kept outside the semantic state: metering must not republish sidecard history.
     public private(set) var inputAnalysis = NativeVoiceInputAnalysis()
     public private(set) var inputTranscript = NativeVoiceInputTranscript()
+    public private(set) var routeNotices: [NativeVoiceRouteNotice] = []
+    public var hasPendingStop: Bool { retiringAttempt != nil }
     public var inputLevel: Double { inputAnalysis.level }
     @ObservationIgnored private var visualizers: Set<UUID> = []
     @ObservationIgnored private let command: (JSONValue) async throws -> NativeVoiceResult
@@ -22,14 +24,26 @@ public final class NativeVoiceMediaClient {
     @ObservationIgnored private var attempt: Attempt?
     @ObservationIgnored private var stopping: Task<Void, Never>?
     @ObservationIgnored private var pendingTakeover: JSONText?
+    @ObservationIgnored private var sourceOwner: UUID?
+    @ObservationIgnored private var sourceRevision = 0
+    @ObservationIgnored private var mokuRouteAllowed = true
+    @ObservationIgnored private var retiringAttempt: Attempt?
     @ObservationIgnored var onEvent: ((NativeVoiceEvent) -> Void)?
     @ObservationIgnored var onStateChange: (() -> Void)?
 
+    private struct Source: Equatable {
+        let superThreadID: JSONText?
+        let revision: Int
+    }
+
     @MainActor
     private final class Attempt {
+        let source: Source?
+
         let requestID = JSONText(UUID().uuidString.lowercased())
         let timingContext = NativePerformance.nextID()
         var sessionID: JSONText?
+        var preparation: Task<NativeVoiceResult, Error>?
         var media: (any NativeVoiceMediaTransport)?
         var poll: Task<Void, Never>?
         var after = 0
@@ -45,7 +59,8 @@ public final class NativeVoiceMediaClient {
         var reconnectPending = false
         var reconnectRetired = false
         let muted: Bool
-        init(takeover: JSONText?, reconnectFrom: JSONText? = nil, muted: Bool = false) {
+        init(takeover: JSONText?, reconnectFrom: JSONText? = nil, muted: Bool = false, source: Source? = nil) {
+            self.source = source
             self.takeover = takeover; self.reconnectFrom = reconnectFrom; self.muted = muted
         }
     }
@@ -92,9 +107,10 @@ public final class NativeVoiceMediaClient {
     }
 
     private func start(takeover: JSONText?) async {
-        guard !Task.isCancelled, state.available, attempt == nil, stopping == nil,
+        guard !Task.isCancelled, state.available, attempt == nil, stopping == nil, retiringAttempt == nil,
+              role != .moku || mokuRouteAllowed,
               state.phase == .closed || state.phase == .failed else { return }
-        let attempt = Attempt(takeover: takeover)
+        let attempt = Attempt(takeover: takeover, source: role == .moku ? Source(superThreadID: nil, revision: sourceRevision) : nil)
         install(attempt)
         await runStartup(attempt)
     }
@@ -130,9 +146,15 @@ public final class NativeVoiceMediaClient {
             try await measure(.voiceBeforeStart) { try await beforeStart() }
             try check(attempt)
             var preparation: [JSONText: JSONValue] = ["action": .text("prepare"), "requestId": .string(attempt.requestID)]
+            if let source = attempt.source {
+                preparation["superThreadId"] = source.superThreadID.map(JSONValue.string) ?? .null
+                preparation["sourceRevision"] = .integer(source.revision)
+            }
             if let takeover = attempt.takeover { preparation["takeover"] = .string(takeover) }
             if let reconnectFrom = attempt.reconnectFrom { preparation["reconnectFrom"] = .string(reconnectFrom) }
-            let prepared = try await measure(.voicePrepare) { try await command(.object(preparation)) }
+            let prepare = Task { try await measure(.voicePrepare) { try await command(.object(preparation)) } }
+            attempt.preparation = prepare
+            let prepared = try await prepare.value
             if let occupied = prepared.occupiedOwner {
                 try check(attempt)
                 pendingTakeover = occupied.ownershipID; state.occupiedOwner = occupied.deviceID
@@ -142,10 +164,16 @@ public final class NativeVoiceMediaClient {
             guard prepared.ownershipID == attempt.requestID else { throw NativeVoiceError("语音准备返回的所有权已失效") }
             attempt.sessionID = sessionID
             guard self.attempt === attempt else {
-                _ = try? await command(.object(["action": .text("stop"), "sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID)]))
+                // The retiring attempt owns this result and its final Stop.
+                // Never hide cleanup failure in a detached best-effort request.
                 return
             }
             inputTranscript.begin(sessionID: sessionID)
+            if let source = attempt.source {
+                guard prepared.superThreadID == source.superThreadID, prepared.sourceRevision == source.revision else {
+                    throw NativeVoiceError("语音来源未获确认；尚未开启麦克风")
+                }
+            }
             startPolling(attempt)
             try check(attempt)
             try await measure(.voiceMicrophonePermission) { try await requestMicrophone() }
@@ -320,7 +348,8 @@ public final class NativeVoiceMediaClient {
                   previous.playback.responseID == nil, previous.playback.bufferedResponseID == nil,
                   previous.playback.playbackID == nil else { return false }
         }
-        let next = Attempt(takeover: nil, reconnectFrom: previous.requestID, muted: state.muted)
+        guard mokuRouteAllowed, previous.source == Source(superThreadID: nil, revision: sourceRevision) else { return false }
+        let next = Attempt(takeover: nil, reconnectFrom: previous.requestID, muted: state.muted, source: previous.source)
         previous.poll?.cancel(); previous.poll = nil
         previous.media?.close(); previous.media = nil
         ownership.release(self, requestID: previous.requestID)
@@ -339,7 +368,8 @@ public final class NativeVoiceMediaClient {
     /// can clear the playback of a newer request.
     public func fenceTypedInput(_ request: JSONValue) -> JSONValue {
         guard let attempt, let sessionID = attempt.sessionID,
-              var fields = request.objectValue else { return request }
+              var fields = request.objectValue,
+              fields["superThreadId"]?.voiceText == attempt.source?.superThreadID else { return request }
         if let media = attempt.media, media.channelOpen {
             do { for message in attempt.playback.interrupt() { try media.send(message.encodedData()) } }
             catch { fail(attempt, error) }
@@ -347,6 +377,25 @@ public final class NativeVoiceMediaClient {
         fields["voiceInput"] = .object(["sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID), "inputId": .text(UUID().uuidString.lowercased())])
         return .object(fields)
     }
+
+    public func setOverviewVoiceRoute(owner: UUID, active: Bool, allowed: Bool) {
+        guard role == .moku, active || sourceOwner == owner else { return }
+        // Losing key-window focus to a permission prompt is not navigation.
+        // Retain the owner until another window claims it or it releases its route.
+        let nextOwner = owner
+        guard nextOwner != sourceOwner || allowed != mokuRouteAllowed else { return }
+        sourceOwner = nextOwner; mokuRouteAllowed = allowed
+        sourceRevision += 1
+        guard let attempt else { return }
+        // Closing the peer is synchronous. No microphone, startup callback or
+        // automatic reconnect can survive a route change. Already admitted work
+        // retains its original source; unadmitted work is cancelled by Stop.
+        routeNotices.append(NativeVoiceRouteNotice(superThreadID: attempt.source?.superThreadID,
+            transcript: inputTranscript.message?.text, agentSelected: !allowed))
+        _ = beginStop()
+    }
+
+    public func dismissRouteNotice(_ id: UUID) { routeNotices.removeAll { $0.id == id } }
 
     public func toggleMute() {
         guard state.phase == .listening, let media = attempt?.media else { return }
@@ -419,10 +468,11 @@ public final class NativeVoiceMediaClient {
     /// The first half is synchronous: retiring an owner immediately releases its
     /// microphone, speaker, peer, channel and heartbeat, even while stop awaits.
     @discardableResult
-    func beginStop(failed: Bool = false) -> Task<Void, Never>? {
+    func beginStop(failed: Bool = false, retry: Bool = false) -> Task<Void, Never>? {
         inputTranscript = .init()
         if let stopping { return stopping }
-        guard let attempt else { return nil }
+        guard let attempt = self.attempt ?? (retry ? retiringAttempt : nil) else { return nil }
+        if role == .moku { retiringAttempt = attempt }
         self.attempt = nil
         inputAnalysis = .init()
         attempt.poll?.cancel(); attempt.poll = nil
@@ -430,15 +480,31 @@ public final class NativeVoiceMediaClient {
         state.phase = .stopping; state.muted = false; state.mediaSuspended = false
         let task = Task { [self] in
             do {
-                _ = try await command(.object(["action": .text("stop"),
-                    "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
-                if let reconnectFrom = attempt.reconnectFrom, attempt.sessionID == nil {
+                let preparation = attempt.preparation
+                do {
+                    _ = try await command(.object(["action": .text("stop"),
+                        "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
+                } catch {
+                    if preparation == nil { throw error }
+                    // The definitive post-prepare Stop below may still confirm
+                    // cleanup. Until then this attempt blocks every new Start.
+                }
+                if let preparation {
+                    let result = await preparation.result
+                    if case .success(let prepared) = result, prepared.ownershipID == attempt.requestID,
+                       let sessionID = prepared.sessionID { attempt.sessionID = sessionID }
+                    _ = try await command(.object(["action": .text("stop"),
+                        "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
+                }
+                if let reconnectFrom = attempt.reconnectFrom {
                     _ = try await command(.object(["action": .text("stop"), "sessionId": .string(reconnectFrom), "ownershipId": .string(reconnectFrom)]))
                 }
+                retiringAttempt = nil
+                if !failed { state.error = "" }
                 state.phase = failed ? .failed : .closed
             } catch {
                 state.phase = .failed
-                if !failed || state.error.codeUnits.isEmpty { state.error = JSONText(error.localizedDescription) }
+                state.error = JSONText(error.localizedDescription)
             }
             stopping = nil
             ownership.finishedTeardown(attempt.requestID)
@@ -448,5 +514,5 @@ public final class NativeVoiceMediaClient {
         return task
     }
 
-    public func stop() async { await beginStop()?.value }
+    public func stop() async { await beginStop(retry: true)?.value }
 }

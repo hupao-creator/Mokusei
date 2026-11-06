@@ -1,6 +1,13 @@
 // Exact shared renderer catalog; Harness-specific additions stay with each plugin.
 enum NativePluginEnglishCatalog {
     static let values: [String: String] = [
+        "转写未完成": "Incomplete transcript",
+        "历史语音记录": "Past voice transcripts",
+        "历史语音记录（只读）": "Past voice transcripts (read-only)",
+        "暂无历史语音记录": "No past voice transcripts",
+        "正在读取语音记录…": "Loading voice transcripts…",
+        "历史记录保留；线程内不再提供语音通话。": "Past transcripts are retained. Calls are no longer available inside threads.",
+        "线程内语音已移除，请在 Overview 使用全局 Moku 语音。": "Thread calls have been removed. Use global Moku voice in Overview.",
         "思考过程": "Reasoning",
         "执行过程": "Execution process",
         "1 段思考": "1 reasoning segment",

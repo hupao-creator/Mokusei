@@ -36,3 +36,31 @@ User transcript projection keeps stable session/item identity through partial an
 [NativeVoiceCaptureAnalyser.swift](NativeVoiceCaptureAnalyser.swift) reads bounded capture samples for visual metering and emits scalar loudness/onset state. It does not provide a wake-word detector or historical PCM injection path. [VoiceControls](../Host/VoiceControls/) and the shared cloud consume that state. Rendering demand controls analysis, not microphone authority.
 
 Verification combines the Codex `-voice-only` fixture, Moku/thread Runtime replays and native voice ownership/transcript suites. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
+
+
+Voice calls are available only from Overview's global Moku. Ordinary Agent
+readers, Super Thread readers and Moku history have no start/long-press/accessibility
+voice action, live controls or voice background. Entering any reader synchronously
+closes the global peer, cancels its capture and requests Stop. A separate visible
+notice retains received ASR for copying and exposes pending/failed cleanup. Returning
+to Overview never restarts media automatically. A permission prompt's focus change
+alone is not navigation. Text/attachments retain their existing send targets.
+
+The ordinary Thread `voice` Sidecard keeps its stable identity solely as **Past
+voice transcripts**. Its native data source owns no media client. Existing transcript
+files and history remain readable, including when a Harness cannot execute; there
+is no discussion start/mute/stop control or newly created private voice fork.
+
+A media Attempt retains its exact prepare Task. Stop first revokes the ownership
+request, then drains the prepare outcome and confirms another Stop using any returned
+session identity. Until both settle, the retiring Attempt blocks Start and cannot
+be dismissed as closed. Late preparation never launches an independent `try?`
+cleanup. Failures retain ownership, session and error for the same Stop retry;
+configuration reconnect's predecessor also receives explicit cleanup. The backend
+revokes stopped preparation IDs even when Stop arrives before prepare.
+
+Native voice admission carries an internal session marker; non-voice background
+continuations do not need a voice lease. Accepted task work survives media shutdown.
+Unadmitted speech is not automatically resent, and audio that has not been transcribed
+cannot be recovered by the client. This sprint verifies only static code, lint and
+product builds, not microphone, WebRTC, UI interaction or timing replays.

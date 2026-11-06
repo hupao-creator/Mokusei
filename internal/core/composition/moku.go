@@ -44,7 +44,8 @@ func (b *Bootstrap) mokuConfiguration(cwd, data string) moku.Configuration {
 			return moku.CreatedThread{Record: result.Record, Execution: result.Execution, Acknowledgement: result.Acknowledgement, WorktreeName: result.WorktreeName, WorktreeNameAdjusted: result.WorktreeNameAdjusted, WorktreeNameNotice: result.WorktreeNameNotice}, err
 		},
 		SendThread: r.SendThread, ReadThread: r.ReadThread, InterruptThread: r.InterruptThread, InterruptThreadFromMokuTool: r.InterruptThreadFromMokuTool, InterruptThreadTarget: r.InterruptThreadTarget, ClaimThreadInput: r.ClaimThreadInput, RespondThread: r.RespondThread,
-		CanonicalizeInput: b.attachments.CanonicalizeInput,
+		CanonicalizeInput:  b.attachments.CanonicalizeInput,
+		SuperThreadContext: b.superThreadContext,
 		StageAttachments: func(ctx context.Context, raw json.RawMessage) (any, error) {
 			var imports []attachments.Import
 			if err := model.Unmarshal(raw, &imports); err != nil {

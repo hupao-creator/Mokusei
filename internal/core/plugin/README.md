@@ -99,3 +99,10 @@ with execution IDs. It shares the `SearchTextAdapter` disclosure boundary;
 Unavailable passages carry no text and require an explicit retrieval coverage
 issue. Core never interprets opaque Harness state to infer locators. Empty IDs
 remain unavailable.
+
+
+Native voice handoffs mark their internal admission context with
+`WithVoiceAdmission(sessionID)`. `VoiceAdmissionSession` distinguishes those from
+ordinary background/native continuations sharing the same Core hook. Only a marked
+voice admission needs the matching live media lease; the marker is not a public
+command field or a permission for task execution.

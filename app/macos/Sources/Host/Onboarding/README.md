@@ -91,3 +91,8 @@ remains available for appearance and animation review. The production settings
 flow, rather than its fixture controls, certifies Runtime persistence. Startup
 and navigation changes also require the signed production package checks in the
 [verification policy](../../../../../scripts/ci/verification-policy.md).
+
+
+The Report role is displayed as Super Thread Agent through its application
+settings label. Onboarding progress keys and the `report.settings` binding stay
+stable, preserving completed onboarding and saved execution configuration.

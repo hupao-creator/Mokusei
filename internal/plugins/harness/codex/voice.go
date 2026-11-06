@@ -898,7 +898,7 @@ func (h *Handle) admitVoice(turnID string) (string, error) {
 	// Media still owns an input waiting for admission. Once Accept commits,
 	// execution and request publication retain the handle's independent life.
 	projected := false
-	executionID, e := h.context.ExecutionAdmission.Accept(v.lifetime, func(id string) (json.RawMessage, error) {
+	executionID, e := h.context.ExecutionAdmission.Accept(plugin.WithVoiceAdmission(v.lifetime, v.ID()), func(id string) (json.RawMessage, error) {
 		projected = true
 		h.mu.Lock()
 		defer h.mu.Unlock()

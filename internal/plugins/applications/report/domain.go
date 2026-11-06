@@ -1,6 +1,7 @@
 package report
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -89,6 +90,12 @@ func dataContract() plugin.ValueContract {
 // audiences. The host enforces durable batched writes before running reducers.
 func RegisterDomain(registry plugin.Registry) error {
 	if err := registry.Collection(plugin.CollectionDefinition{ID: CollectionID, OwnerPluginID: "report", Retention: "history", Contract: dataContract()}); err != nil {
+		return err
+	}
+	if err := registerContextQueries(registry); err != nil {
+		return err
+	}
+	if err := registerUnlink(registry); err != nil {
 		return err
 	}
 	readOutput := plugin.ValueContract{ID: "report.read.output", SchemaVersion: 1, Parse: func(raw json.RawMessage) (json.RawMessage, error) {
@@ -211,7 +218,8 @@ func RegisterDomain(registry plugin.Registry) error {
 		if input.HTML, err = ParseHTML(input.HTML); err != nil {
 			return err
 		}
-		return validateReferences(input.RelatedExecutions)
+		input.RelatedExecutions, err = normalizeReferences(input.RelatedExecutions)
+		return err
 	})
 	requires := []plugin.CapabilityKey{plugin.OrdinaryTaskSnapshotCapabilityKey, plugin.SemanticTagsSnapshotCapabilityKey}
 	if err := registry.Command(plugin.CommandDefinition{Operation: operation("report.create", createInput, summaryContract()), Audience: plugin.CommandAudience{Background: "batch-required"}, Requires: requires,
@@ -232,7 +240,7 @@ func RegisterDomain(registry plugin.Registry) error {
 				return nil, err
 			}
 			if len(rows) >= MaxDocuments {
-				return nil, errors.New("Report Thread 数量过多")
+				return nil, errors.New("Super Thread 数量过多")
 			}
 			scope, err := reportScope(context.Owner)
 			if err != nil {
@@ -240,6 +248,9 @@ func RegisterDomain(registry plugin.Registry) error {
 			}
 			sources, err := tagSources(input.RelatedExecutions, context.Capabilities, scope)
 			if err != nil {
+				return nil, err
+			}
+			if err := validateBindings(rows, "", nil, input.RelatedExecutions); err != nil {
 				return nil, err
 			}
 			value := Data{Emoji: input.Emoji, ShortDescription: input.ShortDescription, Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
@@ -259,6 +270,9 @@ func RegisterDomain(registry plugin.Registry) error {
 	updateInput := typedContract[UpdateInput]("report.update.input", []string{"reportId"}, func(input *UpdateInput) error {
 		if !validID(input.ReportID) {
 			return errors.New("invalid reportId")
+		}
+		if input.ExpectedRevision != nil && (*input.ExpectedRevision < 0 || *input.ExpectedRevision > model.MaximumSafeInteger) {
+			return errors.New("invalid report expectedRevision")
 		}
 		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil && input.Emoji == nil && input.ShortDescription == nil {
 			return errors.New("Report update must change at least one field")
@@ -292,7 +306,9 @@ func RegisterDomain(registry plugin.Registry) error {
 			input.HTML = &value
 		}
 		if input.RelatedExecutions != nil {
-			return validateReferences(*input.RelatedExecutions)
+			refs, err := normalizeReferences(*input.RelatedExecutions)
+			input.RelatedExecutions = &refs
+			return err
 		}
 		return nil
 	})
@@ -320,6 +336,14 @@ func RegisterDomain(registry plugin.Registry) error {
 			if err != nil {
 				return nil, err
 			}
+			// Check the agent's read version, not the version just read by Plan.
+			// Keeping this in Reduce also preserves old successful receipt replay.
+			if input.ExpectedRevision == nil {
+				return nil, model.NewError("REPORT_REVISION_REQUIRED", "请重新读取完整报告，并在更新时提供读到的 revision 作为 expectedRevision。 / Read the full report and supply its revision as expectedRevision.")
+			}
+			if *input.ExpectedRevision != record.Revision {
+				return nil, model.NewError("REPORT_REVISION_CHANGED", "报告已被更新或解除关联，请重新读取完整报告并重新决定修改；不要仅换用新版本号重放旧关联列表。 / The report changed. Read the full report and reconsider the edit; do not replay stale associations with a newer revision.")
+			}
 			if input.Title != nil {
 				value.Title = *input.Title
 			}
@@ -334,9 +358,33 @@ func RegisterDomain(registry plugin.Registry) error {
 				value.ContentRevision = context.AllocateID("content")
 			}
 			if input.RelatedExecutions != nil {
-				sources, err := tagSources(*input.RelatedExecutions, context.Capabilities, value.Scope)
+				rows, err := context.Records.List(CollectionID)
 				if err != nil {
 					return nil, err
+				}
+				// Retained references remain readable after source deletion. Only
+				// newly bound/replaced executions need fresh completion evidence.
+				added := []model.ExecutionRef{}
+				retained := map[model.ExecutionRef]bool{}
+				for _, ref := range value.RelatedExecutions {
+					retained[ref] = true
+				}
+				for _, ref := range *input.RelatedExecutions {
+					if !retained[ref] {
+						added = append(added, ref)
+					}
+				}
+				sources, err := tagSources(added, context.Capabilities, value.Scope)
+				if err != nil {
+					return nil, err
+				}
+				if err := validateBindings(rows, record.ID, value.RelatedExecutions, *input.RelatedExecutions); err != nil {
+					return nil, err
+				}
+				for _, ref := range *input.RelatedExecutions {
+					if retained[ref] {
+						sources[ref.Thread.ThreadID] = value.TagSources[ref.Thread.ThreadID]
+					}
 				}
 				value.RelatedExecutions = *input.RelatedExecutions
 				value.TagSources = sources
@@ -344,6 +392,9 @@ func RegisterDomain(registry plugin.Registry) error {
 			encoded, err := json.Marshal(value)
 			if err != nil {
 				return nil, err
+			}
+			if bytes.Equal(encoded, record.Value) {
+				return json.Marshal(summarize(record, value))
 			}
 			saved, err := context.Records.Put(CollectionID, record.ID, encoded, plugin.RecordWriteOptions{ExpectedRevision: &record.Revision, TouchUpdatedAt: true})
 			if err != nil {
@@ -355,7 +406,7 @@ func RegisterDomain(registry plugin.Registry) error {
 		return err
 	}
 	extensions := threadExtensions{}
-	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Report", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
+	return registry.ThreadType(plugin.ThreadTypeDefinition{ID: ThreadTypeID, OwnerPluginID: "report", DisplayName: "Super Thread", CollectionID: CollectionID, Contract: typedContract[View]("report.view", []string{"emoji", "shortDescription", "previewText", "contentRevision", "relatedExecutions"}, nil), Project: func(record model.ApplicationThreadRecord) (plugin.ThreadProjection, error) {
 		value, err := ParseData(record.Value)
 		if err != nil {
 			return plugin.ThreadProjection{}, err
@@ -388,7 +439,7 @@ func requireScopedRecord(id string, records plugin.RecordsReader, owner plugin.B
 		return record, value, err
 	}
 	if value.Scope != scope {
-		return model.VersionedRecord{}, Data{}, errors.New("Report Thread unavailable in this scope")
+		return model.VersionedRecord{}, Data{}, errors.New("Super Thread unavailable in this scope")
 	}
 	return record, value, nil
 }
@@ -399,7 +450,7 @@ func requireRecord(id string, records plugin.RecordsReader) (model.VersionedReco
 		return model.VersionedRecord{}, Data{}, err
 	}
 	if record == nil {
-		return model.VersionedRecord{}, Data{}, fmt.Errorf("Report Thread 不存在: %s", id)
+		return model.VersionedRecord{}, Data{}, fmt.Errorf("Super Thread 不存在: %s", id)
 	}
 	value, err := ParseData(record.Value)
 	return *record, value, err

@@ -39,6 +39,7 @@ public struct NativeMokuVoiceControls: View {
         }
     }
     private var actionLabel: String {
+        if client.hasPendingStop { return localize("重试结束原通话", "Retry ending the previous call") }
         if client.state.occupiedOwner != nil { return localize("接管语音…", "Take over voice…") }
         return active ? localize("结束语音，保留任务", "End voice, keep tasks")
             : localize("开始语音", "Start voice")
@@ -111,7 +112,7 @@ public struct NativeMokuVoiceControls: View {
     private func activate() {
         guard canActivate else { return }
         if client.state.occupiedOwner != nil && !active { confirmingTakeover = true; return }
-        Task { if active { await client.stop() } else { await client.start() } }
+        Task { if active || client.hasPendingStop { await client.stop() } else { await client.start() } }
     }
     private func localize(_ zh: String, _ en: String) -> String { locale.language.languageCode?.identifier == "zh" ? zh : en }
 }

@@ -192,3 +192,10 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+
+Only native voice handoff admission uses `plugin.WithVoiceAdmission` with its exact
+VoiceSession ID. Background terminal follow-ups use their original, unmarked Core
+admission path. This allows Moku to reject a retired microphone owner without
+blocking non-voice continuation. Thread voice calling is disabled by Runtime;
+Overview global Moku still uses the native/relay media implementation described here.

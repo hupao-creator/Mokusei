@@ -25,14 +25,17 @@ type voiceDelivery struct {
 }
 
 type mokuVoicePreparation struct {
-	id        string
-	device    string
-	ctx       context.Context
-	cancel    context.CancelFunc
-	reconnect *voiceReconfiguration
+	superThreadID  *string
+	sourceRevision int64
+	id             string
+	device         string
+	ctx            context.Context
+	cancel         context.CancelFunc
+	reconnect      *voiceReconfiguration
 }
 
 type mokuVoiceLease struct {
+	source                voiceInputSource // immutable for this media ownership generation
 	session               plugin.VoiceSession
 	id                    string
 	requestID             string
@@ -45,7 +48,7 @@ type mokuVoiceLease struct {
 	unsubscribeDelegation func()
 	unsubscribeContext    func() bool
 	unsubscribeRecovery   func()
-	resume                *plugin.VoiceDelegation
+	resume                *recoveredVoiceInput
 }
 
 type mokuVoiceTeardown struct {
@@ -70,7 +73,12 @@ type voiceController struct {
 	pendingSpeeches  map[*voiceDelivery]bool
 	teardowns        map[*mokuVoiceLease]*mokuVoiceTeardown
 	reconfiguration  *voiceReconfiguration
+	// Explicit Stop revokes this device's preparation identity even when it
+	// reaches the service before prepare. Do not evict during this lifetime.
+	revokedPreparations map[voicePreparationIdentity]bool
 }
+
+type voicePreparationIdentity struct{ device, requestID string }
 
 func newVoiceController(c *Coordinator) *voiceController {
 	v := &voiceController{c: c, commands: make(chan struct{}, 1), admissions: make(chan struct{}, 1), deliveries: make(map[string]*voiceDelivery), teardowns: make(map[*mokuVoiceLease]*mokuVoiceTeardown)}
@@ -80,16 +88,18 @@ func newVoiceController(c *Coordinator) *voiceController {
 }
 
 type mokuVoiceCommand struct {
-	Action        string
-	RequestID     string
-	SessionID     string
-	OwnershipID   string
-	Takeover      string
-	ReconnectFrom string
-	DeliveryID    string
-	Generation    int64
-	SDP           string
-	After         int64
+	SuperThreadID  *string
+	SourceRevision int64
+	Action         string
+	RequestID      string
+	SessionID      string
+	OwnershipID    string
+	Takeover       string
+	ReconnectFrom  string
+	DeliveryID     string
+	Generation     int64
+	SDP            string
+	After          int64
 }
 
 var mokuVoiceUUID = regexp.MustCompile(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$`)
@@ -123,7 +133,7 @@ func parseMokuVoiceCommand(raw json.RawMessage) (mokuVoiceCommand, error) {
 		if json.Unmarshal(value["requestId"], &result.RequestID) != nil || !mokuVoiceUUID.MatchString(result.RequestID) {
 			return result, invalid
 		}
-	case "start", "poll", "stop", "heartbeat", "ack-speech":
+	case "start", "poll", "stop", "heartbeat", "ack-speech", "context":
 		keys = append(keys, "ownershipId")
 		if json.Unmarshal(value["ownershipId"], &result.OwnershipID) != nil || !mokuVoiceUUID.MatchString(result.OwnershipID) {
 			return result, invalid
@@ -159,6 +169,17 @@ func parseMokuVoiceCommand(raw json.RawMessage) (mokuVoiceCommand, error) {
 	default:
 		return result, invalid
 	}
+	if result.Action == "context" || (result.Action == "prepare" && value["sourceRevision"] != nil) {
+		keys = append(keys, "superThreadId", "sourceRevision")
+		if json.Unmarshal(value["superThreadId"], &result.SuperThreadID) != nil || (result.SuperThreadID != nil && !validSuperThreadID(*result.SuperThreadID)) {
+			return result, invalid
+		}
+		var revision *int64
+		if json.Unmarshal(value["sourceRevision"], &revision) != nil || revision == nil || *revision < 0 || *revision > model.MaximumSafeInteger {
+			return result, invalid
+		}
+		result.SourceRevision = *revision
+	}
 	if len(value) != len(keys) {
 		return result, invalid
 	}
@@ -192,6 +213,24 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		return nil, err
 	}
 	defer finish()
+	if request.Action == "context" {
+		lease, err := v.required(request.SessionID, request.OwnershipID, device)
+		if err != nil {
+			return nil, err
+		}
+		// Source revocation must precede queues: an old client cannot retarget
+		// buffered speech while another input is waiting for admission.
+		if lease.source != makeVoiceInputSource(request.SuperThreadID, request.SourceRevision) {
+			v.mu.Lock()
+			if v.active == lease {
+				v.discardReconfigurationLocked()
+			}
+			v.mu.Unlock()
+			lease.cancel()
+			return nil, model.NewError("VOICE_SOURCE_CHANGED", "语音来源已变化，请结束原通话后在新页面重新开启。")
+		}
+		return map[string]any{"superThreadId": lease.source.reportID(), "sourceRevision": lease.source.Revision}, nil
+	}
 	if request.Action == "poll" {
 		v.mu.Lock()
 		retired, retiredID, retiredDevice, retiredOwnership := v.retired, v.retiredID, v.retiredDevice, v.retiredOwnership
@@ -232,6 +271,9 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	var detachPrepare func() bool
 	installed := false
 	if request.Action == "prepare" {
+		if request.SuperThreadID != nil {
+			return nil, model.NewError("THREAD_VOICE_REMOVED", "线程内语音已移除，请返回 Overview 使用全局 Moku 语音。")
+		}
 		// A prepared relay retains this service-owned context after the command
 		// returns. The per-command tracking context is detached on installation.
 		// The command's admission identity still transfers so a pending host
@@ -243,9 +285,16 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 			service = v.c.config.VoicePreparationContext(service, ctx)
 		}
 		prepareCtx, cancel := context.WithCancel(service)
-		preparation = &mokuVoicePreparation{id: request.RequestID, device: device, ctx: prepareCtx, cancel: cancel}
+		preparation = &mokuVoicePreparation{id: request.RequestID, device: device, ctx: prepareCtx, cancel: cancel, superThreadID: request.SuperThreadID, sourceRevision: request.SourceRevision}
 		detachPrepare = context.AfterFunc(ctx, cancel)
 		v.mu.Lock()
+		if v.revokedPreparations[voicePreparationIdentity{device, request.RequestID}] ||
+			(request.ReconnectFrom != "" && v.revokedPreparations[voicePreparationIdentity{device, request.ReconnectFrom}]) {
+			v.mu.Unlock()
+			detachPrepare()
+			cancel()
+			return nil, model.NewError("VOICE_PREPARATION_REVOKED", "该语音准备已被停止，请重新开启通话。")
+		}
 		var occupiedID, occupiedDevice string
 		if v.preparation != nil {
 			occupiedID, occupiedDevice = v.preparation.id, v.preparation.device
@@ -261,6 +310,16 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 				detachPrepare()
 				cancel()
 				return nil, model.NewError("VOICE_OWNERSHIP_CHANGED", "语音重连所有权已经变化")
+			}
+			origin := v.active
+			if origin == nil {
+				origin = v.retiredLease
+			}
+			if origin == nil || origin.requestID != request.ReconnectFrom || origin.source != makeVoiceInputSource(request.SuperThreadID, request.SourceRevision) {
+				v.mu.Unlock()
+				detachPrepare()
+				cancel()
+				return nil, model.NewError("VOICE_SOURCE_CHANGED", "语音重连来源已变化，请结束原通话后重新开启。")
 			}
 			preparation.reconnect = reconnect
 		}
@@ -299,6 +358,10 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	}
 	if request.Action == "stop" {
 		v.mu.Lock()
+		if v.revokedPreparations == nil {
+			v.revokedPreparations = map[voicePreparationIdentity]bool{}
+		}
+		v.revokedPreparations[voicePreparationIdentity{device, request.OwnershipID}] = true
 		if recovery := v.reconfiguration; recovery != nil && recovery.device == device && (recovery.ownership == request.OwnershipID || v.preparation != nil && v.preparation.id == request.OwnershipID && v.preparation.reconnect == recovery) {
 			v.discardReconfigurationLocked()
 		}
@@ -371,7 +434,7 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		}
 		v.mu.Unlock()
 		installed = true
-		return map[string]any{"sessionId": lease.id, "ownershipId": lease.requestID}, nil
+		return map[string]any{"sessionId": lease.id, "ownershipId": lease.requestID, "superThreadId": lease.source.reportID(), "sourceRevision": lease.source.Revision}, nil
 	}
 	if request.Action == "stop" {
 		v.mu.Lock()
@@ -390,6 +453,7 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	if err != nil {
 		return nil, err
 	}
+
 	if request.Action == "ack-speech" {
 		receiver, ok := lease.session.(plugin.VoiceSpeechReceipt)
 		if !ok {
@@ -431,6 +495,10 @@ func (v *voiceController) prepareSession(ctx context.Context, preparation *mokuV
 		if err != nil {
 			return nil, err
 		}
+		entries, err = v.c.withSuperThreadContext(ctx, entries, preparation.superThreadID)
+		if err != nil {
+			return nil, err
+		}
 		session, err = v.c.config.PrepareNativeVoice(ctx, record.ID, entries)
 	} else {
 		if v.c.config.Voice == nil {
@@ -449,7 +517,7 @@ func (v *voiceController) prepareSession(ctx context.Context, preparation *mokuV
 		stopErr := session.Stop(context.WithoutCancel(ctx))
 		return nil, errors.Join(errors.New("Voice preparation owner retired"), stopErr)
 	}
-	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, native: record.HarnessID == "codex", ctx: preparation.ctx, cancel: preparation.cancel}
+	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, native: record.HarnessID == "codex", ctx: preparation.ctx, cancel: preparation.cancel, source: makeVoiceInputSource(preparation.superThreadID, preparation.sourceRevision)}
 	if err := v.attach(lease); err != nil {
 		return nil, errors.Join(err, v.stop(context.WithoutCancel(ctx)))
 	}
@@ -489,7 +557,7 @@ func (v *voiceController) required(id, ownershipID, device string) (*mokuVoiceLe
 	v.mu.Lock()
 	active := v.active == lease
 	v.mu.Unlock()
-	if !active {
+	if !active || lease.ctx.Err() != nil || lease.session.Closed() {
 		return nil, errors.New("Voice owner 已失效")
 	}
 	return lease, nil
@@ -620,6 +688,7 @@ func (v *voiceController) nativeRequest(ctx context.Context, lease *mokuVoiceLea
 }
 
 func (v *voiceController) delegate(ctx context.Context, lease *mokuVoiceLease, request plugin.VoiceDelegation) {
+	source := lease.source.reportID()
 	// Media owns queued requests only until target admission begins. Link that
 	// wait to the lease, then keep the original service context for admitted work.
 	waitCtx, finishWait := voiceLeaseContext(ctx, lease)
@@ -639,10 +708,10 @@ func (v *voiceController) delegate(ctx context.Context, lease *mokuVoiceLease, r
 	if err != nil || current.ID != lease.owner {
 		return
 	}
-	// Once this admission begins it belongs to Moku, independently of media
-	// cancellation. Only the eventual spoken delivery uses the media lifetime.
+	// submit retains media cancellation until the native admitted callback.
+	// Confirmed task work then belongs to Moku independently of the old peer.
 	delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: lease.id + ":" + request.ID, delegationID: request.ID, generation: request.Generation, lease: lease}
-	err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text)}, delivery, request.Context)
+	err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text), SuperThreadID: source}, delivery, request.Context)
 	if err == nil {
 		return
 	}
@@ -773,6 +842,9 @@ func (v *voiceController) fenceSubmit(ctx context.Context, request SubmitRequest
 		// owner is gone. It cannot fence or speak through a replacement session.
 		return nil, noop, noop, nil
 	}
+	if makeVoiceInputSource(request.SuperThreadID, lease.source.Revision) != lease.source {
+		return nil, noop, noop, nil
+	}
 	delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: input.InputID, generation: lease.session.InputGeneration(), lease: lease}
 	fence := func() {
 		current, err := v.c.current()
@@ -878,14 +950,20 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 // syncContext is called by the host's native ExecutionAdmission before its
 // durable admission. OnRequest is too late: it observes an admitted execution.
 func (v *voiceController) syncContext(ctx context.Context, owner string) error {
+	sessionID, voiceAdmission := plugin.VoiceAdmissionSession(ctx)
+	if !voiceAdmission {
+		// Codex background, Claude and OpenCode native continuations also reach
+		// this hook. Their existing Core admission needs no microphone lease.
+		return nil
+	}
 	v.mu.Lock()
 	lease := v.active
 	if lease == nil && v.reconfiguration != nil && v.retiredLease != nil && v.reconfiguration.ownership == v.retiredLease.requestID {
 		lease = v.retiredLease
 	}
 	v.mu.Unlock()
-	if lease == nil {
-		return nil
+	if lease == nil || lease.id != sessionID {
+		return errors.New("Voice owner 已失效")
 	}
 	syncer, ok := lease.session.(plugin.VoiceContextSync)
 	if !ok {
@@ -916,6 +994,11 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	linked, cancel := voiceLeaseContext(ctx, lease)
 	defer cancel()
 	entries, err := v.c.sendContext(linked, model.AgentInput{}, nil, nil)
+	if err != nil {
+		return err
+	}
+	source := lease.source.reportID()
+	entries, err = v.c.withSuperThreadContext(linked, entries, source)
 	if err != nil {
 		return err
 	}

@@ -27,7 +27,7 @@ gutter measurement, with a persistent knob whenever scrolling is possible.
 | [Sources/Shared/PluginUI](Sources/Shared/PluginUI/README.md) | Reading, forms, composer, cards and design resources |
 | Sources/Plugins/Harnesses | Codex, Claude, Pi and OpenCode projections and views |
 | Sources/Plugins/Applications | Report and Tag native contributions |
-| [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation, browser and read-only voice discussions |
+| [Sources/Plugins/Sidecards](Sources/Plugins/Sidecards/README.md) | Conversation, browser and retained voice transcripts |
 | [Sources/Voice](Sources/Voice/README.md) | Native media, WebRTC and ownership |
 
 Agent Thread detail admits assistant replies and execution records: reasoning,
