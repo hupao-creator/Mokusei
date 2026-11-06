@@ -35,11 +35,12 @@ an unwanted execution-process summary.
   a newer URL request also retires the old Browser callback. Folded documents
   retain their readers but cannot receive input or accessibility focus.
 - Referenced executions retain the existing host-owned `.execution` data scope.
-  Their heading uses the exact execution's stored title (timestamp fallback)
-  and the Harness's existing thread emoji. They hide execution work and its
-  summary while preserving the final reply, independent errors, interactions,
-  author, status, timestamps and usage. The live Agent execution Sidecard keeps
-  its existing heading/work policy.
+  Completed references use the exact execution's stored title (instruction,
+  then timestamp fallback) and the Harness's existing thread emoji. They hide
+  execution work and its summary while preserving the final reply, independent
+  errors, interactions, author, status, timestamps and usage. Active references
+  omit title/emoji and retain the shared live process summary, matching live
+  Agent execution Sidecards.
 - The main Report reader, 14pt HTML viewport clip and 22pt shell/border use one
   interpolated size when the related sidecard changes. WebKit receives the
   presented viewport size throughout the existing 380ms fold, including height
@@ -184,3 +185,20 @@ Validation completed for this follow-up: the Mokusei product build succeeded
 formatting and `go vet`; diff and changed documentation links passed review.
 The final source was reviewed after Astra high's implementation. These checks
 establish compilation/static correctness, not post-fix animation frame pacing.
+
+## Running execution presentation repair (2026-11-06)
+
+`e06c7ce` applied the completed-reference work policy to active references too,
+hiding their live process summary. The shared footer separately used only the
+catalog-derived `active` flag; scoped Harness content can still report running
+when that flag is false because the subscriptions update independently. That
+allowed a connection label, update date, elapsed time and token count to appear
+as an inactive footer during execution. The footer now requires both inactive
+catalog state and non-running Harness content. Terminal footer contents remain
+unchanged. Active ordinary execution readers omit title and emoji by selected
+execution identity; completed references retain their existing presentation.
+
+Sprint verification for this repair: Swift syntax parsing, diff and local-link
+review only. No tests were added; no regression, full build, PR or CI ran. The
+supplied screenshot was inspected, but the repaired runtime was not launched
+or restarted and its rendered appearance remains unverified.

@@ -56,8 +56,8 @@ public struct ThreadReasoningUsage: Sendable {
 
 private struct ThreadAgentDetailKey: EnvironmentKey { static let defaultValue = true }
 public extension EnvironmentValues {
-    /// A Report's referenced execution keeps its own heading and final reply,
-    /// without the execution-process summary used by the live Agent Sidecard.
+    /// Completed Report references keep their heading and final reply without
+    /// execution work; active references use the live process summary.
     @Entry var threadRelatedExecution = false
 
     /// Moku's current/archived conversations reuse the Harness reader without
@@ -200,7 +200,9 @@ public struct ThreadDetailTurn: View {
                     Text(localize(status)).foregroundStyle(NativePalette.thread.muted.swiftUI)
                         .threadReadingAnchor(threadExecutionResultAnchor(id))
                 }
-                if !active {
+                // Catalog activity and scoped Harness content update independently.
+                // A still-running execution must not expose the terminal footer.
+                if !active && !executionRunning {
                     Group {
                         if revealsContent {
                             // Join the line clock instead of waiting for the body to finish fading.

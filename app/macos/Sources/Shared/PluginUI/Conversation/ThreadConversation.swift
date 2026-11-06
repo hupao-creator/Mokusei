@@ -164,12 +164,19 @@ public struct ThreadConversation: View {
     private var selectedIsRunning: Bool {
         running && effectiveRunningID != nil && visibleRows.first { $0.id == selectedRowID }?.execution?.id == effectiveRunningID
     }
+    private var selectedIsActive: Bool {
+        guard let activeExecutionId else { return false }
+        return visibleRows.first { $0.id == selectedRowID }?.execution?.id == activeExecutionId
+    }
+    private var showsDocumentHeading: Bool {
+        (!executionCard || relatedExecution) && !(agentDetail && selectedIsActive)
+    }
     private var allowsJumpToLatest: Bool {
         guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }
         if case let .execution(id) = context?.presentation, id != activeExecutionId { return false }
         return true
     }
-    private var work: Bool { !relatedExecution && (executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil))) }
+    private var work: Bool { (!relatedExecution || selectedIsActive) && (executionCard || selectedIsRunning || (manualWork ?? (effectiveRunningID != nil))) }
     private var visibility: ThreadDetailVisibility {
         ThreadDetailVisibility(userMessages: !agentDetail && (executionCard || userMessages), work: work,
                                workTurnID: executionCard || manualWork == true ? nil : effectiveRunningID,
@@ -371,7 +378,7 @@ public struct ThreadConversation: View {
     }
     private func documentHeader() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !executionCard || relatedExecution { heading(documentTitle, emoji: icon ?? "📝") }
+            if showsDocumentHeading { heading(documentTitle, emoji: icon ?? "📝") }
             if let actions { actions.padding(.top, 15) }
             if !rows.isEmpty {
                 let selected = selectedRowID
@@ -379,7 +386,7 @@ public struct ThreadConversation: View {
                 ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
                     showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
-                    .padding(.top, executionCard && !relatedExecution ? 0 : 12).padding(.bottom, executionCard ? 12 : 16)
+                    .padding(.top, showsDocumentHeading ? 12 : 0).padding(.bottom, executionCard ? 12 : 16)
             } else { Color.clear.frame(height: 16) }
         }
     }
@@ -421,6 +428,7 @@ public struct ThreadConversation: View {
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
+                              hidesHeading: agentDetail && selectedIsActive,
                               result: resultVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
@@ -559,6 +567,7 @@ private struct ThreadHistoryDocument: View {
     let active: Bool
     let running: Bool
     let allowsJumpToLatest: Bool
+    let hidesHeading: Bool
     let result: Bool
     let readingTarget: ThreadTimelineReadingTarget?
     let readingVisitId: JSONText?
@@ -586,7 +595,7 @@ private struct ThreadHistoryDocument: View {
             .environment(\.threadDetailVisibility, ThreadDetailVisibility(userMessages: !agentDetail && users, work: work, messageAnchorID: readingTarget?.anchorId))
             .environment(\.threadAuthorInHeader, page?.execution != nil)
             .onPreferenceChange(ThreadAuthorPreference.self) { authors = $0 }
-            .nativeReadingExitCommand(perform: readingActive ? onBack : nil).onAppear { if focusHeading { headingFocused = true } }
+            .nativeReadingExitCommand(perform: readingActive ? onBack : nil).onAppear { if focusHeading && !hidesHeading { headingFocused = true } }
             .nativeReadingEscape(perform: readingActive ? onBack : nil)
             .nativeReadingAction("close", role: "history.close", label: backLabel, action: onBack)
             .nativeReadingObservation("state", role: "history", value: .object([
@@ -596,14 +605,16 @@ private struct ThreadHistoryDocument: View {
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if let page { Text(emoji(page.id)).font(.system(size: 44)).accessibilityHidden(true) }
-            Text(historyTitle)
-                .font(NativeTypography.inter(size: 40, weight: 650)).tracking(-0.8)
-                .lineLimit(2).truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .help(historyTitle)
-                .foregroundStyle(NativePalette.thread.inkStrong.swiftUI).accessibilityAddTraits(.isHeader)
-                .focusable().focusEffectDisabled().focused($headingFocused)
+            if !hidesHeading {
+                if let page { Text(emoji(page.id)).font(.system(size: 44)).accessibilityHidden(true) }
+                Text(historyTitle)
+                    .font(NativeTypography.inter(size: 40, weight: 650)).tracking(-0.8)
+                    .lineLimit(2).truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(historyTitle)
+                    .foregroundStyle(NativePalette.thread.inkStrong.swiftUI).accessibilityAddTraits(.isHeader)
+                    .focusable().focusEffectDisabled().focused($headingFocused)
+            }
             if page != nil {
                 ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] }, showsAuthor: page?.execution != nil,
                     showsWorkFilter: !running, users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)

@@ -517,7 +517,12 @@ removed destinations show the unavailable document and retain return navigation.
 Execution sidecards keep their single-execution presentation. They omit the
 decorative emoji and visible document title, use a compact 12pt timeline top inset,
 and retain the resolved author, messages and execution actions. Full reading and
-history pages retain their headings and standard insets.
+history pages retain their headings and standard insets after execution ends.
+Active ordinary Agent executions (including waiting for input) omit the visible
+title and emoji in current/history readers too; author and messages remain.
+The footer stays absent while either catalog activity or the scoped Harness
+content still reports execution running, since these subscriptions can update
+independently.
 
 The Sidecard-to-main handoff first uses `NativeSidecardTiming.foldAnimation` to
 fold the Sidecard back to its launcher while widening the main panel. After fold
@@ -1372,10 +1377,11 @@ reserved rail, alongside a retained Browser launcher when links have been opened
 the fold, including Browser splits and narrow-window stacking.
 
 The host scopes `threadRelatedExecution` to Report's referenced execution reader.
-It keeps the exact execution title (timestamp fallback), the Harness's thread
-emoji, final reply and ordinary non-work facts, while hiding execution work and
-its process summary. Live Agent execution Sidecards retain their existing
-heading and summary behavior. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
+Completed references keep the exact execution title (instruction, then timestamp
+fallback), the Harness's thread emoji, final reply and ordinary non-work facts,
+while hiding execution work and its process summary. Active references show the
+shared live process summary again; active references omit title and emoji just
+like live Agent execution Sidecards. Completed presentation is unchanged. See the [Report admission contract](../../../../../design/report-sidecard-admission.md)
 for lifecycle details and Sprint validation limits.
 
 The outer reading stack can accept a `panelFrontIdentity` for a route-retaining
