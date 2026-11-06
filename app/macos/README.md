@@ -200,9 +200,8 @@ plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
 blocks script execution, navigation and external resources. Closing/unmounting
 cancels the card's load; cover failure leaves the native open/archive actions usable.
-The generation tool describes only the cover purpose and dimensions. See the
+The generation tool describes the cover's dimensions and standalone HTML/CSS
+environment: the author supplies all styles and spacing; the host injects no CSS
+or Report-reader safe-area handling. See the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
-The passive cover host honors an explicitly authored `--mokusei-html-top-space`
-on the direct content wrapper without adding padding to covers that omit it;
-it does not reserve the Report reader's window-navigation safe area.

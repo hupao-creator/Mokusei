@@ -47,42 +47,29 @@ struct NativeReportCover: View {
     }
 }
 
-struct ReportCoverHTML: NSViewRepresentable {
+private struct ReportCoverHTML: NSViewRepresentable {
     let html: String
     let dark: Bool
     let onFailure: (String) -> Void
     func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeNSView(context: Context) -> WKWebView {
+    func makeNSView(context: Context) -> PassiveCoverWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = false
-        // Covers can opt into the same authored top-space variable as Report
-        // documents, but have no window-navigation safe area. Keep ordinary
-        // authored padding when the variable is absent; never add a second inset.
-        configuration.userContentController.addUserScript(WKUserScript(source: """
-            (() => {
-              const content = document.querySelector('body > [data-mokusei-html-content]');
-              if (!content || !getComputedStyle(content).getPropertyValue('--mokusei-html-top-space').trim()) return;
-              const style = document.createElement('style');
-              style.textContent = 'body > [data-mokusei-html-content] { padding-block-start: var(--mokusei-html-top-space) !important; }';
-              document.head.append(style);
-            })();
-            """, injectionTime: .atDocumentEnd, forMainFrameOnly: true,
-            in: .world(name: "mokusei-cover-layout")))
         configuration.setURLSchemeHandler(context.coordinator, forURLScheme: "mokusei-cover")
         let view = PassiveCoverWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
         view.setAccessibilityElement(false)
         return view
     }
-    func updateNSView(_ view: WKWebView, context: Context) {
+    func updateNSView(_ view: PassiveCoverWebView, context: Context) {
         context.coordinator.onFailure = onFailure
         view.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         guard context.coordinator.html != html else { return }
         context.coordinator.html = html
         view.load(URLRequest(url: URL(string: "mokusei-cover://document/index.html")!))
     }
-    static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
+    static func dismantleNSView(_ view: PassiveCoverWebView, coordinator: Coordinator) {
         view.stopLoading(); view.navigationDelegate = nil
     }
     final class Coordinator: NSObject, WKNavigationDelegate, WKURLSchemeHandler {
@@ -97,9 +84,7 @@ struct ReportCoverHTML: NSViewRepresentable {
             }
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [
                 "Content-Type": "text/html; charset=utf-8",
-                // The sandbox must permit the isolated host layout script.
-                // Page scripts remain blocked by both CSP and WebKit preferences.
-                "Content-Security-Policy": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'; sandbox allow-scripts"
+                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'; sandbox"
             ])!
             urlSchemeTask.didReceive(response)
             urlSchemeTask.didReceive(Data(html.utf8))

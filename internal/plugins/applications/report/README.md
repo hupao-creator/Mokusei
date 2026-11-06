@@ -229,10 +229,16 @@ reports remain readable, and create/new binding uses the existing authority.
 ## Cover cards
 
 New Super Thread tool calls supply `coverHTML`; updates may replace it independently
-of the report document. The field description is only “Cover image, 360 × 308 px.”
-No additional cover art-direction prompt is injected. The report introduction now
-targets a concise two-line card. Cover markup is HTML/CSS, limited to 64,000 Unicode
-scalars; inline SVG, scripts and embedded documents are rejected at admission.
+of the report document. The shared create/update field description specifies a
+standalone 360×308 HTML/CSS viewport: no host CSS, padding or safe-area styles are
+injected. The report body's host-integration rules and `--mokusei-*` variables do
+not apply to covers; the authored HTML must supply its own CSS and spacing.
+JavaScript and external resources are unavailable. No additional cover art-direction
+prompt is injected. The report introduction targets a concise two-line card.
+Cover markup is HTML/CSS, limited to 64,000 Unicode scalars; inline SVG, scripts
+and embedded documents are rejected at admission. See the
+[cropping investigation](../../../../design/super-thread-cover-top-space.md)
+for the prompt ambiguity and actual two-version evidence.
 
 `coverHTML` and `coverRevision` persist with the report. Cover changes allocate a
 new cover revision without reloading the report HTML; unchanged updates retain the
@@ -249,25 +255,3 @@ The passive native WebKit surface uses a nonpersistent store, disabled JavaScrip
 a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
-
-Covers using a direct `body > [data-mokusei-html-content]` wrapper may declare
-`--mokusei-html-top-space` to request initial top padding, just as report HTML can.
-The cover host applies that value as padding, rather than adding it to authored
-padding. Without the variable, the cover's own padding remains unchanged. Covers
-have no window-navigation safe area and do not inherit the reader's 60/74pt inset.
-A host-only WebKit script in an isolated content world installs this style at
-document end. The sandbox allows this host script, while author JavaScript remains
-disabled by WebKit preferences and `script-src 'none'`; same-origin privileges,
-navigation and external resources remain unavailable.
-This applies identically to initial and replacement cover documents.
-
-Focused regression: `swift test --package-path app/macos --filter NativeReportCoverTests`
-in a graphical macOS session checks the production renderer across replacement,
-authored padding, opt-in top space, theme changes and edge-to-edge covers, while
-checking that author scripts and input remain disabled. See the
-[cropping investigation](../../../../design/super-thread-cover-top-space.md)
-for the two actual authored versions and verification limits.
-
-Initial cover implementation validation was limited to Go/Swift builds and manual
-native component display. No new tests, regression suite or hosted CI were run for
-that original implementation.
