@@ -250,5 +250,24 @@ a host-owned document response with a sandbox CSP blocking external resources.
 It neither navigates nor handles input; theme follows the native appearance.
 A failed cover leaves the native card usable with an unavailable label.
 
-Sprint validation for this change is limited to Go/Swift builds and manual native
-component display. No new tests, regression suite or hosted CI are run.
+Covers using a direct `body > [data-mokusei-html-content]` wrapper may declare
+`--mokusei-html-top-space` to request initial top padding, just as report HTML can.
+The cover host applies that value as padding, rather than adding it to authored
+padding. Without the variable, the cover's own padding remains unchanged. Covers
+have no window-navigation safe area and do not inherit the reader's 60/74pt inset.
+A host-only WebKit script in an isolated content world installs this style at
+document end. The sandbox allows this host script, while author JavaScript remains
+disabled by WebKit preferences and `script-src 'none'`; same-origin privileges,
+navigation and external resources remain unavailable.
+This applies identically to initial and replacement cover documents.
+
+Focused regression: `swift test --package-path app/macos --filter NativeReportCoverTests`
+in a graphical macOS session checks the production renderer across replacement,
+authored padding, opt-in top space, theme changes and edge-to-edge covers, while
+checking that author scripts and input remain disabled. See the
+[cropping investigation](../../../../design/super-thread-cover-top-space.md)
+for the two actual authored versions and verification limits.
+
+Initial cover implementation validation was limited to Go/Swift builds and manual
+native component display. No new tests, regression suite or hosted CI were run for
+that original implementation.

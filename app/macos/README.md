@@ -203,3 +203,6 @@ cancels the card's load; cover failure leaves the native open/archive actions us
 The generation tool describes only the cover purpose and dimensions. See the
 [Report contract](../../internal/plugins/applications/report/README.md#cover-cards)
 and [production-component demo](../../demos/report-thread/README.md).
+The passive cover host honors an explicitly authored `--mokusei-html-top-space`
+on the direct content wrapper without adding padding to covers that omit it;
+it does not reserve the Report reader's window-navigation safe area.
