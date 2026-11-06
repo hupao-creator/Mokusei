@@ -17,11 +17,13 @@ type PreparedLaunch struct {
 	ConfigOverrides []string
 	Dispose         func() error
 	Home            string
+	AuthSource      *LaunchOptions
 }
 
 // PrepareIsolatedLaunch preserves a thread's native rollout across acquisitions,
-// but retires copied credentials and configuration on every Close. A one-shot
-// prompt has no owner and its entire home is removed when the process closes.
+// but retires configuration on every Close. Credentials stay in the source
+// native account; isolated processes receive only ephemeral access credentials.
+// A one-shot prompt has no owner and its entire home is removed on process close.
 func PrepareIsolatedLaunch(ctx context.Context, executable string, env []string, dataRoot, ownerThreadID, cwd string) (PreparedLaunch, error) {
 	if err := ctx.Err(); err != nil {
 		return PreparedLaunch{}, err
@@ -101,15 +103,9 @@ func PrepareIsolatedLaunch(ctx context.Context, executable string, env []string,
 			}
 		}
 	}
-	auth, authErr := os.ReadFile(filepath.Join(ceCodexHome(ceEnvironment(env)), "auth.json"))
-	if authErr != nil && !os.IsNotExist(authErr) {
-		return PreparedLaunch{}, authErr
-	}
-	if authErr == nil {
-		if err = cpPrivateWrite(filepath.Join(directory, "auth.json"), auth); err != nil {
-			return PreparedLaunch{}, err
-		}
-	} else if err = os.Remove(filepath.Join(directory, "auth.json")); err != nil && !os.IsNotExist(err) {
+	// A previous owner may have left a credential snapshot after a crash. It must
+	// never become a second refresh-token owner when this history is reopened.
+	if err = os.Remove(filepath.Join(directory, "auth.json")); err != nil && !os.IsNotExist(err) {
 		return PreparedLaunch{}, err
 	}
 
@@ -121,7 +117,8 @@ func PrepareIsolatedLaunch(ctx context.Context, executable string, env []string,
 	}
 	quoted, _ := json.Marshal(catalogPath)
 	complete = true
-	return PreparedLaunch{Environment: ceEnvironmentList(values), ConfigOverrides: []string{"model_catalog_json=" + string(quoted)}, Dispose: dispose, Home: directory}, nil
+	return PreparedLaunch{Environment: ceEnvironmentList(values), ConfigOverrides: []string{"model_catalog_json=" + string(quoted), `cli_auth_credentials_store="ephemeral"`}, Dispose: dispose, Home: directory,
+		AuthSource: &LaunchOptions{Executable: executable, Cwd: cwd, Environment: env}}, nil
 }
 
 // ExclusiveToolsConfig closes native skill, MCP, plugin and built-in tool

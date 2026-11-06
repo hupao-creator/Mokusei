@@ -115,6 +115,9 @@ trace_exporter = "none"
 		return fmt.Errorf("cannot run installed Codex under loopback-only isolation: %w: %s", e, version)
 	}
 	fmt.Println("REAL native version:", version)
+	if e = verifyRealIsolatedAuthentication(ctx, filepath.Join(root, "auth"), native); e != nil {
+		return e
+	}
 	adapter := codex.New(host(root, environment))
 	defer adapter.Close()
 	if e = replayRejectedNativeStart(ctx, root, wrapper, environment, adapter); e != nil {

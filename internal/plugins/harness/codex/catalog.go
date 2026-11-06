@@ -358,7 +358,7 @@ func ReadThreadConfiguration(ctx context.Context, transport CatalogTransport, cw
 	}
 	config, _ := csRecord(response["config"])
 	out := Map{}
-	for _, key := range []string{"model", "model_provider", "model_providers", "model_reasoning_effort", "model_context_window", "model_auto_compact_token_limit", "model_reasoning_summary", "service_tier", "personality", "approval_policy", "approvals_reviewer", "sandbox_mode", "sandbox_workspace_write"} {
+	for _, key := range []string{"model", "model_provider", "model_providers", "model_reasoning_effort", "model_context_window", "model_auto_compact_token_limit", "model_reasoning_summary", "service_tier", "personality", "approval_policy", "approvals_reviewer", "sandbox_mode", "sandbox_workspace_write", "forced_chatgpt_workspace_id", "forced_login_method", "chatgpt_base_url"} {
 		if value, exists := config[key]; exists && value != nil {
 			out[key] = csCopy(value)
 		}

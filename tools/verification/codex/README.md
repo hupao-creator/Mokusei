@@ -14,6 +14,12 @@ user-agent fixtures remain independent of that discovery version.
 
 The synthetic replay checks:
 
+- Exclusive authentication delegates source access credentials without copying
+  refresh tokens. Two isolated processes observe source rotation, coalesce a
+  concurrent refresh, reject changed accounts and unchanged/revoked tokens,
+  cancel and reap an in-flight source on close, preserve history on reopen,
+  remove stale credential snapshots, and keep API-key login ephemeral.
+
 - Isolated native homes preserve configured system-proxy feature booleans,
   including false, without inheriting unrelated tool features. Reusing the home
   must also remove settings that are absent from the next native configuration.
@@ -177,3 +183,13 @@ explicit barrier for longer than the former five-steer retry window. It covers
 ordinary follow-ups, cancellation during that wait, and real Runtime/SQLite Moku
 delivery admission after a child completion. The delivery must leave the outbox
 only after a single successor admission; the original execution stays completed.
+
+For focused authentication verification, run
+`./scripts/go.sh run -race ./tools/verification/codex -auth-only`.
+Add `-real-codex /absolute/path/to/native/codex` to exercise the installed CLI's
+external login, actual HTTP 401 refresh callback, native OAuth rotation into the
+source home, and successful response retry. This uses synthetic JWTs and a
+loopback OAuth/Responses server inside the same macOS network sandbox as the
+other native replay. It checks that no isolated `auth.json` is written and that
+closing the isolated owner preserves the source account. No user account, paid
+model or live keychain is used. The real-CLI path also includes this scenario.
