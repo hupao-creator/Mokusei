@@ -17,8 +17,15 @@ public struct ThreadConversationExecution: Hashable, Sendable {
 }
 
 extension ThreadConversationRow {
-    // Never substitute the mutable Thread title or another execution's prompt.
-    var executionTitle: String { execution?.title ?? formatThreadTimestamp(createdAt) }
+    var executionTitle: String {
+        // Resolve on every projection update so generated naming replaces the
+        // placeholder. Neither fallback is written back to persistent metadata.
+        if let title = execution?.title { return title }
+        let prompt = execution?.prompt.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // Harness rows scope this prompt to the exact execution, including old
+        // executions without stored names. Never borrow the current Thread title.
+        return prompt.isEmpty ? formatThreadTimestamp(createdAt) : prompt
+    }
 }
 
 /// Short-lived render projection. Each Harness owns interpretation, ordering, and the content node.

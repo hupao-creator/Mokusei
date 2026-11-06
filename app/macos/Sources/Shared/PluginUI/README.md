@@ -572,8 +572,12 @@ happens before grouping and rendering, so hidden events create no row gaps or sc
 timeline's existing follow/pause, geometry-driven growth and jump-to-latest
 behavior remains unchanged. Historical headings, previews and accessibility
 labels use each row's execution title. The four Harnesses resolve it from the public `executionTitles`
-map by exact execution identity. Missing historical names use the row's execution
-timestamp; neither a raw prompt nor the current catalog title is substituted.
+map by exact execution identity. Missing names use the same row's first
+user instruction, trimmed at its edges; blank or unavailable instructions use the
+row's execution timestamp. This applies to new executions awaiting naming and
+older executions without stored names. The fallback is a live reading projection:
+later generated names replace it without persisting the instruction as a title.
+The current catalog title and other executions' instructions are never substituted.
 This also applies when main retains an older execution while the newest one
 occupies a Sidecard. Thread title/emoji remain catalog metadata. Each Harness
 entry sets `threadAgentDetail` from the public thread's Moku/current-history identity; Moku conversations keep their original

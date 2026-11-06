@@ -37,7 +37,8 @@ explicit error records, error-level notices, failed assistant messages and
 execution failures remain readable, including after completion and with work collapsed.
 Input messages (user, developer/system), ordinary info/warning notices and plan
 timeline entries are excluded. History headings and sidebar labels use the title
-stored for their exact execution, with the execution timestamp when no reliable title is available.
+stored for their exact execution. Until it is available, they use that execution's
+user instruction, falling back to its timestamp when the instruction is blank or unavailable.
 Thread title/emoji remain catalog metadata; the current title is never used to
 fill missing historical titles.
 
