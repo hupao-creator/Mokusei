@@ -230,7 +230,10 @@ private struct NativeApplicationReferencedExecution: View {
     let reference: ApplicationExecutionRef
     var body: some View {
         Group {
-            if let thread = host.workspace.catalog.thread(reference.thread.threadID), thread.moku != true, !thread.mokuHistory {
+            // thread(id) reads an ObservationIgnored lookup cache. Read the
+            // observable catalog so a retained reader receives the new execution
+            // envelope as well as its independently subscribed Harness content.
+            if let thread = host.workspace.catalog.threads.first(where: { $0.id == reference.thread.threadID }), !thread.mokuHistory {
                 NativeHarnessThreadView(host: host.workspace.harnessHost,
                     input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
                     .environment(\.threadRelatedExecution, true)

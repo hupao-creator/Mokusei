@@ -202,3 +202,47 @@ Sprint verification for this repair: Swift syntax parsing, diff and local-link
 review only. No tests were added; no regression, full build, PR or CI ran. The
 supplied screenshot was inspected, but the repaired runtime was not launched
 or restarted and its rendered appearance remains unverified.
+
+## Retained reader catalog subscription repair (2026-11-06)
+
+The follow-up screenshot `bedc9be2-1038-48f1-b8a4-8b2b1b7ce482/pasted-image.png`
+was saved at 18:10:15 +08:00. A disposable copy of the profile's SQLite/WAL
+records identifies the displayed prompt's execution as
+`166f4f82-d75f-4ea0-9568-caacd51fbf4a`, started at 18:09:51.035 and completed at
+18:10:27.369. The screenshot therefore falls inside that execution's active
+interval. Only copied database files were opened; the running profile was not
+modified.
+
+The running development app started at 18:09:09, with its executable timestamped
+18:09:05. Its symbol table contains both `ThreadConversation.selectedIsActive` /
+`showsDocumentHeading` from `9a06b0f` and Report's `openingReference` from
+`e00e49e`. Bundle provenance records input hashes rather than a Git revision, so
+this is evidence that both repairs are in the binary, not an exact source-SHA
+attestation. An app predating those repairs does not explain this report.
+
+The route still resolves `report.relations` on click and selects `current.id`.
+The broken boundary is `NativeApplicationReferencedExecution`: its comment
+promised catalog observation, but it used `catalog.thread(id)`, which only reads
+an `@ObservationIgnored` dictionary. A retained reader could therefore keep its
+old immutable Thread envelope while its independent content subscription
+received the newly running execution. `selectedIsActive` only compared the
+selected row against that envelope's active ID, so the new row's title and
+Thread emoji remained mounted. The screenshot's prompt fallback and first
+assistant reply are consistent with that startup path; no runtime trace of the
+exact stale envelope was captured.
+
+The reference reader now reads observable `catalog.threads`. All four Harnesses
+also project exact-execution activity into `ThreadConversationExecution.isActive`.
+Current and history headings stay absent if either the selected manifest row is
+active or its exact ID matches the catalog's active execution. A newer active ID
+cannot suppress a completed historical execution. During initial Report loading,
+no selected row means no title/emoji; once both sources settle, completed
+executions retain their normal headings. This uses current immutable inputs,
+without latching activity across visits or accepting unscoped async callbacks.
+Codex's existing decode cancellation/generation fence remains in place.
+
+Sprint validation: Swift frontend syntax parsing of all six changed Swift files,
+`git diff --check`, documentation-link review and local code review. No tests
+were added, no regression or build/PR/CI was run, and the user's app was not
+restarted. Rendered post-fix behavior remains unverified. Integration into local
+main belongs to the caller of this detached worktree.

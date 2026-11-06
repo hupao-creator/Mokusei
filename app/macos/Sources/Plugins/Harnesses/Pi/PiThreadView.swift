@@ -35,7 +35,8 @@ struct PiThreadView: View {
                 execution: ThreadConversationExecution(id: execution.executionID, title: input.thread.executionTitles[execution.executionID]?.string,
                     prompt: messages.first { $0.role == "user" }?.text.string ?? "",
                     answer: messages.filter { $0.role == "assistant" }.map(\.text.string).joined(separator: "\n"),
-                    completedAt: execution.status == .completed ? execution.finishedAt : nil),
+                    completedAt: execution.status == .completed ? execution.finishedAt : nil,
+                    isActive: execution.status == .running || execution.status == .waitingForUser),
                 node: AnyView(PiTurn(input: input, state: state, execution: execution, actions: actions, context: context)))
         }
         let latest = input.thread.observation.latestExecution

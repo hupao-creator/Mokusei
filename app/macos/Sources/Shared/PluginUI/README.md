@@ -520,6 +520,13 @@ and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets after execution ends.
 Active ordinary Agent executions (including waiting for input) omit the visible
 title and emoji in current/history readers too; author and messages remain.
+Heading admission matches the selected execution ID against catalog activity and
+also reads that execution's Harness-projected `isActive` state. Either active
+source keeps the heading absent until both settle; a newer execution's activity
+cannot suppress a completed historical heading. A Report reader with no selected
+manifest row yet keeps the heading absent during startup. Report's retained
+reference reader observes `catalog.threads`; the `thread(id)` lookup cache is not
+observable and cannot drive its envelope updates.
 The footer stays absent while either catalog activity or the scoped Harness
 content still reports execution running, since these subscriptions can update
 independently.

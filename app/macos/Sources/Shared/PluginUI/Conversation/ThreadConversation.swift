@@ -11,8 +11,10 @@ public struct ThreadConversationExecution: Hashable, Sendable {
     public let answer: String
     public let completedAt: Double?
     public let readable: Bool
-    public init(id: JSONText, title: String? = nil, prompt: String, answer: String, completedAt: Double? = nil, readable: Bool = true) {
-        self.id = id; self.title = title; self.prompt = prompt; self.answer = answer; self.completedAt = completedAt; self.readable = readable
+    /// Exact-execution activity from the Harness manifest, independent of the catalog.
+    public let isActive: Bool
+    public init(id: JSONText, title: String? = nil, prompt: String, answer: String, completedAt: Double? = nil, readable: Bool = true, isActive: Bool = false) {
+        self.id = id; self.title = title; self.prompt = prompt; self.answer = answer; self.completedAt = completedAt; self.readable = readable; self.isActive = isActive
     }
 }
 
@@ -165,11 +167,16 @@ public struct ThreadConversation: View {
         running && effectiveRunningID != nil && visibleRows.first { $0.id == selectedRowID }?.execution?.id == effectiveRunningID
     }
     private var selectedIsActive: Bool {
-        guard let activeExecutionId else { return false }
-        return visibleRows.first { $0.id == selectedRowID }?.execution?.id == activeExecutionId
+        guard let execution = visibleRows.first(where: { $0.id == selectedRowID })?.execution else { return false }
+        // Either stream may arrive first at startup or termination. Match IDs
+        // before using catalog activity; a newer execution cannot hide history.
+        return execution.isActive || execution.id == activeExecutionId
     }
     private var showsDocumentHeading: Bool {
-        (!executionCard || relatedExecution) && !(agentDetail && selectedIsActive)
+        // A Report reader may mount before the selected execution's manifest.
+        // Do not flash the catalog title/emoji while its state is still unknown.
+        (!executionCard || relatedExecution)
+            && !(agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
     }
     private var allowsJumpToLatest: Bool {
         guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }

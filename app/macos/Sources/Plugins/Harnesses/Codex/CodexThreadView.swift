@@ -53,7 +53,7 @@ public struct CodexThreadView: View {
                 execution: ThreadConversationExecution(id: turn.executionId, title: input.thread.executionTitles[turn.executionId]?.string,
                     prompt: turn.messages.first(where: { $0.role == "user" && !$0.isInternal })?.content ?? "",
                     answer: turn.answer, completedAt: turn.status == "completed" ? turn.finishedAt : nil,
-                    readable: ownIDs.contains(turn.executionId)), node: AnyView(turnView(turn, state: state)))
+                    readable: ownIDs.contains(turn.executionId), isActive: turn.active), node: AnyView(turnView(turn, state: state)))
         } + supplementalRows(state)
         ThreadConversation(threadId: input.thread.id,
             title: agentDetail ? input.thread.title.string : codexDocumentTitle(input.thread, state: state), icon: codexDocumentEmoji(input.thread),
