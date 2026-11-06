@@ -324,7 +324,7 @@ func main() {
 	}
 	must(private.Interrupt(ctx, nil))
 	must(private.Close())
-	verifyReportRead(ctx, r, id, private.Ref().SessionID)
+	verifyTaskReadCapability(ctx, r, id, private.Ref().SessionID)
 	tagCaps := r.RuntimeCapabilities("tag")
 	tags, err := plugin.Require[plugin.SemanticTagsWriteCapability](tagCaps, plugin.SemanticTagsWriteCapabilityKey)
 	must(err)

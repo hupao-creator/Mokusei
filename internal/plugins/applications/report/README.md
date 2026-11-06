@@ -10,6 +10,12 @@ documents, native history and mutation receipts.
 
 [domain.go](domain.go) and [model.go](model.go) define document commands, queries and projections. Mutations use the Application host's planned transaction scopes, CAS and batch receipts. Report source references and semantic tag/emoji snapshots are maintained with the document; a source deletion does not rewrite the report as an executing task. HTML and full document content are queried on demand rather than embedded in the overview catalog.
 
+The Report session's exclusive tool bindings are `list_threads`,
+`get_thread_status`, `read_lifecycle_events`, `create_report`, `list_reports`,
+`read_report` and `update_report`. It exposes no `read_thread` binding or
+alternative binding for model-based source-history questions. Moku's separate
+`read_thread` tool and the shared ordinary-task read capability are independent.
+
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
 `report.settings.enabled` defaults to true when omitted and operates independently

@@ -236,14 +236,8 @@ func verifyReportScopes(ctx context.Context) {
 		if !strings.Contains(list, entry.own.ID) || strings.Contains(list, entry.other.ID) || strings.Contains(list, inbox.ID) {
 			panic("Report list_threads leaked another scope")
 		}
-		for _, tool := range []string{"get_thread_status", "read_thread"} {
-			args := model.Object{"threadId": entry.other.ID}
-			if tool == "read_thread" {
-				args["question"] = "evidence"
-			}
-			_, err := reportTool(ctx, entry.h, tool, "foreign-task", args)
-			expectReportDenied(err, "foreign "+tool)
-		}
+		_, err := reportTool(ctx, entry.h, "get_thread_status", "foreign-task", model.Object{"threadId": entry.other.ID})
+		expectReportDenied(err, "foreign get_thread_status")
 		caps := r.BackgroundCapabilities(owners[entry.scope], report.SettingsID)
 		tasks, err := plugin.Require[plugin.OrdinaryTaskReadCapability](caps, plugin.OrdinaryTaskReadCapabilityKey)
 		must(err)
@@ -317,7 +311,7 @@ func verifyReportScopes(ctx context.Context) {
 	_, err = reportTool(ctx, aHandle, "update_report", "same-scope", model.Object{"reportId": aReport.ID, "relatedExecutions": refs[:1]})
 	must(err)
 	must(r.SetArchived(ctx, a.ID, true))
-	_, err = reportTool(ctx, aHandle, "read_thread", "archived", model.Object{"threadId": a.ID, "question": "evidence"})
+	_, err = reportTool(ctx, aHandle, "get_thread_status", "archived", model.Object{"threadId": a.ID})
 	must(err)
 	must(r.DeleteThread(ctx, a.ID))
 	must(r.DeleteThread(ctx, a2.ID))
