@@ -37,14 +37,18 @@ Reader controls/accessibility are excluded during replacement. The composer uses
 the incoming exact draft, with Send waiting for content/landing and existing Dock
 geometry admission. Visit identities reject stale preparation and animation
 callbacks. Reduce Motion, inactive/covered scenes and resizing settle ready
-content directly; leaving/unmounting retires retained readers. Folding retains
+content directly. Landing waits for a nonzero viewport and reconciles resize
+geometry before entering travel, so a queued ready callback cannot install
+motion after settlement has already enabled input. Leaving/unmounting retires
+retained readers. Folding retains
 the current reader without replaying an already completed transition on reopen.
 
 ## Sprint verification boundary
 
 This change is scoped to source review, diff/architecture lint and a native
 `Mokusei` product build. No tests are added, and no regression tests, integration
-replays, PRs, hosted CI, push, merge, installation or release are performed.
+replays, PRs, hosted CI, push, installation or release are performed. Local-main
+integration retains this verification boundary.
 
 Rendered direction/smoothness, native clipping, focus, rapid navigation,
 Reduce Motion, resize and live asynchronous Harness behavior have not been

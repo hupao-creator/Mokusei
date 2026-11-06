@@ -101,18 +101,25 @@ public struct NativeReportExecutionScroll<Content: View>: NSViewRepresentable {
     }
 
     private func scheduleLanding() {
-        guard current.ready, !current.published, !travelling, !scheduled else { return }
+        guard current.ready, !current.published, !travelling, !scheduled,
+              bounds.width > 0, bounds.height > 0 else { return }
         scheduled = true
         let token = visit
         DispatchQueue.main.async { [weak self] in
             guard let self, visit == token else { return }
             scheduled = false
-            guard current.ready, !current.published, !travelling else { return }
+            guard current.ready, !current.published, !travelling,
+                  bounds.width > 0, bounds.height > 0 else { return }
             current.layoutSubtreeIfNeeded()
+            // Readiness may have queued before a resize. Reconcile its geometry
+            // before entering travel, so resize settlement cannot publish input
+            // and then fall through into installing another animation.
+            layoutSeats()
             guard animated, let outgoing, bounds.height > 0 else { finish(); return }
             travelling = true
-            layoutSeats()
             CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            current.alphaValue = 1
             CATransaction.setCompletionBlock { [weak self] in
                 DispatchQueue.main.async { [weak self] in
                     guard let self, visit == token, travelling else { return }
