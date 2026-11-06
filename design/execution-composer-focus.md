@@ -125,3 +125,61 @@ No actual model task or uncertain-receipt send was exercised. Existing failure
 and receipt behavior was reviewed at its unchanged production boundary. Neither
 the successful build nor these bounded manual observations prove every condition
 in the original recording has been reproduced and eliminated.
+
+## Completion handoff regression (2026-11-06)
+
+The later `录屏2026-11-06 09.56.28.mov` shows a settled result whose body still
+accepts selection while the resident composer cannot regain a visible caret.
+It does not record the preceding send or completion. A production-linked isolated
+fixture on local main `dbfa0ed` reproduced the input-target lifecycle for both
+ordinary detail and an exact-execution result visit: incoming `ready=true`,
+outgoing teardown publishing `nil` under the same workspace owner, then a settled
+workspace with no input target. The Host consequently disables the native editor.
+
+`NativeExecutionHandoffReader` now observes input preferences inside each native
+reader seat and forwards only the current seat's publications. Retained outgoing
+content cannot overwrite the new target. Canceling a handoff republishes the
+restored seat's cached target, with native identity fencing for later replacement
+or teardown. Input-owner withdrawal belongs to the enclosing workspace's lifetime,
+so removing one reader no longer withdraws the surviving reader's composer.
+
+The regression extends the existing production Dock/Sidecard/Codex fixture. It
+sends through the Dock's real editor and draft submission, supplies receipt and
+execution-content events, and uses the real Host input-target admission. After
+completion, it waits for handoff and native teardown, checks editability and the
+selected execution, releases focus, clicks the native editor, and delivers a key
+event through the application. Both ordinary and exact-execution entry must
+update the draft without another submission. Both paths also interrupt a prepared
+handoff and verify restoration; closing the workspace still clears its target.
+The fixture does not invoke Runtime admission or a model provider, and does not
+replace full continuation/receipt or physical-device acceptance.
+
+The focused launcher is
+`python3 tools/verification/reading-presentation/run.py --execution-composer-focus`.
+The same method is registered with the existing hosted `thread-send-feedback`
+native owner, including all four parameter cases and their completion markers.
+Before the repair, both ordinary and exact-execution completion cases failed
+the actual `dockInputAvailable` and `NSTextView.isEditable` assertions. The red
+run and its process status are retained in `/tmp/moku-focus-fix-evidence/red`.
+
+Local validation completed the four completion/cancellation cases without skips,
+including pointer hit, retained first responder, keyboard input and workspace
+withdrawal. The first fixed run reached all focus/typing assertions but wrongly
+assumed closing an NSWindow unmounted its retained SwiftUI root. The fixture now
+actually removes the workspace. Subsequent cancellation diagnostics showed the
+editor receiving the click before the still-running Sidecard close returned
+focus to its launcher. The fixture now waits for the production `transitioning`
+state to finish before the same click/typing assertions; no assertion was removed
+and no retry loop was added. Failure logs and the diagnostic AppKit frame remain
+under `/tmp/moku-focus-fix-evidence` alongside the passing replay.
+
+The native product build, `make lint`, `scripts/ci/verify-ci-control.py`, diff
+whitespace and changed-document local links passed. Relocated Swift/Metal caches
+initially failed because they retained the original checkout's absolute path;
+moving those private build caches aside and rebuilding resolved that environment
+failure. No production code was changed to accommodate the cache errors.
+
+Per this request, integration is local main only. Hosted `Complete coverage`, the
+full Swift/Go suites and the other native replay methods were not run for this
+change. The existing remote rules still require strict `Complete coverage` and
+a PR; local verification does not satisfy or bypass those remote gates.

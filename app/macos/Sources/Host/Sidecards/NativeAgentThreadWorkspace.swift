@@ -194,7 +194,10 @@ struct NativeSidecardWorkspaceLayout: View {
                             NativeExecutionHandoffReader(handoff: snapshot.handoff,
                                 destinationSize: snapshot.handoff == nil ? mainSize : panelSize,
                                 workspaceSize: geometry.size, reduceMotion: reduceMotion || handoffResized || scenePhase != .active,
-                                onComplete: model.finishHandoff) {
+                                onComplete: model.finishHandoff, onInputTargetChange: { target in
+                                    inputTarget = target
+                                    inputTargetChanged?(inputOwner, target)
+                                }) {
                                 mainConversation
                             }
                                 .frame(width: mainSize.width, height: mainSize.height, alignment: .topLeading)
@@ -258,6 +261,9 @@ struct NativeSidecardWorkspaceLayout: View {
         .nativeReadingExitCommand {
             closeTopLevel()
         }
+        // Input ownership spans the workspace, not either transient reader
+        // host. Removing the outgoing host must not clear the incoming target.
+        .onDisappear { inputTargetChanged?(inputOwner, nil) }
         .onChange(of: snapshot.selected) { previous, selected in
             if selected == nil, snapshot.focusLauncherOnClose { focusedLauncher = previous }
             else { focusedLauncher = nil }
@@ -337,11 +343,6 @@ struct NativeSidecardWorkspaceLayout: View {
             if preparing { status = .init() }
         }
         .onPreferenceChange(NativeReadingContentRevealStatusKey.self, perform: onContentRevealChange)
-        .onPreferenceChange(ThreadConversationInputTargetKey.self) { target in
-            inputTarget = target
-            inputTargetChanged?(inputOwner, target)
-        }
-        .onDisappear { inputTargetChanged?(inputOwner, nil) }
         // Reserve the history rail across initial loading. The reading column
         // still centers itself inside the current main pane when it resizes.
         .environment(\.nativeThreadReservesHistoryRail, true)

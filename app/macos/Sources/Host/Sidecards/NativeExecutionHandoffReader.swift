@@ -12,13 +12,14 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     let workspaceSize: CGSize
     let reduceMotion: Bool
     let onComplete: (UUID) -> Void
+    let onInputTargetChange: (ThreadConversationInputTarget?) -> Void
     @ViewBuilder let content: Content
 
     func makeNSView(context: Context) -> ExecutionHandoffReaderView { ExecutionHandoffReaderView() }
     func updateNSView(_ view: ExecutionHandoffReaderView, context: Context) {
         view.update(content: AnyView(content), environment: context.environment,
             handoff: handoff, destinationSize: destinationSize, workspaceSize: workspaceSize,
-            reduced: reduceMotion, onComplete: onComplete)
+            reduced: reduceMotion, onComplete: onComplete, onInputTargetChange: onInputTargetChange)
     }
     static func dismantleNSView(_ view: ExecutionHandoffReaderView, coordinator: ()) { view.retire() }
 }
@@ -37,6 +38,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
     private var destinationSize = CGSize.zero
     private var sourceSize = CGSize.zero
     private var onComplete: ((UUID) -> Void)?
+    private var onInputTargetChange: ((ThreadConversationInputTarget?) -> Void)?
     private var environment = EnvironmentValues()
 
     override var isFlipped: Bool { true }
@@ -50,8 +52,10 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
 
     func update(content: AnyView, environment: EnvironmentValues, handoff: NativeSidecardExecutionHandoff?,
                 destinationSize: CGSize, workspaceSize: CGSize, reduced: Bool,
-                onComplete: @escaping (UUID) -> Void) {
+                onComplete: @escaping (UUID) -> Void,
+                onInputTargetChange: @escaping (ThreadConversationInputTarget?) -> Void) {
         self.onComplete = onComplete
+        self.onInputTargetChange = onInputTargetChange
         self.environment = environment
         if self.workspaceSize != .zero, self.workspaceSize != workspaceSize, handoffID != nil { resized = true }
         self.workspaceSize = workspaceSize
@@ -71,10 +75,10 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
             }
         }
         currentContent = content
-        current.host.rootView = root(content, active: handoff == nil || landed, preparation: preparation)
+        current.host.rootView = root(content, seat: current, active: handoff == nil || landed, preparation: preparation)
         // Refresh appearance and gate retained controls without replacing the
         // outgoing document, reading request or scroll model.
-        if let outgoingContent { outgoing?.host.rootView = root(outgoingContent, active: false) }
+        if let outgoing, let outgoingContent { outgoing.host.rootView = root(outgoingContent, seat: outgoing, active: false) }
         layoutSeats()
         if let handoff, handoff.travelComplete, handoff.contentReady, !landed {
             if reduced || resized { finish(handoff.id) }
@@ -82,13 +86,22 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
         }
     }
 
-    private func root(_ content: AnyView, active: Bool, preparation: NativeReadingContentPreparation? = nil) -> AnyView {
+    private func root(_ content: AnyView, seat: ExecutionHandoffReaderSeat, active: Bool,
+                      preparation: NativeReadingContentPreparation? = nil) -> AnyView {
         // Keep this exact root structure during gating/landing. Dropping an
         // environment modifier would recreate the reader and its scroll state.
         var environment = environment
         environment.nativeReadingInteractionActive = environment.nativeReadingInteractionActive && active
         environment.nativeReadingContentPreparation = preparation
         return AnyView(content.allowsHitTesting(active).accessibilityHidden(!active)
+            .onPreferenceChange(ThreadConversationInputTargetKey.self) { [weak self, weak seat] target in
+                guard let self, let seat else { return }
+                seat.inputTarget = target
+                // Both hosts coexist through handoff. Retiring content may
+                // still publish, but only the current native seat owns input.
+                guard current === seat else { return }
+                onInputTargetChange?(target)
+            }
             .environment(\.self, environment))
     }
 
@@ -146,7 +159,7 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
         outgoing?.removeFromSuperview(); outgoing = nil
         outgoingContent = nil
         preparation?.cancel(); preparation = nil
-        if let currentContent { current.host.rootView = root(currentContent, active: true) }
+        if let currentContent { current.host.rootView = root(currentContent, seat: current, active: true) }
         layoutSeats()
         // Never publish a workspace mutation during a hosting/layout update.
         DispatchQueue.main.async { [weak self] in
@@ -166,6 +179,12 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
             current = outgoing; self.outgoing = nil
             currentContent = outgoingContent; outgoingContent = nil
             current.layer?.removeAllAnimations()
+            // Restoring a retained host does not change its preference value.
+            // Republish its target, fenced against another replacement/teardown.
+            DispatchQueue.main.async { [weak self, weak outgoing] in
+                guard let self, let outgoing, current === outgoing else { return }
+                onInputTargetChange?(outgoing.inputTarget)
+            }
         }
     }
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -175,12 +194,13 @@ struct NativeExecutionHandoffReader<Content: View>: NSViewRepresentable {
         handoffID != nil && !landed ? [] : super.accessibilityChildren()
     }
     func retire() {
-        cancel(); onComplete = nil; currentContent = nil
+        cancel(); onComplete = nil; onInputTargetChange = nil; currentContent = nil
         current.host.rootView = AnyView(EmptyView())
     }
 }
 
 private final class ExecutionHandoffReaderSeat: NSView {
+    var inputTarget: ThreadConversationInputTarget?
     let host = NSHostingView(rootView: AnyView(EmptyView()))
     override var isFlipped: Bool { true }
     override init(frame frameRect: NSRect) {

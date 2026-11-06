@@ -67,7 +67,8 @@ def main():
     isolated_input = "--isolated-input" in sys.argv
     tag_glass = "--tag-glass" in sys.argv or glass_captures
     thread_send_native = "--thread-send-feedback-native" in sys.argv
-    thread_send = "--thread-send-feedback" in sys.argv or thread_send_native
+    composer_refocus = "--execution-composer-focus" in sys.argv
+    thread_send = "--thread-send-feedback" in sys.argv or thread_send_native or composer_refocus
     suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
@@ -177,7 +178,9 @@ def main():
                     "RollingNumberCellTests|sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes"
                     if "--rolling-numbers" in sys.argv else suite)
         if thread_send_native:
-            selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons|sidecardApertureTravelsBetweenItsActualLauncherAndPanel"
+            selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons|sidecardApertureTravelsBetweenItsActualLauncherAndPanel|completedSendAllowsClickingAndTypingIntoTheResidentComposer"
+        if composer_refocus:
+            selected = "completedSendAllowsClickingAndTypingIntoTheResidentComposer"
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests" or "--rolling-numbers" in sys.argv,
                             env=environment,
@@ -204,7 +207,8 @@ def main():
             replay.export(evidence)
             replay.close()
     count = (
-             4 if thread_send_native else
+             1 if composer_refocus else
+             5 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
              6 if "--thread-sidebar" in sys.argv else
@@ -215,7 +219,7 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              16 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
-             10 if thread_send else
+             11 if thread_send else
              11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
@@ -229,9 +233,12 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
-    if thread_send and any(marker not in result.stdout for marker in (
+    if thread_send and not composer_refocus and any(marker not in result.stdout for marker in (
             "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED", "THREAD_SIDECARD_TOGGLES_CONFIRMED", "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED")):
         raise SystemExit("FAIL: thread send replay did not confirm both native boundaries")
+    if thread_send and any(f"THREAD_SEND_COMPOSER_REFOCUS_CONFIRMED exactExecution={exact} cancelHandoff={cancel}" not in result.stdout
+                           for exact in ("false", "true") for cancel in ("false", "true")):
+        raise SystemExit("FAIL: composer refocus replay did not confirm both detail entry paths")
     if "--moku-execution-links" in sys.argv and "MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:

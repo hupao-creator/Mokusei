@@ -687,6 +687,13 @@ Pending focus requests wait for editor eligibility and are applied once, so an
 unavailable first render cannot lose the request and later availability cannot
 repeatedly steal the reader's focus. See the
 [recording, focus chain and manual validation limits](../../../../../design/execution-composer-focus.md).
+Execution completion lends input publication only to the current native reader
+seat. The retained outgoing reader cannot overwrite or clear that target, and
+canceling a handoff republishes the restored reader's target. The workspace
+withdraws its input owner when it leaves, independently of either reader's
+teardown. The isolated `--execution-composer-focus` replay submits through the
+production Dock, completes a fixture execution, then clicks and types into the
+same resident editor for both ordinary detail and exact-execution visits.
 Each continuation phase retains its original source, input, destination and
 command ID. An uncertain retry queries that receipt before any routing decision;
 a confirmed fork can then proceed to its first follow-up, while a confirmed

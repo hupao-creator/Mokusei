@@ -7,7 +7,7 @@ python3 tools/verification/reading-presentation/run.py --thread-send-feedback
 ```
 
 Runs the production detail Dock, Sidecard model/Conversation plugin and Codex
-readers in an isolated AppKit app. Ten tests cover receipt/catalog/index
+readers in an isolated AppKit app. Eleven tests cover receipt/catalog/index
 ordering, failure, repeat sends/steering, card choices, covering/navigation,
 terminal/replaced executions, explicit current/result/history requests and
 single-execution sessions. Completion keeps the old reader through travel and
@@ -23,8 +23,19 @@ that explicit mode requires TCC screen-capture permission and fails if denied.
 AppKit caching can omit compositor-owned layers; these snapshots are diagnostic,
 not a pixel acceptance oracle or optical compositor/FPS evidence. This is bounded
 interaction evidence, not a real-provider latency claim. CI uses
-`--thread-send-feedback-native` for only the four native-owned methods; the six
+`--thread-send-feedback-native` for only the five native-owned methods; the six
 state/identity methods run in its ordinary suite.
+The composer regression sends from the real resident Dock, supplies accepted
+receipt/catalog/content fixtures and waits for completion handoff and outgoing
+reader teardown. Both ordinary detail and exact-execution visits must remain
+editable, acquire first responder from an ordinary native mouse click, and
+receive a key event in the draft without a second submission. Closing the
+workspace must still withdraw its input target. Both paths also interrupt a
+prepared handoff to check input restoration when the retained reader returns.
+It uses the production Host
+input-target admission and native editor; no Runtime/provider task is sent.
+Run just this regression with
+`python3 tools/verification/reading-presentation/run.py --execution-composer-focus`.
 Real right-side launcher controls toggle Conversation, Browser and Voice without
 an independent card Close icon; switching launchers retains execution identity
 and never navigates back or starts voice media. Browser uses a loopback URL and

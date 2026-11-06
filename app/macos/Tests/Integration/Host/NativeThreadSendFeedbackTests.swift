@@ -38,6 +38,36 @@ private struct SendFeedbackLayout: View {
     }
 }
 
+@MainActor @Observable private final class SendFeedbackComposerMount {
+    var visible = true
+}
+
+private struct SendFeedbackComposerLayout: View {
+    let mount: SendFeedbackComposerMount
+    let model: NativeSidecardWorkspaceModel
+    let presentation: NativeWorkspacePresentation
+    let scene: NativeMokuSceneState
+    let draft: NativeComposerDraft
+    let onSend: (NativeComposerSubmission) async throws -> Void
+
+    var body: some View {
+        let route = presentation.navigationRouteID
+        if mount.visible {
+            VStack(spacing: 0) {
+                SendFeedbackLayout(model: model, reduceMotion: false)
+                    .environment(\.nativeAgentInputTargetChanged, { owner, target in
+                        presentation.updateAgentInput(owner: owner, target: target, route: route)
+                        print("COMPOSER_TARGET time=\(ProcessInfo.processInfo.systemUptime) owner=\(owner) execution=\(String(describing: target?.executionID?.string)) ready=\(String(describing: target?.ready))")
+                    })
+                NativeMokuDock(state: scene, draft: draft, cwd: "/tmp", threadTitle: "Thread",
+                    disabled: !presentation.dockInputAvailable, onSend: onSend, onCancel: {})
+                    .frame(height: 100)
+            }
+            .environment(\.scenePhase, .active)
+        }
+    }
+}
+
 @MainActor @Observable private final class FoldProbeState {
     var available: Set<JSONText> = ["a", "b", "c"]
     var presses = 0
@@ -720,5 +750,112 @@ struct NativeThreadSendFeedbackTests {
         await draft.dispose()
         state.overviewState.camera.dispose()
         print("THREAD_SEND_DOCK_FEEDBACK_CONFIRMED outcome=\(outcome)")
+    }
+
+    @Test(.requiresDisplay, arguments: [false, true], [false, true])
+    func completedSendAllowsClickingAndTypingIntoTheResidentComposer(exactExecution: Bool, cancelHandoff: Bool) async throws {
+        let fixture = try Fixture()
+        defer { fixture.pump?.cancel(); fixture.model.release() }
+        let preferences = DesktopPreferences(directory: fixture.directory)
+        try preferences.setOnboardingCompleted(true)
+        let workspace = NativeWorkspaceModel(client: fixture.client, preferences: preferences,
+            plugins: try .init(harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], sidecards: [], applications: []))
+        try workspace.catalog.install(.object(["revision": .integer(1), "settingsRevision": .integer(0),
+            "defaultCwd": .text(fixture.directory.path), "settings": .object([:]),
+            "threads": .array([fixture.owner.thread.json]), "executions": .array([]), "applicationThreads": .array([])]))
+        let presentation = NativeWorkspacePresentation(workspace: workspace)
+        func visit(_ execution: JSONText) {
+            let target: HarnessReadingTarget? = exactExecution
+                ? .init(executionID: execution, requestID: execution, mode: .current, position: .result) : nil
+            fixture.configuration.input = .init(thread: fixture.owner.thread, readingTarget: target)
+            fixture.update()
+            presentation.open(.init(threadID: "thread", typeID: "agent"), target: target)
+        }
+        visit("old")
+        fixture.startContentPump()
+        let scene = NativeMokuSceneState()
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        scene.readingPanelVisible = true; scene.overviewVisible = false; scene.setWindowVisible(true)
+        scene.setComposerContext(draft, opensInput: true, keepsInputOpen: true)
+        draft.text = "Follow up"
+        var submissions: [NativeComposerSubmission] = []
+        let mount = SendFeedbackComposerMount()
+        let window = SwiftUIReplay.window(SendFeedbackComposerLayout(mount: mount, model: fixture.model, presentation: presentation,
+            scene: scene, draft: draft, onSend: { submission in
+                submissions.append(submission)
+                fixture.request(UUID(), accepted: "new")
+                try fixture.observe()
+                if exactExecution { visit("new") }
+            }), width: 1180, height: 760)
+        defer { window.close(); scene.overviewState.camera.dispose() }
+        let root = try #require(window.contentView)
+        // This lookup must not focus the editor: the regression is ordinary
+        // pointer acquisition after the old reader has actually disappeared.
+        func editor(in view: NSView) -> ComposerTextView? {
+            if let editor = view as? ComposerTextView { return editor }
+            return view.subviews.lazy.compactMap { editor(in: $0) }.first
+        }
+        try await SwiftUIReplay.wait { presentation.dockInputAvailable && editor(in: root)?.isEditable == true }
+        let initialEditor = try #require(editor(in: root))
+        window.makeFirstResponder(initialEditor)
+        initialEditor.keyDown(with: try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)))
+        try await SwiftUIReplay.wait { submissions.count == 1 && !draft.submitting && fixture.model.snapshot?.selected == "conversation" }
+        #expect(submissions.first?.text == "Follow up")
+        #expect(draft.text.isEmpty)
+        #expect(scene.inputOpen)
+        try fixture.observe(status: .completed)
+        try #require(fixture.model.snapshot?.handoff != nil)
+        if cancelHandoff {
+            // Interrupt after the incoming reader has published, while the
+            // original reader is still retained for the outgoing animation.
+            try await SwiftUIReplay.wait { fixture.model.snapshot?.handoff?.contentReady == true }
+            fixture.model.close("conversation")
+        }
+        // Canceling handoff also starts the ordinary card fold and its launcher
+        // focus restoration. Wait for that production transition to finish.
+        try await SwiftUIReplay.wait(timeout: .seconds(8)) {
+            fixture.model.snapshot?.handoff == nil && fixture.model.snapshot?.selected == nil
+                && fixture.model.snapshot?.transitioning == false
+        }
+        // Let native teardown and its deferred preference/disappearance reports
+        // drain before inspecting availability or attempting another click.
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(presentation.dockInputAvailable)
+        #expect(presentation.dockExecution?.executionID == (exactExecution ? "new" : nil))
+        let input = try #require(editor(in: root))
+        #expect(input === initialEditor)
+        try #require(input.isEditable && input.isSelectable)
+        window.makeFirstResponder(nil)
+        let visible = input.visibleRect
+        let point = input.convert(CGPoint(x: visible.minX + 20, y: visible.midY), to: nil)
+        let hit = root.hitTest(root.superview?.convert(point, from: nil) ?? point)
+        print("COMPOSER_CLICK time=\(ProcessInfo.processInfo.systemUptime) exact=\(exactExecution) cancel=\(cancelHandoff) key=\(window.isKeyWindow) editable=\(input.isEditable) visible=\(visible) hitsEditor=\(hit === input)")
+        try #require(hit === input)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 1, clickCount: 1, pressure: 0))
+        // NSTextView's synchronous mouse tracking needs its release queued first.
+        NSApp.postEvent(up, atStart: true)
+        NSApp.sendEvent(down)
+        print("COMPOSER_CLICK_DISPATCH time=\(ProcessInfo.processInfo.systemUptime) focus=\(window.firstResponder === input)")
+        try await Task.sleep(for: .milliseconds(100))
+        print("COMPOSER_CLICK_RESULT time=\(ProcessInfo.processInfo.systemUptime) editable=\(input.isEditable) available=\(presentation.dockInputAvailable) focus=\(window.firstResponder === input)")
+        if window.firstResponder !== input { try await capture(window, name: "composer-focus-failure-\(exactExecution)-\(cancelHandoff)") }
+        try #require(window.firstResponder === input)
+        NSApp.sendEvent(try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7)))
+        try await SwiftUIReplay.wait { draft.text == "x" && input.string == "x" }
+        #expect(submissions.count == 1)
+        mount.visible = false
+        try await SwiftUIReplay.wait { presentation.agentInputTarget == nil }
+        await draft.dispose()
+        await fixture.close()
+        print("THREAD_SEND_COMPOSER_REFOCUS_CONFIRMED exactExecution=\(exactExecution) cancelHandoff=\(cancelHandoff)")
     }
 }

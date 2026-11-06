@@ -2,6 +2,9 @@
 import re
 
 NATIVE_METHOD_OWNERS = {
+    "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/completedSendAllowsClickingAndTypingIntoTheResidentComposer(exactExecution:cancelHandoff:)": {
+        "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SEND_COMPOSER_REFOCUS_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeThreadSendFeedbackTests/sidecardApertureTravelsBetweenItsActualLauncherAndPanel(width:)": {
         "group": "native", "check": "thread-send-feedback", "marker": "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED",
     },
