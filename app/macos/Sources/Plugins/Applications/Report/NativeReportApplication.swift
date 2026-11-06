@@ -7,7 +7,7 @@ import SwiftUI
     public static func make() throws -> ApplicationPluginModule {
         let manifest = try ApplicationPluginManifest(id: "report", displayName: "Super Thread Agent", contributes: .init(
             backgroundAgents: ["report.agent"], threadTypes: ["report.document"], settings: ["report.settings"],
-            collections: ["report.records"], queries: ["report.read", "report.list", "report.html", "report.relations", "report.context"], commands: ["report.create", "report.update"]))
+            collections: ["report.records"], queries: ["report.read", "report.list", "report.html", "report.relations", "report.context"], commands: ["report.create", "report.update", "report.unlink"]))
         return try ApplicationPluginModule(manifest: manifest, threads: [AnyApplicationThreadPlugin(ReportThreadPlugin())],
                                            settings: [AnyApplicationSettingsPlugin(ReportSettingsPlugin())])
     }
@@ -69,6 +69,10 @@ struct NativeReportDetail: View {
     @State private var relationsLoading = false
     @State private var relationsPending = false
     @State private var relationsFailure: String?
+    @State private var pendingUnlink: NativeReportUnlink?
+    @State private var confirmingUnlink = false
+    @State private var unlinking = false
+    @State private var unlinkFailure: String?
     @State private var unsubscribe: (() -> Void)?
     @State private var failure: String?
     @State private var localSidecards = NativeReportSidecardPresentation()
@@ -181,6 +185,16 @@ struct NativeReportDetail: View {
         .onChange(of: props.entry.view.contentRevision) { _, _ in sidecards.updateDocument(nil) }
         .onChange(of: props.entry.view.relatedExecutions) { _, _ in refresh() }
         .onChange(of: props.entry.revision) { _, _ in refresh() }
+        .confirmationDialog(applicationText(locale, "解除本报告中的关联？", "Unlink from this report?"),
+            isPresented: $confirmingUnlink, titleVisibility: .visible, presenting: pendingUnlink) { input in
+                Button(applicationText(locale, "解除本报告关联", "Unlink from this report")) {
+                    Task { await unlink(input) }
+                }
+                Button(applicationText(locale, "取消", "Cancel"), role: .cancel) {}
+            } message: { _ in
+                Text(applicationText(locale, "仅解除当前 Super Thread 中的此关联。报告正文、普通 Thread、执行记录和其他报告均保留；如还有其他绑定，需分别解除后才能重新绑定。",
+                    "Remove only this link from the current Super Thread. Report content, the ordinary Thread, executions and other reports are kept. Any other bindings must also be removed before rebinding."))
+            }
         .task(id: relationsRefresh) {
             // The long-lived subscription only invalidates State. Read from
             // this render's props, never the report captured at subscription.
@@ -231,6 +245,7 @@ struct NativeReportDetail: View {
                     VStack(alignment: .leading, spacing: 14) {
                         if let failure { Text(failure).foregroundStyle(.red) }
                         if let relationsFailure { Text(relationsFailure).foregroundStyle(.red) }
+                        if let unlinkFailure { Text(unlinkFailure).foregroundStyle(.red) }
                         if references.isEmpty {
                             Text(applicationText(locale, "暂无关联执行", "No related executions"))
                                 .foregroundStyle(.secondary).padding(12)
@@ -241,6 +256,12 @@ struct NativeReportDetail: View {
                                 visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
                                 if !sidecards.retainingForReturn { sidecards.selectExecution(item.reference) }
                             }
+                            Button(applicationText(locale, "解除本报告关联", "Unlink from this report")) {
+                                pendingUnlink = .init(reportID: props.entry.ref.threadID, reference: item.reference, revision: props.entry.revision)
+                                confirmingUnlink = true
+                            }
+                            .font(.caption).disabled(unlinking || sidecards.retainingForReturn)
+                            .accessibilityLabel(applicationText(locale, "解除本报告关联：", "Unlink from this report: ") + item.title.string)
                         }
                     }.padding(16)
                 }
@@ -265,6 +286,18 @@ struct NativeReportDetail: View {
         guard !sidecards.retainingForReturn else { return }
         invalidateRelations()
         refreshReferences()
+    }
+    private func unlink(_ input: NativeReportUnlink) async {
+        guard !unlinking, !sidecards.retainingForReturn else { return }
+        unlinking = true; unlinkFailure = nil
+        defer { unlinking = false }
+        do {
+            _ = try await props.context.domain.execute(NativeReportContracts.unlink, input: input,
+                requestID: JSONText(UUID().uuidString), lifetime: props.context.lifetime)
+            refresh()
+        } catch is CancellationError {} catch {
+            unlinkFailure = error.localizedDescription
+        }
     }
     private func invalidateRelations() {
         if relationsLoading { relationsPending = true }

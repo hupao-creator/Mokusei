@@ -655,8 +655,9 @@ before delivery so mouse-up cannot close the reading panel after AppKit commits 
 mark or removes a popup. No forced unmark/discard or delayed close is added.
 Existing Moku interventions/covering routes keep their surface priority and release
 the Agent editor afterward; its draft remains owned by the same Thread.
-Agent input does not expose Moku voice-start actions, transcripts or Talk; an
-existing workspace voice session is not stopped. Execution Sidecards stay usable
+Agent input does not expose Moku voice-start actions, live transcripts or Talk.
+Switching to that send route stops Moku media; a separate route-stop notice keeps
+the received original-call transcription and teardown status accessible. Execution Sidecards stay usable
 beside the open composer and own no text/attachment input.
 
 Overview, landing, Git and Moku history retain their existing input and
@@ -756,5 +757,12 @@ current report and its precise source references. Route fences prevent a retirin
 composer from assigning its input to another report. Selecting an execution still
 borrows the ordinary Agent composer with its existing historical continuation,
 Stop authority and receipt handling. No associated Agent receives unselected input.
-The focused presentation also publishes the unselected document source to Moku
-voice; leaving it clears the source without starting or ending media.
+The focused presentation supplies the unselected document source when Moku voice
+starts. It is immutable for that call. Selecting an execution synchronously closes
+Moku media before reader geometry/input readiness is published; reopening a retained
+execution does the same. Other report/send-route changes also stop the call and
+require explicit Start on the destination. Moku history is its own send route.
+A separate notice remains visible over the selected Agent reader, retaining the
+received original-call transcript for explicit copying and exposing teardown errors.
+It never claims to start Agent execution voice. Text/attachment draft ownership and
+exact-execution continuation remain unchanged.

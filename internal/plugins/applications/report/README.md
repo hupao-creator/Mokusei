@@ -184,3 +184,21 @@ Sprint validation: Go formatting, architecture lint, vet and builds, and the Swi
 application product build only. No tests, integration replays, CI, PR, push or merge
 are part of this change. Native focus/animation, accessibility, real voice,
 concurrent binding and legacy-data interactions require later validation.
+
+
+## Explicit user unlink
+
+Each related-list row offers **Unlink from this report**, including missing sources
+and legacy binding conflicts. Confirmation names its scope: only that exact link
+is removed; report HTML, ordinary Thread, execution history and other reports remain.
+`report.unlink` is a user-only command with report ID, Thread ID, execution ID and
+observed report revision. Its serialized collection transaction rejects a changed
+link/revision, removes the associated tag-source entry, and permits an already-absent
+link as an idempotent success. Existing command receipts cover response retries.
+This works independently of the background Agent's enabled setting. The list and
+Moku read the resulting authoritative references; no UI-only ownership state exists.
+
+This operation releases one report's binding, not all other owners and not an
+automatic move. Remaining conflicts are still visible; users must unlink remaining
+owners before rebinding. It does not edit or erase claims in the report body. Rebind
+creation/update remains the background report author's existing authority.

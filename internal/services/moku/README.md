@@ -170,8 +170,9 @@ do not load unrelated Thread histories.
 [voice.go](voice.go) owns media leases and device/owner fencing. A Codex Moku uses its native voice capability and fails if unavailable; it does not fall back to a relay. Other hosts use the Codex relay with their normal target admission. Preparation adopts a saved host preference first; its own service admission is not treated as competing work for that replacement. Ending Moku media leaves already admitted task work running. Typed dispatch and accepted handoffs fence old delivery; caption fragments do not create a new task generation. See [Codex voice](../../plugins/harness/codex/README.md#voice) and the [native media client](../../../app/macos/Sources/Voice/README.md).
 
 Relay requests still waiting for target admission belong to the media lease and
-leave the queue when that lease ends. Once admission begins, the service owns
-the request independently of media cancellation.
+leave the queue when that lease ends. Once the native admitted callback confirms input retention, the service owns
+the request independently of media cancellation. Before that callback, closing
+media cancels settings, context and native-admission waits as well.
 
 Relay media belongs to the Moku conversation and survives same-owner model,
 routing and target-schema changes. Reopening the task engine retains the media
@@ -324,12 +325,25 @@ and prevents a context-free send. Inputs without this identity explicitly clear
 previous Super Thread source context; no catalog/history enumeration is added to
 ordinary user submits. Lifecycle delivery and model discovery are unchanged.
 
-Voice preparation accepts the same optional identity with a monotonic
-`sourceRevision`. An ownership/device-fenced `context` command updates the active
-lease as the focused reader changes; stale revisions cannot restore old context.
-The native voice session refreshes its context without consuming lifecycle
-notifications, and native task admission resolves it again. Relay delegation
-captures the source before queuing; configuration recovery retains the captured
-source through reconnection. Selected execution input remains direct Agent input
-and does not claim a Super Thread Moku source. Real microphone, navigation races
-and end-to-end native/relay behavior were not exercised in this sprint.
+Voice preparation captures the optional document identity and `sourceRevision`
+for one immutable media ownership generation. The response echoes both; the
+client verifies them before microphone allocation. A page/target change closes
+the old local peer synchronously and requests Stop. There is no in-place context
+retargeting: the old `context` command only acknowledges the exact same source,
+otherwise it cancels that lease before any queue wait. New preparation waits for
+confirmed cleanup and requires an explicit user start on the destination page.
+
+The native admission hook resolves the captured report again and rejects a
+revoked owner. Relay and recovered inputs retain media cancellation through
+settings/context/Core admission until the actual native admitted callback; already
+retained task work keeps its own lifetime. Typed text/attachments capture their
+voice fence before the first suspension, and a vanished/mismatched media lease
+cannot redirect their source or prevent ordinary Moku submission.
+
+Configuration records no longer snapshot an early source. The rejected-input
+callback saves one `{request, source}` pair, including native request ID/generation
+and the original report/source revision. Reconnect must match the retiring lease's
+source; recovery replays that captured pair only after confirmed pre-admission
+rejection and cleanup. Explicit Stop discards automatic recovery and new media
+never inherits another page's pending input. Model discovery and lifecycle delivery
+logic remain unchanged. No voice/reconnection replay ran in this sprint.

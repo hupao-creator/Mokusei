@@ -38,10 +38,27 @@ User transcript projection keeps stable session/item identity through partial an
 Verification combines the Codex `-voice-only` fixture, Moku/thread Runtime replays and native voice ownership/transcript suites. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
 
 
-Moku voice carries the focused unselected Super Thread identity through preparation
-and ownership-fenced context updates. Per-client monotonic source revisions prevent
-late route updates from restoring an older source. Preparation republishes the
-latest identity before microphone setup; changing a route does not start media.
-The backend resolves report content at native admission or captured relay submit.
-Typed/attachment/recording submissions keep their explicit submit source independently
-of voice playback fences. This sprint has no microphone or voice replay validation.
+Moku voice freezes the unselected Super Thread identity and source revision into
+each Attempt and backend lease. Prepare acknowledges both before microphone setup.
+There are no asynchronous source updates on a live peer. Changing report, selecting
+an execution (including reopening a retained selected execution), entering another
+send route or closing the owning window synchronously closes local audio/peer and
+retires the Attempt before requesting backend Stop. Returning requires explicit
+Start after confirmed teardown. A permission prompt losing key-window focus alone
+is not navigation and cannot cancel its own microphone setup.
+
+Selected execution input remains ordinary Agent text/attachment input. Existing
+Thread voice is a separate read-only discussion; this change does not advertise it
+as execution voice input or automatically start it. A route-stop notice stays
+visible outside Moku-only controls, retains received original-call ASR until explicit
+dismissal, and offers copying rather than sending it to the new target. Partial or
+not-yet-transcribed audio is not recoverable; the notice says to confirm/repeat it.
+Already accepted tasks remain intact, and unadmitted speech is not automatically
+resent. Stop failures retain their exact ownership request, block new preparation
+and expose retry; dismissing the notice cannot hide unresolved teardown.
+
+Configuration reconnect carries the prior Attempt's exact source. Late preparation,
+poll, SDP and reconnect callbacks cannot allocate audio after route retirement.
+Typed input captures playback fencing before suspension, independently of later
+source/voice changes. This sprint uses static review and product builds, with no
+microphone, WebRTC, native interaction or voice replay validation.

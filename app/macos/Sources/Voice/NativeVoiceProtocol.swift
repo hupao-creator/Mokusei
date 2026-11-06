@@ -13,6 +13,13 @@ public struct NativeVoiceMediaState: Hashable, Sendable {
     public init() {}
 }
 
+public struct NativeVoiceRouteNotice: Identifiable, Sendable {
+    public let id = UUID()
+    public let superThreadID: JSONText?
+    public let transcript: JSONText?
+    public let agentSelected: Bool
+}
+
 struct NativeVoiceEvent: Sendable {
     let sequence: Int
     let type: String
@@ -46,6 +53,8 @@ struct NativeVoiceEvent: Sendable {
 }
 
 struct NativeVoiceResult: Sendable {
+    let superThreadID: JSONText?
+    let sourceRevision: Int?
     let sessionID: JSONText?
     let ownershipID: JSONText?
     let occupiedOwner: NativeVoiceOccupiedOwner?
@@ -61,6 +70,8 @@ struct NativeVoiceResult: Sendable {
     init(_ value: JSONValue) throws {
         guard value.objectValue != nil else { throw NativeVoiceError("语音服务返回了无效响应") }
         sessionID = value["sessionId"]?.voiceText
+        superThreadID = value["superThreadId"]?.voiceText
+        sourceRevision = value["sourceRevision"]?.intValue
         if let sessionID, UUID(uuidString: sessionID.string) == nil { throw NativeVoiceError("语音服务返回了无效会话") }
         ownershipID = value["ownershipId"]?.voiceText
         if let ownershipID, UUID(uuidString: ownershipID.string) == nil { throw NativeVoiceError("语音服务返回了无效所有权") }

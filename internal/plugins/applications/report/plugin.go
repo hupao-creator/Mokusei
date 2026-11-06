@@ -22,7 +22,7 @@ type Plugin struct{}
 
 func New() *Plugin { return &Plugin{} }
 func (*Plugin) Manifest() plugin.ApplicationManifest {
-	return plugin.ApplicationManifest{ID: "report", DisplayName: "Super Thread Agent", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.html", "report.relations", "report.context"}, Commands: []string{"report.create", "report.update"}}}
+	return plugin.ApplicationManifest{ID: "report", DisplayName: "Super Thread Agent", APIVersion: 1, Contributes: plugin.Contributions{BackgroundAgents: []string{"report.agent"}, ThreadTypes: []string{ThreadTypeID}, Settings: []string{SettingsID}, Collections: []string{CollectionID}, Queries: []string{"report.read", "report.list", "report.html", "report.relations", "report.context"}, Commands: []string{"report.create", "report.update", "report.unlink"}}}
 }
 func (*Plugin) Register(registry plugin.Registry) error {
 	if err := background.RegisterSettings(registry, "report", SettingsID); err != nil {

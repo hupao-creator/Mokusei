@@ -10,10 +10,9 @@ import (
 )
 
 type voiceReconfiguration struct {
-	superThreadID                     *string
 	owner, device, ownership, session string
 	ready                             chan struct{}
-	pending                           *plugin.VoiceDelegation
+	pending                           *recoveredVoiceInput
 	err                               error
 }
 
@@ -90,7 +89,7 @@ func (v *voiceController) configurationReconnectLocked(ctx context.Context, requ
 
 func (v *voiceController) ensureReconfigurationLocked(lease *mokuVoiceLease) *voiceReconfiguration {
 	if v.reconfiguration == nil || v.reconfiguration.ownership != lease.requestID {
-		v.reconfiguration = &voiceReconfiguration{owner: lease.owner, device: lease.device, ownership: lease.requestID, session: lease.id, superThreadID: lease.superThreadID}
+		v.reconfiguration = &voiceReconfiguration{owner: lease.owner, device: lease.device, ownership: lease.requestID, session: lease.id}
 	}
 	return v.reconfiguration
 }
@@ -144,11 +143,11 @@ func (v *voiceController) recoveredNativeConfiguration(lease *mokuVoiceLease, re
 		reconnect.err = cleanupErr
 	}
 	if cleanupErr == nil && reconnect.err == nil {
-		if reconnect.pending != nil && *reconnect.pending != request {
+		input := recoveredVoiceInput{Request: request, Source: lease.source}
+		if reconnect.pending != nil && *reconnect.pending != input {
 			reconnect.err = errors.New("多条语音请求仍在交接，未自动重送；请查看原始转写")
 		} else {
-			copy := request
-			reconnect.pending = &copy
+			reconnect.pending = &input
 		}
 	}
 	if reconnect.ready != nil {
@@ -181,13 +180,13 @@ func (v *voiceController) waitConfigurationRecovery(ctx context.Context, reconne
 
 func (v *voiceController) resumeConfigurationInput(lease *mokuVoiceLease) {
 	v.mu.Lock()
-	request := lease.resume
-	source := lease.resumeSuperThreadID
+	input := lease.resume
 	lease.resume = nil
 	v.mu.Unlock()
-	if request == nil {
+	if input == nil {
 		return
 	}
+	request, source := input.Request, input.Source.reportID()
 	v.c.launch(func(ctx context.Context) {
 		waitCtx, finish := voiceLeaseContext(ctx, lease)
 		err := takeVoiceQueue(waitCtx, v.admissions)

@@ -35,9 +35,7 @@ type mokuVoicePreparation struct {
 }
 
 type mokuVoiceLease struct {
-	superThreadID         *string // protected by voiceController.mu
-	sourceRevision        int64
-	resumeSuperThreadID   *string
+	source                voiceInputSource // immutable for this media ownership generation
 	session               plugin.VoiceSession
 	id                    string
 	requestID             string
@@ -50,7 +48,7 @@ type mokuVoiceLease struct {
 	unsubscribeDelegation func()
 	unsubscribeContext    func() bool
 	unsubscribeRecovery   func()
-	resume                *plugin.VoiceDelegation
+	resume                *recoveredVoiceInput
 }
 
 type mokuVoiceTeardown struct {
@@ -211,12 +209,22 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	}
 	defer finish()
 	if request.Action == "context" {
-		// Match task admission's lock order. A delayed presentation snapshot
-		// must not overwrite the context already injected by a newer send.
-		if err := takeVoiceQueue(ctx, v.admissions); err != nil {
+		lease, err := v.required(request.SessionID, request.OwnershipID, device)
+		if err != nil {
 			return nil, err
 		}
-		defer func() { v.admissions <- struct{}{} }()
+		// Source revocation must precede queues: an old client cannot retarget
+		// buffered speech while another input is waiting for admission.
+		if lease.source != makeVoiceInputSource(request.SuperThreadID, request.SourceRevision) {
+			v.mu.Lock()
+			if v.active == lease {
+				v.discardReconfigurationLocked()
+			}
+			v.mu.Unlock()
+			lease.cancel()
+			return nil, model.NewError("VOICE_SOURCE_CHANGED", "语音来源已变化，请结束原通话后在新页面重新开启。")
+		}
+		return map[string]any{"superThreadId": lease.source.reportID(), "sourceRevision": lease.source.Revision}, nil
 	}
 	if request.Action == "poll" {
 		v.mu.Lock()
@@ -287,6 +295,16 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 				detachPrepare()
 				cancel()
 				return nil, model.NewError("VOICE_OWNERSHIP_CHANGED", "语音重连所有权已经变化")
+			}
+			origin := v.active
+			if origin == nil {
+				origin = v.retiredLease
+			}
+			if origin == nil || origin.requestID != request.ReconnectFrom || origin.source != makeVoiceInputSource(request.SuperThreadID, request.SourceRevision) {
+				v.mu.Unlock()
+				detachPrepare()
+				cancel()
+				return nil, model.NewError("VOICE_SOURCE_CHANGED", "语音重连来源已变化，请结束原通话后重新开启。")
 			}
 			preparation.reconnect = reconnect
 		}
@@ -393,12 +411,11 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		v.mu.Lock()
 		if preparation.reconnect != nil && v.reconfiguration == preparation.reconnect {
 			lease.resume = preparation.reconnect.pending
-			lease.resumeSuperThreadID = preparation.reconnect.superThreadID
 			v.reconfiguration = nil
 		}
 		v.mu.Unlock()
 		installed = true
-		return map[string]any{"sessionId": lease.id, "ownershipId": lease.requestID}, nil
+		return map[string]any{"sessionId": lease.id, "ownershipId": lease.requestID, "superThreadId": lease.source.reportID(), "sourceRevision": lease.source.Revision}, nil
 	}
 	if request.Action == "stop" {
 		v.mu.Lock()
@@ -417,34 +434,7 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	if err != nil {
 		return nil, err
 	}
-	if request.Action == "context" {
-		v.mu.Lock()
-		changed := request.SourceRevision > lease.sourceRevision
-		if changed {
-			lease.superThreadID, lease.sourceRevision = request.SuperThreadID, request.SourceRevision
-		}
-		v.mu.Unlock()
-		if changed && lease.native {
-			if syncer, ok := lease.session.(plugin.VoiceContextSync); ok {
-				linked, cancel := voiceLeaseContext(ctx, lease)
-				defer cancel()
-				entries, err := v.c.sendContext(linked, model.AgentInput{}, nil, nil)
-				if err != nil {
-					return nil, err
-				}
-				entries, err = v.c.withSuperThreadContext(linked, entries, request.SuperThreadID)
-				if err != nil {
-					return nil, err
-				}
-				// Presentation refresh is not native execution admission and may
-				// not claim or deliver queued lifecycle notifications.
-				if err := syncer.SyncContext(linked, entries); err != nil {
-					return nil, err
-				}
-			}
-		}
-		return map[string]any{}, nil
-	}
+
 	if request.Action == "ack-speech" {
 		receiver, ok := lease.session.(plugin.VoiceSpeechReceipt)
 		if !ok {
@@ -508,7 +498,7 @@ func (v *voiceController) prepareSession(ctx context.Context, preparation *mokuV
 		stopErr := session.Stop(context.WithoutCancel(ctx))
 		return nil, errors.Join(errors.New("Voice preparation owner retired"), stopErr)
 	}
-	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, native: record.HarnessID == "codex", ctx: preparation.ctx, cancel: preparation.cancel, superThreadID: preparation.superThreadID, sourceRevision: preparation.sourceRevision}
+	lease := &mokuVoiceLease{session: session, id: session.ID(), requestID: preparation.id, device: preparation.device, owner: record.ID, native: record.HarnessID == "codex", ctx: preparation.ctx, cancel: preparation.cancel, source: makeVoiceInputSource(preparation.superThreadID, preparation.sourceRevision)}
 	if err := v.attach(lease); err != nil {
 		return nil, errors.Join(err, v.stop(context.WithoutCancel(ctx)))
 	}
@@ -548,7 +538,7 @@ func (v *voiceController) required(id, ownershipID, device string) (*mokuVoiceLe
 	v.mu.Lock()
 	active := v.active == lease
 	v.mu.Unlock()
-	if !active {
+	if !active || lease.ctx.Err() != nil || lease.session.Closed() {
 		return nil, errors.New("Voice owner 已失效")
 	}
 	return lease, nil
@@ -601,10 +591,7 @@ func (v *voiceController) attach(lease *mokuVoiceLease) error {
 		}
 	}
 	unsubscribeDelegation := lease.session.OnDelegation(func(request plugin.VoiceDelegation) {
-		v.mu.Lock()
-		source := lease.superThreadID
-		v.mu.Unlock()
-		v.c.launch(func(ctx context.Context) { v.delegateFromSuperThread(ctx, lease, request, source) })
+		v.c.launch(func(ctx context.Context) { v.delegate(ctx, lease, request) })
 	})
 	v.mu.Lock()
 	if v.active == lease {
@@ -682,13 +669,7 @@ func (v *voiceController) nativeRequest(ctx context.Context, lease *mokuVoiceLea
 }
 
 func (v *voiceController) delegate(ctx context.Context, lease *mokuVoiceLease, request plugin.VoiceDelegation) {
-	v.mu.Lock()
-	source := lease.superThreadID
-	v.mu.Unlock()
-	v.delegateFromSuperThread(ctx, lease, request, source)
-}
-
-func (v *voiceController) delegateFromSuperThread(ctx context.Context, lease *mokuVoiceLease, request plugin.VoiceDelegation, source *string) {
+	source := lease.source.reportID()
 	// Media owns queued requests only until target admission begins. Link that
 	// wait to the lease, then keep the original service context for admitted work.
 	waitCtx, finishWait := voiceLeaseContext(ctx, lease)
@@ -708,8 +689,8 @@ func (v *voiceController) delegateFromSuperThread(ctx context.Context, lease *mo
 	if err != nil || current.ID != lease.owner {
 		return
 	}
-	// Once this admission begins it belongs to Moku, independently of media
-	// cancellation. Only the eventual spoken delivery uses the media lifetime.
+	// submit retains media cancellation until the native admitted callback.
+	// Confirmed task work then belongs to Moku independently of the old peer.
 	delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: lease.id + ":" + request.ID, delegationID: request.ID, generation: request.Generation, lease: lease}
 	err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text), SuperThreadID: source}, delivery, request.Context)
 	if err == nil {
@@ -842,6 +823,9 @@ func (v *voiceController) fenceSubmit(ctx context.Context, request SubmitRequest
 		// owner is gone. It cannot fence or speak through a replacement session.
 		return nil, noop, noop, nil
 	}
+	if makeVoiceInputSource(request.SuperThreadID, lease.source.Revision) != lease.source {
+		return nil, noop, noop, nil
+	}
 	delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: input.InputID, generation: lease.session.InputGeneration(), lease: lease}
 	fence := func() {
 		current, err := v.c.current()
@@ -954,7 +938,7 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	}
 	v.mu.Unlock()
 	if lease == nil {
-		return nil
+		return errors.New("Voice owner 已失效")
 	}
 	syncer, ok := lease.session.(plugin.VoiceContextSync)
 	if !ok {
@@ -988,9 +972,7 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if err != nil {
 		return err
 	}
-	v.mu.Lock()
-	source := lease.superThreadID
-	v.mu.Unlock()
+	source := lease.source.reportID()
 	entries, err = v.c.withSuperThreadContext(linked, entries, source)
 	if err != nil {
 		return err

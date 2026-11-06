@@ -1398,3 +1398,9 @@ cannot reenable input. The Report's Back button lives outside this carrier.
 `NativeReportSidecardPresentation` owns the selection and execution visit alongside
 Browser/list admission; accepted continuations are visit-local and independent of
 the authored reference list. The window supplies one presentation per route.
+
+
+Report Sidecard selection publishes a synchronous semantic execution-selection
+callback, including reopening a retained selected execution. The host uses it to
+revoke Moku microphone ownership before destination layout/input preferences arrive;
+it does not retarget the composer, acquire focus, or start another voice service.

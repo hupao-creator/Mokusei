@@ -95,6 +95,9 @@ func RegisterDomain(registry plugin.Registry) error {
 	if err := registerContextQueries(registry); err != nil {
 		return err
 	}
+	if err := registerUnlink(registry); err != nil {
+		return err
+	}
 	readOutput := plugin.ValueContract{ID: "report.read.output", SchemaVersion: 1, Parse: func(raw json.RawMessage) (json.RawMessage, error) {
 		if model.IsNull(raw) {
 			return json.RawMessage("null"), nil
