@@ -193,3 +193,10 @@ trusted matching snapshot it returns an explicit Moku completeness error. Ordina
 explicit-model creation/validation still consumes the enumeration result. Unknown
 refresh results cannot replace trusted routing data. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+The Pi 1.3.0 SDK source audit distinguishes configured-provider errors,
+unconfigured credential skips, bundled/cache fallback and superseded publications.
+Neither an empty refresh error map nor a ModelsStore write is a completeness
+receipt. The [provider receipt investigation](catalog-receipts.md) documents the
+native outcomes needed before a Go/SDK bridge can seed trusted Moku catalogs.
+No bridge or source-completeness support is claimed by that investigation.

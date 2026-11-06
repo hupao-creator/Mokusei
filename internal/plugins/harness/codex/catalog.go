@@ -72,6 +72,14 @@ func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, 
 var errIncompleteCatalog = errors.New("native catalog is incomplete")
 
 func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
+	// Policy identity is required before looking up even an unexpired snapshot.
+	// File generations do not bind CFPreferences or cloud-managed policy. An
+	// old enumeration/static proof cannot authorize a different policy scope.
+	if routing {
+		if err := codexCatalogPolicySource.RequireComplete(); err != nil {
+			return catalogEntry{}, err
+		}
+	}
 	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
 	factory := c.factory

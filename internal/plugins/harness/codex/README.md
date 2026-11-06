@@ -223,11 +223,13 @@ explicit-model creation/validation still consumes the enumeration result. Unknow
 refresh results cannot replace trusted routing data. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
 
-Moku can certify the native explicit-config catalog on audited Codex 0.166.0:
-`model_catalog_json` must select the absolute native-home `models.json`, with the
-unmodified OpenAI provider. Routing alone uses strict configuration startup and
-compares every configured ID against complete pagination before caching. A
-complete matching stale snapshot returns immediately during background refresh;
-a new adapter performs native acquisition again. Default remote sources remain
-unverified. This is the configured catalog's completeness, not an upstream service
-inventory guarantee. See [source evidence and setup limits](../../../services/moku/catalog-evidence.md).
+The explicit-file verifier for Codex 0.166.0 checks configured IDs against full
+native pagination, but **cannot certify routing policy identity**. MDM via
+CFPreferences and cloud-managed policy are not bound by local file generations.
+Moku routing therefore rejects before any cache lookup, even for a warm static
+snapshot. System `config.toml`, `requirements.toml` and legacy
+`managed_config.toml` are included in the known file dependencies, but are not
+represented as a complete policy identity. Ordinary Threads retain native
+validation. Requirements RPC fields are decoded with explicit camelCase JSON
+tags, separately from snake_case `config/read` fields. See
+[source evidence and limits](../../../services/moku/catalog-evidence.md).

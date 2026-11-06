@@ -48,7 +48,8 @@ func New(host plugin.HostContext) *Adapter {
 			home = filepath.Join(env["HOME"], ".codex")
 		}
 		files := []string{filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"), filepath.Join(home, "models.json"),
-			filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db")}
+			filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db"),
+			"/etc/codex/config.toml", "/etc/codex/requirements.toml", "/etc/codex/managed_config.toml"}
 		identity := discovery.Identity(env, append(files, target.Executable)...)
 		if routing {
 			identity, err = discovery.SourceIdentity(ctx, env, target.Executable, cwd, ".codex", files...)

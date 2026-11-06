@@ -5,37 +5,39 @@ completeness at its final Runtime new-execution boundary. These are separate
 fields in the snapshot. Nonempty data, all pagination pages, initialization,
 plugin activation, stable reads and elapsed time do not promote source evidence.
 
-One narrow production source is now supported: **Codex 0.166.0's native
-explicit-config static catalog**, for the unmodified OpenAI provider. Its
-`model_catalog_json` must already select the absolute `CODEX_HOME/models.json`
-path (`~/.codex/models.json` with the default home). Moku does not manufacture or
-truncate this file. Routing launches the captured client with `--strict-config`,
-checks effective `config/read`, rejects managed model/provider overrides via
-`configRequirements/read`, checks the initialized client version and every configured
-model ID against the fully paginated native list, and unchanged file/configuration
-before publication. Missing auth-filtered IDs also reject this conservative path.
-The file's absence/content and binary/account/environment belong to the cache key
-before lookup. This is completeness of the **explicitly configured native
-catalog**, not a claim to list every model an upstream service might offer.
+**The production approval of the Codex explicit-file path in `03f4de6` is
+withdrawn.** Its enumeration checks remain useful, but the routing cache identity
+omitted system configuration and cannot bind MDM/CFPreferences or cloud policy
+generations. `configRequirements/read` was also interpreted using incorrect
+snake_case keys; its model fields are camelCase. Explicit JSON-tagged decoding
+now rejects present, non-null `modelProvider`, `modelProviders`,
+`modelCatalogJson` and `models`, including empty overrides.
 
-This supplies an actual production writer to the routing cache. Complete matching
-snapshots remain immediately usable when stale, with background refresh and
-failure retention. The cache is still memory-only: a new adapter repeats strict
-native acquisition; no previous-process cache is silently trusted. Cold startup
-has the existing 60-second discovery budget (including native managed-config or
-account loading); a warm same-source lookup does not wait for network refresh.
-Changing the file, account inputs, selected executable, environment or tracked
-configuration requires a new snapshot. Unsupported versions/providers/paths,
-default remote Codex discovery, OpenCode, Claude and Pi still block Moku without
-proof. **This is not all-Harness acceptance and must not be integrated as such.**
-The selected Harness set is never silently reduced to this supported subset.
+Codex checks unknown policy identity **before every routing cache lookup**, not
+only inside a refresh. Thus even an old, unexpired static snapshot cannot bypass
+the gate. No static verifier result sets source completeness while policy identity
+is unknown. Known Unix system config/requirements/legacy managed files are now
+included among file dependencies, but that does not certify a live policy scope.
+
+The current profile selects Claude, Codex, OpenCode and Pi, with Pi coordinating.
+The current implementation cannot meet its full-directory requirement. All four
+remain unverified for this profile; nothing silently removes a selected target.
+This worktree is a fail-closed candidate, **not an integration-ready solution**.
+There is no supported production producer/import path for a trusted complete
+routing snapshot under the current policy/protocol limits. Memory-only caches
+cannot make cold starts work, and persisting unverified snapshots would not fix
+that. Matching *proven* stale data must still be returned immediately once a
+reliable source/policy binding exists; this correction does not impose successful
+network refresh as a prerequisite for such data.
 
 Ordinary explicit-model selection and validation remain available. Enumeration
 caches and evidence-checked routing caches are separate. Only successful source
 verification may publish to the latter; unknown source refreshes leave trusted
-older snapshots and their original evidence intact. A trusted matching snapshot
-returns immediately even when expired. Unsupported evidence is checked inside
-the cache probe, so it cannot hide an already trusted same-key value. No source
+older snapshots and their original evidence intact. Once policy/source identity is proven, a trusted matching snapshot
+returns immediately even when expired. Refresh evidence is checked inside the
+cache probe, so refresh failure cannot hide a trusted same-key value. Codex
+currently cannot establish that identity and therefore rejects before lookup;
+old static snapshots cannot qualify as trusted same-policy data. No source
 attestation override, manufactured replacement catalog or timing heuristic is provided.
 
 Other authoritative adapters must obtain a native completion/provenance result
@@ -173,9 +175,10 @@ Codex source selection is checked against revision
   in `config_manager.rs`. Ordinary Thread launch does not gain this extra flag.
 - [`load_model_catalog`](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/core/src/config/mod.rs#L2280)
   parses native `ModelsResponse`; this is not a generic list of model names.
-  To use this path, supply the complete authoritative native-format file, select
-  it in native config, use audited Codex 0.166.0 and select only supported Harnesses
-  in Moku. Mokusei does not generate this authority from a possibly partial list.
+  This is an enumeration-only investigation path, not currently a usable Moku
+  setup: policy-generation binding is still missing. Supplying a native-format
+  file does not lift the routing gate. Mokusei does not generate authority from a
+  possibly partial list.
 
 Pi was additionally inspected from installed npm package
 `@earendil-works/pi-coding-agent@1.3.0`, including its nested `@earendil-works/pi-ai@1.3.0` implementation:
@@ -220,3 +223,28 @@ For reproducible Pi source review, SHA-256 of the installed files above:
 `remote-catalog-provider.js`: `17e8f3482422aed20ba638b99a8862405f7d3be51c4ffc9eb7ffff1b030a421b`;
 `pi-ai/dist/models.js`: `5624951d7fa7c436427b28ef6975051b91690e5e6341d84ab89ad3f1e1adc3d8`.
 These are static inspection records, not native execution results.
+
+## Policy identity correction after `03f4de6`
+
+At the same audited Codex revision, the
+[loader](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/config/src/loader/mod.rs)
+loads `/etc/codex/config.toml`, `/etc/codex/requirements.toml`, legacy
+`/etc/codex/managed_config.toml`, cloud fragments/requirements and admin policy.
+The [macOS loader](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/config/src/loader/macos.rs)
+uses `CFPreferencesAppSynchronize`, `CFPreferencesCopyAppValue` and forced-value
+status. Hashing a guessed plist or treating a previously empty requirements
+response as permanent absence is not equivalent. The protocol
+[ConfigRequirements](https://github.com/openai/codex/blob/6ff1e1ca3b30fc8b914720681fcf5fe62e95f856/codex-rs/app-server-protocol/src/protocol/v2/config.rs)
+uses camelCase, unlike its separate config object.
+
+Reopening a native process and rereading policy before each warm return would
+introduce the waiting explicitly rejected by the user, and still lacks an atomic
+policy/configuration generation bound to the model snapshot. The next viable
+native contract is an account/client-bound policy generation with a locally
+checkable invalidation mechanism, including explicit proof of policy absence.
+Until available, unknown is checked before warm reuse on every platform; a Linux
+file-only assumption also cannot cover cloud-managed policy.
+
+Pi's more detailed provider-by-provider investigation and proposed native receipt
+contract are in [Pi catalog receipts](../../plugins/harness/pi/catalog-receipts.md).
+This is a source audit and design, not an executed bridge or claimed native pass.

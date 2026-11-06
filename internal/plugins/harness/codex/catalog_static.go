@@ -17,6 +17,21 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
+// Native config/read reports values, not a policy generation that can be checked
+// without refreshing the native process. Until that binding exists, no routing
+// cache (including the explicit-file catalog) has a reusable policy identity.
+var codexCatalogPolicySource = plugin.CatalogSourceEvidence{Basis: "Codex routing policy identity is unknown: native MDM/CFPreferences and cloud-managed configuration generations cannot be bound to this snapshot; warm catalog reuse is blocked"}
+
+// ConfigRequirements uses camelCase, unlike the config/read config object.
+// RawMessage preserves presence: even an empty object/string is an override;
+// absent and explicit null fields carry no model requirement.
+type catalogRequirements struct {
+	ModelProvider    json.RawMessage `json:"modelProvider"`
+	ModelProviders   json.RawMessage `json:"modelProviders"`
+	ModelCatalogJSON json.RawMessage `json:"modelCatalogJson"`
+	Models           json.RawMessage `json:"models"`
+}
+
 // This is a deliberately narrow native authority, not an override of discovery.
 // The user must already have selected this file in effective native config. The
 // fixed location is included in the source key before any cache lookup, including
@@ -76,12 +91,19 @@ func captureStaticCatalogAuthority(ctx context.Context, server *AppServer, cwd s
 		return nil, errors.New("Codex did not report model catalog policy")
 	}
 	if rawRequirements != nil {
-		requirements, valid := csRecord(rawRequirements)
-		if !valid {
+		if _, valid := csRecord(rawRequirements); !valid {
 			return nil, errors.New("Codex model catalog policy is malformed")
 		}
-		for _, field := range []string{"model_provider", "model_providers", "model_catalog_json", "models"} {
-			if requirements[field] != nil {
+		data, err := json.Marshal(rawRequirements)
+		if err != nil {
+			return nil, err
+		}
+		var requirements catalogRequirements
+		if err := json.Unmarshal(data, &requirements); err != nil {
+			return nil, errors.New("Codex model catalog policy is malformed")
+		}
+		for _, field := range []json.RawMessage{requirements.ModelProvider, requirements.ModelProviders, requirements.ModelCatalogJSON, requirements.Models} {
+			if len(field) != 0 && !bytes.Equal(bytes.TrimSpace(field), []byte("null")) {
 				return nil, errors.New("Codex Moku static catalog proof does not support managed model catalog/provider overrides")
 			}
 		}
@@ -140,5 +162,5 @@ func (a *staticCatalogAuthority) verify(ctx context.Context, server *AppServer, 
 			return plugin.CatalogSourceEvidence{}, errors.New("Codex native enumeration differs from its configured catalog")
 		}
 	}
-	return plugin.CatalogSourceEvidence{Complete: true, Basis: fmt.Sprintf("Codex 0.166.0 strict native explicit-config StaticModelsManager; all configured IDs enumerated; catalog SHA-256 %x", sha256.Sum256(a.data))}, nil
+	return plugin.CatalogSourceEvidence{Complete: codexCatalogPolicySource.Complete, Basis: fmt.Sprintf("Codex 0.166.0 strict native explicit-config enumeration; catalog SHA-256 %x; %s", sha256.Sum256(a.data), codexCatalogPolicySource.Basis)}, nil
 }

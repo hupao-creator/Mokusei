@@ -788,7 +788,7 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models, "catalogIdentity": observed.Identity, "catalogSource": observed.Source})
 }
 
-var piCatalogSource = plugin.CatalogSourceEvidence{Basis: "get_available_models returns a registry snapshot but not its load-error/completion state; --offline and --no-extensions are not source-completeness evidence"}
+var piCatalogSource = plugin.CatalogSourceEvidence{Basis: "Pi RPC returns a registry snapshot without per-provider source receipts; SDK refresh aborted/errors cannot distinguish credential skips, fallback, or superseded publications; source completeness remains unknown"}
 
 func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
 	defaults, err := s.DefaultThread(input.Settings)
