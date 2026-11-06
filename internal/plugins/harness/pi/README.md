@@ -36,6 +36,11 @@ deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
+Failed or empty initial Pi catalogs block Moku task preparation. Unknown thinking
+capabilities restrict creation branches without omitting model identities. Discovery
+does not require the configured default model to be usable. Native admission
+remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
+
 ## Native ownership
 
 - RPC framing and native event decoding remain ordered, with an 8 MiB record
@@ -171,3 +176,36 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Discovery rejects results when tracked native configuration files change during
+the probe, so an in-flight read cannot publish a known-obsolete snapshot.
+
+Moku requires the full nonempty native model inventory before task admission.
+Unknown thinking capabilities remain named in that inventory but cannot authorize
+creation. Moku routing returns complete same-configuration cached directories
+immediately, even after expiry or during refresh. Expired entries start bounded
+background refreshes; failures/empty replacements retain the last complete
+snapshot, with a 30-second warm-retry cooldown. Only a cache miss waits and blocks
+on failure. Configuration identities fence publication and native admission;
+execution/default resolution retains strict reads. Caches are Harness-owned,
+memory-only and drained on Close, not persisted across application restarts.
+
+Pi's `get_available_models` returns a snapshot of the registry, but the RPC reply
+omits its load-error/completion state. Offline startup and disabling extensions
+do not prove model-source completeness. Moku therefore keeps this evidence
+unknown; it does not infer trust from a valid response.
+
+Moku routing accepts successful nonempty native inventories, including native
+cached/fallback data, without requiring remote source-completion proof. Source
+completeness remains unknown in the schema. A matching old snapshot returns
+immediately; failed refreshes retain it and add a retained-snapshot note. Cold
+acquisition failure still reports an error. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+The Pi 1.3.0 SDK source audit distinguishes configured-provider errors,
+unconfigured credential skips, bundled/cache fallback and superseded publications.
+Neither an empty refresh error map nor a ModelsStore write is a completeness
+receipt. The [provider receipt investigation](catalog-receipts.md) documents the
+native outcomes needed for optional stronger source diagnostics. These receipts
+are not required for ordinary native-inventory routing.
+No bridge or source-completeness support is claimed by that investigation.

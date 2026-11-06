@@ -79,11 +79,29 @@ OAuth refresh stays in the native server. Model services and credentials are
 configured by OpenCode. Account telemetry helpers live within this Harness.
 Credential material is excluded from durable session/UI state.
 
-Moku target discovery always advertises a stable on-demand
-`describe_native_harness` tool, whose exact options can reuse the completed catalog.
-Background cache warming does not replace Moku tools or repeat session preparation. Advisory catalog and account telemetry
-read snapshots and refresh in the background. Exact options and live model
-admission still use the full native APIs. Workspace context does not fetch accounts.
+Moku target discovery reuses complete same-configuration catalogs and exposes
+exact options in its initial creation tool schema. It no longer returns an
+installation-only deferred target. A cold configuration waits for account
+filtering; complete cached directories return immediately regardless of age.
+Expired entries trigger an owned background refresh with a 30-second failure
+cooldown. Concurrent refreshes do not block routing through the last complete
+snapshot. The native phase has
+a 30-second cancellation timer and the whole flight a 55-second budget, with
+process cleanup joined. The editor can still show the earlier native projection
+with `accountCheckPending`; Moku routing does not use that partial projection.
+
+The full native model inventory accompanies creation options, including disabled,
+unsupported and account-excluded models. Unknown capabilities may block a model's
+creation branch, but never remove its identity from Moku's routing inventory.
+Missing/empty catalogs and read errors block Moku preparation only when no
+complete matching snapshot exists. Configuration
+identity is checked both at native publication and after account filtering.
+Freshness expires after five minutes; routing returns the complete old snapshot
+while refreshing. Failed, empty and malformed refreshes never replace it.
+Creation and execution still require strict settings reads and native checks. Advisory catalog reads also report cold or
+expired state explicitly. Keychain, remote and untracked include-file changes
+still rely on TTL/manual refresh or live admission. Workspace context does not
+fetch accounts; creation and live model admission retain their native checks.
 
 Ordinary threads require exact provider/model/thinking choices. Native variants are
 validated from their effective request encoding, including at model admission.
@@ -196,3 +214,36 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Catalog caches live on the Harness instance and are not persisted to disk. Close
+cancels and joins background refreshes; Moku handle replacement retains caches.
+
+The startup RPC crosses OpenCode 2.0.25 plugin activation readiness. The separate
+plugin inventory is advisory with a three-second request budget: failure, absence
+or unsettled activation is reported in provenance without discarding a working
+native model response. Account cache
+identity includes native database credential selection/revision columns without
+reading secrets or invalidating on unrelated session writes. Neither activation
+nor repeated stable model lists attest every remote provider completed discovery;
+see [evidence limits](../../../services/moku/catalog-evidence.md).
+
+Moku routing accepts successful nonempty native inventories, including native
+cached/fallback data, without requiring remote source-completion proof. Source
+completeness remains unknown in the schema. A matching old snapshot returns
+immediately; failed refreshes retain it and add a retained-snapshot note. Cold
+acquisition failure still reports an error. See the current
+[admission and evidence contract](../../../services/moku/catalog-evidence.md).
+
+Production discovery captures its absolute executable and environment through the
+same `captureLaunch` helper as ordinary startup. It passes those captured values
+directly to the runtime, rather than invoking a closure that resolves them again.
+Before publication and after discovery, the source resolver is checked again;
+changed launch/configuration/account identities reject the observation.
+
+Editor, complete, advisory and routing reads now use the same detailed observed
+source key, including project namespaces and referenced configuration files.
+Snapshots carry their acquisition identity before publication, and cache hits
+must match it. The outer routing cache verifies that identity rather than
+relabeling an inner result. A source change during acquisition rejects that
+observation; an old same-key directory remains available on failed refresh.
+See [OpenCode/Claude T3 comparison](../../../services/moku/t3-native-discovery.md).

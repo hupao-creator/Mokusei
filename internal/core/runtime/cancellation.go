@@ -228,6 +228,8 @@ func (r *Runtime) interruptThreadTarget(ctx context.Context, id, expected string
 		lock.Lock()
 		thread, err = r.Thread(id)
 		if err == nil && thread.CancellationID == expected {
+			// A restored Moku owner is cleanup-only. Normal preparation must
+			// retire it when idle and reopen with the full tool injection.
 			owner, err = r.openThread(ctx, thread, nil)
 			if err == nil && mokuTool {
 				// Restore may settle abandoned native work. That outcome did

@@ -15,11 +15,3 @@ func (v *voiceController) stopForConfiguration(ctx context.Context, owner string
 	}
 	return v.stop(ctx)
 }
-
-func (v *voiceController) ownsNative(owner string) bool {
-	v.mu.Lock()
-	lease := v.active
-	native := lease != nil && lease.owner == owner && lease.native
-	v.mu.Unlock()
-	return native && v.owns(owner)
-}

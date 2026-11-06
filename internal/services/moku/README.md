@@ -38,7 +38,78 @@ Moku guidance defaults to managed `worktree:true` for tasks in a committed Git w
 
 Every `create_thread` call supplies `worktree` as a boolean. `false` uses an explicit existing directory or allocates a temporary workspace. `true` requires an explicit committed Git workspace. The result distinguishes base `workspace.cwd` from execution `workspace.worktreeCwd`. Optional `worktreeName` is a directory label, never the task title; [workspace rules](../workspaces/README.md) define validation, normalization, collisions and reported adjustments.
 
-Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. Deferred native targets use `describe_native_harness` for the exact current schema; cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
+Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
+
+[Native catalog evidence and limits](catalog-evidence.md) records the authoritative
+paths investigated and the remaining availability constraint. Moku requires both
+completed enumeration and affirmative **source completeness**; a nonempty list,
+terminated pagination, initialization, waiting or stable fingerprints cannot
+substitute for source evidence. The current built-in adapters do not expose a
+source attestation this implementation can authenticate. Their enumeration
+results remain usable for ordinary explicit-model validation, but cannot seed a
+trusted Moku routing cache. Without a trusted matching snapshot, Moku refuses
+to start and reports every selected target's failure. This is deliberate fail-closed
+behavior, not a claim that full-directory availability has been achieved.
+
+Every new execution crosses Runtime's common `admitMokuExecution` boundary:
+initial Send, renewal after exact unconsumed `ErrExecutionEnded`, and native
+Accept. Typed and relay submissions share Send. The immutable injection captures
+the prepared catalog/settings and installs its authority callback before native
+Open. The callback is not serialized to tools or instructions. Native new work
+during Open is refused until preparation is published, avoiding reentrant lock
+acquisition. Background work cannot exempt new foreground executions from saved
+configuration or catalog checks. Steering an already admitted execution keeps
+its original configuration.
+
+The coordinator's idle checks are preparation optimizations, not authority.
+Runtime holds configuration and final admission ownership while deciding whether
+to reserve a new execution. It calls the guard before allocating a new execution
+ID, native Send or native project/commit. A changed preparation returns the exact
+configuration-pending sentinel for one safe reprepare. Other Core rejection
+reasons retain an exact `MokuAdmissionRejectedError`; durable notifications can
+release their unconsumed attempt without treating wrapped/uncertain native errors
+as replay permission. With pending configuration and live background work, input
+remains blocked until the old work drains instead of reopening underneath it.
+
+`x-mokusei-model-catalog` carries enumeration and source evidence separately.
+Routing accepts a successful nonempty native response inventory for every selected
+Harness. Source proof is informational; native cache/fallback is usable without
+being called remotely complete. Full inventories remain in the initial standard
+tool-schema description; unknown thinking controls restrict creation branches
+without hiding identities. Schemas over the 1 MiB budget fail rather than truncate.
+
+A matching successful snapshot returns immediately even when expired or during
+refresh. Failed, empty or superseded refreshes do not replace it. Background
+failure is retained and exposed as a snapshot note; cold failure reports an error.
+Caches are Harness-owned, memory-only and drained on Close. Same-process handle
+replacement retains them; application restart reacquires native catalogs.
+
+Routing identity includes the captured launch/environment and observable native
+configuration/account inputs. Bounded dependency scanning strengthens the key;
+if scanning fails it falls back to root-file generations with a degraded marker.
+Cancellation still rejects and a detected source change fences publication.
+Arbitrary imports, custom credential helpers and remote/MDM policy are not thereby
+proven; their unknown provenance no longer prevents native inventory routing.
+Settings changes still participate in final Runtime admission. No system-prompt
+or tool-use instruction is added by discovery; directory data stays in schemas.
+
+Creation resolves the actual destination workspace, discovers its schema again,
+validates exact options and performs Harness-native admission. Keychain, remote
+account and untracked include-file changes may remain invisible until TTL expiry,
+background/manual native-settings refresh or live admission. Cached directories
+are explicitly described as potentially outdated, not current availability.
+These limitations do not turn
+an unknown/empty directory into a complete one.
+
+A successful matching cache hit does not wait for a native catalog fetch.
+A miss discovers the native inventory rather than rejecting unknown provenance.
+Host
+execution-profile preparation and local launch/dependency resolution remain
+separate costs. Native enumeration still has its existing bounds (OpenCode:
+30-second native timer and 55-second full probe, plus joined cleanup).
+Resolving local binaries and checking dependency fingerprints is separate work;
+unchanged Codex binary-version facts no longer expire merely with catalog TTL.
+No timing measurement or native replay was performed for this Sprint.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
 user choices take precedence over general routing guidance and belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
@@ -77,7 +148,7 @@ The three-sentence budget is **not a cap on the provider's entire model input**:
   limits; it neither replaces the base nor overrides explicit
   user routing choices.
 - Existing tool descriptions and schemas retain their full contracts: exact
-  native options and deferred discovery, routing, worktree naming, Talk/Timer
+  native options and catalog status, routing, worktree naming, Talk/Timer
   limits, note evidence and compare-and-swap rules, and bounded Thread queries.
   Those contracts already existed separately and are unchanged by this budget.
 - `ContextEntries` contain session-start workspace context and before-send note,

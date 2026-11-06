@@ -24,3 +24,44 @@ retention and profile/file identity tests with the race detector.
 Adapters wrap cleanup errors with `Cleanup`. The cache retains this ownership
 failure even after the reader leaves, fences replacement acquisition and reports
 it from Close. Ordinary native read failures do not poison other keys.
+
+`GetStale` is the routing-only alternative to `Get`: an immutable successful
+same-key entry returns immediately, including during explicit refresh and after
+TTL expiry. Expired entries start a cache-owned probe; a cancelled foreground
+reader does not cancel that background owner. Only a cold lookup waits. Failed
+refreshes preserve the complete snapshot without renewing freshness, with a 30-second
+warm-retry cooldown. Cleanup ownership errors stop further probes but do not
+hide an existing routing snapshot; strict acquisition still reports them.
+
+Callers must only publish complete, nonempty model inventories on this path.
+Execution/default resolution keeps using strict `Get` and native admission.
+Caches are in memory and instance-owned, not persisted across process restarts.
+Close seals even stale reads, cancels every active probe and joins cleanup.
+
+`SourceIdentity` is a bounded routing dependency fingerprint for a resolved
+launch. It visits lexical and canonical workspace ancestors, the owning native
+namespace, symlinks and recognized literal references (including `{file:...}`).
+Configuration text is hashed, not logged or persisted. The bound is 4096 paths,
+4 MiB per text file and 16 MiB per read. Inspection errors/limits reject identity
+rather than silently skipping inputs. Runtime-owned caches/history and dependency
+package directories are excluded from implicit directory walking. Pi
+`models-store.json` is likewise a native runtime cache, not configuration. Computed
+imports and arbitrary native reference syntax are not a complete dependency
+manifest; they cannot support an affirmative source attestation. The probe must
+use the captured resolved executable/environment and compare the source again
+after acquisition. External editors are not part of a filesystem transaction.
+
+Routing caches are separate from ordinary enumeration caches. Successful native
+snapshots can publish without remote-source proof. `RefreshFailed` exposes the
+latest failed refresh while an old snapshot is retained; success clears it.
+Callers copy this status into public descriptions without mutating cached data.
+
+`ObservedIdentity` wraps the bounded dependency scan for ordinary native-inventory
+routing. Scan failure uses explicit-root file generations and a degraded marker;
+context cancellation still fails. This preserves practical invalidation without
+turning incomplete introspection into a permanent model-discovery failure.
+
+File generation fingerprints include replacement/change metadata where the
+platform provides it (device/inode/ctime), excluding access time. Keeping an old
+mtime/size while replacing a binary therefore does not silently reuse its version
+fact, and merely reading/executing it does not invalidate the lookup.

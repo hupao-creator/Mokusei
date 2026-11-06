@@ -28,6 +28,8 @@ type HarnessSettings struct {
 	UseDefaultThreadSettings *bool          `json:"useDefaultThreadSettings,omitempty"`
 }
 type observation struct {
+	Source              plugin.CatalogSourceEvidence
+	Identity            string
 	Executable, Version string
 	State               NativeState
 	Models              []Model
@@ -37,23 +39,25 @@ type observation struct {
 	At                  time.Time
 }
 type settingsAPI struct {
-	host          plugin.HostContext
-	mu            sync.Mutex
-	observations  map[string]observation
-	generation    uint64
-	sequence      uint64
-	started       map[string]uint64
-	pending       map[string]*observationFlight
-	installations map[string]string
-	active        map[*observationFlight]bool
-	closed        bool
-	cleanupErr    error
+	routingCatalogs discovery.Cache[observation]
+	host            plugin.HostContext
+	mu              sync.Mutex
+	observations    map[string]observation
+	generation      uint64
+	sequence        uint64
+	started         map[string]uint64
+	pending         map[string]*observationFlight
+	installations   map[string]string
+	active          map[*observationFlight]bool
+	closed          bool
+	cleanupErr      error
 }
 
 func newSettings(host plugin.HostContext) *settingsAPI {
 	return &settingsAPI{host: host, observations: map[string]observation{}, started: map[string]uint64{}, pending: map[string]*observationFlight{}, installations: map[string]string{}, active: map[*observationFlight]bool{}}
 }
 func (s *settingsAPI) close() error {
+	routingErr := s.routingCatalogs.Close()
 	s.mu.Lock()
 	s.closed = true
 	active := make([]*observationFlight, 0, len(s.active))
@@ -67,7 +71,7 @@ func (s *settingsAPI) close() error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.cleanupErr
+	return errors.Join(routingErr, s.cleanupErr)
 }
 
 func canonical(value, key string) error {
@@ -238,7 +242,7 @@ type observationFlight struct {
 	catalog  bool
 }
 
-func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool) (observation, error) {
+func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool, routing ...bool) (observation, error) {
 	if err := ctx.Err(); err != nil {
 		return observation{}, err
 	}
@@ -254,20 +258,69 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	if home == "" {
 		home = filepath.Join(env["HOME"], ".pi", "agent")
 	}
-	identity := discovery.Identity(env, executable, filepath.Join(home, "settings.json"), filepath.Join(home, "models.json"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".pi", "settings.json"))
+	identityPaths := []string{executable, filepath.Join(home, "settings.json"), filepath.Join(home, "models.json"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".pi", "settings.json")}
+	identity := discovery.Identity(env, identityPaths...)
+	isRouting := len(routing) > 0 && routing[0]
+	if isRouting {
+		identity, err = discovery.ObservedIdentity(ctx, env, executable, cwd, ".pi", identityPaths...)
+		if err != nil {
+			return observation{}, err
+		}
+	}
+	sourceIdentity := cwd + "\x00" + executable + "\x00" + identity
+	if isRouting {
+		value, readErr := s.routingCatalogs.GetStale(ctx, sourceIdentity, 5*time.Minute, 30*time.Second, func(probeCtx context.Context) (observation, error) {
+			value, err := s.observe(probeCtx, settings, cwd, true, false)
+			if err != nil {
+				return value, err
+			}
+			if !value.Catalog || len(value.Models) == 0 {
+				detail := value.DiscoveryError
+				if detail == "" {
+					detail = "native inventory is empty or acquisition did not finish"
+				}
+				return observation{}, fmt.Errorf("Pi native model catalog unavailable: %s", detail)
+			}
+			currentEnv, err := inheritedEnvironment(probeCtx, s.host)
+			if err != nil {
+				return value, err
+			}
+			currentExecutable, err := resolveExecutable(probeCtx, s.host, cwd, settings.ExecutablePath)
+			if err != nil {
+				return value, err
+			}
+			current, err := discovery.ObservedIdentity(probeCtx, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
+			if err != nil {
+				return value, err
+			}
+			if current != identity || currentExecutable != executable {
+				return value, errors.New("Pi routing source changed during discovery")
+			}
+			value.Identity = sourceIdentity
+			return value, nil
+		})
+		if readErr == nil && s.routingCatalogs.RefreshFailed(sourceIdentity) {
+			value.Source.Basis += "; last refresh failed, retaining an earlier native snapshot"
+		}
+		return value, readErr
+	}
 	keyBytes, _ := json.Marshal([]any{settings, cwd, identity})
 	key := string(keyBytes)
 	flightKey := key
 	s.mu.Lock()
-	if s.closed || s.cleanupErr != nil {
-		err := errors.Join(errors.New("Pi discovery is closed"), s.cleanupErr)
+	if s.closed {
 		s.mu.Unlock()
-		return observation{}, err
+		return observation{}, errors.New("Pi discovery is closed")
 	}
 	cached, exists := s.observations[key]
 	ttl := 15 * time.Second
 	if reusableObservation(settings, cached) {
 		ttl = 5 * time.Minute
+	}
+	if s.cleanupErr != nil {
+		err := s.cleanupErr
+		s.mu.Unlock()
+		return observation{}, err
 	}
 	if !refresh && s.pending[flightKey] == nil && exists && time.Since(cached.At) < ttl && (!catalog || cached.Catalog) {
 		s.mu.Unlock()
@@ -299,6 +352,28 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 				defer s.mu.Unlock()
 				return flight.catalog
 			})
+			if probeErr == nil {
+				currentEnv, sourceErr := inheritedEnvironment(shared, s.host)
+				if sourceErr == nil {
+					var currentExecutable string
+					currentExecutable, sourceErr = resolveExecutable(shared, s.host, cwd, settings.ExecutablePath)
+					if sourceErr == nil {
+						var current string
+						current = discovery.Identity(currentEnv, identityPaths...)
+						if currentExecutable != executable {
+							current = "executable changed"
+						}
+						if isRouting {
+							current, sourceErr = discovery.ObservedIdentity(shared, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
+						}
+						if sourceErr == nil && current != identity {
+							sourceErr = errors.New("Pi native configuration changed during discovery")
+						}
+					}
+				}
+				probeErr = sourceErr
+			}
+			value.Identity = sourceIdentity
 			s.mu.Lock()
 			flight.value = value
 			flight.err = probeErr
@@ -339,7 +414,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 		// upgrades on the next flight; it never accepts a state-only result as
 		// a catalog, and never overlaps a second native owner with this one.
 		if catalog && !flight.value.Catalog && flight.err == nil && flight.value.DiscoveryError == "" {
-			return s.observe(ctx, settings, cwd, true, false)
+			return s.observe(ctx, settings, cwd, true, false, routing...)
 		}
 		return flight.value, flight.err
 	}
@@ -379,7 +454,7 @@ func (s *settingsAPI) readObservation(ctx context.Context, settings ThreadSettin
 	if err != nil {
 		return observation{}, selectionFailure(settings, err)
 	}
-	value = observation{Executable: executable, Version: rpc.Version, State: native, At: time.Now()}
+	value = observation{Source: piCatalogSource, Executable: executable, Version: rpc.Version, State: native, At: time.Now()}
 	if wantCatalog() {
 		var modelsErr, levelsErr error
 		var reads sync.WaitGroup
@@ -387,6 +462,9 @@ func (s *settingsAPI) readObservation(ctx context.Context, settings ThreadSettin
 		go func() { defer reads.Done(); value.Models, modelsErr = rpc.Models(ctx) }()
 		go func() { defer reads.Done(); value.Levels, levelsErr = rpc.ThinkingLevels(ctx) }()
 		reads.Wait()
+		if modelsErr == nil && len(value.Models) == 0 {
+			modelsErr = errors.New("Pi native model catalog is empty")
+		}
 		err = errors.Join(modelsErr, levelsErr)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -687,7 +765,7 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, selected, input.Cwd, true, input.Refresh)
+	observed, err := s.observe(ctx, selected, input.Cwd, true, input.Refresh, input.RoutingCatalog)
 	if err != nil || !observed.Catalog {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -712,16 +790,38 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 		entry["thinking"] = ThinkingCapability(m, levels)
 		models = append(models, entry)
 	}
-	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models})
+	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models, "catalogIdentity": observed.Identity, "catalogSource": observed.Source})
 }
+
+var piCatalogSource = plugin.CatalogSourceEvidence{Basis: "Pi RPC returns a registry snapshot without per-provider source receipts; SDK refresh aborted/errors cannot distinguish credential skips, fallback, or superseded publications; source completeness remains unknown"}
+
 func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
-	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{Settings: input.Settings, Cwd: input.Cwd})
+	defaults, err := s.DefaultThread(input.Settings)
+	if err != nil {
+		return nil, err
+	}
+	selected, err := normalizeThread(defaults)
+	if err != nil {
+		return nil, err
+	}
+	catalogSettings, err := json.Marshal(ThreadSettings{ExecutablePath: selected.ExecutablePath})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{ThreadSettings: catalogSettings, Cwd: input.Cwd, RoutingCatalog: input.RoutingCatalog})
 	if err != nil {
 		return nil, err
 	}
 	var presentation struct {
+		Source   plugin.CatalogSourceEvidence `json:"catalogSource"`
+		Identity string                       `json:"catalogIdentity"`
+		CLI      struct {
+			Status  string `json:"status"`
+			Message string `json:"message"`
+		} `json:"cli"`
 		Models []struct {
 			Provider string                   `json:"provider"`
+			Name     string                   `json:"name"`
 			ID       string                   `json:"id"`
 			Thinking model.ThinkingCapability `json:"thinking"`
 		}
@@ -729,15 +829,20 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 	if err = json.Unmarshal(raw, &presentation); err != nil {
 		return nil, err
 	}
+	if presentation.CLI.Status != "ready" {
+		return nil, fmt.Errorf("Pi model catalog unavailable: %s", presentation.CLI.Message)
+	}
 	type group struct {
 		Provider string
 		Models   []string
 		Thinking model.ThinkingCapability
 	}
+	omitted := 0
 	groups := []group{}
 	indices := map[string]int{}
 	for _, m := range presentation.Models {
 		if m.Thinking.Kind == "unknown" {
+			omitted++
 			continue
 		}
 		key, _ := json.Marshal([]any{m.Provider, m.Thinking})
@@ -775,7 +880,23 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 		delete(result, "oneOf")
 		result["not"] = model.Object{}
 	}
-	return json.Marshal(result)
+	status := "ready"
+	if len(branches) == 0 {
+		status = "empty"
+	}
+	if omitted > 0 {
+		status = "partial"
+	}
+	result["description"] = fmt.Sprintf("Creation capability status: %s; %d models omitted from creation branches because thinking capabilities are unknown. Native snapshot only; execution is revalidated at admission. %s", status, omitted, result["description"])
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(presentation.Models))
+	for _, entry := range presentation.Models {
+		reason := ""
+		if entry.Thinking.Kind == "unknown" {
+			reason = "Thinking capability is unknown; creation is unavailable"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.Provider, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
+	}
+	return plugin.ModelCatalogSchema(result, inventory, presentation.Identity, presentation.Source)
 }
 
 func (s *settingsAPI) recordInstallation(cwd, path string) {

@@ -11,7 +11,8 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-const ThreadCreationSchemaMaxBytes = 64 * 1024
+// Full multi-provider inventories must not inherit the old small-candidate budget.
+const ThreadCreationSchemaMaxBytes = 1024 * 1024
 const ThreadCreationOptionsMaxBytes = 64 * 1024
 const ThreadCreationPromptMaxCharacters = 1_000_000
 const ThreadCreationCwdMaxCharacters = 4096
@@ -24,6 +25,7 @@ type TargetDescription struct {
 	NativeSchema   json.RawMessage
 }
 type ThreadCreationDescription struct {
+	CatalogIdentities       map[string]string
 	InputSchema             json.RawMessage
 	TargetHarnessIDs        []string
 	NativeDescriptionSchema json.RawMessage
@@ -40,7 +42,7 @@ type CreateRequest struct {
 // DescribeThreadCreation composes already-acquired schemas. Acquisition and
 // availability failures remain owned by the coordinator, outside this pure API.
 func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCreationDescription, error) {
-	var result ThreadCreationDescription
+	result := ThreadCreationDescription{CatalogIdentities: map[string]string{}}
 	if len(targets) == 0 {
 		return result, errors.New("Moku 至少需要一个 Target Harness")
 	}
@@ -83,6 +85,18 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 		if err != nil {
 			return result, err
 		}
+		// Completeness evidence is consumed by admission. The standard description
+		// already carries every model for native tool serializers.
+		var envelope struct {
+			Catalog *plugin.CompleteModelCatalog `json:"x-mokusei-model-catalog"`
+		}
+		if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
+			return result, err
+		}
+		if envelope.Catalog != nil {
+			result.CatalogIdentities[target.HarnessID] = envelope.Catalog.ConfigurationID
+		}
+		delete(schema, "x-mokusei-model-catalog")
 		if schema["type"] != "object" {
 			return result, errors.New("Harness settings schema must describe an object")
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
 	"regexp"
 	"strconv"
@@ -17,6 +18,8 @@ type CatalogTransport interface {
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
 type catalogEntry struct {
+	sourceProof        plugin.CatalogSourceEvidence
+	identity           string
 	models             []Map
 	modelsError        error
 	computerUse        bool
@@ -27,25 +30,27 @@ type catalogEntry struct {
 	cli                Map
 }
 type Catalog struct {
-	factory  CatalogFactory
-	identity func(context.Context, string, string) (string, error)
-	reads    discovery.Cache[catalogEntry]
+	source       func(context.Context, string, string, bool) (CatalogFactory, string, error)
+	factory      CatalogFactory
+	identity     func(context.Context, string, string) (string, error)
+	reads        discovery.Cache[catalogEntry]
+	routingReads discovery.Cache[catalogEntry]
 }
 
 func NewCatalog(factory CatalogFactory) *Catalog { return &Catalog{factory: factory} }
-func (c *Catalog) Close() error                  { return c.reads.Close() }
-func (c *Catalog) Load(ctx context.Context, cwd, configured string) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+func (c *Catalog) Close() error                  { return errors.Join(c.routingReads.Close(), c.reads.Close()) }
+func (c *Catalog) Load(ctx context.Context, cwd, configured string, routing ...bool) (Map, error) {
+	entry, err := c.observe(ctx, cwd, configured, false, len(routing) > 0 && routing[0])
 	if err != nil {
 		return nil, err
 	}
 	if entry.modelsError != nil {
 		return nil, entry.modelsError
 	}
-	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse}, nil
+	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse, "catalogIdentity": entry.identity, "catalogSource": entry.sourceProof}, nil
 }
 func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, refresh bool) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured, refresh)
+	entry, err := c.observe(ctx, cwd, configured, refresh, false)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -66,10 +71,18 @@ func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, 
 // settings panel cannot abort another reader's model admission check.
 var errIncompleteCatalog = errors.New("native catalog is incomplete")
 
-func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh ...bool) (catalogEntry, error) {
-	key := configured + "\x00" + cwd
+func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
+	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
-	if c.identity != nil {
+	factory := c.factory
+	if c.source != nil {
+		var err error
+		factory, identity, err = c.source(ctx, cwd, configured, routing)
+		if err != nil {
+			return catalogEntry{}, err
+		}
+		key += "\x00" + identity
+	} else if c.identity != nil {
 		var err error
 		identity, err = c.identity(ctx, cwd, configured)
 		if err != nil {
@@ -77,10 +90,16 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 		}
 		key += "\x00" + identity
 	}
-	entry, err := c.reads.Get(ctx, key, len(refresh) > 0 && refresh[0], 5*time.Minute, 60*time.Second, func(shared context.Context) (catalogEntry, error) {
-		value, err := c.probe(shared, cwd, configured)
-		if err == nil && c.identity != nil {
-			current, sourceErr := c.identity(shared, cwd, configured)
+	probe := func(shared context.Context) (catalogEntry, error) {
+		value, err := c.probe(shared, cwd, configured, factory, routing)
+		if err == nil && (c.source != nil || c.identity != nil) {
+			var current string
+			var sourceErr error
+			if c.source != nil {
+				_, current, sourceErr = c.source(shared, cwd, configured, routing)
+			} else {
+				current, sourceErr = c.identity(shared, cwd, configured)
+			}
 			if sourceErr != nil {
 				return catalogEntry{}, sourceErr
 			}
@@ -89,34 +108,64 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 			}
 		}
 		if err == nil {
-			if value.modelsError != nil || value.configurationError != nil || value.autoReviewError != nil {
+			if value.modelsError != nil {
+				err = errIncompleteCatalog
+				if routing {
+					err = value.modelsError
+				}
+			} else if !routing && (value.configurationError != nil || value.autoReviewError != nil) {
 				err = errIncompleteCatalog
 			}
 		}
+		value.identity = key
 		return value, err
-	})
+	}
+	var entry catalogEntry
+	var err error
+	if routing {
+		// Accept native enumeration, not a remote-source attestation. Failed
+		// probes retain the last same-configuration inventory in this cache.
+		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, probe)
+	} else {
+		entry, err = c.reads.Get(ctx, key, refresh, 5*time.Minute, 60*time.Second, probe)
+	}
+	if routing && err == nil && c.routingReads.RefreshFailed(key) {
+		entry.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
+	}
 	// Partial native facts remain useful to their own projection, but do not
 	// earn the successful cache TTL or turn a failed defaults read into success.
-	if errors.Is(err, errIncompleteCatalog) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+	if !routing && errors.Is(err, errIncompleteCatalog) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 		err = nil
 	}
 	return entry, err
 }
-func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry catalogEntry, err error) {
-	if c.factory == nil {
+func (c *Catalog) probe(ctx context.Context, cwd, configured string, factory CatalogFactory, routing bool) (entry catalogEntry, err error) {
+	if factory == nil {
 		return catalogEntry{}, fmt.Errorf("Codex model catalog has no target runtime")
 	}
-	server, err := c.factory(ctx, cwd, configured)
+	started := time.Now()
+	server, err := factory(ctx, cwd, configured)
 	if err != nil {
 		return catalogEntry{}, err
 	}
 	defer func() { err = errors.Join(err, discovery.Cleanup(server.Close())) }()
-	entry = catalogEntry{models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
+	entry = catalogEntry{sourceProof: codexCatalogSource, models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
+	metadataCtx := ctx
+	if routing {
+		var cancel context.CancelFunc
+		metadataCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+	}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		entry.models, entry.modelsError = ListModels(ctx, server)
+		if routing && entry.modelsError == nil && len(entry.models) > 0 {
+			var refreshStatus string
+			entry.models, refreshStatus = refreshRoutingModels(ctx, server, started, entry.models)
+			entry.sourceProof.Basis += "; " + refreshStatus
+		}
 		if entry.modelsError == nil && len(entry.models) == 0 {
 			entry.modelsError = fmt.Errorf("Codex model catalog is empty")
 		}
@@ -124,10 +173,10 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry cata
 			entry.models = []Map{}
 		}
 	}()
-	go func() { defer wg.Done(); entry.computerUse, _ = SupportsComputerUse(ctx, server, cwd) }()
+	go func() { defer wg.Done(); entry.computerUse, _ = SupportsComputerUse(metadataCtx, server, cwd) }()
 	go func() {
 		defer wg.Done()
-		limited, cancel := context.WithTimeout(ctx, 7500*time.Millisecond)
+		limited, cancel := context.WithTimeout(metadataCtx, 7500*time.Millisecond)
 		defer cancel()
 		entry.configuration, entry.configurationError = ReadThreadConfiguration(limited, server, cwd)
 		if entry.configurationError == nil {
@@ -154,10 +203,15 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry cata
 	if entry.cli["available"] != true {
 		return entry, errors.New("Codex executable version could not be confirmed")
 	}
+	if routing && entry.configurationError != nil {
+		entry.sourceProof.Basis += "; configuration enrichment failed; native model inventory retained"
+	} else if routing && entry.autoReviewError != nil {
+		entry.sourceProof.Basis += "; auto-review enrichment failed; native model inventory retained"
+	}
 	return entry, nil
 }
 func (c *Catalog) LoadExecutionDefaults(ctx context.Context, cwd, configured string) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+	entry, err := c.observe(ctx, cwd, configured, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +221,7 @@ func (c *Catalog) LoadExecutionDefaults(ctx context.Context, cwd, configured str
 	return Map{"configuration": csCopy(entry.configuration), "models": csCopy(entry.models)}, nil
 }
 func (c *Catalog) ProbeAutoReview(ctx context.Context, cwd, configured string) (bool, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+	entry, err := c.observe(ctx, cwd, configured, false, false)
 	if err != nil {
 		return false, err
 	}
@@ -175,65 +229,97 @@ func (c *Catalog) ProbeAutoReview(ctx context.Context, cwd, configured string) (
 }
 
 func ListModels(ctx context.Context, transport CatalogTransport) ([]Map, error) {
-	response, err := transport.Call(ctx, "model/list", Map{"limit": 100, "includeHidden": false})
-	if err != nil {
-		return nil, err
-	}
 	models := []Map{}
-	for _, raw := range csArray(response["data"]) {
-		model, ok := csRecord(raw)
+	cursor := ""
+	seenCursors := map[string]bool{}
+	seenModels := map[string]bool{}
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		request := Map{"limit": 100, "includeHidden": true}
+		if cursor != "" {
+			request["cursor"] = cursor
+		}
+		response, err := transport.Call(ctx, "model/list", request)
+		if err != nil {
+			return nil, err
+		}
+		data, ok := csSlice(response["data"])
 		if !ok {
-			continue
+			return nil, errors.New("Codex native model catalog page is malformed")
 		}
-		id, name := csString(model["model"]), csString(model["displayName"])
-		if id == "" || name == "" {
-			continue
-		}
-		efforts := []Map{}
-		levels := []string{}
-		rawEfforts, reported := csSlice(model["supportedReasoningEfforts"])
-		for _, entry := range rawEfforts {
-			item, _ := csRecord(entry)
-			value := csString(item["reasoningEffort"])
-			if value == "" {
-				continue
+		for _, raw := range data {
+			model, ok := csRecord(raw)
+			if !ok {
+				return nil, errors.New("Codex native model catalog entry is malformed")
 			}
-			level := Map{"value": value}
-			if description := csString(item["description"]); description != "" {
-				level["description"] = description
+			id, name := csString(model["model"]), csString(model["displayName"])
+			if strings.TrimSpace(id) == "" || strings.ContainsRune(id, 0) || seenModels[id] {
+				return nil, errors.New("Codex native model catalog has a missing or duplicate model identifier")
 			}
-			efforts = append(efforts, level)
-			levels = append(levels, value)
-		}
-		tiers := []Map{}
-		for _, entry := range csArray(model["serviceTiers"]) {
-			item, _ := csRecord(entry)
-			id := csString(item["id"])
-			if id == "" {
-				continue
+			seenModels[id] = true
+			if name == "" {
+				name = id
 			}
-			tier := Map{"value": id}
-			if name := csString(item["name"]); name != "" {
-				tier["displayName"] = name
+			efforts := []Map{}
+			levels := []string{}
+			rawEfforts, reported := csSlice(model["supportedReasoningEfforts"])
+			for _, entry := range rawEfforts {
+				item, _ := csRecord(entry)
+				value := csString(item["reasoningEffort"])
+				if value == "" {
+					continue
+				}
+				level := Map{"value": value}
+				if description := csString(item["description"]); description != "" {
+					level["description"] = description
+				}
+				efforts = append(efforts, level)
+				levels = append(levels, value)
 			}
-			tiers = append(tiers, tier)
-		}
-		thinking := NativeThinkingCapability(levels, reported, model["supportsReasoning"])
-		out := Map{"value": id, "displayName": name, "thinking": thinking, "supportedReasoningEfforts": efforts, "serviceTiers": tiers}
-		for _, key := range []string{"description", "defaultReasoningEffort"} {
-			if value := csString(model[key]); value != "" {
-				out[key] = value
+			tiers := []Map{}
+			for _, entry := range csArray(model["serviceTiers"]) {
+				item, _ := csRecord(entry)
+				id := csString(item["id"])
+				if id == "" {
+					continue
+				}
+				tier := Map{"value": id}
+				if name := csString(item["name"]); name != "" {
+					tier["displayName"] = name
+				}
+				tiers = append(tiers, tier)
 			}
+			thinking := NativeThinkingCapability(levels, reported, model["supportsReasoning"])
+			out := Map{"value": id, "displayName": name, "thinking": thinking, "supportedReasoningEfforts": efforts, "serviceTiers": tiers}
+			for _, key := range []string{"description", "defaultReasoningEffort"} {
+				if value := csString(model[key]); value != "" {
+					out[key] = value
+				}
+			}
+			if model["isDefault"] == true {
+				out["isDefault"] = true
+			}
+			if value, exists := model["defaultServiceTier"]; exists && (value == nil || csString(value) != "") {
+				out["defaultServiceTier"] = value
+			}
+			models = append(models, out)
 		}
-		if model["isDefault"] == true {
-			out["isDefault"] = true
+		next, exists := response["nextCursor"]
+		if !exists {
+			return nil, errors.New("Codex native model catalog omitted pagination completion")
 		}
-		if value, exists := model["defaultServiceTier"]; exists && (value == nil || csString(value) != "") {
-			out["defaultServiceTier"] = value
+		if next == nil || next == "" {
+			return models, nil
 		}
-		models = append(models, out)
+		var valid bool
+		cursor, valid = next.(string)
+		if !valid || seenCursors[cursor] {
+			return nil, errors.New("Codex native model catalog pagination is invalid or repeated")
+		}
+		seenCursors[cursor] = true
 	}
-	return models, nil
 }
 func NativeThinkingCapability(efforts []string, reported bool, supportsReasoning any) Map {
 	if supportsReasoning == false {

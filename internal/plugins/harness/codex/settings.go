@@ -415,6 +415,7 @@ func HasThreadContent(state Map) bool {
 }
 func SettingsSchemaForModels(models []Map) Map {
 	modelIDs := []string{}
+	unknown := 0
 	tiers := []string{"default"}
 	groups := []Map{}
 	groupIndex := map[string]int{}
@@ -422,6 +423,9 @@ func SettingsSchemaForModels(models []Map) Map {
 		modelIDs = append(modelIDs, csString(model["value"]))
 		thinking, _ := csRecord(model["thinking"])
 		schema := csThinkingSchema(thinking)
+		if _, blocked := schema["not"]; blocked {
+			unknown++
+		}
 		modelTiers := []string{"default"}
 		for _, raw := range csArray(model["serviceTiers"]) {
 			tier, _ := csRecord(raw)
@@ -465,6 +469,13 @@ func SettingsSchemaForModels(models []Map) Map {
 		}
 		out["oneOf"] = branches
 	}
+	status := "ready"
+	if len(models) == 0 {
+		status = "empty"
+	} else if unknown > 0 {
+		status = "partial"
+	}
+	out["description"] = fmt.Sprintf("Creation capability status: %s; %d models have unknown thinking capabilities and cannot be selected. Native snapshot only. %s", status, unknown, out["description"])
 	return out
 }
 
@@ -626,15 +637,29 @@ func (s *SettingsAPI) DefaultThread(raw json.RawMessage) (json.RawMessage, error
 	}
 	return json.Marshal(value["threadSettings"])
 }
+
+var codexCatalogSource = plugin.CatalogSourceEvidence{Basis: "Codex native enumeration is accepted for routing; the native manager may return cached or bundled data, so remote completeness, freshness and execution availability are not guaranteed"}
+
 func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, error) {
 	if _, err := s.Normalize(request.Settings); err != nil {
 		return nil, err
 	}
-	catalog, err := s.catalog.Load(ctx, request.Cwd, "")
+	catalog, err := s.catalog.Load(ctx, request.Cwd, "", request.RoutingCatalog)
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(SettingsSchemaForModels(ccModels(catalog["models"])))
+	models := ccModels(catalog["models"])
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(models))
+	for _, entry := range models {
+		thinking, _ := csRecord(entry["thinking"])
+		reason := ""
+		if _, blocked := csThinkingSchema(thinking)["not"]; blocked {
+			reason = "Thinking capability is unknown; creation is unavailable"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{ID: csString(entry["value"]), Name: csString(entry["displayName"]), UnavailableReason: reason})
+	}
+	source, _ := catalog["catalogSource"].(plugin.CatalogSourceEvidence)
+	return plugin.ModelCatalogSchema(SettingsSchemaForModels(models), inventory, csString(catalog["catalogIdentity"]), source)
 }
 func (s *SettingsAPI) ResolveThread(ctx context.Context, request plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	merged, err := model.DecodeObject(request.Merged)

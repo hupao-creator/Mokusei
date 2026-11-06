@@ -53,30 +53,23 @@ type settingsCatalogFlight struct {
 	err         error
 }
 type SettingsAPI struct {
-	host       plugin.HostContext
-	launch     func(context.Context, Settings, string) (*Runtime, error)
-	mu         sync.Mutex
-	generation uint64
-	cache      map[string]catalogCacheEntry
-	pending    map[string]*settingsCatalogFlight
-	publishers map[string]*settingsCatalogFlight
-	active     map[*settingsCatalogFlight]struct{}
-	closed     bool
-	cleanupErr error
-	closeOnce  sync.Once
-	closeErr   error
+	host            plugin.HostContext
+	launch          func(context.Context, Settings, string) (*Runtime, error)
+	mu              sync.Mutex
+	generation      uint64
+	cache           map[string]catalogCacheEntry
+	pending         map[string]*settingsCatalogFlight
+	publishers      map[string]*settingsCatalogFlight
+	active          map[*settingsCatalogFlight]struct{}
+	closed          bool
+	cleanupErr      error
+	retryAfter      map[string]time.Time
+	closeOnce       sync.Once
+	closeErr        error
+	routingCatalogs discovery.Cache[*CatalogSnapshot]
 }
 
 func NewSettings(host plugin.HostContext, launch func(context.Context, Settings, string) (*Runtime, error)) *SettingsAPI {
-	if launch == nil {
-		launch = func(ctx context.Context, settings Settings, cwd string) (*Runtime, error) {
-			env, err := hostEnvironment(ctx, host)
-			if err != nil {
-				return nil, err
-			}
-			return NewRuntime(ctx, Options{CWD: cwd, ConfigurationCWD: settings.ConfigurationCWD, ExecutablePath: settings.ExecutablePath, Environment: env})
-		}
-	}
 	return &SettingsAPI{host: host, launch: launch, cache: map[string]catalogCacheEntry{}, pending: map[string]*settingsCatalogFlight{}, publishers: map[string]*settingsCatalogFlight{}, active: map[*settingsCatalogFlight]struct{}{}}
 }
 
@@ -84,6 +77,7 @@ func NewSettings(host plugin.HostContext, launch func(context.Context, Settings,
 // probes detached by refresh or by cancellation of their final reader.
 func (s *SettingsAPI) Close() error {
 	s.closeOnce.Do(func() {
+		routingErr := s.routingCatalogs.Close()
 		s.mu.Lock()
 		s.closed = true
 		s.generation++
@@ -100,7 +94,7 @@ func (s *SettingsAPI) Close() error {
 			<-flight.done
 		}
 		s.mu.Lock()
-		s.closeErr = s.cleanupErr
+		s.closeErr = errors.Join(routingErr, s.cleanupErr)
 		s.mu.Unlock()
 	})
 	return s.closeErr
@@ -244,10 +238,33 @@ func (s *SettingsAPI) Invalidate() {
 	s.pending = map[string]*settingsCatalogFlight{}
 	s.publishers = map[string]*settingsCatalogFlight{}
 }
+
+type catalogSource struct {
+	key         string
+	settings    Settings
+	environment map[string]string
+}
+
 func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd string) (string, error) {
-	env, err := hostEnvironment(ctx, s.host)
-	if err != nil {
-		return "", err
+	source, err := s.resolveCatalogSource(ctx, settings, cwd)
+	return source.key, err
+}
+
+func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Settings, cwd string) (catalogSource, error) {
+	var env map[string]string
+	var err error
+	executable := settings.ExecutablePath
+	if s.launch == nil {
+		options, captureErr := captureLaunch(ctx, s.host, settings, cwd)
+		if captureErr != nil {
+			return catalogSource{}, captureErr
+		}
+		executable, env = options.ExecutablePath, options.Environment
+	} else {
+		env, err = hostEnvironment(ctx, s.host)
+		if err != nil {
+			return catalogSource{}, err
+		}
 	}
 	config := env["XDG_CONFIG_HOME"]
 	if config == "" {
@@ -261,27 +278,91 @@ func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd str
 	if source == "" {
 		source = cwd
 	}
-	identity := discovery.Identity(env, settings.ExecutablePath, env["OPENCODE_CONFIG"],
-		filepath.Join(config, "opencode", "opencode.json"), filepath.Join(config, "opencode", "opencode.jsonc"),
-		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc"))
-	return cwd + "\x00" + settings.ConfigurationCWD + "\x00" + settings.ExecutablePath + "\x00" + identity, nil
+	accountIdentity, err := catalogAccountIdentity(ctx, env)
+	if err != nil {
+		return catalogSource{}, err
+	}
+	configDirectory := env["OPENCODE_CONFIG_DIR"]
+	if configDirectory == "" {
+		configDirectory = filepath.Join(config, "opencode")
+	}
+	files := []string{env["OPENCODE_CONFIG"],
+		filepath.Join(configDirectory, "opencode.json"), filepath.Join(configDirectory, "opencode.jsonc"),
+		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc")}
+	// Every cache layer uses this same dependency identity. A routing read must
+	// never wrap a shallow-key editor snapshot in a newer configuration's key.
+	identity, err := discovery.ObservedIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
+	if err != nil {
+		return catalogSource{}, err
+	}
+	key := cwd + "\x00" + settings.ConfigurationCWD + "\x00" + executable + "\x00" + identity + "\x00" + accountIdentity
+	settings.ExecutablePath = executable
+	return catalogSource{key: key, settings: settings, environment: env}, nil
 }
 
-func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string, refresh bool, presentation ...bool) (*CatalogSnapshot, error) {
+type catalogReadMode uint8
+
+const (
+	completeCatalogRead catalogReadMode = iota
+	presentationCatalogRead
+	routingCatalogRead
+)
+
+func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string, refresh bool, modes ...catalogReadMode) (*CatalogSnapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	key, err := s.catalogKey(ctx, settings, cwd)
+	mode := completeCatalogRead
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	source, err := s.resolveCatalogSource(ctx, settings, cwd)
 	if err != nil {
 		return nil, err
 	}
-	early := len(presentation) > 0 && presentation[0]
+	key := source.key
+	if mode == routingCatalogRead {
+		snapshot, readErr := s.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 55*time.Second, func(probeCtx context.Context) (*CatalogSnapshot, error) {
+			value, err := s.observe(probeCtx, settings, cwd, false, completeCatalogRead)
+			if err != nil {
+				return value, err
+			}
+			current, err := s.resolveCatalogSource(probeCtx, settings, cwd)
+			if err != nil {
+				return nil, err
+			}
+			if current.key != key {
+				return nil, errors.New("OpenCode routing source changed during discovery")
+			}
+			if value == nil || value.identity != key {
+				return nil, errors.New("OpenCode catalog snapshot does not match its captured source")
+			}
+			return value, nil
+		})
+		if readErr != nil {
+			return nil, readErr
+		}
+		if snapshot == nil || snapshot.identity != key {
+			return nil, errors.New("OpenCode routing cache does not match its source")
+		}
+		copy := *snapshot
+		if s.routingCatalogs.RefreshFailed(key) {
+			copy.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
+		}
+		return &copy, nil
+	}
+	early := mode == presentationCatalogRead
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return nil, errors.New("OpenCode settings are closed")
 	}
-	if cached, ok := s.cache[key]; !refresh && ok && s.pending[key] == nil && time.Since(cached.at) < 5*time.Minute {
+	if s.cleanupErr != nil {
+		err := s.cleanupErr
+		s.mu.Unlock()
+		return nil, err
+	}
+	if cached, ok := s.cache[key]; !refresh && ok && cached.value != nil && cached.value.identity == key && s.pending[key] == nil && time.Since(cached.at) < 5*time.Minute {
 		s.mu.Unlock()
 		return cached.value, nil
 	}
@@ -304,7 +385,13 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			defer cancel()
 			deadline := time.AfterFunc(30*time.Second, cancel)
 			defer deadline.Stop()
-			runtime, err := s.launch(probe, settings, cwd)
+			var runtime *Runtime
+			var err error
+			if s.launch != nil {
+				runtime, err = s.launch(probe, source.settings, cwd)
+			} else {
+				runtime, err = NewRuntime(probe, Options{CWD: cwd, ConfigurationCWD: source.settings.ConfigurationCWD, ExecutablePath: source.settings.ExecutablePath, Environment: source.environment})
+			}
 			var cleanupErr error
 			if err == nil {
 				flight.value, err = readCatalog(probe, s.host, runtime, func(value *CatalogSnapshot) error {
@@ -319,11 +406,26 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 					s.mu.Lock()
 					// The callback publishes an immutable native projection. Billing
 					// filters a separate copy; presentation is never an auth verdict.
+					value.identity = key
 					flight.nativeValue = value
 					close(flight.nativeDone)
 					s.mu.Unlock()
 					return nil
 				}, runtime.Close)
+				if err == nil {
+					current, sourceErr := s.catalogKey(probe, settings, cwd)
+					if sourceErr != nil {
+						err = sourceErr
+					} else if current != key {
+						err = errors.New("OpenCode native configuration changed during discovery")
+					}
+				}
+				if err == nil {
+					flight.value.identity = key
+					// Reject empty/malformed inventories before replacing a complete
+					// cache entry, including refreshes initiated by the settings UI.
+					_, err = describeCatalog(settings, flight.value)
+				}
 				cleanupErr = runtime.Close()
 				err = errors.Join(err, cleanupErr)
 			}
@@ -700,7 +802,11 @@ func (s *SettingsAPI) SnapshotExecution(ctx context.Context, input plugin.Settin
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, next, input.Cwd, false, initial)
+	mode := completeCatalogRead
+	if initial {
+		mode = presentationCatalogRead
+	}
+	observed, err := s.observe(ctx, next, input.Cwd, false, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -766,7 +872,7 @@ func (s *SettingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, selected, input.Cwd, input.Refresh, true)
+	observed, err := s.observe(ctx, selected, input.Cwd, input.Refresh, presentationCatalogRead)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -814,29 +920,38 @@ func (s *SettingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	}
 	return json.Marshal(result)
 }
+
+var opencodeCatalogSource = plugin.CatalogSourceEvidence{Basis: "plugin activation and /api/model enumerate a registry, but expose no proof that every configured source completed; remote configuration failures and later discovery are not attested"}
+
 func (s *SettingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
 	current, err := s.defaults(input.Settings)
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, current, input.Cwd, false)
+	mode := completeCatalogRead
+	if input.RoutingCatalog {
+		mode = routingCatalogRead
+	}
+	observed, err := s.observe(ctx, current, input.Cwd, false, mode)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return json.Marshal(Object{"type": "object", "not": Object{}, "description": err.Error()})
+		return nil, fmt.Errorf("OpenCode model catalog unavailable: %w", err)
 	}
 	return describeCatalog(current, observed)
 }
 func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessage, error) {
 	permissions := Object{"type": "string", "enum": []string{"auto", "default"}, "default": current.PermissionMode, "description": "auto approves native permission requests once while preserving deny rules; default asks the user."}
 	choices := []any{}
+	omitted := 0
 	defaultAgent := current.Agent
 	if defaultAgent == "" {
 		defaultAgent = observed.DefaultAgent
 	}
 	for _, entry := range observed.Models {
-		if entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+		if entry.UnavailableReason != "" || entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+			omitted++
 			continue
 		}
 		agents := []string{}
@@ -847,6 +962,7 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		}
 		allowed := defaultAgent == "" || slices.Contains(agents, defaultAgent)
 		if len(agents) == 0 && !allowed {
+			omitted++
 			continue
 		}
 		required := []string{"provider", "model", "thinking"}
@@ -860,12 +976,40 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		choices = append(choices, Object{"type": "object", "additionalProperties": false, "required": required, "properties": properties})
 	}
 	result := Object{"type": "object", "description": "OpenCode ordinary Threads require an exact provider, model, and explicit supported thinking choice. Agent choices are native primary agents.", "additionalProperties": false, "required": []string{"provider", "model", "thinking"}, "properties": Object{"provider": Object{"type": "string", "minLength": 1}, "model": Object{"type": "string", "minLength": 1}, "thinking": Object{"type": "object"}, "agent": Object{"type": "string", "minLength": 1}, "permissionMode": permissions}}
+	status := "ready"
+	if len(choices) == 0 {
+		status = "empty"
+	}
+	if omitted > 0 {
+		status = "partial"
+	}
+	result["description"] = fmt.Sprintf("Creation capability status: %s; %d model choices, %d models omitted from creation branches because their creation capabilities are unavailable or unknown, %d models excluded by account evidence. This is a native catalog snapshot, not a guarantee of credentials, quota or future execution. %s", status, len(choices), omitted, len(observed.ExcludedModels), result["description"])
 	if len(choices) > 0 {
 		result["oneOf"] = choices
 	} else {
 		result["not"] = Object{}
 	}
-	return json.Marshal(result)
+	restrictions := make(map[string]string, len(observed.Models))
+	for _, entry := range observed.Models {
+		if entry.Thinking == nil || entry.Thinking.Kind == "unknown" {
+			restrictions[ModelKey(entry.Provider, entry.ID)] = "Thinking capability is unknown; creation is unavailable"
+		} else if entry.UnavailableReason != "" {
+			restrictions[ModelKey(entry.Provider, entry.ID)] = entry.UnavailableReason
+		}
+	}
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(observed.NativeModels))
+	for _, entry := range observed.NativeModels {
+		key := ModelKey(entry.ProviderID, entry.ID)
+		reason := observed.ExcludedModels[key]
+		if reason == "" {
+			reason = restrictions[key]
+		}
+		if !entry.Enabled || !entry.Capabilities.Tools || !slices.Contains(entry.Capabilities.Input, "text") {
+			reason = "Native model is disabled or does not support text and tools"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.ProviderID, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
+	}
+	return plugin.ModelCatalogSchema(result, inventory, observed.identity, observed.sourceProof)
 }
 func (s *SettingsAPI) Probe(ctx context.Context, input plugin.SettingsRequest, toolMode string) (plugin.Availability, error) {
 	selected, err := s.defaults(input.Settings)
@@ -1080,13 +1224,10 @@ func (h *Harness) cachedCatalog(ctx context.Context, input plugin.SettingsReques
 	if closed {
 		return nil, current, errors.New("OpenCode settings are closed")
 	}
-	if ok && time.Since(cached.at) < 5*time.Minute {
+	if ok && cached.value != nil && cached.value.identity == key && time.Since(cached.at) < 5*time.Minute {
 		return cached.value, current, nil
 	}
 	h.background("catalog:"+key, func(life context.Context) { _, _ = h.settings.observe(life, current, input.Cwd, false) })
-	if ok {
-		return cached.value, current, nil
-	}
 	return nil, current, nil
 }
 func (h *Harness) CachedModelCatalog(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
@@ -1095,36 +1236,18 @@ func (h *Harness) CachedModelCatalog(ctx context.Context, input plugin.SettingsR
 		return nil, err
 	}
 	if cached == nil {
-		return json.RawMessage(`{"models":[]}`), nil
+		return nil, errors.New("OpenCode model catalog is loading or expired; options are unknown")
 	}
 	return catalogProjection(cached)
 }
 
-// DiscoverMokuTarget always advertises stable on-demand native discovery. A
-// background catalog becoming ready must not replace Moku's tool schema and
-// force a second session preparation before its first message.
+// DiscoverMokuTarget uses complete same-configuration snapshots immediately.
+// Only a cold configuration waits for discovery; execution still validates live.
 func (h *Harness) DiscoverMokuTarget(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
-	current, err := h.settings.defaults(input.Settings)
+	input.RoutingCatalog = true
+	schema, err := h.settings.Describe(ctx, input)
 	if err != nil {
 		return nil, plugin.Availability{}, err
 	}
-	env, err := hostEnvironment(ctx, h.host)
-	if err != nil {
-		return nil, plugin.Availability{}, err
-	}
-	if h.host.ResolveExecutable != nil {
-		_, err = h.host.ResolveExecutable(ctx, "opencode", input.Cwd, current.ExecutablePath)
-	} else {
-		_, err = ResolveExecutable(current.ExecutablePath, env)
-	}
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, plugin.Availability{}, ctx.Err()
-		}
-		return nil, plugin.Availability{Reason: err.Error()}, nil
-	}
-	if _, _, err := h.cachedCatalog(ctx, input); err != nil {
-		return nil, plugin.Availability{}, err
-	}
-	return nil, plugin.Availability{Available: true}, nil
+	return schema, plugin.Availability{Available: true}, nil
 }

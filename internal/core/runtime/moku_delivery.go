@@ -161,7 +161,8 @@ func (b *mokuDeliveryBatch) admitted(ctx context.Context) error {
 func (b *mokuDeliveryBatch) releaseUnconsumed(ctx context.Context, cause error) error {
 	// Only exact Core pre-consumption results synchronize with the completed
 	// sender and prove replay safe. Cancellation can leave Send still running.
-	if cause != plugin.ErrMokuConfigurationPending && cause != plugin.ErrMokuIdle {
+	_, rejected := cause.(*plugin.MokuAdmissionRejectedError)
+	if !rejected && cause != plugin.ErrMokuConfigurationPending && cause != plugin.ErrMokuIdle {
 		return cause
 	}
 	if b.epoch == "" {

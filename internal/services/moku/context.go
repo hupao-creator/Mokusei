@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -15,11 +16,6 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/services/directorytag"
 )
 
-type targetRefreshUnavailable struct{ cause error }
-
-func (e *targetRefreshUnavailable) Error() string { return e.cause.Error() }
-func (e *targetRefreshUnavailable) Unwrap() error { return e.cause }
-
 func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settings) (ThreadCreationDescription, error) {
 	type input struct {
 		id       string
@@ -29,8 +25,11 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 	inputs := []input{}
 	for _, id := range settings.Moku.TargetHarnessIDs {
 		h := c.config.Harnesses[id]
-		if h == nil || c.config.HarnessEnabled != nil && !c.config.HarnessEnabled(id) {
-			continue
+		if h == nil {
+			return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start: selected Harness %s is not registered", id)
+		}
+		if c.config.HarnessEnabled != nil && !c.config.HarnessEnabled(id) {
+			return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start: selected Harness %s is disabled", id)
 		}
 		// Capture independent immutable inputs before workers run. The settings
 		// admission owner continues to fence this entire discovery operation.
@@ -68,39 +67,83 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 		return ThreadCreationDescription{}, err
 	}
 	targets := []TargetDescription{}
-	for _, result := range results {
-		// Configuration order, not completion order, owns schemas and failures.
+	var failures []error
+	for i, result := range results {
 		if result.err != nil {
-			return ThreadCreationDescription{}, &targetRefreshUnavailable{result.err}
+			failures = append(failures, fmt.Errorf("%s: %w", inputs[i].id, result.err))
+			continue
 		}
-		target := result.target
-		if target.DeferredNative || len(target.NativeSchema) > 0 {
-			targets = append(targets, target)
+		if c.config.HarnessEnabled != nil && !c.config.HarnessEnabled(inputs[i].id) {
+			failures = append(failures, fmt.Errorf("%s was disabled during catalog discovery", inputs[i].id))
 		}
+		targets = append(targets, result.target)
+	}
+	if len(failures) > 0 {
+		return ThreadCreationDescription{}, fmt.Errorf("Moku cannot start until every selected Harness has a complete model catalog: %w", errors.Join(failures...))
 	}
 	if len(targets) == 0 {
-		return ThreadCreationDescription{}, &targetRefreshUnavailable{errors.New("Moku 没有可用的 Target Harness")}
+		return ThreadCreationDescription{}, errors.New("Moku cannot start: no target Harness selected")
+	}
+	latest, _, err := c.config.Settings()
+	if err != nil {
+		return ThreadCreationDescription{}, err
+	}
+	if !sameMokuSettings(settings, latest) {
+		return ThreadCreationDescription{}, errors.New("Moku configuration changed during model catalog discovery; retry with the current selection")
 	}
 	return DescribeThreadCreation(targets, c.config.Workspace)
 }
 
 func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Harness, merged json.RawMessage) (TargetDescription, error) {
 	target := TargetDescription{HarnessID: id}
-	var availability plugin.Availability
 	var err error
+	// Catalog discovery must not depend on the selected default model being
+	// usable. Every selected Harness supplies its entire native inventory.
 	if discovery, ok := h.(plugin.MokuTargetDiscoverer); ok {
-		target.NativeSchema, availability, err = discovery.DiscoverMokuTarget(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace})
-		target.DeferredNative = err == nil && availability.Available && len(target.NativeSchema) == 0
-	} else {
-		availability, err = c.available(ctx, h, merged)
-		if err == nil && availability.Available {
-			target.NativeSchema, err = h.Settings().Describe(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace})
-			if err != nil {
-				return target, err
-			}
+		var availability plugin.Availability
+		target.NativeSchema, availability, err = discovery.DiscoverMokuTarget(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace, RoutingCatalog: true})
+		if err == nil && !availability.Available {
+			err = fmt.Errorf("native model catalog unavailable: %s", availability.Reason)
 		}
+	} else {
+		target.NativeSchema, err = h.Settings().Describe(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace, RoutingCatalog: true})
 	}
+	if err != nil {
+		return target, err
+	}
+	var envelope struct {
+		Catalog *plugin.CompleteModelCatalog `json:"x-mokusei-model-catalog"`
+	}
+	if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
+		return target, fmt.Errorf("invalid native catalog schema: %w", err)
+	}
+	if envelope.Catalog == nil || !envelope.Catalog.EnumerationComplete || len(envelope.Catalog.Models) == 0 || envelope.Catalog.ConfigurationID == "" {
+		return target, errors.New("complete nonempty native model inventory is missing")
+	}
+	// Admission uses a successful full native response, which may contain
+	// native cache/fallback. Keep provenance in the schema without pretending
+	// it is attested or making it a prerequisite for ordinary routing.
 	return target, nil
+}
+
+// The immutable prepared description is bound to the handle's injection. The
+// Runtime invokes this at every final new-execution boundary, not only while
+// the coordinator happens to observe an idle conversation.
+func (c *Coordinator) validateTargetAdmission(ctx context.Context, owner string, applied model.Settings, prepared ThreadCreationDescription) error {
+	c.mu.Lock()
+	id := c.id
+	c.mu.Unlock()
+	if id != owner {
+		return plugin.ErrMokuConfigurationPending
+	}
+	description, err := c.describeTargets(ctx, applied)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(prepared.CatalogIdentities, description.CatalogIdentities) {
+		return plugin.ErrMokuConfigurationPending
+	}
+	return nil
 }
 
 func (c *Coordinator) collectNativeContext(ctx context.Context, entryID string, settings model.Settings) ([]plugin.ContextEntry, error) {

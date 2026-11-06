@@ -401,12 +401,10 @@ func (c *Coordinator) target(ctx context.Context, id string, description ThreadC
 		return nil, nil, plugin.CallerError(fmt.Errorf("Unknown Harness %s", id))
 	}
 	merged := mergedSettings(settings, id, false)
-	availability, err := c.available(ctx, harness, merged)
-	if err != nil {
+	// The exact requested model is validated by Describe/ResolveThread in the
+	// destination workspace and by live native admission, not the saved default.
+	if err := ctx.Err(); err != nil {
 		return nil, nil, err
-	}
-	if !availability.Available {
-		return nil, nil, fmt.Errorf("Moku Target Harness 不可用: %s (%s)", id, availability.Reason)
 	}
 	return harness, merged, nil
 }

@@ -218,10 +218,14 @@ type ToolInjection struct {
 	AuditContext func() ToolRetryContext `json:"-"`
 }
 type Injection struct {
-	Instructions   []string
-	ContextEntries []ContextEntry
-	Seed           []SeedItem
-	Tools          *ToolInjection
+	// Runtime calls this under admission ownership only when reserving a new
+	// execution, before retaining input or invoking native Send/project.
+	// It is an in-process authority callback, never serialized to the model.
+	AdmitNewExecution func(context.Context) error `json:"-"`
+	Instructions      []string
+	ContextEntries    []ContextEntry
+	Seed              []SeedItem
+	Tools             *ToolInjection
 }
 
 // ThreadReadingLength counts readable conversation text across the retained
@@ -263,8 +267,11 @@ type HarnessSettings interface {
 	Presentation(context.Context, SettingsPresentationRequest) (json.RawMessage, error)
 }
 type SettingsRequest struct {
-	Settings json.RawMessage
-	Cwd      string
+	// RoutingCatalog permits complete same-configuration stale catalogs with
+	// background refresh. Execution validation must leave this false.
+	RoutingCatalog bool
+	Settings       json.RawMessage
+	Cwd            string
 }
 type ResolveSettingsRequest struct {
 	// Merged contains projected thread defaults from DefaultThread, never the
@@ -287,6 +294,7 @@ type SettingsPresentationRequest struct {
 	Cwd            string
 	ThreadSettings json.RawMessage
 	Refresh        bool
+	RoutingCatalog bool // internal catalog projection; never execution authority
 }
 
 type Installer interface{ Install(context.Context) error }
@@ -359,9 +367,10 @@ type CachedModelCatalogSource interface {
 	CachedModelCatalog(context.Context, SettingsRequest) (json.RawMessage, error)
 }
 
-// MokuTargetDiscoverer advertises an installed native target without waiting for
-// its model/account catalog. A nil schema defers exact options to the on-demand
-// describe_native_harness tool. Execution always performs full native admission.
+// MokuTargetDiscoverer discovers target options independently of the configured
+// default model. An available target must return its creation schema before
+// routing; nil is incomplete, not deferred discovery. Execution still performs
+// full native admission.
 type MokuTargetDiscoverer interface {
 	DiscoverMokuTarget(context.Context, SettingsRequest) (json.RawMessage, Availability, error)
 }

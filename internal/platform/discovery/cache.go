@@ -14,12 +14,13 @@ type entry[T any] struct {
 	at    time.Time
 }
 type flight[T any] struct {
-	done    chan struct{}
-	cancel  context.CancelFunc
-	readers int
-	refresh bool
-	value   T
-	err     error
+	done       chan struct{}
+	cancel     context.CancelFunc
+	readers    int
+	refresh    bool
+	background bool
+	value      T
+	err        error
 }
 
 // Cache owns probes independently of any one reader. Values must be immutable
@@ -32,6 +33,7 @@ type Cache[T any] struct {
 	active     map[*flight[T]]bool
 	closed     bool
 	cleanupErr error
+	retryAfter map[string]time.Time
 }
 
 type cleanupError struct{ error }
@@ -47,25 +49,53 @@ func Cleanup(err error) error {
 	return cleanupError{err}
 }
 
+// RefreshFailed reports whether the latest completed refresh failed while an
+// older snapshot was retained. It does not expose native errors/credentials or
+// claim that the retained snapshot is current. Success clears this state.
+func (c *Cache[T]) RefreshFailed(key string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, failed := c.retryAfter[key]
+	return failed
+}
+
 func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
+	return c.get(ctx, key, refresh, false, ttl, timeout, probe)
+}
+
+// GetStale returns a successful same-key snapshot immediately, even during an
+// explicit refresh. Expired snapshots start one cache-owned refresh; failures
+// retain the last success. Cold readers still wait and can cancel independently.
+func (c *Cache[T]) GetStale(ctx context.Context, key string, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
+	return c.get(ctx, key, false, true, ttl, timeout, probe)
+}
+
+func (c *Cache[T]) get(ctx context.Context, key string, refresh, allowStale bool, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
 	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return zero, errors.New("native discovery is closed")
+	}
+	cached, haveCached := c.entries[key]
+	background := allowStale && haveCached
+	if background && (time.Since(cached.at) < ttl || c.pending[key] != nil || time.Now().Before(c.retryAfter[key]) || c.cleanupErr != nil) {
+		c.mu.Unlock()
+		return cached.value, nil
+	}
 	if c.cleanupErr != nil {
 		err := c.cleanupErr
 		c.mu.Unlock()
 		return zero, err
 	}
-	if c.closed {
-		c.mu.Unlock()
-		return zero, errors.New("native discovery is closed")
-	}
 	if c.entries == nil {
 		c.entries = map[string]entry[T]{}
 		c.pending = map[string]*flight[T]{}
 		c.active = map[*flight[T]]bool{}
+		c.retryAfter = map[string]time.Time{}
 	}
 	f := c.pending[key]
 	// Ordinary readers join an explicit refresh instead of accepting older facts.
@@ -83,7 +113,7 @@ func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeo
 			}
 		}
 		shared, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
-		f = &flight[T]{done: make(chan struct{}), cancel: cancel, refresh: refresh}
+		f = &flight[T]{done: make(chan struct{}), cancel: cancel, refresh: refresh, background: background}
 		c.pending[key] = f
 		c.active[f] = true
 		go func(f *flight[T]) {
@@ -99,6 +129,11 @@ func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeo
 			// can never publish over a newer refresh (even if that refresh failed).
 			if c.pending[key] == f {
 				delete(c.pending, key)
+				if _, retained := c.entries[key]; err != nil && retained {
+					c.retryAfter[key] = time.Now().Add(30 * time.Second)
+				} else {
+					delete(c.retryAfter, key)
+				}
 				if err == nil && !c.closed {
 					c.entries[key] = entry[T]{value, time.Now()}
 					if len(c.entries) > 64 {
@@ -109,6 +144,7 @@ func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeo
 							}
 						}
 						delete(c.entries, oldest)
+						delete(c.retryAfter, oldest)
 					}
 				}
 			}
@@ -118,13 +154,17 @@ func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeo
 			cancel()
 		}(f)
 	}
+	if background {
+		c.mu.Unlock()
+		return cached.value, nil
+	}
 	f.readers++
 	c.mu.Unlock()
 	defer func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		f.readers--
-		if f.readers == 0 && c.active[f] {
+		if f.readers == 0 && !f.background && c.active[f] {
 			f.cancel()
 			if c.pending[key] == f {
 				delete(c.pending, key)

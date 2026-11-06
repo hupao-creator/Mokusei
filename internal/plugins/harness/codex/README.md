@@ -9,6 +9,11 @@ source must satisfy the existing idle/native-work gates. See
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
+Moku rejects empty initial model catalogs and reports partial creation capabilities
+when thinking controls are unknown. Target discovery reads the catalog independently of the default
+execution profile; configuration-keyed cache snapshots never replace native
+creation validation.
+
 ## Settings, tools and execution
 
 [settings.go](settings.go) requires explicit model, thinking and service-tier choices for ordinary task creation. `default` is the standard tier; other tiers must be advertised by the selected model. A missing/null/boolean tier is not inheritance. Native replies confirm the effective tier; explicit null means known standard, while absence is unreported. [presentation.go](presentation.go) uses reported execution facts for Fast status before falling back to requested settings.
@@ -209,3 +214,37 @@ VoiceSession ID. Background terminal follow-ups use their original, unmarked Cor
 admission path. This allows Moku to reject a retired microphone owner without
 blocking non-voice continuation. Thread voice calling is disabled by Runtime;
 Overview global Moku still uses the native/relay media implementation described here.
+
+Moku requires the full nonempty native model inventory before task admission.
+Unknown thinking capabilities remain named in that inventory but cannot authorize
+creation. Moku routing returns complete same-configuration cached directories
+immediately, even after expiry or during refresh. Expired entries start bounded
+background refreshes; failures/empty replacements retain the last complete
+snapshot, with a 30-second warm-retry cooldown. Only a cache miss waits and blocks
+on failure. Configuration identities fence publication and native admission;
+execution/default resolution retains strict reads. Caches are Harness-owned,
+memory-only and drained on Close, not persisted across application restarts.
+The native reader includes hidden models, follows every `model/list` cursor, and
+rejects malformed pages, duplicate identities and cursor cycles instead of
+reporting a truncated directory as complete.
+
+App-server spawn fixes the originator to the same `mokusei_desktop` client used
+by initialize, including pre-initialize model discovery. Full pagination still
+cannot attest whether native discovery silently fell back to bundled metadata;
+see [evidence limits](../../../services/moku/catalog-evidence.md).
+
+Moku routing accepts a successful nonempty native inventory, including native
+cache/bundled fallback, without requiring static configuration, a pinned version,
+strict-config startup or source-completion attestation. Source completeness stays
+false in the schema; it does not reject an otherwise usable directory. Config and
+auto-review enrichment failures are not model-directory failures. Creation and
+ordinary defaults still validate their required settings.
+
+ChatGPT cold/background probes have a best-effort three-second window to observe
+native cache refresh and enumerate again. Timeout, cache-stamp read failure or a
+failed second enumeration retains the first complete result. A matching warm
+snapshot returns immediately and failed refreshes preserve it with a failure
+note. First-page/later-page errors and empty initial inventories still reject a
+cold acquisition. No static candidate or failed page prefix is synthesized.
+See the [T3 source comparison and differences](t3-discovery.md) and
+[current admission contract](../../../services/moku/catalog-evidence.md).

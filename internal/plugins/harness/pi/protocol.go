@@ -647,11 +647,17 @@ func decodeModels(source map[string]any) ([]Model, error) {
 		return nil, fmt.Errorf("invalid Pi model catalog")
 	}
 	models := make([]Model, 0, len(values))
+	seen := map[string]bool{}
 	for _, value := range values {
 		m, err := decodeModel(value)
 		if err != nil {
 			return nil, err
 		}
+		key := m.Provider + "\x00" + m.ID
+		if seen[key] {
+			return nil, fmt.Errorf("duplicate Pi model catalog identifier")
+		}
+		seen[key] = true
 		m.BaseURL = ""
 		models = append(models, m)
 	}

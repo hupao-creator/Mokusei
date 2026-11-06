@@ -131,8 +131,8 @@ func runCompiledToolContractReplay() error {
 	}
 	mokuReplayCheck(completed == calls && rejected == calls/2, "concurrent fixed-schema calls changed audit outcomes")
 
-	// Deferred targets keep admission authority in their current native schema,
-	// even while the outer create_thread binding and its generation stay fixed.
+	// Exact target schemas are present initially; creation still rechecks native
+	// options, and the next task receives changed model options.
 	dynamicWorld := newOrchestratorWorld()
 	dynamicWorld.settings.Moku.HostHarnessPreference = "mock"
 	dynamicWorld.settings.Moku.TargetHarnessIDs = []string{"opencode"}
@@ -156,8 +156,11 @@ func runCompiledToolContractReplay() error {
 	dynamicWorld.mu.Unlock()
 	var caller *plugin.ToolCallError
 	mokuReplayCheck(errors.As(invoke("mock-model"), &caller), "native schema change still admitted the retired model")
+	mokuReplayMust(dynamicWorld.terminal(mokuReplayContext(), dynamicWorld.mokuRecord().ID, "completed"))
+	mokuReplayMust(dynamic.Submit(mokuReplayContext(), orchestratorInput("adopt refreshed target catalog")))
+	create = dynamicWorld.binding("create_thread")
 	mokuReplayMust(invoke("replacement-model"))
-	mokuReplayCheck(descriptions.Load() == 3, "native target schema was not discovered for each creation admission")
+	mokuReplayCheck(descriptions.Load() == 5, "native target schema was not discovered for each creation admission")
 	fmt.Println("PASS fixed tool schemas support concurrent first use and exact audited errors; dynamic target schemas remain fresh")
 	return nil
 }
@@ -172,8 +175,9 @@ func (h performanceDynamicHarness) Descriptor() plugin.HarnessDescriptor {
 	descriptor.ID = "opencode"
 	return descriptor
 }
-func (h performanceDynamicHarness) DiscoverMokuTarget(context.Context, plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
-	return nil, plugin.Availability{Available: true}, nil
+func (h performanceDynamicHarness) DiscoverMokuTarget(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
+	schema, err := h.Settings().Describe(ctx, request)
+	return schema, plugin.Availability{Available: err == nil}, err
 }
 func (h performanceDynamicHarness) Probe(context.Context, plugin.SettingsRequest, string) (plugin.Availability, error) {
 	return plugin.Availability{Available: true}, nil

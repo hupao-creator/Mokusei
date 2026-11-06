@@ -364,9 +364,17 @@ func (r *Runtime) SendMokuThread(ctx context.Context, id string, input model.Age
 		return SendResult{}, err
 	}
 	defer r.operations.Done()
+	ctx, cancelOperation := r.operationContext(ctx)
+	defer cancelOperation()
 	if err := validateInput(input); err != nil {
 		return SendResult{}, err
 	}
+	unlockConfiguration, err := r.configurationLock(ctx)
+	if err != nil {
+		return SendResult{}, err
+	}
+	defer unlockConfiguration()
+	ctx = context.WithValue(ctx, configurationContextKey{}, r)
 	lock := r.threadLock(id)
 	lock.Lock()
 	defer lock.Unlock()
@@ -418,8 +426,18 @@ func (r *Runtime) PrepareMokuVoice(ctx context.Context, id string, entries []plu
 	if err != nil {
 		return nil, err
 	}
-	owner, err := r.openThread(ctx, t, nil)
-	if err != nil {
+	if !t.Moku {
+		return nil, errors.New("not a Moku session")
+	}
+	// Coordinator.ensure must first publish the complete injection. A stop's
+	// recovery-only owner must never acquire a voice lease before replacement.
+	r.mu.Lock()
+	owner := r.handles[id]
+	r.mu.Unlock()
+	if owner == nil || owner.recoveryOnly || owner.admitNewExecution == nil {
+		return nil, plugin.ErrMokuConfigurationPending
+	}
+	if err := owner.active(); err != nil {
 		return nil, err
 	}
 	native, ok := owner.native.(plugin.NativeVoiceCapability)

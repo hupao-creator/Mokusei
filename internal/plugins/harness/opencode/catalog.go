@@ -99,6 +99,8 @@ type CatalogSelection struct {
 	Variant  string `json:"variant,omitempty"`
 }
 type CatalogSnapshot struct {
+	sourceProof         plugin.CatalogSourceEvidence
+	identity            string
 	AccountCheckPending bool
 	ExecutablePath      string
 	Version             string
@@ -122,6 +124,7 @@ func ModelKey(provider, id string) string { return provider + "\x00" + id }
 
 func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime, nativeComplete func(*CatalogSnapshot) error, beforeBilling func() error) (*CatalogSnapshot, error) {
 	var models []CatalogNativeModel
+	var plugins []Object
 	var agents []CatalogNativeAgent
 	var providers []CatalogNativeProvider
 	var defaultModel *CatalogNativeModel
@@ -129,26 +132,47 @@ func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime,
 	requests := []struct {
 		path   string
 		output any
-	}{{"/api/model", &models}, {"/api/agent", &agents}, {"/api/provider", &providers}, {"/api/model/default", &defaultModel}, {"/api/config", &configuration}}
+	}{{"/api/plugin", &plugins}, {"/api/model", &models}, {"/api/agent", &agents}, {"/api/provider", &providers}, {"/api/model/default", &defaultModel}, {"/api/config", &configuration}}
 	errorsByRequest := make([]error, len(requests))
 	var pending sync.WaitGroup
 	for i, request := range requests {
 		pending.Add(1)
 		go func(i int, path string, out any) {
 			defer pending.Done()
-			errorsByRequest[i] = runtime.Request(ctx, "GET", path, nil, out)
+			requestCtx := ctx
+			if path == "/api/plugin" {
+				var cancel context.CancelFunc
+				requestCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+				defer cancel()
+			}
+			errorsByRequest[i] = runtime.Request(requestCtx, "GET", path, nil, out)
 		}(i, request.path, request.output)
 	}
 	pending.Wait()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	for _, err := range errorsByRequest {
-		if err != nil {
+	for index, err := range errorsByRequest {
+		if index != 0 && err != nil {
 			return nil, err
 		}
 	}
-	value := &CatalogSnapshot{ExecutablePath: runtime.ExecutablePath, Version: runtime.Version, Models: []CatalogModel{}, Agents: []CatalogAgent{}, NativeAccounts: map[string]bool{}, ExcludedModels: map[string]string{}, NativeModels: models, Providers: providers}
+	// Plugin inventory is diagnostic, not proof of remote model completeness.
+	// A working native model response remains usable when this optional list is
+	// missing or activation has not settled (as with T3's practical loader).
+	source := opencodeCatalogSource
+	if errorsByRequest[0] != nil || len(plugins) == 0 {
+		source.Basis += "; plugin inventory unavailable; using the native model response"
+	} else {
+		for _, entry := range plugins {
+			status := str(configRecord(entry["state"])["status"])
+			if status != "active" && status != "disabled" {
+				source.Basis += "; plugin activation unsettled; using the native model response"
+				break
+			}
+		}
+	}
+	value := &CatalogSnapshot{sourceProof: source, ExecutablePath: runtime.ExecutablePath, Version: runtime.Version, Models: []CatalogModel{}, Agents: []CatalogAgent{}, NativeAccounts: map[string]bool{}, ExcludedModels: map[string]string{}, NativeModels: models, Providers: providers}
 	agentOverridesAccount := false
 	for _, agent := range agents {
 		if !agent.Hidden && agent.Mode != "subagent" && (hasCatalogAccountHeader(agent.Request.Headers) || hasCatalogField(agent.Request.Body, "model")) {

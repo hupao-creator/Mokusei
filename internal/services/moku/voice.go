@@ -982,7 +982,9 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if err != nil || current.ID != owner || lease.owner != owner {
 		return errors.New("Moku native owner replaced")
 	}
-	if err := v.rejectStaleNativeConfiguration(lease); err != nil {
+	linked, cancel := voiceLeaseContext(ctx, lease)
+	defer cancel()
+	if err := v.rejectStaleNativeConfiguration(linked, lease); err != nil {
 		return err
 	}
 	v.mu.Lock()
@@ -991,8 +993,6 @@ func (v *voiceController) syncContext(ctx context.Context, owner string) error {
 	if !active {
 		return errors.New("Voice owner 已失效")
 	}
-	linked, cancel := voiceLeaseContext(ctx, lease)
-	defer cancel()
 	entries, err := v.c.sendContext(linked, model.AgentInput{}, nil, nil)
 	if err != nil {
 		return err

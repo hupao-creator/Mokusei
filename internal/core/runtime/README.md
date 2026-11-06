@@ -105,10 +105,21 @@ retain their existing save behavior. Voice preparation adopts a saved Harness
 preference before preparing media; the preparation's own admission does not
 block that replacement, while any other concurrent admission still does.
 
-Moku rechecks pending configuration before reserving a successor execution,
-including when a prepared follow-up races its predecessor's completion. A
-confirmed unconsumed input returns to the coordinator for fresh settings,
-instructions and context. Uncertain native outcomes are never retried this way.
+Every new Moku execution crosses the same `admitMokuExecution` guard in
+[threads.go](threads.go): initial Send, successor renewal after a proven
+unconsumed end, and native Accept. Configuration admission covers direct Runtime
+SendMokuThread callers as well as coordinator callers. Background work does not
+exempt a new foreground execution. The guard uses an in-process callback captured
+in the prepared injection, installed before native Open; missing authority blocks.
+Native new work during Open is rejected before reentrant locking or projection.
+All three host execution-ID reservation sites precede native input/project with
+this guard; Commit still rejects unreserved execution IDs.
+
+Exact configuration-pending results permit one coordinator reprepare. Other
+Core pre-consumption rejections use `MokuAdmissionRejectedError`, preserving the
+reason and allowing durable outbox release after completed rejection. Exact native
+`ErrExecutionEnded` is the only native result that enters successor renewal;
+wrapped/uncertain native outcomes never gain this retry/release permission.
 Background configuration discovery also fences reuse of an existing idle
 session. A settings-save race re-resolves the configuration without spending a
 batch execution attempt; admitted batches and their retries retain their profile.
@@ -221,3 +232,30 @@ Thread voice calls are removed at the command authority boundary: prepare, start
 and heartbeat return `THREAD_VOICE_REMOVED`. Retained history, poll and Stop remain
 available without native Harness/model discovery. Global Overview Moku voice and
 ordinary text/attachment execution are independent; transcript storage is preserved.
+
+## Moku recovery-only handles
+
+Stopping a restored Moku execution may open its native session before model
+catalog preparation, without any injection. Such an owner is marked
+`recoveryOnly`; it can restore/settle/interrupt but cannot admit new native work,
+receive user sends or interaction responses, or acquire a new native voice lease.
+Ordinary Thread recovery and existing fully prepared Moku handles are unchanged.
+
+A later Open/Send with injection does not retrofit the callback onto this owner.
+Under the thread lock, Runtime checks cancellation, native admission, pending
+sends and the latest foreground/background state. An idle recovery owner is
+fenced closed, then all admission/state gates are released before native Close
+and callback draining. Only successful cleanup removes that exact cached owner;
+Runtime rereads durable state and opens a new native handle with the complete
+injection, including tools, instructions, context and AdmitNewExecution.
+
+Concurrent Stop is fenced by the cancellation gate. Active/background recovery
+reports busy instead of being replaced; cancellation remains available. Native
+Accept on a recovery owner rejects before the configuration lock, so a Close
+performed by normal preparation cannot deadlock on such a callback. The native
+voice entry requires a prepared owner rather than creating an uninjected one.
+Fully prepared voice owners are not candidates for this replacement. Early send
+rejection remains explicitly unconsumed; interaction replies reject before
+claiming an answer. Cleanup failure leaves the owner fenced and prevents a new
+native owner from overlapping it. No new execution ID or input is reserved merely
+by replacing the idle recovery handle.

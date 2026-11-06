@@ -71,6 +71,8 @@ type AppServer struct {
 	authCancel         context.CancelFunc
 }
 
+const codexClientName = "mokusei_desktop"
+
 func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) {
 	transferred := false
 	defer func() {
@@ -90,7 +92,18 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 	args = append(args, "app-server", "--listen", "stdio://")
 	cmd := exec.Command(opt.Executable, args...)
 	cmd.Dir = opt.Cwd
-	cmd.Env = opt.Environment
+	// Native discovery can start before initialize. Use the same client identity
+	// from process birth rather than letting a CLI-originated cache seed it.
+	environment := opt.Environment
+	if environment == nil {
+		environment = os.Environ()
+	}
+	for _, value := range environment {
+		if !strings.HasPrefix(value, "CODEX_INTERNAL_ORIGINATOR_OVERRIDE=") {
+			cmd.Env = append(cmd.Env, value)
+		}
+	}
+	cmd.Env = append(cmd.Env, "CODEX_INTERNAL_ORIGINATOR_OVERRIDE="+codexClientName)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -215,7 +228,7 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 	}()
 	initCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	s.initialized, err = s.Call(initCtx, "initialize", Map{"clientInfo": Map{"name": "mokusei_desktop", "title": "Mokusei", "version": "0.2.0"}, "capabilities": Map{"experimentalApi": true, "requestAttestation": false, "extensions": Map{"openai/form": Map{}}}})
+	s.initialized, err = s.Call(initCtx, "initialize", Map{"clientInfo": Map{"name": codexClientName, "title": "Mokusei", "version": "0.2.0"}, "capabilities": Map{"experimentalApi": true, "requestAttestation": false, "extensions": Map{"openai/form": Map{}}}})
 	if err == nil {
 		err = s.Notify("initialized", nil)
 	}

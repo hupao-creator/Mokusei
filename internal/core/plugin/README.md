@@ -106,3 +106,31 @@ Native voice handoffs mark their internal admission context with
 ordinary background/native continuations sharing the same Core hook. Only a marked
 voice admission needs the matching live media lease; the marker is not a public
 command field or a permission for task execution.
+
+`ModelCatalogSchema` binds completed enumeration and independent source evidence
+to creation options. It validates response shape, not provider completeness.
+Adapters must finish every page and supply source evidence separately; neither
+nonempty data nor a finished page sequence certifies the source.
+The inventory includes unsupported model identities independently of executable
+branches. Moku requires a completed nonempty native inventory before starting
+any task and exposes it in the standard tool schema description; unknown source
+provenance is retained without becoming a routing rejection. Optional `MokuTargetDiscoverer`
+uses this same contract; it cannot defer model discovery to a later tool call.
+Advisory model caches remain separate from task admission.
+
+`SettingsRequest.RoutingCatalog` permits a complete same-configuration directory
+to be stale and refreshed in the background. It is only set for Moku routing;
+creation and execution validation keep strict reads. Completeness evidence also
+contains a configuration hash, which Moku retains outside the exposed schema.
+This distinguishes a same-configuration catalog refresh from a source change at
+native admission. Snapshot descriptions explicitly allow outdated information.
+
+`Injection.AdmitNewExecution` is an in-process, non-serialized authority callback
+used at Runtime's final Moku execution reservation boundary. It must not reopen
+handles or acquire coordinator/media queues from that boundary. Source evidence
+in `CompleteModelCatalog` is distinct from its enumeration marker. A true source
+assertion requires an authoritative native completion/provenance contract, never
+only a nonempty list. Each native snapshot retains its own evidence; ordinary
+model validation may use enumeration data without asserting remote completeness.
+Moku routing also accepts successful nonempty native enumeration under the current
+policy; source evidence remains informational, not an admission prerequisite.

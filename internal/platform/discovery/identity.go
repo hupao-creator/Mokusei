@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 )
 
 // Identity binds in-memory facts to the native environment and file generation.
@@ -23,10 +24,30 @@ func Identity(environment map[string]string, paths ...string) string {
 			_ = encoder.Encode(canonical)
 		}
 		if info, err := os.Stat(path); err == nil {
-			_ = encoder.Encode([]any{info.Size(), info.ModTime().UnixNano(), info.Mode()})
+			_ = encoder.Encode(fileGeneration(info))
 		} else {
 			_ = encoder.Encode("unavailable")
 		}
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// Include file replacement/change identity without atime: executing a binary or
+// reading a configuration must not invalidate its own cache. Field selection
+// keeps the fingerprint portable across native stat representations.
+func fileGeneration(info os.FileInfo) []any {
+	generation := []any{info.Size(), info.ModTime().UnixNano(), info.Mode()}
+	value := reflect.ValueOf(info.Sys())
+	if value.IsValid() && value.Kind() == reflect.Pointer && !value.IsNil() {
+		value = value.Elem()
+	}
+	if value.IsValid() && value.Kind() == reflect.Struct {
+		for _, name := range []string{"Dev", "Ino", "Ctimespec", "Ctim", "Ctime", "CtimeNsec", "CreationTime"} {
+			field := value.FieldByName(name)
+			if field.IsValid() && field.CanInterface() {
+				generation = append(generation, name, field.Interface())
+			}
+		}
+	}
+	return generation
 }

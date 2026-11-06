@@ -28,7 +28,9 @@ func New(host plugin.HostContext) *Harness {
 	h.settings = &settingsAdapter{harness: h}
 	return h
 }
-func (h *Harness) Close() error { return h.settings.catalogs.Close() }
+func (h *Harness) Close() error {
+	return errors.Join(h.settings.routingCatalogs.Close(), h.settings.catalogs.Close())
+}
 
 func (h *Harness) Descriptor() plugin.HarnessDescriptor {
 	return plugin.HarnessDescriptor{ID: "claude", DisplayName: "Claude Code", ThreadCapabilities: plugin.ThreadCapabilities{Instructions: true, ThreadContext: true, SendContext: true, ToolModes: []string{"additive", "exclusive"}}}

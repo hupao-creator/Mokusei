@@ -29,12 +29,15 @@ type modelPresentation struct {
 	Thinking         model.ThinkingCapability `json:"thinking"`
 }
 type catalog struct {
-	CLI    map[string]any      `json:"cli"`
-	Models []modelPresentation `json:"models"`
+	sourceProof plugin.CatalogSourceEvidence
+	identity    string
+	CLI         map[string]any      `json:"cli"`
+	Models      []modelPresentation `json:"models"`
 }
 type settingsAdapter struct {
-	harness  *Harness
-	catalogs discovery.Cache[catalog]
+	harness         *Harness
+	catalogs        discovery.Cache[catalog]
+	routingCatalogs discovery.Cache[catalog]
 }
 
 func normalizeHarness(raw json.RawMessage) (harnessSettings, error) {
@@ -308,7 +311,7 @@ func (a *settingsAdapter) ApplyThreadUpdate(ctx context.Context, r plugin.Update
 	}
 	return json.Marshal(s)
 }
-func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refresh bool) (catalog, error) {
+func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refresh bool, routing ...bool) (catalog, error) {
 	path, env, err := a.harness.resolve(ctx, cwd, configured)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -320,12 +323,57 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 	if home == "" {
 		home = filepath.Join(env["HOME"], ".claude")
 	}
-	key := path + "\x00" + cwd + "\x00" + discovery.Identity(env, path,
-		filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"),
-		filepath.Join(cwd, ".claude", "settings.json"), filepath.Join(cwd, ".claude", "settings.local.json"))
-	result, err := a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, func(shared context.Context) (catalog, error) {
-		return a.readCatalog(shared, path, cwd, env)
-	})
+	identityPaths := []string{path, filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"), filepath.Join(env["HOME"], ".claude.json"),
+		filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db"),
+		filepath.Join(cwd, ".claude", "settings.json"), filepath.Join(cwd, ".claude", "settings.local.json")}
+	identity := discovery.Identity(env, identityPaths...)
+	isRouting := len(routing) > 0 && routing[0]
+	if isRouting {
+		identity, err = discovery.ObservedIdentity(ctx, env, path, cwd, ".claude", identityPaths...)
+		if err != nil {
+			return catalog{}, err
+		}
+	}
+	key := path + "\x00" + cwd + "\x00" + identity
+	probe := func(shared context.Context) (catalog, error) {
+		value, err := a.readCatalog(shared, path, cwd, env)
+		if err == nil {
+			currentPath, currentEnv, sourceErr := a.harness.resolve(shared, cwd, configured)
+			if sourceErr != nil {
+				return catalog{}, sourceErr
+			}
+			if currentPath != path {
+				return catalog{}, errors.New("Claude executable changed during discovery")
+			}
+			current := discovery.Identity(currentEnv, identityPaths...)
+			if isRouting {
+				current, sourceErr = discovery.ObservedIdentity(shared, currentEnv, currentPath, cwd, ".claude", identityPaths...)
+			}
+			if sourceErr != nil {
+				return catalog{}, sourceErr
+			}
+			if current != identity {
+				return catalog{}, errors.New("Claude native configuration changed during discovery")
+			}
+		}
+		value.identity = key
+		return value, err
+	}
+	var result catalog
+	if isRouting {
+		result, err = a.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 45*time.Second, func(probeCtx context.Context) (catalog, error) {
+			value, err := a.catalogs.Get(probeCtx, key, false, 5*time.Minute, 45*time.Second, probe)
+			if err != nil {
+				return value, err
+			}
+			return value, nil
+		})
+	} else {
+		result, err = a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, probe)
+	}
+	if isRouting && err == nil && a.routingCatalogs.RefreshFailed(key) {
+		result.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
+	}
 	if err != nil && ctx.Err() == nil {
 		return catalog{CLI: map[string]any{"status": "unavailable", "executablePath": path, "message": err.Error()}, Models: []modelPresentation{}}, nil
 	}
@@ -340,7 +388,7 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 		return catalog{}, err
 	}
 	value := obj(init)
-	result = catalog{CLI: map[string]any{"status": "available", "executablePath": path}, Models: []modelPresentation{}}
+	result = catalog{sourceProof: claudeCatalogSource, CLI: map[string]any{"status": "available", "executablePath": path}, Models: []modelPresentation{}}
 	if version := nonempty(str(value["claudeVersion"]), str(value["version"])); version != "" {
 		result.CLI["version"] = version
 	}
@@ -348,8 +396,8 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 	for _, v := range arr(value["models"]) {
 		m := obj(v)
 		id := nonempty(str(m["value"]), nonempty(str(m["id"]), str(m["model"])))
-		if id == "" || m["disabled"] == true || seen[id] {
-			continue
+		if strings.TrimSpace(id) == "" || strings.ContainsRune(id, 0) || seen[id] {
+			return result, errors.New("Claude native catalog has a missing or duplicate model identifier")
 		}
 		seen[id] = true
 		advertised := []string{}
@@ -361,6 +409,9 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 		thinking := model.ThinkingCapability{Kind: "unknown", Reason: "Claude native catalog does not provide accurately encodable thinking controls"}
 		if len(advertised) > 0 {
 			thinking = model.ThinkingCapability{Kind: "effort", Efforts: advertised}
+		}
+		if m["disabled"] == true {
+			thinking = model.ThinkingCapability{Kind: "unknown", Reason: "Model is disabled in the native catalog"}
 		}
 		result.Models = append(result.Models, modelPresentation{Value: id, DisplayName: nonempty(str(m["displayName"]), nonempty(str(m["display_name"]), id)), Description: str(m["description"]), SupportedEfforts: advertised, Thinking: thinking})
 	}
@@ -418,11 +469,34 @@ func (a *settingsAdapter) Presentation(ctx context.Context, r plugin.SettingsPre
 	}
 	return json.Marshal(c)
 }
+
+var claudeCatalogSource = plugin.CatalogSourceEvidence{Basis: "initialize models has no source-completion attestation; gateway discovery can continue asynchronously. Native enumeration is accepted for routing; execution is validated separately"}
+
 func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest) (json.RawMessage, error) {
-	c, e := a.load(ctx, "claude", r.Cwd, false)
+	raw, e := a.DefaultThread(r.Settings)
 	if e != nil {
 		return nil, e
 	}
+	selected, e := parseSettings(raw)
+	if e != nil {
+		return nil, e
+	}
+	c, e := a.load(ctx, selected.ExecutablePath, r.Cwd, false, r.RoutingCatalog)
+	if e != nil {
+		return nil, e
+	}
+	if c.CLI["status"] != "available" {
+		return nil, fmt.Errorf("Claude model catalog unavailable: %s", str(c.CLI["message"]))
+	}
+	inventory := make([]plugin.ModelCatalogEntry, 0, len(c.Models))
+	for _, entry := range c.Models {
+		reason := ""
+		if entry.Thinking.Kind == "unknown" {
+			reason = "Thinking capability is unknown; creation is unavailable"
+		}
+		inventory = append(inventory, plugin.ModelCatalogEntry{ID: entry.Value, Name: entry.DisplayName, UnavailableReason: reason})
+	}
+	omitted := 0
 	groups := []any{}
 	for _, m := range c.Models {
 		if strings.EqualFold(m.Value, "default") {
@@ -435,12 +509,20 @@ func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest
 		case "effort":
 			schema = map[string]any{"type": "object", "additionalProperties": false, "required": []string{"mode", "effort"}, "properties": map[string]any{"mode": map[string]any{"const": "effort"}, "effort": map[string]any{"type": "string", "enum": m.Thinking.Efforts}}}
 		}
+		if m.Thinking.Kind == "unknown" {
+			omitted++
+		}
 		groups = append(groups, map[string]any{"properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{m.Value}}, "thinking": schema}, "required": []string{"model", "thinking"}})
 	}
+	status := "ready"
+	if omitted > 0 {
+		status = "partial"
+	}
 	if len(groups) == 0 {
+		status = "empty"
 		groups = append(groups, map[string]any{"not": map[string]any{}})
 	}
-	return json.Marshal(map[string]any{"type": "object", "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups})
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "description": fmt.Sprintf("Creation capability status: %s; %d models have unknown thinking capabilities and cannot be selected. Native snapshot only; execution is revalidated at admission.", status, omitted), "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups}, inventory, c.identity, c.sourceProof)
 }
 func (a *settingsAdapter) SnapshotExecution(ctx context.Context, r plugin.SettingsRequest, initial bool) (json.RawMessage, error) {
 	raw, e := a.DefaultThread(r.Settings)
