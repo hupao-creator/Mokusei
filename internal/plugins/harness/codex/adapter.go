@@ -1233,6 +1233,7 @@ func (a *Adapter) prepareLaunch(ctx context.Context, launch LaunchOptions, mode,
 		launch.Environment = prepared.Environment
 		launch.ConfigOverrides = prepared.ConfigOverrides
 		launch.Dispose = prepared.Dispose
+		launch.AuthSource = prepared.AuthSource
 		return launch, nil
 	}
 	if mode == "discussion" {

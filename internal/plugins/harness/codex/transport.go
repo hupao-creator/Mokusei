@@ -36,6 +36,7 @@ type LaunchOptions struct {
 	Dispose                      func() error
 	Identity                     string
 	Version                      string
+	AuthSource                   *LaunchOptions
 }
 
 // AppServer owns one native Codex process group and its JSONL channel. Each
@@ -64,12 +65,16 @@ type AppServer struct {
 	terminated         chan struct{}
 	terminateErr       error
 	stdout, stderrPipe io.ReadCloser
+	auth               isolatedAuthentication
+	authWorkers        sync.WaitGroup
+	authContext        context.Context
+	authCancel         context.CancelFunc
 }
 
 func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) {
 	transferred := false
 	defer func() {
-		// Prepared isolated homes already contain copied configuration/auth.
+		// Prepared isolated homes already contain private configuration.
 		// Until an AppServer owns them, every startup exit must dispose them.
 		if !transferred && opt.Dispose != nil {
 			_ = opt.Dispose()
@@ -107,6 +112,7 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 	cmd.Stderr = stderrWriter
 
 	s := &AppServer{cmd: cmd, stdin: stdin, writeSlot: make(chan struct{}, 1), pending: map[string]chan rpcReply{}, exited: make(chan struct{}), notifications: make(chan Map, 4096), done: make(chan struct{}), launch: opt, terminated: make(chan struct{}), stdout: stdout, stderrPipe: stderr}
+	s.authContext, s.authCancel = context.WithCancel(context.Background())
 	transferred = true
 	if err = cmd.Start(); err != nil {
 		_ = stdoutWriter.Close()
@@ -192,6 +198,10 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 					s.fail(errors.New(str(obj(f["params"])["message"])))
 					return
 				}
+				if f["method"] == "account/chatgptAuthTokens/refresh" && opt.AuthSource != nil && f["id"] != nil {
+					s.refreshIsolatedAuthentication(f["id"], obj(f["params"]))
+					continue
+				}
 				s.mu.Lock()
 				h := s.handler
 				s.mu.Unlock()
@@ -208,6 +218,9 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 	s.initialized, err = s.Call(initCtx, "initialize", Map{"clientInfo": Map{"name": "mokusei_desktop", "title": "Mokusei", "version": "0.2.0"}, "capabilities": Map{"experimentalApi": true, "requestAttestation": false, "extensions": Map{"openai/form": Map{}}}})
 	if err == nil {
 		err = s.Notify("initialized", nil)
+	}
+	if err == nil && opt.AuthSource != nil {
+		err = s.initializeIsolatedAuthentication(initCtx)
 	}
 	if err != nil {
 		_ = s.Close()
@@ -407,6 +420,10 @@ func (s *AppServer) fail(e error) {
 }
 func (s *AppServer) cleanup() {
 	s.cleanupOnce.Do(func() {
+		s.authCancel()
+		s.auth.Lock()
+		s.auth.credentials = nativeAccessCredentials{}
+		s.auth.Unlock()
 		if s.launch.Dispose != nil {
 			_ = s.launch.Dispose()
 		}
@@ -415,6 +432,7 @@ func (s *AppServer) cleanup() {
 func (s *AppServer) terminate() error {
 	s.terminateOnce.Do(func() {
 		defer close(s.terminated)
+		s.authCancel()
 		_ = s.stdin.Close()
 		pid := s.cmd.Process.Pid
 		_ = syscall.Kill(-pid, syscall.SIGTERM)
@@ -433,6 +451,7 @@ func (s *AppServer) terminate() error {
 		if s.terminateErr == nil {
 			s.terminateErr = processgroup.DrainAfterExit(pid)
 		}
+		s.authWorkers.Wait()
 		if s.terminateErr == nil {
 			s.cleanup()
 		}

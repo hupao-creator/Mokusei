@@ -31,6 +31,8 @@ type peer struct {
 	settlementMode    string
 	holdSettlement    bool
 	earlySpeeches     int
+	authLogin         object
+	authPending       map[string]any
 }
 
 func (p *peer) send(value any) error {
@@ -112,6 +114,9 @@ func (p *peer) receive(frame object) error {
 	method := text(frame["method"])
 	params := record(frame["params"])
 	id := frame["id"]
+	if handled, err := p.authFixture(frame); handled {
+		return err
+	}
 	if handled, err := p.streamFixture(method, params, id); handled {
 		return err
 	}
@@ -182,6 +187,8 @@ func (p *peer) receive(frame object) error {
 		result["requirements"] = nil
 	case "account/read":
 		result["account"] = object{"type": "chatgpt"}
+	case "getAuthStatus":
+		result["requiresOpenaiAuth"] = false
 	case "model/list":
 		result["data"] = []any{object{"model": fixtureModel(), "displayName": "Luna", "isDefault": true, "supportsReasoning": true, "supportedReasoningEfforts": []any{object{"reasoningEffort": fixtureEffort()}}, "defaultReasoningEffort": fixtureEffort(), "serviceTiers": []any{object{"id": "priority"}}, "defaultServiceTier": nil}}
 	case "skills/list", "plugin/installed":

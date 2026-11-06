@@ -78,6 +78,7 @@ func main() {
 	}
 }
 func verificationMain() error {
+	authOnly := flag.Bool("auth-only", false, "run isolated native authentication ownership replay")
 	settingsPerformance := flag.Bool("settings-performance", false, "measure concurrent settings/defaults reads with the native fixture")
 	streamOnly := flag.Bool("stream-only", false, "run only deterministic native streaming and cancellation replay")
 	streamPerformance := flag.Bool("stream-performance", false, "measure real JSONL streaming without enforcing optimization thresholds")
@@ -99,6 +100,19 @@ func verificationMain() error {
 		return e
 	}
 	defer os.RemoveAll(root)
+	if *authOnly {
+		binary, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		if err = verifyIsolatedAuthentication(ctx, root, binary); err != nil {
+			return err
+		}
+		if *real != "" {
+			return verifyRealIsolatedAuthentication(ctx, filepath.Join(root, "real-auth"), *real)
+		}
+		return nil
+	}
 	if *settingsPerformance {
 		return verifySettingsPerformance(ctx, root)
 	}

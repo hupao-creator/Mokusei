@@ -24,9 +24,29 @@ process stops reading; an incomplete write retires that uncertain channel.
 Native pipe deadlines preserve fully written frames when cancellation races with
 the write returning, so a response-wait cancellation does not kill the session.
 Prepared launch resources are disposed even when cancellation prevents process
-startup, so copied isolated credentials do not outlive a rejected launch.
+startup, so isolated configuration does not outlive a rejected launch.
 
 Resume supplies tool definitions again while preserving native history in the same home. Tool schema changes do not themselves discard compacted context. Ordinary/extend modes share a home; exclusive mode uses isolated configuration. User-global Codex configuration is not rewritten.
+
+Exclusive sessions do not copy `auth.json` or own refresh tokens.
+[isolated_auth.go](isolated_auth.go) reads the source native account through
+`getAuthStatus` in a fresh source app-server, preserving native file/keychain
+selection. ChatGPT access credentials use `chatgptAuthTokens`; API keys use native
+API-key login. The isolated server forces ephemeral credential storage. Reopening
+a retained home removes any obsolete credential snapshot without removing history.
+Native forced-login/workspace settings and the ChatGPT backend URL remain part
+of the isolated configuration.
+
+On `account/chatgptAuthTokens/refresh`, source reads and refreshes serialize per
+canonical native home within this Runtime. A new source process observes external
+rotation or login changes; an already replaced token is reused without another
+refresh. Only a still-current rejected token triggers native refresh. Missing,
+malformed, unchanged rejected tokens and account or user changes fail; the adapter
+never replays user input. Native Codex owns coordination with other native clients;
+this Runtime gate does not lock other apps or Runtime processes. Auth callbacks
+have a nine-second deadline, run separately from session notifications, and are
+cancelled and joined when their isolated owner closes. Credentials remain in
+memory and are never projected or logged.
 
 Isolated configuration preserves native `features.respect_system_proxy` and
 `features.system_proxy_fallback` boolean settings, including explicit false.

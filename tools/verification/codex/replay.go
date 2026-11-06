@@ -34,6 +34,9 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = os.Symlink(self, binary); e != nil {
 		return e
 	}
+	if e = verifyIsolatedAuthentication(ctx, filepath.Join(root, "auth"), binary); e != nil {
+		return e
+	}
 	if e = verifyStreaming(ctx, filepath.Join(root, "stream"), binary); e != nil {
 		return e
 	}
