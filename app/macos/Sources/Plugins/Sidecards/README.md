@@ -128,6 +128,14 @@ before publishing the next snapshot. Folding retains the existing execution
 ownership policy and Harness response forms. The execution card has no decorative
 title/emoji; its label is localized as Execution/执行.
 
+Heading suppression belongs to the execution Sidecard presentation, not to the
+Thread's active status. A first running/waiting execution stays in main with its
+title and emoji, including exact-execution and result navigation. When earlier
+history exists, the main reader keeps that history and its heading while the
+active execution belongs to the Sidecard. Report's related-execution heading
+policy remains separately scoped. See the
+[heading regression investigation](../../../../../design/agent-thread-execution-heading-regression.md).
+
 The live execution viewport reserves 22pt at both vertical edges, with 12pt of
 scrollable document padding at each end, matching the main Agent reader. The
 viewport keeps its existing horizontal inset and contains the scroller at both

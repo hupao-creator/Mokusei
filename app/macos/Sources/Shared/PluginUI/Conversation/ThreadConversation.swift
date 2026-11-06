@@ -173,10 +173,10 @@ public struct ThreadConversation: View {
         return execution.isActive || execution.id == activeExecutionId
     }
     private var showsDocumentHeading: Bool {
-        // A Report reader may mount before the selected execution's manifest.
-        // Do not flash the catalog title/emoji while its state is still unknown.
+        // Main readers retain their heading; Report sidecards also suppress it
+        // until the selected execution's activity is known.
         (!executionCard || relatedExecution)
-            && !(agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
+            && !(executionCard && agentDetail && (selectedIsActive || (relatedExecution && selectedRowID == nil)))
     }
     private var allowsJumpToLatest: Bool {
         guard let activeExecutionId, !excluded.contains(activeExecutionId) else { return false }
@@ -435,7 +435,7 @@ public struct ThreadConversation: View {
                               active: resultVisit ? readingTarget?.follow == true : selectedPage?.execution?.id == effectiveRunningID,
                               running: running && effectiveRunningID != nil && selectedPage?.execution?.id == effectiveRunningID,
                               allowsJumpToLatest: allowsJumpToLatest && selectedPage?.execution?.id == activeExecutionId,
-                              hidesHeading: agentDetail && selectedIsActive,
+                              hidesHeading: executionCard && agentDetail && selectedIsActive,
                               result: resultVisit, readingTarget: scrollTarget,
                               readingVisitId: destination == requestedDestination ? consumedRequest : nil,
                               locatedRequestId: locatedRequest, onLocated: { locatedRequest = $0 },
