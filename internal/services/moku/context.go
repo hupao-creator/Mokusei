@@ -85,7 +85,7 @@ func (c *Coordinator) describeTargets(ctx context.Context, settings model.Settin
 }
 
 func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Harness, merged json.RawMessage) (TargetDescription, error) {
-	target := TargetDescription{HarnessID: id, DisplayName: h.Descriptor().DisplayName}
+	target := TargetDescription{HarnessID: id}
 	var availability plugin.Availability
 	var err error
 	if discovery, ok := h.(plugin.MokuTargetDiscoverer); ok {

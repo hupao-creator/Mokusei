@@ -18,14 +18,12 @@ const ThreadCreationCwdMaxCharacters = 4096
 const ThreadCreationWorktreeNameMaxCharacters = 64
 
 type TargetDescription struct {
-	HarnessID   string
-	DisplayName string
+	HarnessID string
 	// Nil requires on-demand native discovery when DeferredNative is true.
 	DeferredNative bool
 	NativeSchema   json.RawMessage
 }
 type ThreadCreationDescription struct {
-	Instructions            string
 	InputSchema             json.RawMessage
 	TargetHarnessIDs        []string
 	NativeDescriptionSchema json.RawMessage
@@ -68,7 +66,6 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 	worktreeNameSchema := map[string]any{"type": "string", "maxLength": ThreadCreationWorktreeNameMaxCharacters, "not": map[string]any{"pattern": "\u0000"}, "description": "Optional human-readable name for the managed Git worktree directory when worktree:true. Unicode letters and digits are kept; path separators, control characters and every other character become '-'. Leading/trailing '.' and '-' are trimmed and the result is capped at 48 runes before any collision suffix. Blank is treated as absent and keeps the generated task-<id>-<random> name. Existing names get -2..-8, then a short random suffix, then the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs, so adjustments are never silent. Do not use this as a Thread title."}
 	variants := []any{}
 	deferred := []string{}
-	instructions := []string{}
 	for _, target := range targets {
 		if target.DeferredNative {
 			deferred = append(deferred, target.HarnessID)
@@ -77,7 +74,6 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 				"harnessId": map[string]any{"type": "string", "const": target.HarnessID},
 				"options":   map[string]any{"type": "object", "minProperties": 1, "description": "First call describe_native_harness for this target and supply its exact required options. Empty/default options are not accepted."},
 			}, "harnessId", "options", "worktree", "prompt"))
-			instructions = append(instructions, fmt.Sprintf("## %s (%s)\nInstalled native target; model/account capabilities are discovered on demand. Call describe_native_harness before choosing native model options. Then pass every required option from its returned schema to create_thread. Availability is checked again at execution.", target.DisplayName, target.HarnessID))
 			continue
 		}
 		if len(target.NativeSchema) == 0 {
@@ -94,7 +90,6 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 			"prompt": promptSchema, "cwd": cwdSchema, "worktree": worktreeSchema, "worktreeName": worktreeNameSchema,
 			"harnessId": map[string]any{"type": "string", "const": target.HarnessID}, "options": schema,
 		}, "harnessId", "options", "worktree", "prompt"))
-		instructions = append(instructions, fmt.Sprintf("## %s (%s)\nUse the creation options in this Harness options schema. Supply every required field explicitly; required fields cannot inherit defaults. Omitted optional fields use the configured Thread defaults.", target.DisplayName, target.HarnessID))
 	}
 	if len(deferred) > 0 {
 		result.NativeDescriptionSchema = mokuRaw(mokuObjectSchema(map[string]any{"harnessId": map[string]any{"type": "string", "enum": deferred}}, "harnessId"))
@@ -118,7 +113,6 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 	}
 	schema["oneOf"] = variants
 	result.InputSchema = mokuRaw(mokuVisibleUnionProperties(schema))
-	result.Instructions = threadCreationWorktreeGuidance + "\n\n" + strings.Join(instructions, "\n\n")
 	return result, nil
 }
 

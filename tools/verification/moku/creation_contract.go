@@ -175,9 +175,8 @@ func runCreationContractReplay() error {
 		mokuReplayCheck(property != nil && !patterned, binding.Name+"."+field+" must not carry a pattern")
 	}
 	mokuReplayCheck(len(freeText) == 0, "missing free-text tool bindings")
-	for _, text := range []string{description.Instructions, fmt.Sprint(definition["properties"].(map[string]any)["worktree"])} {
-		mokuReplayCheck(strings.Contains(text, "worktree:true by default") && strings.Contains(text, "even without parallel tasks") && strings.Contains(text, "Use false only when no eligible Git workspace exists, the user requests the existing checkout, or the task requires its uncommitted changes or live state") && strings.Contains(text, "Use create_thread's managed worktree rather than asking the Agent to create one"), "creation guidance lost worktree default, exceptions or managed creation")
-	}
+	worktreeGuidance := fmt.Sprint(definition["properties"].(map[string]any)["worktree"])
+	mokuReplayCheck(strings.Contains(worktreeGuidance, "worktree:true by default") && strings.Contains(worktreeGuidance, "even without parallel tasks") && strings.Contains(worktreeGuidance, "Use false only when no eligible Git workspace exists, the user requests the existing checkout, or the task requires its uncommitted changes or live state") && strings.Contains(worktreeGuidance, "Use create_thread's managed worktree rather than asking the Agent to create one"), "creation guidance lost worktree default, exceptions or managed creation")
 	for _, binding := range moku.ToolSchemas(description) {
 		if binding.Name == "create_thread" {
 			mokuReplayCheck(strings.Contains(binding.Description, "worktree:true by default"), "tool worktree default missing")

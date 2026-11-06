@@ -58,7 +58,49 @@ distinguish routing intent from task content, and the target's own instructions
 or judgment can still cause subdelegation. Existing dispatched tasks and native
 histories are not rewritten; updated guidance is injected on session preparation.
 
-Moku always uses its built-in coordination instructions. Saved routing guidance is appended separately; settings do not expose additional system instructions or replace the built-in prompt.
+## System prompt budget and injection boundary
+
+[DefaultSystemPrompt](prompt.go) contains exactly five English sentences covering
+coordination, visible communication, routing, managed workspaces and event-driven
+follow-up. Count the complete built-in string by sentence-ending periods, not Go
+string literals or lines; it has no abbreviations, URLs or embedded periods.
+[Coordinator preparation](coordinator.go) injects that string as its only built-in
+`Injection.Instructions` entry, independently of the number of target Harnesses.
+`DescribeThreadCreation` supplies tool schemas, not an additional instruction
+block or prose target roster. No removed instructions are relocated into context,
+tool descriptions or another Agent's prompt.
+
+The five-sentence budget is **not a cap on the provider's entire model input**:
+
+- Saved `Moku.RoutingGuidance` is appended verbatim as user configuration after
+  the built-in prompt and has no sentence cap within its existing settings
+  limits; it neither replaces the base nor overrides explicit
+  user routing choices.
+- Existing tool descriptions and schemas retain their full contracts: exact
+  native options and deferred discovery, routing, worktree naming, Talk/Timer
+  limits, note evidence and compare-and-swap rules, and bounded Thread queries.
+  Those contracts already existed separately and are unchanged by this budget.
+- `ContextEntries` contain session-start workspace context and before-send note,
+  directory, telemetry, evaluation and notification context, including runtime
+  interpretation/safety guidance and variable user or native text; they have
+  their own size limits and no sentence cap.
+- Runtime passes the injection through `OpenMokuThread` to the native Harness:
+  Codex `composeInstructions`, Claude `systemPrompt`, Pi `bridgeConfig` and
+  OpenCode `Configure` compose it with context and, where needed, historical
+  seeds or restoration guidance. Depending on the adapter, subsequent context
+  travels in messages or native system configuration, so even without routing
+  guidance the complete native system/developer payload can exceed five sentences.
+- Native engines/providers may supply their own system instructions, workspace
+  instructions or session history; separate voice frontend/relay instructions
+  are also outside this Moku coordinator budget and remain unchanged.
+
+Detailed wording about character budgets, emoji, Talk expiry and layout, note
+compaction/evidence, native options and worktree names is no longer duplicated
+in the base prompt; its existing tool contract remains authoritative. The base
+also drops the standalone reminder that Runtime handles voice delivery. Tag,
+Report, ordinary Agent instructions and shared Harness serializers are unchanged.
+Updated guidance takes effect when a Moku native session is prepared; existing
+native histories are not rewritten.
 
 ## Talk and notes
 
@@ -71,7 +113,7 @@ immediate answers, questions, confirmations and updates; the note for persistent
 milestone recaps; and the relevant Agent Thread for detailed task discussion and
 deliverables. Runtime voice delivery remains separate.
 
-`talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions and the built-in Moku prompt, including coordination reached through voice. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
+`talk` accepts only nonblank `text`, without NUL, up to **160 Unicode code points**, including whitespace/newlines. Rejection does not truncate or overwrite a successful message. The UI derives display identity from the audited operation, not from arbitrary model prose. Code-point budgets are independent from the UI's four-line reading viewport. Each Talk message bubble is visible to the user for about one minute and automatically hides after 60 seconds. [prompt.go](prompt.go)'s shared `TalkTextPolicy` supplies this visibility guidance to the registered tool and parameter descriptions, including coordination reached through voice; the built-in Moku prompt does not duplicate that policy. Use `update_note` for the persistent milestone recap; Talk messages are not copied into the note.
 
 `timer(text)` is an immediate, one-time communication tool alongside `talk`.
 It uses the same closed text-only envelope, **160 Unicode code-point** budget,

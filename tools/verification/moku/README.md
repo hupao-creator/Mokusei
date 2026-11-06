@@ -46,6 +46,8 @@ media events are fixed local fixtures.
 - Harness configuration envelopes must be projected to thread defaults before
   host selection or delegated-thread resolution; the native fixture rejects
   unprojected envelopes.
+- Five-sentence built-in Moku instruction injection without a per-target prose
+  appendix, retaining visible dispatch confirmation and detailed tool contracts.
 - Core tools and their audit records, required native creation options, terminal
   notifications, follow-ups, clear, cancellation before and during admission,
   configuration revision-conflict retries, and retirement of old settings and

@@ -472,7 +472,9 @@ func replayOrchestratorBasics() {
 	mokuReplayMust(c.Submit(mokuReplayContext(), orchestratorInput("coordinate")))
 	initialOwner := w.mokuRecord().ID
 	w.mu.Lock()
-	mokuReplayCheck(strings.Contains(strings.Join(w.injections[initialOwner].Instructions, "\n"), "After successfully creating or sending delegated work, use talk"), "default Moku prompt omitted Overview confirmation policy")
+	mokuReplayCheck(len(w.injections[initialOwner].Instructions) == 1 && w.injections[initialOwner].Instructions[0] == moku.DefaultSystemPrompt() &&
+		strings.Count(moku.DefaultSystemPrompt(), ".") == 5 &&
+		strings.Contains(moku.DefaultSystemPrompt(), "After successfully creating or sending delegated work, use talk"), "Moku injection must contain only the five-sentence base with Overview confirmation policy")
 	w.mu.Unlock()
 	mokuReplayCheck(c.Clear(mokuReplayContext()) != nil, "clear active session")
 	w.mu.Lock()
@@ -531,7 +533,7 @@ func replayOrchestratorBasics() {
 	mokuReplayCheck(talkSchema.Properties["text"].MaxLength == moku.TalkTextMaxCharacters &&
 		talkSchema.Properties["text"].Description == moku.TalkTextPolicy &&
 		strings.Contains(w.binding("talk").Description, moku.TalkTextPolicy) &&
-		strings.Contains(moku.DefaultSystemPrompt(), moku.TalkTextPolicy) &&
+		strings.Contains(moku.DefaultSystemPrompt(), "talk for immediate answers, questions and updates") &&
 		strings.Contains(moku.TalkTextPolicy, "Use emoji naturally when they add expression and suit the context."), "talk schema and prompt policy drifted")
 	var noteSchema struct {
 		Properties map[string]struct {
@@ -541,7 +543,7 @@ func replayOrchestratorBasics() {
 	mokuReplayMust(json.Unmarshal(w.binding("update_note").InputSchema, &noteSchema))
 	mokuReplayCheck(noteSchema.Properties["text"].Description == moku.NoteTextPolicy &&
 		strings.Contains(w.binding("update_note").Description, moku.NoteTextPolicy) &&
-		strings.Contains(moku.DefaultSystemPrompt(), moku.NoteTextPolicy) &&
+		strings.Contains(moku.DefaultSystemPrompt(), "update_note for persistent milestone recaps") &&
 		strings.Contains(moku.NoteTextPolicy, "Use emoji naturally when they add expression and suit the context."), "note schema and prompt policy drifted")
 	// A bubble is projected from successful, completed audit entries. Preserve
 	// the exact text and leave the execution running; invalid calls cannot

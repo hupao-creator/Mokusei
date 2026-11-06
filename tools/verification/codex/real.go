@@ -194,7 +194,7 @@ trace_exporter = "none"
 		return e
 	}
 	fmt.Println("PASS real native process restart / persisted session resume")
-	creation, e := moku.DescribeThreadCreation([]moku.TargetDescription{{HarnessID: "codex", DisplayName: "Codex", NativeSchema: encoded(codex.SettingsSchemaForModels([]codex.Map{{"value": "gpt-5.4", "thinking": codex.Map{"kind": "effort", "efforts": []string{"low"}}, "serviceTiers": []codex.Map{{"value": "priority"}}}}))}}, thread.Cwd)
+	creation, e := moku.DescribeThreadCreation([]moku.TargetDescription{{HarnessID: "codex", NativeSchema: encoded(codex.SettingsSchemaForModels([]codex.Map{{"value": "gpt-5.4", "thinking": codex.Map{"kind": "effort", "efforts": []string{"low"}}, "serviceTiers": []codex.Map{{"value": "priority"}}}}))}}, thread.Cwd)
 	if e != nil {
 		return e
 	}

@@ -31,7 +31,7 @@ func verifyRequiredServiceTier(ctx context.Context, root, binary string) error {
 	if err != nil {
 		return err
 	}
-	description, err := moku.DescribeThreadCreation([]moku.TargetDescription{{HarnessID: "codex", DisplayName: "Codex", NativeSchema: schema}}, root)
+	description, err := moku.DescribeThreadCreation([]moku.TargetDescription{{HarnessID: "codex", NativeSchema: schema}}, root)
 	if err != nil {
 		return err
 	}

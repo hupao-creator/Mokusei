@@ -9,7 +9,7 @@ const ToolInputMaxCharacters = 1_000_000
 const TalkTextMaxCharacters = 160
 const NoteTextMaxCharacters = 1200
 
-// TalkTextPolicy is shared by tool descriptions and the injected coordinator prompt.
+// TalkTextPolicy is shared by the talk tool and its text parameter descriptions.
 // JSON Schema maxLength counts Unicode code points, not UTF-16 units or graphemes.
 const TalkTextPolicy = "Use concise plain text, at most 160 Unicode code points including whitespace and newlines. " +
 	"Use emoji naturally when they add expression and suit the context. " +
@@ -26,8 +26,8 @@ const TimerTextPolicy = "Use concise plain text, at most 160 Unicode code points
 	"The call returns without waiting for acknowledgment. Use only when the user needs an audible, acknowledged message. " +
 	"This does not schedule future delivery, accept a date or duration, or guarantee delivery while the app is closed or disconnected."
 
-// NoteTextPolicy is shared by the update_note description and the injected
-// coordinator prompt. JSON Schema maxLength counts Unicode code points.
+// NoteTextPolicy is shared by the update_note tool and its text parameter
+// descriptions. JSON Schema maxLength counts Unicode code points.
 // The text schema deliberately carries no pattern, for the reason documented on
 // the create_thread prompt schema: constrained decoders can truncate at the
 // first pattern match.
@@ -69,17 +69,13 @@ const threadTaskPromptGuidance = "Separate target routing from the work assigned
 	"Preserve explicit requests for child Agents, parallel work, separate planner/implementer/reviewer roles, and model names or quoted instructions that matter to the actual work. Interpret intent in context, never remove text merely because it names a model or mentions delegation. " +
 	"send_to_thread does not change the target Thread's configuration. If a requested routing choice is not satisfied there, select a correctly configured target or explain the limitation to the user; do not ask the existing Agent to compensate by spawning a child."
 
-const mokuSystemPrompt = "You manage the user's task board across interleaved domains. Delegate and track tasks through independent Agent Threads; leave execution and task details to them. Dispatch quickly and give prompt feedback. " +
-	threadTaskPromptGuidance + " " +
-	"The user can see only talk and timer messages, the persistent note maintained through update_note, and all content in Agent Threads, including the instructions you send to them. Your own Moku assistant messages, including normal and final replies, are not visible to the user. " +
-	"Anything the user needs to know or respond to must appear on one of those visible surfaces; writing it only in your assistant message does not communicate it to the user. " +
-	"Use talk for concise immediate answers, questions, confirmations, and updates, including simple direct answers. Use update_note for the persistent milestone recap. Keep detailed task discussion and deliverables in the relevant Agent Thread. " +
-	"After successfully creating or sending delegated work, use talk to give a short confirmation inside Moku's Overview bar before ending your turn to await terminal events. " +
-	"Use talk again when facts already available warrant a useful progress update; do not query Threads just to produce an update. " +
-	"talk: " + TalkTextPolicy + " It does not produce speech, end the turn, or wait for a user response. " +
-	"timer: " + TimerTextPolicy + " " +
-	"update_note: " + NoteTextPolicy + " " + NoteContentGuidance + " " +
-	"Voice delivery is handled separately by the runtime."
+// Keep the application-owned base instructions to five sentences; detailed tool
+// contracts already live in their schemas and must not be duplicated here.
+const mokuSystemPrompt = "Coordinate the user's task board across domains by promptly delegating execution and detailed work to independent Agent Threads and tracking their outcomes. " +
+	"Your own assistant replies are invisible, so communicate through talk for immediate answers, questions and updates, timer for immediate audible messages requiring UI acknowledgment rather than scheduled delivery, update_note for persistent milestone recaps, and Agent Threads for detailed discussion and deliverables, including your visible delegated instructions. " +
+	"Honor explicit user Harness, model and thinking choices over routing guidance through create_thread's harnessId and options, address the receiving Agent directly while omitting only fulfilled dispatch instructions and preserving explicit child-Agent or parallel-role requests and meaningful model references, and choose a suitable target or explain a routing mismatch rather than asking send_to_thread's unchanged target to spawn a replacement. " +
+	"Follow the tools' schemas and constraints, using create_thread's managed worktree:true for committed Git workspaces unless the user requests the existing checkout or the task needs its uncommitted changes or live state, and worktree:false when no eligible Git workspace exists. " +
+	"After successfully creating or sending delegated work, use talk to confirm dispatch and, when no independent work remains, end your turn until automatic terminal events arrive without polling Threads for progress."
 
 func DefaultSystemPrompt() string {
 	return mokuSystemPrompt
