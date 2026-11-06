@@ -425,6 +425,9 @@ public struct ThreadConversation: View {
     }
     private var effectiveEmptyState: AnyView {
         if let emptyState { return AnyView(emptyState.nativeReadingContentReady()) }
+        if executionCard && relatedExecution {
+            return AnyView(Text(localize("链接指向的执行不可用。")).nativeReadingContentReady())
+        }
         if executionCard { return AnyView(NativeReadingPlaceholder(placement: .inline)) }
         return AnyView(ThreadDetailEmptyState().nativeReadingContentReady())
     }

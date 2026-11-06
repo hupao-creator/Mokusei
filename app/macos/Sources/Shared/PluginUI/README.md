@@ -1369,3 +1369,12 @@ the hosting content. There is one live reader per surface, without a bitmap copy
 The old native carrier return diagnostic remains absent for this independent
 surface path. See [Report Close](../../../../../design/report-sidecard-close.md)
 for observed failures, native-host repair and actual window capture evidence.
+
+`NativeRelatedExecutionEntrance` owns Report referenced-reader admission. It
+reuses `NativeReadingContentPreparation` to wait for real row content and native
+Markdown parsing, then fades one retained native host over 200ms. Only opacity
+animates; reader geometry, resource leases and navigation remain with their
+existing owners. Its preparation indicator stays visible until admission and
+hidden readers are excluded from pointer, keyboard and accessibility interaction.
+Reduce Motion bypasses or removes the compositor animation. Streaming, refresh,
+and read-error recovery do not repeat it; selection identity owns a fresh visit.
