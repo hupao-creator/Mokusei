@@ -105,8 +105,9 @@ to creation options. It validates response shape, not provider completeness.
 Adapters must finish every page and supply source evidence separately; neither
 nonempty data nor a finished page sequence certifies the source.
 The inventory includes unsupported model identities independently of executable
-branches. Moku checks the evidence before starting any task and exposes the whole
-inventory in the standard tool schema description. Optional `MokuTargetDiscoverer`
+branches. Moku requires a completed nonempty native inventory before starting
+any task and exposes it in the standard tool schema description; unknown source
+provenance is retained without becoming a routing rejection. Optional `MokuTargetDiscoverer`
 uses this same contract; it cannot defer model discovery to a later tool call.
 Advisory model caches remain separate from task admission.
 
@@ -123,4 +124,6 @@ handles or acquire coordinator/media queues from that boundary. Source evidence
 in `CompleteModelCatalog` is distinct from its enumeration marker. A true source
 assertion requires an authoritative native completion/provenance contract, never
 only a nonempty list. Each native snapshot retains its own evidence; ordinary
-model validation may use enumeration data without asserting routing completeness.
+model validation may use enumeration data without asserting remote completeness.
+Moku routing also accepts successful nonempty native enumeration under the current
+policy; source evidence remains informational, not an admission prerequisite.

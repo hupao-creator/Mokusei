@@ -120,9 +120,9 @@ func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Ha
 	if envelope.Catalog == nil || !envelope.Catalog.EnumerationComplete || len(envelope.Catalog.Models) == 0 || envelope.Catalog.ConfigurationID == "" {
 		return target, errors.New("complete nonempty native model inventory is missing")
 	}
-	if err := envelope.Catalog.Source.RequireComplete(); err != nil {
-		return target, err
-	}
+	// Admission uses a successful full native response, which may contain
+	// native cache/fallback. Keep provenance in the schema without pretending
+	// it is attested or making it a prerequisite for ordinary routing.
 	return target, nil
 }
 

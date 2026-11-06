@@ -638,7 +638,7 @@ func (s *SettingsAPI) DefaultThread(raw json.RawMessage) (json.RawMessage, error
 	return json.Marshal(value["threadSettings"])
 }
 
-var codexCatalogSource = plugin.CatalogSourceEvidence{Basis: "model/list proves pagination only; the native manager can silently return bundled or old data without provider/account/client-bound source completion"}
+var codexCatalogSource = plugin.CatalogSourceEvidence{Basis: "Codex native enumeration is accepted for routing; the native manager may return cached or bundled data, so remote completeness, freshness and execution availability are not guaranteed"}
 
 func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsRequest) (json.RawMessage, error) {
 	if _, err := s.Normalize(request.Settings); err != nil {

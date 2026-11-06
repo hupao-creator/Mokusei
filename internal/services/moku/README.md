@@ -72,30 +72,26 @@ as replay permission. With pending configuration and live background work, input
 remains blocked until the old work drains instead of reopening underneath it.
 
 `x-mokusei-model-catalog` carries enumeration and source evidence separately.
-Evidence belongs to the immutable cached snapshot, not the latest attempted
-refresh. Each Harness has a dedicated evidence-checked routing cache, independent
-of ordinary enumeration caches. Only a verified nonempty snapshot may enter it.
-A matching trusted snapshot returns immediately even when expired or during a
-refresh. Failed, empty, unknown-source or superseded refreshes never replace it.
-Cold failure blocks; no legacy unverified directory is promoted into trust.
-The complete inventory remains in the standard tool-schema description; unknown
-thinking controls restrict creation branches without hiding model identities.
-Schemas over the 1 MiB budget fail instead of being truncated.
+Routing accepts a successful nonempty native response inventory for every selected
+Harness. Source proof is informational; native cache/fallback is usable without
+being called remotely complete. Full inventories remain in the initial standard
+tool-schema description; unknown thinking controls restrict creation branches
+without hiding identities. Schemas over the 1 MiB budget fail rather than truncate.
 
-Routing identity includes the actual resolved launch, current environment,
-workspace/ancestor configuration namespaces, symlinks and recognized literal
-file references. Dependency reads are bounded and rechecked after probing.
-A changed source cannot borrow another configuration's trusted cache. Arbitrary
-computed imports, custom secret helpers and remote policy are not thereby proven;
-unsupported source evidence remains unknown. Same-source content refreshes do
-not invalidate an already prepared trusted snapshot at admission.
+A matching successful snapshot returns immediately even when expired or during
+refresh. Failed, empty or superseded refreshes do not replace it. Background
+failure is retained and exposed as a snapshot note; cold failure reports an error.
+Caches are Harness-owned, memory-only and drained on Close. Same-process handle
+replacement retains them; application restart reacquires native catalogs.
 
-Caches are Harness-owned and memory-only. Same-process Moku handle replacement
-retains them; application restart has no persisted trusted catalog fallback.
-Close cancels and joins routing refreshes before draining native enumeration
-owners. Historical transcripts and previous nonempty lists are not trusted cache
-records. Catalog/state data and creation rules stay in tool schemas; Moku, Tag
-and Report system prompts are unchanged.
+Routing identity includes the captured launch/environment and observable native
+configuration/account inputs. Bounded dependency scanning strengthens the key;
+if scanning fails it falls back to root-file generations with a degraded marker.
+Cancellation still rejects and a detected source change fences publication.
+Arbitrary imports, custom credential helpers and remote/MDM policy are not thereby
+proven; their unknown provenance no longer prevents native inventory routing.
+Settings changes still participate in final Runtime admission. No system-prompt
+or tool-use instruction is added by discovery; directory data stays in schemas.
 
 Creation resolves the actual destination workspace, discovers its schema again,
 validates exact options and performs Harness-native admission. Keychain, remote
@@ -105,8 +101,9 @@ are explicitly described as potentially outdated, not current availability.
 These limitations do not turn
 an unknown/empty directory into a complete one.
 
-A trusted cache hit does not wait for a native catalog fetch. A miss for an interface with no implemented authoritative source contract
-fails inside the routing probe without fetching another unprovable list. Host
+A successful matching cache hit does not wait for a native catalog fetch.
+A miss discovers the native inventory rather than rejecting unknown provenance.
+Host
 execution-profile preparation and local launch/dependency resolution remain
 separate costs. Native enumeration still has its existing bounds (OpenCode:
 30-second native timer and 55-second full probe, plus joined cleanup).

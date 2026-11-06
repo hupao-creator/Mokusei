@@ -19,17 +19,11 @@ type ModelCatalogEntry struct {
 }
 
 // CatalogSourceEvidence is separate from finishing enumeration. Adapters must
-// identify an authoritative source boundary; a nonempty list is not evidence.
+// keep unproven remote completeness false even when native enumeration is usable.
+// Routing accepts native snapshots; provenance is informational, not an admission gate.
 type CatalogSourceEvidence struct {
 	Complete bool   `json:"complete"`
 	Basis    string `json:"basis"`
-}
-
-func (e CatalogSourceEvidence) RequireComplete() error {
-	if !e.Complete || strings.TrimSpace(e.Basis) == "" {
-		return fmt.Errorf("Moku catalog source completeness is unproven: %s", e.Basis)
-	}
-	return nil
 }
 
 type CompleteModelCatalog struct {

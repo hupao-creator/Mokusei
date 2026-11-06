@@ -203,11 +203,11 @@ reading secrets or invalidating on unrelated session writes. Neither activation
 nor repeated stable model lists attest every remote provider completed discovery;
 see [evidence limits](../../../services/moku/catalog-evidence.md).
 
-Moku routing now uses a separate source-evidence-checked cache. This adapter's
-current list response is not certified as source-complete; without a previously
-trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
-explicit-model creation/validation still consumes the enumeration result. Unknown
-refresh results cannot replace trusted routing data. See the current
+Moku routing accepts successful nonempty native inventories, including native
+cached/fallback data, without requiring remote source-completion proof. Source
+completeness remains unknown in the schema. A matching old snapshot returns
+immediately; failed refreshes retain it and add a retained-snapshot note. Cold
+acquisition failure still reports an error. See the current
 [admission and evidence contract](../../../services/moku/catalog-evidence.md).
 
 Production discovery captures its absolute executable and environment through the

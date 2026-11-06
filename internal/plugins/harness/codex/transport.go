@@ -36,7 +36,6 @@ type LaunchOptions struct {
 	Dispose                      func() error
 	Identity                     string
 	Version                      string
-	StrictConfig                 bool
 	AuthSource                   *LaunchOptions
 }
 
@@ -91,9 +90,6 @@ func StartAppServer(ctx context.Context, opt LaunchOptions) (*AppServer, error) 
 		args = append(args, "-c", o)
 	}
 	args = append(args, "app-server", "--listen", "stdio://")
-	if opt.StrictConfig {
-		args = append(args, "--strict-config")
-	}
 	cmd := exec.Command(opt.Executable, args...)
 	cmd.Dir = opt.Cwd
 	// Native discovery can start before initialize. Use the same client identity

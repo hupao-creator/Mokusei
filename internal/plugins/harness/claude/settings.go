@@ -329,7 +329,7 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 	identity := discovery.Identity(env, identityPaths...)
 	isRouting := len(routing) > 0 && routing[0]
 	if isRouting {
-		identity, err = discovery.SourceIdentity(ctx, env, path, cwd, ".claude", identityPaths...)
+		identity, err = discovery.ObservedIdentity(ctx, env, path, cwd, ".claude", identityPaths...)
 		if err != nil {
 			return catalog{}, err
 		}
@@ -347,7 +347,7 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 			}
 			current := discovery.Identity(currentEnv, identityPaths...)
 			if isRouting {
-				current, sourceErr = discovery.SourceIdentity(shared, currentEnv, currentPath, cwd, ".claude", identityPaths...)
+				current, sourceErr = discovery.ObservedIdentity(shared, currentEnv, currentPath, cwd, ".claude", identityPaths...)
 			}
 			if sourceErr != nil {
 				return catalog{}, sourceErr
@@ -362,20 +362,17 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 	var result catalog
 	if isRouting {
 		result, err = a.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 45*time.Second, func(probeCtx context.Context) (catalog, error) {
-			// Keep unsupported-source rejection inside the cache probe: a prior
-			// trusted same-key snapshot still returns immediately. Do not launch
-			// a native fetch whose protocol cannot supply the required evidence.
-			if err := claudeCatalogSource.RequireComplete(); err != nil {
-				return catalog{}, err
-			}
 			value, err := a.catalogs.Get(probeCtx, key, false, 5*time.Minute, 45*time.Second, probe)
 			if err != nil {
 				return value, err
 			}
-			return value, value.sourceProof.RequireComplete()
+			return value, nil
 		})
 	} else {
 		result, err = a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, probe)
+	}
+	if isRouting && err == nil && a.routingCatalogs.RefreshFailed(key) {
+		result.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
 	}
 	if err != nil && ctx.Err() == nil {
 		return catalog{CLI: map[string]any{"status": "unavailable", "executablePath": path, "message": err.Error()}, Models: []modelPresentation{}}, nil
@@ -473,7 +470,7 @@ func (a *settingsAdapter) Presentation(ctx context.Context, r plugin.SettingsPre
 	return json.Marshal(c)
 }
 
-var claudeCatalogSource = plugin.CatalogSourceEvidence{Basis: "initialize models has no source-completion attestation; gateway discovery can continue asynchronously. This Moku-only requirement does not reject explicit ordinary models"}
+var claudeCatalogSource = plugin.CatalogSourceEvidence{Basis: "initialize models has no source-completion attestation; gateway discovery can continue asynchronously. Native enumeration is accepted for routing; execution is validated separately"}
 
 func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest) (json.RawMessage, error) {
 	raw, e := a.DefaultThread(r.Settings)

@@ -291,7 +291,7 @@ func (s *SettingsAPI) resolveCatalogSource(ctx context.Context, settings Setting
 		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc")}
 	identity := discovery.Identity(env, append(files, executable)...)
 	if routing {
-		identity, err = discovery.SourceIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
+		identity, err = discovery.ObservedIdentity(ctx, env, executable, source, ".opencode", append(files, configDirectory)...)
 		if err != nil {
 			return catalogSource{}, err
 		}
@@ -323,13 +323,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	}
 	key := source.key
 	if mode == routingCatalogRead {
-		return s.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 55*time.Second, func(probeCtx context.Context) (*CatalogSnapshot, error) {
-			// Keep unsupported-source rejection inside the cache probe: a prior
-			// trusted same-key snapshot still returns immediately. Do not launch
-			// a native fetch whose protocol cannot supply the required evidence.
-			if err := opencodeCatalogSource.RequireComplete(); err != nil {
-				return nil, err
-			}
+		snapshot, readErr := s.routingCatalogs.GetStale(ctx, key, 5*time.Minute, 55*time.Second, func(probeCtx context.Context) (*CatalogSnapshot, error) {
 			value, err := s.observe(probeCtx, settings, cwd, false, completeCatalogRead)
 			if err != nil {
 				return value, err
@@ -343,8 +337,16 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			}
 			copy := *value
 			copy.identity = key
-			return &copy, copy.sourceProof.RequireComplete()
+			return &copy, nil
 		})
+		if readErr != nil {
+			return nil, readErr
+		}
+		copy := *snapshot
+		if s.routingCatalogs.RefreshFailed(key) {
+			copy.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
+		}
+		return &copy, nil
 	}
 	early := mode == presentationCatalogRead
 	s.mu.Lock()

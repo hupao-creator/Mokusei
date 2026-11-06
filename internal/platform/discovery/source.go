@@ -18,6 +18,24 @@ var sourceEnvironment = regexp.MustCompile(`\{env:([^}]+)\}`)
 
 var sourceReference = regexp.MustCompile(`\{file:([^}]+)\}|["']([^"'\r\n]+\.(?:jsonc?|toml|ya?ml|md|m?js|ts))["']`)
 
+// ObservedIdentity invalidates native-response caches using observable inputs.
+// Exhaustive dependency inspection is advisory, not a prerequisite for using a
+// working native catalog. A scan failure keeps the launch/root-file generations
+// and a distinct degraded key; cancellation still rejects the lookup. Neither
+// form is an attestation of MDM, remote policy, or every possible native import.
+func ObservedIdentity(ctx context.Context, env map[string]string, executable, cwd, namespace string, roots ...string) (string, error) {
+	paths := append(append([]string{}, roots...), executable)
+	identity := Identity(env, paths...)
+	detailed, err := SourceIdentity(ctx, env, executable, cwd, namespace, roots...)
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err != nil {
+		return identity + "\x00dependencies-unverified", nil
+	}
+	return identity + "\x00" + detailed, nil
+}
+
 // SourceIdentity fingerprints the resolved launch and native configuration tree,
 // including ancestor namespaces, symlinks and literal referenced files. Reading
 // is bounded and errors fail closed; no configuration contents leave this hash.
@@ -108,7 +126,7 @@ func SourceIdentity(ctx context.Context, env map[string]string, executable, cwd,
 				if !entry.IsDir() && !sourceTextFile(entry.Name()) {
 					continue
 				}
-				if strings.HasPrefix(entry.Name(), "models_cache") || entry.Name() == "history.jsonl" {
+				if strings.HasPrefix(entry.Name(), "models_cache") || (namespace == ".pi" && entry.Name() == "models-store.json") || entry.Name() == "history.jsonl" {
 					continue
 				}
 				children = append(children, entry.Name())

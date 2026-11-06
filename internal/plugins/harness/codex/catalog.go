@@ -72,14 +72,6 @@ func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, 
 var errIncompleteCatalog = errors.New("native catalog is incomplete")
 
 func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
-	// Policy identity is required before looking up even an unexpired snapshot.
-	// File generations do not bind CFPreferences or cloud-managed policy. An
-	// old enumeration/static proof cannot authorize a different policy scope.
-	if routing {
-		if err := codexCatalogPolicySource.RequireComplete(); err != nil {
-			return catalogEntry{}, err
-		}
-	}
 	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
 	factory := c.factory
@@ -99,7 +91,7 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 		key += "\x00" + identity
 	}
 	probe := func(shared context.Context) (catalogEntry, error) {
-		value, err := c.probe(shared, cwd, configured, factory)
+		value, err := c.probe(shared, cwd, configured, factory, routing)
 		if err == nil && (c.source != nil || c.identity != nil) {
 			var current string
 			var sourceErr error
@@ -116,7 +108,12 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 			}
 		}
 		if err == nil {
-			if value.modelsError != nil || value.configurationError != nil || value.autoReviewError != nil {
+			if value.modelsError != nil {
+				err = errIncompleteCatalog
+				if routing {
+					err = value.modelsError
+				}
+			} else if !routing && (value.configurationError != nil || value.autoReviewError != nil) {
 				err = errIncompleteCatalog
 			}
 		}
@@ -126,15 +123,14 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 	var entry catalogEntry
 	var err error
 	if routing {
-		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, func(probeCtx context.Context) (catalogEntry, error) {
-			value, err := probe(probeCtx)
-			if err != nil {
-				return value, err
-			}
-			return value, value.sourceProof.RequireComplete()
-		})
+		// Accept native enumeration, not a remote-source attestation. Failed
+		// probes retain the last same-configuration inventory in this cache.
+		entry, err = c.routingReads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, probe)
 	} else {
 		entry, err = c.reads.Get(ctx, key, refresh, 5*time.Minute, 60*time.Second, probe)
+	}
+	if routing && err == nil && c.routingReads.RefreshFailed(key) {
+		entry.sourceProof.Basis += "; last refresh failed, retaining an earlier native snapshot"
 	}
 	// Partial native facts remain useful to their own projection, but do not
 	// earn the successful cache TTL or turn a failed defaults read into success.
@@ -143,32 +139,33 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, 
 	}
 	return entry, err
 }
-func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories ...CatalogFactory) (entry catalogEntry, err error) {
-	factory := c.factory
-	if len(factories) > 0 {
-		factory = factories[0]
-	}
+func (c *Catalog) probe(ctx context.Context, cwd, configured string, factory CatalogFactory, routing bool) (entry catalogEntry, err error) {
 	if factory == nil {
 		return catalogEntry{}, fmt.Errorf("Codex model catalog has no target runtime")
 	}
+	started := time.Now()
 	server, err := factory(ctx, cwd, configured)
 	if err != nil {
 		return catalogEntry{}, err
 	}
 	defer func() { err = errors.Join(err, discovery.Cleanup(server.Close())) }()
 	entry = catalogEntry{sourceProof: codexCatalogSource, models: []Map{}, cli: Map{"available": true, "executable": server.launch.Executable}}
-	var authority *staticCatalogAuthority
-	if server.launch.StrictConfig {
-		authority, err = captureStaticCatalogAuthority(ctx, server, cwd)
-		if err != nil {
-			return entry, err
-		}
+	metadataCtx := ctx
+	if routing {
+		var cancel context.CancelFunc
+		metadataCtx, cancel = context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
 	}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		entry.models, entry.modelsError = ListModels(ctx, server)
+		if routing && entry.modelsError == nil && len(entry.models) > 0 {
+			var refreshStatus string
+			entry.models, refreshStatus = refreshRoutingModels(ctx, server, started, entry.models)
+			entry.sourceProof.Basis += "; " + refreshStatus
+		}
 		if entry.modelsError == nil && len(entry.models) == 0 {
 			entry.modelsError = fmt.Errorf("Codex model catalog is empty")
 		}
@@ -176,10 +173,10 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories .
 			entry.models = []Map{}
 		}
 	}()
-	go func() { defer wg.Done(); entry.computerUse, _ = SupportsComputerUse(ctx, server, cwd) }()
+	go func() { defer wg.Done(); entry.computerUse, _ = SupportsComputerUse(metadataCtx, server, cwd) }()
 	go func() {
 		defer wg.Done()
-		limited, cancel := context.WithTimeout(ctx, 7500*time.Millisecond)
+		limited, cancel := context.WithTimeout(metadataCtx, 7500*time.Millisecond)
 		defer cancel()
 		entry.configuration, entry.configurationError = ReadThreadConfiguration(limited, server, cwd)
 		if entry.configurationError == nil {
@@ -206,11 +203,10 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string, factories .
 	if entry.cli["available"] != true {
 		return entry, errors.New("Codex executable version could not be confirmed")
 	}
-	if authority != nil && entry.modelsError == nil {
-		entry.sourceProof, err = authority.verify(ctx, server, cwd, entry.models)
-		if err != nil {
-			return entry, err
-		}
+	if routing && entry.configurationError != nil {
+		entry.sourceProof.Basis += "; configuration enrichment failed; native model inventory retained"
+	} else if routing && entry.autoReviewError != nil {
+		entry.sourceProof.Basis += "; auto-review enrichment failed; native model inventory retained"
 	}
 	return entry, nil
 }

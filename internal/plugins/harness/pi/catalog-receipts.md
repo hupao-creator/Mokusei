@@ -1,8 +1,9 @@
 # Pi catalog source receipts: audited limits and proposed contract
 
 Status: investigation/design only. No SDK bridge was installed or executed, and
-no Pi inventory was promoted to complete. The selected profile's Pi coordinator
-and selected Pi target cannot currently satisfy strict Moku admission. Ordinary
+no Pi inventory was promoted to complete. Under the updated policy, Pi accepts successful native RPC inventories for Moku
+without requiring these proposed receipts. This document describes optional
+stronger source observability, not a current admission prerequisite. Ordinary
 explicit-model Threads retain their existing native validation.
 
 ## Audited implementation
@@ -105,4 +106,5 @@ account, configuration or client changes invalidate that match.
 
 This is an actionable native API change, not a current public SDK capability.
 An SDK-only prototype may diagnose individual source paths, but without these
-accepted-publication and source outcomes it must continue returning unknown.
+accepted-publication and source outcomes its provenance must remain unknown.
+Unknown provenance does not prevent current native-inventory routing.

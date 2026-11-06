@@ -52,12 +52,12 @@ func New(host plugin.HostContext) *Adapter {
 			"/etc/codex/config.toml", "/etc/codex/requirements.toml", "/etc/codex/managed_config.toml"}
 		identity := discovery.Identity(env, append(files, target.Executable)...)
 		if routing {
-			identity, err = discovery.SourceIdentity(ctx, env, target.Executable, cwd, ".codex", files...)
+			identity, err = discovery.ObservedIdentity(ctx, env, target.Executable, cwd, ".codex", files...)
 			if err != nil {
 				return nil, "", err
 			}
 		}
-		launch := LaunchOptions{Executable: target.Executable, Cwd: cwd, Environment: values, Identity: target.Identity, Version: target.Version, StrictConfig: routing}
+		launch := LaunchOptions{Executable: target.Executable, Cwd: cwd, Environment: values, Identity: target.Identity, Version: target.Version}
 		open := func(probeCtx context.Context, _, _ string) (*AppServer, error) {
 			prepared, err := a.prepareLaunch(probeCtx, launch, "", "")
 			if err != nil {

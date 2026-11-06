@@ -44,16 +44,22 @@ namespace, symlinks and recognized literal references (including `{file:...}`).
 Configuration text is hashed, not logged or persisted. The bound is 4096 paths,
 4 MiB per text file and 16 MiB per read. Inspection errors/limits reject identity
 rather than silently skipping inputs. Runtime-owned caches/history and dependency
-package directories are excluded from implicit directory walking. Computed
+package directories are excluded from implicit directory walking. Pi
+`models-store.json` is likewise a native runtime cache, not configuration. Computed
 imports and arbitrary native reference syntax are not a complete dependency
 manifest; they cannot support an affirmative source attestation. The probe must
 use the captured resolved executable/environment and compare the source again
 after acquisition. External editors are not part of a filesystem transaction.
 
-Evidence-checked routing caches are separate from ordinary enumeration caches.
-An unknown-source result may remain useful for ordinary explicit selection, but
-cannot publish over a trusted routing snapshot. Cache presence alone does not
-establish the caller's source evidence.
+Routing caches are separate from ordinary enumeration caches. Successful native
+snapshots can publish without remote-source proof. `RefreshFailed` exposes the
+latest failed refresh while an old snapshot is retained; success clears it.
+Callers copy this status into public descriptions without mutating cached data.
+
+`ObservedIdentity` wraps the bounded dependency scan for ordinary native-inventory
+routing. Scan failure uses explicit-root file generations and a degraded marker;
+context cancellation still fails. This preserves practical invalidation without
+turning incomplete introspection into a permanent model-discovery failure.
 
 File generation fingerprints include replacement/change metadata where the
 platform provides it (device/inode/ctime), excluding access time. Keeping an old

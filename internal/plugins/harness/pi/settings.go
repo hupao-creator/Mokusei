@@ -262,23 +262,24 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	identity := discovery.Identity(env, identityPaths...)
 	isRouting := len(routing) > 0 && routing[0]
 	if isRouting {
-		identity, err = discovery.SourceIdentity(ctx, env, executable, cwd, ".pi", identityPaths...)
+		identity, err = discovery.ObservedIdentity(ctx, env, executable, cwd, ".pi", identityPaths...)
 		if err != nil {
 			return observation{}, err
 		}
 	}
 	sourceIdentity := cwd + "\x00" + executable + "\x00" + identity
 	if isRouting {
-		return s.routingCatalogs.GetStale(ctx, sourceIdentity, 5*time.Minute, 30*time.Second, func(probeCtx context.Context) (observation, error) {
-			// Keep unsupported-source rejection inside the cache probe: a prior
-			// trusted same-key snapshot still returns immediately. Do not launch
-			// a native fetch whose protocol cannot supply the required evidence.
-			if err := piCatalogSource.RequireComplete(); err != nil {
-				return observation{}, err
-			}
+		value, readErr := s.routingCatalogs.GetStale(ctx, sourceIdentity, 5*time.Minute, 30*time.Second, func(probeCtx context.Context) (observation, error) {
 			value, err := s.observe(probeCtx, settings, cwd, true, false)
 			if err != nil {
 				return value, err
+			}
+			if !value.Catalog || len(value.Models) == 0 {
+				detail := value.DiscoveryError
+				if detail == "" {
+					detail = "native inventory is empty or acquisition did not finish"
+				}
+				return observation{}, fmt.Errorf("Pi native model catalog unavailable: %s", detail)
 			}
 			currentEnv, err := inheritedEnvironment(probeCtx, s.host)
 			if err != nil {
@@ -288,7 +289,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 			if err != nil {
 				return value, err
 			}
-			current, err := discovery.SourceIdentity(probeCtx, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
+			current, err := discovery.ObservedIdentity(probeCtx, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
 			if err != nil {
 				return value, err
 			}
@@ -296,8 +297,12 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 				return value, errors.New("Pi routing source changed during discovery")
 			}
 			value.Identity = sourceIdentity
-			return value, value.Source.RequireComplete()
+			return value, nil
 		})
+		if readErr == nil && s.routingCatalogs.RefreshFailed(sourceIdentity) {
+			value.Source.Basis += "; last refresh failed, retaining an earlier native snapshot"
+		}
+		return value, readErr
 	}
 	keyBytes, _ := json.Marshal([]any{settings, cwd, identity})
 	key := string(keyBytes)
@@ -359,7 +364,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 							current = "executable changed"
 						}
 						if isRouting {
-							current, sourceErr = discovery.SourceIdentity(shared, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
+							current, sourceErr = discovery.ObservedIdentity(shared, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
 						}
 						if sourceErr == nil && current != identity {
 							sourceErr = errors.New("Pi native configuration changed during discovery")
@@ -890,11 +895,6 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 			reason = "Thinking capability is unknown; creation is unavailable"
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.Provider, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
-	}
-	if input.RoutingCatalog {
-		if err := presentation.Source.RequireComplete(); err != nil {
-			return nil, err
-		}
 	}
 	return plugin.ModelCatalogSchema(result, inventory, presentation.Identity, presentation.Source)
 }

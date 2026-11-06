@@ -49,6 +49,16 @@ func Cleanup(err error) error {
 	return cleanupError{err}
 }
 
+// RefreshFailed reports whether the latest completed refresh failed while an
+// older snapshot was retained. It does not expose native errors/credentials or
+// claim that the retained snapshot is current. Success clears this state.
+func (c *Cache[T]) RefreshFailed(key string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_, failed := c.retryAfter[key]
+	return failed
+}
+
 func (c *Cache[T]) Get(ctx context.Context, key string, refresh bool, ttl, timeout time.Duration, probe func(context.Context) (T, error)) (T, error) {
 	return c.get(ctx, key, refresh, false, ttl, timeout, probe)
 }

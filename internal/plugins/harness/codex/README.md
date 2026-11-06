@@ -216,20 +216,18 @@ by initialize, including pre-initialize model discovery. Full pagination still
 cannot attest whether native discovery silently fell back to bundled metadata;
 see [evidence limits](../../../services/moku/catalog-evidence.md).
 
-Moku routing now uses a separate source-evidence-checked cache. The default remote
-list response is not certified as source-complete; without a previously
-trusted matching snapshot it returns an explicit Moku completeness error. Ordinary
-explicit-model creation/validation still consumes the enumeration result. Unknown
-refresh results cannot replace trusted routing data. See the current
-[admission and evidence contract](../../../services/moku/catalog-evidence.md).
+Moku routing accepts a successful nonempty native inventory, including native
+cache/bundled fallback, without requiring static configuration, a pinned version,
+strict-config startup or source-completion attestation. Source completeness stays
+false in the schema; it does not reject an otherwise usable directory. Config and
+auto-review enrichment failures are not model-directory failures. Creation and
+ordinary defaults still validate their required settings.
 
-The explicit-file verifier for Codex 0.166.0 checks configured IDs against full
-native pagination, but **cannot certify routing policy identity**. MDM via
-CFPreferences and cloud-managed policy are not bound by local file generations.
-Moku routing therefore rejects before any cache lookup, even for a warm static
-snapshot. System `config.toml`, `requirements.toml` and legacy
-`managed_config.toml` are included in the known file dependencies, but are not
-represented as a complete policy identity. Ordinary Threads retain native
-validation. Requirements RPC fields are decoded with explicit camelCase JSON
-tags, separately from snake_case `config/read` fields. See
-[source evidence and limits](../../../services/moku/catalog-evidence.md).
+ChatGPT cold/background probes have a best-effort three-second window to observe
+native cache refresh and enumerate again. Timeout, cache-stamp read failure or a
+failed second enumeration retains the first complete result. A matching warm
+snapshot returns immediately and failed refreshes preserve it with a failure
+note. First-page/later-page errors and empty initial inventories still reject a
+cold acquisition. No static candidate or failed page prefix is synthesized.
+See the [T3 source comparison and differences](t3-discovery.md) and
+[current admission contract](../../../services/moku/catalog-evidence.md).
