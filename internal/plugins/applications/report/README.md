@@ -134,8 +134,9 @@ of the selected reference retires its reader. HTML remains mounted across these
 changes. Browser-link navigation retains its existing additional workspace.
 
 The related list uses individual native Liquid Glass items without sequence
-numbers or connector lines. It shows the matching execution title, two lines of
-assistant text, Harness identity and elapsed time; token usage is not displayed.
+numbers or connector lines. It shows the matching execution title, four lines of
+assistant text, Harness identity, current Thread status and cited execution elapsed
+time; token usage is not displayed.
 The host obtains exact-execution previews through the native Harness contract.
 Missing timing is explicit and empty excerpts remain empty. Existing one-click
 reader navigation is retained. Explicit report links also retain failed/interrupted
@@ -174,8 +175,8 @@ from the report's execution facts. It distinguishes missing Thread, missing
 execution and changed scope. Binding counts include archived and historical
 conflicts, but disclose no unrelated report content. The reader shows current
 running/waiting/completed/failed/interrupted state and background work separately
-from the cited execution's state, ID and timing. Unknown historical facts never
-borrow current results. Queries coalesce streaming catalog invalidations; departure
+from the cited execution's timing; the cited state and ID remain out of the card.
+Unknown historical facts never borrow current results. Queries coalesce streaming catalog invalidations; departure
 cancels the reader's request, and report revision/reference fences reject stale data.
 
 Unselected Super Thread input stays pinned open and sends to Moku. Its own persisted

@@ -32,6 +32,18 @@ struct NativeReportRelation: Hashable, Sendable {
     let unavailable: String
     let bindingCount: Int
     var historical: Bool { current.map { $0.id != reference.executionID } ?? false }
+    // Current Thread status is separate from the cited execution's evidence.
+    var currentStatus: (chinese: String, english: String) {
+        switch current?.status {
+        case .running: return backgroundRunning ? ("运行中 · 后台运行中", "Running · Background running") : ("运行中", "Running")
+        case .waitingForUser: return backgroundRunning ? ("等待你的响应 · 后台运行中", "Waiting for your response · Background running") : ("等待你的响应", "Waiting for your response")
+        case .completed where backgroundRunning: return ("后台运行中", "Background running")
+        case .completed: return ("已完成", "Completed")
+        case .failed: return backgroundRunning ? ("执行失败 · 后台运行中", "Failed · Background running") : ("执行失败", "Failed")
+        case .interrupted: return backgroundRunning ? ("已中断 · 后台运行中", "Interrupted · Background running") : ("已中断", "Interrupted")
+        case nil: return backgroundRunning ? ("后台运行中", "Background running") : ("状态未知", "Status unavailable")
+        }
+    }
 
     init(_ json: JSONValue) throws {
         let r = try NativeApplicationRecord(json, path: "report relation", keys: ["reference", "thread", "execution", "unavailable", "bindingCount"])

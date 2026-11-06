@@ -56,6 +56,10 @@ struct NativeReportExecutionRow: View {
                         Text(harness.displayName.string).lineLimit(1)
                     }
                     if item.missing { Text(applicationText(locale, "已删除", "Deleted")) }
+                    else {
+                        let status = relation?.currentStatus ?? (chinese: "状态未知", english: "Status unavailable")
+                        Text(applicationText(locale, status.chinese, status.english))
+                    }
                     Spacer(minLength: 8)
                     if !item.missing {
                         Image(systemName: "clock").accessibilityHidden(true)

@@ -110,9 +110,11 @@ and 5:5 in execution detail, subject to the shared width constraints and stacked
 layout. The related list uses individual 16pt Liquid Glass items without
 number prefixes or connector lines. Each item shows its source Thread's validated
 generated emoji (📝 when absent), its exact execution title, a four-line assistant
-excerpt, Harness identity and elapsed time instead of token
-usage. Thread name, current/report execution status and execution UUID are
-omitted from the card body. Binding-conflict warnings remain visible. A single
+excerpt, Harness identity, current Thread status and cited execution elapsed time
+instead of token usage. Thread name, cited execution status and execution UUID
+are omitted from the card body. Current status includes background work and
+remains unknown when facts are unavailable; it updates through catalog
+invalidation while the list is open. Binding-conflict warnings remain visible. A single
 click queries `report.relations` again and opens the source Thread's latest
 execution, including running executions, in the existing sidecard reader.
 The card's title, excerpt and timing still describe the report's cited execution;
