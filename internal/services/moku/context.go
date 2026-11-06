@@ -101,12 +101,12 @@ func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Ha
 	// usable. Every selected Harness supplies its entire native inventory.
 	if discovery, ok := h.(plugin.MokuTargetDiscoverer); ok {
 		var availability plugin.Availability
-		target.NativeSchema, availability, err = discovery.DiscoverMokuTarget(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace})
+		target.NativeSchema, availability, err = discovery.DiscoverMokuTarget(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace, RoutingCatalog: true})
 		if err == nil && !availability.Available {
 			err = fmt.Errorf("native model catalog unavailable: %s", availability.Reason)
 		}
 	} else {
-		target.NativeSchema, err = h.Settings().Describe(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace})
+		target.NativeSchema, err = h.Settings().Describe(ctx, plugin.SettingsRequest{Settings: merged, Cwd: c.config.Workspace, RoutingCatalog: true})
 	}
 	if err != nil {
 		return target, err
@@ -117,7 +117,7 @@ func (c *Coordinator) describeTarget(ctx context.Context, id string, h plugin.Ha
 	if err := json.Unmarshal(target.NativeSchema, &envelope); err != nil {
 		return target, fmt.Errorf("invalid native catalog schema: %w", err)
 	}
-	if envelope.Catalog == nil || len(envelope.Catalog.Models) == 0 {
+	if envelope.Catalog == nil || len(envelope.Catalog.Models) == 0 || envelope.Catalog.ConfigurationID == "" {
 		return target, errors.New("complete nonempty native model inventory is missing")
 	}
 	return target, nil
@@ -136,7 +136,7 @@ func (c *Coordinator) validateNativeTargetCatalog(ctx context.Context, owner str
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(previous, &description) {
+	if !reflect.DeepEqual(previous.CatalogIdentities, description.CatalogIdentities) {
 		return errors.New("Moku model catalog changed before native admission; a fresh session preparation is required")
 	}
 	return nil

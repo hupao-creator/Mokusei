@@ -53,7 +53,7 @@ func (f orchestratorSettings) Describe(context.Context, plugin.SettingsRequest) 
 	if modelID == "" {
 		modelID = "mock-model"
 	}
-	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}})
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration")
 }
 func (f orchestratorSettings) ResolveThread(_ context.Context, r plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	if len(r.Requested) > 0 {
@@ -1071,7 +1071,7 @@ func replayOrchestratorDeferredTarget() {
 	close(ready)
 	mokuReplayMust(<-completed)
 	schema := w.binding("create_thread").InputSchema
-	mokuReplayCheck(strings.Contains(string(schema), "opencode") && strings.Contains(string(schema), "Complete native model inventory"), "initial native model inventory not advertised")
+	mokuReplayCheck(strings.Contains(string(schema), "opencode") && strings.Contains(string(schema), "Native response inventory"), "initial native model inventory not advertised")
 	_, err = w.call("create_thread", `{"worktree":false,"prompt":"invalid defaults","harnessId":"opencode","options":{}}`)
 	mokuReplayCheck(err != nil, "native target accepted empty options")
 	_, err = w.call("create_thread", `{"worktree":false,"prompt":"reject invalid model","harnessId":"opencode","options":{"model":"unadvertised"}}`)

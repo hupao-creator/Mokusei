@@ -117,7 +117,7 @@ func (v *voiceController) rejectStaleNativeConfiguration(ctx context.Context, le
 		if err != nil {
 			return err
 		}
-		pending = !reflect.DeepEqual(previousDescription, &description)
+		pending = previousDescription == nil || !reflect.DeepEqual(previousDescription.CatalogIdentities, description.CatalogIdentities)
 	}
 	v.mu.Lock()
 	if v.reconfiguration != nil && v.reconfiguration.ownership == lease.requestID {

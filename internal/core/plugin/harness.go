@@ -263,8 +263,11 @@ type HarnessSettings interface {
 	Presentation(context.Context, SettingsPresentationRequest) (json.RawMessage, error)
 }
 type SettingsRequest struct {
-	Settings json.RawMessage
-	Cwd      string
+	// RoutingCatalog permits complete same-configuration stale catalogs with
+	// background refresh. Execution validation must leave this false.
+	RoutingCatalog bool
+	Settings       json.RawMessage
+	Cwd            string
 }
 type ResolveSettingsRequest struct {
 	// Merged contains projected thread defaults from DefaultThread, never the
@@ -287,6 +290,7 @@ type SettingsPresentationRequest struct {
 	Cwd            string
 	ThreadSettings json.RawMessage
 	Refresh        bool
+	RoutingCatalog bool // internal catalog projection; never execution authority
 }
 
 type Installer interface{ Install(context.Context) error }

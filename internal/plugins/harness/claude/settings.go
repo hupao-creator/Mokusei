@@ -29,8 +29,9 @@ type modelPresentation struct {
 	Thinking         model.ThinkingCapability `json:"thinking"`
 }
 type catalog struct {
-	CLI    map[string]any      `json:"cli"`
-	Models []modelPresentation `json:"models"`
+	identity string
+	CLI      map[string]any      `json:"cli"`
+	Models   []modelPresentation `json:"models"`
 }
 type settingsAdapter struct {
 	harness  *Harness
@@ -308,7 +309,7 @@ func (a *settingsAdapter) ApplyThreadUpdate(ctx context.Context, r plugin.Update
 	}
 	return json.Marshal(s)
 }
-func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refresh bool) (catalog, error) {
+func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refresh bool, routing ...bool) (catalog, error) {
 	path, env, err := a.harness.resolve(ctx, cwd, configured)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -320,17 +321,25 @@ func (a *settingsAdapter) load(ctx context.Context, configured, cwd string, refr
 	if home == "" {
 		home = filepath.Join(env["HOME"], ".claude")
 	}
-	identityPaths := []string{path, filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"),
+	identityPaths := []string{path, filepath.Join(home, "settings.json"), filepath.Join(home, ".credentials.json"), filepath.Join(env["HOME"], ".claude.json"),
+		filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db"),
 		filepath.Join(cwd, ".claude", "settings.json"), filepath.Join(cwd, ".claude", "settings.local.json")}
 	identity := discovery.Identity(env, identityPaths...)
 	key := path + "\x00" + cwd + "\x00" + identity
-	result, err := a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, func(shared context.Context) (catalog, error) {
+	probe := func(shared context.Context) (catalog, error) {
 		value, err := a.readCatalog(shared, path, cwd, env)
 		if err == nil && discovery.Identity(env, identityPaths...) != identity {
 			return catalog{}, errors.New("Claude native configuration changed during discovery")
 		}
+		value.identity = key
 		return value, err
-	})
+	}
+	var result catalog
+	if len(routing) > 0 && routing[0] {
+		result, err = a.catalogs.GetStale(ctx, key, 5*time.Minute, 45*time.Second, probe)
+	} else {
+		result, err = a.catalogs.Get(ctx, key, refresh, 5*time.Minute, 45*time.Second, probe)
+	}
 	if err != nil && ctx.Err() == nil {
 		return catalog{CLI: map[string]any{"status": "unavailable", "executablePath": path, "message": err.Error()}, Models: []modelPresentation{}}, nil
 	}
@@ -344,6 +353,27 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 	if err != nil {
 		return catalog{}, err
 	}
+	settings, err := t.Control(ctx, map[string]any{"subtype": "get_settings"})
+	if err != nil {
+		return catalog{}, fmt.Errorf("Claude catalog completeness cannot be checked: %w", err)
+	}
+	effective := obj(obj(settings)["effective"])
+	if effective == nil {
+		return catalog{}, errors.New("Claude omitted effective settings; model catalog completeness is unknown")
+	}
+	gateway, baseURL := env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"], env["ANTHROPIC_BASE_URL"]
+	for key, value := range obj(effective["env"]) {
+		if key == "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY" {
+			gateway = str(value)
+		}
+		if key == "ANTHROPIC_BASE_URL" {
+			baseURL = str(value)
+		}
+	}
+	gateway = strings.ToLower(strings.TrimSpace(gateway))
+	if strings.TrimSpace(baseURL) != "" && gateway != "" && gateway != "0" && gateway != "false" {
+		return catalog{}, errors.New("Claude gateway model discovery continues after initialization; the native interface provides no completion evidence, so this catalog cannot start Moku")
+	}
 	value := obj(init)
 	result = catalog{CLI: map[string]any{"status": "available", "executablePath": path}, Models: []modelPresentation{}}
 	if version := nonempty(str(value["claudeVersion"]), str(value["version"])); version != "" {
@@ -353,7 +383,7 @@ func (a *settingsAdapter) readCatalog(ctx context.Context, path, cwd string, env
 	for _, v := range arr(value["models"]) {
 		m := obj(v)
 		id := nonempty(str(m["value"]), nonempty(str(m["id"]), str(m["model"])))
-		if id == "" || seen[id] {
+		if strings.TrimSpace(id) == "" || strings.ContainsRune(id, 0) || seen[id] {
 			return result, errors.New("Claude native catalog has a missing or duplicate model identifier")
 		}
 		seen[id] = true
@@ -435,7 +465,7 @@ func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest
 	if e != nil {
 		return nil, e
 	}
-	c, e := a.load(ctx, selected.ExecutablePath, r.Cwd, false)
+	c, e := a.load(ctx, selected.ExecutablePath, r.Cwd, false, r.RoutingCatalog)
 	if e != nil {
 		return nil, e
 	}
@@ -476,7 +506,7 @@ func (a *settingsAdapter) Describe(ctx context.Context, r plugin.SettingsRequest
 		status = "empty"
 		groups = append(groups, map[string]any{"not": map[string]any{}})
 	}
-	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "description": fmt.Sprintf("Creation capability status: %s; %d models have unknown thinking capabilities and cannot be selected. Native snapshot only; execution is revalidated at admission.", status, omitted), "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups}, inventory)
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "description": fmt.Sprintf("Creation capability status: %s; %d models have unknown thinking capabilities and cannot be selected. Native snapshot only; execution is revalidated at admission.", status, omitted), "additionalProperties": false, "required": []string{"model", "thinking"}, "properties": map[string]any{"model": map[string]any{"type": "string", "minLength": 1}, "thinking": map[string]any{"type": "object"}, "permissionMode": map[string]any{"type": "string", "enum": permissionModes}}, "oneOf": groups}, inventory, c.identity)
 }
 func (a *settingsAdapter) SnapshotExecution(ctx context.Context, r plugin.SettingsRequest, initial bool) (json.RawMessage, error) {
 	raw, e := a.DefaultThread(r.Settings)

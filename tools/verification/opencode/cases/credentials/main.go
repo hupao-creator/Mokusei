@@ -124,7 +124,7 @@ func main() {
 	check(time.Since(start) < time.Second, "advisory discovery waited for slow native catalog")
 	fullSchema, availability, err := h.DiscoverMokuTarget(ctx, request)
 	must(err)
-	check(availability.Available && strings.Contains(string(fullSchema), "Complete native model inventory"), "initial target catalog was incomplete")
+	check(availability.Available && strings.Contains(string(fullSchema), "Native response inventory"), "initial target catalog was incomplete")
 	check(strings.Contains(string(fullSchema), "fixture-model"), "initial native schema was not populated")
 	warmCatalog, err := h.CachedModelCatalog(ctx, request)
 	must(err)

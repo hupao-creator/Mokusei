@@ -28,6 +28,7 @@ type HarnessSettings struct {
 	UseDefaultThreadSettings *bool          `json:"useDefaultThreadSettings,omitempty"`
 }
 type observation struct {
+	Identity            string
 	Executable, Version string
 	State               NativeState
 	Models              []Model
@@ -37,17 +38,20 @@ type observation struct {
 	At                  time.Time
 }
 type settingsAPI struct {
-	host          plugin.HostContext
-	mu            sync.Mutex
-	observations  map[string]observation
-	generation    uint64
-	sequence      uint64
-	started       map[string]uint64
-	pending       map[string]*observationFlight
-	installations map[string]string
-	active        map[*observationFlight]bool
-	closed        bool
-	cleanupErr    error
+	host           plugin.HostContext
+	mu             sync.Mutex
+	observations   map[string]observation
+	catalogs       map[string]observation // complete inventories shared across model selections
+	catalogStarted map[string]uint64
+	generation     uint64
+	sequence       uint64
+	started        map[string]uint64
+	pending        map[string]*observationFlight
+	installations  map[string]string
+	active         map[*observationFlight]bool
+	closed         bool
+	cleanupErr     error
+	retryAfter     map[string]time.Time
 }
 
 func newSettings(host plugin.HostContext) *settingsAPI {
@@ -221,6 +225,9 @@ func (s *settingsAPI) invalidate() {
 	s.mu.Lock()
 	s.generation++
 	s.observations = map[string]observation{}
+	s.catalogs = map[string]observation{}
+	s.catalogStarted = map[string]uint64{}
+	s.retryAfter = map[string]time.Time{}
 	s.started = map[string]uint64{}
 	s.pending = map[string]*observationFlight{}
 	s.mu.Unlock()
@@ -228,17 +235,19 @@ func (s *settingsAPI) invalidate() {
 }
 
 type observationFlight struct {
-	done     chan struct{}
-	value    observation
-	err      error
-	cancel   context.CancelFunc
-	refs     int
-	finished bool
-	refresh  bool
-	catalog  bool
+	sourceIdentity string
+	done           chan struct{}
+	value          observation
+	err            error
+	cancel         context.CancelFunc
+	refs           int
+	finished       bool
+	refresh        bool
+	catalog        bool
+	background     bool
 }
 
-func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool) (observation, error) {
+func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool, routing ...bool) (observation, error) {
 	if err := ctx.Err(); err != nil {
 		return observation{}, err
 	}
@@ -256,19 +265,43 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	}
 	identityPaths := []string{executable, filepath.Join(home, "settings.json"), filepath.Join(home, "models.json"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".pi", "settings.json")}
 	identity := discovery.Identity(env, identityPaths...)
+	sourceIdentity := cwd + "\x00" + executable + "\x00" + identity
 	keyBytes, _ := json.Marshal([]any{settings, cwd, identity})
 	key := string(keyBytes)
 	flightKey := key
 	s.mu.Lock()
-	if s.closed || s.cleanupErr != nil {
-		err := errors.Join(errors.New("Pi discovery is closed"), s.cleanupErr)
+	if s.closed {
 		s.mu.Unlock()
-		return observation{}, err
+		return observation{}, errors.New("Pi discovery is closed")
 	}
 	cached, exists := s.observations[key]
+	isRouting := len(routing) > 0 && routing[0]
+	if isRouting {
+		// Catalog-only readers can join a full read for another selection in
+		// the same native source; no second model process is needed.
+		var newest uint64
+		for candidate, pending := range s.pending {
+			if pending.sourceIdentity == sourceIdentity && pending.catalog && s.started[candidate] > newest {
+				flightKey, newest = candidate, s.started[candidate]
+			}
+		}
+		// Selecting a model changes native state/levels, not the complete
+		// provider directory. Reuse full inventories warmed by settings reads.
+		cached, exists = s.catalogs[sourceIdentity]
+	}
 	ttl := 15 * time.Second
 	if reusableObservation(settings, cached) {
 		ttl = 5 * time.Minute
+	}
+	background := isRouting && exists && cached.Catalog && len(cached.Models) > 0 && cached.DiscoveryError == ""
+	if background && (time.Since(cached.At) < ttl || s.pending[flightKey] != nil || time.Now().Before(s.retryAfter[sourceIdentity]) || s.cleanupErr != nil) {
+		s.mu.Unlock()
+		return cached, nil
+	}
+	if s.cleanupErr != nil {
+		err := s.cleanupErr
+		s.mu.Unlock()
+		return observation{}, err
 	}
 	if !refresh && s.pending[flightKey] == nil && exists && time.Since(cached.At) < ttl && (!catalog || cached.Catalog) {
 		s.mu.Unlock()
@@ -285,15 +318,29 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	if flight != nil {
 		flight.refs++
 		flight.catalog = flight.catalog || catalog
+		if catalog {
+			if s.catalogStarted == nil {
+				s.catalogStarted = map[string]uint64{}
+			}
+			if sequence := s.started[flightKey]; sequence > s.catalogStarted[sourceIdentity] {
+				s.catalogStarted[sourceIdentity] = sequence
+			}
+		}
 	} else {
 		shared, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		flight = &observationFlight{done: make(chan struct{}), cancel: cancel, refs: 1, refresh: refresh, catalog: catalog}
+		flight = &observationFlight{sourceIdentity: sourceIdentity, done: make(chan struct{}), cancel: cancel, refs: 1, refresh: refresh, catalog: catalog, background: background}
 		s.pending[flightKey] = flight
 		s.active[flight] = true
 		generation := s.generation
 		s.sequence++
 		sequence := s.sequence
 		s.started[key] = sequence
+		if catalog {
+			if s.catalogStarted == nil {
+				s.catalogStarted = map[string]uint64{}
+			}
+			s.catalogStarted[sourceIdentity] = sequence
+		}
 		go func() {
 			value, probeErr := s.readObservation(shared, settings, cwd, executable, env, func() bool {
 				s.mu.Lock()
@@ -303,6 +350,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 			if probeErr == nil && discovery.Identity(env, identityPaths...) != identity {
 				probeErr = errors.New("Pi native configuration changed during discovery")
 			}
+			value.Identity = sourceIdentity
 			s.mu.Lock()
 			flight.value = value
 			flight.err = probeErr
@@ -311,8 +359,28 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 			if probeErr == nil && shared.Err() == nil && !s.closed && s.generation == generation && s.started[key] == sequence && s.pending[flightKey] == flight &&
 				(value.Catalog || !s.observations[key].Catalog) {
 				s.observations[key] = value
+				if value.Catalog && len(value.Models) > 0 && value.DiscoveryError == "" {
+					if s.catalogs == nil {
+						s.catalogs = map[string]observation{}
+					}
+					// Model selections share a directory publisher. Even a failed
+					// newer refresh fences an older flight from replacing it.
+					if s.catalogStarted[sourceIdentity] == sequence {
+						s.catalogs[sourceIdentity] = value
+					}
+				}
 			}
 			if s.pending[flightKey] == flight {
+				if s.catalogStarted[sourceIdentity] == sequence {
+					if s.retryAfter == nil {
+						s.retryAfter = map[string]time.Time{}
+					}
+					if retained := s.catalogs[sourceIdentity]; retained.Catalog && (probeErr != nil || !value.Catalog || len(value.Models) == 0) {
+						s.retryAfter[sourceIdentity] = time.Now().Add(30 * time.Second)
+					} else {
+						delete(s.retryAfter, sourceIdentity)
+					}
+				}
 				delete(s.pending, flightKey)
 			}
 			close(flight.done)
@@ -320,11 +388,16 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 			cancel()
 		}()
 	}
+	if background {
+		flight.refs--
+		s.mu.Unlock()
+		return cached, nil
+	}
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
 		flight.refs--
-		if flight.refs == 0 && !flight.finished {
+		if flight.refs == 0 && !flight.finished && !flight.background {
 			if s.pending[flightKey] == flight {
 				delete(s.pending, flightKey)
 			}
@@ -343,7 +416,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 		// upgrades on the next flight; it never accepts a state-only result as
 		// a catalog, and never overlaps a second native owner with this one.
 		if catalog && !flight.value.Catalog && flight.err == nil && flight.value.DiscoveryError == "" {
-			return s.observe(ctx, settings, cwd, true, false)
+			return s.observe(ctx, settings, cwd, true, false, routing...)
 		}
 		return flight.value, flight.err
 	}
@@ -391,6 +464,9 @@ func (s *settingsAPI) readObservation(ctx context.Context, settings ThreadSettin
 		go func() { defer reads.Done(); value.Models, modelsErr = rpc.Models(ctx) }()
 		go func() { defer reads.Done(); value.Levels, levelsErr = rpc.ThinkingLevels(ctx) }()
 		reads.Wait()
+		if modelsErr == nil && len(value.Models) == 0 {
+			modelsErr = errors.New("Pi native model catalog is empty")
+		}
 		err = errors.Join(modelsErr, levelsErr)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -691,7 +767,7 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, selected, input.Cwd, true, input.Refresh)
+	observed, err := s.observe(ctx, selected, input.Cwd, true, input.Refresh, input.RoutingCatalog)
 	if err != nil || !observed.Catalog {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -716,7 +792,7 @@ func (s *settingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 		entry["thinking"] = ThinkingCapability(m, levels)
 		models = append(models, entry)
 	}
-	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models})
+	return json.Marshal(model.Object{"cli": model.Object{"status": "ready", "executablePath": observed.Executable, "version": observed.Version}, "models": models, "catalogIdentity": observed.Identity})
 }
 func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, error) {
 	defaults, err := s.DefaultThread(input.Settings)
@@ -731,12 +807,13 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 	if err != nil {
 		return nil, err
 	}
-	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{ThreadSettings: catalogSettings, Cwd: input.Cwd})
+	raw, err := s.Presentation(ctx, plugin.SettingsPresentationRequest{ThreadSettings: catalogSettings, Cwd: input.Cwd, RoutingCatalog: input.RoutingCatalog})
 	if err != nil {
 		return nil, err
 	}
 	var presentation struct {
-		CLI struct {
+		Identity string `json:"catalogIdentity"`
+		CLI      struct {
 			Status  string `json:"status"`
 			Message string `json:"message"`
 		} `json:"cli"`
@@ -817,7 +894,7 @@ func (s *settingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.Provider, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
 	}
-	return plugin.ModelCatalogSchema(result, inventory)
+	return plugin.ModelCatalogSchema(result, inventory, presentation.Identity)
 }
 
 func (s *settingsAPI) recordInstallation(cwd, path string) {

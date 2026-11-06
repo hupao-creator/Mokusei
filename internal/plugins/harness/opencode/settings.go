@@ -47,6 +47,7 @@ type settingsCatalogFlight struct {
 	nativeDone  chan struct{}
 	nativeValue *CatalogSnapshot
 	refresh     bool
+	background  bool
 	cancel      context.CancelFunc
 	readers     int
 	value       *CatalogSnapshot
@@ -63,6 +64,7 @@ type SettingsAPI struct {
 	active     map[*settingsCatalogFlight]struct{}
 	closed     bool
 	cleanupErr error
+	retryAfter map[string]time.Time
 	closeOnce  sync.Once
 	closeErr   error
 }
@@ -240,6 +242,7 @@ func (s *SettingsAPI) Invalidate() {
 		return
 	}
 	s.generation++
+	s.retryAfter = map[string]time.Time{}
 	s.cache = map[string]catalogCacheEntry{}
 	s.pending = map[string]*settingsCatalogFlight{}
 	s.publishers = map[string]*settingsCatalogFlight{}
@@ -261,13 +264,29 @@ func (s *SettingsAPI) catalogKey(ctx context.Context, settings Settings, cwd str
 	if source == "" {
 		source = cwd
 	}
+	accountIdentity, err := catalogAccountIdentity(ctx, env)
+	if err != nil {
+		return "", err
+	}
+	configDirectory := env["OPENCODE_CONFIG_DIR"]
+	if configDirectory == "" {
+		configDirectory = filepath.Join(config, "opencode")
+	}
 	identity := discovery.Identity(env, settings.ExecutablePath, env["OPENCODE_CONFIG"],
-		filepath.Join(config, "opencode", "opencode.json"), filepath.Join(config, "opencode", "opencode.jsonc"),
+		filepath.Join(configDirectory, "opencode.json"), filepath.Join(configDirectory, "opencode.jsonc"),
 		filepath.Join(data, "opencode", "auth.json"), filepath.Join(source, "opencode.json"), filepath.Join(source, "opencode.jsonc"))
-	return cwd + "\x00" + settings.ConfigurationCWD + "\x00" + settings.ExecutablePath + "\x00" + identity, nil
+	return cwd + "\x00" + settings.ConfigurationCWD + "\x00" + settings.ExecutablePath + "\x00" + identity + "\x00" + accountIdentity, nil
 }
 
-func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string, refresh bool, presentation ...bool) (*CatalogSnapshot, error) {
+type catalogReadMode uint8
+
+const (
+	completeCatalogRead catalogReadMode = iota
+	presentationCatalogRead
+	routingCatalogRead
+)
+
+func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string, refresh bool, modes ...catalogReadMode) (*CatalogSnapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -275,11 +294,26 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	if err != nil {
 		return nil, err
 	}
-	early := len(presentation) > 0 && presentation[0]
+	mode := completeCatalogRead
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	early := mode == presentationCatalogRead
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return nil, errors.New("OpenCode settings are closed")
+	}
+	cached, exists := s.cache[key]
+	background := mode == routingCatalogRead && exists && cached.value != nil && len(cached.value.NativeModels) > 0 && !cached.value.AccountCheckPending
+	if background && (time.Since(cached.at) < 5*time.Minute || s.pending[key] != nil || time.Now().Before(s.retryAfter[key]) || s.cleanupErr != nil) {
+		s.mu.Unlock()
+		return cached.value, nil
+	}
+	if s.cleanupErr != nil {
+		err := s.cleanupErr
+		s.mu.Unlock()
+		return nil, err
 	}
 	if cached, ok := s.cache[key]; !refresh && ok && s.pending[key] == nil && time.Since(cached.at) < 5*time.Minute {
 		s.mu.Unlock()
@@ -295,7 +329,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 	}
 	if flight == nil {
 		probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), 55*time.Second)
-		flight = &settingsCatalogFlight{done: make(chan struct{}), nativeDone: make(chan struct{}), cancel: cancel, refresh: refresh}
+		flight = &settingsCatalogFlight{done: make(chan struct{}), nativeDone: make(chan struct{}), cancel: cancel, refresh: refresh, background: background}
 		s.pending[key] = flight
 		s.publishers[key] = flight
 		s.active[flight] = struct{}{}
@@ -332,6 +366,12 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 						err = errors.New("OpenCode native configuration changed during discovery")
 					}
 				}
+				if err == nil {
+					flight.value.identity = key
+					// Reject empty/malformed inventories before replacing a complete
+					// cache entry, including refreshes initiated by the settings UI.
+					_, err = describeCatalog(settings, flight.value)
+				}
 				cleanupErr = runtime.Close()
 				err = errors.Join(err, cleanupErr)
 			}
@@ -340,6 +380,14 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			delete(s.active, flight)
 			s.cleanupErr = errors.Join(s.cleanupErr, cleanupErr)
 			if s.pending[key] == flight {
+				if s.retryAfter == nil {
+					s.retryAfter = map[string]time.Time{}
+				}
+				if _, retained := s.cache[key]; err != nil && retained {
+					s.retryAfter[key] = time.Now().Add(30 * time.Second)
+				} else {
+					delete(s.retryAfter, key)
+				}
 				delete(s.pending, key)
 			}
 			if err == nil && probe.Err() == nil && !s.closed && generation == s.generation && s.publishers[key] == flight {
@@ -355,6 +403,10 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 			s.mu.Unlock()
 		}(flight)
 	}
+	if background {
+		s.mu.Unlock()
+		return cached.value, nil
+	}
 	flight.readers++
 	s.mu.Unlock()
 	defer func() {
@@ -364,7 +416,7 @@ func (s *SettingsAPI) observe(ctx context.Context, settings Settings, cwd string
 		// Once native facts were published, optional billing belongs to this
 		// settings source until its bounded completion or Close. Before that
 		// point the last departing reader cancels native startup immediately.
-		if flight.readers == 0 && flight.nativeValue == nil {
+		if flight.readers == 0 && flight.nativeValue == nil && !flight.background {
 			select {
 			case <-flight.done:
 			default:
@@ -708,7 +760,11 @@ func (s *SettingsAPI) SnapshotExecution(ctx context.Context, input plugin.Settin
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, next, input.Cwd, false, initial)
+	mode := completeCatalogRead
+	if initial {
+		mode = presentationCatalogRead
+	}
+	observed, err := s.observe(ctx, next, input.Cwd, false, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +830,7 @@ func (s *SettingsAPI) Presentation(ctx context.Context, input plugin.SettingsPre
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, selected, input.Cwd, input.Refresh, true)
+	observed, err := s.observe(ctx, selected, input.Cwd, input.Refresh, presentationCatalogRead)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -827,7 +883,11 @@ func (s *SettingsAPI) Describe(ctx context.Context, input plugin.SettingsRequest
 	if err != nil {
 		return nil, err
 	}
-	observed, err := s.observe(ctx, current, input.Cwd, false)
+	mode := completeCatalogRead
+	if input.RoutingCatalog {
+		mode = routingCatalogRead
+	}
+	observed, err := s.observe(ctx, current, input.Cwd, false, mode)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -904,7 +964,7 @@ func describeCatalog(current Settings, observed *CatalogSnapshot) (json.RawMessa
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{Provider: entry.ProviderID, ID: entry.ID, Name: entry.Name, UnavailableReason: reason})
 	}
-	return plugin.ModelCatalogSchema(result, inventory)
+	return plugin.ModelCatalogSchema(result, inventory, observed.identity)
 }
 func (s *SettingsAPI) Probe(ctx context.Context, input plugin.SettingsRequest, toolMode string) (plugin.Availability, error) {
 	selected, err := s.defaults(input.Settings)
@@ -1136,10 +1196,10 @@ func (h *Harness) CachedModelCatalog(ctx context.Context, input plugin.SettingsR
 	return catalogProjection(cached)
 }
 
-// DiscoverMokuTarget waits for exact options before Moku's first routing decision.
-// The shared settings flight reuses warm discovery and joins native cleanup;
-// an installation-only or stale snapshot cannot stand in for this catalog.
+// DiscoverMokuTarget uses complete same-configuration snapshots immediately.
+// Only a cold configuration waits for discovery; execution still validates live.
 func (h *Harness) DiscoverMokuTarget(ctx context.Context, input plugin.SettingsRequest) (json.RawMessage, plugin.Availability, error) {
+	input.RoutingCatalog = true
 	schema, err := h.settings.Describe(ctx, input)
 	if err != nil {
 		return nil, plugin.Availability{}, err

@@ -28,7 +28,7 @@ deferred. Failed-tool payload retention does not authorize showing it in an
 Agent summary; independent assistant/execution errors remain readable. Canonical
 history and full/execution projections retain their existing data.
 
-Failed or empty Pi catalogs block Moku task preparation. Unknown thinking
+Failed or empty initial Pi catalogs block Moku task preparation. Unknown thinking
 capabilities restrict creation branches without omitting model identities. Discovery
 does not require the configured default model to be usable. Native admission
 remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
@@ -174,4 +174,17 @@ the probe, so an in-flight read cannot publish a known-obsolete snapshot.
 
 Moku requires the full nonempty native model inventory before task admission.
 Unknown thinking capabilities remain named in that inventory but cannot authorize
-creation. Failed or empty reads block preparation, including after cache expiry.
+creation. Moku routing returns complete same-configuration cached directories
+immediately, even after expiry or during refresh. Expired entries start bounded
+background refreshes; failures/empty replacements retain the last complete
+snapshot, with a 30-second warm-retry cooldown. Only a cache miss waits and blocks
+on failure. Configuration identities fence publication and native admission;
+execution/default resolution retains strict reads. Caches are Harness-owned,
+memory-only and drained on Close, not persisted across application restarts.
+
+Complete Pi directories are indexed by native source identity separately from
+selected-model observations. Moku can reuse a directory warmed by the settings
+page or join its in-flight full read without launching another selected-model
+process. A source-level publication sequence fences older model-selection
+flights even when a newer refresh fails; execution state/levels keep their own
+selection keys and are never borrowed as execution authority.

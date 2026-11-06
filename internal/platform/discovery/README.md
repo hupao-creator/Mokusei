@@ -24,3 +24,16 @@ retention and profile/file identity tests with the race detector.
 Adapters wrap cleanup errors with `Cleanup`. The cache retains this ownership
 failure even after the reader leaves, fences replacement acquisition and reports
 it from Close. Ordinary native read failures do not poison other keys.
+
+`GetStale` is the routing-only alternative to `Get`: an immutable successful
+same-key entry returns immediately, including during explicit refresh and after
+TTL expiry. Expired entries start a cache-owned probe; a cancelled foreground
+reader does not cancel that background owner. Only a cold lookup waits. Failed
+refreshes preserve the complete snapshot without renewing freshness, with a 30-second
+warm-retry cooldown. Cleanup ownership errors stop further probes but do not
+hide an existing routing snapshot; strict acquisition still reports them.
+
+Callers must only publish complete, nonempty model inventories on this path.
+Execution/default resolution keeps using strict `Get` and native admission.
+Caches are in memory and instance-owned, not persisted across process restarts.
+Close seals even stale reads, cancels every active probe and joins cleanup.

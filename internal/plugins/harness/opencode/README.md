@@ -57,10 +57,13 @@ OAuth refresh stays in the native server. Model services and credentials are
 configured by OpenCode. Account telemetry helpers live within this Harness.
 Credential material is excluded from durable session/UI state.
 
-Moku target discovery waits for the complete shared native catalog and exposes
+Moku target discovery reuses complete same-configuration catalogs and exposes
 exact options in its initial creation tool schema. It no longer returns an
-installation-only deferred target. Cold discovery waits for account filtering;
-fresh five-minute entries and concurrent warmups are reused. The native phase has
+installation-only deferred target. A cold configuration waits for account
+filtering; complete cached directories return immediately regardless of age.
+Expired entries trigger an owned background refresh with a 30-second failure
+cooldown. Concurrent refreshes do not block routing through the last complete
+snapshot. The native phase has
 a 30-second cancellation timer and the whole flight a 55-second budget, with
 process cleanup joined. The editor can still show the earlier native projection
 with `accountCheckPending`; Moku routing does not use that partial projection.
@@ -68,10 +71,12 @@ with `accountCheckPending`; Moku routing does not use that partial projection.
 The full native model inventory accompanies creation options, including disabled,
 unsupported and account-excluded models. Unknown capabilities may block a model's
 creation branch, but never remove its identity from Moku's routing inventory.
-Missing/empty catalogs and read errors block Moku preparation. Configuration
+Missing/empty catalogs and read errors block Moku preparation only when no
+complete matching snapshot exists. Configuration
 identity is checked both at native publication and after account filtering.
-Freshness expires after five minutes; expired reads must refresh successfully,
-without falling back to stale data. Advisory catalog reads also report cold or
+Freshness expires after five minutes; routing returns the complete old snapshot
+while refreshing. Failed, empty and malformed refreshes never replace it.
+Creation and execution still require strict settings reads and native checks. Advisory catalog reads also report cold or
 expired state explicitly. Keychain, remote and untracked include-file changes
 still rely on TTL/manual refresh or live admission. Workspace context does not
 fetch accounts; creation and live model admission retain their native checks.
@@ -187,3 +192,13 @@ assistant excerpt without acquiring full conversation content. Native
 `executionPreview` pairs that exact execution's text with its own timestamps.
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
+
+Catalog caches live on the Harness instance and are not persisted to disk. Close
+cancels and joins background refreshes; Moku handle replacement retains caches.
+
+The startup RPC crosses OpenCode 2.0.25 plugin activation readiness; failed or
+missing plugin inventories cannot publish a replacement directory. Account cache
+identity includes native database credential selection/revision columns without
+reading secrets or invalidating on unrelated session writes. Neither activation
+nor repeated stable model lists attest every remote provider completed discovery;
+see [evidence limits](../../../services/moku/catalog-evidence.md).

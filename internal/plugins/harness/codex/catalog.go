@@ -17,6 +17,7 @@ type CatalogTransport interface {
 }
 type CatalogFactory func(context.Context, string, string) (*AppServer, error)
 type catalogEntry struct {
+	identity           string
 	models             []Map
 	modelsError        error
 	computerUse        bool
@@ -34,18 +35,18 @@ type Catalog struct {
 
 func NewCatalog(factory CatalogFactory) *Catalog { return &Catalog{factory: factory} }
 func (c *Catalog) Close() error                  { return c.reads.Close() }
-func (c *Catalog) Load(ctx context.Context, cwd, configured string) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+func (c *Catalog) Load(ctx context.Context, cwd, configured string, routing ...bool) (Map, error) {
+	entry, err := c.observe(ctx, cwd, configured, false, len(routing) > 0 && routing[0])
 	if err != nil {
 		return nil, err
 	}
 	if entry.modelsError != nil {
 		return nil, entry.modelsError
 	}
-	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse}, nil
+	return Map{"models": csCopy(entry.models), "computerUse": entry.computerUse, "catalogIdentity": entry.identity}, nil
 }
 func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, refresh bool) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured, refresh)
+	entry, err := c.observe(ctx, cwd, configured, refresh, false)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -66,8 +67,8 @@ func (c *Catalog) LoadPresentation(ctx context.Context, cwd, configured string, 
 // settings panel cannot abort another reader's model admission check.
 var errIncompleteCatalog = errors.New("native catalog is incomplete")
 
-func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh ...bool) (catalogEntry, error) {
-	key := configured + "\x00" + cwd
+func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh, routing bool) (catalogEntry, error) {
+	key := codexClientName + "\x00" + configured + "\x00" + cwd
 	identity := ""
 	if c.identity != nil {
 		var err error
@@ -77,7 +78,7 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 		}
 		key += "\x00" + identity
 	}
-	entry, err := c.reads.Get(ctx, key, len(refresh) > 0 && refresh[0], 5*time.Minute, 60*time.Second, func(shared context.Context) (catalogEntry, error) {
+	probe := func(shared context.Context) (catalogEntry, error) {
 		value, err := c.probe(shared, cwd, configured)
 		if err == nil && c.identity != nil {
 			current, sourceErr := c.identity(shared, cwd, configured)
@@ -93,8 +94,16 @@ func (c *Catalog) observe(ctx context.Context, cwd, configured string, refresh .
 				err = errIncompleteCatalog
 			}
 		}
+		value.identity = key
 		return value, err
-	})
+	}
+	var entry catalogEntry
+	var err error
+	if routing {
+		entry, err = c.reads.GetStale(ctx, key, 5*time.Minute, 60*time.Second, probe)
+	} else {
+		entry, err = c.reads.Get(ctx, key, refresh, 5*time.Minute, 60*time.Second, probe)
+	}
 	// Partial native facts remain useful to their own projection, but do not
 	// earn the successful cache TTL or turn a failed defaults read into success.
 	if errors.Is(err, errIncompleteCatalog) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
@@ -157,7 +166,7 @@ func (c *Catalog) probe(ctx context.Context, cwd, configured string) (entry cata
 	return entry, nil
 }
 func (c *Catalog) LoadExecutionDefaults(ctx context.Context, cwd, configured string) (Map, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+	entry, err := c.observe(ctx, cwd, configured, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +176,7 @@ func (c *Catalog) LoadExecutionDefaults(ctx context.Context, cwd, configured str
 	return Map{"configuration": csCopy(entry.configuration), "models": csCopy(entry.models)}, nil
 }
 func (c *Catalog) ProbeAutoReview(ctx context.Context, cwd, configured string) (bool, error) {
-	entry, err := c.observe(ctx, cwd, configured)
+	entry, err := c.observe(ctx, cwd, configured, false, false)
 	if err != nil {
 		return false, err
 	}
@@ -201,7 +210,7 @@ func ListModels(ctx context.Context, transport CatalogTransport) ([]Map, error) 
 				return nil, errors.New("Codex native model catalog entry is malformed")
 			}
 			id, name := csString(model["model"]), csString(model["displayName"])
-			if id == "" || seenModels[id] {
+			if strings.TrimSpace(id) == "" || strings.ContainsRune(id, 0) || seenModels[id] {
 				return nil, errors.New("Codex native model catalog has a missing or duplicate model identifier")
 			}
 			seenModels[id] = true

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"math/big"
@@ -99,6 +100,7 @@ type CatalogSelection struct {
 	Variant  string `json:"variant,omitempty"`
 }
 type CatalogSnapshot struct {
+	identity            string
 	AccountCheckPending bool
 	ExecutablePath      string
 	Version             string
@@ -122,6 +124,7 @@ func ModelKey(provider, id string) string { return provider + "\x00" + id }
 
 func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime, nativeComplete func(*CatalogSnapshot) error, beforeBilling func() error) (*CatalogSnapshot, error) {
 	var models []CatalogNativeModel
+	var plugins []Object
 	var agents []CatalogNativeAgent
 	var providers []CatalogNativeProvider
 	var defaultModel *CatalogNativeModel
@@ -129,7 +132,7 @@ func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime,
 	requests := []struct {
 		path   string
 		output any
-	}{{"/api/model", &models}, {"/api/agent", &agents}, {"/api/provider", &providers}, {"/api/model/default", &defaultModel}, {"/api/config", &configuration}}
+	}{{"/api/plugin", &plugins}, {"/api/model", &models}, {"/api/agent", &agents}, {"/api/provider", &providers}, {"/api/model/default", &defaultModel}, {"/api/config", &configuration}}
 	errorsByRequest := make([]error, len(requests))
 	var pending sync.WaitGroup
 	for i, request := range requests {
@@ -146,6 +149,17 @@ func readCatalog(ctx context.Context, host plugin.HostContext, runtime *Runtime,
 	for _, err := range errorsByRequest {
 		if err != nil {
 			return nil, err
+		}
+	}
+	// NewRuntime's successful refresh RPC crosses native awaitActivation.
+	// Failed plugin activation can still leave a nonempty partial registry.
+	if len(plugins) == 0 {
+		return nil, errors.New("OpenCode plugin activation inventory is missing; model catalog completeness is unknown")
+	}
+	for _, entry := range plugins {
+		status := str(configRecord(entry["state"])["status"])
+		if status != "active" && status != "disabled" {
+			return nil, fmt.Errorf("OpenCode plugin %s has activation state %q; model catalog completeness is unknown", str(entry["id"]), status)
 		}
 	}
 	value := &CatalogSnapshot{ExecutablePath: runtime.ExecutablePath, Version: runtime.Version, Models: []CatalogModel{}, Agents: []CatalogAgent{}, NativeAccounts: map[string]bool{}, ExcludedModels: map[string]string{}, NativeModels: models, Providers: providers}

@@ -38,11 +38,20 @@ func New(host plugin.HostContext) *Adapter {
 			return "", err
 		}
 		env := ceEnvironment(values)
+		env["CODEX_INTERNAL_ORIGINATOR_OVERRIDE"] = codexClientName
 		home := env["CODEX_HOME"]
 		if home == "" {
 			home = filepath.Join(env["HOME"], ".codex")
 		}
-		return discovery.Identity(env, executable, filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".codex", "config.toml")), nil
+		requested := executable
+		if requested == "" {
+			requested = "codex"
+		}
+		path, _ := ceResolvePath(requested, cwd, values)
+		return discovery.Identity(env, executable, path,
+			"/Applications/Codex.app/Contents/Resources/codex",
+			filepath.Join(env["HOME"], "Library", "Keychains", "login.keychain-db"),
+			filepath.Join(home, "config.toml"), filepath.Join(home, "auth.json"), filepath.Join(cwd, ".codex", "config.toml")), nil
 	}
 	return a
 }

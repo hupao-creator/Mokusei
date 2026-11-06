@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,13 +19,18 @@ type ModelCatalogEntry struct {
 }
 
 type CompleteModelCatalog struct {
-	Models []ModelCatalogEntry `json:"models"`
+	ConfigurationID string              `json:"configurationId,omitempty"`
+	Models          []ModelCatalogEntry `json:"models"`
 }
 
-// ModelCatalogSchema must only be called after a complete native catalog read.
+// ModelCatalogSchema records complete protocol enumeration, not an attestation
+// that native remote sources finished discovery. See Moku catalog-evidence.md.
 // The inventory is distinct from executable schema branches: omitting unsupported
 // choices must not hide their model identities from cross-Harness routing.
-func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry) (json.RawMessage, error) {
+func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry, identity string) (json.RawMessage, error) {
+	if identity == "" {
+		return nil, errors.New("native model catalog configuration identity is missing")
+	}
 	if len(models) == 0 {
 		return nil, errors.New("native model catalog is empty; Moku cannot start without a complete nonempty catalog")
 	}
@@ -41,10 +47,11 @@ func ModelCatalogSchema(schema map[string]any, models []ModelCatalogEntry) (json
 	if err != nil {
 		return nil, err
 	}
+	catalog.ConfigurationID = fmt.Sprintf("%x", sha256.Sum256([]byte(identity)))
 	schema["x-mokusei-model-catalog"] = catalog
 	// Standard descriptions survive native schema serializers that discard
 	// extension keywords. Never truncate the routing inventory to candidates.
 	description, _ := schema["description"].(string)
-	schema["description"] = fmt.Sprintf("%s\nComplete native model inventory (snapshot, not an execution guarantee): %s", description, inventory)
+	schema["description"] = fmt.Sprintf("%s\nNative response inventory (all returned entries; may be cached and outdated; provider completeness and execution are not guaranteed): %s", description, inventory)
 	return json.Marshal(schema)
 }

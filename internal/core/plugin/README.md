@@ -108,3 +108,10 @@ branches. Moku checks the evidence before starting any task and exposes the whol
 inventory in the standard tool schema description. Optional `MokuTargetDiscoverer`
 uses this same contract; it cannot defer model discovery to a later tool call.
 Advisory model caches remain separate from task admission.
+
+`SettingsRequest.RoutingCatalog` permits a complete same-configuration directory
+to be stale and refreshed in the background. It is only set for Moku routing;
+creation and execution validation keep strict reads. Completeness evidence also
+contains a configuration hash, which Moku retains outside the exposed schema.
+This distinguishes a same-configuration catalog refresh from a source change at
+native admission. Snapshot descriptions explicitly allow outdated information.

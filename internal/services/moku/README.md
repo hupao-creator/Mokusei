@@ -40,6 +40,11 @@ Every `create_thread` call supplies `worktree` as a boolean. `false` uses an exp
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. All built-in targets expose their native options in the initial creation schema; Moku does not need an on-demand discovery call to compare Harnesses. Cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
+[Native catalog evidence and limits](catalog-evidence.md) distinguishes full
+protocol enumeration from provider-side completeness. The latter is not proven
+for every native configuration; do not read the schema's complete-inventory marker
+as remote-source attestation. Known incomplete/error responses fail admission.
+
 Every new Moku task requires a complete, nonempty model inventory from **every
 selected target**, before the native model receives the input. Target discovery
 runs concurrently (at most four probes) during session preparation, including
@@ -60,29 +65,48 @@ creation branches remain limited to supported choices. Partial **capabilities**
 are distinct from a partial **inventory**, which cannot start a task. Native
 catalogs cannot prove provider credentials, quota or future execution success.
 
-Before each new task, configuration fingerprints and adapter TTLs govern
-cache reuse. This implementation refreshes expired entries and blocks on failure;
-it does not use expired fallback entries, even though an intact older directory
-would be permitted. There is no persisted catalog fallback across app restarts.
-A changed configuration requires its own complete catalog. Changes to selected
-Harnesses, tracked native files or enablement during discovery reject the result.
-Changed schemas reopen the native session with preserved history; failed refresh
-never authorizes a new task through the old session. Running work retains its
-admitted configuration, including steering within that execution. Native voice validates catalogs before input admission and
-uses the confirmed-unconsumed reconnect path for changed tools; active native work
-blocks reconfiguration rather than allowing new input with changed catalogs.
+Before each new task, every selected target must supply a complete catalog bound
+to its current native configuration identity. `SettingsRequest.RoutingCatalog`
+allows a same-key complete snapshot regardless of age. Expired snapshots return
+immediately and trigger one bounded background refresh; an in-flight refresh,
+ordinary read failure, timeout or malformed/empty replacement cannot hide the
+last complete directory. Failed warm refreshes have a 30-second retry cooldown;
+a later routing read retries. Cold configurations still wait for discovery and
+block with the target's error if it fails. Missing or disabled selected targets
+are not silently skipped.
+
+Tracked native file/environment/workspace changes use a different key and cannot
+borrow another configuration's directory. A configuration identity accompanies
+the complete schema as internal evidence, separate from catalog contents. At
+native/voice admission a same-configuration refresh may have published a newer
+catalog after preparation; the already prepared complete snapshot remains valid
+for routing. It does not cause a rejected input or forced reconnect. A genuinely
+changed configuration still requires fresh preparation/reconnection. Idle session
+preparation adopts successfully refreshed tool schemas; running work retains its
+admitted configuration, including steering within that execution.
+
+Caches belong to Harness instances, not Moku handles, and survive same-process
+Moku session replacement. They are memory-only: closing the Harness cancels and
+joins owned background discovery; an application restart has no persisted catalog
+fallback. Historical native tool schemas/transcripts are not treated as trusted
+current-configuration caches. No credentials or catalogs are written to a new
+cache file. Superseded/invalidated flights cannot publish over newer ones, and a
+failed refresh never renews the successful snapshot's freshness.
 
 Creation resolves the actual destination workspace, discovers its schema again,
 validates exact options and performs Harness-native admission. Keychain, remote
 account and untracked include-file changes may remain invisible until TTL expiry,
-manual native-settings refresh or live admission. These limitations do not turn
+background/manual native-settings refresh or live admission. Cached directories
+are explicitly described as potentially outdated, not current availability.
+These limitations do not turn
 an unknown/empty directory into a complete one.
 
 OpenCode cold preparation waits for the complete shared catalog/account-filter
 flight: native discovery has a 30-second cancellation timer, the whole probe a
 55-second budget, and cleanup is joined. This can delay first input; application
-startup itself does not synchronously wait. Fresh five-minute entries and in-flight
-warmups are reused. The four Harnesses are read concurrently, not serially. Model
+startup itself does not synchronously wait. Complete same-configuration entries return without waiting even after their
+freshness TTL expires; native/account I/O runs in the background. Only a cache
+miss joins the initial native/account flight. The four Harnesses are read concurrently, not serially. Model
 inventory and creation rules stay in tool schemas, never in Moku, Tag or Report
 system prompts or dynamic system instructions.
 

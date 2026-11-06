@@ -641,7 +641,7 @@ func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsReque
 	if _, err := s.Normalize(request.Settings); err != nil {
 		return nil, err
 	}
-	catalog, err := s.catalog.Load(ctx, request.Cwd, "")
+	catalog, err := s.catalog.Load(ctx, request.Cwd, "", request.RoutingCatalog)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +655,7 @@ func (s *SettingsAPI) Describe(ctx context.Context, request plugin.SettingsReque
 		}
 		inventory = append(inventory, plugin.ModelCatalogEntry{ID: csString(entry["value"]), Name: csString(entry["displayName"]), UnavailableReason: reason})
 	}
-	return plugin.ModelCatalogSchema(SettingsSchemaForModels(models), inventory)
+	return plugin.ModelCatalogSchema(SettingsSchemaForModels(models), inventory, csString(catalog["catalogIdentity"]))
 }
 func (s *SettingsAPI) ResolveThread(ctx context.Context, request plugin.ResolveSettingsRequest) (json.RawMessage, error) {
 	merged, err := model.DecodeObject(request.Merged)

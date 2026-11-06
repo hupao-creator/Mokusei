@@ -23,6 +23,8 @@ func TestSettingsPresentationDoesNotWaitForAccount(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var value any
 		switch r.URL.Path {
+		case "/api/plugin":
+			value = []Object{{"id": "mokusei.harness", "state": Object{"status": "active"}}}
 		case "/api/model":
 			value = []Object{{"id": "paid", "providerID": "opencode", "name": "Native paid model", "enabled": true,
 				"package": "@opencode/ai/providers/openai-compatible", "variants": []any{},

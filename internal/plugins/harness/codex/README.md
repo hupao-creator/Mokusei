@@ -9,7 +9,7 @@ source must satisfy the existing idle/native-work gates. See
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
-Moku rejects empty model catalogs and reports partial creation capabilities
+Moku rejects empty initial model catalogs and reports partial creation capabilities
 when thinking controls are unknown. Target discovery reads the catalog independently of the default
 execution profile; configuration-keyed cache snapshots never replace native
 creation validation.
@@ -200,7 +200,18 @@ fallback is used for historical references.
 
 Moku requires the full nonempty native model inventory before task admission.
 Unknown thinking capabilities remain named in that inventory but cannot authorize
-creation. Failed or empty reads block preparation, including after cache expiry.
+creation. Moku routing returns complete same-configuration cached directories
+immediately, even after expiry or during refresh. Expired entries start bounded
+background refreshes; failures/empty replacements retain the last complete
+snapshot, with a 30-second warm-retry cooldown. Only a cache miss waits and blocks
+on failure. Configuration identities fence publication and native admission;
+execution/default resolution retains strict reads. Caches are Harness-owned,
+memory-only and drained on Close, not persisted across application restarts.
 The native reader includes hidden models, follows every `model/list` cursor, and
 rejects malformed pages, duplicate identities and cursor cycles instead of
 reporting a truncated directory as complete.
+
+App-server spawn fixes the originator to the same `mokusei_desktop` client used
+by initialize, including pre-initialize model discovery. Full pagination still
+cannot attest whether native discovery silently fell back to bundled metadata;
+see [evidence limits](../../../services/moku/catalog-evidence.md).

@@ -64,7 +64,7 @@ func (s relaySettingsAPI) Describe(ctx context.Context, request plugin.SettingsR
 	s.catalog.mu.Lock()
 	modelID := s.catalog.model
 	s.catalog.mu.Unlock()
-	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}})
+	return plugin.ModelCatalogSchema(map[string]any{"type": "object", "properties": map[string]any{"model": map[string]any{"type": "string", "enum": []string{modelID}}}, "required": []string{"model"}, "additionalProperties": false}, []plugin.ModelCatalogEntry{{ID: modelID}}, "fixture-native-configuration")
 }
 
 func startRelaySettingsReplay(root string, configure ...func(*moku.Configuration, *runtimepkg.Runtime)) (*voiceReplaySystem, *relaySettingsCatalog) {
