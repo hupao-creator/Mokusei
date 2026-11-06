@@ -162,7 +162,7 @@ struct NativeSidecardWorkspaceLayout: View {
     @State private var launcherFrames: [JSONText: CGRect] = [:]
     @State private var handoffProgress: CGFloat = 0
     @State private var handoffResized = false
-    @State private var absorbedCardID: JSONText?
+    @State private var foldedCardID: JSONText?
     @State private var inputTarget: ThreadConversationInputTarget?
     @State private var inputOwner = UUID()
     private var reduceMotion: Bool { motionReduced ?? systemReduceMotion }
@@ -255,7 +255,7 @@ struct NativeSidecardWorkspaceLayout: View {
                 .onChange(of: geometry.size) { _, _ in
                     guard let handoff = snapshot.handoff else { return }
                     handoffResized = true
-                    if handoff.contentReady { absorb(handoff.id, animated: false) }
+                    foldForHandoff(handoff.id, animated: false)
                 }
         }
         .nativeReadingExitCommand {
@@ -267,35 +267,42 @@ struct NativeSidecardWorkspaceLayout: View {
         .onChange(of: snapshot.selected) { previous, selected in
             if selected == nil, snapshot.focusLauncherOnClose { focusedLauncher = previous }
             else { focusedLauncher = nil }
-            if selected != nil && selected == absorbedCardID { absorbedCardID = nil }
+            if selected != nil && selected == foldedCardID { foldedCardID = nil }
         }
         .onChange(of: snapshot.handoff?.id, initial: true) { _, id in
             var transaction = Transaction(); transaction.disablesAnimations = true
             withTransaction(transaction) { handoffProgress = 0; handoffResized = false }
-            if id != nil || snapshot.input.thread.observation.isExecutionActive { absorbedCardID = nil }
+            if id != nil || snapshot.input.thread.observation.isExecutionActive { foldedCardID = nil }
         }
-        .onChange(of: snapshot.handoff?.travelComplete) { _, complete in
-            if complete == true { absorbedCardID = snapshot.handoff?.cardID }
-        }
-        .onChange(of: snapshot.handoff?.contentReady) { _, ready in
-            guard ready == true, let id = snapshot.handoff?.id else { return }
-            absorb(id, animated: !reduceMotion && !handoffResized && scenePhase == .active)
+        .task(id: snapshot.handoff?.id) {
+            // Commit the expanded source pose before starting its fold, including
+            // when a new execution replaces a cancelled handoff in the same turn.
+            await Task.yield()
+            guard !Task.isCancelled, let id = snapshot.handoff?.id,
+                  model.snapshot?.handoff?.id == id else { return }
+            foldForHandoff(id, animated: !reduceMotion && !handoffResized && scenePhase == .active)
         }
         .onChange(of: reduceMotion) { _, reduced in
             guard reduced, let handoff = snapshot.handoff else { return }
-            if handoff.contentReady { absorb(handoff.id, animated: false) }
+            foldForHandoff(handoff.id, animated: false)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active, let handoff = snapshot.handoff else { return }
             handoffResized = true
-            if handoff.contentReady { absorb(handoff.id, animated: false) }
+            foldForHandoff(handoff.id, animated: false)
         }
     }
 
-    private func absorb(_ id: UUID, animated: Bool) {
-        withAnimation(animated ? NativeReadingPageTiming.replacementAnimation : nil, completionCriteria: .removed) {
+    private func foldForHandoff(_ id: UUID, animated: Bool) {
+        guard model.snapshot?.handoff?.id == id,
+              model.snapshot?.handoff?.travelComplete == false else { return }
+        withAnimation(animated ? NativeSidecardTiming.foldAnimation : nil, completionCriteria: .removed) {
             handoffProgress = 1
-        } completion: { model.completeHandoffTravel(id) }
+        } completion: {
+            guard let handoff = model.snapshot?.handoff, handoff.id == id else { return }
+            foldedCardID = handoff.cardID
+            model.completeHandoffTravel(id)
+        }
     }
 
     private func dockFrame(in layout: NativeSidecardWorkspaceGeometry) -> CGRect? {
@@ -366,10 +373,8 @@ struct NativeSidecardWorkspaceLayout: View {
     private func sidecard(_ card: NativeSidecardWorkspaceCard, layout: NativeSidecardWorkspaceGeometry, source: CGRect?) -> some View {
         let expanded = snapshot.selected == card.id
         let promoting = snapshot.handoff?.cardID == card.id
-        let progress = promoting ? handoffProgress : 0
-        let destination = CGRect(
-            x: layout.surfaceX - (layout.stacked ? 0 : layout.surfaceWidth * 0.8 + 16) * progress,
-            y: layout.surfaceY * (1 - progress),
+        let progress = promoting ? 1 - handoffProgress : (expanded ? 1.0 : 0.0)
+        let destination = CGRect(x: layout.surfaceX, y: layout.surfaceY,
             width: layout.surfaceWidth, height: layout.surfaceHeight)
         return Group {
             if preparing { Color.clear } else { card.view.content }
@@ -380,12 +385,12 @@ struct NativeSidecardWorkspaceLayout: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .nativeLayoutLog("agent.sidecard")
             .clipShape(RoundedRectangle(cornerRadius: 21))
-            .modifier(NativeSidecardFold(progress: expanded ? 1 : 0, source: source, destination: destination,
+            .modifier(NativeSidecardFold(progress: progress, source: source, destination: destination,
                 frameIdentifier: "sidecard-aperture-" + card.id.string))
-            // Once occluded, retire the source invisibly through its normal
-            // fold. Removing handoff must not expose a second closing flight.
-            .opacity(card.id == absorbedCardID ? 0 : 1)
-            .zIndex(expanded ? 1 : 0)
+            // Keep the completed fold hidden while the destination prepares or
+            // scrolls. Clearing handoff must not expose the expanded source pose.
+            .opacity(card.id == foldedCardID ? 0 : 1)
+            .zIndex(promoting ? 3 : (expanded ? 1 : 0))
             .allowsHitTesting(expanded && !snapshot.suppressed && !promoting)
             // Native documents retain their suppression policy during travel;
             // the separate launcher remains available to reverse the choice.

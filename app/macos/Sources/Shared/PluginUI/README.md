@@ -503,9 +503,10 @@ decorative emoji and visible document title, use a compact 12pt timeline top ins
 and retain the resolved author, messages and execution actions. Full reading and
 history pages retain their headings and standard insets.
 
-The Sidecard-to-main handoff uses `NativeReadingPageTiming.replacementAnimation`
-and its compositor timing function, sequentially absorbing the original-size
-Sidecard into the widening main panel before turning down to the next execution.
+The Sidecard-to-main handoff first uses `NativeSidecardTiming.foldAnimation` to
+fold the Sidecard back to its launcher while widening the main panel. After fold
+completion and content readiness, `NativeReadingPageTiming` supplies the compositor
+curve for the downward scroll to the latest execution. No absorption motion remains.
 `NativeReadingContentHandoff` scopes a readiness callback to the exact execution;
 `ThreadConversation` forwards it only through that row. Mounted production content
 and readable errors acknowledge readiness with `nativeReadingContentReady()`;
@@ -1313,8 +1314,8 @@ Voice hides its discussion while the 380ms selection gate is active; Report
 waits for current HTML readiness plus 200ms.
 Those existing gates, document loading, Voice message entrances, Browser loading
 and annotation indicators, 220ms Report navigation retraction, the resident Dock's
-620ms response spring and the sequential 420ms execution handoff are not sidecard
-shell opening curves and retain their own policies. External pages keep their
+620ms response spring and the sequential 380ms fold / 420ms execution scroll retain
+their own sequencing policies. External pages keep their
 authored animations. No web content, native suppression, focus, media or navigation
 policy is changed to force content to appear before it is ready.
 
