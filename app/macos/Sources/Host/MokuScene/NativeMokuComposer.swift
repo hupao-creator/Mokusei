@@ -81,6 +81,7 @@ struct NativeMokuComposerInput: View {
     var disabled = false
     var busy = false
     var threadTitle: String?
+    var superThreadContext = false
     var sidecardComposer: SidecardComposerRequest?
     var placeholderIcon: AnyView?
     var readOnly = false
@@ -136,6 +137,9 @@ struct NativeMokuComposerInput: View {
         if let sidecardComposer { return sidecardComposer.placeholder }
         if let threadTitle {
             return localize("发送给「\(threadTitle)」…", "Message \(threadTitle)…")
+        }
+        if superThreadContext {
+            return localize("向 Moku 提问，附带当前 Super Thread…", "Ask Moku with this Super Thread…")
         }
         let directories = retainedDirectories ?? draft.directories
         guard let first = directories.first else {

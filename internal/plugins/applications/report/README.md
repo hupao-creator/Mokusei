@@ -1,4 +1,4 @@
-# Report application
+# Super Thread application
 
 Production evidence/read/write callbacks use the shared
 [private invocation journal](../../../platform/diagnostics/README.md), with scoped
@@ -6,11 +6,11 @@ owner, execution and batch/attempt identity. Bodies stay private and are never
 injected into report context or output. Retention/redaction is independent of
 documents, native history and mutation receipts.
 
-[plugin.go](plugin.go) declares the Report application, its settings and a **per-directory-scope** background agent. Each instance receives an explicit owner and scope, including Inbox. It observes successful ordinary-task completion and reads only evidence allowed by that binding. Its private conversation is distinct from the report documents shown to the user.
+[plugin.go](plugin.go) declares the Super Thread application, its settings and a **per-directory-scope** background agent. Each instance receives an explicit owner and scope, including Inbox. It observes successful ordinary-task completion and reads only evidence allowed by that binding. Its private conversation is distinct from the report documents shown to the user.
 
 [domain.go](domain.go) and [model.go](model.go) define document commands, queries and projections. Mutations use the Application host's planned transaction scopes, CAS and batch receipts. Report source references and semantic tag/emoji snapshots are maintained with the document; a source deletion does not rewrite the report as an executing task. HTML and full document content are queried on demand rather than embedded in the overview catalog.
 
-The Report session's exclusive tool bindings are `list_threads`,
+Super Thread Agent's exclusive tool bindings are `list_threads`,
 `get_thread_status`, `read_lifecycle_events`, `create_report`, `list_reports`,
 `read_report` and `update_report`. It exposes no `read_thread` binding or
 alternative binding for model-based source-history questions. Moku's separate
@@ -102,14 +102,14 @@ Report documents persist `emoji` (one complete Unicode emoji) and
 `shortDescription` (1–220 Unicode scalars, whitespace normalized) independently
 of HTML. Create requires both; update can replace either without changing the
 HTML content revision. Read/list and the native catalog expose these fields.
-The Report Agent supplies them through its tool schema. Its instructions ask for
+Super Thread Agent supplies them through its tool schema. Its instructions ask for
 a substantive, evidence-grounded card snapshot, with flexible Chinese and English
 length targets suited to the five-line display; the 220-scalar limit remains a
 hard validation boundary, not a target to fill. On report updates the agent
 revisits the introduction when new evidence changes the report or can make the
 card more useful. Existing descriptions are not rewritten in bulk; they change
 only when a report update supplies a replacement. Missing or invalid metadata is
-rejected; this unreleased contract has no legacy migration.
+rejected; the rebrand leaves the existing document schema unchanged.
 
 Overview uses the shared Agent card typography, excerpt renderer and upper-right
 emoji badge. The metadata row displays unique source Harness logos and update
@@ -129,4 +129,58 @@ numbers or connector lines. It shows the matching execution title, two lines of
 assistant text, Harness identity and elapsed time; token usage is not displayed.
 The host obtains exact-execution previews through the native Harness contract.
 Missing timing is explicit and empty excerpts remain empty. Existing one-click
-reader navigation and deletion/visibility handling are unchanged.
+reader navigation is retained. Explicit report links also retain failed/interrupted
+ordinary Threads that normal Overview browsing hides.
+
+
+## Identity, ownership and source context
+
+Super Thread Agent is the user-visible name of the existing private Report Agent.
+The `report` plugin ID, `report.agent`, `report.settings`, `report.document`,
+`report.records`, tool/operation names, session keys, batch receipts and execution
+references remain stable. No rename migration, history rewrite or configuration
+reset runs. The existing long prompt and verbatim ELI5 snapshot remain; the pending
+shortened prompt is not adopted, and the system prompt names no concrete tools.
+
+Create and update enforce one Super Thread per ordinary Thread inside the host's
+serialized transaction, with the whole report collection in the mutation scope.
+Archived documents retain ownership. A conflicting write returns
+`SUPER_THREAD_BINDING_CONFLICT` and the existing owner ID, with explicit unlink
+instructions. Receipt replay deduplicates creates; unchanged updates do not touch
+the report revision. Updating to a newer completed execution of the same owned
+Thread is allowed. Replacing `relatedExecutions` with a list omitting a Thread
+releases its ownership atomically, so a later transaction may bind it elsewhere.
+
+Pre-existing multiple bindings remain readable. Their exact references may be
+retained unchanged or removed, and report content can still be edited. Adding
+another owner or replacing an ambiguous reference is rejected until the other
+bindings are explicitly removed. No startup migration chooses a winner, deletes
+HTML, archives a document, or rewrites a reference. Retained references also
+survive source deletion; unchanged references do not need fresh source evidence.
+
+`report.relations` and `report.context` share a snapshot projection. It reads only
+the report's referenced ordinary Threads within the report scope, resolves each
+exact execution through its Harness, and separates current Thread execution facts
+from the report's execution facts. It distinguishes missing Thread, missing
+execution and changed scope. Binding counts include archived and historical
+conflicts, but disclose no unrelated report content. The reader shows current
+running/waiting/completed/failed/interrupted state and background work separately
+from the cited execution's state, ID and timing. Unknown historical facts never
+borrow current results. Queries coalesce streaming catalog invalidations; departure
+cancels the reader's request, and report revision/reference fences reject stale data.
+
+Unselected Super Thread input stays pinned open and sends to Moku. Its own persisted
+draft is separate from Overview and per-execution Agent drafts. Typed text,
+attachments and recorded input use `moku:submit.superThreadId`; the coordinator
+resolves full current report HTML, bounded exact-execution summaries, identity,
+workspace, current state and binding conflicts at admission. HTML is untrusted
+context and is not executed. Failed context resolution rejects the send rather
+than silently losing its source. Selecting an execution preserves the existing
+ordinary Agent send/fork/receipt route; folding or returning to the list restores
+Moku. Native and relayed voice use the same source resolver (see
+[Moku](../../../services/moku/README.md)).
+
+Sprint validation: Go formatting, architecture lint, vet and builds, and the Swift
+application product build only. No tests, integration replays, CI, PR, push or merge
+are part of this change. Native focus/animation, accessibility, real voice,
+concurrent binding and legacy-data interactions require later validation.

@@ -84,6 +84,7 @@ type Configuration struct {
 	CanonicalizeInput         func(context.Context, model.AgentInput) (model.AgentInput, error)
 	StageAttachments          func(context.Context, json.RawMessage) (any, error)
 	CollectContext            func(context.Context, string, model.Settings) ([]plugin.ContextEntry, error)
+	SuperThreadContext        func(context.Context, string) (json.RawMessage, error)
 	Ledger                    func(string) plugin.TelemetryLedger
 	PrepareNativeVoice        func(context.Context, string, []plugin.ContextEntry) (plugin.VoiceSession, error)
 	Voice                     plugin.VoiceCapability
@@ -101,6 +102,7 @@ type SubmitRequest struct {
 	Input            model.AgentInput `json:"input"`
 	DirectoryTag     *string          `json:"directoryTag,omitempty"`
 	DirectoryScopeID *string          `json:"directoryScopeId,omitempty"`
+	SuperThreadID    *string          `json:"superThreadId,omitempty"`
 	VoiceInput       *struct {
 		SessionID   string `json:"sessionId"`
 		OwnershipID string `json:"ownershipId"`

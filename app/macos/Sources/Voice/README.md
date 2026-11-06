@@ -36,3 +36,12 @@ User transcript projection keeps stable session/item identity through partial an
 [NativeVoiceCaptureAnalyser.swift](NativeVoiceCaptureAnalyser.swift) reads bounded capture samples for visual metering and emits scalar loudness/onset state. It does not provide a wake-word detector or historical PCM injection path. [VoiceControls](../Host/VoiceControls/) and the shared cloud consume that state. Rendering demand controls analysis, not microphone authority.
 
 Verification combines the Codex `-voice-only` fixture, Moku/thread Runtime replays and native voice ownership/transcript suites. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
+
+
+Moku voice carries the focused unselected Super Thread identity through preparation
+and ownership-fenced context updates. Per-client monotonic source revisions prevent
+late route updates from restoring an older source. Preparation republishes the
+latest identity before microphone setup; changing a route does not start media.
+The backend resolves report content at native admission or captured relay submit.
+Typed/attachment/recording submissions keep their explicit submit source independently
+of voice playback fences. This sprint has no microphone or voice replay validation.

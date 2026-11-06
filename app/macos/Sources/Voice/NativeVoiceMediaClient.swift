@@ -22,6 +22,9 @@ public final class NativeVoiceMediaClient {
     @ObservationIgnored private var attempt: Attempt?
     @ObservationIgnored private var stopping: Task<Void, Never>?
     @ObservationIgnored private var pendingTakeover: JSONText?
+    @ObservationIgnored private var superThreadID: JSONText?
+    @ObservationIgnored private var sourceOwner: UUID?
+    @ObservationIgnored private var sourceRevision = 0
     @ObservationIgnored var onEvent: ((NativeVoiceEvent) -> Void)?
     @ObservationIgnored var onStateChange: (() -> Void)?
 
@@ -130,6 +133,10 @@ public final class NativeVoiceMediaClient {
             try await measure(.voiceBeforeStart) { try await beforeStart() }
             try check(attempt)
             var preparation: [JSONText: JSONValue] = ["action": .text("prepare"), "requestId": .string(attempt.requestID)]
+            if role == .moku {
+                preparation["superThreadId"] = superThreadID.map(JSONValue.string) ?? .null
+                preparation["sourceRevision"] = .integer(sourceRevision)
+            }
             if let takeover = attempt.takeover { preparation["takeover"] = .string(takeover) }
             if let reconnectFrom = attempt.reconnectFrom { preparation["reconnectFrom"] = .string(reconnectFrom) }
             let prepared = try await measure(.voicePrepare) { try await command(.object(preparation)) }
@@ -146,6 +153,13 @@ public final class NativeVoiceMediaClient {
                 return
             }
             inputTranscript.begin(sessionID: sessionID)
+            if role == .moku {
+                // A route can change while preparation is suspended. Publish
+                // its latest source before enabling this attempt's microphone.
+                sourceRevision += 1
+                try await publishSuperThreadContext(attempt, id: superThreadID, revision: sourceRevision)
+                try check(attempt)
+            }
             startPolling(attempt)
             try check(attempt)
             try await measure(.voiceMicrophonePermission) { try await requestMicrophone() }
@@ -346,6 +360,32 @@ public final class NativeVoiceMediaClient {
         }
         fields["voiceInput"] = .object(["sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID), "inputId": .text(UUID().uuidString.lowercased())])
         return .object(fields)
+    }
+
+    public func setSuperThreadContext(_ id: JSONText?, owner: UUID, active: Bool) {
+        guard role == .moku, active || sourceOwner == owner else { return }
+        sourceOwner = active ? owner : nil
+        let next = active ? id : nil
+        guard next != superThreadID else { return }
+        superThreadID = next; sourceRevision += 1
+        let revision = sourceRevision
+        guard let attempt, attempt.sessionID != nil else { return }
+        Task { [weak self, weak attempt] in
+            guard let self, let attempt, self.attempt === attempt else { return }
+            do { try await publishSuperThreadContext(attempt, id: next, revision: revision) }
+            catch {
+                // A newer source publication owns recovery; an obsolete
+                // document failure must not tear down its ongoing call.
+                if self.attempt === attempt, sourceRevision == revision { fail(attempt, error) }
+            }
+        }
+    }
+
+    private func publishSuperThreadContext(_ attempt: Attempt, id: JSONText?, revision: Int) async throws {
+        guard let sessionID = attempt.sessionID else { return }
+        _ = try await command(.object(["action": .text("context"), "sessionId": .string(sessionID),
+            "ownershipId": .string(attempt.requestID), "superThreadId": id.map(JSONValue.string) ?? .null,
+            "sourceRevision": .integer(revision)]))
     }
 
     public func toggleMute() {

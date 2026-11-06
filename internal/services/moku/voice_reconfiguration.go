@@ -10,6 +10,7 @@ import (
 )
 
 type voiceReconfiguration struct {
+	superThreadID                     *string
 	owner, device, ownership, session string
 	ready                             chan struct{}
 	pending                           *plugin.VoiceDelegation
@@ -89,7 +90,7 @@ func (v *voiceController) configurationReconnectLocked(ctx context.Context, requ
 
 func (v *voiceController) ensureReconfigurationLocked(lease *mokuVoiceLease) *voiceReconfiguration {
 	if v.reconfiguration == nil || v.reconfiguration.ownership != lease.requestID {
-		v.reconfiguration = &voiceReconfiguration{owner: lease.owner, device: lease.device, ownership: lease.requestID, session: lease.id}
+		v.reconfiguration = &voiceReconfiguration{owner: lease.owner, device: lease.device, ownership: lease.requestID, session: lease.id, superThreadID: lease.superThreadID}
 	}
 	return v.reconfiguration
 }
@@ -181,6 +182,7 @@ func (v *voiceController) waitConfigurationRecovery(ctx context.Context, reconne
 func (v *voiceController) resumeConfigurationInput(lease *mokuVoiceLease) {
 	v.mu.Lock()
 	request := lease.resume
+	source := lease.resumeSuperThreadID
 	lease.resume = nil
 	v.mu.Unlock()
 	if request == nil {
@@ -204,7 +206,7 @@ func (v *voiceController) resumeConfigurationInput(lease *mokuVoiceLease) {
 		// The fresh media has no native handoff with the retired ID. Bind speech
 		// to this accepted input generation without inventing a native handoff.
 		delivery := &voiceDelivery{owner: lease.owner, session: lease.session, deliveryID: lease.id + ":" + request.ID, generation: lease.session.InputGeneration(), lease: lease}
-		err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text)}, delivery, request.Context)
+		err = v.c.submit(ctx, SubmitRequest{Input: voiceTextInput(request.Text), SuperThreadID: source}, delivery, request.Context)
 		v.c.report("voice-configuration-input", err)
 		if err != nil && !lease.session.Closed() {
 			speechCtx, cancel := voiceLeaseContext(ctx, lease)

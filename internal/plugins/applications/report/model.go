@@ -171,6 +171,24 @@ func validateReferences(refs []model.ExecutionRef) error {
 	}
 	return nil
 }
+
+// Repeated identical bindings are idempotent at every public write entrance,
+// not only the agent tool adapter. Conflicting executions of one Thread remain
+// invalid. Stored data keeps its stricter one-entry-per-Thread contract.
+func normalizeReferences(refs []model.ExecutionRef) ([]model.ExecutionRef, error) {
+	if refs == nil || len(refs) > MaxRelatedThreads {
+		return nil, validateReferences(refs)
+	}
+	unique := make([]model.ExecutionRef, 0, len(refs))
+	seen := map[model.ExecutionRef]bool{}
+	for _, ref := range refs {
+		if !seen[ref] {
+			unique = append(unique, ref)
+			seen[ref] = true
+		}
+	}
+	return unique, validateReferences(unique)
+}
 func validScope(scope string) bool {
 	return scope == "inbox" || (path.IsAbs(scope) && path.Clean(scope) == scope && !strings.ContainsRune(scope, 0))
 }

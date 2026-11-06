@@ -287,3 +287,8 @@ the whole shell so navigation remains accessible. No scrollbar is hidden to fit
 content.
 
 Attention uses the standard background configuration editor for enablement, inherited Moku configuration and an independent execution profile. Its wake intervals and visible-thread threshold are product constants.
+
+
+The former Report Agent section is named **Super Thread Agent**. Its existing
+`report.settings` identity, inherited/independent choices and enabled state are
+unchanged; reopening Settings requires no preference migration.

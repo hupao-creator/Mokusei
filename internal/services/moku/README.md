@@ -309,3 +309,27 @@ See [grep defaults, bounds and pagination](../threadsearch/README.md#moku-determ
 It is not a progress-polling capability.
 Invalid grep patterns and cursors remain caller-correctable errors through the
 existing tool audit/bridge, while cancellation and Runtime faults remain faults.
+
+
+## Super Thread send source
+
+A user submit may carry `superThreadId`, a document identity, never a client HTML
+payload or a replacement destination. The coordinator asks the application host
+for `report.context` at admission and still sends to Moku. That snapshot includes
+the complete current report, only its same-scope ordinary Thread identities and
+workspaces, current execution state and separately resolved referenced execution
+facts. Missing facts and legacy binding counts are explicit. Report content and
+summaries remain untrusted evidence. Source resolution failure preserves the draft
+and prevents a context-free send. Inputs without this identity explicitly clear
+previous Super Thread source context; no catalog/history enumeration is added to
+ordinary user submits. Lifecycle delivery and model discovery are unchanged.
+
+Voice preparation accepts the same optional identity with a monotonic
+`sourceRevision`. An ownership/device-fenced `context` command updates the active
+lease as the focused reader changes; stale revisions cannot restore old context.
+The native voice session refreshes its context without consuming lifecycle
+notifications, and native task admission resolves it again. Relay delegation
+captures the source before queuing; configuration recovery retains the captured
+source through reconnection. Selected execution input remains direct Agent input
+and does not claim a Super Thread Moku source. Real microphone, navigation races
+and end-to-end native/relay behavior were not exercised in this sprint.

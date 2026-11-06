@@ -275,7 +275,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 		allowed = []string{"id", "decision"}
 		required = allowed
 	case "moku:submit":
-		allowed = []string{"input", "directoryTag", "directoryScopeId", "voiceInput"}
+		allowed = []string{"input", "directoryTag", "directoryScopeId", "superThreadId", "voiceInput"}
 		required = []string{"input"}
 	case "harness:settings-presentation":
 		object, ok := value.(map[string]any)
@@ -299,7 +299,7 @@ func ValidateCommandArguments(channel string, args []json.RawMessage) (failure e
 	if err != nil {
 		return err
 	}
-	for _, key := range []string{"threadId", "executionId", "expectedExecutionId", "expectedCancellationId", "interactionId", "actionId", "method", "applicationSettings"} {
+	for _, key := range []string{"threadId", "executionId", "expectedExecutionId", "expectedCancellationId", "interactionId", "actionId", "method", "applicationSettings", "superThreadId"} {
 		if entry, exists := object[key]; exists {
 			if err = text(entry, 128); err != nil {
 				return err

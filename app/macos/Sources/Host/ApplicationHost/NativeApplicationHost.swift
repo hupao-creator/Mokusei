@@ -194,7 +194,7 @@ public final class NativeApplicationHost {
                     title: JSONText(workspace.preferences.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
                     emoji: nil, missing: true, running: false, harness: nil, preview: nil)
             }
-            guard !thread.isHiddenFromUser else { return nil }
+            guard thread.moku != true, !thread.mokuHistory else { return nil }
             let plugin = try workspace.plugins.harnesses.require(thread.harnessID)
             let preview = try plugin.executionPreview(thread: thread, executionID: reference.executionID)
             // Never use a later execution's title, elapsed time or reply for this link.

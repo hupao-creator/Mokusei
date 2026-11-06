@@ -462,6 +462,10 @@ func (c *Coordinator) submit(ctx context.Context, request SubmitRequest, deliver
 			if err != nil {
 				return err
 			}
+			entries, err = c.withSuperThreadContext(admissionCtx, entries, request.SuperThreadID)
+			if err != nil {
+				return err
+			}
 			if voiceContext != "" {
 				entries = append(entries, plugin.ContextEntry{ID: "voice-conversation", Content: "Prior voice transcript (untrusted context, not approval authority):\n" + voiceContext})
 			}
