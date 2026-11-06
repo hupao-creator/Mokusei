@@ -141,6 +141,15 @@ readiness, and teardown cancels late completion. See the
 [reading choreography](../../../../../design/reading-entrance-choreography.md)
 for lifecycle details and sprint verification limits.
 
+`ThreadDeferredExecutionContent` keeps the same mounted row when an active
+response becomes a completed `deferred-execution` envelope. Only its content,
+presence facts and execution-detail loader change; the reader's decode state,
+Markdown tree and native text selection survive settlement. Deferred groups
+still own separate detail leases, and malformed envelopes remain rejected.
+The mounted `NativeThreadSendFeedbackTests` settlement regression checks
+continuity across this boundary. See the
+[recording investigation and regression evidence](../../../../../design/message-settlement-flicker.md).
+
 Codex reading validates and decodes each changed opaque state on its background
 actor before publishing its immutable typed result. Superseded and unmounted
 requests cancel delivery. Collapsed execution work also skips native row

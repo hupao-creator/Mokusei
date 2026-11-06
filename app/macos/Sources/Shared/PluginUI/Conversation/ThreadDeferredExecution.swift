@@ -81,25 +81,32 @@ public struct ThreadDeferredExecutionContent<Content: View>: View {
     }
 
     public var body: some View {
-        Group {
-            if raw["kind"] == .text("deferred-execution") {
-                if let state = raw["state"], let entries = raw["nonempty"]?.arrayValue,
-                   let presence = try? ThreadExecutionPresence(entries) {
-                    render(state)
-                        .environment(\.threadExecutionPresence, presence)
-                        .environment(\.threadExecutionLoader, { group in
-                            AnyView(DeferredExecutionGroup(demand: demand,
-                                make: { context.contentResource(.execution(rowKey)) }) { value in
-                                    render(value)
-                                        .environment(\.threadExecutionPresence, ThreadExecutionPresence())
-                                        .environment(\.threadExecutionLoader, nil)
-                                        .environment(\.threadExecutionGroup, group)
-                                })
-                        })
-                } else { Text("Invalid deferred execution content").foregroundStyle(.red) }
-            } else { render(raw) }
+        let deferred = raw["kind"] == .text("deferred-execution")
+        let state = deferred ? raw["state"] : raw
+        let presence = deferred
+            ? raw["nonempty"]?.arrayValue.flatMap { try? ThreadExecutionPresence($0) }
+            : ThreadExecutionPresence()
+        return Group {
+            if let state, let presence {
+                // Settlement changes the wire envelope, not the mounted row.
+                // Keep one render site so decoding, Markdown and native selection
+                // survive the active-to-deferred boundary without a blank frame.
+                render(state)
+                    .environment(\.threadExecutionPresence, presence)
+                    .environment(\.threadExecutionLoader, deferred ? executionGroup : nil)
+            } else { Text("Invalid deferred execution content").foregroundStyle(.red) }
         }
         .onDisappear { demand.clear() }
+    }
+
+    private func executionGroup(_ group: JSONText) -> AnyView {
+        AnyView(DeferredExecutionGroup(demand: demand,
+            make: { context.contentResource(.execution(rowKey)) }) { value in
+                render(value)
+                    .environment(\.threadExecutionPresence, ThreadExecutionPresence())
+                    .environment(\.threadExecutionLoader, nil)
+                    .environment(\.threadExecutionGroup, group)
+            })
     }
 }
 

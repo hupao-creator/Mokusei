@@ -123,6 +123,8 @@ struct NativeThreadSendFeedbackTests {
         var holdDestination = false
         var destinationError = false
         var sourceSubscriptions: Set<String> = []
+        var settleNewRow = false
+        var publishedSettledNewRow = false
 
         init(execution: JSONText = "old", status: PublicExecution.Status = .completed, allCards: Bool = false, foldProbe: FoldProbeState? = nil) throws {
             client = RuntimeClient(profile: try RuntimeProfile(dataDirectory: directory))
@@ -178,7 +180,6 @@ struct NativeThreadSendFeedbackTests {
                 var published: [String: JSONValue] = [:]
                 while !Task.isCancelled {
                     guard let self else { return }
-                    let state = contentState
                     for (id, scope) in await client.sendFeedbackSubscriptions() {
                         if scope == .turn(key: "turn:new"), !sourceSubscriptions.contains(id) {
                             if holdDestination { continue }
@@ -190,24 +191,44 @@ struct NativeThreadSendFeedbackTests {
                                 continue
                             }
                         }
+                        let state = contentState(for: scope)
                         if published[id] != state {
                             host.receive(.threadContent(subscriptionId: id, state: .ready(state)))
                             published[id] = state
+                            if scope == .turn(key: "turn:new"), settleNewRow { publishedSettledNewRow = true }
                         }
                     }
                     do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
                 }
             }
         }
+        func contentState(for scope: RuntimeContentScope) -> JSONValue {
+            let state = contentState
+            switch scope {
+            case .thread: return state
+            case .turn(let key), .execution(let key):
+                let turns = state["turns"]!.arrayValue!.filter { JSONText("turn:" + $0["executionId"]!.stringValue!) == key }
+                let row = JSONValue.object(["schema": state["schema"]!, "updatedAt": state["updatedAt"]!,
+                    "backgroundTerminals": .array([]), "turns": .array(turns)])
+                // Match the runtime's completed-row envelope. Execution detail
+                // stays full; active rows become deferred at settlement.
+                if case .turn = scope, let turn = turns.first,
+                   !["running", "waiting-input"].contains(turn["status"]!.stringValue!) {
+                    return .object(["kind": .text("deferred-execution"), "state": row, "nonempty": .array([])])
+                }
+                return row
+            }
+        }
         var contentState: JSONValue {
             .object(["schema": .text("mokusei.harness.codex.thread.v1"), "updatedAt": .integer(4),
                 "backgroundTerminals": .array([]), "turns": .array(["old", "new"].map { id in
                     let latest = configuration.input.thread.observation.latestExecution
-                    let active = latest?.executionID == JSONText(id) && configuration.input.thread.observation.isExecutionActive
+                    let active = latest?.executionID == JSONText(id) && configuration.input.thread.observation.isExecutionActive && !(id == "new" && settleNewRow)
                     let text = id == "old" ? "Previous main execution" : "New execution becomes the main result"
                     var turn: [JSONText: JSONValue] = ["executionId": .text(id), "status": .text(active ? "running" : "completed"),
                         "createdAt": .integer(id == "old" ? 1 : 2), "updatedAt": .integer(4),
                         "answer": .text(text), "reasoning": .text(""),
+                        "author": .object(["model": .text(id == "new" && settleNewRow ? "settled-model" : "gpt-6.1-sol"), "effort": .text("high")]),
                         "messages": .array([.object(["id": .text(id + "-reply"), "role": .text("assistant"), "kind": .text("answer"),
                             "content": .text(text), "createdAt": .integer(3), "attachments": .array([])])]),
                         "timeline": .array([.object(["id": .text(id + "-reply"), "kind": .text("assistant"), "itemId": .text(id + "-native-reply"),
@@ -222,6 +243,59 @@ struct NativeThreadSendFeedbackTests {
             model.release(); await host.releaseAll(); await client.close()
             try? FileManager.default.removeItem(at: directory)
         }
+    }
+
+    @Test(.requiresDisplay)
+    func settlingScopedContentPreservesTheMountedReplyAndSelection() async throws {
+        let fixture = try Fixture()
+        defer { fixture.pump?.cancel(); fixture.model.release() }
+        fixture.request(UUID(), accepted: "new")
+        try fixture.observe()
+        _ = try CodexState(fixture.contentState)
+        fixture.startContentPump()
+        let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model, reduceMotion: false)
+            .environment(\.locale, Locale(identifier: "en-US")), width: 1180, height: 620)
+        defer { window.close() }
+        let root = try #require(window.contentView)
+        func reply(in view: NSView) -> NSTextView? {
+            if let text = view as? NSTextView, text.string == "New execution becomes the main result" { return text }
+            return view.subviews.lazy.compactMap { reply(in: $0) }.first
+        }
+        do {
+            try await SwiftUIReplay.wait(timeout: .seconds(8)) {
+                fixture.model.snapshot?.selected == "conversation" && reply(in: root) != nil
+            }
+        } catch {
+            print("SETTLEMENT_ADMISSION selected=\(String(describing: fixture.model.snapshot?.selected)) text=\(SwiftUIReplay.text(in: root)) subscriptions=\(await fixture.client.sendFeedbackSubscriptions())")
+            await fixture.close()
+            throw error
+        }
+        let original = try #require(reply(in: root))
+        let selection = NSRange(location: 4, length: 9)
+        original.setSelectedRange(selection)
+        // Scoped row settlement can precede the catalog's completion/handoff.
+        // Observe this boundary on the actual Codex reader, including its async
+        // decoder and native Markdown, rather than a duplicate row classifier.
+        fixture.settleNewRow = true
+        _ = try CodexState(fixture.contentState)
+        try await SwiftUIReplay.wait { fixture.publishedSettledNewRow }
+        var retained = true
+        try await SwiftUIReplay.wait {
+            retained = retained && original.isDescendant(of: root) && reply(in: root) === original
+                && original.selectedRange() == selection
+            // The author preference confirms the completed row was actually
+            // decoded and applied, rather than only delivered to the resource.
+            return SwiftUIReplay.text(in: root).contains { $0.contains("Author: settled-model") }
+        }
+        for _ in 0..<20 {
+            root.layoutSubtreeIfNeeded()
+            retained = retained && original.isDescendant(of: root) && reply(in: root) === original
+                && original.selectedRange() == selection
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(retained, "Settlement detached the reply or lost its native selection")
+        #expect(fixture.model.snapshot?.selected == "conversation")
+        await fixture.close()
     }
 
     @Test(arguments: [true, false])
