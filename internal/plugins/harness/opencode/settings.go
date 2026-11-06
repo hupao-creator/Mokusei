@@ -63,7 +63,6 @@ type SettingsAPI struct {
 	active          map[*settingsCatalogFlight]struct{}
 	closed          bool
 	cleanupErr      error
-	retryAfter      map[string]time.Time
 	closeOnce       sync.Once
 	closeErr        error
 	routingCatalogs discovery.Cache[*CatalogSnapshot]
@@ -226,17 +225,6 @@ func (s *SettingsAPI) DefaultThread(raw json.RawMessage) (json.RawMessage, error
 		return nil, err
 	}
 	return json.Marshal(value)
-}
-func (s *SettingsAPI) Invalidate() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return
-	}
-	s.generation++
-	s.cache = map[string]catalogCacheEntry{}
-	s.pending = map[string]*settingsCatalogFlight{}
-	s.publishers = map[string]*settingsCatalogFlight{}
 }
 
 type catalogSource struct {

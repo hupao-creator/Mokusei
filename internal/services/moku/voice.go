@@ -563,18 +563,6 @@ func (v *voiceController) required(id, ownershipID, device string) (*mokuVoiceLe
 	return lease, nil
 }
 
-func (v *voiceController) owns(owner string) bool {
-	v.mu.Lock()
-	lease := v.active
-	v.mu.Unlock()
-	if lease == nil || lease.owner != owner || lease.ctx.Err() != nil || lease.session.Closed() {
-		return false
-	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.active == lease
-}
-
 func (v *voiceController) attach(lease *mokuVoiceLease) error {
 	v.mu.Lock()
 	v.active = lease

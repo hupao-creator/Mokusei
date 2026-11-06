@@ -69,27 +69,6 @@ func (adapter) Project(v json.RawMessage) (model.PublicObservation, error) {
 	return model.PublicObservation{}, nil
 }
 
-func source(snapshot store.Snapshot, body bool) ([]threadsearch.Source, error) {
-	result := []threadsearch.Source{}
-	for _, key := range snapshot.Keys("thread:") {
-		var t model.ThreadRecord
-		_, err := snapshot.Get(key, &t)
-		if err != nil {
-			return nil, err
-		}
-		if t.Moku || t.Archived != nil && *t.Archived {
-			continue
-		}
-		hash, _ := snapshot.RecordHash(key)
-		item := threadsearch.Source{Ref: model.ThreadRef{ThreadID: t.ID, TypeID: "agent"}, Owner: key, OwnerHash: hash, Identity: key + "\x00" + fmt.Sprint(t.CreatedAt), Title: t.Title, Cwd: t.Cwd, Tags: t.Tags}
-		item.Busy = t.Observation.BackgroundWork != nil || (t.Observation.LatestExecution != nil && !t.Observation.LatestExecution.Terminal())
-		if body {
-			item.LoadContent = func() (string, error) { return adapter{}.SearchText(t.SessionState) }
-		}
-		result = append(result, item)
-	}
-	return result, nil
-}
 func thread(id, title, text string) model.ThreadRecord {
 	return model.ThreadRecord{SessionRecord: model.SessionRecord{ID: id, HarnessID: "fixture", Revision: 0, CreatedAt: 1, UpdatedAt: 1, Cwd: "/synthetic/项目", Settings: raw(map[string]any{}), SessionState: raw(map[string]any{"text": text, "private": "NEVER_UPLOAD"})}, Title: title, Tags: []string{"Maintenance"}, TagEmojis: map[string]string{"Maintenance": "🔧"}}
 }

@@ -122,7 +122,7 @@ public struct VoiceSidecardContent: View {
                             NativeIcon(name: "ArrowDown", size: 13)
                             Text(presentation.translate(presentation.newMessages ? "新消息" : "回到最新"))
                         }.font(NativeTypography.inter(size: 11)).padding(.horizontal, 12).padding(.vertical, 7)
-                    }.buttonStyle(VoiceButtonStyle(kind: .jump))
+                    }.buttonStyle(VoiceJumpButtonStyle())
                         .padding(.bottom, 12)
                 }
             }
