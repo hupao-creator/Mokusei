@@ -527,7 +527,13 @@ func (h *Handle) Send(ctx context.Context, request plugin.SendRequest) error {
 		}
 		if err = native.Steer(ctx, input); err != nil {
 			h.mu.Lock()
-			commitErr := h.commit(context.Background(), RejectFollowUp(h.state, active, err.Error(), now(), uid()))
+			next := RejectFollowUp(h.state, active, err.Error(), now(), uid())
+			if errors.Is(err, errSteerNotAdmitted) {
+				// The audit error and removal of this exact unconsumed input must
+				// commit together before Core may move it to a successor.
+				discardUnadmittedFollowUp(next, active, messageID)
+			}
+			commitErr := h.commit(context.Background(), next)
 			h.mu.Unlock()
 			if errors.Is(err, errSteerTargetEnded) && commitErr == nil {
 				// A positive native rejection plus published terminal state is

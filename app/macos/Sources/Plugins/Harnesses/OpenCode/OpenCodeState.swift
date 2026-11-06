@@ -99,10 +99,12 @@ struct OpenCodeState: Hashable, Sendable {
 struct OpenCodeMessage: Hashable, Sendable, Identifiable {
     let raw: JSONValue
     init(_ value: JSONValue) throws {
-        try ocOnly(value, ["id", "executionId", "role", "text", "nativeSessionId", "nativeMessageId", "createdAt", "status", "thinking", "parts", "toolCallId", "toolName", "arguments", "result", "argumentsDisplay", "resultDisplay", "metadata", "isError", "model", "provider", "variant", "usage", "attachments", "todos", "inherited", "annotations"])
+        try ocOnly(value, ["id", "executionId", "role", "text", "nativeSessionId", "nativeMessageId", "createdAt", "status", "thinking", "parts", "toolCallId", "toolName", "arguments", "result", "argumentsDisplay", "resultDisplay", "metadata", "isError", "model", "provider", "variant", "usage", "attachments", "todos", "inherited", "annotations", "presentation", "followUp"])
         _ = try ocRequiredText(value, "id", nonempty: true); _ = try ocRequiredText(value, "executionId", nonempty: true)
         _ = try ocRequiredText(value, "text")
         guard ["user", "assistant", "tool"].contains(value["role"]?.stringValue ?? "") else { throw OpenCodeError.invalidState }
+        if let presentation = value["presentation"], !["ordinary", "internal"].contains(presentation.stringValue ?? "") { throw OpenCodeError.invalidState }
+        if let followUp = value["followUp"], value["role"] != .text("user") || followUp.boolValue == nil { throw OpenCodeError.invalidState }
         try ocOptionalText(value, ["nativeSessionId", "nativeMessageId", "thinking", "toolCallId", "toolName", "model", "provider", "variant"])
         for field in ["arguments", "result"] {
             if let display = value[field + "Display"] {
@@ -143,6 +145,7 @@ struct OpenCodeMessage: Hashable, Sendable, Identifiable {
     var executionID: JSONText { raw.ocID("executionId") }
     var nativeSessionID: JSONText? { raw.ocText("nativeSessionId") }
     var role: String { raw["role"]!.stringValue! }
+    var isSteer: Bool { raw["followUp"] == .bool(true) && raw["presentation"] == .text("ordinary") }
     var text: String { raw["text"]!.stringValue! }
     var status: String? { raw["status"]?.stringValue }
     var inherited: Bool { raw["inherited"] == .bool(true) }

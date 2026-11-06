@@ -1,5 +1,13 @@
 # Pi adapter
 
+Ordinary input retained by `Send` carries `followUp` from the owning execution's
+active state and `createdAt` from that input's retention time (milliseconds).
+These fields survive full and deferred execution projections and exact forks;
+they do not certify native/model consumption. Native echoes without the retained
+input identity do not acquire it. Agent detail admits only ordinary follow-ups,
+with text and message time; it does not infer identity or time for older records.
+Directory/Overview compaction keeps its existing bounded schema.
+
 Exact execution forks accept `{executionId}`. The adapter verifies the complete
 ordered native/public assistant sequence and linear JSONL ancestry before
 trimming to that execution's native prefix, then uses the existing independent

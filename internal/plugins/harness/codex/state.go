@@ -128,6 +128,41 @@ func RejectFollowUp(state Map, id, message string, at int64, noticeID string) Ma
 	return next
 }
 
+// next owns the execution copy made by RejectFollowUp. Keep its audit notice,
+// but remove only the input proven unconsumed, never equal text or other sends.
+// Generic transport failures do not authorize calling this helper.
+func discardUnadmittedFollowUp(next Map, executionID, messageID string) {
+	for _, value := range stArray(next["turns"]) {
+		turn := stMap(value)
+		if turn["executionId"] != executionID {
+			continue
+		}
+		messages := []any{}
+		found := false
+		for _, value := range stArray(turn["messages"]) {
+			message := stMap(value)
+			if message["id"] == messageID && message["role"] == "user" && message["kind"] == "follow-up" {
+				found = true
+				continue
+			}
+			messages = append(messages, value)
+		}
+		if !found {
+			return
+		}
+		turn["messages"] = messages
+		timeline := []any{}
+		for _, value := range stArray(turn["timeline"]) {
+			item := stMap(value)
+			if item["kind"] != "user-message" || item["messageId"] != messageID {
+				timeline = append(timeline, value)
+			}
+		}
+		turn["timeline"] = timeline
+		return
+	}
+}
+
 // ReduceEvent uses event.at when supplied, allowing deterministic native replay.
 // Generation usage also contributes execution-scoped reasoning totals; public-final
 // remains controller-owned.

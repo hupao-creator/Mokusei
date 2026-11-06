@@ -342,7 +342,8 @@ func (n *NativeSession) publish(e Map) {
 	}
 }
 
-var errSteerTargetEnded = errors.New("Codex steer target ended before admission")
+var errSteerNotAdmitted = errors.New("Codex steer was not admitted")
+var errSteerTargetEnded = fmt.Errorf("%w: target ended", errSteerNotAdmitted)
 
 func (n *NativeSession) Steer(ctx context.Context, input []any) error {
 	// Normal task admission must reconcile acknowledgement even after cancellation.
@@ -375,10 +376,10 @@ func (n *NativeSession) steer(ctx, requestParent context.Context, input []any) e
 		return errSteerTargetEnded
 	}
 	if turn == "" {
-		return errors.New("Codex 当前没有可续发的 turn")
+		return fmt.Errorf("%w: Codex 当前没有可续发的 turn", errSteerNotAdmitted)
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return errors.Join(errSteerNotAdmitted, err)
 	}
 	requestCtx, cancel := context.WithTimeout(requestParent, 30*time.Second)
 	defer cancel()
@@ -399,9 +400,9 @@ func (n *NativeSession) steer(ctx, requestParent context.Context, input []any) e
 	case <-done:
 		return errSteerTargetEnded
 	case <-ctx.Done():
-		return errors.Join(err, ctx.Err())
+		return errors.Join(errSteerNotAdmitted, err, ctx.Err())
 	case <-requestCtx.Done():
-		return errors.Join(err, requestCtx.Err())
+		return errors.Join(errSteerNotAdmitted, err, requestCtx.Err())
 	}
 }
 

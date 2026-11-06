@@ -200,7 +200,7 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
     if !message.parts.isEmpty { return ocJoinedID([message.id, JSONText(":\(type):\(part["ordinal"]?.intValue ?? 0)")]) }
     return type == "text" ? message.id : ocJoinedID([message.id, ":reasoning"])
 }
-@MainActor private func ocMessageRows(_ messages: [OpenCodeMessage], sessionID: JSONText?, finalReplies: Set<JSONText>, actions: HarnessThreadActions, context: HarnessRenderContext, locale: Locale, presence: ThreadExecutionPresence = .init(), agentDetail: Bool = true, executionActive: Bool = false, messageAnchorID: JSONText? = nil) -> [ThreadDetailRow] {
+@MainActor private func ocMessageRows(_ messages: [OpenCodeMessage], sessionID: JSONText?, finalReplies: Set<JSONText>, actions: HarnessThreadActions, context: HarnessRenderContext, locale: Locale, presence: ThreadExecutionPresence = .init(), agentDetail: Bool = true, executionActive: Bool = false, messageAnchorID: JSONText? = nil, includesSteer: Bool = true) -> [ThreadDetailRow] {
     let tools = Dictionary(uniqueKeysWithValues: messages.filter { $0.role == "tool" }.map { ($0.id, $0) })
     let placedTools = Set(messages.filter { !agentDetail || $0.role == "assistant" }.flatMap { message in message.parts.filter { $0["type"]?.stringValue == "tool" }.map { ocJoinedID([message.id, ":tool:", $0.ocID("toolCallId")]) } })
     var children: [JSONText: [OpenCodeMessage]] = [:]
@@ -215,7 +215,7 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
             let id = ocJSONStringID([.string(message.executionID), .string(native)])
             guard placedSessions.insert(id).inserted else { continue }
             let session = children[id] ?? []
-            let rows = ocMessageRows(session, sessionID: native, finalReplies: ocFinalReplyIDs(session, sessionID: native, splitTurns: false, presence: presence, agentDetail: agentDetail), actions: actions, context: context, locale: locale, presence: presence, agentDetail: agentDetail, executionActive: executionActive, messageAnchorID: messageAnchorID)
+            let rows = ocMessageRows(session, sessionID: native, finalReplies: ocFinalReplyIDs(session, sessionID: native, splitTurns: false, presence: presence, agentDetail: agentDetail), actions: actions, context: context, locale: locale, presence: presence, agentDetail: agentDetail, executionActive: executionActive, messageAnchorID: messageAnchorID, includesSteer: false)
             guard !rows.isEmpty else { continue }
             let failed = agentDetail && rows.contains { $0.kind == .attention && $0.execution == nil }
             let targetedReplyIDs = Set(session.filter {
@@ -235,7 +235,7 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
                 execution: failed || targeted ? nil : .member, executionSummary: .init(reasoningSegments: rows.reduce(0) { $0 + ($1.executionSummary?.reasoningSegments ?? 0) }, toolCalls: rows.reduce(0) { $0 + ($1.executionSummary?.toolCalls ?? 0) })))
             continue
         }
-        if !agentDetail && message.role == "user" {
+        if message.role == "user" && (!agentDetail || includesSteer && message.isSteer) {
             let annotations = (message.raw["annotations"]?.arrayValue ?? []).map { annotation in
                 ThreadMessageAnnotation(id: annotation.ocID("id"), url: annotation["url"]?.stringValue ?? "", title: annotation["title"]?.stringValue,
                     comment: annotation["comment"]?.stringValue ?? "", screenshotId: annotation.ocText("screenshotId"))
@@ -243,9 +243,12 @@ private func ocMessagePartRowID(_ message: OpenCodeMessage, _ part: JSONValue) -
             let attachments = (message.raw["attachments"]?.arrayValue ?? []).enumerated().map { index, attachment in
                 ThreadMessageAttachment(id: ocJoinedID([message.id, JSONText(":attachment:\(index)")]), label: attachment["name"]?.stringValue ?? "", title: attachment["mimeType"]?.stringValue)
             }
-            result.append(.init(id: message.id, kind: .user, node: AnyView(ThreadMessage(id: message.id, author: .user, content: message.text,
+            let fullMessage = ThreadMessage(id: message.id, author: .user, content: message.text,
                 annotations: annotations, attachments: attachments, openExternal: { url in Task { try? await actions.openExternal(JSONText(url.absoluteString)) } },
-                resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment))))
+                resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment)
+            let node = agentDetail ? AnyView(ThreadSteerMessage(content: message.text, createdAt: message.raw["createdAt"]?.numberValue,
+                details: attachments.isEmpty && annotations.isEmpty ? nil : AnyView(fullMessage))) : AnyView(fullMessage)
+            result.append(.init(id: message.id, kind: agentDetail ? .steer : .user, node: node))
             continue
         }
         if message.role == "tool" { if !placedTools.contains(message.id), renderedTools.insert(message.id).inserted { result.append(ocToolRow(message, locale: locale, agentDetail: agentDetail)) }; continue }

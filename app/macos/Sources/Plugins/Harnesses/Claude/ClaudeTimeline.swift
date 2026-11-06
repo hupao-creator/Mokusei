@@ -16,7 +16,7 @@ struct ClaudeTimelineEntry: View {
     @State private var reviewExpanded = true
     var body: some View {
         switch item.claudeKind {
-        case "user-message": if !agentDetail { userMessage }
+        case "user-message": userMessage
         case "assistant": VStack(alignment:.leading,spacing:8) {
             if turn == nil { Text("Mokusei").font(NativeTypography.inter(size:11)).foregroundStyle(NativePalette.thread.muted.swiftUI) }
             markdown(item["content"]?.stringValue ?? "")
@@ -51,13 +51,13 @@ struct ClaudeTimelineEntry: View {
         default: EmptyView() // Diff and usage are deliberately excluded from Claude's chronological body.
         }
     }
-    private var userMessage: some View {
+    @ViewBuilder private var userMessage: some View {
         let index = item["promptIndex"]?.intValue ?? 0
         let content = turn.flatMap { index < $0.prompts.count ? $0.prompts[index].stringValue : nil } ?? item["content"]?.stringValue ?? ""
         let attachments = turn.flatMap { value -> [JSONValue]? in
             let lists = value.raw["promptAttachments"]?.arrayValue ?? []; return index < lists.count ? lists[index].arrayValue : nil
         } ?? item["attachments"]?.arrayValue ?? []
-        return ThreadMessage(id: item.claudeID("id"), author: .user, content: content, steeringLabel: t(index == 0 ? "你" : "补充"),
+        let fullMessage = ThreadMessage(id: item.claudeID("id"), author: .user, content: content, steeringLabel: agentDetail ? nil : t(index == 0 ? "你" : "补充"),
             annotations: attachments.compactMap { attachment in
                 guard let annotation = attachment["annotation"] else { return nil }
                 return ThreadMessageAnnotation(id: annotation.claudeID("id"), url: annotation["url"]?.stringValue ?? "",
@@ -66,6 +66,10 @@ struct ClaudeTimelineEntry: View {
             }, attachments: attachments.filter { $0["annotation"] == nil }.map {
                 ThreadMessageAttachment(id: $0.claudeID("id"), label: $0["name"]?.stringValue ?? "", title: "\($0["mimeType"]?.stringValue ?? "") · \(Int($0["size"]?.numberValue ?? 0)) B")
             }, openExternal: { url in Task { try await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment)
+        if agentDetail {
+            ThreadSteerMessage(content: content, createdAt: item["createdAt"]?.numberValue,
+                details: attachments.isEmpty ? nil : AnyView(fullMessage))
+        } else { fullMessage }
     }
     private func markdown(_ text: String, streaming: Bool = false) -> some View { NativeMarkdownView(text: text, streaming: streaming, openExternal: { url in Task { try await actions.openExternal(JSONText(url.absoluteString)) } }, resolveMedia: context.resolveMedia) }
     private func t(_ value: String) -> String { claudeLocalized(value, locale: locale) }

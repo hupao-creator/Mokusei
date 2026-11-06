@@ -172,7 +172,7 @@ private struct PiTurn: View {
         let withholdingReplies = [.running, .waitingForUser].contains(execution.status)
         let finalID = waiting && withholdingReplies ? nil : messages.last { $0.role == "assistant" && (!withholdingReplies || $0.status != "streaming") && (!agentDetail || !$0.isError && $0.status != "failed") && !piTrim($0.text).codeUnits.isEmpty }?.id
         var rows: [ThreadDetailRow] = []
-        for message in messages where !agentDetail || message.role == "assistant" || message.role == "tool" {
+        for message in messages where !agentDetail || message.role == "assistant" || message.role == "tool" || message.isSteer {
             let final = message.role == "assistant" && message.id == finalID
             if message.role == "assistant",
                message.thinking.map({ !piTrim($0).codeUnits.isEmpty }) == true || executionPresence.contains(message.id, "thinking") {
@@ -190,7 +190,7 @@ private struct PiTurn: View {
             if message.role == "assistant" && piTrim(message.text).codeUnits.isEmpty && !executionPresence.contains(message.id, "text") { continue }
             let kind: ThreadDetailRow.Kind
             if agentDetail && message.role != "tool" && (message.isError || message.status == "failed") { kind = .attention }
-            else if message.role == "user" { kind = .user }
+            else if message.role == "user" { kind = agentDetail ? .steer : .user }
             else if agentDetail && message.role == "assistant" && (withholdingReplies || final || message.id == visibility.messageAnchorID) { kind = .content }
             else { kind = message.role == "tool" || !final ? .work : .content }
             rows.append(ThreadDetailRow(id: message.id, kind: kind,
@@ -223,12 +223,16 @@ private struct PiTurn: View {
                     .foregroundStyle(failed ? NativePalette.thread.danger.swiftUI : NativePalette.thread.ink.swiftUI)
             }
         } else {
-            ThreadMessage(id: message.id, author: message.role == "user" ? .user : .assistant, content: message.text.string,
+            let fullMessage = ThreadMessage(id: message.id, author: message.role == "user" ? .user : .assistant, content: message.text.string,
                 annotations: message.annotations.compactMap { value in
                     guard let id = piText(value["id"]) else { return nil }
                     return ThreadMessageAnnotation(id: id, url: value["url"]?.stringValue ?? "", title: value["title"]?.stringValue,
                         comment: value["comment"]?.stringValue ?? "", screenshotId: piText(value["screenshotId"]))
                 }, openExternal: openExternal, resolveMedia: context.resolveMedia, previewAttachment: context.previewAttachment)
+            if agentDetail && message.isSteer {
+                ThreadSteerMessage(content: message.text.string, createdAt: message.createdAt,
+                    details: message.annotations.isEmpty ? nil : AnyView(fullMessage))
+            } else { fullMessage }
         }
     }
     private func openExternal(_ url: URL) { Task { do { try await actions.openExternal(JSONText(url.absoluteString)) } catch { failure = error.localizedDescription } } }

@@ -515,7 +515,19 @@ func (t *Thread) beforeModel(ctx context.Context, request ModelRequest) error {
 func (t *Thread) acceptEvent(ctx context.Context, event Event, replay bool, expected ...*Runtime) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.closed || t.stopping || len(expected) > 0 && t.native != expected[0] {
+	if t.closed || len(expected) > 0 && t.native != expected[0] {
+		return nil
+	}
+	if t.stopping {
+		// A lost HTTP reply can start cleanup before its native inbox event
+		// arrives. Retain only the exact pending input fact; do not advance
+		// replay cursors past other events ignored during shutdown.
+		input, pending := t.state.SteerInputs[str(event.Data["inboxID"])]
+		if event.Type == "session.inbox.enqueued" && pending && input.NativeSessionID == eventSession(event) {
+			if t.state.observeInboxInput(event.Data, "", event.Created) != nil {
+				return t.commitLocked(ctx)
+			}
+		}
 		return nil
 	}
 	session := eventSession(event)
@@ -1014,7 +1026,8 @@ func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
 	if presentation == "" {
 		presentation = "ordinary"
 	}
-	message := &Message{ID: promptID, NativeMessageID: promptID, NativeSessionID: t.state.NativeSessionID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation, Text: prepared.VisibleText, Status: "complete", CreatedAt: time.Now().UnixMilli(), Annotations: append(json.RawMessage{}, request.Input.Annotations...)}
+	message := &Message{ID: promptID, NativeMessageID: promptID, NativeSessionID: t.state.NativeSessionID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation,
+		FollowUp: active != nil, Text: prepared.VisibleText, Status: "complete", CreatedAt: time.Now().UnixMilli(), Annotations: append(json.RawMessage{}, request.Input.Annotations...)}
 	if active == nil {
 		t.state.Messages = append(t.state.Messages, message)
 		if t.state.NativeSessionID != "" {
@@ -1087,22 +1100,38 @@ func (t *Thread) Send(ctx context.Context, request plugin.SendRequest) error {
 				}
 			}
 		}
+		if err == nil && active != nil {
+			t.mu.Lock()
+			if t.closed || t.stopping || t.native != runtime || t.state.NativeSessionID != id {
+				err = errors.New("OpenCode steer owner changed before dispatch")
+			} else {
+				if t.state.SteerInputs == nil {
+					t.state.SteerInputs = map[string]SteerInput{}
+				}
+				// Persist the identity association before native I/O, separately
+				// from Messages. This records intent, not successful delivery.
+				t.state.SteerInputs[promptID] = SteerInput{ExecutionID: request.ExecutionID, NativeSessionID: id,
+					Presentation: presentation, Text: message.Text, CreatedAt: message.CreatedAt,
+					Annotations: append(json.RawMessage(nil), message.Annotations...)}
+				err = t.commitLocked(ctx)
+			}
+			t.mu.Unlock()
+		}
 		if err == nil {
 			dispatched = true
 			err = runtime.Request(ctx, "POST", sessionPath(id, "/prompt"), Object{"id": promptID, "text": prepared.Text, "files": prepared.Files, "metadata": Object{"mokuseiExecutionId": request.ExecutionID, "mokuseiPresentation": presentation}, "delivery": "steer"}, nil)
 			received = err == nil
 		}
 		if err == nil && active != nil {
-			// A steer is retained only after native acceptance. Its inbox event can
-			// arrive before this receipt, so enrich that message rather than duplicate it.
+			// Inbox/history evidence may already have retained this exact input.
+			// HTTP success uses the same reconciliation, never a second append.
 			t.mu.Lock()
 			message.NativeSessionID = id
-			if known := t.state.message("user", promptID, id); known != nil {
-				*known = *message
+			if retained := t.state.observeUserMessage(message); retained == nil || !retained.FollowUp || retained.ExecutionID != request.ExecutionID {
+				err = errors.New("OpenCode steer message identity conflicts with retained input")
 			} else {
-				t.state.Messages = append(t.state.Messages, message)
+				err = t.commitLocked(ctx)
 			}
-			err = t.commitLocked(ctx)
 			t.mu.Unlock()
 			if err == nil && request.Admitted != nil {
 				err = request.Admitted()
@@ -1219,6 +1248,23 @@ func (t *Thread) stopResources(ctx context.Context, outcome, reason string) erro
 			var inbox []Object
 			if runtime.Request(cleanupCtx, "GET", sessionPath(session, "/inbox"), nil, &inbox) == nil {
 				for _, item := range inbox {
+					// An item still queued natively is acceptance evidence even if
+					// its event/HTTP reply was lost. Preserve it before deleting it.
+					inputID := str(item["id"])
+					t.mu.Lock()
+					if input, pending := t.state.SteerInputs[inputID]; pending && input.NativeSessionID == session {
+						if t.state.observeUserMessage(&Message{ID: inputID, NativeMessageID: inputID, NativeSessionID: session, Role: "user"}) == nil {
+							closeErr = errors.Join(closeErr, errors.New("OpenCode inbox input conflicts with retained identity"))
+							t.mu.Unlock()
+							continue
+						}
+						if err := t.commitLocked(cleanupCtx); err != nil {
+							closeErr = errors.Join(closeErr, err)
+							t.mu.Unlock()
+							continue
+						}
+					}
+					t.mu.Unlock()
 					_ = runtime.Request(cleanupCtx, "DELETE", sessionPath(session, "/inbox/"+url.PathEscape(str(item["id"]))), nil, nil)
 				}
 			}
@@ -1234,7 +1280,7 @@ func (t *Thread) stopResources(ctx context.Context, outcome, reason string) erro
 		if unsubscribe != nil {
 			unsubscribe()
 		}
-		closeErr = runtime.Close()
+		closeErr = errors.Join(closeErr, runtime.Close())
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()

@@ -8,7 +8,7 @@ func threadExecutionResultAnchor(_ executionID: JSONText) -> JSONText {
 
 /// Opaque, plugin-rendered rows; the shared UI never decodes their content.
 public struct ThreadDetailRow: Identifiable {
-    public enum Kind: String, Sendable { case user, work, content, attention }
+    public enum Kind: String, Sendable { case user, steer, work, content, attention }
 
     public let id: JSONText
     public let kind: Kind
@@ -168,7 +168,7 @@ public struct ThreadDetailTurn: View {
             // a Harness supplies an attention style for the failed record.
             if $0.execution != nil { return workVisible }
             return switch $0.kind {
-            case .content, .attention: true
+            case .content, .attention, .steer: true
             case .work: workVisible
             case .user: !agentDetail && visibility.userMessages
             }

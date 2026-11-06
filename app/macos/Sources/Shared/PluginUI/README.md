@@ -457,6 +457,22 @@ for the isolated production-control comparison and its visual limitations.
 
 [Conversation/ThreadConversation.swift](Conversation/ThreadConversation.swift) and [ThreadTimeline.swift](Conversation/ThreadTimeline.swift) organize reading from the Harness's public turn index. [ThreadExecutionGroups.swift](Conversation/ThreadExecutionGroups.swift) presents adjacent execution rows under a summary with reasoning/tool counts and reported reasoning usage. Only the latest process summary in the latest running Agent execution carries a left-to-right text highlight, and only while it is also the final message-stream group. Harnesses classify the native tail before withholding streaming replies; a later assistant reply stops the sweep immediately, including before its text is mounted. OpenCode checks the last native part because replies, reasoning and tools can share a message. The 64pt band uses opaque strong reading ink with a broad center and soft edges. Only while motion is admitted, its text base uses 55% muted ink so both sides of the band visibly recede; the wrench keeps normal ink. Reduce Motion, inactive scenes and pending entrance restore normal static ink. Colors follow the light/dark palette; earlier groups, history, completed/interrupted/failed executions and waiting-for-user states stay static. Harnesses supply execution-running state separately from reader activity. The decorative leaf uses the shared frame cadence, pauses outside the active scene or before reading admission, and remains static under Reduce Motion; it adds no accessibility content or hit target. The highlight travels at roughly 180pt/s with a short gap between passes, without animating the wrench or changing text layout. In Agent Thread detail, the reading header's execution visibility control shows only this summary: nested Used tools group titles, Hooks, tool calls, commands, reasoning bodies and failed-tool diagnostics are details and never mount. Agent-only background terminal/task sections likewise show static counts/status rather than commands or descriptions, and hide with work; task failure is not a standalone Harness error. Summary-only historical groups do not acquire the scoped loader in [ThreadDeferredExecution.swift](Conversation/ThreadDeferredExecution.swift). Other conversation surfaces retain full member rows and scoped historical demand while visible. Execution membership takes precedence over attention styling, so a tool failure cannot escape the visibility group. Standalone errors and pending interactions keep their own timeline rows; a visible nonmember splitting a native run receives distinct summary identities. The summary itself has no disclosure arrow, hover treatment, keyboard focus or accessibility/reading action. Individual activity disclosures on other conversation surfaces retain their existing behavior.
 
+[ThreadSteerMessage.swift](Conversation/ThreadSteerMessage.swift) presents explicit
+ordinary follow-ups in Agent detail as one line of literal text and one line of
+recorded message time. It has no author/sequence heading, receipt state or status
+icon. Missing time is not replaced by the execution timestamp. Text that does not
+fit the actual reading width can expand; attachment/annotation detail reuses the
+Harness's existing user-message renderer only after expansion. System Reduce
+Motion removes the explicit expansion animation. `.steer` rows remain visible
+independently of user-input/work visibility and split execution summaries in their
+native order, without creating an execution or moving the input target.
+Codex uses non-internal `follow-up` messages; Claude uses non-internal prompt
+indices after zero within an exact turn. Pi/OpenCode use persisted ordinary-input
+`followUp` identity, owned by their send boundary. Unknown native/imported input
+identity and OpenCode child-session input stay hidden; Claude's unscoped inherited
+transcript has no per-execution prompt index and is not guessed into follow-ups.
+The normal composer retains ownership of pending/error/unknown command receipts.
+
 [ThreadDetailFrame.swift](Conversation/ThreadDetailFrame.swift) and shared typography retain reading insets and the centered column. [NativeReadingPageStack.swift](Conversation/NativeReadingPageStack.swift) owns retained page transitions, with host navigation described [here](../../Host/WindowNavigation/README.md).
 
 [ThreadHistorySidebar.swift](Conversation/ThreadHistorySidebar.swift) presents the

@@ -65,6 +65,16 @@ without an unused unbounded native copy.
 
 Terminal publication completes before another input reuses a reservation. When `turn/steer` returns exactly `-32600 / no active turn to steer`, RPC rejection can arrive before queued terminal notifications. The adapter waits on that captured turn's completion within the request deadline, then checks durable settlement before Core reserves a successor. It does not reissue steering to poll for completion. An undispatched ended reservation may be replaced through Core admission once; a rejected dispatched steer remains a failed audited attempt without changing the original execution's outcome. [background.go](background.go) reconciles turn-scoped activities and native background terminals. Interrupt waits for authoritative cleanup; failed/unknown terminal listing cannot be treated as empty.
 
+A positively unadmitted follow-up removes only its captured message ID and its
+user-message timeline references from the old execution, in the same commit as
+the audit error. Equal text in other messages is unaffected. This also applies
+when an exact native rejection is known but waiting for settlement times out;
+that timeout still does not authorize a successor. Generic transport failures
+retain their input because native acceptance is unknown. Core can reserve a
+successor only after the existing durable-settlement gate and successful commit.
+No delivery status is added to the native text/time message UI. See the
+[identity correction record](../../../../design/steer-message-identity.md).
+
 Text and reasoning deltas commit in 50 ms batches, flushing earlier at 1,024
 events or 256 KiB. The first native reasoning status publishes immediately; repeated
 identical analysis statuses do not flush each chunk. Other native boundaries,

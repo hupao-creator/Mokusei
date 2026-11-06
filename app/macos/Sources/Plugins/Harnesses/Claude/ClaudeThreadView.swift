@@ -140,12 +140,16 @@ struct ClaudeTurnView: View {
             usage: AnyView(ThreadTokenUsage(input: inputs.allSatisfy { $0 != nil } ? inputs.compactMap { $0 }.reduce(0,+) : nil,
                 output: usage?["outputTokens"]?.numberValue, cached: usage?["cachedTokens"]?.numberValue,
                 cacheWrite: usage?["cacheWriteTokens"]?.numberValue, reasoning: usage?["reasoningTokens"]?.numberValue)), active: active, executionRunning: turn.status == "running" && !waiting,
-                executionTailIsWork: claudeProjectTimeline(turn).last(where: claudeDetailIncludes)
+                executionTailIsWork: claudeProjectTimeline(turn).last(where: {
+                    claudeDetailIncludes($0) && ($0.claudeKind != "user-message" || !turn.internalIndexes.contains($0["promptIndex"]?.intValue ?? -1))
+                })
                     .map { ["reasoning", "activity"].contains($0.claudeKind) } ?? false)
             .nativeReadingExecutionReady(turn.id, settled: turn.status != "running")
     }
     private var rows: [ThreadDetailRow] {
-        let timeline = claudeProjectTimeline(turn).filter { agentDetail ? claudeDetailIncludes($0) : $0.claudeKind != "plan" }, starts = claudeActivityRunStarts(turn)
+        let timeline = claudeProjectTimeline(turn).filter {
+            agentDetail ? claudeDetailIncludes($0) && ($0.claudeKind != "user-message" || !turn.internalIndexes.contains($0["promptIndex"]?.intValue ?? -1)) : $0.claudeKind != "plan"
+        }, starts = claudeActivityRunStarts(turn)
         let final = waiting && turn.status == "running" ? nil : timeline.last(where: { $0.claudeKind == "assistant" && $0["status"]?.stringValue != "streaming" && (!agentDetail || $0["status"]?.stringValue != "failed") && !claudeTrim($0["content"]).isEmpty })?.claudeID("id")
         var rows: [ThreadDetailRow] = [], index = 0
         while index < timeline.count {
@@ -217,6 +221,7 @@ struct ClaudeTurnView: View {
 // this at the reader boundary; notices remain available to other consumers.
 func claudeDetailIncludes(_ item: JSONValue) -> Bool {
     switch item.claudeKind {
+    case "user-message": (item["promptIndex"]?.intValue ?? 0) > 0
     case "assistant", "reasoning", "activity", "interaction", "review", "context-compaction", "error": true
     case "notice": item["notice"]?["level"]?.stringValue == "error"
     default: false
@@ -224,7 +229,7 @@ func claudeDetailIncludes(_ item: JSONValue) -> Bool {
 }
 func claudeRowKind(_ item: JSONValue, final: Bool, agentDetail: Bool = true, executionActive: Bool = false, messageAnchorID: JSONText? = nil) -> ThreadDetailRow.Kind {
     switch item.claudeKind {
-    case "user-message": .user
+    case "user-message": agentDetail ? .steer : .user
     case "assistant": agentDetail && item["status"]?.stringValue == "failed" ? .attention : final || agentDetail && (executionActive || item.claudeID("id") == messageAnchorID) ? .content : .work
     case "activity": .work
     case "interaction": item["interaction"]?["status"]?.stringValue == "pending" ? .attention : .work

@@ -525,7 +525,8 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 	if presentation == "" {
 		presentation = "ordinary"
 	}
-	h.state.Messages = append(h.state.Messages, MessageState{ID: echo.ID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation, Text: visible, Annotations: append(json.RawMessage(nil), request.Input.Annotations...)})
+	h.state.Messages = append(h.state.Messages, MessageState{ID: echo.ID, ExecutionID: request.ExecutionID, Role: "user", Presentation: presentation,
+		FollowUp: steering, CreatedAt: time.Now().UnixMilli(), Text: visible, Annotations: append(json.RawMessage(nil), request.Input.Annotations...)})
 	if err = h.commitLocked(); err != nil {
 		_ = json.Unmarshal(backup, &h.state)
 		h.mu.Unlock()

@@ -35,8 +35,13 @@ tools/activities, approvals/questions, review, context compaction, background wo
 execution status, author and usage. Errors are exempt from the content allowlist:
 explicit error records, error-level notices, failed assistant messages and
 execution failures remain readable, including after completion and with work collapsed.
-Input messages (user, developer/system), ordinary info/warning notices and plan
-timeline entries are excluded. History headings and sidebar labels use the title
+Explicit ordinary follow-up inputs remain in their native chronological position,
+including after execution completion. They use a compact two-line surface: literal
+text and the recorded message time, without an author/sequence heading or delivery
+status. Long text and attachment/annotation details expand on demand; absent
+message times stay absent. Initial user input, internal/developer/system input,
+ordinary info/warning notices and plan timeline entries are excluded.
+History headings and sidebar labels use the title
 stored for their exact execution. Until it is available, they use that execution's
 user instruction, falling back to its timestamp when the instruction is blank or unavailable.
 Thread title/emoji remain catalog metadata; the current title is never used to

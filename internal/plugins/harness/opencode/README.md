@@ -1,5 +1,24 @@
 # OpenCode Go adapter
 
+Direct ordinary input retains `followUp` when `Send` targets an already active
+execution. Its existing `createdAt` is the captured submission time, not an
+acceptance or model-processing time. Before native I/O, `steerInputs` durably
+associates the submitted message ID with its exact native session, execution,
+visible input, timestamp and annotations. This private association is excluded
+from renderer projections and does not create a message or acknowledge admission.
+A successful HTTP prompt reply, matching native inbox event, or user-message
+history record consumes the association into one canonical message. Duplicate
+evidence retains its identity and original execution even after a successor
+changes the session's current execution. Different-session/identity conflicts do
+not reassign a retained input. Unconfirmed dispatch associations remain private.
+Cleanup retains matching late inbox events and persists matching queued inputs
+before deleting native inbox items; identity or persistence failure keeps the
+item and reports the error. Full/deferred execution projections retain the fact;
+Agent detail uses it for compact text/time rows. Unknown imported/native input
+identity and child-session prompts do not become user steer rows. Directory
+compaction keeps its existing schema; no historical marker is inferred. See the
+[identity correction record](../../../../design/steer-message-identity.md).
+
 Exact execution forks accept `{executionId}` beside the existing message
 selector (mutually exclusive). A completed execution resolves to its last root
 message in native transcript order and uses the existing checkpoint/import
@@ -23,8 +42,11 @@ output keep their deferred presentation. Error
 and failed-message payloads, including child sessions, remain available for
 independent diagnostics; retained tool failures do not bypass Agent summaries. Canonical history and full/execution projections retain their existing data.
 An HTTP prompt receipt admits input; terminal native execution facts settle it.
-New executions retain their input before dispatch. Follow-up input is retained and
-acknowledged only after its native prompt receipt; a rejected steer leaves the
+New executions retain their input before dispatch. Follow-up message retention
+requires a native prompt receipt or matching native inbox/history evidence;
+the command's `Admitted` callback still requires its successful HTTP prompt
+receipt. Lost HTTP acknowledgement is not automatically retried or converted
+into command success merely because a message was recovered. A rejected steer leaves the
 running execution available. Permission and form replies release the state lock
 while waiting for native HTTP, and interruption cancels and drains those replies.
 

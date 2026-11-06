@@ -76,6 +76,7 @@ struct CodexTurnRows: View {
             if $0.kind == "notice", !noticeIDs.insert($0.raw.codexIdentity("noticeId")).inserted { return false }
             if !agentDetail { return $0.kind != "plan" }
             return switch $0.kind {
+            case "user-message": messages[$0.raw.codexIdentity("messageId")].map { $0.role == "user" && $0.kind == "follow-up" && !$0.isInternal } ?? false
             case "assistant", "reasoning", "activity", "interaction", "review", "context-compaction", "error": true
             case "notice": notices[$0.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error"
             default: false
@@ -112,7 +113,7 @@ struct CodexTurnRows: View {
             let failure = item.kind == "error" ||
                 (item.kind == "notice" && notices[item.raw.codexIdentity("noticeId")]?["level"]?.stringValue == "error") ||
                 (agentDetail && item.kind == "assistant" && item.status == "failed")
-            if item.kind == "user-message" { kind = .user }
+            if item.kind == "user-message" { kind = agentDetail ? .steer : .user }
             else if (failure && (agentDetail || turn.status != "completed")) ||
                 (item.kind == "interaction" && interactions[item.raw.codexIdentity("interactionId")]?.status == "pending") { kind = .attention }
             else if item.kind == "review" || (item.kind == "assistant" && (agentDetail && (turn.active || item.id == visibility.messageAnchorID) || turn.status != "waiting-input" && index == lastAssistant)) { kind = .content }

@@ -28,6 +28,7 @@ type Message struct {
 	ExecutionID     string          `json:"executionId"`
 	Role            string          `json:"role"`
 	Presentation    string          `json:"presentation,omitempty"`
+	FollowUp        bool            `json:"followUp,omitempty"`
 	Text            string          `json:"text"`
 	NativeSessionID string          `json:"nativeSessionId,omitempty"`
 	NativeMessageID string          `json:"nativeMessageId,omitempty"`
@@ -102,6 +103,19 @@ type ForkSource struct {
 	MessageID  string `json:"messageId,omitempty"`
 	Transcript Object `json:"transcript"`
 }
+
+// A private dispatch association is not a conversation message or an admission
+// receipt. It survives uncertain HTTP outcomes until native evidence matches
+// both the submitted message ID (the map key) and its exact native session.
+type SteerInput struct {
+	ExecutionID     string          `json:"executionId"`
+	NativeSessionID string          `json:"nativeSessionId"`
+	Presentation    string          `json:"presentation"`
+	Text            string          `json:"text"`
+	CreatedAt       int64           `json:"createdAt"`
+	Annotations     json.RawMessage `json:"annotations,omitempty"`
+}
+
 type State struct {
 	Version              int                      `json:"version"`
 	NativeSessionID      string                   `json:"nativeSessionId,omitempty"`
@@ -111,6 +125,7 @@ type State struct {
 	NativeContextEntries []plugin.ContextEntry    `json:"nativeContextEntries,omitempty"`
 	ForkSource           *ForkSource              `json:"forkSource,omitempty"`
 	Messages             []*Message               `json:"messages"`
+	SteerInputs          map[string]SteerInput    `json:"steerInputs,omitempty"`
 	ExecutionAuthors     map[string]Object        `json:"executionAuthors,omitempty"`
 	Executions           []*model.PublicExecution `json:"executions"`
 	LatestExecutionID    *string                  `json:"latestExecutionId"`
@@ -152,6 +167,9 @@ func DecodeState(raw json.RawMessage) (*State, error) {
 		if v == nil || v.ID == "" || v.ExecutionID == "" || ids[v.ID] || (v.Role != "assistant" && v.Role != "user" && v.Role != "tool") {
 			return nil, errors.New("invalid OpenCode message state")
 		}
+		if v.FollowUp && v.Role != "user" {
+			return nil, errors.New("OpenCode follow-up identity belongs to user input")
+		}
 		ids[v.ID] = true
 	}
 	ids = map[string]bool{}
@@ -163,6 +181,12 @@ func DecodeState(raw json.RawMessage) (*State, error) {
 	}
 	if s.LatestExecutionID != nil && !ids[*s.LatestExecutionID] {
 		return nil, errors.New("OpenCode latest execution is missing")
+	}
+	for id, input := range s.SteerInputs {
+		if id == "" || input.NativeSessionID == "" || !ids[input.ExecutionID] || input.CreatedAt < 0 ||
+			(input.Presentation != "ordinary" && input.Presentation != "internal") {
+			return nil, errors.New("invalid OpenCode steer input association")
+		}
 	}
 	for _, v := range s.Interactions {
 		if v == nil || v.ID == "" || v.ExecutionID == "" || v.SessionID == "" {
@@ -270,6 +294,71 @@ func (s *State) message(role, id, session string) *Message {
 	}
 	return nil
 }
+
+// Call only with a native user-message/inbox fact or a successful prompt reply.
+// Submission alone stays in SteerInputs and never enters the renderer.
+func (s *State) observeUserMessage(incoming *Message) *Message {
+	id, session := incoming.NativeMessageID, incoming.NativeSessionID
+	if id == "" || session == "" {
+		return nil
+	}
+	input, submitted := s.SteerInputs[id]
+	if submitted && input.NativeSessionID != session {
+		return nil
+	}
+	var known *Message
+	for _, message := range s.Messages {
+		if message.ID == incoming.ID || message.NativeMessageID == id && message.NativeSessionID == session {
+			// A shared native ID is not permission to reassign a different
+			// session or execution's retained message.
+			if message.Role != "user" || message.NativeSessionID != "" && message.NativeSessionID != session ||
+				submitted && message.ExecutionID != input.ExecutionID {
+				return nil
+			}
+			known = message
+			break
+		}
+	}
+	if submitted {
+		retained := &Message{ID: incoming.ID, NativeMessageID: id, NativeSessionID: session,
+			ExecutionID: input.ExecutionID, Role: "user", FollowUp: true, Presentation: input.Presentation,
+			Text: input.Text, CreatedAt: input.CreatedAt, Annotations: append(json.RawMessage(nil), input.Annotations...),
+			Status: "complete", Inherited: incoming.Inherited}
+		if known != nil {
+			retained.ID = known.ID
+			*known = *retained
+		} else {
+			known = retained
+			s.Messages = append(s.Messages, known)
+		}
+		delete(s.SteerInputs, id)
+		return known
+	}
+	if known != nil {
+		known.NativeMessageID, known.NativeSessionID = id, session
+		if known.Presentation == "" {
+			known.Presentation = incoming.Presentation
+		}
+		return known
+	}
+	if incoming.ExecutionID == "" {
+		return nil
+	}
+	s.Messages = append(s.Messages, incoming)
+	return incoming
+}
+
+func (s *State) observeInboxInput(data Object, owner string, at int64) *Message {
+	item := object(data["item"])
+	if item["type"] != "user" {
+		return nil
+	}
+	id, session := str(data["inboxID"]), str(data["sessionID"])
+	payload := object(item["payload"])
+	return s.observeUserMessage(&Message{ID: id, NativeMessageID: id, NativeSessionID: session,
+		ExecutionID: owner, Role: "user", Presentation: str(object(payload["metadata"])["mokuseiPresentation"]),
+		Text: str(payload["text"]), CreatedAt: at})
+}
 func (s *State) assistant(id, session, execution string, at int64) *Message {
 	if m := s.message("assistant", id, session); m != nil {
 		return m
@@ -376,6 +465,12 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 			continue
 		}
 		kind := str(v["type"])
+		if kind == "user" {
+			s.observeUserMessage(&Message{ID: id, NativeMessageID: id, NativeSessionID: session,
+				ExecutionID: execution, Role: "user", Presentation: str(object(v["metadata"])["mokuseiPresentation"]),
+				Text: str(v["text"]), CreatedAt: int64(number(object(v["time"])["created"])), Inherited: inherited})
+			continue
+		}
 		known := s.message(kind, id, session)
 		owner := execution
 		if known != nil {
@@ -385,18 +480,6 @@ func (s *State) MergeMessages(messages []any, session, execution string, inherit
 			continue
 		}
 		at := int64(number(object(v["time"])["created"]))
-		if kind == "user" {
-			if known == nil {
-				s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Presentation: str(object(v["metadata"])["mokuseiPresentation"]), Text: str(v["text"]), CreatedAt: at, Inherited: inherited})
-			} else {
-				if presentation := str(object(v["metadata"])["mokuseiPresentation"]); presentation != "" && known.Presentation == "" {
-					known.Presentation = presentation
-				}
-				known.NativeMessageID = id
-				known.NativeSessionID = session
-			}
-			continue
-		}
 		if kind != "assistant" {
 			continue
 		}
@@ -564,13 +647,8 @@ func (s *State) Reduce(event Event, owner string) error {
 			}
 		}
 	}
-	if t == "session.inbox.enqueued" && owner != "" {
-		item := object(data["item"])
-		id := str(data["inboxID"])
-		if item["type"] == "user" && s.message("user", id, session) == nil {
-			payload := object(item["payload"])
-			s.Messages = append(s.Messages, &Message{ID: id, NativeMessageID: id, NativeSessionID: session, ExecutionID: owner, Role: "user", Presentation: str(object(payload["metadata"])["mokuseiPresentation"]), Text: str(payload["text"]), CreatedAt: event.Created})
-		}
+	if t == "session.inbox.enqueued" {
+		s.observeInboxInput(data, owner, event.Created)
 	}
 	if (t == "session.compaction.ended" || t == "session.compaction.failed") && owner != "" {
 		if u := nativeUsage(data["tokens"], data["cost"]); u != nil {

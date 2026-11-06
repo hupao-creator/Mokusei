@@ -101,6 +101,8 @@ struct PiMessage: Identifiable {
     let provider: JSONText?
     let usage: PiUsage?
     let annotations: [JSONValue]
+    var isSteer: Bool { raw["followUp"] == .bool(true) && raw["presentation"] == .text("ordinary") }
+    var createdAt: Double? { raw["createdAt"]?.numberValue }
     init(_ raw: JSONValue) throws {
         self.raw = raw
         let r = try PiReader(raw)
@@ -109,7 +111,11 @@ struct PiMessage: Identifiable {
         role = try r.text("role"); text = try r.text("text")
         let common: Set<JSONText> = ["id", "executionId", "role", "text"]
         switch role {
-        case "user": try r.only(common.union(["annotations"]))
+        case "user":
+            try r.only(common.union(["annotations", "presentation", "followUp", "createdAt"]))
+            if let presentation = try r.optionalText("presentation"), !["ordinary", "internal"].contains(presentation) { throw PiReader.failure }
+            _ = try r.optionalBool("followUp")
+            if r.value["createdAt"] != nil { _ = try r.integer("createdAt") }
         case "assistant": try r.only(common.union(["status", "thinking", "model", "provider", "usage"]))
         case "tool": try r.only(common.union(["toolCallId", "toolName", "isError", "todos"]))
         default: throw PiReader.failure

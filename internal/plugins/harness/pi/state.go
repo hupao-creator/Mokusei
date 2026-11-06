@@ -15,6 +15,8 @@ type MessageState struct {
 	ExecutionID  string          `json:"executionId"`
 	Role         string          `json:"role"`
 	Presentation string          `json:"presentation,omitempty"`
+	FollowUp     bool            `json:"followUp,omitempty"`
+	CreatedAt    int64           `json:"createdAt,omitempty"`
 	Text         string          `json:"text"`
 	Status       string          `json:"status,omitempty"`
 	Thinking     string          `json:"thinking,omitempty"`
@@ -70,6 +72,9 @@ func decodeState(raw json.RawMessage) (State, error) {
 		}
 		if row.Role != "user" && len(row.Annotations) > 0 {
 			return state, errors.New("Pi annotations belong only to user messages")
+		}
+		if row.CreatedAt < 0 || row.Role != "user" && (row.FollowUp || row.CreatedAt != 0) {
+			return state, errors.New("invalid Pi input timing or follow-up identity")
 		}
 		if row.Usage != nil {
 			u := row.Usage
