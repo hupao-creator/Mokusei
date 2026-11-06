@@ -257,7 +257,9 @@ struct NativeReportDetail: View {
                             .foregroundStyle(.secondary).padding(12)
                     }
                     ForEach(references, id: \.reference) { item in
-                        NativeReportExecutionRow(item: item, locale: locale,
+                        NativeReportExecutionRow(item: item, locale: locale, logo: { id in
+                            try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).logo(id, 12)
+                        },
                             relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
                             visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
                             guard !sidecards.retainingForReturn else { return }

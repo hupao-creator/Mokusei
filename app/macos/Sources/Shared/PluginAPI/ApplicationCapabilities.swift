@@ -118,8 +118,7 @@ public struct ApplicationExecutionPresentation: Hashable, Sendable {
     public struct Harness: Hashable, Sendable {
         public let id: JSONText
         public let displayName: JSONText
-        public let logoSource: String
-        public init(id: JSONText, displayName: JSONText, logoSource: String) { self.id = id; self.displayName = displayName; self.logoSource = logoSource }
+        public init(id: JSONText, displayName: JSONText) { self.id = id; self.displayName = displayName }
     }
     public let reference: ApplicationExecutionRef
     public let title: JSONText

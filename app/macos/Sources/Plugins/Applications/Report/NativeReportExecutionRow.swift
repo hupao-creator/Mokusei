@@ -7,6 +7,7 @@ import SwiftUI
 struct NativeReportExecutionRow: View {
     let item: ApplicationExecutionPresentation
     let locale: JSONText
+    let logo: (JSONText) throws -> AnyView
     let relation: NativeReportRelation?
     let visible: Bool
     let open: () -> Void
@@ -45,8 +46,13 @@ struct NativeReportExecutionRow: View {
                 }
                 HStack(spacing: 5) {
                     if let harness = item.harness {
-                        ThreadCardBrandLogo(logoSource: harness.logoSource,
-                            label: harness.displayName.string, brandKey: harness.id.string)
+                        switch Result(catching: { try logo(harness.id) }) {
+                        case .success(let view):
+                            view.frame(width: 12, height: 12).accessibilityLabel(harness.displayName.string)
+                        case .failure(let error):
+                            NativeIcon(name: "CircleAlert", size: 12).help(error.localizedDescription)
+                                .accessibilityLabel(error.localizedDescription)
+                        }
                         Text(harness.displayName.string).lineLimit(1)
                     }
                     if item.missing { Text(applicationText(locale, "已删除", "Deleted")) }

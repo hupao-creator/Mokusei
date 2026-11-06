@@ -203,7 +203,7 @@ public final class NativeApplicationHost {
             return ApplicationExecutionPresentation(reference: reference, title: title,
                 emoji: nativeGeneratedThreadEmoji(metadata: thread.metadataState), missing: false,
                 running: preview?.running ?? false,
-                harness: .init(id: plugin.descriptor.id, displayName: plugin.descriptor.displayName, logoSource: plugin.logoSource),
+                harness: .init(id: plugin.descriptor.id, displayName: plugin.descriptor.displayName),
                 preview: preview)
         }
     }

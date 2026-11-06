@@ -25,6 +25,10 @@ both modes, and changing a mode/profile preserves the switch.
 
 [Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
 
+Execution reference metadata carries the Harness identity and display name. Report
+cards and related execution rows obtain its native logo through the renderer's
+execution references capability, preserving the Harness's appearance-specific colors.
+
 [SemanticTagLabel.swift](SemanticTagLabel.swift) validates names and emoji maps using the generated pinned table. [HarnessGitStatus.swift](HarnessGitStatus.swift) supplies typed worktree facts to standard card extensions without turning Git into a Harness-specific feature.
 Its `lineStatsError` describes a failed statistics attempt independently of a
 stale whole-worktree read. Unknown totals have no numeric value; known zeroes
