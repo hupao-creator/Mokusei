@@ -36,7 +36,11 @@ remaining hot paths and parallel-change intersections.
 
 ## SwiftUI / AppKit reading text comparison
 
-Build and run the production-linked Release probe:
+This is a historical comparison. The SwiftUI migration has been reverted;
+the benchmark source and measurements remain for reconsideration. The driver
+refuses to run against the restored AppKit-only sources, including stale Release
+artifacts. To reproduce, use revision `39d0941` in a separately managed checkout
+and rebuild its matching production modules before running:
 
 ```sh
 swift build --package-path app/macos -c release -Xswiftc -enable-testing

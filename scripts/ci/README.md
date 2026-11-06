@@ -67,7 +67,7 @@ The native job performs these stages:
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
    only when their existing producer environment is supplied.
-5. Run all ten `interop` checks and all thirteen `native` checks serially.
+5. Run all ten `interop` checks and all twelve `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -118,12 +118,6 @@ The Moku note capsule hydration/wrapping/copy/input case uses
 keyboard and TextKit mouse tracking for all four Harnesses, and emits
 `MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
 only because that same method has a mandatory native outcome and receipt.
-
-The SwiftUI paragraph selection/Copy, link-click and footnote navigation methods
-use `native/swiftui-markdown` and require their `SWIFTUI_*_CONFIRMED` markers.
-SwiftPM's ordinary host can exit during the system text-selection tracking loop without a terminal summary;
-exit zero is not evidence. These exact methods therefore have a mandatory AppKit
-owner. The remaining Markdown cases keep their ordinary coverage.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings

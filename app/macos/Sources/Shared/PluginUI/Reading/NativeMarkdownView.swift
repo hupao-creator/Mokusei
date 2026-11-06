@@ -75,7 +75,7 @@ public struct NativeMarkdownView: View {
             } else if streaming {
                 // One literal span preserves native selection/copy without
                 // parsing Markdown, constructing blocks or resolving media.
-                MarkdownReadingText(spans: [MarkdownSpan(text: text)], fontSize: fontSize,
+                MarkdownSelectableText(spans: [MarkdownSpan(text: text)], fontSize: fontSize,
                     muted: muted, selectionScope: model.anchorPrefix, openLink: actions.open)
             } else {
                 MarkdownContent(blocks: model.blocks, options: options)
@@ -326,7 +326,7 @@ private struct MarkdownBlockView: View, Equatable {
                                     .font(.system(size: 12)).foregroundStyle(NativePlatformPalette.thread.muted.swiftUI)
                                     .accessibilityLabel(checked ? "已完成" : "未完成")
                             } else {
-                                MarkdownReadingText(spans: [MarkdownSpan(text: item.marker)], fontSize: options.fontSize,
+                                MarkdownSelectableText(spans: [MarkdownSpan(text: item.marker)], fontSize: options.fontSize,
                                     muted: options.muted, lineHeight: options.fontSize * 1.8,
                                     selectionScope: options.anchorPrefix, openLink: options.openLink)
                             }
@@ -343,7 +343,7 @@ private struct MarkdownBlockView: View, Equatable {
             Rectangle().fill(NativePlatformPalette.thread.line.swiftUI).frame(height: 1).padding(.vertical, 6)
         case .footnote(let id, let index, let children):
             NativeMarkdownLeadingColumn(leadingWidth: 23) {
-                MarkdownReadingText(spans: [MarkdownSpan(text: "\(index).")], fontSize: options.fontSize,
+                MarkdownSelectableText(spans: [MarkdownSpan(text: "\(index).")], fontSize: options.fontSize,
                     muted: options.muted, lineHeight: options.fontSize * 1.8,
                     selectionScope: options.anchorPrefix, openLink: options.openLink)
                     .frame(width: 23, height: options.fontSize * 1.8, alignment: .leading)
@@ -415,7 +415,7 @@ struct MarkdownInlineView: View {
     }
 
     var body: some View {
-        MarkdownReadingText(spans: displayedSpans, fontSize: fontSize, weight: weight, muted: muted, strongInk: strongInk, tracking: tracking,
+        MarkdownSelectableText(spans: displayedSpans, fontSize: fontSize, weight: weight, muted: muted, strongInk: strongInk, tracking: tracking,
                                lineHeight: lineHeight, alignment: alignment, images: images, selectionScope: options.anchorPrefix,
                                executionLinkHarnesses: options.executionLinkHarnesses, openLink: options.openLink)
         .fixedSize(horizontal: false, vertical: true)
@@ -459,7 +459,7 @@ struct MarkdownCodeBlock: View {
     }
     var body: some View {
         NativeScrollView(.horizontal) {
-            MarkdownReadingText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
+            MarkdownSelectableText(spans: [MarkdownSpan(text: source.hasSuffix("\n") ? String(source.dropLast()) : source)],
                                    fontSize: NativeMarkdownTypography.fenceSize, lineHeight: NativeMarkdownTypography.fenceLineHeight, code: true, selectionScope: selectionScope, openLink: { _ in })
                 .frame(width: max(1, codeWidth), alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -482,7 +482,6 @@ private struct MarkdownTableView: View {
     let options: MarkdownViewOptions
     @State private var availableWidth: CGFloat = NativeGeometry.readingWidth
     @State private var scrollerStyle = NSScroller.preferredScrollerStyle
-    @Environment(\.nativeMarkdownUsesSwiftUIText) private var agentDetail
 
     var body: some View {
         let columnWidths = widths
@@ -512,11 +511,6 @@ private struct MarkdownTableView: View {
             // row visible; overlay scrollers consume no layout space.
             .padding(.bottom, scrollerStyle == .legacy
                 ? NSScroller.scrollerWidth(for: .mini, scrollerStyle: scrollerStyle) : 0)
-        }
-        .contextMenu {
-            if agentDetail {
-                Button("复制表格（制表符分隔）") { MarkdownPlatformActions.copy(MarkdownReadingCopy.table(rows)) }
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
             scrollerStyle = NSScroller.preferredScrollerStyle
