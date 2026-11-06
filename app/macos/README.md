@@ -121,8 +121,7 @@ out-of-scope or execution-less Threads leave the list open with an unavailable
 notice; query failures remain retryable by clicking again. Closing, covering or
 replacing the sidecard invalidates pending navigation. Unknown timing is
 explicit; absent assistant text leaves the excerpt empty. Reduced Transparency
-uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list retains its
-heading and count. Returning preserves the existing sidecard navigation and
+uses opaque reading surfaces, and hidden sidecards suspend excerpt/clock work. Details use a floating Liquid Glass back button; the list begins directly with its items. Returning preserves the existing sidecard navigation and
 execution reader scroll ownership. The list fades in on its first opening in a
 Report visit. Each selected execution waits for its scoped row and Markdown
 parse readiness, then fades its entire native reader in once over 200ms. A visible

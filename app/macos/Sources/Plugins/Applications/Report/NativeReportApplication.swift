@@ -246,35 +246,27 @@ struct NativeReportDetail: View {
     }
 
     private var referencesContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(applicationText(locale, "关联执行", "Related executions"))
-                Text(String(references.count)).foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                if openingReference != nil { ProgressView().controlSize(.small) }
-            }.font(NativeTypography.inter(size: 12, weight: 600)).padding(18)
-            Divider()
-            NativeScrollView {
-                GlassEffectContainer(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        if let failure { Text(failure).foregroundStyle(.red) }
-                        if let relationsFailure { Text(relationsFailure).foregroundStyle(.red) }
-                        if references.isEmpty {
-                            Text(applicationText(locale, "暂无关联执行", "No related executions"))
-                                .foregroundStyle(.secondary).padding(12)
+        NativeScrollView {
+            GlassEffectContainer(spacing: 8) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if openingReference != nil { ProgressView().controlSize(.small) }
+                    if let failure { Text(failure).foregroundStyle(.red) }
+                    if let relationsFailure { Text(relationsFailure).foregroundStyle(.red) }
+                    if references.isEmpty {
+                        Text(applicationText(locale, "暂无关联执行", "No related executions"))
+                            .foregroundStyle(.secondary).padding(12)
+                    }
+                    ForEach(references, id: \.reference) { item in
+                        NativeReportExecutionRow(item: item, locale: locale,
+                            relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
+                            visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
+                            guard !sidecards.retainingForReturn else { return }
+                            failure = nil
+                            openingReference = item.reference
                         }
-                        ForEach(references, id: \.reference) { item in
-                            NativeReportExecutionRow(item: item, locale: locale,
-                                relation: relations?.revision == props.entry.revision ? relations?.items.first(where: { $0.reference == item.reference }) : nil,
-                                visible: expanded && !suppressed && (reduceMotion || referencesRevealed)) {
-                                guard !sidecards.retainingForReturn else { return }
-                                failure = nil
-                                openingReference = item.reference
-                            }
-                            .disabled(openingReference != nil)
-                        }
-                    }.padding(16)
-                }
+                        .disabled(openingReference != nil)
+                    }
+                }.padding(16)
             }
         }
     }
