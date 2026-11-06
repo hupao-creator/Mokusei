@@ -96,7 +96,9 @@ public struct NativeMokuTalkState: Equatable {
         presented = value && message != nil
         // Start only on actual presentation. Same-operation result updates and
         // repeated view callbacks must retain the original lease.
-        if presented, deadline == nil { deadline = now.advanced(by: .seconds(60)) }
+        if presented, deadline == nil {
+            deadline = now.advanced(by: .seconds(message?.dispatch != nil ? 10 : 60))
+        }
     }
 
     public mutating func expire(id: JSONText, deadline: ContinuousClock.Instant, now: ContinuousClock.Instant = .now) {

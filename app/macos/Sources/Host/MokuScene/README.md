@@ -285,9 +285,11 @@ status reports audio ownership suspension, while actions are mute/unmute,
 start/end and takeover. Blink/cloud clock pauses are animation lifecycle state,
 not message-bar controls.
 
-Each notification expires 60 seconds after its first actual presentation, using a
-monotonic deadline retained by the scene. Refreshes and in-place operation updates
-do not extend it; a replacement operation gets its own full interval. The Dock's
+Dispatch notifications (pending, started or failed) expire 10 seconds after their
+first actual presentation; ordinary Talk notifications retain their 60-second
+timeout. Both use a monotonic deadline retained by the scene. Refreshes and
+in-place operation updates do not extend it; a replacement operation gets its
+own full interval. The Dock's
 deadline task is cancelled on replacement, dismissal or unmount and checks the
 captured operation identity before expiry. Timeout consumes only the notification,
 using the existing dismissal and capsule transition; it never deletes transcript
