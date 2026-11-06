@@ -5,6 +5,8 @@ import SwiftUI
 public extension EnvironmentValues {
     /// Agent reader admission only; other Markdown consumers keep their normal drawing.
     @Entry var nativeThreadContentReveal = false
+    /// Keep parse/admission readiness even when existing content needs no ink entrance.
+    @Entry var nativeThreadContentRevealAnimated = true
 }
 extension EnvironmentValues {
     @Entry var nativeThreadReveal: NativeThreadContentReveal? = nil

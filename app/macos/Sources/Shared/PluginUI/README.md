@@ -1202,6 +1202,20 @@ reader, the destination skips this entrance: the handoff already presents the
 content and must not expose a second blank/reveal cycle. Content readiness still
 acknowledges the destination before the retained sidecard fades away.
 
+When a newer active execution belongs to the Conversation Sidecard, existing
+main-reader executions skip the line/footer animation and appear fully once
+primary admission and Markdown readiness complete. This follows execution
+ownership even when the Sidecard is folded or another activity is selected;
+it does not depend on the Sidecard's delayed opening stage. The main reader
+keeps loading, parse readiness and content-completion preferences enabled, so
+skipping ink animation cannot admit auxiliary content early. A first active
+execution in main and ordinary completed-only visits retain their entrance.
+Running/waiting transitions, streaming, scroll ownership, Reduce Motion and
+accessibility gates keep their existing paths. Sprint validation passed static
+review, Swift syntax parsing, `make lint` and a focused `MokuseiUI` target build;
+no tests, replays or CI are run, so rendered
+timing, scrolling and accessibility behavior remain unverified at runtime.
+
 Each mounted execution owns weak text/summary registrations, masks and cancellation;
 there is no window-wide text scan. Live text changes, actual width changes,
 Reduce Motion and disappearance retire masks and restore drawing. Streaming

@@ -337,6 +337,13 @@ struct NativeSidecardWorkspaceLayout: View {
         // A promoting sidecard already displays this execution. Do not blank it
         // for a second entrance when the main reader takes ownership.
         .environment(\.nativeThreadContentReveal, snapshot.handoff == nil)
+        // An active execution owned by a Sidecard leaves existing history in
+        // main, even while folded. Keep readiness gates, but do not replay ink.
+        .environment(\.nativeThreadContentRevealAnimated,
+            !(snapshot.input.thread.observation.isExecutionActive
+                && snapshot.input.thread.observation.latestExecution.map {
+                    snapshot.excludedExecutionIDs.contains($0.executionID)
+                } == true))
         .transformPreference(NativeReadingContentRevealStatusKey.self) { status in
             // The identity-only preparation reader has no loaded document. Its
             // placeholder must not leave a ready value for the live reader.

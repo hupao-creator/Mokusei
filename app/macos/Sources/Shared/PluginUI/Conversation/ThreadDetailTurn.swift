@@ -115,6 +115,7 @@ private extension EnvironmentValues {
 
 public struct ThreadDetailTurn: View {
     @Environment(\.nativeThreadContentReveal) private var revealsContent
+    @Environment(\.nativeThreadContentRevealAnimated) private var animatesContentReveal
     @Environment(\.accessibilityReduceMotion) private var reducedMotion
     @Environment(\.nativeReadingEntranceReady) private var primaryEntranceReady
     @State private var entrance = NativeThreadContentReveal()
@@ -174,6 +175,8 @@ public struct ThreadDetailTurn: View {
         }
     }
 
+    private var entranceWithoutAnimation: Bool { reducedMotion || !animatesContentReveal }
+
     public var body: some View {
         let revealInProgress = revealsContent && !entrance.settled
         if let executionGroup {
@@ -218,15 +221,15 @@ public struct ThreadDetailTurn: View {
             }
             .onAppear {
                 if revealsContent {
-                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
+                    if primaryEntranceReady { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
                 }
                 else { entrance.finish() }
             }
             .onChange(of: revealsContent) { _, value in if !value { entrance.finish() } }
             .onChange(of: primaryEntranceReady) { _, ready in
-                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: reducedMotion) }
+                if ready && revealsContent { entrance.begin(bottomUp: active, reducedMotion: entranceWithoutAnimation) }
             }
-            .onChange(of: reducedMotion) { _, value in
+            .onChange(of: entranceWithoutAnimation) { _, value in
                 if value && primaryEntranceReady && revealsContent { entrance.begin(bottomUp: active, reducedMotion: true) }
             }
             .onDisappear { entrance.cancel() }
