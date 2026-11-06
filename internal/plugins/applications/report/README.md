@@ -16,6 +16,12 @@ The Report session's exclusive tool bindings are `list_threads`,
 alternative binding for model-based source-history questions. Moku's separate
 `read_thread` tool and the shared ordinary-task read capability are independent.
 
+The operational prompt describes scope, available evidence and report content
+requirements without naming bindings or prescribing their invocation. It does
+not request a source-history question after that binding's removal. This narrow
+cleanup retains the existing writing/host-integration requirements and the
+verbatim ELI5 snapshot; it does not adopt the pending shortened prompt draft.
+
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
 `report.settings.enabled` defaults to true when omitted and operates independently
