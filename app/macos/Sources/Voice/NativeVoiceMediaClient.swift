@@ -24,7 +24,6 @@ public final class NativeVoiceMediaClient {
     @ObservationIgnored private var attempt: Attempt?
     @ObservationIgnored private var stopping: Task<Void, Never>?
     @ObservationIgnored private var pendingTakeover: JSONText?
-    @ObservationIgnored private var superThreadID: JSONText?
     @ObservationIgnored private var sourceOwner: UUID?
     @ObservationIgnored private var sourceRevision = 0
     @ObservationIgnored private var mokuRouteAllowed = true
@@ -44,6 +43,7 @@ public final class NativeVoiceMediaClient {
         let requestID = JSONText(UUID().uuidString.lowercased())
         let timingContext = NativePerformance.nextID()
         var sessionID: JSONText?
+        var preparation: Task<NativeVoiceResult, Error>?
         var media: (any NativeVoiceMediaTransport)?
         var poll: Task<Void, Never>?
         var after = 0
@@ -110,7 +110,7 @@ public final class NativeVoiceMediaClient {
         guard !Task.isCancelled, state.available, attempt == nil, stopping == nil, retiringAttempt == nil,
               role != .moku || mokuRouteAllowed,
               state.phase == .closed || state.phase == .failed else { return }
-        let attempt = Attempt(takeover: takeover, source: role == .moku ? Source(superThreadID: superThreadID, revision: sourceRevision) : nil)
+        let attempt = Attempt(takeover: takeover, source: role == .moku ? Source(superThreadID: nil, revision: sourceRevision) : nil)
         install(attempt)
         await runStartup(attempt)
     }
@@ -152,7 +152,9 @@ public final class NativeVoiceMediaClient {
             }
             if let takeover = attempt.takeover { preparation["takeover"] = .string(takeover) }
             if let reconnectFrom = attempt.reconnectFrom { preparation["reconnectFrom"] = .string(reconnectFrom) }
-            let prepared = try await measure(.voicePrepare) { try await command(.object(preparation)) }
+            let prepare = Task { try await measure(.voicePrepare) { try await command(.object(preparation)) } }
+            attempt.preparation = prepare
+            let prepared = try await prepare.value
             if let occupied = prepared.occupiedOwner {
                 try check(attempt)
                 pendingTakeover = occupied.ownershipID; state.occupiedOwner = occupied.deviceID
@@ -162,7 +164,8 @@ public final class NativeVoiceMediaClient {
             guard prepared.ownershipID == attempt.requestID else { throw NativeVoiceError("语音准备返回的所有权已失效") }
             attempt.sessionID = sessionID
             guard self.attempt === attempt else {
-                _ = try? await command(.object(["action": .text("stop"), "sessionId": .string(sessionID), "ownershipId": .string(attempt.requestID)]))
+                // The retiring attempt owns this result and its final Stop.
+                // Never hide cleanup failure in a detached best-effort request.
                 return
             }
             inputTranscript.begin(sessionID: sessionID)
@@ -345,7 +348,7 @@ public final class NativeVoiceMediaClient {
                   previous.playback.responseID == nil, previous.playback.bufferedResponseID == nil,
                   previous.playback.playbackID == nil else { return false }
         }
-        guard mokuRouteAllowed, previous.source == Source(superThreadID: superThreadID, revision: sourceRevision) else { return false }
+        guard mokuRouteAllowed, previous.source == Source(superThreadID: nil, revision: sourceRevision) else { return false }
         let next = Attempt(takeover: nil, reconnectFrom: previous.requestID, muted: state.muted, source: previous.source)
         previous.poll?.cancel(); previous.poll = nil
         previous.media?.close(); previous.media = nil
@@ -375,22 +378,20 @@ public final class NativeVoiceMediaClient {
         return .object(fields)
     }
 
-    public func setSuperThreadContext(_ id: JSONText?, owner: UUID, active: Bool, allowsVoice: Bool = true) {
+    public func setOverviewVoiceRoute(owner: UUID, active: Bool, allowed: Bool) {
         guard role == .moku, active || sourceOwner == owner else { return }
         // Losing key-window focus to a permission prompt is not navigation.
         // Retain the owner until another window claims it or it releases its route.
         let nextOwner = owner
-        let next = allowsVoice ? id : nil
-        let allowed = allowsVoice
-        guard next != superThreadID || nextOwner != sourceOwner || allowed != mokuRouteAllowed else { return }
-        sourceOwner = nextOwner; superThreadID = next; mokuRouteAllowed = allowed
+        guard nextOwner != sourceOwner || allowed != mokuRouteAllowed else { return }
+        sourceOwner = nextOwner; mokuRouteAllowed = allowed
         sourceRevision += 1
         guard let attempt else { return }
         // Closing the peer is synchronous. No microphone, startup callback or
         // automatic reconnect can survive a route change. Already admitted work
         // retains its original source; unadmitted work is cancelled by Stop.
         routeNotices.append(NativeVoiceRouteNotice(superThreadID: attempt.source?.superThreadID,
-            transcript: inputTranscript.message?.text, agentSelected: !allowsVoice))
+            transcript: inputTranscript.message?.text, agentSelected: !allowed))
         _ = beginStop()
     }
 
@@ -479,16 +480,31 @@ public final class NativeVoiceMediaClient {
         state.phase = .stopping; state.muted = false; state.mediaSuspended = false
         let task = Task { [self] in
             do {
-                _ = try await command(.object(["action": .text("stop"),
-                    "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
-                if let reconnectFrom = attempt.reconnectFrom, attempt.sessionID == nil {
+                let preparation = attempt.preparation
+                do {
+                    _ = try await command(.object(["action": .text("stop"),
+                        "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
+                } catch {
+                    if preparation == nil { throw error }
+                    // The definitive post-prepare Stop below may still confirm
+                    // cleanup. Until then this attempt blocks every new Start.
+                }
+                if let preparation {
+                    let result = await preparation.result
+                    if case .success(let prepared) = result, prepared.ownershipID == attempt.requestID,
+                       let sessionID = prepared.sessionID { attempt.sessionID = sessionID }
+                    _ = try await command(.object(["action": .text("stop"),
+                        "sessionId": .string(attempt.sessionID ?? attempt.requestID), "ownershipId": .string(attempt.requestID)]))
+                }
+                if let reconnectFrom = attempt.reconnectFrom {
                     _ = try await command(.object(["action": .text("stop"), "sessionId": .string(reconnectFrom), "ownershipId": .string(reconnectFrom)]))
                 }
                 retiringAttempt = nil
+                if !failed { state.error = "" }
                 state.phase = failed ? .failed : .closed
             } catch {
                 state.phase = .failed
-                if !failed || state.error.codeUnits.isEmpty { state.error = JSONText(error.localizedDescription) }
+                state.error = JSONText(error.localizedDescription)
             }
             stopping = nil
             ownership.finishedTeardown(attempt.requestID)

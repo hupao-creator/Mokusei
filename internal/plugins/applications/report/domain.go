@@ -271,6 +271,9 @@ func RegisterDomain(registry plugin.Registry) error {
 		if !validID(input.ReportID) {
 			return errors.New("invalid reportId")
 		}
+		if input.ExpectedRevision != nil && (*input.ExpectedRevision < 0 || *input.ExpectedRevision > model.MaximumSafeInteger) {
+			return errors.New("invalid report expectedRevision")
+		}
 		if input.Title == nil && input.HTML == nil && input.RelatedExecutions == nil && input.Emoji == nil && input.ShortDescription == nil {
 			return errors.New("Report update must change at least one field")
 		}
@@ -332,6 +335,14 @@ func RegisterDomain(registry plugin.Registry) error {
 			record, value, err := requireScopedRecord(input.ReportID, context.Records, context.Owner)
 			if err != nil {
 				return nil, err
+			}
+			// Check the agent's read version, not the version just read by Plan.
+			// Keeping this in Reduce also preserves old successful receipt replay.
+			if input.ExpectedRevision == nil {
+				return nil, model.NewError("REPORT_REVISION_REQUIRED", "请重新读取完整报告，并在更新时提供读到的 revision 作为 expectedRevision。 / Read the full report and supply its revision as expectedRevision.")
+			}
+			if *input.ExpectedRevision != record.Revision {
+				return nil, model.NewError("REPORT_REVISION_CHANGED", "报告已被更新或解除关联，请重新读取完整报告并重新决定修改；不要仅换用新版本号重放旧关联列表。 / The report changed. Read the full report and reconsider the edit; do not replay stale associations with a newer revision.")
 			}
 			if input.Title != nil {
 				value.Title = *input.Title

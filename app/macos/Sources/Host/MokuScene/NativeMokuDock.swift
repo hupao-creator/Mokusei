@@ -70,6 +70,7 @@ public struct NativeMokuDock: View {
     public let cwd: JSONText
     public var threadID: JSONText?
     public var threadTitle: String?
+    public var voiceEntryEnabled: Bool
     public var superThreadContext: Bool
     public var threadHarness: AnyHarnessPlugin?
     public var onThreadClose: (() -> Void)?
@@ -141,7 +142,7 @@ public struct NativeMokuDock: View {
 
     public init(state: NativeMokuSceneState, draft: NativeComposerDraft, cwd: JSONText,
                 landing: Bool = false, threadID: JSONText? = nil, threadTitle: String? = nil,
-                superThreadContext: Bool = false,
+                superThreadContext: Bool = false, voiceEntryEnabled: Bool = false,
                 threadHarness: AnyHarnessPlugin? = nil, onThreadClose: (() -> Void)? = nil,
                 sidecardComposer: SidecardComposerRequest? = nil,
                 awaitingContinuation: Bool = false,
@@ -170,7 +171,7 @@ public struct NativeMokuDock: View {
         self.landing = landing
         self.threadID = threadID
         self.threadTitle = threadTitle
-        self.superThreadContext = superThreadContext
+        self.superThreadContext = superThreadContext; self.voiceEntryEnabled = voiceEntryEnabled
         self.threadHarness = threadHarness; self.onThreadClose = onThreadClose
         self.sidecardComposer = sidecardComposer
         self.talk = talk; self.reply = reply; self.disabled = disabled; self.interaction = interaction
@@ -1040,7 +1041,7 @@ public struct NativeMokuDock: View {
         // editor must accept clicks/Tab without a delayed update blurring it.
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled || (submitting && sidecardComposer == nil),
             busy: submitting && sidecardComposer != nil,
-            threadTitle: threadTitle, superThreadContext: superThreadContext, sidecardComposer: sidecardComposer,
+            threadTitle: threadTitle, superThreadContext: superThreadContext, voiceEntryEnabled: voiceEntryEnabled, sidecardComposer: sidecardComposer,
             readOnly: state.inputLeaving, focusEnabled: state.inputInteractionReady && state.dockRouteVisible && state.inputOpen && !state.dockCovered && (sidecardComposer?.ready ?? true),
             automaticFocus: false,
             focusRequestKey: focusGeneration == state.composerGeneration

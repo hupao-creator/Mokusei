@@ -215,3 +215,9 @@ reuse the existing scope resolver. No native history is opened. See the
 [grep contract](../../services/threadsearch/README.md#moku-deterministic-grep).
 
 Attention visits, the scheduler clock and hidden-card projections are profile-local. Search reads the ordinary source independently of the attention marker. New executions and search visits fence old decisions through the same SQLite writer. See the [Attention Agent contract](../../plugins/applications/attention/README.md).
+
+
+Thread voice calls are removed at the command authority boundary: prepare, start
+and heartbeat return `THREAD_VOICE_REMOVED`. Retained history, poll and Stop remain
+available without native Harness/model discovery. Global Overview Moku voice and
+ordinary text/attachment execution are independent; transcript storage is preserved.

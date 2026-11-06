@@ -177,8 +177,8 @@ workspace, current state and binding conflicts at admission. HTML is untrusted
 context and is not executed. Failed context resolution rejects the send rather
 than silently losing its source. Selecting an execution preserves the existing
 ordinary Agent send/fork/receipt route; folding or returning to the list restores
-Moku. Native and relayed voice use the same source resolver (see
-[Moku](../../../services/moku/README.md)).
+Moku. Thread readers no longer offer voice calls; Overview retains global Moku
+voice without a Super Thread source (see [Moku](../../../services/moku/README.md)).
 
 Sprint validation: Go formatting, architecture lint, vet and builds, and the Swift
 application product build only. No tests, integration replays, CI, PR, push or merge
@@ -202,3 +202,18 @@ This operation releases one report's binding, not all other owners and not an
 automatic move. Remaining conflicts are still visible; users must unlink remaining
 owners before rebinding. It does not edit or erase claims in the report body. Rebind
 creation/update remains the background report author's existing authority.
+
+
+## Background edit concurrency
+
+`report.update` carries `expectedRevision`, copied from the full report the Agent
+read to decide its edit. The reducer compares it with the current record revision
+before changing any field, including associations. A user unlink increments that
+same revision, so an update based on the old list cannot restore the link.
+`REPORT_REVISION_CHANGED` instructs the Agent to reread the full report and reconsider
+its edit, not merely fetch a fresh number to replay stale fields. The tool schema
+requires the version; no write adapter silently substitutes the current version.
+Missing versions receive `REPORT_REVISION_REQUIRED` in the reducer. This preserves
+old successful receipt replay, which the host resolves before reduction, while
+unreceipted old writes must reread. Persisted report data is unchanged, existing
+reports remain readable, and create/new binding uses the existing authority.

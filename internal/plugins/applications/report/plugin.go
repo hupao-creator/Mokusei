@@ -64,6 +64,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 	emoji := model.Object{"type": "string", "description": "One complete emoji representing this report."}
 	description := model.Object{"type": "string", "minLength": 1, "maxLength": MaxPreviewLength, "description": "Substantive standalone report card introduction, grounded in evidence; follow the system instructions for content and length."}
 	html := model.Object{"type": "string", "minLength": 1, "maxLength": MaxHTMLCharacters, "pattern": "\\S", "description": "Report HTML document. Follow the current system instructions for content and presentation."}
+	revision := model.Object{"type": "integer", "minimum": 0, "maximum": model.MaximumSafeInteger, "description": "The revision returned by read_report for the report used to decide this edit. On REPORT_REVISION_CHANGED, reread the full report and reconsider all supplied fields; never attach a newer revision to a stale association list."}
 	related := model.Object{"type": "array", "maxItems": MaxRelatedThreads, "description": "Optional explicit completed Execution references. A historical completed Execution remains eligible even after a newer Execution starts. One Execution per Thread. Each Thread may belong to only one Super Thread, including archived documents. Update the existing owner or explicitly unlink before rebinding; retained historical conflicts must be resolved without deleting report content.", "items": model.Object{"type": "object", "properties": model.Object{"threadId": id, "executionId": id}, "required": []string{"threadId", "executionId"}, "additionalProperties": false}}
 	write := func(operation string) background.ToolHandler {
 		return func(ctx context.Context, args model.Object, callID string) (any, error) {
@@ -132,7 +133,7 @@ func reportTools(lifetime context.Context, domain plugin.DomainClient, runner *b
 			value["relatedExecutions"] = refs
 			return value, nil
 		}),
-		background.Tool(lifetime, "update_report", "Replace supplied Super Thread fields.", model.Object{"reportId": id, "emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId"}, write("update")),
+		background.Tool(lifetime, "update_report", "Replace supplied Super Thread fields only if the report still has the revision you read.", model.Object{"reportId": id, "expectedRevision": revision, "emoji": emoji, "shortDescription": description, "title": title, "html": html, "relatedExecutions": related}, []string{"reportId", "expectedRevision"}, write("update")),
 	}
 }
 func toolReferences(value any) ([]model.ExecutionRef, error) {

@@ -62,7 +62,6 @@ public final class NativeReportSidecardPresentation {
     @ObservationIgnored public private(set) var retainingForReturn = false
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var admission: Task<Void, Never>?
-    @ObservationIgnored public var onExecutionSelection: ((ApplicationExecutionRef?) -> Void)?
 
     public init() {}
 
@@ -70,7 +69,6 @@ public final class NativeReportSidecardPresentation {
         guard !retainingForReturn else { return }
         selectionID = UUID(); executionVisit = UUID()
         selectedExecution = reference; continuedExecution = false; executionReady = false
-        publishExecutionSelection()
     }
 
     public func continueExecution(_ reference: ApplicationExecutionRef, from source: ApplicationExecutionRef, selection: UUID) {
@@ -121,13 +119,11 @@ public final class NativeReportSidecardPresentation {
         selectionID = UUID()
         if admitted { pending = nil; active = card }
         else { active = nil; pending = card }
-        publishExecutionSelection()
     }
 
     public func close() {
         guard !retainingForReturn else { return }
         selectionID = UUID(); active = nil; pending = nil
-        publishExecutionSelection()
     }
 
     public func cancel() {
@@ -142,10 +138,6 @@ public final class NativeReportSidecardPresentation {
         pending = active ?? pending; active = nil
     }
 
-    private func publishExecutionSelection() {
-        onExecutionSelection?(active == .relatedExecutions || pending == .relatedExecutions ? selectedExecution : nil)
-    }
-
     private func admitWhenReady() {
         guard document?.ready == true, layoutReady, !suppressed, !admitted, admission == nil else { return }
         let token = generation
@@ -157,7 +149,6 @@ public final class NativeReportSidecardPresentation {
             admitted = true; admission = nil
             selectionID = UUID()
             active = pending; pending = nil
-            publishExecutionSelection()
         }
     }
 }

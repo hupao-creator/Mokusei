@@ -214,7 +214,7 @@ Run `python3 tools/verification/reading-presentation/run.py --browser-dialogs` i
 
 ## Voice
 
-[Voice](Voice/) presents availability, media controls and separate spoken transcripts from a [private read-only discussion](../../../../../internal/services/threadvoice/README.md). It does not send ordinary task input, answer the source task's permissions or write discussion history into that task. The [native voice owner](../../Voice/README.md) controls microphone and connection lifetime. Opening a card alone does not start capture.
+[Voice](Voice/) now presents only retained **Past voice transcripts**. Its stable `voice` identity preserves settings and existing history, but it offers no call, microphone or mute controls. The native history source creates no media client; Runtime rejects thread prepare/start/heartbeat. The [native voice owner](../../Voice/README.md) retains only Overview global Moku calls. Stored discussion transcripts are not deleted or resent.
 
 Verification uses the existing sidecard navigation, conversation, browser annotation/viewport and voice suites.
 

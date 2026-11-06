@@ -7,11 +7,8 @@ import (
 	"errors"
 	"path/filepath"
 	"regexp"
-	"sync"
-	"unicode/utf16"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 )
 
@@ -72,20 +69,12 @@ func (r *Runtime) threadVoice(ctx context.Context, raw json.RawMessage) (any, er
 		return nil, err
 	}
 	a := request.Request
+	if a.Action == "prepare" || a.Action == "start" || a.Action == "heartbeat" {
+		return nil, model.NewError("THREAD_VOICE_REMOVED", "线程内语音已移除，请在 Overview 使用全局 Moku 语音。 / Thread calls have been removed. Use global Moku voice in Overview.")
+	}
 	switch a.Action {
 	case "history":
-	case "prepare":
-		if err := identifier(a.RequestID); err != nil {
-			return nil, err
-		}
-	case "start":
-		if err := identifier(a.SessionID); err != nil {
-			return nil, err
-		}
-		if a.SDP == "" || len(utf16.Encode([]rune(a.SDP))) > 128000 {
-			return nil, errors.New("invalid voice SDP")
-		}
-	case "stop", "heartbeat":
+	case "stop":
 		if err := identifier(a.SessionID); err != nil {
 			return nil, err
 		}
@@ -103,13 +92,6 @@ func (r *Runtime) threadVoice(ctx context.Context, raw json.RawMessage) (any, er
 		return nil, err
 	}
 	defer r.operations.Done()
-	if a.Action == "prepare" || a.Action == "start" {
-		release, err := r.beginServiceAdmission(false)
-		if err != nil {
-			return nil, err
-		}
-		defer release()
-	}
 	return r.voiceManager().Command(ctx, request)
 }
 func (r *Runtime) voiceSource(ctx context.Context, id string) (threadvoice.Source, error) {
@@ -120,117 +102,20 @@ func (r *Runtime) voiceSource(ctx context.Context, id string) (threadvoice.Sourc
 	if thread.Moku || thread.MokuHistory {
 		return threadvoice.Source{}, errors.New("Moku is not an ordinary thread discussion target")
 	}
-	h, err := r.harness(ctx, thread)
-	if err != nil {
-		// Disabling a Harness prevents new discussions, but does not hide its
-		// existing transcript history.
-		return threadvoice.Source{}, nil
-	}
-	_, canDiscuss := h.(plugin.DiscussionPreparer)
-	var relay plugin.VoiceCapability
-	for _, harnessID := range r.harnessIDs() {
-		if r.config.DisabledHarnesses[harnessID] != "" {
-			continue
-		}
-		if candidate, ok := r.config.Harnesses[harnessID].(plugin.VoiceCapability); ok {
-			relay = candidate
-			break
-		}
-	}
-	supported := canDiscuss && relay != nil
-	source := threadvoice.Source{Supported: supported, Available: supported && (thread.Archived == nil || !*thread.Archived)}
-	source.Prepare = func(lifetime context.Context) (plugin.VoiceSession, error) {
-		if err := r.operational(); err != nil {
-			return nil, err
-		}
-		source, err := r.Thread(id)
-		if err != nil {
-			return nil, err
-		}
-		if source.Moku || source.MokuHistory || source.Archived != nil && *source.Archived {
-			return nil, errors.New("voice source thread unavailable")
-		}
-		paths := []string{source.Cwd}
-		if source.Worktree != nil {
-			paths = append(paths, source.Worktree.Cwd)
-		}
-		for _, path := range paths {
-			if r.config.Workspaces != nil {
-				got, e := r.config.Workspaces.Validate(lifetime, path)
-				if e != nil {
-					return nil, e
-				}
-				if got != path {
-					return nil, errors.New("voice source workspace identity changed")
-				}
-			} else {
-				got, e := filepath.EvalSymlinks(path)
-				if e != nil {
-					return nil, e
-				}
-				if got != path {
-					return nil, errors.New("voice source workspace identity changed")
-				}
-			}
-		}
-		selected, err := r.harness(lifetime, source)
-		if err != nil {
-			return nil, err
-		}
-		preparer, ok := selected.(plugin.DiscussionPreparer)
-		if !ok || relay == nil {
-			return nil, errors.New("thread does not support read-only voice discussion")
-		}
-		cwd := source.Cwd
-		if source.Worktree != nil {
-			cwd = source.Worktree.Cwd
-		}
-		tools, closeTools, err := threadvoice.ProjectReadTools(cwd)
-		if err != nil {
-			return nil, err
-		}
-		media, err := threadvoice.PrepareDiscussion(lifetime, relay, func(c context.Context) (plugin.Discussion, error) {
-			return preparer.PrepareDiscussion(c, plugin.DiscussionRequest{Source: source, Tools: tools, Instructions: threadvoice.DiscussionInstructions})
-		})
-		if err != nil {
-			return nil, errors.Join(err, closeTools())
-		}
-		wrapped := &voiceWithTools{VoiceSession: media, closeTools: closeTools}
-		if err = lifetime.Err(); err == nil {
-			var current model.ThreadRecord
-			current, err = r.Thread(id)
-			if err == nil && (current.Archived != nil && *current.Archived || !sameVoiceSource(source, current)) {
-				err = errors.New("source thread configuration changed during voice preparation")
-			}
-		}
-		if err != nil {
-			return nil, errors.Join(err, wrapped.Stop(context.Background()))
-		}
-		return wrapped, nil
-	}
-	return source, nil
+	// Retained transcript history does not need a Harness, model discovery,
+	// private fork or media preparation capability.
+	return threadvoice.Source{Supported: false, Available: false}, nil
 }
+
+// Settings still retires any pre-existing discussion owner when its workspace
+// or native configuration changes. Removing call admission does not skip cleanup.
 func sameVoiceSource(a, b model.ThreadRecord) bool {
 	if a.Cwd != b.Cwd || a.HarnessID != b.HarnessID || a.Moku != b.Moku || a.MokuHistory != b.MokuHistory || !bytes.Equal(a.Settings, b.Settings) || (a.Worktree == nil) != (b.Worktree == nil) {
 		return false
 	}
-	if a.Worktree != nil && a.Worktree.Cwd != b.Worktree.Cwd {
-		return false
-	}
-	return true
+	return a.Worktree == nil || a.Worktree.Cwd == b.Worktree.Cwd
 }
 
-type voiceWithTools struct {
-	plugin.VoiceSession
-	closeTools func() error
-	once       sync.Once
-	err        error
-}
-
-func (v *voiceWithTools) Stop(ctx context.Context) error {
-	v.once.Do(func() { v.err = errors.Join(v.VoiceSession.Stop(context.WithoutCancel(ctx)), v.closeTools()) })
-	return v.err
-}
 func (r *Runtime) closeVoice(ctx context.Context) error { return r.voiceManager().Close(ctx) }
 func (r *Runtime) clearVoice(ctx context.Context) error { return r.voiceManager().Clear(ctx) }
 func (r *Runtime) endThreadVoice(ctx context.Context, id string) error {

@@ -2,6 +2,19 @@ package plugin
 
 import "context"
 
+type voiceAdmissionKey struct{}
+
+// WithVoiceAdmission identifies a native voice session at the internal admission
+// boundary. Automatic non-voice continuations share that boundary but no lease.
+func WithVoiceAdmission(ctx context.Context, sessionID string) context.Context {
+	return context.WithValue(ctx, voiceAdmissionKey{}, sessionID)
+}
+
+func VoiceAdmissionSession(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(voiceAdmissionKey{}).(string)
+	return id, ok
+}
+
 type VoiceEvent struct {
 	Sequence      int64   `json:"sequence"`
 	Type          string  `json:"type"`

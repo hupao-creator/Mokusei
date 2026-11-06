@@ -1,6 +1,13 @@
-# Private thread voice discussions
+# Retained thread voice transcripts
 
-[manager.go](manager.go) owns thread/device media sessions; [discussion.go](discussion.go) composes a private native discussion with voice. All four registered Harnesses implement `DiscussionPreparer`. A discussion's native voice capability takes precedence and a preparation failure is returned without fallback. Otherwise the configured Codex voice relay forwards questions to the source Harness's private branch.
+Runtime no longer admits thread voice prepare/start/heartbeat. History, stop and
+poll remain for retained transcripts and retirement of existing owners. The
+production history source has no Prepare capability and does not discover Harness
+models. No transcript file is migrated, deleted or converted into task input.
+The implementations below are retained infrastructure, not an available thread
+calling feature; global Moku voice uses its separate coordinator.
+
+[manager.go](manager.go) retains thread/device session cleanup and transcript history; [discussion.go](discussion.go) composes a private native discussion with voice. All four registered Harnesses implement `DiscussionPreparer`. A discussion's native voice capability takes precedence and a preparation failure is returned without fallback. Otherwise the configured Codex voice relay forwards questions to the source Harness's private branch.
 
 Only the two project read/list tools in [tools.go](tools.go) are injected. Realpath checks prevent directory and symlink escapes. Questions never advance the source task or grant its pending approvals. [history.go](history.go) stores spoken transcripts separately from source conversation state.
 

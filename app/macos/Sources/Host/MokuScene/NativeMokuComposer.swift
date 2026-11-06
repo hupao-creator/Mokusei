@@ -82,6 +82,7 @@ struct NativeMokuComposerInput: View {
     var busy = false
     var threadTitle: String?
     var superThreadContext = false
+    var voiceEntryEnabled = false
     var sidecardComposer: SidecardComposerRequest?
     var placeholderIcon: AnyView?
     var readOnly = false
@@ -143,7 +144,7 @@ struct NativeMokuComposerInput: View {
         }
         let directories = retainedDirectories ?? draft.directories
         guard let first = directories.first else {
-            return localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak")
+            return voiceEntryEnabled ? localize("向 Moku 提问，或长按说话…", "Ask Moku… or hold to speak") : localize("向 Moku 提问…", "Ask Moku…")
         }
         let name = first.name.string
         let subject: String
@@ -239,14 +240,16 @@ struct NativeMokuComposerInput: View {
                 onEditorStateChange?(state)
             }, onKeyDown: onKeyDown, submitOnReturn: true, emphasizedInsertionPoint: true)
             .overlay {
-                NativeMokuLongPressVoiceMonitor(
+                if voiceEntryEnabled {
+                    NativeMokuLongPressVoiceMonitor(
                     isActive: { threadTitle == nil && focusEnabled && !unavailable && !readOnly && !voiceModeActive },
                     canStart: canStartVoice, start: startVoice)
                     .allowsHitTesting(false)
+                }
             }
             .help(editorHelp)
             .accessibilityActions {
-                if threadTitle == nil {
+                if voiceEntryEnabled && threadTitle == nil {
                     Button(localize("开始语音", "Start voice")) {
                         if focusEnabled && !unavailable && !readOnly && !voiceModeActive && canStartVoice() { startVoice() }
                     }
@@ -265,6 +268,7 @@ struct NativeMokuComposerInput: View {
         if sidecardComposer != nil {
             return localize("描述当前网页选区；Return 发送，Shift+Return 换行，Esc 取消标注", "Describe the selected page area; Return sends, Shift+Return adds a line, Escape cancels annotation")
         }
+        if threadTitle == nil, !voiceEntryEnabled { return localize("输入内容将发送给 Moku", "Input is sent to Moku") }
         return threadTitle == nil
             ? localize("长按 0.5 秒开始语音，松开后继续对话", "Hold for 0.5 seconds to start voice; release to keep talking")
             : localize("输入内容将直接发送给此 Thread", "Input is sent directly to this thread")
@@ -345,11 +349,6 @@ public struct NativeMokuHistoryComposer: View {
     public var focusEnabled = true
     public var focusRequestKey = 0
     public var suppressInitialFocus = false
-    public var activeVoiceControls = AnyView(EmptyView())
-    public var voiceModeActive = false
-    public var voiceBackground = AnyView(EmptyView())
-    public var canStartVoice: () -> Bool
-    public var startVoice: () -> Void
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let onSend: (NativeComposerSubmission) async throws -> Void
     public let onCancel: () -> Void
@@ -357,6 +356,7 @@ public struct NativeMokuHistoryComposer: View {
     @State private var availableHeight: CGFloat = 420
     @State private var hovered = false
 
+    // Legacy voice arguments cannot enable a call from the history reader.
     public init(draft: NativeComposerDraft, cwd: JSONText, disabled: Bool = false, running: Bool = false,
                 focusEnabled: Bool = true, focusRequestKey: Int = 0, suppressInitialFocus: Bool = false,
                 activeVoiceControls: AnyView = AnyView(EmptyView()), voiceBackground: AnyView = AnyView(EmptyView()),
@@ -367,21 +367,18 @@ public struct NativeMokuHistoryComposer: View {
                 startVoice: @escaping () -> Void = {}) {
         self.draft = draft; self.cwd = cwd; self.disabled = disabled; self.running = running
         self.focusEnabled = focusEnabled; self.focusRequestKey = focusRequestKey; self.suppressInitialFocus = suppressInitialFocus
-        self.activeVoiceControls = activeVoiceControls; self.voiceBackground = voiceBackground; self.voiceModeActive = voiceModeActive
-        self.canStartVoice = canStartVoice; self.startVoice = startVoice
         self.loadMentionDirectories = loadMentionDirectories; self.onSend = onSend; self.onCancel = onCancel
     }
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
             focusEnabled: focusEnabled, focusRequestKey: focusRequestKey, suppressInitialFocus: suppressInitialFocus,
-            canStartVoice: canStartVoice, startVoice: startVoice,
-            activeVoiceControls: activeVoiceControls, voiceModeActive: voiceModeActive, running: running, onCancel: onCancel, availableHeight: availableHeight,
+            running: running, onCancel: onCancel, availableHeight: availableHeight,
             mentions: mentions, showsEyes: true,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
             onKeyDown: { mentions.handle($0, draft: draft) },
             onSend: { guard !disabled else { return }; Task { await draft.submit(onSend) } })
             .fixedSize(horizontal: false, vertical: true)
-            .background { ZStack { NativeMokuCapsuleGlass(); voiceBackground } }
+            .background { NativeMokuCapsuleGlass() }
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))
             .shadow(color: .black.opacity(0.13), radius: hovered ? 17 : 13, y: 6)
             .onHover { hovered = $0 }

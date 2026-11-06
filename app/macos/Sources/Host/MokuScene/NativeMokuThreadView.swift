@@ -13,11 +13,6 @@ public struct NativeMokuThreadView: View {
     public let readingTarget: HarnessReadingTarget?
     public let running: Bool
     public let disabled: Bool
-    public let activeVoiceControls: AnyView
-    public let voiceModeActive: Bool
-    public let voiceBackground: AnyView
-    public let canStartVoice: () -> Bool
-    public let startVoice: () -> Void
     public let loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let backLabel: String?
     public let focusEnabled: Bool
@@ -32,6 +27,8 @@ public struct NativeMokuThreadView: View {
     @State private var nestedNavigation: ThreadDetailBackAction?
     @State private var focusRequest = 0
 
+    // Former voice arguments are accepted for source compatibility only; this
+    // reader neither retains nor mounts those controls or callbacks.
     public init(harnessHost: NativeHarnessHost, thread: HarnessThread, draft: NativeComposerDraft,
                 readingTarget: HarnessReadingTarget? = nil,
                 running: Bool = false, disabled: Bool = false,
@@ -49,10 +46,7 @@ public struct NativeMokuThreadView: View {
                 startVoice: @escaping () -> Void = {}) {
         self.harnessHost = harnessHost; self.thread = thread; self.draft = draft; self.readingTarget = readingTarget
         self.running = running; self.disabled = disabled
-        self.activeVoiceControls = activeVoiceControls; self.error = error
-        self.voiceModeActive = voiceModeActive
-        self.voiceBackground = voiceBackground; self.loadMentionDirectories = loadMentionDirectories
-        self.canStartVoice = canStartVoice; self.startVoice = startVoice
+        self.error = error; self.loadMentionDirectories = loadMentionDirectories
         self.openExternal = openExternal; self.backLabel = backLabel; self.focusEnabled = focusEnabled
         self.onNavigationChange = onNavigationChange; self.onBack = onBack; self.onSend = onSend; self.onCancel = onCancel
         _navigation = State(initialValue: ThreadDetailBackAction(label: backLabel ?? "返回俯瞰", onBack: onBack))
@@ -85,9 +79,7 @@ public struct NativeMokuThreadView: View {
                     running: running || thread.observation.isExecutionActive,
                     focusEnabled: focusEnabled, focusRequestKey: focusRequest,
                     suppressInitialFocus: readingTarget?.message != nil,
-                    activeVoiceControls: activeVoiceControls, voiceBackground: voiceBackground, voiceModeActive: voiceModeActive,
-                    loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel,
-                    canStartVoice: canStartVoice, startVoice: startVoice)
+                    loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel)
                     .frame(maxWidth: 560)
                     .padding(.horizontal, 24).padding(.trailing, 76)
             }

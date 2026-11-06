@@ -620,18 +620,9 @@ public final class NativeWorkspacePresentation {
             inputAdmissionReady: (selected == nil || readingEntranceAdmitted) && (reportExecution == nil || reportInputReady),
             autofocus: autofocus)
         if started {
-            let route = navigationRouteID
-            reportSidecards.onExecutionSelection = { [weak self] reference in
-                guard let self, reference != nil, navigationRouteID == route, selected?.typeID == "report.document" else { return }
-                // Selection revokes microphone ownership synchronously, before
-                // the destination reader publishes its geometry/input readiness.
-                workspace.voice.moku.setSuperThreadContext(nil, owner: mokuSourceOwner,
-                    active: focused && documentVisible && workspace.runtimeAvailable, allowsVoice: false)
-            }
-            let mokuRoute = !state.settingsOpen && !state.cameraActive
-                && (state.mokuOpen || selected == nil || (superThread != nil && !reportExecutionSelected))
-            workspace.voice.moku.setSuperThreadContext(superThread, owner: mokuSourceOwner,
-                active: focused && documentVisible && workspace.runtimeAvailable, allowsVoice: mokuRoute)
+            workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner,
+                active: focused && documentVisible && workspace.runtimeAvailable,
+                allowed: selected == nil && !state.mokuOpen && !state.cameraActive && !state.settingsOpen)
         }
     }
 
@@ -766,7 +757,7 @@ public final class NativeWorkspacePresentation {
         if let releaseTask { await releaseTask.value; return }
         guard started else { return }
         started = false
-        workspace.voice.moku.setSuperThreadContext(nil, owner: mokuSourceOwner, active: false, allowsVoice: false)
+        workspace.voice.moku.setOverviewVoiceRoute(owner: mokuSourceOwner, active: false, allowed: false)
         clearSidecardComposer()
         scene.resetNoteExposureAuthority()
         workspace.onCatalogChange = nil; workspace.onConnectionChange = nil
@@ -796,8 +787,12 @@ public struct NativeWorkspaceView: View {
         self.model = model; _presentation = State(initialValue: presentation ?? NativeWorkspacePresentation(workspace: model))
     }
     private var disabled: Bool { !model.runtimeAvailable }
+    private var overviewVoiceVisible: Bool {
+        presentation.selected == nil && !presentation.scene.mokuOpen
+            && !presentation.scene.cameraActive && !presentation.scene.settingsOpen
+    }
     private var canStartMokuVoice: Bool {
-        guard !presentation.onboarding.blocksWorkspace, !disabled, model.voice.moku.state.available else { return false }
+        guard overviewVoiceVisible, !presentation.onboarding.blocksWorkspace, !disabled, model.voice.moku.state.available else { return false }
         return model.voice.moku.state.phase == .closed || model.voice.moku.state.phase == .failed
     }
     private func startMokuVoice() {
@@ -874,11 +869,6 @@ public struct NativeWorkspaceView: View {
                 NativeMokuThreadView(harnessHost: model.harnessHost, thread: thread, draft: presentation.draft,
                     readingTarget: presentation.scene.readingTarget,
                     running: presentation.moku.running, disabled: disabled,
-                    activeVoiceControls: AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)),
-                    voiceBackground: AnyView(NativeMokuVoiceCloud(client: model.voice.moku,
-                        visible: presentation.scene.windowVisible && presentation.scene.mokuOpen
-                            && !presentation.scene.cameraActive && !presentation.scene.settingsOpen)),
-                    voiceModeActive: [.preparing, .connecting, .listening, .stopping].contains(model.voice.moku.state.phase),
                     loadMentionDirectories: { try await model.services.knownDirectories() },
                     backLabel: presentation.selected == nil
                         ? model.preferences.locale.text("返回俯瞰", "Back to overview")
@@ -889,8 +879,7 @@ public struct NativeWorkspaceView: View {
                     }, error: model.localizedOperationError,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
                     onBack: { presentation.scene.closeHistory() },
-                    onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) },
-                    canStartVoice: { canStartMokuVoice }, startVoice: startMokuVoice)
+                    onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) })
                     .environment(\.nativeReadingNavigation, nil)
             }
         } dock: {
@@ -915,6 +904,7 @@ public struct NativeWorkspaceView: View {
                     threadID: detail?.id,
                     threadTitle: detailTitle,
                     superThreadContext: superThreadID != nil,
+                    voiceEntryEnabled: overviewVoiceVisible,
                     threadHarness: detail.flatMap { try? model.plugins.harnesses.require($0.harnessID) },
                     onThreadClose: {
                         if superThreadID != nil {
@@ -936,13 +926,13 @@ public struct NativeWorkspaceView: View {
                     talk: presentation.moku.talk, reply: detail == nil ? presentation.moku.reply : nil,
                     disabled: disabled || (detail.map { !model.canExecute($0) || !presentation.dockInputAvailable } ?? false),
                     interaction: presentation.moku.interaction, interactionIsQuestion: presentation.moku.interactionIsQuestion,
-                    voiceControls: AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)),
+                    voiceControls: overviewVoiceVisible ? AnyView(NativeMokuVoiceControls(client: model.voice.moku, style: .dock, disabled: disabled)) : AnyView(EmptyView()),
                     voiceBackground: AnyView(NativeMokuVoiceCloud(client: model.voice.moku,
-                        visible: detail == nil && presentation.scene.dockContentVisible)),
-                    voiceStatusVisible: detail == nil && ((model.voice.moku.state.phase != .closed && model.voice.moku.state.phase != .failed)
+                        visible: overviewVoiceVisible && presentation.scene.dockContentVisible)),
+                    voiceStatusVisible: overviewVoiceVisible && ((model.voice.moku.state.phase != .closed && model.voice.moku.state.phase != .failed)
                         || !model.voice.moku.state.error.codeUnits.isEmpty),
-                    voiceModeActive: detail == nil && [.preparing, .connecting, .listening, .stopping].contains(model.voice.moku.state.phase),
-                    voiceTranscript: detail == nil ? model.voice.moku.inputTranscript.message.map { NativeMokuTalkMessage(id: $0.id, text: $0.text.string) } : nil,
+                    voiceModeActive: overviewVoiceVisible && [.preparing, .connecting, .listening, .stopping].contains(model.voice.moku.state.phase),
+                    voiceTranscript: overviewVoiceVisible ? model.voice.moku.inputTranscript.message.map { NativeMokuTalkMessage(id: $0.id, text: $0.text.string) } : nil,
                     presentation: presentation.moku,
                     note: presentation.moku.note,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },

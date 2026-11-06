@@ -73,7 +73,12 @@ type voiceController struct {
 	pendingSpeeches  map[*voiceDelivery]bool
 	teardowns        map[*mokuVoiceLease]*mokuVoiceTeardown
 	reconfiguration  *voiceReconfiguration
+	// Explicit Stop revokes this device's preparation identity even when it
+	// reaches the service before prepare. Do not evict during this lifetime.
+	revokedPreparations map[voicePreparationIdentity]bool
 }
+
+type voicePreparationIdentity struct{ device, requestID string }
 
 func newVoiceController(c *Coordinator) *voiceController {
 	v := &voiceController{c: c, commands: make(chan struct{}, 1), admissions: make(chan struct{}, 1), deliveries: make(map[string]*voiceDelivery), teardowns: make(map[*mokuVoiceLease]*mokuVoiceTeardown)}
@@ -266,6 +271,9 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	var detachPrepare func() bool
 	installed := false
 	if request.Action == "prepare" {
+		if request.SuperThreadID != nil {
+			return nil, model.NewError("THREAD_VOICE_REMOVED", "线程内语音已移除，请返回 Overview 使用全局 Moku 语音。")
+		}
 		// A prepared relay retains this service-owned context after the command
 		// returns. The per-command tracking context is detached on installation.
 		// The command's admission identity still transfers so a pending host
@@ -280,6 +288,13 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 		preparation = &mokuVoicePreparation{id: request.RequestID, device: device, ctx: prepareCtx, cancel: cancel, superThreadID: request.SuperThreadID, sourceRevision: request.SourceRevision}
 		detachPrepare = context.AfterFunc(ctx, cancel)
 		v.mu.Lock()
+		if v.revokedPreparations[voicePreparationIdentity{device, request.RequestID}] ||
+			(request.ReconnectFrom != "" && v.revokedPreparations[voicePreparationIdentity{device, request.ReconnectFrom}]) {
+			v.mu.Unlock()
+			detachPrepare()
+			cancel()
+			return nil, model.NewError("VOICE_PREPARATION_REVOKED", "该语音准备已被停止，请重新开启通话。")
+		}
 		var occupiedID, occupiedDevice string
 		if v.preparation != nil {
 			occupiedID, occupiedDevice = v.preparation.id, v.preparation.device
@@ -343,6 +358,10 @@ func (v *voiceController) command(ctx context.Context, raw json.RawMessage) (any
 	}
 	if request.Action == "stop" {
 		v.mu.Lock()
+		if v.revokedPreparations == nil {
+			v.revokedPreparations = map[voicePreparationIdentity]bool{}
+		}
+		v.revokedPreparations[voicePreparationIdentity{device, request.OwnershipID}] = true
 		if recovery := v.reconfiguration; recovery != nil && recovery.device == device && (recovery.ownership == request.OwnershipID || v.preparation != nil && v.preparation.id == request.OwnershipID && v.preparation.reconnect == recovery) {
 			v.discardReconfigurationLocked()
 		}
@@ -931,13 +950,19 @@ func (v *voiceController) deliver(record model.ThreadRecord) {
 // syncContext is called by the host's native ExecutionAdmission before its
 // durable admission. OnRequest is too late: it observes an admitted execution.
 func (v *voiceController) syncContext(ctx context.Context, owner string) error {
+	sessionID, voiceAdmission := plugin.VoiceAdmissionSession(ctx)
+	if !voiceAdmission {
+		// Codex background, Claude and OpenCode native continuations also reach
+		// this hook. Their existing Core admission needs no microphone lease.
+		return nil
+	}
 	v.mu.Lock()
 	lease := v.active
 	if lease == nil && v.reconfiguration != nil && v.retiredLease != nil && v.reconfiguration.ownership == v.retiredLease.requestID {
 		lease = v.retiredLease
 	}
 	v.mu.Unlock()
-	if lease == nil {
+	if lease == nil || lease.id != sessionID {
 		return errors.New("Voice owner 已失效")
 	}
 	syncer, ok := lease.session.(plugin.VoiceContextSync)

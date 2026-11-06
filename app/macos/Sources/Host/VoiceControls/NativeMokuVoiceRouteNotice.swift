@@ -19,9 +19,7 @@ struct NativeMokuVoiceRouteNotice: View {
                         .accessibilityLabel(text("关闭此提示", "Dismiss this notice"))
                         .disabled(client.hasPendingStop)
                 }
-                Text(notice.agentSelected
-                    ? text("已切换发送目标，原 Moku 通话已结束采集；此处未开启 Agent 语音。已接纳的任务继续运行。", "The send target changed. Moku capture has stopped; Agent voice has not been started. Accepted tasks continue.")
-                    : text("页面来源已变化。请在新页面重新开启语音；已接纳的任务继续使用原来源。", "The page source changed. Start voice again on the new page; accepted tasks keep their original source."))
+                Text(text("页面已切换，全局 Moku 采集已停止。语音仅在 Overview 开启，线程阅读页不提供通话；已接纳的任务继续运行。", "The page changed and global Moku capture has stopped. Voice is available only in Overview, not in thread readers. Accepted tasks continue."))
                 if client.state.phase == .stopping {
                     Text(text("正在等待原通话关闭确认…", "Waiting for the previous call to close…"))
                 }

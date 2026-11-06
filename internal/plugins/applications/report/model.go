@@ -88,6 +88,7 @@ type CreateInput struct {
 	RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
 }
 type UpdateInput struct {
+	ExpectedRevision  *int64                `json:"expectedRevision,omitempty"`
 	Emoji             *string               `json:"emoji,omitempty"`
 	ShortDescription  *string               `json:"shortDescription,omitempty"`
 	ReportID          string                `json:"reportId"`

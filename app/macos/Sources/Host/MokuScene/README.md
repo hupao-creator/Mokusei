@@ -79,7 +79,7 @@ Talk, character-transition and voice-cloud replays described below.
 
 The shared input row places the attachment plus between Moku's eyes and the editor. It reuses the workspace draft's device file chooser; hosts with file browsing also offer host files and directories through the existing picker. The control has a localized help/accessibility label and is disabled while attachment import or the owning surface is unavailable.
 
-[NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services, voice client and send callback. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
+[NativeMokuDock](NativeMokuDock.swift) uses one native glass capsule with a bottom-center anchor. Idle size is 168×44 points; expanded width is bounded to 560 points and the available viewport. [NativeMokuComposer](NativeMokuComposer.swift) shares the input row between the Dock and history. History stays expanded and keeps the same workspace-owned draft, attachment services and send callback; it has no voice entrance. Collapsing and reopening the Dock input restores the caret/selection saved while it was open; the first open keeps the existing autofocus behavior. Both surfaces expose an execution-fenced Stop action while Moku is running; voice controls retain their separate media semantics. A normal click can acquire the native editor without being undone by a delayed SwiftUI focus report.
 
 The eyes retain the last open editor seat while the composer retires. Geometry
 reported by the shrinking, read-only composer cannot move that seat; reopening
@@ -757,12 +757,9 @@ current report and its precise source references. Route fences prevent a retirin
 composer from assigning its input to another report. Selecting an execution still
 borrows the ordinary Agent composer with its existing historical continuation,
 Stop authority and receipt handling. No associated Agent receives unselected input.
-The focused presentation supplies the unselected document source when Moku voice
-starts. It is immutable for that call. Selecting an execution synchronously closes
-Moku media before reader geometry/input readiness is published; reopening a retained
-execution does the same. Other report/send-route changes also stop the call and
-require explicit Start on the destination. Moku history is its own send route.
-A separate notice remains visible over the selected Agent reader, retaining the
-received original-call transcript for explicit copying and exposing teardown errors.
-It never claims to start Agent execution voice. Text/attachment draft ownership and
-exact-execution continuation remain unchanged.
+Voice is now restricted to Overview. Entering an ordinary Agent, Super Thread or
+Moku history reader stops the global call before its controls are hidden, retaining
+a visible cleanup notice and received transcript. Reader inputs mount no long-press
+monitor, voice accessibility action or live controls. Overview retains its production
+Moku voice controls and must be explicitly started after a return. Selecting an
+execution continues to select ordinary Agent text/attachment input.
