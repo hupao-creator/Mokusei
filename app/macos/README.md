@@ -98,6 +98,8 @@ for evidence and the limits of the isolated measurements.
 Report HTML fades in over 200ms after its first successful WebKit load in a
 reader visit; later content revisions do not repeat the entrance. Reduce Motion
 shows the document immediately. Loading and error controls remain independent.
+The Super Thread's persistent composer does not suppress its document or
+sidecards; covering surfaces such as Settings still suppress them.
 
 Report related executions target a 3:7 sidecard-to-Report width in list state
 and 5:5 in execution detail, subject to the shared width constraints and stacked

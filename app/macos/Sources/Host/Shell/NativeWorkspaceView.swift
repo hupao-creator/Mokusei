@@ -801,11 +801,12 @@ public struct NativeWorkspaceView: View {
     }
     private var applicationSuppressed: Bool {
         presentation.scene.settingsOpen || presentation.scene.cameraActive || presentation.scene.mokuOpen
-            || (presentation.scene.inputOpen && presentation.dockThreadID == nil) || presentation.moku.interaction != nil
+            || (presentation.scene.inputOpen && presentation.dockThreadID == nil && presentation.mokuSuperThreadID == nil)
+            || presentation.moku.interaction != nil
     }
     private var sidecardsSuppressed: Bool {
         presentation.scene.settingsOpen || presentation.scene.cameraActive || presentation.scene.mokuOpen
-            || (presentation.scene.inputOpen && presentation.dockThreadID == nil)
+            || (presentation.scene.inputOpen && presentation.dockThreadID == nil && presentation.mokuSuperThreadID == nil)
             || presentation.moku.interaction != nil || presentation.messageMotion.active
     }
 
