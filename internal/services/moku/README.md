@@ -40,9 +40,8 @@ Every `create_thread` call supplies `worktree` as a boolean. `false` uses an exp
 
 Ordinary tasks require the target Harness's explicit model/thinking choices. Codex also requires service tier. Deferred native targets use `describe_native_harness` for the exact current schema; cached discovery is not admission authority. Moku's own concrete execution profile is independent of ordinary task defaults.
 
-The built-in prompt and both creation/follow-up prompt schemas share target-routing
-guidance: explicit user choices take precedence over general routing guidance and
-belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
+Both creation/follow-up prompt schemas carry target-routing guidance: explicit
+user choices take precedence over general routing guidance and belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
 with the actual work and omits only dispatch requirements already fulfilled by
 that selection. A target-model choice alone is not a request for a child Agent.
 Explicit child-Agent, parallel-work and role requirements, and model names or
@@ -60,17 +59,18 @@ histories are not rewritten; updated guidance is injected on session preparation
 
 ## System prompt budget and injection boundary
 
-[DefaultSystemPrompt](prompt.go) contains exactly five English sentences covering
-coordination, visible communication, routing, managed workspaces and event-driven
-follow-up. Count the complete built-in string by sentence-ending periods, not Go
-string literals or lines; it has no abbreviations, URLs or embedded periods.
+[DefaultSystemPrompt](prompt.go) contains exactly three English sentences covering
+coordination, invisible assistant replies and the distinction between information
+for Moku itself and information needed by delegated Agent Threads. Count the
+complete built-in string by sentence-ending periods, not Go string literals or
+lines; it has no abbreviations, URLs or embedded periods.
 [Coordinator preparation](coordinator.go) injects that string as its only built-in
 `Injection.Instructions` entry, independently of the number of target Harnesses.
 `DescribeThreadCreation` supplies tool schemas, not an additional instruction
 block or prose target roster. No removed instructions are relocated into context,
 tool descriptions or another Agent's prompt.
 
-The five-sentence budget is **not a cap on the provider's entire model input**:
+The three-sentence budget is **not a cap on the provider's entire model input**:
 
 - Saved `Moku.RoutingGuidance` is appended verbatim as user configuration after
   the built-in prompt and has no sentence cap within its existing settings
@@ -89,7 +89,7 @@ The five-sentence budget is **not a cap on the provider's entire model input**:
   OpenCode `Configure` compose it with context and, where needed, historical
   seeds or restoration guidance. Depending on the adapter, subsequent context
   travels in messages or native system configuration, so even without routing
-  guidance the complete native system/developer payload can exceed five sentences.
+  guidance the complete native system/developer payload can exceed three sentences.
 - Native engines/providers may supply their own system instructions, workspace
   instructions or session history; separate voice frontend/relay instructions
   are also outside this Moku coordinator budget and remain unchanged.
@@ -97,18 +97,20 @@ The five-sentence budget is **not a cap on the provider's entire model input**:
 Detailed wording about character budgets, emoji, Talk expiry and layout, note
 compaction/evidence, native options and worktree names is no longer duplicated
 in the base prompt; its existing tool contract remains authoritative. The base
-also drops the standalone reminder that Runtime handles voice delivery. Tag,
-Report, ordinary Agent instructions and shared Harness serializers are unchanged.
+omits detailed channel selection, target routing, worktree rules, dispatch
+confirmation, terminal-event waiting and the reminder that Runtime handles voice
+delivery; existing tool guidance is unchanged, not expanded to absorb removals.
+Tag, Report, ordinary Agent instructions and shared Harness serializers are unchanged.
 Updated guidance takes effect when a Moku native session is prepared; existing
 native histories are not rewritten.
 
 ## Talk and notes
 
-The built-in prompt defines the user's visible communication surfaces as Talk,
-the persistent note, and all content in ordinary Agent Threads, including Moku's
-delegated instructions. Moku's own assistant messages, including normal and final
-replies, are not visible and do not count as communicating with the user. Anything
-the user needs to know or respond to must reach a visible surface: Talk for short
+The built-in prompt states that Moku's own assistant replies are invisible.
+Visible surfaces remain Talk, Timer, the persistent note and ordinary Agent
+Threads, including Moku's delegated instructions; their detailed usage is no
+longer enumerated in the base prompt. Anything the user needs to know or respond
+to must reach a visible surface: Talk for short
 immediate answers, questions, confirmations and updates; the note for persistent
 milestone recaps; and the relevant Agent Thread for detailed task discussion and
 deliverables. Runtime voice delivery remains separate.
@@ -122,7 +124,7 @@ The tool returns `{ok:true}` after its completion audit commits, without waiting
 for a user receipt. Success means the operation was accepted, not proof that a
 client displayed it, audio was audible, or the user acknowledged it. Only the UI
 can acknowledge; there is no confirmation tool, scheduler, date/duration input,
-reminder CRUD or reminder table. The tool/prompt describe its audible nature;
+reminder CRUD or reminder table. The tool describes its audible nature;
 ordinary Talk remains silent and expires automatically as before.
 
 The native workspace queues successful Timer operations by owner, Harness,

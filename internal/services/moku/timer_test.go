@@ -49,8 +49,8 @@ func TestTimerRegisteredBindingAndAudit(t *testing.T) {
 			if binding.Execute == nil {
 				t.Fatal("missing communication binding")
 			}
-			if name == "timer" && (!strings.Contains(binding.Description, TimerTextPolicy) || !strings.Contains(DefaultSystemPrompt(), "timer for immediate audible messages requiring UI acknowledgment rather than scheduled delivery")) {
-				t.Fatal("timer tool and system prompt policy drifted")
+			if name == "timer" && !strings.Contains(binding.Description, TimerTextPolicy) {
+				t.Fatal("timer tool policy drifted")
 			}
 			for _, text := range []string{"  exact\ntext  ", strings.Repeat("😀", 160), strings.Repeat("e\u0301", 80), "\u0085visible\uFEFF"} {
 				args, _ := json.Marshal(map[string]string{"text": text})

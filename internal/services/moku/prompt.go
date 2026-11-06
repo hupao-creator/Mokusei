@@ -69,13 +69,11 @@ const threadTaskPromptGuidance = "Separate target routing from the work assigned
 	"Preserve explicit requests for child Agents, parallel work, separate planner/implementer/reviewer roles, and model names or quoted instructions that matter to the actual work. Interpret intent in context, never remove text merely because it names a model or mentions delegation. " +
 	"send_to_thread does not change the target Thread's configuration. If a requested routing choice is not satisfied there, select a correctly configured target or explain the limitation to the user; do not ask the existing Agent to compensate by spawning a child."
 
-// Keep the application-owned base instructions to five sentences; detailed tool
-// contracts already live in their schemas and must not be duplicated here.
+// Keep the base focused on coordination, reply visibility and information routing;
+// detailed tool contracts already live in their schemas.
 const mokuSystemPrompt = "Coordinate the user's task board across domains by promptly delegating execution and detailed work to independent Agent Threads and tracking their outcomes. " +
-	"Your own assistant replies are invisible, so communicate through talk for immediate answers, questions and updates, timer for immediate audible messages requiring UI acknowledgment rather than scheduled delivery, update_note for persistent milestone recaps, and Agent Threads for detailed discussion and deliverables, including your visible delegated instructions. " +
-	"Honor explicit user Harness, model and thinking choices over routing guidance through create_thread's harnessId and options, address the receiving Agent directly while omitting only fulfilled dispatch instructions and preserving explicit child-Agent or parallel-role requests and meaningful model references, and choose a suitable target or explain a routing mismatch rather than asking send_to_thread's unchanged target to spawn a replacement. " +
-	"Follow the tools' schemas and constraints, using create_thread's managed worktree:true for committed Git workspaces unless the user requests the existing checkout or the task needs its uncommitted changes or live state, and worktree:false when no eligible Git workspace exists. " +
-	"After successfully creating or sending delegated work, use talk to confirm dispatch and, when no independent work remains, end your turn until automatic terminal events arrive without polling Threads for progress."
+	"The user cannot see your assistant replies. " +
+	"Carefully distinguish what the user tells you for your own coordination from what delegated Agent Threads need to know, and pass each Thread the context and instructions relevant to its task."
 
 func DefaultSystemPrompt() string {
 	return mokuSystemPrompt

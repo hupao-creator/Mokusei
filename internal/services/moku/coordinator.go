@@ -806,7 +806,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			return current, collectErr
 		}
 		// Target options and worktree rules are already in the tool schemas.
-		// Only user-authored routing guidance extends the five-sentence base.
+		// Only user-authored routing guidance extends the three-sentence base.
 		instructions := []string{DefaultSystemPrompt()}
 		if guidance := valueOrEmpty(applied.AppliedSettings.Moku.RoutingGuidance); guidance != "" {
 			instructions = append(instructions, "Model routing guidance:\n"+guidance)

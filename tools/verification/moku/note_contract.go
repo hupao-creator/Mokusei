@@ -39,7 +39,7 @@ func runNoteSchemaReplay() error {
 		required, _ := definition["required"].([]any)
 		mokuReplayCheck(len(required) == 2, "update_note schema requires text and expected")
 		mokuReplayCheck(strings.Contains(binding.Description, "persistent") && strings.Contains(binding.Description, "1200"), "update_note description omits its purpose or budget")
-		mokuReplayCheck(strings.Contains(moku.DefaultSystemPrompt(), "update_note") && strings.Contains(moku.DefaultSystemPrompt(), "talk"), "Moku prompt does not distinguish the note from talk")
+		mokuReplayCheck(strings.Contains(binding.Description, moku.NoteContentGuidance), "note tool omitted its recap and evidence guidance")
 
 		compiler := jsonschema.NewCompiler()
 		compiler.DefaultDraft(jsonschema.Draft7)
