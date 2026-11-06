@@ -48,11 +48,11 @@ func newAgent(ctx plugin.BackgroundAgentContext) (plugin.RuntimeParticipant, err
 		if request.Steering {
 			instruction = "Incorporate these additional lifecycle events into your current batch now. Revisit earlier reporting decisions using the new evidence, and continue all unfinished report work."
 		}
-		events, err := json.Marshal(background.EventMetadata(request.Events))
+		events, err := request.MarshalEvents()
 		if err != nil {
 			return model.AgentInput{}, err
 		}
-		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s Read full event data and relevant context as needed. Batch: %s\n%s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, request.BatchID, events)), nil
+		return background.Input(fmt.Sprintf("You maintain reports only for scope %q (%s). Never read or aggregate evidence or reports from another scope. %s Read relevant context as needed. Batch: %s\n%s", ctx.Owner.ScopeLabel, ctx.Owner.Binding.Scope, instruction, request.BatchID, events)), nil
 	}, Tools: func(lifetime context.Context) []plugin.ToolBinding {
 		return append(background.EvidenceTools(lifetime, tasks, runner), reportTools(lifetime, ctx.Domain, runner)...)
 	}})

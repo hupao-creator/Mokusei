@@ -2,6 +2,7 @@ package background
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -21,6 +22,16 @@ type BatchRequest struct {
 	Events   []plugin.LifecycleEvent
 	Steering bool
 }
+
+// MarshalEvents is the complete lifecycle delivery representation for both
+// initial batches and steering. Keep Data opaque: decoding it into a projection
+// can lose source fields or replace an execution snapshot with newer state.
+// Consumers such as Tag may deliberately use a bounded evidence projection
+// instead; that choice must not change the shared delivery representation.
+func (r BatchRequest) MarshalEvents() ([]byte, error) {
+	return json.Marshal(r.Events)
+}
+
 type BatchPlan struct {
 	Events []plugin.LifecycleEvent
 	Skip   bool

@@ -93,6 +93,53 @@ are diagnostic context; batch fences and receipts retain write/dedup authority.
 
 后台批次与工具读取 lifecycle 历史时，每一页开始前检查调用取消。已进入的单页读取仍由无 context 的 snapshot 能力完成；取消后不再继续读取后续页。
 
+### Lifecycle batch delivery
+
+Runtime records lifecycle facts in the same store transaction as the business
+change. Execution status facts carry that execution's `PublicExecution` snapshot
+as `data`. Store pending/history reads retain the persisted event content and
+order (ascending `createdAt`, then event ID for ties). The lifecycle capability
+clones the raw data into `plugin.LifecycleEvent`; the scoped wrapper intersects
+both subscriptions and history with the instance's Directory Scope authority.
+
+The shared [background runner](../../plugins/applications/background/runner.go)
+loads initial/retried work through consumer history and additional steering
+through pending events. Both reach the same `BatchRequest.MarshalEvents`
+delivery contract: serialize complete `LifecycleEvent` records, including raw
+`data`, source and available scope/interaction identities. JSON escaping may
+change the wire spelling, but string values and optional missing fields are
+preserved. No body is summarized, truncated, enriched from current thread state,
+or written to diagnostic logs by this serializer. Missing data serializes as
+`null`; malformed raw JSON fails serialization before native send.
+
+Report uses this complete representation. Tag deliberately retains its existing
+metadata plus bounded accepted-input/inventory excerpts through `EventEvidence`;
+Attention retains its capability-produced observations. Moku uses its separate
+live input subscription and durable notification outbox. Their model inputs,
+filters and confirmation behavior do not change. Report still subscribes only to
+application-authored successful completion facts for ordinary Agent Threads in
+its own scope, excluding Moku histories and private agent conversations.
+Complete event content grants no additional source/history or private journal
+access, but it does put the already-authorized raw summary into Report's native
+conversation/model context on every delivery; it receives no additional redaction.
+
+Initial admission and each steering fetch retain the existing 64-event limit,
+not a byte/token budget. Recovered work can include previously admitted steering
+and exceed 64 events. There is no delivery-level splitting or truncation fallback.
+The existing private-session input validator rejects a text part over 1,000,000
+UTF-16 code units or an encoded AgentInput over 8 MiB (including JSON escaping and
+the message envelope). Harness/model limits can be lower. Oversized summaries or
+accumulated steering follow the existing failure/retry path; exhausting the
+three-attempt budget settles admitted work as failed, not processed. This change
+does not guarantee model retention of all earlier context. Optional summary/finish
+fields are not reconstructed if the producer did not record them.
+
+Steering excludes IDs already in the active work; only native admission appends
+new IDs to that work. Batch settlement, outcomes, attempt limits and write
+receipts remain authoritative. Retries/recovery can repeat complete event bodies;
+delivery is not an exactly-once model-processing guarantee. Serialization errors
+do not acknowledge additional events or silently deliver a metadata-only row.
+
 ## Composition and implementations
 
 [registry.go](registry.go) validates declarations; [operations.go](operations.go) owns command planning and reduction; [records.go](records.go) restricts record access; [lifecycle.go](lifecycle.go) owns participant generations. The [composition root](../../core/composition/bootstrap.go) supplies Report, Tag and built-in Git explicitly.

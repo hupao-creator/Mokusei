@@ -24,6 +24,16 @@ verbatim ELI5 snapshot; it does not adopt the pending shortened prompt draft.
 
 The agent uses the shared [background runner](../background/runner.go), initializing native work lazily and disposing idle sessions. It follows Moku's saved execution profile or an independent configuration via [background settings](../background/settings.go). Admitted batches retain their configuration and request/receipt identity across retries. Settings-retention data survives history clearing.
 
+Automatic batches and active-execution steering embed the shared runner's
+complete lifecycle event JSON, including `data`, rather than metadata requiring
+a second journal read. For `execution.completed`, `data` is the persisted
+`PublicExecution` snapshot with its execution ID, status, start time and any
+recorded finish time and original summary. Optional absent fields stay absent;
+an empty summary stays empty. Delivery does not synthesize a final reply or
+substitute the thread's current execution. See the host's
+[shared delivery contract](../../../hosts/applicationhost/README.md#lifecycle-batch-delivery)
+for size, retry and disclosure limits.
+
 `report.settings.enabled` defaults to true when omitted and operates independently
 of Tag. Disabling revokes the active attempt and tool lifetime, interrupts/closes
 native work and pauses the durable inbox. Existing report documents remain in the
