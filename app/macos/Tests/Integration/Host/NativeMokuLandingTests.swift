@@ -527,23 +527,39 @@ struct NativeMokuLandingTests {
             #expect(fixture.presentation.selected == nil, "Layout updates must not restore the closed route")
             for interruption in ["mutation", "same-snapshot", "reconnect", "disconnect", "appearance"] {
                 fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
-                try await SwiftUIReplay.wait {
-                    fixture.presentation.mountedReadingThread?.threadID == "child" && !fixture.presentation.messageMotion.active
-                        && readingPanel(in: root) != nil
+                let fullPanel = NativeReadingPanelGeometry.frame(in: root.bounds.size)
+                var closePhase = "admission"
+                func logCloseReadiness(_ phase: String) {
+                    let frame = readingPanel(in: root).map { $0.convert($0.bounds, to: root) }
+                    print("MOKU_PANEL_CLOSE_READINESS interruption=\(interruption) phase=\(phase) selected=\(String(describing: fixture.presentation.selected)) mounted=\(String(describing: fixture.presentation.mountedReadingThread)) admitted=\(fixture.presentation.readingEntranceAdmitted) moving=\(fixture.presentation.messageMotion.active) root=\(root.bounds) fullPanel=\(fullPanel) actual=\(String(describing: frame))")
                 }
-                let panel = try #require(readingPanel(in: root))
-                // An active execution opens its sidecard after reader admission;
-                // wait for that second layout transition before targeting Close.
-                var lastFrame = panel.convert(panel.bounds, to: root)
-                var stableSince = ContinuousClock.now
-                try await SwiftUIReplay.wait {
-                    let frame = panel.convert(panel.bounds, to: root)
-                    if frame != lastFrame { lastFrame = frame; stableSince = .now }
-                    return stableSince.duration(to: .now) > .milliseconds(450)
+                do {
+                    // A new visit resets admission. Its full-width panel can be
+                    // quiet while main text reveals, before the Sidecard opens.
+                    try await SwiftUIReplay.wait {
+                        guard let panel = readingPanel(in: root) else { return false }
+                        return fixture.presentation.selected?.threadID == "child"
+                            && fixture.presentation.mountedReadingThread?.threadID == "child"
+                            && fixture.presentation.readingEntranceAdmitted && !fixture.presentation.messageMotion.active
+                            && panel.convert(panel.bounds, to: root).width < fullPanel.width - 300
+                    }
+                    closePhase = "settling"
+                    let panel = try #require(readingPanel(in: root))
+                    var lastFrame = panel.convert(panel.bounds, to: root)
+                    var stableSince = ContinuousClock.now
+                    try await SwiftUIReplay.wait {
+                        let frame = panel.convert(panel.bounds, to: root)
+                        if frame != lastFrame { lastFrame = frame; stableSince = .now }
+                        return stableSince.duration(to: .now) > .milliseconds(450)
+                    }
+                    let settledFrame = panel.convert(panel.bounds, to: root)
+                    try await Task.sleep(for: .milliseconds(100))
+                    try #require(panel.convert(panel.bounds, to: root) == settledFrame, "Close target must be settled before input")
+                } catch {
+                    logCloseReadiness(closePhase + "-failed")
+                    throw error
                 }
-                let settledFrame = panel.convert(panel.bounds, to: root)
-                try await Task.sleep(for: .milliseconds(100))
-                try #require(panel.convert(panel.bounds, to: root) == settledFrame, "Close target must be settled before input")
+                logCloseReadiness("ready")
                 try closeAgentPanel(in: try #require(fixture.window))
                 try #require(fixture.presentation.messageMotion.active, "The settled icon click must be accepted before recovery")
                 var interruptedReturn = false

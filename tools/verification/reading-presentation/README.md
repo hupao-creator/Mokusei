@@ -618,6 +618,13 @@ frame, content anchor, WebKit loading/zoom and motion state on success or failur
 The original sub-point position and size bounds, responsive-layout wait and
 native input assertions remain.
 
+This HTML-only fixture supplies a real, explicitly closed
+`NativeReportSidecardPresentation` through the same environment as the workspace.
+It mounts no related-execution UI, so neither an active nor a pending sidecard
+may own Escape: editing retains the first key, and one body Escape must close
+the Report. The production Report's separate pending-sidecard cancellation
+priority remains unchanged.
+
 This uses real production views and document scroll events, not a duplicated
 animation implementation. It does not exercise physical hover, actual macOS
 minimize/full-screen transitions, hardware zoom gestures or optical frame pacing;
@@ -885,7 +892,12 @@ the active execution's automatic sidecard, real launcher clicks and icon pixels,
 Thread-owned input, and the production upper-left Close. The execution sidecard
 is read-only, so its open state is checked by panel geometry rather than the
 input-sidecard `followUpVisible` flag. Return/interruption input waits for both
-outer admission and automatic sidecard layout to settle.
+the current visit's production `readingEntranceAdmitted` gate and the actual
+panel narrowing for its automatic Sidecard, within the existing three-second
+wait. A quiet full-width panel during main-text reveal is not final readiness.
+The original 450ms stable-frame observation, 100ms exact-frame recheck, real Close
+click and five recovery-event cases remain. Phase, interruption, admission and
+actual/full geometry are logged on readiness or failure.
 The card-identity case includes generated emoji metadata and waits for real
 source anchors. It requires title/emoji to finish their travel with the panel
 and checks the mounted heading stays centered in its current reading viewport

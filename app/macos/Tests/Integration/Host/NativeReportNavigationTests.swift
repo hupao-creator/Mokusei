@@ -22,6 +22,7 @@ import MokuseiApplications
     var scale: CGFloat = 1
     var backs = 0
     var externalURLs: [URL] = []
+    let sidecards = NativeReportSidecardPresentation()
     let html = """
         <html><body style='background:white;min-height:2400px'>
         <h1>Report</h1>
@@ -58,6 +59,12 @@ import MokuseiApplications
         </body></html>
         """
     let motion = NativeReadingPageMotion()
+
+    init() {
+        // This HTML-only reader mounts no related-execution UI. Its first body
+        // Escape must close the Report, not cancel a default pending sidecard.
+        sidecards.close()
+    }
 }
 
 private struct ReportNavigationReplay: View {
@@ -88,6 +95,7 @@ private struct ReportNavigationReplay: View {
                     onNativeNavigationChange: { fixture.ready = $0 }, onFailure: { Issue.record(Comment(rawValue: $0.message)) })
                     .modifier(NativeApplicationReadingPanel(enabled: fixture.panel, identifier: "report-reading-panel",
                         onClose: { fixture.backs += 1; fixture.motion.close() }))
+                    .environment(\.nativeReportSidecards, fixture.sidecards)
                     .environment(\.nativeApplicationReadingPanel, fixture.panel)
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
@@ -500,6 +508,8 @@ struct NativeReportNavigationTests {
             #expect(portal(in: root) == nil)
             _ = try await panelDocument.evaluateJavaScript("window.scrollTo(0, 0)")
         }
+        try #require(fixture.sidecards.active == nil && fixture.sidecards.pending == nil,
+                     "The HTML-only reader must have no sidecard owning Escape")
         try #require(panelDocument.window === window && webView(in: root) === panelDocument)
         try #require(window.makeFirstResponder(panelDocument))
         // As with the modal above, native WebKit focus crosses processes. The
@@ -535,7 +545,7 @@ struct NativeReportNavigationTests {
         do {
             try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
         } catch {
-            print("Report panel Escape diagnostics: open=\(fixture.open) backs=\(fixture.backs) moving=\(fixture.motion.active) key=\(window.isKeyWindow) active=\(NSApp.isActive) responder=\(String(describing: window.firstResponder))")
+            print("Report panel Escape diagnostics: open=\(fixture.open) backs=\(fixture.backs) moving=\(fixture.motion.active) sidecard=\(String(describing: fixture.sidecards.active)) pendingSidecard=\(String(describing: fixture.sidecards.pending)) key=\(window.isKeyWindow) active=\(NSApp.isActive) responder=\(String(describing: window.firstResponder))")
             logPanelDOMDiagnostics(panelDocument)
             throw error
         }
