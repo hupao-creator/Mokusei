@@ -36,7 +36,7 @@ public struct ClaudeThreadView: View {
                 execution: ThreadConversationExecution(id: turn.id, title: input.thread.executionTitles[turn.id]?.string, prompt: turn.visiblePrompts.first?.stringValue ?? "", answer: turn.raw["text"]?.stringValue ?? "", completedAt: turn.status == "completed" ? turn.finishedAt : nil, isActive: turn.status == "running"),
                 node: AnyView(row(turn.id, state: state)))
         }
-        if !state.tasks.isEmpty { rows.append(ThreadConversationRow(id: "native-background-tasks", createdAt: input.thread.updatedAt, node: AnyView(ClaudeBackgroundTasks(tasks: state.tasks)))) }
+        rows += claudeSupplementalRows(tasks: state.tasks, agentDetail: agentDetail, updatedAt: input.thread.updatedAt)
         let anchor = claudeReplyAnchor(state, message: input.readingTarget?.message) ?? (resolvedAnchor?.request == input.readingTarget?.requestID ? resolvedAnchor?.anchor : nil)
         return ThreadConversation(threadId: input.thread.id, title: agentDetail ? input.thread.title.string : claudeDocumentTitle(input.thread, state: state), icon: claudeEmoji(input.thread), rows: rows,
             readingTarget: input.readingTarget.map { ThreadConversationReadingTarget(requestId: $0.requestID, mode: $0.mode == .current ? .current : .history, executionId: $0.executionID, anchorId: anchor, position: $0.position,
@@ -46,7 +46,7 @@ public struct ClaudeThreadView: View {
             activeExecutionId: input.thread.observation.isExecutionActive ? input.thread.observation.latestExecution?.executionID : nil,
             context: context,
             renderRow: context.content == .manifest ? { key in
-                if key == "native-background-tasks" { return AnyView(ClaudeBackgroundTasks(tasks: state.tasks)) }
+                if !agentDetail, key == "native-background-tasks" { return AnyView(ClaudeBackgroundTasks(tasks: state.tasks)) }
                 return AnyView(ClaudeLazyRow(key: key, input: input, actions: actions, context: context, onAnchor: { request, anchor in resolvedAnchor = (request, anchor) }))
             } : nil)
     }
@@ -117,6 +117,16 @@ private struct ClaudeLoadedRow: View {
 }
 @MainActor func claudeVisible(_ id: JSONText, context: HarnessRenderContext) -> Bool {
     switch context.presentation { case .main(let excluded): !excluded.contains(id); case .execution(let execution): execution == id }
+}
+
+/// Conversation-level runtime section, kept at the same reader boundary as
+/// `claudeDetailIncludes`. Agent detail admits only execution records, replies
+/// and errors, so background tasks never mount there; full and Moku readers
+/// retain the section.
+@MainActor func claudeSupplementalRows(tasks: [JSONValue], agentDetail: Bool, updatedAt: Double) -> [ThreadConversationRow] {
+    guard !agentDetail, !tasks.isEmpty else { return [] }
+    return [ThreadConversationRow(id: "native-background-tasks", createdAt: updatedAt,
+        node: AnyView(ClaudeBackgroundTasks(tasks: tasks)))]
 }
 struct ClaudeTurnView: View {
     @Environment(\.threadAgentDetail) private var agentDetail
