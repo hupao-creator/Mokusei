@@ -94,7 +94,8 @@ def main():
             ("settings", go + ["./tools/verification/settings", "-runtime", str(output / "mokusei-runtime"),
                                "-artifacts", str(output / "settings")]),
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
-            *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name])
+            *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name]
+                     + (["--native-owned"] if name in {"moku-execution-links", "rolling-numbers"} else []))
               for name in ["browser-dialogs", "application-navigation", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
             ("thread-send-feedback", [sys.executable, "tools/verification/reading-presentation/run.py", "--thread-send-feedback-native"]),

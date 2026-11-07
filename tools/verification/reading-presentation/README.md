@@ -638,6 +638,8 @@ MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verifi
 ```
 
 Runs two `RollingNumberCellTests` and the Git summary/original-size case in the native application event loop. The
+CI command adds `--native-owned` to run only the mandatory Git case; the two
+cell/projection methods already run in the ordinary graphical suite. The
 production Codex plugin consumes changing session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
@@ -748,7 +750,10 @@ Markdown cases explicitly skip; this run does not certify those cases.
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 message-completion follow/stop/resume, successor isolation, archived/failed and missing
-execution targets. These cases also run in the complete hosted Swift suite.
+execution targets. CI adds `--native-owned` to select only the capsule method
+declared in `swift_ownership.py`; the other nine mounted and two windowless
+methods run in the complete ordinary Swift suite. The original local command
+retains all twelve methods for diagnosis.
 The running-link case sends enough streaming blocks to fill multiple pages and
 requires that none appear before message completion, including while waiting
 for input. OpenCode's mixed text/reasoning/tool fixture must retain both execution
@@ -821,6 +826,8 @@ mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, th
 original three sampling intervals, three distinct frames and fixed 400×90 geometry
 remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
+CI's `--native-owned` filter and expected count come from `swift_ownership.py`,
+so the two ordinary methods are not executed a second time in that check.
 The rolling producer starts through LaunchServices so macOS admits it as a
 foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.

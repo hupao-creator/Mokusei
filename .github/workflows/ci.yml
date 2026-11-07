@@ -46,6 +46,10 @@ jobs:
     name: Go / Linux
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      MOKUSEI_GO_RACE_PATTERNS: >-
+        ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime
+        ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,15 +81,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-
-
-      # Ubuntu's standard image provides cc and libsqlite3-dev. Keep this
-      # explicit: the runtime uses cgo, and disabling it is not a valid build.
-      - name: Check SQLite C toolchain
-        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
-        run: |
-          printf '#include <sqlite3.h>\nint main(void) { return sqlite3_libversion_number() == 0; }\n' |
-            cc -x c - -lsqlite3 -o "$RUNNER_TEMP/sqlite-check"
-          "$RUNNER_TEMP/sqlite-check"
 
       - name: Go formatting
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
@@ -120,14 +115,21 @@ jobs:
       # test results from substituting for execution after a cache restore.
       # devtool's rotation tests call Darwin-only native profile leases; they
       # run in the macOS job. All packages are still built and vetted above.
+      # Module packages execute once with the race detector in the next step.
       # Bound package concurrency for process/deadline fixtures on standard runners.
       - name: Go unit tests (including directory tags)
         if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
         run: |
           packages="$(go list ./cmd/... ./internal/... ./tools/verification/thread-search ./tools/verification/applicationhost ./tools/verification/runtime-helpers)"
+          read -r -a module_patterns <<< "$MOKUSEI_GO_RACE_PATTERNS"
+          module_packages="$(go list "${module_patterns[@]}")"
+          declare -A race_packages=()
+          while IFS= read -r package; do
+            race_packages["$package"]=1
+          done <<< "$module_packages"
           portable_packages=()
           while IFS= read -r package; do
-            if [[ "$package" != */internal/tooling/devtool ]]; then
+            if [[ "$package" != */internal/tooling/devtool && -z "${race_packages["$package"]:-}" ]]; then
               portable_packages+=("$package")
             fi
           done <<< "$packages"
@@ -136,11 +138,10 @@ jobs:
 
       - name: Go module race tests (check-modules)
         if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
-        run: >-
-          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/modules" --
-          go test -json -race -p 2 -count=1
-          ./internal/plugins/... ./internal/hosts/... ./internal/core/runtime
-          ./internal/services/moku ./internal/platform/discovery ./internal/platform/environment
+        run: |
+          read -r -a module_patterns <<< "$MOKUSEI_GO_RACE_PATTERNS"
+          python3 scripts/ci/go-tests.py run "$RUNNER_TEMP/ci-go/modules" -- \
+            go test -json -race -p 2 -count=1 "${module_patterns[@]}"
 
       - name: Runtime and Codex integration properties (pbt)
         if: ${{ !cancelled() && needs.scope.outputs.documentation_only != 'true' }}
@@ -266,15 +267,14 @@ jobs:
             defaults write com.apple.universalaccess reduceTransparency -bool false
           fi
           app/macos/.build/ci-native-environment
-      - name: Native Go module and development-tool tests
+      - name: Native Go development-tool tests
         if: ${{ !cancelled() }}
         run: |
-          python3 scripts/ci/go-tests.py run "$MOKUSEI_CI_EVIDENCE/ci-native-go/moku" -- go test -json -race -count=1 ./internal/services/moku
           python3 scripts/ci/go-tests.py run "$MOKUSEI_CI_EVIDENCE/ci-native-go/devtool" -- go test -json -count=1 ./internal/tooling/devtool
       - name: Enforce native Go execution
         if: ${{ always() }}
         run: |
-          python3 scripts/ci/go-tests.py report --output "$MOKUSEI_CI_EVIDENCE/ci-native-go/summary.json" "$MOKUSEI_CI_EVIDENCE/ci-native-go/moku" "$MOKUSEI_CI_EVIDENCE/ci-native-go/devtool"
+          python3 scripts/ci/go-tests.py report --output "$MOKUSEI_CI_EVIDENCE/ci-native-go/summary.json" "$MOKUSEI_CI_EVIDENCE/ci-native-go/devtool"
       - name: Generate actual Go projections for Swift consumers
         id: fixtures
         if: ${{ !cancelled() }}

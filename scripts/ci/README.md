@@ -13,7 +13,9 @@ content admission. Missing native markers or unexpected skips fail coverage.
 
 CGO and system SQLite remain enabled. Actions installs the toolchain from
 `go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
-profile-rotation and clipboard-bridge tests run in the native job.
+profile-rotation tests run in the native job. Portable Moku package tests execute
+once in Linux's race-enabled module set; Moku's Go fixtures and native/interop
+replays still execute in the macOS session.
 
 ## Runner deployment
 
@@ -118,12 +120,18 @@ its 100/90/300ms sampling intervals, three distinct frames and fixed geometry.
 It requires a foreground key window in the AppKit runner and emits
 `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` only after those assertions. The same manifest,
 exclusion and exactly-once receipt audit apply; a skipped or absent run fails.
+CI passes `--native-owned` to select only this method; the two cell/projection
+methods keep their ordinary graphical execution.
 
 The Moku note capsule hydration/wrapping/copy/input case uses
 `native/moku-execution-links`. It requires the real AppKit loop, tests both
 keyboard and TextKit mouse tracking for all four Harnesses, and emits
 `MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
 only because that same method has a mandatory native outcome and receipt.
+CI selects only this method with `--native-owned`; the other nine mounted and
+two windowless methods keep their ordinary execution. Both launchers derive
+their selected method identities and expected counts from `swift_ownership.py`;
+their original local commands still run the full suites for diagnosis.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings
@@ -183,9 +191,12 @@ code. Its always-run report distinguishes:
 
 Nonzero/missing exit status, malformed or incomplete events, empty execution and
 all-skipped commands fail. Partial skips remain visible; Go does not have Swift's
-pre-discovered method audit. Unit, race, property and platform commands overlap,
-so their counts are not unique coverage totals. `-count=1` prevents test-result
-cache hits from replacing execution.
+pre-discovered method audit. Linux unit selection excludes the module packages
+that execute with the race detector. Both steps expand the same job-level module
+pattern list, so adding a race-covered package also removes its duplicate unit
+execution. Integration properties remain a separate package set. Platform runs
+can still overlap Linux coverage, so counts across platforms are not unique
+coverage totals. `-count=1` prevents test-result cache hits from replacing execution.
 
 ## Time and resource tradeoff
 
