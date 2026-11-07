@@ -298,7 +298,8 @@ external page, model request, global input or installed app is used.
 python3 tools/verification/reading-presentation/run.py --browser-viewport
 ```
 
-Runs all eight `NativeBrowserViewportTests` in the isolated AppKit event loop.
+Runs all nine `NativeBrowserViewportTests` and the `NativeMarkdownHTTPMediaTests`
+case in the isolated AppKit event loop.
 Real loopback HTTP fixtures cover rejected iframe/new-window downloads, canceled
 provisional navigation, native word navigation in ordinary and shadow-root text
 editors, modal Escape, annotation capture after target mutation/removal, document
@@ -307,7 +308,7 @@ to its own windows and makes no external page or model request. Run serially wit
 other native replays and SwiftPM builds. Plain SwiftPM still runs the existing
 portal geometry, render layers and navigation cases. The real annotation mouse
 input and focused document responder-chain tests explicitly skip without this
-native replay capability; both run without skips in this eight-test launcher.
+native replay capability; both run without skips in this ten-test launcher.
 
 ## Overview animation and native decoration evidence
 

@@ -387,7 +387,7 @@ Validation: existing Moku Dock, history composer, Talk, dispatch, note, gesture 
 
 Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The history selector opens those sessions through their original Harness reader; the current composer belongs only to the current session. Runtime prevents archive reactivation, fork and execution, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
-Run `python3 tools/verification/reading-presentation/run.py --moku-composer`, `--composer-paste`, and `--moku-note-tests` serially for the mounted history editor, immediate-paste admission, Stop/Cancel controls and short note viewport regressions. These modes use the production components in an isolated AppKit event loop and reject skipped/incomplete suites.
+Run `python3 tools/verification/reading-presentation/run.py --moku-composer`, `--composer-paste`, and `--moku-note-tests` serially for the mounted history editor, immediate-paste admission, Stop/Cancel controls and short note viewport regressions. These modes use the production components in an isolated AppKit event loop and reject skipped/incomplete suites. The history-action case first observes the voice transcript in the accessibility tree, then verifies that Note removes it from that tree while its native viewport remains mounted.
 
 Note Markdown accepts app-internal execution links in the form
 `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note

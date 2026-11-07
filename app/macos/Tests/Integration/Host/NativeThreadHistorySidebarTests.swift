@@ -209,15 +209,38 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.requested == ["turn-2499"])
         #expect(fixture.state("timeline")?["rowCount"] == .integer(1))
         #expect(fixture.snapshot.filter { $0["role"] == .text("history.open") }.count < 100)
+        let started = ProcessInfo.processInfo.systemUptime
+        var locationSamples: [JSONValue] = [], locationChecks = 0
         fixture.target = .init(requestId: "old", mode: .history, executionId: "turn-3", anchorId: "turn-3")
         do {
-            try await SwiftUIReplay.wait { fixture.state("timeline")?["locatedRequestId"] == .text("old") }
+            try await SwiftUIReplay.wait {
+                let snapshot = fixture.snapshot
+                let observed = snapshot.filter { ["conversation", "history", "timeline", "history.sidebar"].contains($0["role"]?.stringValue ?? "") }
+                let sample = JSONValue.object([
+                    "elapsedMilliseconds": .number((ProcessInfo.processInfo.systemUptime - started) * 1000),
+                    "observations": .array(observed),
+                    "mountedCount": .integer(fixture.mounted.count), "requestedCount": .integer(fixture.requested.count)
+                ])
+                locationChecks += 1
+                // Retain the first observations and the latest one, without another
+                // wait/layout pass or unbounded diagnostic storage.
+                if locationSamples.count < 32 { locationSamples.append(sample) }
+                else { locationSamples[31] = sample }
+                return snapshot.first { $0["role"] == .text("timeline") }?["value"]?["locatedRequestId"] == .text("old")
+            }
         } catch {
             try capture(window, name: "failed-location")
             print("SIDEBAR LOCATION", fixture.state("conversation")?["destination"]?.stringValue ?? "missing",
                   fixture.state("conversation")?["transitioning"] as Any,
                   fixture.state("timeline")?["locatedRequestId"]?.stringValue ?? "missing",
                   fixture.requested.map(\.string).sorted())
+            let diagnostic = JSONValue.object([
+                "checks": .integer(locationChecks), "samples": .array(locationSamples),
+                "appKitRunning": .bool(NSApp.isRunning), "windowKey": .bool(window.isKeyWindow)
+            ])
+            if let data = try? diagnostic.encodedData() {
+                print("SIDEBAR LOCATION SAMPLES", String(decoding: data, as: UTF8.self))
+            }
             throw error
         }
         #expect(fixture.requested == ["turn-2499", "turn-3"])
@@ -399,7 +422,8 @@ struct NativeThreadHistorySidebarTests {
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                 context: nil, characters: characters, charactersIgnoringModifiers: characters,
                 isARepeat: false, keyCode: code))
-            window.sendEvent(event)
+            // Reading Escape arbitration uses the application's current event/window.
+            NSApp.sendEvent(event)
         }
     }
 }

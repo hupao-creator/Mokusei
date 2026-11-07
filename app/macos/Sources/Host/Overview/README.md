@@ -258,6 +258,14 @@ Empty or whitespace-only queries hide the canvas cards and their attention indic
 
 Validation uses existing Overview layout/camera/search/tag/directory tests and the [native input replay](../../../../../tools/verification/overview-input/README.md). `NativeOverviewCapacityTests` hosts the production canvas for the five-card mixed-footprint screenshot, six-card growth, attention updates, insufficient space, resize recovery and near-threshold stability. `NativeOverviewPackingTests` also exercises the six-card straight-move search exhaustion and truncated fitting-candidate optimization. Native window/input tests require macOS; a standalone design demo is not the production layout authority.
 
+The centering and transition fixtures use the current grid dimensions and actual
+packed bounds. Fitting-filter cases establish that the expanded collection fits
+at the readable floor but exceeds the retained scale; resize observations wait
+for growth beyond the old row height before asserting the shrink barrier.
+Membership freshness uses Report's authored introduction and independent cover
+revision, preserving the two-row covered-card footprint without rebuilding membership.
+The subsequent coverage/filter cases retain the ordinary one-row card without a cover.
+
 ## Production control chaos
 
 [NativeOverviewInteraction](../Interaction/NativeOverviewInteraction.swift) exposes the camera's production methods and registers callbacks owned by the mounted directory controls. Opening a menu calls the same `revealChildren` path as hover/accessibility; selecting a child requires its real glass menu to be mounted, then follows the production selection/exit transaction before the chip title changes. Explicit close uses the accessibility close callback; pointer exit retains its delayed dismissal. Filter-bar scrolling uses the mounted SwiftUI scroll view. A retiring registration cannot remove another view's callbacks.
