@@ -188,8 +188,8 @@ struct NativeOverviewDecorationCaptureTests {
             report["motion"] = measurements.report
 
             // The capture queue continues while this isolated fixture holds main.
-            // Pixels show visible movement; a matching sampled/presented Metal
-            // frame excludes prequeued work without imposing a frame cadence.
+            // Pixels show WindowServer movement; a sampled/completed GPU frame
+            // proves fresh renderer work without imposing a frame cadence.
             let spinner = try #require(spinnerView(root), "Production spinner must have a compositor animation")
             let spinnerRect = spinner.convert(spinner.bounds, to: nil)
             let scale = window.backingScaleFactor
@@ -244,7 +244,7 @@ struct NativeOverviewDecorationCaptureTests {
             try #require(cloud.mean > control.mean + 0.005,
                          "Cloud pixels did not change above the static control during the main hold")
             try #require(witness.passed,
-                         "No frame of this Cloud was sampled and actually presented wholly inside the main hold")
+                         "No frame of this Cloud was sampled, submitted and successfully completed by the GPU inside the main hold")
 
             // One geometry change, on the same mounted card and native layers.
             // Its actual PNGs and coordinate map are retained for alignment,
@@ -456,7 +456,7 @@ struct NativeOverviewDecorationCaptureTests {
                      "Main-hold witness recording lost data")
         let context = UInt64(UInt(bitPattern: ObjectIdentifier(layer)))
         let frames = records.filter {
-            $0["metric"] as? String == NativePerformance.Metric.metalPresented.rawValue
+            $0["metric"] as? String == NativePerformance.Metric.metalGPU.rawValue
                 && ($0["context"] as? NSNumber)?.uint64Value == context
         }
         let begins = frames.filter { $0["kind"] as? String == "begin" }
@@ -466,29 +466,39 @@ struct NativeOverviewDecorationCaptureTests {
         var witnesses: [[String: Any]] = []
         for frame in completed {
             let id = try #require((frame["id"] as? NSNumber)?.uint64Value)
-            try #require(seen.insert(id).inserted, "Duplicate presentation for one Cloud frame")
+            try #require(seen.insert(id).inserted, "Duplicate GPU completion for one Cloud frame")
             let matches = begins.filter { ($0["id"] as? NSNumber)?.uint64Value == id }
-            try #require(matches.count == 1, "Cloud presentation has no unique sampled frame in this recording")
+            try #require(matches.count == 1, "Cloud GPU completion has no unique sampled frame in this recording")
             let sample = try #require(matches[0]["values"] as? [String: Double])
             let values = try #require(frame["values"] as? [String: Double])
             let sampledAt = try #require(sample["sampleAt"])
             let submittedAt = try #require(values["submittedAt"])
-            let presentedAt = try #require(values["presentedAt"])
-            let callbackAt = try #require(values["callbackAt"])
+            let completedAt = try #require(values["completedAt"])
             try #require(values["sampleAt"] == sampledAt,
-                         "Cloud presentation no longer identifies its original sample")
-            // Both APIs use Mach host seconds. Do not substitute callback arrival
-            // or CPU-span duration for the drawable's actual presentation time.
+                         "Cloud GPU completion no longer identifies its original sample")
+            try #require(values["commandStatus"] == Double(MTLCommandBufferStatus.completed.rawValue),
+                         "Cloud frame did not complete GPU execution successfully")
+            // The completed callback bounds successful GPU execution. Together
+            // with the independent WindowServer pixel gate, this proves producer
+            // and visible progress, not a drawable-to-screenshot correspondence.
             let admitted = sampledAt > hold.start + 0.03 && sampledAt <= submittedAt
-                && submittedAt <= presentedAt && presentedAt <= callbackAt && presentedAt < hold.end
+                && submittedAt <= completedAt && completedAt < hold.end
             let observation: [String: Any] = ["frame": id, "sampleAt": sampledAt, "submittedAt": submittedAt,
-                "presentedAt": presentedAt, "callbackAt": callbackAt, "insideHold": admitted]
+                "completedAt": completedAt, "insideHold": admitted]
             observations.append(observation)
             if admitted { witnesses.append(observation) }
         }
+        let frameIDs = Set(begins.compactMap { ($0["id"] as? NSNumber)?.uint64Value })
+        let presentations = records.compactMap { record -> [String: Any]? in
+            guard record["metric"] as? String == NativePerformance.Metric.metalPresented.rawValue,
+                  record["kind"] as? String == "end",
+                  let frame = (record["context"] as? NSNumber)?.uint64Value, frameIDs.contains(frame) else { return nil }
+            return ["frame": frame, "outcome": record["outcome"] ?? NSNull(), "values": record["values"] ?? NSNull()]
+        }
         return (!witnesses.isEmpty, ["session": session, "surfaceContext": context,
-            "clock": "Mach host seconds: CACurrentMediaTime and MTLDrawable.presentedTime",
-            "frames": observations, "witnesses": witnesses])
+            "clock": "Mach host seconds: CACurrentMediaTime at sample, submission and GPU completed callback",
+            "scope": "Fresh GPU work and independent WindowServer pixel movement; no physical presentation or drawable-to-screenshot mapping",
+            "frames": observations, "witnesses": witnesses, "presentationDiagnostics": presentations])
     }
 
     private func requireFullFrames(_ samples: [TagGlassFrames.Sample], size: CGSize) throws {

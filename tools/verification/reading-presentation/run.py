@@ -262,6 +262,8 @@ def main():
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")
+    if "--rolling-numbers" in sys.argv and "PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED" not in result.stdout:
+        raise SystemExit("FAIL: projected usage did not confirm its original three-frame assertions")
     if glass_captures:
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",

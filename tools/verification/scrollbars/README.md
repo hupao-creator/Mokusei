@@ -48,8 +48,14 @@ launcher or native owner runs the relocated graphical method.
 
 The windowless WKWebView fixture checks the shared styling script in the main
 document and a child frame, page-authored tracks, dynamic overflow, restrictive
-inline-style CSP, unchanged viewport geometry, both scroll axes and textarea
-selection. A black-body/white-text page with no color-scheme must retain a white
+inline-style CSP, native thin viewport geometry, both scroll axes and textarea
+selection. After the actual 420×280 viewport is ready, decoration must preserve
+the exact geometry of WebKit's independent width-only `thin` reference; the
+production policy intentionally replaces the page's initial `auto` metrics.
+The main document, overflow pane, textarea and child frame must all compute
+`thin`. The original production sheet is restored in `finally`; the exact
+before/reference/after dimensions are retained in stderr.
+A black-body/white-text page with no color-scheme must retain a white
 viewport and overflow thumb; a nested white region must get a black thumb. Body
 theme changes must refresh the viewport color while all tracks stay transparent.
 Changing the actual WKWebView frame crosses a CSS width media query in both

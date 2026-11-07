@@ -148,11 +148,11 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
                 }
                 guard self.permit.wait(timeout: .now()) == .success else { return }
                 autoreleasepool {
-                    // A span binds the sampled frame and its eventual presentation
+                    // A span binds the sampled frame and its GPU completion
                     // to one recording. No handler or timestamps are allocated
                     // while recording is off. The context is this layer's local
                     // identity, not a model or business identifier.
-                    let presentation = NativePerformance.begin(.metalPresented,
+                    let work = NativePerformance.begin(.metalGPU,
                         context: UInt64(UInt(bitPattern: ObjectIdentifier(self.layer))),
                         values: ["sampleAt": CACurrentMediaTime()])
                     let sample = input.sample()
@@ -160,7 +160,7 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
                     // a missing drawable must remain retryable without main ticks.
                     let notify = first
                     first = false
-                    self.encode(sample.frame, generation: generation, presentation: presentation) { [weak self] succeeded in
+                    self.encode(sample.frame, generation: generation, work: work) { [weak self] succeeded in
                         if notify { completion(succeeded) }
                         if succeeded && !sample.continues {
                             self?.queue.async { [weak self] in
@@ -184,7 +184,7 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
     }
 
     private func encode(_ frame: NativeOverviewCloudFrame, generation: UInt64,
-                        presentation: NativePerformanceSpan?,
+                        work: NativePerformanceSpan?,
                         completion: (@Sendable (Bool) -> Void)?) {
         // nextDrawable can block until its timeout. It never runs on the main
         // actor, and detached/hidden generations are checked on either side.
@@ -229,22 +229,35 @@ final class NativeOverviewCloudRenderer: @unchecked Sendable {
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
         guard accepts(generation) else { permit.signal(); completion?(false); return }
+        let presentation = work.flatMap { work -> NativePerformanceSpan? in
+            let span = NativePerformance.begin(.metalPresented, context: work.id)
+            // A recorder can be replaced while a drawable is acquired. Never
+            // associate its later presentation with a different recording.
+            return span?.recordingID == work.recordingID ? span : nil
+        }
+        if let presentation {
+            drawable.addPresentedHandler { drawable in
+                // Preserve zero as unavailable/dropped presentation evidence.
+                // Capture only the span; retaining the drawable would cycle.
+                let presentedAt = drawable.presentedTime
+                presentation.end(presentedAt > 0 ? .completed : .failed,
+                    values: ["presentedAt": presentedAt, "callbackAt": CACurrentMediaTime()])
+            }
+        }
+        // This host timestamp bounds the immediate present/commit sequence.
+        // The existing completion handler proves the command buffer reached the
+        // GPU and finished; its host interval is not a GPU-duration measurement.
+        let submittedAt = work.map { _ in CACurrentMediaTime() }
         commands.addCompletedHandler { [self] commands in
             let succeeded = commands.status == .completed
+            if let work, let submittedAt {
+                work.end(succeeded ? .completed : .failed,
+                    values: ["submittedAt": submittedAt, "completedAt": CACurrentMediaTime(),
+                             "commandStatus": Double(commands.status.rawValue)])
+            }
             if !succeeded { logFailure(commands.error.map { String(describing: $0) } ?? "Cloud command buffer failed") }
             permit.signal()
             completion?(succeeded && accepts(generation))
-        }
-        if let presentation {
-            let submittedAt = CACurrentMediaTime()
-            drawable.addPresentedHandler { drawable in
-                // Metal's presentedTime and CACurrentMediaTime use host seconds.
-                // Capture only the span: retaining the drawable here would cycle.
-                let presentedAt = drawable.presentedTime
-                presentation.end(presentedAt > 0 ? .completed : .failed,
-                    values: ["submittedAt": submittedAt, "presentedAt": presentedAt,
-                             "callbackAt": CACurrentMediaTime()])
-            }
         }
         commands.present(drawable)
         commands.commit()

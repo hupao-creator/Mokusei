@@ -912,12 +912,14 @@ fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
 the last image and cancels sampling; detach/removal retires the generation.
 The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
 still delays newly requested state, layout, visibility and interaction changes.
-When local performance recording is active, `metal.presented` spans join each
-sample to the same drawable's actual presentation using host-clock timestamps,
-frame ID and the native layer's process-local context. Recording-off rendering
-adds no presented handler. The native capture gate uses this evidence plus
-visible cloud movement to prove fresh work inside a main-thread hold, without
-requiring cloud changes in predetermined half-intervals.
+When local performance recording is active, `metal.gpu` spans join each sample
+to successful command-buffer completion using host-clock timestamps, frame ID
+and the native layer's process-local context. Separate `metal.presented` spans
+retain raw presentation timestamps, including zero, as diagnostics for that
+frame. Recording-off rendering adds no presented handler. The native capture
+gate requires fresh GPU work and separate WindowServer cloud movement inside a
+main-thread hold, without predetermined half-interval cadence or a claim of
+physical presentation or a drawable-to-screenshot correspondence.
 
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;

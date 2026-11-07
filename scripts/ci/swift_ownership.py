@@ -23,6 +23,9 @@ NATIVE_METHOD_OWNERS = {
     "MokuseiGitIntegrationTests.GitThreadExtensionTests/sharedTokenFlipAnimationWorksAtSummaryAndOriginalSizes()": {
         "group": "native", "check": "rolling-numbers", "marker": "GIT_TOKEN_FLIP_FRAMES_CONFIRMED",
     },
+    "MokuseiGitIntegrationTests.RollingNumberCellTests/projectedUsageUpdatesKeepTheirAnimation()": {
+        "group": "native", "check": "rolling-numbers", "marker": "PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED",
+    },
     "MokuseiSettingsIntegrationTests.NativeOnboardingTagSurfaceTests/productionAnimationMountsWithoutAnOpaqueFirstFrame()": {
         "group": "native", "check": "tag-glass-captures", "marker": "TAG_ONBOARDING_FIRST_FRAME_CONFIRMED",
     },

@@ -435,9 +435,10 @@ struct NativeReportNavigationTests {
 
         // The workspace now embeds Report in the same panel stack as Agent.
         // Exercise its real WebKit session without the window-navigation portal.
-        // Use a viewport whose panel sizes are integral at every sampled scale;
-        // SwiftUI's rounding of a fractional content height is not panel drift.
-        let panelViewport = CGSize(width: 1180, height: 800)
+        // Keep the requested height within the CI display's usable area: a
+        // responsive host lets AppKit constrain an oversized window. These
+        // panel heights are also integral at every sampled workspace scale.
+        let panelViewport = CGSize(width: 1180, height: 640)
         var panelWindowFrame = window.frame
         panelWindowFrame.size.width += panelViewport.width - root.bounds.width
         panelWindowFrame.size.height += panelViewport.height - root.bounds.height
@@ -449,10 +450,21 @@ struct NativeReportNavigationTests {
             if view.identifier?.rawValue == "report-reading-panel-frame" { return view }
             return view.subviews.lazy.compactMap { panelFrame(in: $0) }.first
         }
-        try await SwiftUIReplay.wait(timeout: .seconds(15)) {
-            root.bounds.size == panelViewport && webView(in: root)?.isLoading == false
-                && panelFrame(in: root) != nil && !fixture.motion.active
+        func logPanelReadiness(_ phase: String) {
+            let document = webView(in: root)
+            let anchor = panelFrame(in: root).map { $0.convert($0.bounds, to: root) }
+            print("REPORT_PANEL_READINESS phase=\(phase) requested=\(panelViewport) window=\(window.frame) root=\(root.bounds) contentLayout=\(window.contentLayoutRect) screen=\(String(describing: window.screen?.frame)) visibleFrame=\(String(describing: window.screen?.visibleFrame)) anchor=\(String(describing: anchor)) scale=\(fixture.scale) pageZoom=\(String(describing: document?.pageZoom)) loading=\(String(describing: document?.isLoading)) moving=\(fixture.motion.active) open=\(fixture.open) panel=\(fixture.panel)")
         }
+        do {
+            try await SwiftUIReplay.wait(timeout: .seconds(15)) {
+                root.bounds.size == panelViewport && webView(in: root)?.isLoading == false
+                    && panelFrame(in: root) != nil && !fixture.motion.active
+            }
+        } catch {
+            logPanelReadiness("failed")
+            throw error
+        }
+        logPanelReadiness("ready")
         let panelDocument = try #require(webView(in: root))
         #expect(portal(in: root) == nil && !fixture.ready, "Panel HTML must leave window chrome with the host")
         for scale: CGFloat in [1, 2, 0.5, 1] {

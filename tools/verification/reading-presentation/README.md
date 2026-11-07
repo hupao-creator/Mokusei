@@ -399,14 +399,18 @@ The same fixture also holds the main thread for 200ms after initial rendering.
 Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
 complete frames with presentation timestamps inside the hold (excluding the
 first 30ms). At least three frames and a cloud change over the eligible hold above
-the same static control are required. A matching `metal.presented` span must also
-prove that this native layer sampled and actually presented a fresh frame inside
-the hold, after the exclusion margin. Frame ID, layer context and recording
-session join the observations; all timestamps use Mach host seconds, and a
-callback arriving during the hold cannot substitute for actual presentation.
+the same static control are required. A matching `metal.gpu` span must also prove
+that this native layer sampled, submitted and successfully completed a fresh
+frame inside the hold, after the exclusion margin. Frame ID, layer context and
+recording session join these observations, using Mach host seconds and the real
+command buffer's `.completed` status. This proves fresh GPU work and separate
+WindowServer movement; it does not map that drawable to a screenshot or certify
+physical presentation. `metal.presented` spans retain raw presentation timestamps
+and callback times as diagnostics; zero never becomes a successful presentation.
 The local recorder runs only around this capture and finishes on failure too;
 `main-hold-metal.jsonl` and the joined witness in `measurements.json` retain the
-evidence. This rejects prequeued images without asserting a fixed cloud cadence.
+evidence. This rejects a producer that only queued work before the hold, without
+asserting a fixed cloud cadence.
 A production Codex spinner in a separate corner
 must change pixels in both halves too; hiding/resuming its native view must
 remove/restore its compositor animation. `main-hold` PNGs, per-frame presentation
@@ -605,10 +609,14 @@ cycle withdraws the previous document's navigation; it verifies its hit target,
 back-button click and exit motion with the document.
 
 The panel zoom matrix measures the real Report content anchor in a responsive
-native host. It establishes an actual 1180×800 viewport before the existing
+native host. It establishes an actual 1180×640 viewport before the existing
 1×/2×/0.5×/1× cases, so each logical panel height is integral instead of testing
-SwiftUI's rounding of a fractional proposal. The original sub-point position
-and size bounds, responsive-layout wait and native input assertions remain.
+SwiftUI's rounding of a fractional proposal. The shorter height fits the CI
+display's usable area without overriding AppKit's window constraints. The
+original 15-second readiness gate records the actual window, root, screen visible
+frame, content anchor, WebKit loading/zoom and motion state on success or failure.
+The original sub-point position and size bounds, responsive-layout wait and
+native input assertions remain.
 
 This uses real production views and document scroll events, not a duplicated
 animation implementation. It does not exercise physical hover, actual macOS
@@ -661,15 +669,19 @@ MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verifi
 ```
 
 Runs two `RollingNumberCellTests` and the Git summary/original-size case in the native application event loop. The
-CI command adds `--native-owned` to run only the mandatory Git case; the two
-cell/projection methods already run in the ordinary graphical suite. The
+CI command adds `--native-owned` to run the mandatory Git and projected-usage
+cases; the stable-cell leaf runs once in the ordinary graphical suite. The
 production Codex plugin consumes changing session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
 a freshly mounted reference. The leaf checks retain equal-width digit cells at
 raster scale 2. Incoming glyph direction is no longer automatically checked after
 the unstable direction-correlation test was removed under explicit user authorization.
-Optional PNGs capture the usage region of the production card. These are native
+The projected-usage case requires a running AppKit loop and an active, visible
+key window before its unchanged sampling timeline. It retains every usage crop
+and actual input/capture time under `MOKUSEI_ROLLING_NUMBER_ARTIFACTS`, falling
+back to `MOKUSEI_CI_EVIDENCE` or a temporary directory. Evidence is written after
+observation. These are native
 view snapshots, not optical frame pacing or a live provider/Runtime replay. No
 system motion preference is changed; the number path retains its existing
 always-animate policy. Historical pre-SwiftUI-shell metrics scrolled upward; the
@@ -849,8 +861,11 @@ mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, th
 original three sampling intervals, three distinct frames and fixed 400×90 geometry
 remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
-CI's `--native-owned` filter and expected count come from `swift_ownership.py`,
-so the two ordinary methods are not executed a second time in that check.
+The projected-usage method also belongs to this native owner and emits
+`PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED` after its original pixel, identity and
+reference checks. CI's `--native-owned` filter and expected count come from
+`swift_ownership.py`: both native methods run once, and the stable-cell leaf
+remains ordinary without a second execution in this check.
 The rolling producer starts through LaunchServices so macOS admits it as a
 foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.
