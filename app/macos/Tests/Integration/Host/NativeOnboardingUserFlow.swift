@@ -104,7 +104,9 @@ import MokuseiApplications
             // Settings, now without the onboarding admission/step sequence.
             try presentation.performInteraction(.openSettings)
             try await wait("Production Settings did not mount") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
-            #expect(presentation.interactionSnapshot()["settingsSections"] == .array([.text("general"), .text("moku"), .text("tag.settings"), .text("report.settings")]))
+            #expect(presentation.interactionSnapshot()["settingsSections"] == .array([
+                .text("general"), .text("moku"), .text("tag.settings"), .text("report.settings"), .text("attention.settings")
+            ]))
             let settings = workspace.settingsModel
             func application(_ id: String) -> JSONValue? {
                 settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]

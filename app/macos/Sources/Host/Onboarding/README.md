@@ -83,7 +83,10 @@ interruption and marker errors. `NativeOnboardingUserFlow` extends the existing
 Go-backed Settings flow with real discovery/resources, independent and inherited
 role settings, Back, failed completion persistence and actual Dock handoff. It
 drives the current `off`, `inherit` and `independent` controls, checking disabled
-readiness, hidden execution fields and exact profile restoration after reopening:
+readiness, hidden execution fields and exact profile restoration after reopening.
+After onboarding, it checks the exact Settings section order for the full
+production application composition, including the contributed `attention.settings`
+section after the built-in role sections:
 
 ```sh
 make runtime

@@ -398,8 +398,16 @@ capture samples certify optical FPS or GPU time. The required success marker is
 The same fixture also holds the main thread for 200ms after initial rendering.
 Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
 complete frames with presentation timestamps inside the hold (excluding the
-first 30ms). At least three frames and cloud changes in both halves above the
-static control are required. A production Codex spinner in a separate corner
+first 30ms). At least three frames and a cloud change over the eligible hold above
+the same static control are required. A matching `metal.presented` span must also
+prove that this native layer sampled and actually presented a fresh frame inside
+the hold, after the exclusion margin. Frame ID, layer context and recording
+session join the observations; all timestamps use Mach host seconds, and a
+callback arriving during the hold cannot substitute for actual presentation.
+The local recorder runs only around this capture and finishes on failure too;
+`main-hold-metal.jsonl` and the joined witness in `measurements.json` retain the
+evidence. This rejects prequeued images without asserting a fixed cloud cadence.
+A production Codex spinner in a separate corner
 must change pixels in both halves too; hiding/resuming its native view must
 remove/restore its compositor animation. `main-hold` PNGs, per-frame presentation
 times and measurements retain the evidence, including the measured interval
@@ -595,6 +603,12 @@ loopback HTTP page must restore the native navigation and window controls. This
 check acquires the ready destination's portal because the main-frame loading
 cycle withdraws the previous document's navigation; it verifies its hit target,
 back-button click and exit motion with the document.
+
+The panel zoom matrix measures the real Report content anchor in a responsive
+native host. It establishes an actual 1180×800 viewport before the existing
+1×/2×/0.5×/1× cases, so each logical panel height is integral instead of testing
+SwiftUI's rounding of a fractional proposal. The original sub-point position
+and size bounds, responsive-layout wait and native input assertions remain.
 
 This uses real production views and document scroll events, not a duplicated
 animation implementation. It does not exercise physical hover, actual macOS

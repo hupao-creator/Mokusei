@@ -134,10 +134,14 @@ struct NativeReportNavigationTests {
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         let fixture = ReportNavigationFixture()
-        let window = SwiftUIReplay.window(ReportNavigationReplay(fixture: fixture))
+        let window = SwiftUIReplay.window(EmptyView())
         window.styleMask.formUnion([.fullSizeContentView, .closable, .miniaturizable])
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        // This replay resizes its native viewport. Keep the content responsive
+        // instead of retaining the helper's initial fixed SwiftUI frame.
+        window.contentView = NSHostingView(rootView: ReportNavigationReplay(fixture: fixture)
+            .accessibilityElement(children: .contain))
         defer { window.close() }
         let root = try #require(window.contentView)
         let buttons = try [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].map {
@@ -431,6 +435,13 @@ struct NativeReportNavigationTests {
 
         // The workspace now embeds Report in the same panel stack as Agent.
         // Exercise its real WebKit session without the window-navigation portal.
+        // Use a viewport whose panel sizes are integral at every sampled scale;
+        // SwiftUI's rounding of a fractional content height is not panel drift.
+        let panelViewport = CGSize(width: 1180, height: 800)
+        var panelWindowFrame = window.frame
+        panelWindowFrame.size.width += panelViewport.width - root.bounds.width
+        panelWindowFrame.size.height += panelViewport.height - root.bounds.height
+        window.setFrame(panelWindowFrame, display: true)
         fixture.panel = true
         fixture.revision = "panel"
         fixture.open = true
@@ -439,7 +450,8 @@ struct NativeReportNavigationTests {
             return view.subviews.lazy.compactMap { panelFrame(in: $0) }.first
         }
         try await SwiftUIReplay.wait(timeout: .seconds(15)) {
-            webView(in: root)?.isLoading == false && panelFrame(in: root) != nil && !fixture.motion.active
+            root.bounds.size == panelViewport && webView(in: root)?.isLoading == false
+                && panelFrame(in: root) != nil && !fixture.motion.active
         }
         let panelDocument = try #require(webView(in: root))
         #expect(portal(in: root) == nil && !fixture.ready, "Panel HTML must leave window chrome with the host")

@@ -25,21 +25,26 @@ production NativeScrollView. The production control-scoped modifier must retain
 native target/action/AX role, editor binding updates, row/text selection and
 scroll offsets through preference notifications, control replacement and List
 viewport width while rows cross its own overflow threshold. An adjacent unstyled
-editor must keep its original scroller. A plain NativeScrollView fixture then
-changes its SwiftUI content height across the threshold and compares autohiding
-with an unstyled SwiftUI ScrollView containing the same content. Both test roots
-receive a fixed 360×300 SwiftUI frame, and each content transition
-checks the actual host, native viewport and clip bounds before checking overflow.
-Both sides' geometry is written synchronously to stderr so a failed precondition
-retains the requested content height and the observed layout.
-The background adapter leaves visibility and the initial document-width proposal with SwiftUI:
-loading longer content may allocate a legacy gutter, but scrolling that loaded
-content in either direction must preserve both clip and document width. For the
-runner's preferred style, its scroller must paint only while scrolling is possible
-(legacy) or stay blank at rest (overlay). AppKit-owned and scoped TextEditor/List
-viewports retain their separate resident-gutter checks.
-This checks the actual SwiftUI/AppKit adapter boundary, without a popover,
-window or input injection.
+editor must keep its original scroller. These control-adapter checks remain
+windowless, without a popover or input injection.
+
+The plain SwiftUI viewport checks run once in the ordinary graphical suite as
+[`NativeScrollViewportTests`](../../../app/macos/Tests/Integration/Host/NativeScrollViewportTests.swift).
+CI 361 observed a 0×0 document in both the styled and unstyled windowless hosts,
+even though their native viewports were 360×300; that setup could not establish
+real content overflow. The relocated fixture uses two nonoverlapping visible
+360×300 windows. Each 80→900→80 content transition waits up to three seconds for
+both actual content-height callbacks, positive document/viewport dimensions and
+both native overflow states to match the requested phase, with the production
+trackless scroller installed and the reference's real scroller still unstyled,
+then checks the original overflow, autohiding, knob, scroll-offset and loaded
+clip/document-width comparisons. Geometry is retained on readiness or assertion
+failure. Loading longer content may allocate a legacy gutter; scrolling that
+loaded content in either direction must preserve both widths. For the runner's
+preferred style, its scroller must paint only while scrolling is possible
+(legacy) or stay blank at rest (overlay). The windowless AppKit and scoped
+TextEditor/List checks retain their separate resident-gutter policy. No second
+launcher or native owner runs the relocated graphical method.
 
 The windowless WKWebView fixture checks the shared styling script in the main
 document and a child frame, page-authored tracks, dynamic overflow, restrictive

@@ -142,6 +142,10 @@ settled and enabled within its existing 12-second bound. A timeout reports the
 step, model readiness and matching control state. Its `-artifacts` directory also
 retains any `onboarding-failure.json` and `onboarding-failure.png` captured by the
 native flow, alongside the Swift/Runtime logs and Settings summary.
+If the flow fails, the shutdown path exports its raw
+`settings-diagnostics.jsonl` while retaining the temporary profile. An export error is
+reported separately and preserves the original failure; the eight diagnostic
+family checks remain required on the success path.
 Its Codex model fixture ends the catalog page with `nextCursor: null`; omitted
 pagination completion is a discovery error and cannot satisfy prefetch readiness.
 The routing Undo replay identifies the sole editable native text view in the

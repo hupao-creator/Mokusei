@@ -136,6 +136,7 @@ struct NativeOverviewDecorationCaptureTests {
         }
         defer { window.close() }
         var evidence: [(String, [TagGlassFrames.Sample])] = []
+        var holdPerformance: Data?
         var report: [String: Any] = [
             "assertionsPassed": false, "captureKind": "WindowServer/ScreenCaptureKit complete BGRA frames",
             "fixture": "One static public Codex thread; production workspace/projector/card/canvas; one running subagent",
@@ -147,7 +148,7 @@ struct NativeOverviewDecorationCaptureTests {
             ]
         ]
         defer {
-            do { try save(evidence, report: report) }
+            do { try save(evidence, report: report, holdPerformance: holdPerformance) }
             catch { Issue.record(Comment(rawValue: "Could not retain native decoration evidence: \(error)")) }
         }
         do {
@@ -187,27 +188,47 @@ struct NativeOverviewDecorationCaptureTests {
             report["motion"] = measurements.report
 
             // The capture queue continues while this isolated fixture holds main.
-            // Only presentation timestamps strictly inside the hold count; queued
-            // frames from before/after the hold cannot prove independent playback.
+            // Pixels show visible movement; a matching sampled/presented Metal
+            // frame excludes prequeued work without imposing a frame cadence.
             let spinner = try #require(spinnerView(root), "Production spinner must have a compositor animation")
             let spinnerRect = spinner.convert(spinner.bounds, to: nil)
             let scale = window.backingScaleFactor
             let spinnerPixels = CGRect(x: spinnerRect.minX * scale,
                 y: (window.frame.height - spinnerRect.maxY) * scale,
                 width: spinnerRect.width * scale, height: spinnerRect.height * scale).integral
-            let held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
-                report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
-                    "presentationExclusion": 0.03]
-            }, holdContext: { frames in
-                evidence.append(("main-hold-context", frames))
-                report["mainHoldContext"] = "Diagnostic only: pre-drain samples and samples excluded by the hold filter. "
-                    + "Interpret presentationTime against mainHoldWindow, including its excluded prefix; "
-                    + "these frames never enter the frame-count or pixel assertions."
-            })
+            var holdWindow = (start: 0.0, end: 0.0)
+            let held: [TagGlassFrames.Sample]
+            try #require(NativePerformance.mode == .off, "The isolated hold must not replace another performance recording")
+            do {
+                let log = try #require(NativePerformance.configure(
+                    directory: fixture.directory.appendingPathComponent("main-hold-performance"), mode: .detailed))
+                defer {
+                    NativePerformance.finish()
+                    do { holdPerformance = try Data(contentsOf: log) }
+                    catch { Issue.record(Comment(rawValue: "Could not retain main-hold Metal evidence: \(error)")) }
+                }
+                held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
+                    holdWindow = (start, end)
+                    report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
+                        "presentationExclusion": 0.03]
+                }, holdContext: { frames in
+                    evidence.append(("main-hold-context", frames))
+                    report["mainHoldContext"] = "Diagnostic only: pre-drain samples and samples excluded by the hold filter. "
+                        + "Interpret presentationTime against mainHoldWindow, including its excluded prefix; "
+                        + "these frames never enter the frame-count or pixel assertions."
+                })
+            }
             evidence.append(("main-hold", held))
             try requireFullFrames(held, size: firstGeometry.imageSize)
             try #require(held.count >= 3, "Insufficient complete frames inside the main-thread hold")
+            let trace = try #require(holdPerformance, "Main-hold Metal recording unavailable")
+            let witness = try cloudWitness(trace, layer: nodes.metal, hold: holdWindow)
+            report["mainHoldCloudWitness"] = witness.report
             let heldPixels = try held.map { try DecorationPixels($0.image) }
+            let cloud = heldPixels[held.count - 1].change(from: heldPixels[0], in: firstGeometry.cloud)
+            let control = heldPixels[held.count - 1].change(from: heldPixels[0], in: firstGeometry.control)
+            report["mainHoldCloud"] = ["from": held[0].presentationTime, "to": held[held.count - 1].presentationTime,
+                "cloudMean": cloud.mean, "controlMean": control.mean]
             let middle = held.count / 2
             var holdChanges: [[String: Any]] = []
             for (lower, upper) in [(0, middle), (middle, held.count - 1)] {
@@ -218,10 +239,12 @@ struct NativeOverviewDecorationCaptureTests {
                     "cloudMean": cloud.mean, "controlMean": control.mean, "spinnerMean": ring.mean])
                 report["mainHold"] = holdChanges
                 try #require(ring.mean > 0.1, "Spinner pixels must rotate during both halves of the main hold")
-                try #require(cloud.mean > control.mean + 0.005,
-                             "Cloud pixels did not advance independently during both halves of the main hold")
             }
             report["mainHold"] = holdChanges
+            try #require(cloud.mean > control.mean + 0.005,
+                         "Cloud pixels did not change above the static control during the main hold")
+            try #require(witness.passed,
+                         "No frame of this Cloud was sampled and actually presented wholly inside the main hold")
 
             // One geometry change, on the same mounted card and native layers.
             // Its actual PNGs and coordinate map are retained for alignment,
@@ -417,6 +440,57 @@ struct NativeOverviewDecorationCaptureTests {
         Thread.sleep(forTimeInterval: seconds)
     }
 
+    private func cloudWitness(_ data: Data, layer: CAMetalLayer,
+                              hold: (start: Double, end: Double)) throws -> (passed: Bool, report: [String: Any]) {
+        let records = try String(decoding: data, as: UTF8.self).split(separator: "\n").map {
+            try #require(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        let sessions = records.filter { $0["kind"] as? String == "session" }
+        let endings = records.filter { $0["kind"] as? String == "sessionEnd" }
+        try #require(sessions.count == 1 && endings.count == 1,
+                     "Main-hold witness requires one complete, unrotated recording")
+        let session = try #require(sessions[0]["session"] as? String)
+        try #require(sessions[0]["mode"] as? String == "detailed"
+                     && endings[0]["dropped"] as? Int == 0 && endings[0]["segment"] as? Int == 0
+                     && endings[0]["truncated"] as? Bool == false && endings[0]["writeFailed"] as? Bool == false,
+                     "Main-hold witness recording lost data")
+        let context = UInt64(UInt(bitPattern: ObjectIdentifier(layer)))
+        let frames = records.filter {
+            $0["metric"] as? String == NativePerformance.Metric.metalPresented.rawValue
+                && ($0["context"] as? NSNumber)?.uint64Value == context
+        }
+        let begins = frames.filter { $0["kind"] as? String == "begin" }
+        let completed = frames.filter { $0["kind"] as? String == "end" && $0["outcome"] as? String == "completed" }
+        var seen: Set<UInt64> = []
+        var observations: [[String: Any]] = []
+        var witnesses: [[String: Any]] = []
+        for frame in completed {
+            let id = try #require((frame["id"] as? NSNumber)?.uint64Value)
+            try #require(seen.insert(id).inserted, "Duplicate presentation for one Cloud frame")
+            let matches = begins.filter { ($0["id"] as? NSNumber)?.uint64Value == id }
+            try #require(matches.count == 1, "Cloud presentation has no unique sampled frame in this recording")
+            let sample = try #require(matches[0]["values"] as? [String: Double])
+            let values = try #require(frame["values"] as? [String: Double])
+            let sampledAt = try #require(sample["sampleAt"])
+            let submittedAt = try #require(values["submittedAt"])
+            let presentedAt = try #require(values["presentedAt"])
+            let callbackAt = try #require(values["callbackAt"])
+            try #require(values["sampleAt"] == sampledAt,
+                         "Cloud presentation no longer identifies its original sample")
+            // Both APIs use Mach host seconds. Do not substitute callback arrival
+            // or CPU-span duration for the drawable's actual presentation time.
+            let admitted = sampledAt > hold.start + 0.03 && sampledAt <= submittedAt
+                && submittedAt <= presentedAt && presentedAt <= callbackAt && presentedAt < hold.end
+            let observation: [String: Any] = ["frame": id, "sampleAt": sampledAt, "submittedAt": submittedAt,
+                "presentedAt": presentedAt, "callbackAt": callbackAt, "insideHold": admitted]
+            observations.append(observation)
+            if admitted { witnesses.append(observation) }
+        }
+        return (!witnesses.isEmpty, ["session": session, "surfaceContext": context,
+            "clock": "Mach host seconds: CACurrentMediaTime and MTLDrawable.presentedTime",
+            "frames": observations, "witnesses": witnesses])
+    }
+
     private func requireFullFrames(_ samples: [TagGlassFrames.Sample], size: CGSize) throws {
         try #require(!samples.isEmpty && samples.allSatisfy {
             $0.image.width == Int(size.width) && $0.image.height == Int(size.height)
@@ -507,7 +581,7 @@ struct NativeOverviewDecorationCaptureTests {
                 "scanMethod": "Narrow-row contrast minus neighboring rows and per-column temporal floor; ordered pixel centroid movement"])
     }
 
-    private func save(_ evidence: [(String, [TagGlassFrames.Sample])], report: [String: Any]) throws {
+    private func save(_ evidence: [(String, [TagGlassFrames.Sample])], report: [String: Any], holdPerformance: Data?) throws {
         let base: URL
         if let root = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"] {
             base = URL(fileURLWithPath: root, isDirectory: true)
@@ -518,6 +592,7 @@ struct NativeOverviewDecorationCaptureTests {
         }
         let directory = base.appendingPathComponent("native-decoration", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try holdPerformance?.write(to: directory.appendingPathComponent("main-hold-metal.jsonl"))
         for (stage, frames) in evidence {
             let stageDirectory = directory.appendingPathComponent(stage, isDirectory: true)
             try FileManager.default.createDirectory(at: stageDirectory, withIntermediateDirectories: true)

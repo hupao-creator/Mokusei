@@ -32,10 +32,40 @@ and first-frame admission still require main.
 The existing native-decoration WindowServer fixture now includes the production
 spinner and a bounded 200ms main hold. An independent capture queue admits only
 complete frames presented inside the hold after a 30ms exclusion margin. At least
-three frames and changing cloud/ring pixels in both halves are required, with a
-quiet static control. Original 3.9s cloud/scan and camera-identity assertions
-remain intact. Spinner hide/resume must remove/restore its animation. The existing
-native capture CI owner executes these assertions too.
+three frames are required. The ring must change pixels in both halves; the cloud
+must change above the same quiet static control over the eligible hold. Cloud
+independence additionally requires a frame from the observed Metal layer whose
+sampling, submission and actual drawable presentation all occur inside the hold,
+after the exclusion margin. This rejects a prequeued image without imposing a
+minimum cloud update cadence. Original 3.9s cloud/scan and camera-identity
+assertions remain intact. Spinner hide/resume must remove/restore its animation.
+The existing native capture CI owner executes these assertions too.
+
+Only while a `NativePerformance` recording is active, the render queue creates a
+`metal.presented` span immediately before sampling. Its frame ID and layer
+context join the sample with `MTLDrawable`'s presented handler in that same
+recording; the callback retains neither drawable nor renderer. Sampling and
+submission use `CACurrentMediaTime`; actual presentation uses
+[`MTLDrawable.presentedTime`](https://developer.apple.com/documentation/metal/mtldrawable/presentedtime).
+These are Mach host seconds:
+[`CACurrentMediaTime`](https://developer.apple.com/documentation/quartzcore/cacurrentmediatime())
+converts `mach_absolute_time`, and Metal's
+[`present(at:)`](https://developer.apple.com/documentation/metal/mtldrawable/present(at:))
+uses the same host timebase. Callback arrival and CPU-span duration cannot replace
+the actual presentation timestamp. The fixture records only around the hold,
+finishes on success or failure, and retains `main-hold-metal.jsonl` plus the exact
+joined witness in `measurements.json`. This observation does not change pacing,
+drawable buffering, generation admission or completion behavior.
+
+The former cloud assertion required movement between three predetermined frames,
+including both halves of the hold. CI 361 captured visible cloud changes during
+its 213.796ms hold, but the selected middle and final frames contained the same
+cloud image. The same capture stream shows repeated cloud images in passing runs
+359 and 360 too. Those observations do not establish a renderer fault; the old
+oracle added a phase-sensitive cadence constraint to the independence objective.
+The replacement requires fresh sampled-and-presented work as well as visible
+pixels. Historical captures have no frame spans and cannot certify this new
+witness; its first successful execution still requires the hosted native run.
 
 Evidence: `.scratch/reading-presentation/NativeOverviewTagGlassTests/`, including
 `native-decoration/main-hold` PNGs, measurements and source/binary provenance.
@@ -50,7 +80,7 @@ Queue ownership and stale completion paths were reviewed; that is not a
 race-detector result. Timer pacing/energy still needs the existing Release
 foreground performance workflow.
 
-Local results on the final implementation:
+Historical local results on the original implementation and cloud half-interval oracle:
 
 - `swift build --package-path app/macos`: passed (Debug application).
 - `swift test --package-path app/macos --filter NativeCloudMetalTests`: all five

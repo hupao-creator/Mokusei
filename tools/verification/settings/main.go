@@ -305,6 +305,13 @@ func run() (failure error) {
 			mu.Unlock()
 			_ = os.WriteFile(filepath.Join(*artifacts, "settings-native.json"), data, 0600)
 			if failure != nil {
+				diagnostics, _, err := readSettingsDiagnostics(filepath.Join(p.DataDir, "runtime", "debug-logs"))
+				if err == nil {
+					err = os.WriteFile(filepath.Join(*artifacts, "settings-diagnostics.jsonl"), diagnostics, 0600)
+				}
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Could not export Settings diagnostics: %v\n", err)
+				}
 				for _, name := range []string{"onboarding-failure.json", "onboarding-failure.png"} {
 					data, err := os.ReadFile(filepath.Join(p.DataDir, "onboarding-client", name))
 					if errors.Is(err, os.ErrNotExist) {
@@ -396,9 +403,36 @@ func run() (failure error) {
 	if !regexp.MustCompile(`dailySettingsFlow.*passed`).MatchString(swiftOutput.String()) {
 		return errors.New("Swift user flow was skipped or did not pass")
 	}
-	logs, err := os.ReadDir(filepath.Join(p.DataDir, "runtime", "debug-logs"))
+	diagnostics, seen, err := readSettingsDiagnostics(filepath.Join(p.DataDir, "runtime", "debug-logs"))
 	if err != nil {
 		return err
+	}
+	for _, name := range []string{"edit", "composition", "close", "validation", "save", "conflict", "retry", "command"} {
+		if !seen["settings.client."+name] {
+			return fmt.Errorf("missing native %s diagnostic", name)
+		}
+	}
+	if *artifacts != "" {
+		if err = os.MkdirAll(*artifacts, 0700); err != nil {
+			return err
+		}
+		if err = os.WriteFile(filepath.Join(*artifacts, "settings-diagnostics.jsonl"), diagnostics, 0600); err != nil {
+			return err
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(unexpected) != 0 {
+		return fmt.Errorf("unsupported native methods: %v", unexpected)
+	}
+	fmt.Println("PASS: real Swift settings flow, real Go daemon/SQLite, fixture Codex, all eight native diagnostic families; no model calls")
+	return nil
+}
+
+func readSettingsDiagnostics(directory string) ([]byte, map[string]bool, error) {
+	logs, err := os.ReadDir(directory)
+	if err != nil {
+		return nil, nil, err
 	}
 	seen := map[string]bool{}
 	var diagnostics bytes.Buffer
@@ -406,9 +440,9 @@ func run() (failure error) {
 		if !strings.HasSuffix(entry.Name(), ".jsonl") {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(p.DataDir, "runtime", "debug-logs", entry.Name()))
+		raw, err := os.ReadFile(filepath.Join(directory, entry.Name()))
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		diagnostics.Write(raw)
 		for _, line := range bytes.Split(raw, []byte("\n")) {
@@ -420,26 +454,7 @@ func run() (failure error) {
 			}
 		}
 	}
-	for _, name := range []string{"edit", "composition", "close", "validation", "save", "conflict", "retry", "command"} {
-		if !seen["settings.client."+name] {
-			return fmt.Errorf("missing native %s diagnostic", name)
-		}
-	}
-	if *artifacts != "" {
-		if err = os.MkdirAll(*artifacts, 0700); err != nil {
-			return err
-		}
-		if err = os.WriteFile(filepath.Join(*artifacts, "settings-diagnostics.jsonl"), diagnostics.Bytes(), 0600); err != nil {
-			return err
-		}
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(unexpected) != 0 {
-		return fmt.Errorf("unsupported native methods: %v", unexpected)
-	}
-	fmt.Println("PASS: real Swift settings flow, real Go daemon/SQLite, fixture Codex, all eight native diagnostic families; no model calls")
-	return nil
+	return diagnostics.Bytes(), seen, nil
 }
 
 // Seed a normal, idle thread through the real SQLite record format. The native

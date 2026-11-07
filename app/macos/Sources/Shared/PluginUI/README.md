@@ -248,6 +248,18 @@ content. Content loading can therefore change the available width; scrolling an
 already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
 The AppKit subclass and scoped control adapter retain their resident-gutter policy.
 
+`NativeScrollViewportTests` exercises the plain wrapper against an unstyled
+SwiftUI reference in two nonoverlapping visible windows. It retains the
+80→900→80 content-height sequence, native knob/autohiding checks and exact
+scroll-offset and loaded-width comparisons from the scrollbar replay. Current
+content-height callbacks, positive document/viewport dimensions and both native
+overflow states matching the requested phase establish readiness within three
+seconds, including the installed trackless scroller and an unstyled reference
+scroller; an unattached hosting view's empty document
+cannot certify this layout boundary. This method runs once in ordinary graphical
+CI. The separate windowless replay continues to cover AppKit viewports, scoped
+TextEditor/List controls and WebKit styling.
+
 The first-load investigation used a temporary visible window containing the
 production wrapper, an initially empty document, delayed message rows and a
 centered 680pt reading column. In a fresh 900pt legacy-mode window, forcing
@@ -900,6 +912,12 @@ fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
 the last image and cancels sampling; detach/removal retires the generation.
 The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
 still delays newly requested state, layout, visibility and interaction changes.
+When local performance recording is active, `metal.presented` spans join each
+sample to the same drawable's actual presentation using host-clock timestamps,
+frame ID and the native layer's process-local context. Recording-off rendering
+adds no presented handler. The native capture gate uses this evidence plus
+visible cloud movement to prove fresh work inside a main-thread hold, without
+requiring cloud changes in predetermined half-intervals.
 
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;
