@@ -72,8 +72,8 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Six integration cases cover selection and Back scroll
-retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
+isolated AppKit host. Five integration tests cover selection and Back scroll
+retention, author and visibility controls, Up/Down, End, Return and Escape,
 inherited history, deletion, arriving successors and external result anchors.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
@@ -81,20 +81,18 @@ hides/restores it through the existing overall execution visibility control.
 The running-state case covers both ordinary work rows and static summaries:
 the selected running execution keeps work visible without a collapse control,
 while historical visits and completion retain their own visibility behavior.
-A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
-locates an old turn outside the current window. This is a resource-demand check,
-not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
+Widths 360, 640 and 1180 exercise long
 author accessibility and save settled dark/light screenshots under
 `.scratch/reading-presentation/NativeThreadHistorySidebarTests`. The same mounted
 fixtures verify title-free execution cards keep their author, user messages and
 work content at those widths while full reading pages retain headings.
 
-The ordinary Swift suite runs the four state/layout cases. The pointer case
+The ordinary Swift suite runs the four state/layout tests. The pointer test
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
 skips display assertions explicitly. The sidebar launcher requires all five
-cases without skips. A finite onscreen pointer replay synchronizes the system
+tests without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
 rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge

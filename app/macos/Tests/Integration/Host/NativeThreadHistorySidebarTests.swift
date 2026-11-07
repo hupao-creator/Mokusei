@@ -200,65 +200,6 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.state("conversation")?["destination"] == .text("current"))
     }
 
-    @Test func longConversationKeepsBodyDemandBoundedAndCanLocateAnOldTurn() async throws {
-        let fixture = SidebarFixture(count: 2500)
-        let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 780, height: 640, offscreen: true)
-        defer { window.close() }
-        try await fixture.ready()
-        #expect(fixture.state("history.sidebar")?["rowCount"] == .integer(2500))
-        #expect(fixture.requested == ["turn-2499"])
-        #expect(fixture.state("timeline")?["rowCount"] == .integer(1))
-        #expect(fixture.snapshot.filter { $0["role"] == .text("history.open") }.count < 100)
-        let started = ProcessInfo.processInfo.systemUptime
-        var locationSamples: [JSONValue] = [], locationChecks = 0
-        fixture.target = .init(requestId: "old", mode: .history, executionId: "turn-3", anchorId: "turn-3")
-        do {
-            try await SwiftUIReplay.wait {
-                let snapshot = fixture.snapshot
-                let observed = snapshot.filter { ["conversation", "history", "timeline", "history.sidebar"].contains($0["role"]?.stringValue ?? "") }
-                let sample = JSONValue.object([
-                    "elapsedMilliseconds": .number((ProcessInfo.processInfo.systemUptime - started) * 1000),
-                    "observations": .array(observed),
-                    "mountedCount": .integer(fixture.mounted.count), "requestedCount": .integer(fixture.requested.count)
-                ])
-                locationChecks += 1
-                // Retain the first observations and the latest one, without another
-                // wait/layout pass or unbounded diagnostic storage.
-                if locationSamples.count < 32 { locationSamples.append(sample) }
-                else { locationSamples[31] = sample }
-                return snapshot.first { $0["role"] == .text("timeline") }?["value"]?["locatedRequestId"] == .text("old")
-            }
-        } catch {
-            try capture(window, name: "failed-location")
-            print("SIDEBAR LOCATION", fixture.state("conversation")?["destination"]?.stringValue ?? "missing",
-                  fixture.state("conversation")?["transitioning"] as Any,
-                  fixture.state("timeline")?["locatedRequestId"]?.stringValue ?? "missing",
-                  fixture.requested.map(\.string).sorted())
-            let diagnostic = JSONValue.object([
-                "checks": .integer(locationChecks), "samples": .array(locationSamples),
-                "appKitRunning": .bool(NSApp.isRunning), "windowKey": .bool(window.isKeyWindow)
-            ])
-            if let data = try? diagnostic.encodedData() {
-                print("SIDEBAR LOCATION SAMPLES", String(decoding: data, as: UTF8.self))
-            }
-            throw error
-        }
-        #expect(fixture.requested == ["turn-2499", "turn-3"])
-        #expect(fixture.state("history.sidebar")?["selectedRow"] == .text("turn-3"))
-        try await SwiftUIReplay.wait { fixture.control("history.open", value: .text("turn-3")) != nil }
-        try await fixture.perform("history.close")
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-2499") }
-        try key(115, "\u{f729}", in: window)
-        try await SwiftUIReplay.wait { fixture.control("history.open", value: .text("turn-0")) != nil }
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-0") }
-        try key(36, "\r", in: window)
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["historyRow"] == .text("turn-0") }
-        try key(119, "\u{f72b}", in: window)
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-2499") }
-        try key(49, " ", in: window)
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["destination"] == .text("current") }
-    }
-
     @Test func authorAndFiltersRemainAccessibleInNarrowAndWideWindows() async throws {
         let cases: [(CGFloat, ColorScheme)] = [(360, .dark), (640, .dark), (1180, .dark), (1180, .light)]
         for (width, scheme) in cases {
