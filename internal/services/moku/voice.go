@@ -491,7 +491,8 @@ func (v *voiceController) prepareSession(ctx context.Context, preparation *mokuV
 		if v.c.config.PrepareNativeVoice == nil {
 			return nil, errors.New("此 Codex 会话未提供原生语音接入；不会使用转发层")
 		}
-		entries, err := v.c.sendContext(ctx, model.AgentInput{}, nil, nil)
+		var entries []plugin.ContextEntry
+		entries, err = v.c.sendContext(ctx, model.AgentInput{}, nil, nil)
 		if err != nil {
 			return nil, err
 		}

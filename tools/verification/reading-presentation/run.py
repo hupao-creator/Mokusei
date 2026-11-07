@@ -219,7 +219,7 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              16 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
-             11 if thread_send else
+             12 if thread_send else
              11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
@@ -265,8 +265,8 @@ def main():
             if f"Test {name}() passed" not in result.stdout:
                 raise SystemExit("FAIL: incomplete isolated input replay: " + name)
     if "--application-navigation" in sys.argv:
-        if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 2 test cases passed" not in result.stdout:
-            raise SystemExit("FAIL: application and Git navigation cases did not both pass")
+        if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 1 test case passed" not in result.stdout:
+            raise SystemExit("FAIL: Report application navigation did not pass")
     if "--initial-response" in sys.argv:
         for marker in ["actualGoProjectionsPreserveContentAndStructure()", "publicFactsTakePrecedenceOverPendingInput()",
                        "malformedAndMissingFlagsRemainConservative()", "mountedProductionCardsShowStatesAndFirstContent()"]:

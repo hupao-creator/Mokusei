@@ -195,7 +195,10 @@ struct NativeOverviewDecorationCaptureTests {
             let spinnerPixels = CGRect(x: spinnerRect.minX * scale,
                 y: (window.frame.height - spinnerRect.maxY) * scale,
                 width: spinnerRect.width * scale, height: spinnerRect.height * scale).integral
-            let held = try await capture(window, seconds: 0.2, holdMain: true)
+            let held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
+                report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
+                    "presentationExclusion": 0.03]
+            })
             evidence.append(("main-hold", held))
             try requireFullFrames(held, size: firstGeometry.imageSize)
             try #require(held.count >= 3, "Insufficient complete frames inside the main-thread hold")
@@ -206,9 +209,10 @@ struct NativeOverviewDecorationCaptureTests {
                 let cloud = heldPixels[upper].change(from: heldPixels[lower], in: firstGeometry.cloud)
                 let control = heldPixels[upper].change(from: heldPixels[lower], in: firstGeometry.control)
                 let ring = heldPixels[upper].change(from: heldPixels[lower], in: spinnerPixels)
-                try #require(ring.mean > 0.1, "Spinner pixels must rotate during both halves of the main hold")
                 holdChanges.append(["from": held[lower].presentationTime, "to": held[upper].presentationTime,
                     "cloudMean": cloud.mean, "controlMean": control.mean, "spinnerMean": ring.mean])
+                report["mainHold"] = holdChanges
+                try #require(ring.mean > 0.1, "Spinner pixels must rotate during both halves of the main hold")
                 try #require(cloud.mean > control.mean + 0.005,
                              "Cloud pixels did not advance independently during both halves of the main hold")
             }
@@ -345,7 +349,8 @@ struct NativeOverviewDecorationCaptureTests {
         return result
     }
 
-    private func capture(_ window: NSWindow, seconds: Double, holdMain: Bool = false) async throws -> [TagGlassFrames.Sample] {
+    private func capture(_ window: NSWindow, seconds: Double, holdMain: Bool = false,
+                         holdInterval: ((Double, Double) -> Void)? = nil) async throws -> [TagGlassFrames.Sample] {
         try requireForeground(window)
         let available = try await SCShareableContent.currentProcess
         let target = try #require(available.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
@@ -374,6 +379,7 @@ struct NativeOverviewDecorationCaptureTests {
                 let start = CACurrentMediaTime()
                 blockMain(seconds)
                 let end = CACurrentMediaTime()
+                holdInterval?(start, end)
                 try await Task.sleep(for: .milliseconds(100))
                 try await stream.stopCapture()
                 samples = frames.takeSamples().filter {
@@ -507,6 +513,9 @@ struct NativeOverviewDecorationCaptureTests {
                 let png = try #require(NSBitmapImageRep(cgImage: frame.image).representation(using: .png, properties: [:]))
                 try png.write(to: stageDirectory.appendingPathComponent(String(format: "%03d.png", index)))
             }
+            let times = frames.map { ["receivedAt": $0.receivedAt, "presentationTime": $0.presentationTime] }
+            try JSONSerialization.data(withJSONObject: times, options: [.prettyPrinted, .sortedKeys])
+                .write(to: stageDirectory.appendingPathComponent("times.json"))
         }
         try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
             .write(to: directory.appendingPathComponent("measurements.json"))

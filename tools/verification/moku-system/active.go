@@ -92,6 +92,11 @@ func activeRemoval(ctx context.Context, invoke systemInvoke, host actionHost, mo
 	if reportCount(next) != expectedReports {
 		return next, errors.New("late response created a completion Report")
 	}
+	if action != "clear-active" {
+		if err = unchangedReports(state, next, ""); err != nil {
+			return next, err
+		}
+	}
 	fmt.Printf("PASS %s: request barrier, joined native shutdown, late response cannot resurrect task/Report\n", action)
 	return next, nil
 }

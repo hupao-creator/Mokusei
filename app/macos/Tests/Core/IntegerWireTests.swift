@@ -70,11 +70,19 @@ final class IntegerWireTests: XCTestCase {
         }
         let sessionID = "11111111-1111-4111-8111-111111111111"
         func voice(_ name: String, _ fields: [JSONText: JSONValue]) -> JSONValue {
-            .object(["name": .text(name), "channel": .text(fields["action"] == .text("poll") || fields["action"] == .text("history") ? "thread:voice-events" : "thread:voice"),
+            .object(["name": .text(name), "channel": .text(fields["action"] == .text("poll") ? "moku:voice-events" : "moku:voice"),
+                     "args": .array([.object(fields)])])
+        }
+        func threadVoice(_ name: String, _ fields: [JSONText: JSONValue]) -> JSONValue {
+            .object(["name": .text(name), "channel": .text(fields["action"] == .text("history") || fields["action"] == .text("heartbeat") ? "thread:voice-events" : "thread:voice"),
                      "args": .array([.object(["threadId": .text(threadID), "request": .object(fields)])])])
         }
         let commands: [JSONValue] = [
-            voice("history", ["action": .text("history")]),
+            threadVoice("thread history", ["action": .text("history")]),
+            threadVoice("thread prepare removed", ["action": .text("prepare"), "requestId": .text(sessionID)]),
+            threadVoice("thread start removed", ["action": .text("start"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID), "sdp": .text("fixture-offer")]),
+            threadVoice("thread heartbeat removed", ["action": .text("heartbeat"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID)]),
+            threadVoice("thread stop", ["action": .text("stop"), "sessionId": .text(sessionID), "ownershipId": .text(sessionID)]),
             voice("prepare", ["action": .text("prepare"), "requestId": .text(sessionID)]),
             // Keep a legacy Double construction too: the shared encoder must
             // fix all existing whole-valued number callers, not only one field.

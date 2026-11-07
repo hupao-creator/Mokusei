@@ -186,7 +186,14 @@ func serve(w http.ResponseWriter, r *http.Request) {
 		if os.Getenv("FIXTURE_SETTINGS") == "1" {
 			time.Sleep(80 * time.Millisecond)
 		}
-		send(w, profile()["models"])
+		models := list(profile()["models"])
+		switch os.Getenv("FIXTURE_CATALOG") {
+		case "empty":
+			models = []any{}
+		case "duplicate":
+			models = append(models, models[0])
+		}
+		send(w, models)
 		return
 	}
 	if p == "/api/model/default" {

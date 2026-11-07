@@ -66,6 +66,7 @@ struct NativeOnboardingTagSurfaceTests {
         let fixture = TagAnimationFixture()
         let window = SwiftUIReplay.window(TagAnimationReplay(fixture: fixture), width: 620, height: 300)
         defer { window.orderOut(nil); window.contentView = nil }
+        let nativeRoot = try #require(window.contentView)
         let available = try await SCShareableContent.currentProcess
         let target = try #require(available.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
         let config = SCStreamConfiguration()
@@ -81,23 +82,48 @@ struct NativeOnboardingTagSurfaceTests {
         try stream.addStreamOutput(frames, type: .screen, sampleHandlerQueue: DispatchQueue(label: "tag-onboarding-first-frame"))
         try await stream.startCapture()
         var visits: [[TagGlassFrames.Sample]] = []
+        var readiness: [[String: Any]] = []
         var captureFailure: (any Error)?
         do {
             try await SwiftUIReplay.wait { frames.ready }
             _ = frames.take()
             for _ in 0..<3 {
+                let visit = visits.count
+                visits.append([])
+                readiness.append([:])
                 fixture.mounted = true
+                // Keep capturing from before insertion, including its first
+                // drawable. Preparing production SpriteKit textures can occupy
+                // main longer than the observation window on a cold CI host.
+                // Begin that window only after the real scene is prepared; a
+                // blank pre-mount frame cannot certify transparent entry.
+                try await SwiftUIReplay.wait(driveLayout: false) {
+                    visits[visit].append(contentsOf: frames.takeSamples())
+                    guard let view = surface(in: nativeRoot),
+                          let scene = view.scene else { return false }
+                    return scene.children.contains { !$0.children.isEmpty }
+                        && (fixture.started || view.isPaused)
+                }
+                let preparedAt = ProcessInfo.processInfo.systemUptime
+                readiness[visit]["preparedAt"] = preparedAt
                 try await Task.sleep(for: .milliseconds(400))
-                let samples = frames.takeSamples()
-                visits.append(samples)
-                try #require(samples.count >= 2, "Missing intermediate WindowServer frames during Tag entry")
+                visits[visit].append(contentsOf: frames.takeSamples())
+                let samples = visits[visit]
+                let postReadyFrames = samples.filter { $0.presentationTime >= preparedAt }.count
+                readiness[visit]["postReadyFrames"] = postReadyFrames
+                readiness[visit]["observationEndedAt"] = ProcessInfo.processInfo.systemUptime
+                try #require(postReadyFrames >= 2,
+                             "Missing intermediate WindowServer frames after the production Tag scene prepared")
                 fixture.mounted = false
+                try await SwiftUIReplay.wait(driveLayout: false) { surface(in: nativeRoot) == nil }
                 try await Task.sleep(for: .milliseconds(100))
                 _ = frames.take()
             }
             try await stream.stopCapture()
         } catch {
             try? await stream.stopCapture()
+            let pending = frames.takeSamples()
+            if !visits.isEmpty { visits[visits.count - 1].append(contentsOf: pending) }
             captureFailure = error
         }
         let root = ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"]
@@ -131,6 +157,10 @@ struct NativeOnboardingTagSurfaceTests {
                 let times = samples.map { ["receivedAt": $0.receivedAt, "presentationTime": $0.presentationTime] }
                 try JSONSerialization.data(withJSONObject: times, options: .prettyPrinted)
                     .write(to: directory.appendingPathComponent("visit-\(visit)-times.json"))
+                if readiness.indices.contains(visit) {
+                    try JSONSerialization.data(withJSONObject: readiness[visit], options: .prettyPrinted)
+                        .write(to: directory.appendingPathComponent("visit-\(visit)-readiness.json"))
+                }
             }
         }
         if let captureFailure { throw captureFailure }

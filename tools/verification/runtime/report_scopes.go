@@ -90,6 +90,20 @@ func reportPage(ctx context.Context, h *handle, name string, args model.Object) 
 	}
 	return page.Text
 }
+
+func reportReadRevision(ctx context.Context, h *handle, id string) int64 {
+	text := reportPage(ctx, h, "read_report", model.Object{"reportId": id})
+	var document struct {
+		ID       string `json:"id"`
+		Revision int64  `json:"revision"`
+		HTML     string `json:"html"`
+	}
+	must(json.Unmarshal([]byte(text), &document))
+	if document.ID != id || document.HTML == "" {
+		panic("Report edit did not read the complete current document")
+	}
+	return document.Revision
+}
 func expectReportDenied(err error, label string) {
 	if err == nil {
 		panic("Report accepted " + label)
@@ -255,7 +269,7 @@ func verifyReportScopes(ctx context.Context) {
 	if !strings.Contains(journal, a.ID) || strings.Contains(journal, b.ID) || strings.Contains(journal, inbox.ID) {
 		panic("Report journal escaped successful-event scope")
 	}
-	create := model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Scoped report", "html": "<html><body>Evidence</body></html>"}
+	create := model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Scoped report", "html": "<html><body>Evidence</body></html>", "coverHTML": "<div>Scoped evidence</div>"}
 	aRaw, err := reportTool(ctx, aHandle, "create_report", "create", create)
 	must(err)
 	var aReport report.Summary
@@ -278,14 +292,14 @@ func verifyReportScopes(ctx context.Context) {
 	if read := reportPage(ctx, aHandle, "read_report", model.Object{"reportId": bReport.ID}); read != "null" {
 		panic("Report read leaked a known foreign ID")
 	}
-	_, err = reportTool(ctx, aHandle, "update_report", "foreign-update", model.Object{"reportId": bReport.ID, "title": "Wrong scope"})
+	_, err = reportTool(ctx, aHandle, "update_report", "foreign-update", model.Object{"reportId": bReport.ID, "expectedRevision": reportReadRevision(ctx, bHandle, bReport.ID), "title": "Wrong scope"})
 	expectReportDenied(err, "foreign report update")
-	_, err = reportTool(ctx, aHandle, "create_report", "spoof-scope", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Spoof", "html": "<p>x</p>", "scope": bScope})
+	_, err = reportTool(ctx, aHandle, "create_report", "spoof-scope", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Spoof", "html": "<p>x</p>", "coverHTML": "<div>Scope spoof</div>", "scope": bScope})
 	expectReportDenied(err, "model-supplied scope")
 	refs := []model.Object{{"threadId": a.ID, "executionId": a.Observation.LatestExecution.ExecutionID}, {"threadId": b.ID, "executionId": b.Observation.LatestExecution.ExecutionID}}
-	_, err = reportTool(ctx, aHandle, "update_report", "mixed-update", model.Object{"reportId": aReport.ID, "title": "Must roll back", "relatedExecutions": refs})
+	_, err = reportTool(ctx, aHandle, "update_report", "mixed-update", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "title": "Must roll back", "relatedExecutions": refs})
 	expectReportDenied(err, "mixed-scope related executions")
-	_, err = reportTool(ctx, aHandle, "create_report", "mixed-create", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Must roll back", "html": "<p>x</p>", "relatedExecutions": refs})
+	_, err = reportTool(ctx, aHandle, "create_report", "mixed-create", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Must roll back", "html": "<p>x</p>", "coverHTML": "<div>Mixed scope</div>", "relatedExecutions": refs})
 	expectReportDenied(err, "cross-scope creation")
 	assertCatalog := func() {
 		catalog, err := app.Catalog(ctx)
@@ -308,14 +322,14 @@ func verifyReportScopes(ctx context.Context) {
 	assertCatalog()
 	// Attach a permitted historical execution, then retain document ownership
 	// after deleting the source. The report title-only update needs no source.
-	_, err = reportTool(ctx, aHandle, "update_report", "same-scope", model.Object{"reportId": aReport.ID, "relatedExecutions": refs[:1]})
+	_, err = reportTool(ctx, aHandle, "update_report", "same-scope", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "relatedExecutions": refs[:1]})
 	must(err)
 	must(r.SetArchived(ctx, a.ID, true))
 	_, err = reportTool(ctx, aHandle, "get_thread_status", "archived", model.Object{"threadId": a.ID})
 	must(err)
 	must(r.DeleteThread(ctx, a.ID))
 	must(r.DeleteThread(ctx, a2.ID))
-	_, err = reportTool(ctx, aHandle, "update_report", "after-source-delete", model.Object{"reportId": aReport.ID, "title": "Scoped report"})
+	_, err = reportTool(ctx, aHandle, "update_report", "after-source-delete", model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, aHandle, aReport.ID), "title": "Scoped report"})
 	must(err)
 	assertCatalog()
 	finishReportFixture(ctx, aHandle, "completed")
@@ -359,7 +373,7 @@ func verifyReportScopes(ctx context.Context) {
 	// Recovery preserves the admitted batch and its receipts. A still-running
 	// saved execution reconnects without redelivery; a saved interruption
 	// starts one counted retry in the same private session.
-	update := model.Object{"reportId": aReport.ID, "title": "Scoped report"}
+	update := model.Object{"reportId": aReport.ID, "expectedRevision": reportReadRevision(ctx, recovered, aReport.ID), "title": "Scoped report"}
 	priorWrite, err := reportTool(ctx, recovered, "update_report", "recovery-write", update)
 	must(err)
 	must(app.Stop(ctx))

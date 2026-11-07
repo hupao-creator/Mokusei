@@ -55,7 +55,7 @@ func runNativeVoiceSettingsReplay() error {
 	if err := nativeVoiceBackgroundSettingsCase(filepath.Join(root, "background")); err != nil {
 		return err
 	}
-	fmt.Println("PASS native voice settings: idle reconnect, exact unadmitted handoff recovery once, ownership/Stop fencing and failed-cleanup rejection")
+	fmt.Println("PASS native voice settings: idle reconnect, exact unadmitted handoff recovery once, pending background rejection, ownership/Stop fencing and failed-cleanup rejection")
 	return nil
 }
 
@@ -258,7 +258,7 @@ func nativeVoiceBackgroundSettingsCase(root string) error {
 	if err != nil {
 		return err
 	}
-	_, err = media.admitNative(mokuReplayContext(), plugin.VoiceDelegation{ID: "background-origin", Text: "start native background work"})
+	first, err := media.admitNative(mokuReplayContext(), plugin.VoiceDelegation{ID: "background-origin", Text: "start native background work"})
 	if err != nil {
 		return err
 	}
@@ -285,17 +285,17 @@ func nativeVoiceBackgroundSettingsCase(root string) error {
 	if err != nil {
 		return err
 	}
-	_, err = media.admitNative(mokuReplayContext(), plugin.VoiceDelegation{ID: "foreground-on-background", Text: "continue admitted native owner"})
-	if err != nil {
-		return err
-	}
+	request := plugin.VoiceDelegation{ID: "foreground-on-background", Text: "new foreground while background remains"}
+	_, err = media.admitNative(mokuReplayContext(), request)
+	mokuReplayCheck(err != nil, "pending background configuration admitted new native input")
+	blocked := system.record()
+	mokuReplayCheck(blocked.Observation.LatestExecution.ExecutionID == first && blocked.Observation.LatestExecution.Terminal() && blocked.Observation.BackgroundWork != nil, "rejected native voice input reserved an execution or retired background work")
+	mokuReplayCheck(!voiceReplayHasMessage(blocked, request.Text), "rejected native voice input committed user audit")
 	applied, err := system.r.ReadMokuConfiguration()
 	if err != nil {
 		return err
 	}
 	mokuReplayCheck(applied.AppliedSettings.Moku.RoutingGuidance == nil, "native background adopted pending config")
-	system.complete("background remains")
-	voiceReplayWaitSpeech(media)
 	poll := func() bool {
 		value, err := system.command("moku:voice-events", map[string]any{"action": "poll", "sessionId": media.ID(), "after": 0})
 		mokuReplayMust(err)

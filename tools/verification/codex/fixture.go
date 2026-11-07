@@ -190,6 +190,7 @@ func (p *peer) receive(frame object) error {
 	case "getAuthStatus":
 		result["requiresOpenaiAuth"] = false
 	case "model/list":
+		result["nextCursor"] = nil
 		result["data"] = []any{object{"model": fixtureModel(), "displayName": "Luna", "isDefault": true, "supportsReasoning": true, "supportedReasoningEfforts": []any{object{"reasoningEffort": fixtureEffort()}}, "defaultReasoningEffort": fixtureEffort(), "serviceTiers": []any{object{"id": "priority"}}, "defaultServiceTier": nil}}
 	case "skills/list", "plugin/installed":
 		result["data"] = []any{}

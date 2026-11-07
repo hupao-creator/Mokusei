@@ -25,7 +25,7 @@ tests or account-based model probes. The user's existing native profile is not u
 
 | Case | Evidence |
 | --- | --- |
-| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, complete cold/warm Target catalogs before routing with exact creation options, HTTP/SSE and termination |
+| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, cold/warm Target inventories and exact creation options with source completeness kept unknown, empty/duplicate catalog rejection, HTTP/SSE and termination |
 | `settings` | JSONC/YAML discovery and ordered permissions, credential-free catalog, concurrent reader cancellation, native default agent without `default_agent` (a non-`build` first agent), exact thinking selection/update/snapshot, live variant change rejection, process cleanup |
 | `timeout` | Cancelled startup joins its single server before returning |
 | `renderer` | 25 fixed projections from the pre-migration renderer across overview/thread/turn/execution/history scopes, including deferred content, tool display, usage and Unicode boundaries |
@@ -37,6 +37,13 @@ tests or account-based model probes. The user's existing native profile is not u
 Use `-case thread` (with `-native-cli`) to run one case, `-race=false` to disable the
 race detector, `-go /path/to/go` to select the toolchain, or `-root /path/to/repo` when
 invoking from elsewhere. The default toolchain is the one running this command.
+
+The credentials replay accepts successful native enumeration for routing while
+requiring `source.complete=false`, its evidence basis and a matching configuration
+identity in the schema. It checks exact supported model/thinking options and sends
+empty and duplicate inventories through the real native discovery path to require
+rejection without a published target. Run it with `-case credentials`; the
+`settings` case separately verifies live model/variant admission.
 
 The fixtures contain synthetic credentials only. They do not verify production
 OAuth accounts, paid upstream models, remote billing responses, or the Swift UI.

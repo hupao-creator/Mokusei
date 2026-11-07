@@ -164,6 +164,9 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		if len(ordinary(next)) != len(children)-1 || reportCount(next) != reportCount(state) {
 			return next, errors.New("delete changed unrelated task/report count")
 		}
+		if e = unchangedReports(state, next, ""); e != nil {
+			return next, e
+		}
 		var answer string
 		if e = invoke("thread:read", []any{object{"threadId": source.ID, "question": "deleted source"}}, &answer); e == nil || !strings.Contains(e.Error(), "unknown thread: "+source.ID) {
 			return next, fmt.Errorf("deleted source read not rejected: %v", e)
@@ -220,8 +223,21 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		if reportCount(next) != reportCount(state) {
 			return next, errors.New("fork fabricated a completed execution/report")
 		}
+		if e = unchangedReports(state, next, ""); e != nil {
+			return next, e
+		}
 		fmt.Println("PASS fork: independent native identity and inherited read; source unchanged")
 		return next, nil
+	}
+	previousReport, previousView, err := reportForThread(state, source.ID)
+	if err != nil {
+		return state, err
+	}
+	var previousContent struct{ HTML, ContentRevision string }
+	if previousReport.ID != "" {
+		if err = invoke("application:query", []any{object{"pluginId": "report", "operationId": "report.html", "input": object{"reportId": previousReport.ID}}}, &previousContent); err != nil {
+			return state, err
+		}
 	}
 	input := fmt.Sprintf("SYSTEM_CHAIN_CHILD: followup action %d; reply SYSTEM_CHILD_DONE", index)
 	var gate *responseBarrier
@@ -293,39 +309,53 @@ func exerciseLifecycle(ctx context.Context, invoke systemInvoke, host actionHost
 		if reportCount(next) != reportCount(state) {
 			return next, errors.New("interrupted execution produced Report")
 		}
+		if e = unchangedReports(state, next, ""); e != nil {
+			return next, e
+		}
 		fmt.Printf("PASS interrupt: active model request fenced, late response released, no new Report (%s)\n", result.Status)
 		return next, nil
 	}
+	expectedReports := reportCount(state)
+	if previousReport.ID == "" {
+		expectedReports++ // An unexecuted fork has no owner until its first completion.
+	}
 	next, e := settleSystem(ctx, invoke, mock, func(s model.AppState) bool {
 		t, ok := findThread(s, source.ID)
-		return ok && t.Observation.LatestExecution != nil && t.Observation.LatestExecution.ExecutionID == receipt.ExecutionID && t.Observation.LatestExecution.Status == "completed" && reportCount(s) >= reportCount(state)+1
+		if !ok || t.Observation.LatestExecution == nil || t.Observation.LatestExecution.ExecutionID != receipt.ExecutionID || t.Observation.LatestExecution.Status != "completed" || reportCount(s) != expectedReports {
+			return false
+		}
+		owner, view, err := reportForThread(s, source.ID)
+		return err == nil && owner.ID != "" && (previousReport.ID == "" || owner.ID == previousReport.ID) && len(view.RelatedExecutions) == 1 && view.RelatedExecutions[0].ExecutionID == receipt.ExecutionID
 	})
 	if e != nil {
 		return next, e
 	}
-	if reportCount(next) != reportCount(state)+1 {
-		return next, errors.New("followup produced duplicate reports")
+	if reportCount(next) != expectedReports {
+		return next, errors.New("followup changed unrelated Report cardinality")
 	}
-	linked := 0
-	for _, report := range next.ApplicationThreads {
-		if report.Ref.TypeID != "report.document" {
-			continue
-		}
-		var view struct {
-			Related []model.ExecutionRef `json:"relatedExecutions"`
-		}
-		if e = json.Unmarshal(report.View, &view); e != nil {
-			return next, e
-		}
-		for _, ref := range view.Related {
-			if ref.ExecutionID == receipt.ExecutionID && ref.Thread.ThreadID == source.ID {
-				linked++
-			}
-		}
+	owner, view, e := reportForThread(next, source.ID)
+	if e != nil {
+		return next, e
 	}
-	if linked != 1 {
-		return next, errors.New("followup Report has wrong execution provenance")
+	if owner.ID == "" || len(view.RelatedExecutions) != 1 || view.RelatedExecutions[0].ExecutionID != receipt.ExecutionID || view.PreviewText != "SYSTEM_CHILD_DONE" {
+		return next, errors.New("followup Report has wrong execution provenance or content")
 	}
-	fmt.Println("PASS followup: successor identity, terminal fanout and exactly one new Report")
+	if previousReport.ID != "" && (owner.ID != previousReport.ID || owner.Ref != previousReport.Ref || owner.CreatedAt != previousReport.CreatedAt || owner.Revision <= previousReport.Revision) {
+		return next, errors.New("followup replaced its Report owner or did not advance the revision")
+	}
+	if view.ContentRevision == "" || view.ContentRevision == previousView.ContentRevision || view.CoverRevision == "" || view.CoverRevision == previousView.CoverRevision {
+		return next, errors.New("followup did not refresh Report body and cover evidence")
+	}
+	var content struct{ HTML, ContentRevision string }
+	if e = invoke("application:query", []any{object{"pluginId": "report", "operationId": "report.html", "input": object{"reportId": owner.ID}}}, &content); e != nil {
+		return next, e
+	}
+	if content.ContentRevision != view.ContentRevision || content.HTML == previousContent.HTML || !strings.Contains(content.HTML, `data-execution-id="`+receipt.ExecutionID+`"`) || !strings.Contains(content.HTML, "SYSTEM_CHILD_DONE") {
+		return next, errors.New("followup HTML did not retain the new completed execution evidence")
+	}
+	if e = unchangedReports(state, next, previousReport.ID); e != nil {
+		return next, e
+	}
+	fmt.Println("PASS followup: successor execution, one Report owner, full-read revision and refreshed evidence")
 	return next, nil
 }

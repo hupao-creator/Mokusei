@@ -405,7 +405,7 @@ func (s *voiceReplaySession) admitNative(ctx context.Context, request plugin.Voi
 	if s.open.ExecutionAdmission == nil {
 		return "", errors.New("native voice admission missing")
 	}
-	executionID, err := s.open.ExecutionAdmission.Accept(ctx, func(id string) (json.RawMessage, error) {
+	executionID, err := s.open.ExecutionAdmission.Accept(plugin.WithVoiceAdmission(ctx, s.ID()), func(id string) (json.RawMessage, error) {
 		observation := s.open.ReadThread().Observation
 		observation.LatestExecution = &model.PublicExecution{ExecutionID: id, Status: "running", StartedAt: time.Now().UnixMilli()}
 		return json.Marshal(observation)
@@ -547,11 +547,15 @@ func runVoiceReplay() (err error) {
 	mokuReplayMust(system.c.Clear(mokuReplayContext()))
 	mokuReplayCheck(system.record().ID != owner, "voice owner clear failed")
 	mokuReplayCheck(session.request(mokuReplayContext(), plugin.VoiceDelegation{ID: "late-owner", Text: "stale owner must not write"}, executionID) != nil, "retired native callback wrote to replacement owner")
-	factory.mu.Lock()
-	factory.nativeError = errors.New("injected native preparation failure")
-	factory.mu.Unlock()
 	_, err = system.prepare(voiceReplayRequestID)
-	mokuReplayCheck(err != nil, "native preparation failure disappeared")
+	var revoked *model.Error
+	mokuReplayCheck(errors.As(err, &revoked) && revoked.Code == "VOICE_PREPARATION_REVOKED", "stopped voice preparation identity became reusable")
+	nativeFailure := errors.New("injected native preparation failure")
+	factory.mu.Lock()
+	factory.nativeError = nativeFailure
+	factory.mu.Unlock()
+	_, err = system.prepare("44444444-4444-4444-8444-444444444444")
+	mokuReplayCheck(errors.Is(err, nativeFailure), fmt.Sprintf("native preparation did not reach its injected failure: %v", err))
 	factory.mu.Lock()
 	relayCalls := factory.relayCalls
 	factory.nativeError = nil
@@ -562,10 +566,11 @@ func runVoiceReplay() (err error) {
 	factory.mu.Lock()
 	factory.nativeGate = func(ctx context.Context) error { close(prepareEntered); <-ctx.Done(); return ctx.Err() }
 	factory.mu.Unlock()
+	const blockedPrepareID = "55555555-5555-4555-8555-555555555555"
 	preparing := make(chan error, 1)
-	go func() { _, err := system.prepare(voiceReplayRequestID); preparing <- err }()
+	go func() { _, err := system.prepare(blockedPrepareID); preparing <- err }()
 	voiceReplayWait("blocked native prepare", prepareEntered)
-	_, err = system.command("moku:voice", map[string]any{"action": "stop", "sessionId": voiceReplayRequestID})
+	_, err = system.command("moku:voice", map[string]any{"action": "stop", "sessionId": blockedPrepareID})
 	mokuReplayMust(err)
 	select {
 	case err = <-preparing:
@@ -594,7 +599,7 @@ func runVoiceReplay() (err error) {
 	mokuReplayCheck(media.lifetime.Err() == nil, "relay lifetime canceled after prepare")
 	admissionEntered, admissionRelease := make(chan struct{}), make(chan struct{})
 	relay.h.mu.Lock()
-	relay.h.gateAdmission = func(ctx context.Context) error {
+	relay.h.gateAfterAdmission = func(ctx context.Context) error {
 		close(admissionEntered)
 		select {
 		case <-admissionRelease:
@@ -605,7 +610,8 @@ func runVoiceReplay() (err error) {
 	}
 	relay.h.mu.Unlock()
 	media.delegate(plugin.VoiceDelegation{ID: "relay-request", Text: "relay task survives media stop", Context: "fixed prior transcript", Generation: 0})
-	voiceReplayWait("relay native admission fence", admissionEntered)
+	voiceReplayWait("relay retained native input", admissionEntered)
+	mokuReplayCheck(voiceReplayHasMessage(relay.record(), "relay task survives media stop"), "relay fixture held input before its durable admission")
 	_, err = relay.command("moku:voice", map[string]any{"action": "stop", "sessionId": media.ID()})
 	mokuReplayMust(err)
 	close(admissionRelease)

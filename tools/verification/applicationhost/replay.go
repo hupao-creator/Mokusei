@@ -113,44 +113,73 @@ func (h *harness) replay(ctx context.Context) (string, error) {
 		return "", err
 	}
 	h.checks = append(h.checks, "bounded Report catalog and complete report.html query")
-	// Concurrent real reducers all read and commit at the same serialized store
-	// boundary. Distinct invocations cannot overwrite each other's revisions.
+	// Each edit is based on the same complete document read. The serialized
+	// reducer must admit one winner and reject every stale peer, rather than
+	// overwriting a newer report with a decision based on its previous revision.
+	document, err := h.read(ctx, summary.ID)
+	if err != nil {
+		return "", err
+	}
 	const updates = 8
 	var wg sync.WaitGroup
-	failures := make(chan error, updates)
+	type updateResult struct {
+		html string
+		err  error
+	}
+	results := make(chan updateResult, updates)
 	for index := range updates {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
 			html := fmt.Sprintf("<html><body><p>Concurrent Report update %d.</p></body></html>", index)
-			payload := encode(report.UpdateInput{ReportID: summary.ID, HTML: &html})
+			payload := encode(report.UpdateInput{ReportID: summary.ID, ExpectedRevision: &document.Revision, HTML: &html})
 			_, err := h.domain.Execute(ctx, "report.update", payload, writeOptions(h.consumer.ID(), work, fmt.Sprintf("update-%d", index)))
-			if err != nil {
-				failures <- err
-			}
+			results <- updateResult{html: html, err: err}
 		}(index)
 	}
 	wg.Wait()
-	close(failures)
-	for err := range failures {
-		return "", err
+	close(results)
+	winners, conflicts := 0, 0
+	var committedHTML string
+	for result := range results {
+		if result.err == nil {
+			winners++
+			committedHTML = result.html
+			continue
+		}
+		var conflict *model.Error
+		if !errors.As(result.err, &conflict) || conflict.Code != "REPORT_REVISION_CHANGED" {
+			return "", result.err
+		}
+		conflicts++
+	}
+	if winners != 1 || conflicts != updates-1 {
+		return "", fmt.Errorf("same-revision edits admitted %d winners and %d conflicts", winners, conflicts)
 	}
 	catalog, err = h.host.Catalog(ctx)
 	if err != nil {
 		return "", err
 	}
-	if catalog[0].Revision != 1+updates {
-		return "", errors.New("concurrent commands lost a record revision")
+	if len(catalog) != 1 || catalog[0].Revision != document.Revision+1 {
+		return "", errors.New("concurrent stale edits changed the committed record revision")
+	}
+	if err = h.checkQuery(ctx, summary.ID, committedHTML); err != nil {
+		return "", err
+	}
+	// Reconsider the next edit after a fresh full read, using its actual version.
+	document, err = h.read(ctx, summary.ID)
+	if err != nil {
+		return "", err
 	}
 	html := fixtureHTML
-	_, err = h.domain.Execute(ctx, "report.update", encode(report.UpdateInput{ReportID: summary.ID, HTML: &html}), writeOptions(h.consumer.ID(), work, "restore-fixture"))
+	_, err = h.domain.Execute(ctx, "report.update", encode(report.UpdateInput{ReportID: summary.ID, ExpectedRevision: &document.Revision, HTML: &html}), writeOptions(h.consumer.ID(), work, "restore-fixture"))
 	if err != nil {
 		return "", err
 	}
 	if err = h.checkQuery(ctx, summary.ID, fixtureHTML); err != nil {
 		return "", err
 	}
-	h.checks = append(h.checks, "concurrent real Report updates preserve each committed revision")
+	h.checks = append(h.checks, "same-revision concurrent Report edits admit one winner, reject stale peers and preserve the winner's exact content")
 	ref := model.ThreadRef{ThreadID: summary.ID, TypeID: report.ThreadTypeID}
 	if err = h.host.Archive(ctx, ref, true); err != nil {
 		return "", err
