@@ -118,10 +118,15 @@ private struct PlainViewportFixture: View {
         // Compare with an unstyled SwiftUI viewport, then change actual content
         // instead of overwriting the framework-owned native document frame.
         let viewportDraft = PlainViewportDraft()
-        let plainHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: true))
-        let referenceHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: false))
+        let viewportSize = NSSize(width: 360, height: 300)
+        // A windowless hosting view has no parent supplying the SwiftUI layout
+        // proposal. Pin both roots before testing content against that viewport.
+        let plainHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: true)
+            .frame(width: viewportSize.width, height: viewportSize.height))
+        let referenceHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: false)
+            .frame(width: viewportSize.width, height: viewportSize.height))
         for host in [plainHost, referenceHost] {
-            host.frame = NSRect(x: 0, y: 0, width: 360, height: 300)
+            host.frame = NSRect(origin: .zero, size: viewportSize)
             await layout(host)
         }
         NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
@@ -133,6 +138,17 @@ private struct PlainViewportFixture: View {
             let reference = descendants(referenceHost, of: NSScrollView.self).first!
             let viewportScroller = viewport.verticalScroller!
             let viewportDocument = viewport.documentView!
+            let geometry = "Plain viewport height=\(height) expectedOverflow=\(canScroll)\n"
+                + viewportGeometry("styled", host: plainHost, scroll: viewport) + "\n"
+                + viewportGeometry("reference", host: referenceHost, scroll: reference) + "\n"
+            FileHandle.standardError.write(Data(geometry.utf8))
+            for (host, scroll) in [(plainHost, viewport), (referenceHost, reference)] {
+                precondition(host.bounds.size == viewportSize && scroll.frame.size == viewportSize,
+                             "Plain viewport must retain its fixed SwiftUI layout proposal")
+                precondition(scroll.contentSize.width > 0 && scroll.contentSize.width <= viewportSize.width
+                             && scroll.contentSize.height > 0 && scroll.contentSize.height <= viewportSize.height,
+                             "Plain viewport clip must remain inside its fixed viewport")
+            }
             precondition(viewportScroller is NativeTracklessScroller)
             precondition(!(reference.verticalScroller is NativeTracklessScroller))
             precondition(viewport.scrollerStyle == NSScroller.preferredScrollerStyle)
@@ -164,6 +180,15 @@ private struct PlainViewportFixture: View {
         }
         precondition(plainHost.window == nil && referenceHost.window == nil)
         print("PASS: windowless SwiftUI overflowing TextEditor/List, nested viewport isolation, native targets/AX role, editor binding, selection/offset retention, preference notification, control replacement, List threshold width and plain viewport SwiftUI autohiding/loaded-width retention")
+    }
+
+    private static func viewportGeometry(_ label: String, host: NSView, scroll: NSScrollView) -> String {
+        "\(label): hostFrame=\(host.frame) hostBounds=\(host.bounds) scrollFrame=\(scroll.frame) "
+            + "clipFrame=\(scroll.contentView.frame) clipBounds=\(scroll.contentView.bounds) contentSize=\(scroll.contentSize) "
+            + "documentFrame=\(String(describing: scroll.documentView?.frame)) "
+            + "scrollerFrame=\(String(describing: scroll.verticalScroller?.frame)) "
+            + "knobProportion=\(String(describing: scroll.verticalScroller?.knobProportion)) "
+            + "style=\(scroll.scrollerStyle.rawValue) autohides=\(scroll.autohidesScrollers)"
     }
 
     @MainActor private static func scrollerInk(_ scroller: NSScroller) -> Int {

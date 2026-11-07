@@ -27,8 +27,12 @@ scroll offsets through preference notifications, control replacement and List
 viewport width while rows cross its own overflow threshold. An adjacent unstyled
 editor must keep its original scroller. A plain NativeScrollView fixture then
 changes its SwiftUI content height across the threshold and compares autohiding
-with an unstyled SwiftUI ScrollView containing the same content. The background
-adapter leaves visibility and the initial document-width proposal with SwiftUI:
+with an unstyled SwiftUI ScrollView containing the same content. Both test roots
+receive a fixed 360×300 SwiftUI frame, and each content transition
+checks the actual host, native viewport and clip bounds before checking overflow.
+Both sides' geometry is written synchronously to stderr so a failed precondition
+retains the requested content height and the observed layout.
+The background adapter leaves visibility and the initial document-width proposal with SwiftUI:
 loading longer content may allocate a legacy gutter, but scrolling that loaded
 content in either direction must preserve both clip and document width. For the
 runner's preferred style, its scroller must paint only while scrolling is possible

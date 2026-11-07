@@ -79,7 +79,7 @@ def verify_swift_ownership(root, repo, environment):
         lines = ["Test Suite 'Selected tests' passed at fixture", "Executed 0 tests, with 0 failures"]
         for identity in identities:
             name = identity.split("/", 1)[1]
-            cases = " with 2 test cases" if "(value:)" in name else ""
+            cases = " with 1 test case" if name == "case0(value:)" else " with 2 test cases" if "(value:)" in name else ""
             lines.append(f"✔ Test {name}{cases} passed after 0.001 seconds.")
         lines.append(f"✔ Test run with {len(identities)} tests passed after 0.001 seconds.")
         return "\n".join(lines) + "\n"
@@ -137,7 +137,7 @@ def verify_swift_ownership(root, repo, environment):
             cwd=repo, env=environment, success=False)
     (build / "ci-manifest.json").write_text(json.dumps(manifest))
 
-    native_lines = {name: f"✔ Test {name.split('/', 1)[1]} passed after 0.001 seconds.\n"
+    native_lines = {name: f"✔ Test {name.split('/', 1)[1]}{' with 1 test case' if name.endswith(':)') else ''} passed after 0.001 seconds.\n"
                     for name in NATIVE_METHOD_OWNERS}
     native_logs = {name: owner["marker"] + "\n\x1b[32m" + native_lines[name].rstrip() + "\x1b[0m\n"
                    for name, owner in NATIVE_METHOD_OWNERS.items()}
@@ -204,7 +204,7 @@ def verify_swift_ownership(root, repo, environment):
         command(audit, cwd=repo, env=environment, success=False)
     method = ordinary_tests[0].split("/", 1)[1]
     ordinary_log.write_text(ordinary_before.replace(
-        f"✔ Test {method} with 2 test cases passed after 0.001 seconds.",
+        f"✔ Test {method} with 1 test case passed after 0.001 seconds.",
         f"➜ Test {method} skipped: unexpected fixture skip"))
     command(audit, cwd=repo, env=environment, success=False)
     ordinary_log.write_text(ordinary_before.split("✔ Test run with", 1)[0])

@@ -119,6 +119,14 @@ struct NativeReportNavigationTests {
         #expect(outsideHit !== navigation && outsideHit?.isDescendant(of: navigation) != true)
     }
 
+    private func logPanelDOMDiagnostics(_ document: WKWebView) {
+        // Keep diagnostic IPC nonblocking; a failed async replay must rethrow
+        // and close its window without awaiting an unresponsive WebKit page.
+        document.evaluateJavaScript("({focused:document.hasFocus(), active:document.activeElement?.outerHTML, modal:!!document.querySelector('dialog:modal'), events:window.panelEscapeEvents})") { value, failure in
+            print("Report panel DOM diagnostics: value=\(String(describing: value)) error=\(String(describing: failure))")
+        }
+    }
+
     @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
         "Requires the isolated AppKit event loop for real WebKit mouse/key input: python3 tools/verification/reading-presentation/run.py --report-navigation"))
     func reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() async throws {
@@ -504,11 +512,7 @@ struct NativeReportNavigationTests {
             try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
         } catch {
             print("Report panel Escape diagnostics: open=\(fixture.open) backs=\(fixture.backs) moving=\(fixture.motion.active) key=\(window.isKeyWindow) active=\(NSApp.isActive) responder=\(String(describing: window.firstResponder))")
-            // DOM evidence is best effort; an unresponsive page must not defer
-            // the original failed expectation or the window's cleanup.
-            panelDocument.evaluateJavaScript("({focused:document.hasFocus(), active:document.activeElement?.outerHTML, modal:!!document.querySelector('dialog:modal'), events:window.panelEscapeEvents})") { value, failure in
-                print("Report panel DOM diagnostics: value=\(String(describing: value)) error=\(String(describing: failure))")
-            }
+            logPanelDOMDiagnostics(panelDocument)
             throw error
         }
         fixture.open = true

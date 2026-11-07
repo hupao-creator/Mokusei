@@ -256,6 +256,8 @@ coverage and local capture entry points with temporary Git histories and control
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
+Parameterized outcomes retain their exact discovered method identity with either
+Swift Testing's `with 1 test case` or plural `with N test cases` suffix.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
 commit's hosted run must establish actual native execution.
 

@@ -81,7 +81,9 @@ archiving all conversations still restores landing without replaying setup.
 Verification uses the mounted `NativeMokuLandingTests` for hydration, admission,
 interruption and marker errors. `NativeOnboardingUserFlow` extends the existing
 Go-backed Settings flow with real discovery/resources, independent and inherited
-role settings, Back, failed completion persistence and actual Dock handoff:
+role settings, Back, failed completion persistence and actual Dock handoff. It
+drives the current `off`, `inherit` and `independent` controls, checking disabled
+readiness, hidden execution fields and exact profile restoration after reopening:
 
 ```sh
 make runtime
