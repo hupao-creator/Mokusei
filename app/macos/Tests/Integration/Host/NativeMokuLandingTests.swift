@@ -529,7 +529,7 @@ struct NativeMokuLandingTests {
                 fixture.presentation.open(.init(threadID: "child", typeID: "agent"))
                 let fullPanel = NativeReadingPanelGeometry.frame(in: root.bounds.size)
                 var closePhase = "admission"
-                func logCloseReadiness(_ phase: String) {
+                @MainActor func logCloseReadiness(_ phase: String) {
                     let frame = readingPanel(in: root).map { $0.convert($0.bounds, to: root) }
                     print("MOKU_PANEL_CLOSE_READINESS interruption=\(interruption) phase=\(phase) selected=\(String(describing: fixture.presentation.selected)) mounted=\(String(describing: fixture.presentation.mountedReadingThread)) admitted=\(fixture.presentation.readingEntranceAdmitted) moving=\(fixture.presentation.messageMotion.active) root=\(root.bounds) fullPanel=\(fullPanel) actual=\(String(describing: frame))")
                 }

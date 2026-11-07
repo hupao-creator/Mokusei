@@ -108,12 +108,12 @@ func TestAttentionReplay(t *testing.T) {
 	if err != nil || string(result) != "true" {
 		t.Fatalf("hide %s %v", result, err)
 	}
-	catalog, err := r.projectThreads(db.Snapshot())
+	state, err := r.Snapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := false
-	for _, v := range catalog {
+	for _, v := range state.Threads {
 		if v.ID == "target" {
 			found = v.AttentionHidden
 		}
