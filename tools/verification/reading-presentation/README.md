@@ -400,7 +400,11 @@ static control are required. A production Codex spinner in a separate corner
 must change pixels in both halves too; hiding/resuming its native view must
 remove/restore its compositor animation. `main-hold` PNGs, per-frame presentation
 times and measurements retain the evidence, including the measured interval
-that fails an assertion; this does not certify input responsiveness, physical FPS or energy.
+that fails an assertion. `main-hold-context` retains the same 60Hz stream's
+pre-drain frames and frames excluded by the hold filter; compare their timestamps
+with `mainHoldWindow` to identify the surrounding frames and excluded prefix.
+These diagnostic frames never contribute to the passing frame count or pixel
+assertions. This does not certify input responsiveness, physical FPS or energy.
 
 The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.

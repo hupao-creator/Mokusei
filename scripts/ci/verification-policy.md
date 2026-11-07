@@ -103,7 +103,9 @@ when every applicable job and complete observed native coverage succeeds.
 ### Foreground Overview performance
 
 The separate `Overview performance` workflow owns the continuing foreground
-Overview performance baseline. Its production-linked Release probe measures N40
+Overview performance baseline. Dispatch it explicitly with full `baseline` and
+`candidate` commit SHAs; PRs and pushes do not start this experiment.
+Its production-linked Release probe measures N40
 with four fully visible running cards for idle animation, short message rewrite
 and cumulative message append. A separate Core process supplies events through
 the production store, publisher, HTTP/NDJSON transport and Swift workspace.
@@ -123,12 +125,14 @@ measurement agent is required to advance this Overview optimization work.
 
 ### Native CLI and system matrices
 
-Dispatch `CI` with `extended=true` on the intended ref for pinned native Codex,
-Pi and OpenCode against loopback providers and the Moku system matrices.
+Dispatch the separate [Native CLI workflow](../../.github/workflows/native-cli.yml)
+on the intended ref for pinned native Codex, Pi and OpenCode against loopback
+providers and the Moku system matrices.
 No paid-model account or microphone is involved. The configured macOS route
 provides the same isolated pinned-CLI execution on either runner deployment.
-Extended dispatches run only four independent native-CLI/system lanes. The normal PR run
-does not claim these checks ran.
+Each dispatch runs all four native-CLI/system lanes and requires their success
+in `Extended native CLI coverage`. This workflow has no PR/push trigger; ordinary
+CI neither schedules these optional jobs nor claims they ran.
 
 Run these checks for native CLI/adapter compatibility, process ownership and system
 coordination changes. Its independent value is detecting actual CLI loader/protocol

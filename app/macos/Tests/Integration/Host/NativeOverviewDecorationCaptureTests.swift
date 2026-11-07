@@ -198,6 +198,11 @@ struct NativeOverviewDecorationCaptureTests {
             let held = try await capture(window, seconds: 0.2, holdMain: true, holdInterval: { start, end in
                 report["mainHoldWindow"] = ["start": start, "end": end, "duration": end - start,
                     "presentationExclusion": 0.03]
+            }, holdContext: { frames in
+                evidence.append(("main-hold-context", frames))
+                report["mainHoldContext"] = "Diagnostic only: pre-drain samples and samples excluded by the hold filter. "
+                    + "Interpret presentationTime against mainHoldWindow, including its excluded prefix; "
+                    + "these frames never enter the frame-count or pixel assertions."
             })
             evidence.append(("main-hold", held))
             try requireFullFrames(held, size: firstGeometry.imageSize)
@@ -350,7 +355,8 @@ struct NativeOverviewDecorationCaptureTests {
     }
 
     private func capture(_ window: NSWindow, seconds: Double, holdMain: Bool = false,
-                         holdInterval: ((Double, Double) -> Void)? = nil) async throws -> [TagGlassFrames.Sample] {
+                         holdInterval: ((Double, Double) -> Void)? = nil,
+                         holdContext: (([TagGlassFrames.Sample]) -> Void)? = nil) async throws -> [TagGlassFrames.Sample] {
         try requireForeground(window)
         let available = try await SCShareableContent.currentProcess
         let target = try #require(available.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
@@ -375,16 +381,22 @@ struct NativeOverviewDecorationCaptureTests {
             try await SwiftUIReplay.wait { frames.ready }
             if holdMain {
                 try await Task.sleep(for: .milliseconds(100))
-                _ = frames.takeSamples()
+                let preceding = frames.takeSamples()
                 let start = CACurrentMediaTime()
                 blockMain(seconds)
                 let end = CACurrentMediaTime()
                 holdInterval?(start, end)
                 try await Task.sleep(for: .milliseconds(100))
                 try await stream.stopCapture()
-                samples = frames.takeSamples().filter {
+                let captured = frames.takeSamples()
+                samples = captured.filter {
                     $0.presentationTime > start + 0.03 && $0.presentationTime < end
                 }
+                // Preserve the same stream's context only after the timed hold.
+                // Pre-drain samples never become evidence for passing the hold.
+                holdContext?(preceding + captured.filter {
+                    !($0.presentationTime > start + 0.03 && $0.presentationTime < end)
+                })
             } else {
                 let deadline = ProcessInfo.processInfo.systemUptime + seconds
                 while ProcessInfo.processInfo.systemUptime < deadline {
