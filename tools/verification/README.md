@@ -142,6 +142,8 @@ settled and enabled within its existing 12-second bound. A timeout reports the
 step, model readiness and matching control state. Its `-artifacts` directory also
 retains any `onboarding-failure.json` and `onboarding-failure.png` captured by the
 native flow, alongside the Swift/Runtime logs and Settings summary.
+Its Codex model fixture ends the catalog page with `nextCursor: null`; omitted
+pagination completion is a discovery error and cannot satisfy prefetch readiness.
 
 External CLI versions, optional flags and limits are documented by each Harness runner. Native fixtures do not prove production account authentication, provider billing, microphone/audio hardware or paid service availability. Moku voice uses synthetic voice transports.
 

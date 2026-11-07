@@ -26,9 +26,14 @@ native target/action/AX role, editor binding updates, row/text selection and
 scroll offsets through preference notifications, control replacement and List
 viewport width while rows cross its own overflow threshold. An adjacent unstyled
 editor must keep its original scroller. A plain NativeScrollView fixture then
-drives its document height across the threshold: the background adapter's clip
-width must stay fixed and, for the runner's preferred style, its scroller must
-paint only while scrolling is possible (legacy) or stay blank at rest (overlay).
+changes its SwiftUI content height across the threshold and compares autohiding
+with an unstyled SwiftUI ScrollView containing the same content. The background
+adapter leaves visibility and the initial document-width proposal with SwiftUI:
+loading longer content may allocate a legacy gutter, but scrolling that loaded
+content in either direction must preserve both clip and document width. For the
+runner's preferred style, its scroller must paint only while scrolling is possible
+(legacy) or stay blank at rest (overlay). AppKit-owned and scoped TextEditor/List
+viewports retain their separate resident-gutter checks.
 This checks the actual SwiftUI/AppKit adapter boundary, without a popover,
 window or input injection.
 

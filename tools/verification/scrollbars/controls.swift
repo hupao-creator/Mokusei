@@ -28,13 +28,21 @@ private struct ScrollControlFixture: View {
     }
 }
 
+@MainActor private final class PlainViewportDraft: ObservableObject {
+    @Published var height: CGFloat = 500
+}
+
 private struct PlainViewportFixture: View {
+    @ObservedObject var draft: PlainViewportDraft
+    let styled: Bool
     var body: some View {
-        NativeScrollView {
-            VStack(spacing: 0) {
-                Text("Plain viewport")
-                Color.clear.frame(height: 500)
-            }
+        if styled { NativeScrollView { content } }
+        else { ScrollView { content } }
+    }
+    private var content: some View {
+        VStack(spacing: 0) {
+            Text("Plain viewport")
+            Color.clear.frame(height: draft.height)
         }
     }
 }
@@ -106,39 +114,56 @@ private struct PlainViewportFixture: View {
         precondition(plainScroll.verticalScroller === plainScroller && !(plainScroller is NativeTracklessScroller))
         precondition(host.window == nil)
 
-        // The plain SwiftUI viewport adapter is the one the reading timeline
-        // uses. A windowless hosting view does not perform the mount notification
-        // that configures it, so request one explicitly, then drive the document
-        // height across the overflow threshold as SwiftUI layout would.
-        let plainHost = NSHostingView(rootView: PlainViewportFixture())
-        plainHost.frame = NSRect(x: 0, y: 0, width: 360, height: 300)
-        await layout(plainHost)
+        // SwiftUI owns this adapter's autohiding and initial width proposal.
+        // Compare with an unstyled SwiftUI viewport, then change actual content
+        // instead of overwriting the framework-owned native document frame.
+        let viewportDraft = PlainViewportDraft()
+        let plainHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: true))
+        let referenceHost = NSHostingView(rootView: PlainViewportFixture(draft: viewportDraft, styled: false))
+        for host in [plainHost, referenceHost] {
+            host.frame = NSRect(x: 0, y: 0, width: 360, height: 300)
+            await layout(host)
+        }
         NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
-        await layout(plainHost)
-        let viewport = descendants(plainHost, of: NSScrollView.self).first!
-        let viewportScroller = viewport.verticalScroller!
-        precondition(viewportScroller is NativeTracklessScroller)
-        precondition(viewport.autohidesScrollers == NativeScrollbarStyle.autohidesScrollers(for: viewport.scrollerStyle))
-        let viewportClip = viewport.contentView.frame.width
-        let viewportDocument = viewport.documentView!
-        // As in the resident-scroller replay, only a legacy indicator paints a
-        // knob at rest; overlay indicators stay blank until AppKit fades one in.
-        let viewportLegacy = viewport.scrollerStyle == .legacy
         for (height, canScroll) in [(CGFloat(80), false), (900, true), (80, false)] {
-            viewportDocument.frame = NSRect(x: 0, y: 0, width: viewportClip, height: height)
-            viewport.tile()
-            precondition(viewport.contentView.frame.width == viewportClip,
-                         "plain viewport gutter changed at document height \(height)")
-            if viewportLegacy {
+            viewportDraft.height = height
+            await layout(plainHost)
+            await layout(referenceHost)
+            let viewport = descendants(plainHost, of: NSScrollView.self).first!
+            let reference = descendants(referenceHost, of: NSScrollView.self).first!
+            let viewportScroller = viewport.verticalScroller!
+            let viewportDocument = viewport.documentView!
+            precondition(viewportScroller is NativeTracklessScroller)
+            precondition(!(reference.verticalScroller is NativeTracklessScroller))
+            precondition(viewport.scrollerStyle == NSScroller.preferredScrollerStyle)
+            precondition(viewport.autohidesScrollers == reference.autohidesScrollers,
+                         "plain viewport changed SwiftUI autohiding at document height \(height)")
+            precondition((viewportDocument.frame.height > viewport.contentSize.height) == canScroll)
+            // Only legacy indicators paint a knob at rest; AppKit owns overlay
+            // fading. Preserve both branches while crossing the same threshold.
+            if viewport.scrollerStyle == .legacy {
                 precondition((scrollerInk(viewportScroller) > 0) == canScroll,
                              "plain viewport knob did not follow overflow at document height \(height)")
             } else {
                 precondition(scrollerInk(viewportScroller) == 0,
                              "plain viewport overlay scroller painted at rest at document height \(height)")
             }
+            // Loading longer content may allocate a legacy gutter. Once loaded,
+            // scrolling must not change the clip or document-width proposal.
+            let clipWidth = viewport.contentView.frame.width
+            let documentWidth = viewportDocument.frame.width
+            let positions: [CGFloat] = canScroll ? [100, 0] : [0]
+            for y in positions {
+                viewport.contentView.scroll(to: NSPoint(x: 0, y: y))
+                viewport.reflectScrolledClipView(viewport.contentView)
+                await layout(plainHost)
+                precondition(viewport.contentView.bounds.origin == NSPoint(x: 0, y: y))
+                precondition(viewport.contentView.frame.width == clipWidth && viewportDocument.frame.width == documentWidth,
+                             "plain viewport changed loaded width after scrolling at document height \(height)")
+            }
         }
-        precondition(plainHost.window == nil)
-        print("PASS: windowless SwiftUI overflowing TextEditor/List, nested viewport isolation, native targets/AX role, editor binding, selection/offset retention, preference notification, control replacement, List threshold width and plain viewport adapter gutter")
+        precondition(plainHost.window == nil && referenceHost.window == nil)
+        print("PASS: windowless SwiftUI overflowing TextEditor/List, nested viewport isolation, native targets/AX role, editor binding, selection/offset retention, preference notification, control replacement, List threshold width and plain viewport SwiftUI autohiding/loaded-width retention")
     }
 
     @MainActor private static func scrollerInk(_ scroller: NSScroller) -> Int {

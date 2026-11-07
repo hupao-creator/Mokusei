@@ -632,7 +632,9 @@ in the footer. Inherited transcripts containing several turns retain each turn's
 author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
 covers mounted navigation, author updates and responsive layout.
 Its keyboard events pass through `NSApplication` so Escape reaches the same
-current-event/window arbitration as application input.
+current-event/window arbitration as application input. Return selects a history
+row before its travel completes; the replay waits for that visit's existing
+interaction-ready state before sending the next Escape.
 
 Remote Markdown images use URLSession HTTP caching and revalidation, with no process-wide URL-only body cache. New document loads therefore honor `Cache-Control: no-store`; mounted images retain their current raster. The streamed 24 MiB body limit and decoded pixel limit remain enforced.
 

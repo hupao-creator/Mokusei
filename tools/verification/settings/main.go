@@ -246,7 +246,7 @@ func run() (failure error) {
 		case "initialize":
 			result = map[string]any{"userAgent": "codex/999.0.0"}
 		case "model/list":
-			result = map[string]any{"data": nativeModels}
+			result = map[string]any{"data": nativeModels, "nextCursor": nil}
 		case "config/read":
 			result = map[string]any{"config": map[string]any{"model": "settings-a", "model_reasoning_effort": "low", "service_tier": "default", "approvals_reviewer": "user"}}
 		case "configRequirements/read":

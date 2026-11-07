@@ -173,8 +173,16 @@ struct NativeThreadHistorySidebarTests {
         try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-3") }
         try key(36, "\r", in: window)
         try await SwiftUIReplay.wait { fixture.state("conversation")?["historyRow"] == .text("turn-3") }
+        // Selection publishes before the incoming page admits reading input.
+        // Escape belongs to the settled history visit, not its disabled travel.
+        try await fixture.ready()
         try key(53, "\u{1b}", in: window)
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["destination"] == .text("current") }
+        do {
+            try await SwiftUIReplay.wait { fixture.state("conversation")?["destination"] == .text("current") }
+        } catch {
+            print("Sidebar Escape diagnostics: conversation=\(String(describing: fixture.state("conversation"))) sidebar=\(String(describing: fixture.state("history.sidebar"))) responder=\(String(describing: window.firstResponder)) key=\(window.isKeyWindow) active=\(NSApp.isActive) sheet=\(window.attachedSheet != nil)")
+            throw error
+        }
     }
 
     @Test func updatesDeletionInheritedHistoryAndExternalTargetsKeepTheirIdentity() async throws {

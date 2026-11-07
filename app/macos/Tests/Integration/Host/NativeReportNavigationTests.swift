@@ -437,7 +437,24 @@ struct NativeReportNavigationTests {
         #expect(portal(in: root) == nil && !fixture.ready, "Panel HTML must leave window chrome with the host")
         for scale: CGFloat in [1, 2, 0.5, 1] {
             fixture.scale = scale
-            try await Task.sleep(for: .milliseconds(150))
+            // Crossing the responsive workspace breakpoint animates the main
+            // surface with the 380ms Sidecard fold. Observe its final native
+            // geometry instead of sampling 150ms into that presentation.
+            do {
+                try await SwiftUIReplay.wait {
+                    guard let frame = panelFrame(in: root) else { return false }
+                    let actual = frame.convert(frame.bounds, to: root)
+                    let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
+                    return abs(actual.width - expected.width * scale) < 1 && abs(actual.height - expected.height * scale) < 1
+                        && abs(actual.minX - expected.minX * scale) < 1 && abs(top(frame) - expected.minY * scale) < 1
+                }
+            } catch {
+                let frame = panelFrame(in: root)
+                let actual = frame.map { $0.convert($0.bounds, to: root) }
+                let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
+                print("Report panel geometry diagnostics: scale=\(scale) actual=\(String(describing: actual)) expected=\(expected) root=\(root.bounds) moving=\(fixture.motion.active)")
+                throw error
+            }
             let frame = try #require(panelFrame(in: root))
             let actual = frame.convert(frame.bounds, to: root)
             let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
@@ -451,14 +468,49 @@ struct NativeReportNavigationTests {
             #expect(portal(in: root) == nil)
             _ = try await panelDocument.evaluateJavaScript("window.scrollTo(0, 0)")
         }
-        window.makeFirstResponder(panelDocument)
-        _ = try await panelDocument.evaluateJavaScript("document.querySelector('input').focus()")
+        try #require(panelDocument.window === window && webView(in: root) === panelDocument)
+        try #require(window.makeFirstResponder(panelDocument))
+        // As with the modal above, native WebKit focus crosses processes. The
+        // focused document frame must own each key before testing cancellation.
+        let editorFocused = try await panelDocument.callAsyncJavaScript("""
+            window.panelEscapeEvents = [];
+            document.addEventListener('keydown', event => {
+              if (event.key === 'Escape') window.panelEscapeEvents.push({
+                trusted:event.isTrusted, target:event.target.tagName, active:document.activeElement?.tagName
+              });
+            }, true);
+            document.querySelector('input').focus();
+            const framed = await new Promise(resolve => {
+              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
+              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+            });
+            return framed && document.hasFocus() && document.activeElement.id === 'ordinary';
+            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
+        try #require(editorFocused == true)
         try key(53, "\u{1b}")
         try await Task.sleep(for: .milliseconds(100))
         #expect(fixture.open && fixture.backs == 1, "Editing still owns Escape inside the panel")
-        _ = try await panelDocument.evaluateJavaScript("document.activeElement.blur()")
+        let documentFocused = try await panelDocument.callAsyncJavaScript("""
+            document.activeElement.blur();
+            const framed = await new Promise(resolve => {
+              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
+              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+            });
+            return framed && document.hasFocus() && document.activeElement === document.body;
+            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
+        try #require(documentFocused == true)
         try key(53, "\u{1b}")
-        try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
+        do {
+            try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
+        } catch {
+            print("Report panel Escape diagnostics: open=\(fixture.open) backs=\(fixture.backs) moving=\(fixture.motion.active) key=\(window.isKeyWindow) active=\(NSApp.isActive) responder=\(String(describing: window.firstResponder))")
+            // DOM evidence is best effort; an unresponsive page must not defer
+            // the original failed expectation or the window's cleanup.
+            panelDocument.evaluateJavaScript("({focused:document.hasFocus(), active:document.activeElement?.outerHTML, modal:!!document.querySelector('dialog:modal'), events:window.panelEscapeEvents})") { value, failure in
+                print("Report panel DOM diagnostics: value=\(String(describing: value)) error=\(String(describing: failure))")
+            }
+            throw error
+        }
         fixture.open = true
         try await SwiftUIReplay.wait(timeout: .seconds(15)) {
             panelFrame(in: root) != nil && webView(in: root)?.isLoading == false && !fixture.motion.active

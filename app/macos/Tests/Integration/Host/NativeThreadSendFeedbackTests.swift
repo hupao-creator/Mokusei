@@ -497,7 +497,6 @@ struct NativeThreadSendFeedbackTests {
             throw error
         }
         try await Task.sleep(for: .milliseconds(450))
-        let responder = window.firstResponder
         let sourceFrame = try #require(nativeFrame("sidecard-aperture-conversation-frame", in: root))
         let sourceMainFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
         let launcherFrame = try #require(accessibilityFrame("sidecard-toggle-conversation", in: root))
@@ -510,26 +509,31 @@ struct NativeThreadSendFeedbackTests {
         fixture.holdDestination = true
         fixture.destinationError = mode == "error"
         try await capture(window, name: prefix + "-source")
-        try fixture.observe(status: .completed)
-        let handoff = try #require(fixture.model.snapshot?.handoff)
         // Promotion deliberately hides the Sidecard's AX contents. Its native
         // aperture folds to the actual launcher while old main stays mounted;
         // the hidden incoming host prepares at the final width independently.
         var sampledFold: CGRect?
         var sampledMain: CGRect?
+        var sampledHandoff: UUID?
         var foldSamples: [CGRect] = []
+        let foldObserver = SwiftUIReplay.FrameObserver(view: root) {
+            guard reader.subviews.count == 2,
+                  let current = fixture.model.snapshot?.handoff,
+                  let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
+                  let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
+            if foldSamples.count < 120 { foldSamples.append(frame) }
+            let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
+            let observed = reduceMotion ? current.travelComplete : fraction > 0.08 && fraction < 0.92
+            guard observed else { return false }
+            sampledFold = frame; sampledMain = main; sampledHandoff = current.id
+            return true
+        }
+        defer { foldObserver.stop() }
+        try fixture.observe(status: .completed)
+        let handoff = try #require(fixture.model.snapshot?.handoff)
         do {
             try await SwiftUIReplay.wait(timeout: .seconds(2), driveLayout: false) {
-                guard reader.subviews.count == 2,
-                      let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
-                      let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
-                if foldSamples.count < 12 { foldSamples.append(frame) }
-                let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
-                let observed = reduceMotion ? fixture.model.snapshot?.handoff?.travelComplete == true
-                    : fraction > 0.08 && fraction < 0.92
-                guard observed else { return false }
-                sampledFold = frame; sampledMain = main
-                return true
+                sampledFold != nil
             }
         } catch {
             print("THREAD_SEND_FOLD_SAMPLES width=\(width) mode=\(mode) source=\(sourceFrame) launcher=\(launcherFrame) frames=\(foldSamples)")
@@ -538,6 +542,7 @@ struct NativeThreadSendFeedbackTests {
         }
         let travelFrame = try #require(sampledFold)
         let travelMainFrame = try #require(sampledMain)
+        #expect(sampledHandoff == handoff.id)
         if !reduceMotion {
             let fraction = (sourceFrame.width - travelFrame.width) / (sourceFrame.width - launcherFrame.width)
             let expectedX = sourceFrame.midX + (launcherFrame.midX - sourceFrame.midX) * fraction
@@ -595,7 +600,6 @@ struct NativeThreadSendFeedbackTests {
         print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) folded=\(foldedFrame) waiting=\(landedFrame) main=\(mainFrame)")
         #expect(abs(mainFrame.width - landedFrame.width) < 1 && abs(mainFrame.height - landedFrame.height) < 1)
         #expect(abs(mainFrame.minX - landedFrame.minX) < 1 && abs(mainFrame.minY - landedFrame.minY) < 1)
-        #expect(window.firstResponder === responder)
         func blockedText(in view: NSView) -> Bool {
             if let text = view as? MarkdownTextView, text.awaitsLineReveal { return true }
             return view.subviews.contains { blockedText(in: $0) }

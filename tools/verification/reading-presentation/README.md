@@ -18,10 +18,14 @@ the expanded main-panel marker. An intentionally delayed destination row (or
 mounted read error) must keep the incoming host hidden after folding. Only content
 admission releases the downward page turn; native presentation-layer samples
 verify both moving pages before the same incoming host survives landing. Content
-identity, first responder and the absence of a second blank text reveal are also
+identity and the absence of a second blank text reveal are also
 asserted. Wide and stacked layouts, including Reduced Motion policy, retain source,
 fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
 Motion still waits for content but settles without an intermediate page turn.
+The fold observer is installed before completion and samples native bounds on
+display callbacks, retaining the original travel interval and deadline. Input
+focus is verified by the resident-composer flow below; the layout-only fixture
+does not assign meaning to AppKit's default first-responder object.
 The fixture supplies native content resources and send receipts; it starts no
 Runtime or model-provider task. A graphical AppKit session is required. Set
 `MOKUSEI_THREAD_SEND_WINDOWSERVER=1` to request WindowServer captures instead;
@@ -409,6 +413,11 @@ The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
 This test requires an actual `NSApplication.run` loop before observing an opening
 midpoint, reversing the page and checking latest Overview content with no remount.
+Its display observer is installed before opening; the original 40–60% pose,
+native anchors and live identity are qualified in the same callback that requests
+the return. Asynchronous polling waits only for that recorded result, so its
+scheduling cannot delay the return past the admitted frame. The three-second
+observation budget is unchanged, and an unobserved midpoint still fails.
 Its original geometry and return assertions remain intact. Ordinary Swift execution
 excludes this exact method; complete coverage requires its native passing outcome
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
