@@ -17,7 +17,7 @@ struct NativeMokuLongPressVoiceTests {
     @Test func inactiveAndReadOnlyEditorsCannotArmVoice() async throws {
         let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
         var starts = 0
-        let window = SwiftUIReplay.window(NativeMokuComposerInput(draft: draft, readOnly: true,
+        let window = SwiftUIReplay.window(NativeMokuComposerInput(draft: draft, voiceEntryEnabled: true, readOnly: true,
             canStartVoice: { true }, startVoice: { starts += 1 }, onSend: {}), width: 560, height: 180)
         defer { window.close() }
         try await SwiftUIReplay.wait { monitor(in: window.contentView!) != nil }

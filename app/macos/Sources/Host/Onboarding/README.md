@@ -64,7 +64,10 @@ rectangle in the dark animation area. CI retains those frames alongside its
 native evidence. The capture method has an explicit mandatory native owner;
 ordinary SwiftPM execution cannot certify its frame delivery. A small clock
 outside the sampled area keeps complete frames arriving for a paused final scene;
-pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
+capture begins before insertion, while its 400ms observation window waits for
+the real scene to prepare and start or settle. At least two frames must follow
+that boundary, and the opacity check still includes the earlier entry frames.
+Pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
 unmount/remount ownership.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.

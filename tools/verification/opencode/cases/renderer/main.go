@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -66,15 +67,61 @@ func main() {
 			delete(object, "initialResponseScope")
 		}
 		if !reflect.DeepEqual(a, b) {
-			fmt.Fprintln(os.Stderr, "renderer projection mismatch:", fixture.Name)
-			panic("renderer migration parity failed")
+			fmt.Fprintln(os.Stderr, "renderer projection mismatch:", fixture.Name, projectionDifference(a, b, "$"))
+			panic("renderer projection contract failed")
 		}
 		if strings.Contains(string(fixture.Expected), `\ud83d"`) && !strings.Contains(string(actual), `\ud83d"`) {
 			panic(fixture.Name + ": UTF16 slice surrogate changed")
 		}
 	}
-	fmt.Printf("PASS renderer migration replay: %d original TS scope/projection fixtures\n", len(fixtures))
+	fmt.Printf("PASS renderer projection replay: %d fixed scope/projection fixtures\n", len(fixtures))
 	replayNativeErrors()
+}
+
+func projectionDifference(actual, expected any, path string) string {
+	if reflect.DeepEqual(actual, expected) {
+		return ""
+	}
+	if a, ok := actual.(map[string]any); ok {
+		if b, ok := expected.(map[string]any); ok {
+			keys := make([]string, 0, len(a)+len(b))
+			for key := range a {
+				keys = append(keys, key)
+			}
+			for key := range b {
+				if _, exists := a[key]; !exists {
+					keys = append(keys, key)
+				}
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				av, aok := a[key]
+				bv, bok := b[key]
+				field := fmt.Sprintf("%s[%q]", path, key)
+				if aok != bok {
+					return fmt.Sprintf("%s: actual present=%t, expected present=%t", field, aok, bok)
+				}
+				if difference := projectionDifference(av, bv, field); difference != "" {
+					return difference
+				}
+			}
+		}
+	}
+	if a, ok := actual.([]any); ok {
+		if b, ok := expected.([]any); ok {
+			if len(a) != len(b) {
+				return fmt.Sprintf("%s: actual length=%d, expected length=%d", path, len(a), len(b))
+			}
+			for i := range a {
+				if difference := projectionDifference(a[i], b[i], fmt.Sprintf("%s[%d]", path, i)); difference != "" {
+					return difference
+				}
+			}
+		}
+	}
+	a, _ := json.Marshal(actual)
+	b, _ := json.Marshal(expected)
+	return fmt.Sprintf("%s: actual=%.240s, expected=%.240s", path, a, b)
 }
 
 func replayNativeErrors() {

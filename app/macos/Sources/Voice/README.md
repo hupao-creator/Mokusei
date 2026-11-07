@@ -1,8 +1,8 @@
 # Native voice
 
-[NativeVoiceCoordinator.swift](NativeVoiceCoordinator.swift) coordinates Moku and thread-discussion clients. [NativeVoiceMediaClient.swift](NativeVoiceMediaClient.swift) owns an attempt through preparation, permission, SDP, connection, polling and stop. [NativeWebRTCMedia.swift](NativeWebRTCMedia.swift) owns the microphone, WebRTC peer, audio and ordered data channel. Platform audio-session/device routing is adapted here, while [Go](../../../../internal/plugins/harness/codex/README.md#voice) owns native authentication and sideband handoffs.
+[NativeVoiceCoordinator.swift](NativeVoiceCoordinator.swift) coordinates Overview's global Moku media client and retained Thread transcript readers. [NativeVoiceMediaClient.swift](NativeVoiceMediaClient.swift) owns an attempt through preparation, permission, SDP, connection, polling and stop. [NativeWebRTCMedia.swift](NativeWebRTCMedia.swift) owns the microphone, WebRTC peer, audio and ordered data channel. Platform audio-session/device routing is adapted here, while [Go](../../../../internal/plugins/harness/codex/README.md#voice) owns native authentication and sideband handoffs.
 
-Media starts only through an explicit action and successful current-owner preparation. Workspace/device/attempt/session identity rejects old asynchronous completions. Replacing owners, disconnecting or ending the media attempt cancels its resources; merely rendering a cloud, Dock or Sidecard does not start capture. Thread discussion cleanup is distinct from the source task; Moku task work already accepted by the host survives ending Moku media.
+Media starts only through an explicit action and successful current-owner preparation. Workspace/device/attempt/session identity rejects old asynchronous completions. Replacing owners, disconnecting or ending the media attempt cancels its resources; merely rendering a cloud, Dock or Sidecard does not start capture. Moku task work already accepted by the host survives ending Moku media.
 
 A late occupied-owner preparation response cannot change the current device
 notice or takeover token. A late response that allocated a session still cleans
@@ -35,7 +35,7 @@ User transcript projection keeps stable session/item identity through partial an
 
 [NativeVoiceCaptureAnalyser.swift](NativeVoiceCaptureAnalyser.swift) reads bounded capture samples for visual metering and emits scalar loudness/onset state. It does not provide a wake-word detector or historical PCM injection path. [VoiceControls](../Host/VoiceControls/) and the shared cloud consume that state. Rendering demand controls analysis, not microphone authority.
 
-Verification combines the Codex `-voice-only` fixture, Moku/thread Runtime replays and native voice ownership/transcript suites. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
+Verification combines the Codex `-voice-only` fixture, Moku and retained Thread history Runtime replays, and native voice ownership/transcript suites. Their Moku prepare responses confirm the requested `superThreadId` and `sourceRevision` before permission or polling. Stop replays record the initial revocation and post-prepare confirmation with the retiring request/session/ownership identity; a held prepare is released before joining that same Stop, and Start remains blocked while cleanup drains. A controlled Stop gate holds only the initial revocation, leaving the confirmation visible. The ownership suite still injects both roles into the production media arbiter to verify device exclusion and restoration; this does not expose a Thread voice entry in the coordinator. Physical microphone, WebRTC playback and audio-route changes require separate Mac hardware validation.
 
 
 Voice calls are available only from Overview's global Moku. Ordinary Agent

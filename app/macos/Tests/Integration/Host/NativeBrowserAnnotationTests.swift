@@ -82,12 +82,13 @@ struct NativeBrowserAnnotationTests {
         let batch = try annotations(20); presentation.pending = batch
         #expect(presentation.annotationDisabled && presentation.canSend)
         presentation.send()
-        try await wait { !presentation.sending }
+        // send() queues its task; idle before that task starts is not completion.
+        try await wait { stages == 1 && !presentation.sending }
         #expect(stages == 1 && sends.isEmpty && presentation.pending.map(\.id) == batch.map(\.id))
         #expect(!presentation.sendError.isEmpty)
         #expect(files.count == 20 && files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
         presentation.send(textOnly: true)
-        try await wait { !presentation.sending }
+        try await wait { sends.count == 1 && !presentation.sending }
         #expect(stages == 1 && sends.count == 1 && presentation.pending.isEmpty)
         let input = try #require(sends.first)
         #expect(input["annotations"]?.arrayValue?.count == 20)

@@ -1,17 +1,21 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hupao-creator/Mokusei/internal/core/plugin"
-	oc "github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
+	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	oc "github.com/hupao-creator/Mokusei/internal/plugins/harness/opencode"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func check(ok bool, message string) {
@@ -24,6 +28,43 @@ func must(err error) {
 		panic(err)
 	}
 }
+
+func checkRoutingCatalog(raw json.RawMessage) {
+	var envelope struct {
+		Catalog *plugin.CompleteModelCatalog `json:"x-mokusei-model-catalog"`
+	}
+	must(json.Unmarshal(raw, &envelope))
+	catalog := envelope.Catalog
+	check(catalog != nil && catalog.EnumerationComplete && catalog.ConfigurationID != "", "routing catalog omitted its completed enumeration or configuration identity")
+	check(!catalog.Source.Complete && catalog.Source.Basis != "", "native enumeration was promoted into remote source-completion proof")
+	check(len(catalog.Models) == 1 && catalog.Models[0].Provider == "fixture" && catalog.Models[0].ID == "fixture-model", "routing catalog did not retain the complete native inventory")
+	check(!strings.Contains(string(raw), "synthetic-secret"), "routing schema leaked provider credentials")
+	var schema map[string]any
+	must(json.Unmarshal(raw, &schema))
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	must(compiler.AddResource("urn:opencode-routing", schema))
+	compiled, err := compiler.Compile("urn:opencode-routing")
+	must(err)
+	for _, choice := range []struct {
+		model    string
+		thinking map[string]any
+		valid    bool
+	}{
+		{"fixture-model", map[string]any{"mode": "effort", "effort": "low"}, true},
+		{"fixture-model", map[string]any{"mode": "off"}, true},
+		{"fixture-model", nil, false},
+		{"fixture-model", map[string]any{"mode": "effort", "effort": "high"}, false},
+		{"unreported-model", map[string]any{"mode": "off"}, false},
+	} {
+		options := map[string]any{"provider": "fixture", "model": choice.model}
+		if choice.thinking != nil {
+			options["thinking"] = choice.thinking
+		}
+		check((compiled.Validate(options) == nil) == choice.valid, "routing schema did not preserve exact native model/thinking choices")
+	}
+}
+
 func main() {
 	parent, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -123,16 +164,34 @@ func main() {
 	check(strings.Contains(telemetry, "unknown"), "cold telemetry claimed known account")
 	check(time.Since(start) < time.Second, "advisory discovery waited for slow native catalog")
 	fullSchema, availability, err := h.DiscoverMokuTarget(ctx, request)
-	check(err != nil && strings.Contains(err.Error(), "completeness is unproven"), "nonempty native enumeration was promoted into source proof")
-	check(!availability.Available && len(fullSchema) == 0, "unproven target options escaped the Moku gate")
+	must(err)
+	check(availability.Available, "successful native enumeration did not admit its routing target")
+	checkRoutingCatalog(fullSchema)
 	_, err = h.Settings().Describe(ctx, request)
 	must(err) // Ordinary explicit options still use native enumeration.
 	warmCatalog, err := h.CachedModelCatalog(ctx, request)
 	must(err)
 	check(strings.Contains(string(warmCatalog), "fixture-model"), "native catalog was not warm")
 	warmSchema, warmAvailability, err := h.DiscoverMokuTarget(ctx, request)
-	check(err != nil && strings.Contains(err.Error(), "completeness is unproven"), "warm unverified enumeration bypassed source evidence")
-	check(!warmAvailability.Available && len(warmSchema) == 0, "unverified cache was advertised as a trusted target")
+	must(err)
+	check(warmAvailability.Available && bytes.Equal(fullSchema, warmSchema), "warm native snapshot changed its routing options or source evidence")
+	checkRoutingCatalog(warmSchema)
 	must(h.Close())
-	fmt.Println("PASS: one native server, native DB/cache, exclusive config, no credential copying, session ownership, unverified cold/warm routing rejection, HTTP/SSE/export and cleanup")
+	// Source provenance is informational. Missing or malformed native inventory
+	// still fails the real discovery boundary, even with a native default model.
+	for _, invalid := range []struct{ mode, reason string }{
+		{"empty", "native model catalog is empty"},
+		{"duplicate", "duplicate model identifier"},
+	} {
+		invalidEnv := maps.Clone(env)
+		invalidEnv["FIXTURE_STARTUP_DELAY_MS"] = "0"
+		invalidEnv["FIXTURE_CATALOG"] = invalid.mode
+		candidate := oc.New(plugin.HostContext{Environment: func(context.Context) (map[string]string, error) { return invalidEnv, nil }, ResolveExecutable: func(context.Context, string, string, string) (string, error) { return cli, nil }})
+		schema, available, discoverErr := candidate.DiscoverMokuTarget(ctx, request)
+		closeErr := candidate.Close()
+		check(discoverErr != nil && strings.Contains(discoverErr.Error(), invalid.reason), "invalid "+invalid.mode+" native inventory bypassed routing admission")
+		check(!available.Available && len(schema) == 0, "invalid native inventory published routing options")
+		must(closeErr)
+	}
+	fmt.Println("PASS: one native server, native DB/cache, exclusive config, no credential copying, session ownership, cold/warm routing with unproven source completeness, exact creation options, empty/duplicate inventory rejection, HTTP/SSE/export and cleanup")
 }

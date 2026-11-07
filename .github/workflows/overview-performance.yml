@@ -1,19 +1,6 @@
 name: Overview performance
 
 "on":
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'app/macos/Sources/Host/Overview/**'
-      - 'app/macos/Sources/Shared/PluginUI/Cards/**'
-      - 'app/macos/Sources/Shared/PluginUI/Design/**'
-      - 'app/macos/Sources/Shared/PluginUI/Shaders/**'
-      - 'app/macos/Sources/Core/**'
-      - 'internal/**'
-      - 'tools/verification/overview-ci-performance/**'
-      - 'tools/verification/native_replay.py'
-      - 'tools/verification/NativeReplayIsolation.swift'
-      - '.github/workflows/overview-performance.yml'
   workflow_dispatch:
     inputs:
       baseline:
@@ -31,7 +18,7 @@ permissions:
 # Independent of ordinary CI; preserve an already running experiment and never
 # cancel another PR's verification. AB/BA runs are serial inside one runner.
 concurrency:
-  group: overview-performance-${{ github.repository }}-${{ github.event.pull_request.number || github.ref }}
+  group: overview-performance-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
   queue: max
 
@@ -41,7 +28,6 @@ defaults:
 
 jobs:
   paired-release:
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'perf/overview') }}
     name: Release A/B · foreground Overview
     runs-on: ${{ fromJSON(vars.MOKUSEI_SELF_HOSTED_MACOS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '["self-hosted","macOS","ARM64","mokusei-macos-26-gui"]' || '["macos-26"]') }}
     timeout-minutes: 30
@@ -49,8 +35,8 @@ jobs:
       CGO_ENABLED: '1'
       GOTOOLCHAIN: local
       GOFLAGS: -mod=readonly
-      BASELINE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || inputs.baseline }}
-      CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || inputs.candidate }}
+      BASELINE_SHA: ${{ inputs.baseline }}
+      CANDIDATE_SHA: ${{ inputs.candidate }}
     steps:
       - uses: actions/checkout@v4
         with:

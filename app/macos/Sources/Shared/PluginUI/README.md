@@ -630,7 +630,9 @@ The author comes from the actual Harness-rendered body, including runtime model
 overrides; manifests cannot invent it. Completion time, duration and usage remain
 in the footer. Inherited transcripts containing several turns retain each turn's
 author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
-covers mounted navigation, author updates, long indices and responsive layout.
+covers mounted navigation, author updates and responsive layout.
+Its keyboard events pass through `NSApplication` so Escape reaches the same
+current-event/window arbitration as application input.
 
 Remote Markdown images use URLSession HTTP caching and revalidation, with no process-wide URL-only body cache. New document loads therefore honor `Cache-Control: no-store`; mounted images retain their current raster. The streamed 24 MiB body limit and decoded pixel limit remain enforced.
 

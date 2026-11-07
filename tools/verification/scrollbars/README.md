@@ -1,7 +1,7 @@
 # Windowless scrollbar replay
 
 Run `python3 tools/verification/scrollbars/run.py` on macOS. It compiles the
-production shared viewport and WebKit style sources with a small integration
+production shared viewport, its layout-diagnostics dependencies and WebKit style sources with a small integration
 driver into a temporary executable, then runs it with `MOKUSEI_TEST_HEADLESS=1`. No window is
 created, no preference is written and no other application receives input.
 

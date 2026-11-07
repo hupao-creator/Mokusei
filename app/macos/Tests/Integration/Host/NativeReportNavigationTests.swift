@@ -389,11 +389,17 @@ struct NativeReportNavigationTests {
             const next = document.createElement('a'); next.href = '\(remote.absoluteString)';
             document.body.append(next); next.click();
             """)
-        try await SwiftUIReplay.wait(timeout: .seconds(10)) { document.url == remote && !document.isLoading && portal(in: root) === replaced }
+        // Provisional navigation withdraws the previous document's native
+        // navigation. Observe the portal owned by the ready destination.
+        try await SwiftUIReplay.wait(timeout: .seconds(10)) {
+            document.url == remote && !document.isLoading && fixture.ready && portal(in: root) != nil
+        }
+        let destinationNavigation = try #require(portal(in: root))
         try await Task.sleep(for: .milliseconds(250))
-        assertButtons(hidden: false, navigation: replaced)
+        try assertBack(destinationNavigation, in: root)
+        assertButtons(hidden: false, navigation: destinationNavigation)
         #expect(try await document.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Short destination")
-        let point = replaced.convert(NSPoint(x: 115, y: 29), to: nil)
+        let point = destinationNavigation.convert(NSPoint(x: 115, y: 29), to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
                 windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
@@ -404,8 +410,8 @@ struct NativeReportNavigationTests {
         // Observe the presented interval instead of assuming a fixed 100ms sample.
         var sawMovingNavigation = false
         try await SwiftUIReplay.wait {
-            if replaced.isDescendant(of: root) {
-                let moving = replaced.convert(replaced.bounds, to: root)
+            if destinationNavigation.isDescendant(of: root) {
+                let moving = destinationNavigation.convert(destinationNavigation.bounds, to: root)
                 sawMovingNavigation = sawMovingNavigation || (moving.minX > 4 && moving.minX < root.bounds.width)
             }
             return !fixture.open

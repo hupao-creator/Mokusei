@@ -113,8 +113,8 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/transport -swift-files` | Real Swift file upload/download against Go transport: regular-file symlinks, prompt FIFO rejection and `.partial` basename retention; no GUI |
 | `./tools/verification/transport -swift-settings-capacity` | Real Swift cold settings burst through Go's unchanged request limit: four Harnesses/four scopes plus installation reads, command headroom, queued/active cancellation and recovery |
 | `./tools/verification/thread-metadata` | Generated titles/emoji, subsequent messages, steer, completion races, timed retries, reopen and cancellation |
-| `./tools/verification/runtime` | Health client through production HTTP/NDJSON/SQLite (continuation identity, detached read, stale interaction rejection, interrupt and fork); Runtime/SQLite, bounded projection workers/byte admission and detached cache, execution lifecycle, steering, fork/delete, settings, private sessions, tags, independent Tag/Report enablement (active/discovery cancellation, native/write fences, receipt retention and disabled restart/resume), restart/history, ordinary-task question capability through Harness and cancellation; production scoped Report runners, evidence/domain isolation, steering, idle disposal and durable recovery |
-| `./tools/verification/runtime -swift-voice` | Actual Swift integer JSON encoding → Go DTOs and Runtime thread voice history, prepare, initial poll, SDP start, event cursor, stop; exact integer precision |
+| `./tools/verification/runtime` | Health client through production HTTP/NDJSON/SQLite (continuation identity, detached read, stale interaction rejection, interrupt and fork); Runtime/SQLite, bounded projection workers/byte admission and detached cache, execution lifecycle, steering, fork/delete, settings, private sessions, tags, independent Tag/Report enablement (active/discovery cancellation, native/write fences, receipt retention and disabled restart/resume), restart/history, ordinary-task question capability through Harness and cancellation; production scoped Report runners, evidence/domain isolation, steering, idle disposal and durable recovery; retained thread voice history/removal and global Moku device ownership, takeover, revocation and media lease lifetime |
+| `./tools/verification/runtime -swift-voice` | Actual Swift integer JSON encoding → Go int64 DTOs, retained thread history/cleanup and removed-call rejection; global Moku prepare, initial poll, SDP start, event cursors, stop and retired poll; exact signed boundaries and fractional/unsafe cursor rejection |
 | `./tools/verification/runtime-concurrency` | Pending admission/open/fork/delete/interrupt; two-client execution-fenced cancellation and native successor races; thread settings CAS; native settings snapshot convergence, initialized reads, source fences and concurrent saves; first-answer claims; host drain admission |
 | `./tools/verification/runtime-helpers` | Pipe-independent descendant drain after leader exit, attachments, environment acquisition, owned process cleanup and detached daemon lifecycle, including failed-shutdown diagnostics and same-profile restart |
 | `./tools/verification/runtime-helpers --swift-shutdown` | The same replay plus real Swift status/start/repeated stop through failed shutdown, immediate reopen, replacement-epoch protection and dead/live owner port reuse; private metadata and cancellation stay fail-closed |
@@ -151,6 +151,13 @@ settings-save conflicts without batch retry consumption, validation of matching
 idle-session reuse, unchanged admitted steering and next-batch profile adoption.
 It also checks cold Open settlement of an orphan and background work that needs
 Close after Interrupt, including native state flushes during cleanup.
+
+Report tool fixtures supply the current required cover markup and read the full
+scoped document before supplying `expectedRevision` to updates. The Application
+host replay races eight edits of one read revision: exactly one must commit and
+the other seven must return `REPORT_REVISION_CHANGED`, with only one revision
+increment and the winner's exact HTML retained. Its subsequent edit rereads the
+document; successful request and batch receipts still replay their exact results.
 
 The fixture group runs up to two independent Go producers concurrently; native
 and interop commands remain serial. Windowless local feedback is available with

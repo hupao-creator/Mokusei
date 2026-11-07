@@ -116,7 +116,12 @@ func TestMokuDeliveryAdmissionFence(t *testing.T) {
 		t.Fatal("pre-native failure consumed delivery")
 	}
 	lifetime, cancel := context.WithCancel(t.Context())
-	owner := &threadHandle{runtime: r, id: "moku", generation: r.generation, ctx: lifetime, cancel: cancel, opened: make(chan struct{})}
+	// This fixture isolates delivery admission; the outer configuration owner
+	// has already authorized new execution admission.
+	owner := &threadHandle{
+		runtime: r, id: "moku", generation: r.generation, ctx: lifetime, cancel: cancel, opened: make(chan struct{}),
+		admitNewExecution: func(context.Context) error { return nil },
+	}
 	close(owner.opened)
 	r.mu.Lock()
 	r.handles["moku"] = owner

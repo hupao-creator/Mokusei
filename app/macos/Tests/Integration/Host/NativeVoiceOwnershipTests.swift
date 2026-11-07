@@ -209,12 +209,23 @@ struct NativeVoiceOwnershipTests {
         call.backend.prepareGate = gate
         call.backend.reconnect = true
         try await until { call.backend.prepares == 2 }
-        await call.client.stop()
+        let replacementOwner = call.backend.ownershipID, replacementSession = call.backend.sessionID
+        let stopping = try #require(call.client.beginStop())
+        try await until { call.backend.stops.count == 1 }
+        #expect(call.backend.stops == [replacementOwner])
+        #expect(call.backend.stopRequests[0]["ownershipId"] == .string(replacementOwner))
+        #expect(call.client.state.phase == .stopping && call.client.hasPendingStop)
+        await call.client.start()
+        #expect(call.backend.prepares == 2 && call.backend.starts == 1)
         gate.open()
-        try await until { call.backend.stops.count >= 3 }
+        await stopping.value
+        #expect(call.backend.stops == [replacementOwner, replacementSession, previous])
+        #expect(call.backend.stopRequests.map { $0["ownershipId"] } == [
+            .string(replacementOwner), .string(replacementOwner), .string(previous)
+        ])
         #expect(call.backend.prepares == 2 && call.backend.starts == 1)
         #expect(call.backend.stops.contains(previous))
-        #expect(call.client.state.phase == .closed)
+        #expect(call.client.state.phase == .closed && !call.client.hasPendingStop)
     }
 
     @Test func failedNativeSettingsReconnectDoesNotRetry() async throws {
@@ -238,6 +249,8 @@ struct NativeVoiceOwnershipTests {
         var pending: CheckedContinuation<NativeVoiceResult, Never>?
         defer { pending?.resume(returning: oldResponse); pending = nil }
         var prepares = 0
+        var firstOwnership: JSONValue?
+        var stopRequests: [JSONValue] = []
         var takeover: JSONValue?
         let client = NativeVoiceMediaClient(role: .moku, ownership: NativeVoiceMediaOwnership(),
             requestMicrophone: { Issue.record("Occupied media must not request the microphone") },
@@ -245,21 +258,35 @@ struct NativeVoiceOwnershipTests {
             command: { request in
                 if request["action"] == .text("prepare") {
                     prepares += 1
-                    if prepares == 1 { return await withCheckedContinuation { pending = $0 } }
+                    if prepares == 1 {
+                        firstOwnership = request["requestId"]
+                        return await withCheckedContinuation { pending = $0 }
+                    }
                     takeover = request["takeover"]
                     return currentResponse
                 }
+                if request["action"] == .text("stop") { stopRequests.append(request) }
                 return try NativeVoiceResult(.object([:]))
             })
         client.setOwner("moku", available: true)
         let first = Task { await client.start() }
         try await until { pending != nil }
-        await client.stop()
+        let retiredOwnership = try #require(firstOwnership)
+        let stopping = try #require(client.beginStop())
+        try await until { stopRequests.count == 1 }
+        #expect(stopRequests[0]["sessionId"] == retiredOwnership && stopRequests[0]["ownershipId"] == retiredOwnership)
+        #expect(client.state.phase == .stopping && client.hasPendingStop)
         await client.start()
-        await client.stop()
-        #expect(client.state.occupiedOwner == "current device")
+        #expect(prepares == 1 && client.state.occupiedOwner == nil)
         pending?.resume(returning: oldResponse); pending = nil
         await first.value
+        await stopping.value
+        #expect(stopRequests.count == 2 && stopRequests.allSatisfy {
+            $0["sessionId"] == retiredOwnership && $0["ownershipId"] == retiredOwnership
+        })
+        #expect(client.state.phase == .closed && !client.hasPendingStop && client.state.occupiedOwner == nil)
+        await client.start()
+        await client.stop()
         #expect(client.state.occupiedOwner == "current device")
         await client.takeOver()
         await client.stop()
@@ -383,6 +410,7 @@ struct NativeVoiceOwnershipTests {
         let replay = VoiceReplay()
         let moku = replay.call(.moku), thread = replay.call(.thread)
         await moku.client.start()
+        let originalSession = moku.backend.sessionID, originalOwner = moku.backend.ownershipID
         await thread.client.start()
         if disconnect { moku.client.setOwner("moku", available: false) }
         else { _ = moku.client.beginStop() }
@@ -390,7 +418,9 @@ struct NativeVoiceOwnershipTests {
         await thread.client.stop()
         #expect(moku.media.closed)
         #expect(!moku.media.device.inputRunning && !moku.media.device.outputRunning)
-        #expect(moku.backend.prepares == 1 && moku.backend.starts == 1 && moku.backend.stops.count == 1)
+        #expect(moku.backend.prepares == 1 && moku.backend.starts == 1)
+        #expect(moku.backend.stops == [originalSession, originalSession])
+        #expect(moku.backend.stopRequests.map { $0["ownershipId"] } == [.string(originalOwner), .string(originalOwner)])
     }
 
     @Test func rapidThreadSwitchWaitsForOldServerStopAndLateReplyCannotRestoreMoku() async throws {
@@ -434,15 +464,25 @@ struct NativeVoiceOwnershipTests {
         thread.backend.prepareGate = prepare
         let old = Task { await thread.client.start() }
         try await until { prepare.waiting }
+        let retiredSession = thread.backend.sessionID, retiredOwner = thread.backend.ownershipID
         old.cancel()
-        await thread.client.stop()
+        let stopping = try #require(thread.client.beginStop())
         #expect(!moku.client.state.mediaSuspended)
+        await thread.client.start()
+        #expect(thread.backend.prepares == 1 && thread.media.offers == 0 && thread.client.state.phase == .stopping)
+        try await until { thread.backend.stops.count == 1 }
+        #expect(thread.backend.stops == [retiredOwner])
+        #expect(thread.backend.stopRequests[0]["ownershipId"] == .string(retiredOwner))
+        prepare.open()
+        await old.value
+        await stopping.value
+        #expect(thread.backend.stops == [retiredOwner, retiredSession])
+        #expect(thread.backend.stopRequests.map { $0["ownershipId"] } == [.string(retiredOwner), .string(retiredOwner)])
+        #expect(thread.client.state.phase == .closed && thread.permissionRequests == 0 && thread.media.offers == 0)
         thread.backend.prepareGate = nil
         await thread.client.start()
         let fresh = thread.backend.sessionID
         #expect(moku.client.state.mediaSuspended)
-        prepare.open()
-        await old.value
         #expect(thread.client.state.phase == .listening)
         #expect(thread.backend.stops.allSatisfy { $0 != fresh })
         #expect(thread.backend.prepares == 2)
@@ -705,7 +745,8 @@ private final class ReplayVoiceBackend {
     var speechAcks: [JSONValue] = []
     var reconnectFrom: JSONValue?
     var ownershipID: JSONText = ""
-    var stops: [JSONText] = []
+    var stopRequests: [JSONValue] = []
+    var stops: [JSONText] { stopRequests.compactMap { $0["sessionId"]?.voiceText } }
     var failure = ""
     var prepareGate: VoiceGate?, startGate: VoiceGate?, stopGate: VoiceGate?, pollGate: VoiceGate?
     var pollEvents: [NativeVoiceEvent] = []
@@ -721,7 +762,12 @@ private final class ReplayVoiceBackend {
             let id = JSONText(UUID().uuidString); sessionID = id
             if let prepareGate { await prepareGate.wait() }
             if failure == "prepare" { throw NativeVoiceError("prepare failed") }
-            return try NativeVoiceResult(.object(["sessionId": .string(id), "ownershipId": request["requestId"]!]))
+            var result: [JSONText: JSONValue] = ["sessionId": .string(id), "ownershipId": request["requestId"]!]
+            if let revision = request["sourceRevision"] {
+                result["superThreadId"] = try #require(request["superThreadId"])
+                result["sourceRevision"] = revision
+            }
+            return try NativeVoiceResult(.object(result))
         case "start":
             starts += 1
             if let startGate { await startGate.wait() }
@@ -738,8 +784,11 @@ private final class ReplayVoiceBackend {
             return try NativeVoiceResult(.object(["events": .array(events + rawPollEvents), "reconnect": .bool(reconnect), "reconnectRetired": .bool(reconnectRetired)]))
         case "ack-speech": speechAcks.append(request)
         case "stop":
-            stops.append(request["sessionId"]!.voiceText!)
-            if let stopGate { await stopGate.wait() }
+            stopRequests.append(request)
+            if let stopGate {
+                self.stopGate = nil // Hold the revocation; its post-prepare confirmation must also run.
+                await stopGate.wait()
+            }
         default: Issue.record("Unexpected command")
         }
         return try NativeVoiceResult(.object([:]))

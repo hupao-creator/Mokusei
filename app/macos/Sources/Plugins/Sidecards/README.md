@@ -229,8 +229,13 @@ Verification uses the existing sidecard navigation, conversation, browser annota
 `NativeBrowserViewportTests` loads real loopback HTTP pages in WKWebView to
 verify that iframe attachment and unsupported-MIME responses preserve the
 main page. A rejected main-frame download likewise retains a successful source document; an initial download without a source remains an explicit error. The same fixture covers new-window downloads, cancellation before document commit, native word navigation in DOM/shadow editors and dialogs, and annotation capture after target mutation/removal. Its annotation replay
-compares DOM geometry and the production native editor portal after zoom commands
-pass both WebKit limits. Run `xcrun swift test --package-path app/macos --no-parallel
+compares DOM geometry and the production document portal after zoom commands
+pass both WebKit limits, while asserting the removed annotation editor portal stays absent.
+Navigation fixtures explicitly admit the WebKit session with `setSuppressed(false)`,
+as the Browser presentation does; mounting a visible viewport alone does not admit annotation.
+Submission fixtures wait for the expected stage/send callback and the completed
+`sending` state, so idle before the queued task starts cannot certify completion.
+Run `xcrun swift test --package-path app/macos --no-parallel
 --filter 'NativeBrowserViewportTests|NativeBrowserAnnotationTests'` in a graphical
 macOS session. `python3 tools/verification/reading-presentation/run.py --browser-viewport`
 runs all nine viewport cases and the HTTP media freshness case in an isolated AppKit event loop, including focused

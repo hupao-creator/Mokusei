@@ -52,29 +52,30 @@ func mokuReplayRemainsBlocked(label string, ch <-chan error) {
 }
 
 type replayNativeHarness struct {
-	workspaces       *workspaces.Manager
-	mu               sync.Mutex
-	r                *runtimepkg.Runtime
-	db               *store.Store
-	nativeModel      string
-	opened           []json.RawMessage
-	resolvedCwds     []string
-	handles          []*replayNativeHandle
-	toolCount        int
-	nativeSends      int
-	snapshots        int
-	probeFn          func(context.Context) error
-	describeFn       func(context.Context) error
-	probeCalls       int
-	describeCalls    int
-	gateSnapshot     func(context.Context) error
-	gateAdmission    func(context.Context) error
-	wake             chan struct{}
-	errors           []string
-	inputs           []replayNativeInput
-	beforeThreadSend func(context.Context) error
-	doubleAdmission  bool
-	beforeClose      func(string) error
+	workspaces         *workspaces.Manager
+	mu                 sync.Mutex
+	r                  *runtimepkg.Runtime
+	db                 *store.Store
+	nativeModel        string
+	opened             []json.RawMessage
+	resolvedCwds       []string
+	handles            []*replayNativeHandle
+	toolCount          int
+	nativeSends        int
+	snapshots          int
+	probeFn            func(context.Context) error
+	describeFn         func(context.Context) error
+	probeCalls         int
+	describeCalls      int
+	gateSnapshot       func(context.Context) error
+	gateAdmission      func(context.Context) error
+	gateAfterAdmission func(context.Context) error
+	wake               chan struct{}
+	errors             []string
+	inputs             []replayNativeInput
+	beforeThreadSend   func(context.Context) error
+	doubleAdmission    bool
+	beforeClose        func(string) error
 }
 
 type replayNativeInput struct {
@@ -480,7 +481,9 @@ func newReplayConfiguration(root string, r *runtimepkg.Runtime, h *replayNativeH
 			return r.SendMokuThread(ctx, id, in, injection, entries, func(result plugin.SessionSendResult) error {
 				h.mu.Lock()
 				gate := h.gateAdmission
+				afterAdmission := h.gateAfterAdmission
 				h.gateAdmission = nil
+				h.gateAfterAdmission = nil
 				h.mu.Unlock()
 				if gate != nil {
 					if e := gate(ctx); e != nil {
@@ -488,7 +491,12 @@ func newReplayConfiguration(root string, r *runtimepkg.Runtime, h *replayNativeH
 					}
 				}
 				if admitted != nil {
-					return admitted(result)
+					if err := admitted(result); err != nil {
+						return err
+					}
+				}
+				if afterAdmission != nil {
+					return afterAdmission(ctx)
 				}
 				return nil
 			})

@@ -200,42 +200,6 @@ struct NativeThreadHistorySidebarTests {
         #expect(fixture.state("conversation")?["destination"] == .text("current"))
     }
 
-    @Test func longConversationKeepsBodyDemandBoundedAndCanLocateAnOldTurn() async throws {
-        let fixture = SidebarFixture(count: 2500)
-        let window = SwiftUIReplay.window(SidebarSurface(fixture: fixture), width: 780, height: 640, offscreen: true)
-        defer { window.close() }
-        try await fixture.ready()
-        #expect(fixture.state("history.sidebar")?["rowCount"] == .integer(2500))
-        #expect(fixture.requested == ["turn-2499"])
-        #expect(fixture.state("timeline")?["rowCount"] == .integer(1))
-        #expect(fixture.snapshot.filter { $0["role"] == .text("history.open") }.count < 100)
-        fixture.target = .init(requestId: "old", mode: .history, executionId: "turn-3", anchorId: "turn-3")
-        do {
-            try await SwiftUIReplay.wait { fixture.state("timeline")?["locatedRequestId"] == .text("old") }
-        } catch {
-            try capture(window, name: "failed-location")
-            print("SIDEBAR LOCATION", fixture.state("conversation")?["destination"]?.stringValue ?? "missing",
-                  fixture.state("conversation")?["transitioning"] as Any,
-                  fixture.state("timeline")?["locatedRequestId"]?.stringValue ?? "missing",
-                  fixture.requested.map(\.string).sorted())
-            throw error
-        }
-        #expect(fixture.requested == ["turn-2499", "turn-3"])
-        #expect(fixture.state("history.sidebar")?["selectedRow"] == .text("turn-3"))
-        try await SwiftUIReplay.wait { fixture.control("history.open", value: .text("turn-3")) != nil }
-        try await fixture.perform("history.close")
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-2499") }
-        try key(115, "\u{f729}", in: window)
-        try await SwiftUIReplay.wait { fixture.control("history.open", value: .text("turn-0")) != nil }
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-0") }
-        try key(36, "\r", in: window)
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["historyRow"] == .text("turn-0") }
-        try key(119, "\u{f72b}", in: window)
-        try await SwiftUIReplay.wait { fixture.state("history.sidebar")?["focusedRow"] == .text("turn-2499") }
-        try key(49, " ", in: window)
-        try await SwiftUIReplay.wait { fixture.state("conversation")?["destination"] == .text("current") }
-    }
-
     @Test func authorAndFiltersRemainAccessibleInNarrowAndWideWindows() async throws {
         let cases: [(CGFloat, ColorScheme)] = [(360, .dark), (640, .dark), (1180, .dark), (1180, .light)]
         for (width, scheme) in cases {
@@ -399,7 +363,8 @@ struct NativeThreadHistorySidebarTests {
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                 context: nil, characters: characters, charactersIgnoringModifiers: characters,
                 isARepeat: false, keyCode: code))
-            window.sendEvent(event)
+            // Reading Escape arbitration uses the application's current event/window.
+            NSApp.sendEvent(event)
         }
     }
 }

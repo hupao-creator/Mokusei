@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import QuartzCore
 import ScreenCaptureKit
 import ImageIO
 import UniformTypeIdentifiers
@@ -21,6 +22,7 @@ import MokuseiSidecardVoice
 @MainActor private final class SendFeedbackThreadOwner {
     var thread: HarnessThread
     var backs = 0
+    var voiceMediaActions = 0
     init(_ thread: HarnessThread) { self.thread = thread }
 }
 
@@ -131,8 +133,12 @@ struct NativeThreadSendFeedbackTests {
             let thread = try Self.thread(execution, status: status)
             let owner = SendFeedbackThreadOwner(thread)
             self.owner = owner
-            let voice = allCards ? SidecardVoiceCapability(state: .init(phase: .closed, supported: true, available: true,
-                loading: false, muted: false, error: "", messages: []), start: {}, stop: {}, toggleMute: {}, refresh: {}) : nil
+            let transcript = try VoiceTranscriptMessage(id: "retained-reply", sessionID: "past-call", role: .assistant,
+                text: "Retained voice transcript", complete: true, createdAt: 1)
+            let voice = allCards ? SidecardVoiceCapability(state: .init(phase: .closed, supported: false, available: false,
+                loading: false, muted: false, error: "", messages: [transcript]),
+                start: { owner.voiceMediaActions += 1 }, stop: { owner.voiceMediaActions += 1 },
+                toggleMute: { owner.voiceMediaActions += 1 }, refresh: {}) : nil
             services = NativeSidecardWorkspaceServices(send: { _, _ in throw CancellationError() },
                 stageAttachments: { _ in [] }, discardAttachments: { _ in }, openExternal: { _ in }, voice: voice)
             host = NativeHarnessHost(client: client, registry: try HarnessPluginRegistry([AnyHarnessPlugin(CodexHarnessPlugin())]), currentThread: { _ in owner.thread },
@@ -429,7 +435,9 @@ struct NativeThreadSendFeedbackTests {
         }
         let handoff = try #require(fixture.model.snapshot?.handoff)
         #expect(handoff.executionID == "new")
-        #expect(fixture.model.snapshot?.excludedExecutionIDs == ["new"])
+        // Preparation admits the destination immediately; the native host,
+        // rather than an exclusion in its content request, retains old main.
+        #expect(fixture.model.snapshot?.excludedExecutionIDs.isEmpty == true)
         fixture.model.receiveMainExecutionReady("old", handoffID: handoff.id)
         fixture.model.finishHandoff(handoff.id)
         #expect(fixture.model.snapshot?.handoff?.id == handoff.id)
@@ -471,7 +479,8 @@ struct NativeThreadSendFeedbackTests {
         _ = try CodexState(fixture.contentState)
         fixture.startContentPump()
         let window = SwiftUIReplay.window(SendFeedbackLayout(model: fixture.model, reduceMotion: reduceMotion)
-            .background(Color(red: 0.2, green: 0.3, blue: 0.4)).environment(\.locale, Locale(identifier: "en-US")),
+            .background(Color(red: 0.2, green: 0.3, blue: 0.4)).environment(\.locale, Locale(identifier: "en-US"))
+            .environment(\.scenePhase, .active),
             width: width, height: 620)
         defer { window.close() }
         let root = try #require(window.contentView)
@@ -489,34 +498,101 @@ struct NativeThreadSendFeedbackTests {
         }
         try await Task.sleep(for: .milliseconds(450))
         let responder = window.firstResponder
-        let sourceFrame = try #require(accessibilityFrame("conversation-sidecard", in: root))
+        let sourceFrame = try #require(nativeFrame("sidecard-aperture-conversation-frame", in: root))
+        let sourceMainFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
+        let launcherFrame = try #require(accessibilityFrame("sidecard-toggle-conversation", in: root))
+        let reader = try #require(handoffReader(in: root))
+        try #require(reader.subviews.count == 1)
+        let outgoing = try #require(reader.subviews.first)
+        let outgoingSize = outgoing.frame.size
+        #expect(SwiftUIReplay.text(in: outgoing).contains("Previous main execution"))
         fixture.sourceSubscriptions = Set(await fixture.client.sendFeedbackSubscriptions().map(\.0))
         fixture.holdDestination = true
         fixture.destinationError = mode == "error"
         try await capture(window, name: prefix + "-source")
         try fixture.observe(status: .completed)
         let handoff = try #require(fixture.model.snapshot?.handoff)
-        try await Task.sleep(for: .milliseconds(150))
-        let travelFrame = try #require(accessibilityFrame("conversation-sidecard", in: root))
+        // Promotion deliberately hides the Sidecard's AX contents. Its native
+        // aperture folds to the actual launcher while old main stays mounted;
+        // the hidden incoming host prepares at the final width independently.
+        var sampledFold: CGRect?
+        var sampledMain: CGRect?
+        var foldSamples: [CGRect] = []
+        do {
+            try await SwiftUIReplay.wait(timeout: .seconds(2), driveLayout: false) {
+                guard reader.subviews.count == 2,
+                      let frame = nativeFrame("sidecard-aperture-conversation-frame", in: root),
+                      let main = nativeFrame("agent-reading-panel-frame", in: root) else { return false }
+                if foldSamples.count < 12 { foldSamples.append(frame) }
+                let fraction = (sourceFrame.width - frame.width) / (sourceFrame.width - launcherFrame.width)
+                let observed = reduceMotion ? fixture.model.snapshot?.handoff?.travelComplete == true
+                    : fraction > 0.08 && fraction < 0.92
+                guard observed else { return false }
+                sampledFold = frame; sampledMain = main
+                return true
+            }
+        } catch {
+            print("THREAD_SEND_FOLD_SAMPLES width=\(width) mode=\(mode) source=\(sourceFrame) launcher=\(launcherFrame) frames=\(foldSamples)")
+            try? await capture(window, name: prefix + "-fold-failure")
+            throw error
+        }
+        let travelFrame = try #require(sampledFold)
+        let travelMainFrame = try #require(sampledMain)
+        if !reduceMotion {
+            let fraction = (sourceFrame.width - travelFrame.width) / (sourceFrame.width - launcherFrame.width)
+            let expectedX = sourceFrame.midX + (launcherFrame.midX - sourceFrame.midX) * fraction
+            let expectedY = sourceFrame.midY + (launcherFrame.midY - sourceFrame.midY) * fraction
+            #expect(abs(travelFrame.midX - expectedX) < 12 && abs(travelFrame.midY - expectedY) < 12)
+            #expect(travelFrame.height < sourceFrame.height && travelFrame.height > launcherFrame.height)
+        }
         if width >= 760 {
-            #expect(travelFrame.width > sourceFrame.width && travelFrame.minX < sourceFrame.minX)
-        } else { #expect(travelFrame.height > sourceFrame.height) }
+            #expect(travelMainFrame.width > sourceMainFrame.width)
+        } else { #expect(travelMainFrame.height > sourceMainFrame.height) }
+        let incoming = try #require(reader.subviews.first { $0 !== outgoing })
+        #expect(outgoing.superview === reader && incoming.alphaValue == 0)
+        #expect(abs(outgoing.frame.width - outgoingSize.width) < 1 && abs(outgoing.frame.height - outgoingSize.height) < 1)
         try await capture(window, name: prefix + "-travel")
         try await SwiftUIReplay.wait { fixture.model.snapshot?.handoff?.travelComplete == true }
         #expect(fixture.model.snapshot?.handoff?.id == handoff.id)
         #expect(fixture.model.snapshot?.handoff?.contentReady == false)
-        let landedFrame = try #require(accessibilityFrame("conversation-sidecard", in: root))
+        let foldedFrame = try #require(nativeFrame("sidecard-aperture-conversation-frame", in: root))
+        #expect(abs(foldedFrame.midX - launcherFrame.midX) < 2 && abs(foldedFrame.midY - launcherFrame.midY) < 2)
+        #expect(abs(foldedFrame.width - launcherFrame.width) < 2 && abs(foldedFrame.height - launcherFrame.height) < 2)
+        let landedFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
+        #expect(abs(landedFrame.width - (width - 76)) < 1 && abs(landedFrame.height - 620) < 1)
+        #expect(outgoing.superview === reader && incoming.superview === reader && incoming.alphaValue == 0)
+        #expect(outgoing.layer?.animation(forKey: "execution.handoff.page") == nil)
+        #expect(incoming.layer?.animation(forKey: "execution.handoff.page") == nil)
+        #expect(SwiftUIReplay.text(in: outgoing).contains("Previous main execution"))
         try await capture(window, name: prefix + "-waiting-for-main")
         fixture.holdDestination = false
+        if !reduceMotion {
+            var pageFrames: (outgoing: CGRect, incoming: CGRect, oldY: CGFloat, newY: CGFloat)?
+            try await SwiftUIReplay.wait(timeout: .seconds(8), driveLayout: false) {
+                guard let old = outgoing.layer?.presentation(), let new = incoming.layer?.presentation(),
+                      new.transform.m42 > reader.bounds.height * 0.08,
+                      new.transform.m42 < reader.bounds.height * 0.92 else { return false }
+                pageFrames = (old.frame, new.frame, old.transform.m42, new.transform.m42)
+                return true
+            }
+            let pages = try #require(pageFrames)
+            #expect(fixture.model.snapshot?.handoff?.id == handoff.id)
+            #expect(fixture.model.snapshot?.handoff?.travelComplete == true && fixture.model.snapshot?.handoff?.contentReady == true)
+            #expect(pages.oldY < 0 && abs(pages.newY - pages.oldY - reader.bounds.height) < 1)
+            #expect(abs(pages.outgoing.width - outgoingSize.width) < 1 && abs(pages.incoming.width - landedFrame.width) < 1)
+            #expect(outgoing.superview === reader && incoming.superview === reader && incoming.alphaValue == 1)
+            #expect(outgoing.frame.minY == 0 && incoming.frame.minY == 0, "TextKit model viewports stay onscreen during compositor travel")
+            print("THREAD_SEND_PAGE_GEOMETRY width=\(width) mode=\(mode) outgoing=\(pages.outgoing) incoming=\(pages.incoming) translationY=\(pages.oldY),\(pages.newY)")
+            try await capture(window, name: prefix + "-page-travel")
+        }
         try await SwiftUIReplay.wait(timeout: .seconds(8)) { fixture.model.snapshot?.handoff == nil }
         #expect(fixture.model.snapshot?.selected == nil)
         #expect(fixture.model.snapshot?.excludedExecutionIDs.isEmpty == true)
-        #expect(SwiftUIReplay.text(in: root).contains { $0.contains(mode == "error" ? "Destination fixture error" : "New execution becomes the main result") })
+        #expect(reader.subviews.count == 1 && reader.subviews.first === incoming && outgoing.superview == nil)
+        #expect(SwiftUIReplay.text(in: incoming).contains { $0.contains(mode == "error" ? "Destination fixture error" : "New execution becomes the main result") })
         #expect(!SwiftUIReplay.text(in: root).contains("Previous main execution"))
-        // The AX reading group describes the inset viewport, not the paper.
-        // Use the production native panel-frame marker for the landing target.
-        let mainFrame = try #require(nativePanelFrame(in: root))
-        print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) landed=\(landedFrame) main=\(mainFrame)")
+        let mainFrame = try #require(nativeFrame("agent-reading-panel-frame", in: root))
+        print("THREAD_SEND_GEOMETRY width=\(width) mode=\(mode) source=\(sourceFrame) travel=\(travelFrame) folded=\(foldedFrame) waiting=\(landedFrame) main=\(mainFrame)")
         #expect(abs(mainFrame.width - landedFrame.width) < 1 && abs(mainFrame.height - landedFrame.height) < 1)
         #expect(abs(mainFrame.minX - landedFrame.minX) < 1 && abs(mainFrame.minY - landedFrame.minY) < 1)
         #expect(window.firstResponder === responder)
@@ -544,6 +620,11 @@ struct NativeThreadSendFeedbackTests {
         let root = try #require(window.contentView)
         let id = JSONText(card)
         try await SwiftUIReplay.wait(timeout: .seconds(8)) { fixture.model.snapshot?.selected == id }
+        if card == "voice" {
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("Retained voice transcript") } }
+            #expect(fixture.model.snapshot?.available.contains { $0.id == "voice" } == true)
+            #expect(fixture.services.voice?.state.supported == false && fixture.services.voice?.state.available == false)
+        }
         #expect(element("conversation-sidecard-close", in: root) == nil)
         #expect(element("browser-sidecard-close", in: root) == nil)
         #expect(!SwiftUIReplay.text(in: root).contains("Collapse card"))
@@ -565,6 +646,12 @@ struct NativeThreadSendFeedbackTests {
         #expect(fixture.configuration.input.thread.observation.latestExecution?.executionID == "new")
         #expect(fixture.configuration.input.thread.observation.isExecutionActive)
         #expect(fixture.services.voice?.state.phase == .closed)
+        #expect(fixture.owner.voiceMediaActions == 0)
+        if card == "voice" {
+            try await SwiftUIReplay.wait { SwiftUIReplay.text(in: root).contains { $0.contains("Retained voice transcript") } }
+            #expect(fixture.services.voice?.state.messages.map(\.id) == ["retained-reply"])
+            #expect(element("moku-voice-start", in: root) == nil && element("moku-voice-stop", in: root) == nil)
+        }
         print("THREAD_SIDECARD_TOGGLES_CONFIRMED card=\(card)")
         await fixture.close()
     }
@@ -577,7 +664,27 @@ struct NativeThreadSendFeedbackTests {
         let window = SwiftUIReplay.window(FoldProbeLayout(model: fixture.model, state: probe, width: width), width: width, height: 620)
         defer { window.close() }
         let root = try #require(window.contentView)
-        try await SwiftUIReplay.wait { accessibilityFrame("sidecard-toggle-c", in: root) != nil }
+        // AppKit first constrains a wide window to the CI display before
+        // NSHostingView applies its requested extent. Do not mix an AX source
+        // from that transient 1024pt seat with the later 1180pt animation.
+        var initialLauncher: CGRect?
+        var stableSamples = 0
+        do {
+            try await SwiftUIReplay.wait {
+                guard abs(root.bounds.width - width) < 1, abs(root.bounds.height - 620) < 1,
+                      let frame = accessibilityFrame("sidecard-toggle-c", in: root) else {
+                    initialLauncher = nil; stableSamples = 0
+                    return false
+                }
+                stableSamples = initialLauncher == frame ? stableSamples + 1 : 0
+                initialLauncher = frame
+                return stableSamples >= 2
+            }
+        } catch {
+            print("FOLD_INITIAL_LAYOUT requested=\(width)x620 root=\(root.bounds) window=\(window.frame) launcher=\(String(describing: initialLauncher)) stableSamples=\(stableSamples)")
+            try? await capture(window, name: "fold-\(Int(width))-initial-layout-failure")
+            throw error
+        }
         let press = NSSelectorFromString("accessibilityPerformPress")
         func toggle(_ id: String) throws {
             let button = try #require(element("sidecard-toggle-" + id, in: root))
@@ -743,11 +850,17 @@ struct NativeThreadSendFeedbackTests {
         return unsafeBitCast(method_getImplementation(method), to: FrameFunction.self)(element, selector)
     }
 
-    private func nativePanelFrame(in view: NSView) -> CGRect? {
-        if view.identifier?.rawValue == "agent-reading-panel-frame", let window = view.window {
+    private func nativeFrame(_ identifier: String, in view: NSView) -> CGRect? {
+        if view.identifier?.rawValue == identifier, let window = view.window {
             return window.convertToScreen(view.convert(view.bounds, to: nil))
         }
-        for child in view.subviews { if let frame = nativePanelFrame(in: child) { return frame } }
+        for child in view.subviews { if let frame = nativeFrame(identifier, in: child) { return frame } }
+        return nil
+    }
+
+    private func handoffReader(in view: NSView) -> ExecutionHandoffReaderView? {
+        if let reader = view as? ExecutionHandoffReaderView { return reader }
+        for child in view.subviews { if let reader = handoffReader(in: child) { return reader } }
         return nil
     }
 

@@ -359,9 +359,12 @@ The current user transcript takes precedence over Talk/dispatch while present. P
 
 The [voice cloud](../VoiceControls/NativeMokuVoiceCloud.swift) is driven by the production capture analyser's bounded loudness/onset signals. Active voice presentation covers the thinking arc; the history composer does not mount it.
 
-Holding the text editor for 0.5 seconds starts the workspace-owned voice client
+Holding the Overview text editor for 0.5 seconds starts the workspace-owned voice client
 through [NativeMokuLongPressVoiceMonitor](../VoiceControls/NativeMokuLongPressVoiceMonitor.swift).
-Landing, bottom-Dock and history editors share this entrance. The native press recognizer
+Overview's landing and bottom-Dock editors share this entrance. History readers
+ignore legacy voice arguments and mount no long-press monitor, voice action or live
+controls; both active and inactive legacy states retain their normal text editor
+and draft. The native press recognizer
 preserves ordinary click/focus and cancels on movement, early release,
 lost window activity, unavailable input or unmount. AppKit tracks the delivered
 event stream, including native text selection. Only the editor is eligible; eyes, attachment/send controls,
@@ -371,8 +374,8 @@ VoiceOver Start voice action expose the entrance. Force Touch and the former
 Ctrl+Option+V menu command no longer start or stop Moku voice. Its preparing through
 stopping phases drive presentation. The cloud fades over the existing 0.42-second
 smooth capsule timing; the drawing stays mounted with its timeline paused while
-inactive, so resizing does not insert a final-width cloud mid-collapse. Dock
-editor text fades out in 0.12 seconds before the eyes cross its seat, and the history
+inactive, so resizing does not insert a final-width cloud mid-collapse. Overview Dock
+editor text fades out in 0.12 seconds before the eyes cross its seat, and its
 composer opens a 34-point control seat without replacing the editor or draft.
 Transitions reverse directly from current presentation values, without timers,
 delayed audio, or a second voice-session lifecycle. Reduce Motion disables these
@@ -384,7 +387,7 @@ Validation: existing Moku Dock, history composer, Talk, dispatch, note, gesture 
 
 Switching the coordinating Harness retains the previous native conversation as a read-only Moku history session. The history selector opens those sessions through their original Harness reader; the current composer belongs only to the current session. Runtime prevents archive reactivation, fork and execution, while keeping attachment ownership until an explicit Moku history reset removes current and previous sessions.
 
-Run `python3 tools/verification/reading-presentation/run.py --moku-composer`, `--composer-paste`, and `--moku-note-tests` serially for the mounted history editor, immediate-paste admission, Stop/Cancel controls and short note viewport regressions. These modes use the production components in an isolated AppKit event loop and reject skipped/incomplete suites.
+Run `python3 tools/verification/reading-presentation/run.py --moku-composer`, `--composer-paste`, and `--moku-note-tests` serially for the mounted history editor, immediate-paste admission, Stop/Cancel controls and short note viewport regressions. These modes use the production components in an isolated AppKit event loop and reject skipped/incomplete suites. The history-action case first observes the voice transcript in the accessibility tree, then verifies that Note removes it from that tree while its native viewport remains mounted.
 
 Note Markdown accepts app-internal execution links in the form
 `[label](mokusei://execution?threadId=THREAD_ID&executionId=EXECUTION_ID)`. The note

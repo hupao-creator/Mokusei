@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -74,19 +75,20 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 		if e = json.Unmarshal([]byte(text(record(page)["text"])), &tasks); e != nil {
 			return "", "", nil, true, e
 		}
-		eligible := map[string]bool{}
-		for _, event := range list(data) {
-			eligible[text(record(record(event)["subject"])["id"])] = true
-		}
+		tasksByID := map[string]object{}
 		for _, task := range tasks {
-			if !eligible[text(task["id"])] {
-				continue
+			tasksByID[text(task["id"])] = task
+		}
+		for _, raw := range list(data) {
+			event := record(raw)
+			id := text(record(event["subject"])["id"])
+			task := tasksByID[id]
+			// The completed execution belongs to this delivered event, even if
+			// the live task has since moved to a different execution.
+			execution := record(event["data"])
+			if task == nil || text(event["id"]) == "" || event["type"] != "execution.completed" || text(execution["executionId"]) == "" || execution["status"] != "completed" || execution["summary"] != "SYSTEM_CHILD_DONE" {
+				return "", "", nil, true, fmt.Errorf("Report batch evidence mismatch: %v", event)
 			}
-			execution := record(record(task["observation"])["latestExecution"])
-			if execution["status"] != "completed" {
-				continue
-			}
-			id := text(task["id"])
 			if len(p.workspaces) > 1 {
 				for _, other := range tasks {
 					if other["cwd"] != task["cwd"] {
@@ -99,27 +101,31 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 					if e != nil {
 						return "", "", nil, true, e
 					}
-					return "read_thread", probeID, object{"threadId": foreign, "question": "Scope isolation probe: read another directory task"}, true, nil
+					return "get_thread_status", probeID, object{"threadId": foreign}, true, nil
 				}
 				if e := expectToolError(req["input"], probeID); e != nil {
 					return "", "", nil, true, e
 				}
 				p.markScopeProof("report-read", id)
 			}
-			readID := prefix + "_" + strings.ReplaceAll(id, "-", "") + "_read"
-			createID := prefix + "_" + strings.ReplaceAll(id, "-", "") + "_report"
+			eventPrefix := prefix + "_" + strings.ReplaceAll(text(event["id"]), "-", "")
+			readID := eventPrefix + "_read"
 			if !hasResult(req["input"], readID) {
-				return "read_thread", readID, object{"threadId": id, "question": "What is the exact SYSTEM_CHAIN_CHILD result?"}, true, nil
+				return "read_lifecycle_events", readID, object{"eventIds": []string{text(event["id"])}}, true, nil
 			}
 			readResult, e := resultJSON(req["input"], readID)
 			if e != nil {
 				return "", "", nil, true, e
 			}
-			if record(readResult)["ok"] != true || record(readResult)["threadId"] != id || record(readResult)["answer"] != "SYSTEM_CHILD_DONE" {
-				return "", "", nil, true, fmt.Errorf("Report read evidence mismatch: %v", readResult)
+			var entries []object
+			if e := json.Unmarshal([]byte(text(record(readResult)["text"])), &entries); e != nil {
+				return "", "", nil, true, e
 			}
-			if !hasResult(req["input"], createID) {
-				return "create_report", createID, object{"emoji": "📊", "shortDescription": "Summary of completed system chain work", "title": "System chain report", "html": "<html><body><p>SYSTEM_CHILD_DONE</p></body></html>", "relatedExecutions": []any{object{"threadId": id, "executionId": execution["executionId"]}}}, true, nil
+			if len(entries) != 1 || entries[0]["id"] != event["id"] || entries[0]["type"] != event["type"] || !bytes.Equal(encoded(entries[0]["subject"]), encoded(event["subject"])) || !bytes.Equal(encoded(entries[0]["data"]), encoded(execution)) {
+				return "", "", nil, true, fmt.Errorf("Report journal differs from delivered execution: %v", entries)
+			}
+			if tool, call, args, err := reportWritePlan(req["input"], eventPrefix, id, execution); err != nil || tool != "" {
+				return tool, call, args, true, err
 			}
 		}
 		return "", "", nil, true, nil
@@ -163,6 +169,54 @@ func (p *provider) fanoutPlan(ctx context.Context, req object, declarations []an
 		}
 	}
 	return "", "", nil, true, nil
+}
+
+// Moku retains its independent native-history question capability. Read only
+// after an actual completion notification; this is evidence review, not polling.
+func mokuReadPlan(input any) (tool, call string, args object, err error) {
+	const marker = "Mokusei Agent Thread terminal event:\n"
+	for _, raw := range list(input) {
+		message := record(raw)
+		if message["role"] != "user" {
+			continue
+		}
+		for _, content := range list(message["content"]) {
+			s := text(record(content)["text"])
+			at := strings.Index(s, marker)
+			if at < 0 {
+				continue
+			}
+			var thread object
+			if err := json.Unmarshal([]byte(s[at+len(marker):]), &thread); err != nil {
+				return "", "", nil, fmt.Errorf("Moku terminal notification is not JSON: %w", err)
+			}
+			execution := record(record(thread["observation"])["latestExecution"])
+			if execution["status"] != "completed" {
+				continue
+			}
+			id, executionID := text(thread["threadId"]), text(execution["executionId"])
+			if id == "" || executionID == "" {
+				return "", "", nil, fmt.Errorf("Moku terminal notification lacks source identity: %v", thread)
+			}
+			readID := mokuReadCallID(executionID)
+			if !hasResult(input, readID) {
+				return "read_thread", readID, object{"threadId": id, "question": "What is the exact SYSTEM_CHAIN_CHILD result?"}, nil
+			}
+			value, err := resultJSON(input, readID)
+			if err != nil {
+				return "", "", nil, err
+			}
+			result := record(value)
+			if result["ok"] != true || result["threadId"] != id || result["answer"] != "SYSTEM_CHILD_DONE" {
+				return "", "", nil, fmt.Errorf("Moku native read evidence mismatch: %v", value)
+			}
+		}
+	}
+	return "", "", nil, nil
+}
+
+func mokuReadCallID(executionID string) string {
+	return "system_read_" + strings.ReplaceAll(executionID, "-", "")
 }
 
 func (p *provider) registerChild(id, cwd string) {
@@ -210,7 +264,7 @@ func expectToolError(input any, id string) error {
 		m := record(raw)
 		if m["type"] == "function_call_output" && m["call_id"] == id {
 			data := outputText(m["output"])
-			expected := "unknown ordinary task"
+			expected := "Thread evidence unavailable"
 			if strings.HasSuffix(id, "_foreign_assign") {
 				expected = "thread belongs to a different tag scope"
 			}

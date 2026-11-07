@@ -126,7 +126,7 @@ and [ephemeral runner guidance](https://docs.github.com/en/actions/reference/run
 4. On the final integrated revision, run ordinary `CI` and confirm every job's
    actual runner identity, OS/CPU, complete native evidence and **Complete
    coverage**. Exercise a documentation diff, a same-repository PR and a fork PR
-   to observe routing. Dispatch `extended=true` for the four pinned CLI/system
+   to observe routing. Dispatch the separate `Native CLI` workflow for the four pinned CLI/system
    lanes; its distinct aggregate does not replace ordinary coverage. Dispatch
    Overview performance with reviewed full baseline/candidate SHAs, checking both
    AB/BA evidence and foreground validity. Historical flaky-case findings are

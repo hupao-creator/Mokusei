@@ -235,6 +235,8 @@ struct NativeMokuHistoryComposerTests {
         #expect(Array(input.string.utf16) == [0x65, 0x301])
         let restored = NativeComposerDraft(services: services, persistence: persistence)
         #expect(Array(restored.text.utf16) == [0x65, 0x301])
+        #expect(monitor(in: window.contentView!) == nil,
+            "The history reader must not expose Overview-only voice entry")
         Self.inputPhase("unicode.persistence.checked")
         try await mountedEditorHoldStartsOnceAndRetainsDraft()
         Self.inputPhase("click-and-hold.completed")
@@ -252,11 +254,13 @@ struct NativeMokuHistoryComposerTests {
         var available = true
         var activeHold = "none"
         Self.inputPhase("hold.mount.begin")
-        let window = SwiftUIReplay.window(NativeMokuHistoryComposer(draft: draft, cwd: "/tmp",
-            onSend: { _ in }, onCancel: {}, canStartVoice: { available }, startVoice: {
+        // The Overview row owns voice entry; history deliberately mounts no
+        // monitor. Keep the existing real-input proof at its current owner.
+        let window = SwiftUIReplay.window(NativeMokuComposerInput(draft: draft, cwd: "/tmp",
+            voiceEntryEnabled: true, canStartVoice: { available }, startVoice: {
                 starts += 1
                 Self.inputPhase("hold.\(activeHold).startVoice starts=\(starts) monotonicNanoseconds=\(DispatchTime.now().uptimeNanoseconds)")
-            }), width: 560, height: 180)
+            }, onSend: {}), width: 560, height: 180)
         Self.inputPhase("hold.mount.returned")
         defer { window.close() }
         try await SwiftUIReplay.wait {
@@ -467,6 +471,7 @@ struct NativeMokuHistoryComposerTests {
     @Test func inactiveComposerDoesNotMountAVoiceEntry() async throws {
         _ = NSApplication.shared
         let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
+        draft.text = "Retained history draft"
         var mounts = 0
         func composer(active: Bool) -> NativeMokuHistoryComposer {
             NativeMokuHistoryComposer(draft: draft, cwd: "/tmp", focusEnabled: false,
@@ -475,15 +480,26 @@ struct NativeMokuHistoryComposerTests {
         }
         let inactive = SwiftUIReplay.window(composer(active: false), width: 560, height: 160)
         defer { inactive.close() }
+        let inactiveRoot = try #require(inactive.contentView)
+        try await SwiftUIReplay.wait { editor(in: inactiveRoot)?.string == draft.text }
         try await Task.sleep(for: .milliseconds(100))
         #expect(mounts == 0)
+        #expect(editor(in: inactiveRoot)?.isEditable == true)
 
-        // A call that was already active keeps its stop/mute control. It is not
-        // an entry point because the inactive composer never mounts it.
+        // History ignores retained legacy voice arguments, including a caller
+        // that still reports an active call. Its text editor remains usable.
         let active = SwiftUIReplay.window(composer(active: true), width: 560, height: 160)
         defer { active.close() }
-        try await SwiftUIReplay.wait { mounts == 1 }
-        #expect(mounts == 1)
+        let activeRoot = try #require(active.contentView)
+        try await SwiftUIReplay.wait { editor(in: activeRoot)?.string == draft.text }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(mounts == 0)
+        #expect(editor(in: activeRoot)?.isEditable == true)
+        draft.text = "Edited history draft"
+        try await SwiftUIReplay.wait {
+            editor(in: inactiveRoot)?.string == draft.text && editor(in: activeRoot)?.string == draft.text
+        }
+        #expect(mounts == 0 && draft.text == "Edited history draft")
     }
 
     @Test(arguments: [false, true])

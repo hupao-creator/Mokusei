@@ -358,11 +358,16 @@ trace_exporter = "none"
 					}
 				}
 				receipts := map[string]bool{}
-				for _, request := range mock.requests {
-					ids := []string{"system_note"}
-					for i := 0; i < scopes; i++ {
-						ids = append(ids, createCallID(i))
+				ids := []string{"system_note"}
+				for i := 0; i < scopes; i++ {
+					ids = append(ids, createCallID(i))
+				}
+				for _, thread := range state.Threads {
+					if !thread.Moku {
+						ids = append(ids, mokuReadCallID(thread.Observation.LatestExecution.ExecutionID))
 					}
+				}
+				for _, request := range mock.requests {
 					for _, id := range ids {
 						if hasResult(request["input"], id) {
 							receipts[id] = true
@@ -370,9 +375,9 @@ trace_exporter = "none"
 					}
 				}
 				mock.mu.Unlock()
-				for i := 0; i < scopes; i++ {
-					if !receipts[createCallID(i)] {
-						failures = append(failures, "missing child receipt")
+				for _, id := range ids {
+					if !receipts[id] {
+						failures = append(failures, "missing tool receipt: "+id)
 					}
 				}
 				if len(failures) != 0 || !receipts["system_create"] || !receipts["system_note"] {
@@ -427,7 +432,7 @@ trace_exporter = "none"
 					return err
 				}
 				fmt.Println("PASS graceful restart: task execution, note, Report, Tag and identities retained")
-				fmt.Println("PASS production HTTP -> Moku -> real Codex/mock LLM -> create_thread -> child completion -> durable notification -> update_note; scoped Report/read fork and Tag assignment")
+				fmt.Println("PASS production HTTP -> Moku -> real Codex/mock LLM -> create_thread -> child completion -> durable notification -> native read -> update_note; scoped Report lifecycle evidence and Tag assignment")
 				return nil
 			}
 		}

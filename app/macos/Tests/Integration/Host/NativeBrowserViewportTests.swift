@@ -92,6 +92,9 @@ struct NativeBrowserViewportTests {
         window.contentView = host; window.orderBack(nil)
         defer { session.release(); window.contentView = nil; window.close() }
 
+        // The presentation owner admits annotation separately from viewport paint.
+        session.setSuppressed(false)
+
         for route in ["attachment", "binary"] {
             session.navigate(try fixture.url("/page/" + route))
             try await wait("iframe response and main navigation complete") {
@@ -124,6 +127,7 @@ struct NativeBrowserViewportTests {
         let empty = BrowserWebSession(store: .nonPersistent())
         defer { empty.release() }
         empty.navigate(try fixture.url("/attachment"))
+        empty.setSuppressed(false)
         try await wait("initial main-frame download is rejected") { !empty.loading && empty.error != nil }
         #expect(!empty.ready && empty.error == "网页下载已取消")
         empty.beginAnnotation()
@@ -144,6 +148,7 @@ struct NativeBrowserViewportTests {
         defer { session.release(); window.contentView = nil; window.close() }
         let source = try fixture.url("/navigation")
         session.navigate(source)
+        session.setSuppressed(false)
         try await wait("navigation source is ready") { session.ready && !session.loading }
         _ = try await session.webView.evaluateJavaScript("document.getElementById('download').click()")
         // A canceled popup never changes the top-level navigation. Fence the
@@ -175,6 +180,7 @@ struct NativeBrowserViewportTests {
         defer { session.release() }
         let source = try fixture.url("/navigation")
         session.navigate(source)
+        session.setSuppressed(false)
         try await wait("source ready") { session.ready && !session.loading }
         _ = try await session.webView.evaluateJavaScript("document.getElementById('editable').value = 'unsent'; history.pushState({}, '', '/spa')")
         try await wait("pushState address") { session.url == (try fixture.url("/spa")).absoluteString }

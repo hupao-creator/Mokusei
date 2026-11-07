@@ -43,12 +43,18 @@ cancels that ref's older work using GitHub's cancelled state; it is never report
 as a successful `Complete coverage` check. Other PRs do not share a repository-wide
 lock. Explicit dispatches have run-specific groups and cannot cancel PR/main work.
 There is no custom API-based obsolete-head/base rejection: the required check
-belongs to its actual checked-out revision and the remote strict ruleset controls
-whether a PR is up to date. This is not GitHub Merge Queue.
+belongs to its actual checked-out revision. A remote strict status-check rule,
+when enabled, additionally controls whether a PR is up to date. This is not GitHub Merge Queue.
 
 Linux Go checks and the `runtime`/`adapters` protocol groups remain independent
 jobs. Those groups represent different production boundaries, not slices of the
 Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
+The [Native CLI workflow](../../.github/workflows/native-cli.yml) runs the four
+pinned CLI/system lanes only on explicit dispatch. The separate
+[Overview performance workflow](../../.github/workflows/overview-performance.yml)
+also requires explicit dispatch with fixed baseline/candidate SHAs. Neither
+workflow is triggered by PRs or pushes, so ordinary CI does not publish skipped
+jobs for these optional checks. Dispatching `CI` itself runs full verification.
 Runner capacity can still queue jobs; removing the repository-wide lock
 does not create additional capacity. A self-hosted provisioner must replenish
 single-job guests and serialize native work across workflows on each physical Mac.
@@ -141,6 +147,11 @@ component sizes. All GUI work within this session remains serial.
 the native evidence root. `swift.json` retains each process's command, method
 list, environment override, status and timing. `ci-fixtures`, `ci-interop` and
 `ci-native` contain the required replay reports.
+Build identity commands and each ordinary execution mode emit flushed start/end
+diagnostics to stderr, preserving fingerprint and JSON stdout. When a failed or
+interrupted mode unwinds, its finalizer also prints at most the last 12,000 log
+bytes; full logs and receipts remain the evidence, and an abrupt process kill
+cannot guarantee a final tail.
 `swift-tests.py` audits that directory before the native job can pass. Its actual
 method identities and framework totals must match each mode's assigned inventory,
 with exactly one ordinary outcome or the declared native owner. Headless skips
@@ -243,18 +254,20 @@ captures. Both control verifiers run in Linux CI.
 
 ## Pull request merge gates
 
-The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires a PR up to date with main and successful **Complete coverage** from
-GitHub Actions. The aggregate requires scope and every job applicable to that
+The project's verification policy requires the final revision's successful
+**Complete coverage** from GitHub Actions before merging code changes. The
+aggregate requires scope and every job applicable to that
 scope. It cannot turn a failed, cancelled, missing or unexpectedly skipped native
-job green. Extended dispatches use the distinct `Extended native CLI coverage`
-name and do not satisfy the ordinary gate.
+job green. The manual `Native CLI` workflow retains its own
+`Extended native CLI coverage` aggregate, which requires all four native lanes
+to succeed and does not satisfy the ordinary gate.
 
-Review conversations must be resolved; the required approving review count is
-zero. There are no bypass actors, and force pushes/deletion of main remain blocked.
-The remote ruleset is separate from workflow code; inspect its actual requirements
-before planning a merge. Local checks and historical green runs cannot replace
-the final revision's required check.
+Remote [repository rules](https://github.com/hupao-creator/Mokusei/rules) and branch
+protection are configured independently of this workflow. Inspect their actual
+enforcement, required checks, freshness and review requirements before planning
+a merge; a named ruleset can exist while disabled. Do not infer active protection
+or bypass permissions from this guide. Local checks and historical green runs
+cannot replace the final revision's CI evidence or an active remote requirement.
 
 ## Restoration boundary and retained test improvements
 

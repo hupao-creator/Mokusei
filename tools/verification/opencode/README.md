@@ -7,7 +7,7 @@ go run ./tools/verification/opencode
 ```
 
 This builds a temporary stdlib-only fake OpenCode executable and runs credential,
-settings/configuration, Console OAuth telemetry, stalled-refresh lifecycle and frozen renderer parity cases with the Go race detector.
+settings/configuration, Console OAuth telemetry, stalled-refresh lifecycle and fixed renderer projection cases with the Go race detector.
 No installed Harness or account is needed. The timeout case intentionally takes
 about 20 seconds to prove that a stalled native refresh is terminated before the
 credential database queue is released.
@@ -25,10 +25,10 @@ tests or account-based model probes. The user's existing native profile is not u
 
 | Case | Evidence |
 | --- | --- |
-| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, complete cold/warm Target catalogs before routing with exact creation options, HTTP/SSE and termination |
+| `credentials` | Single native server, native DB/cache, exclusive configuration, ownership, nonblocking advisory reads during gated startup, cold/warm Target inventories and exact creation options with source completeness kept unknown, empty/duplicate catalog rejection, HTTP/SSE and termination |
 | `settings` | JSONC/YAML discovery and ordered permissions, credential-free catalog, concurrent reader cancellation, native default agent without `default_agent` (a non-`build` first agent), exact thinking selection/update/snapshot, live variant change rejection, process cleanup |
 | `timeout` | Cancelled startup joins its single server before returning |
-| `renderer` | 25 fixed projections from the pre-migration renderer across overview/thread/turn/execution/history scopes, including deferred content, tool display, usage and Unicode boundaries |
+| `renderer` | 25 fixed projections across overview/thread/turn/execution/history scopes, including compact execution summaries, retained assistant replies, deferred work, tool display, usage and Unicode boundaries |
 | `telemetry` | Native Go OAuth account resolution and Console meter windows, official Go/generic routes, stable workspace window IDs and secret-free Moku output; synthetic RPC/HTTP only |
 | `native` | Real native plugin loading and configuration acknowledgement, isolated native model configuration, strict response schema request overlay, SSE/durable export, default-agent execution snapshot/save without `default_agent`, credential-free model/thinking catalog, cross-provider model/variant switch preserving native session/history and per-execution attribution, native synthetic OAuth refresh and persistence across restart |
 | `thread` | Shared native database: per-input durable admission, follow-up, native fork read/cache affinity/provider prefix, concurrent source continuation and cancellation cleanup, restored read, fresh ordinary fork import, JSON completion, exclusive Go tool execution, manual native shell permission, typed conditional forms and invalid-answer rejection, idle SSE automatic admission, literal option-prefix text, radix-number conversion, hidden defaults and optional/conditional omission, steering, concurrent cancellation and forced SSE gap/durable reconciliation |
@@ -38,6 +38,13 @@ Use `-case thread` (with `-native-cli`) to run one case, `-race=false` to disabl
 race detector, `-go /path/to/go` to select the toolchain, or `-root /path/to/repo` when
 invoking from elsewhere. The default toolchain is the one running this command.
 
+The credentials replay accepts successful native enumeration for routing while
+requiring `source.complete=false`, its evidence basis and a matching configuration
+identity in the schema. It checks exact supported model/thinking options and sends
+empty and duplicate inventories through the real native discovery path to require
+rejection without a published target. Run it with `-case credentials`; the
+`settings` case separately verifies live model/variant admission.
+
 The fixtures contain synthetic credentials only. They do not verify production
 OAuth accounts, paid upstream models, remote billing responses, or the Swift UI.
 The foreground provider waits for the production activity callback after each
@@ -46,9 +53,15 @@ the terminal marker. Native SSE may coalesce nearby
 updates; a fixed delay cannot certify two observable stream windows. The replay
 still requires both windows, the point limit, UTF-16 offset and exact sequence.
 
-The compressed renderer fixture records the previous implementation’s public output,
-not runtime migration data. Replaying it requires only Go; no Node generator or
-JavaScript toolchain is retained.
+The compressed renderer fixture originated from the previous implementation's
+public output. Its reviewed expectations follow the current projection contract:
+overview directories retain each execution's bounded summary, and deferred turns
+retain assistant text, including child-session and inherited replies. Only
+omitted work contributes deferred `nonempty` markers. The 25 inputs and scopes
+remain fixed; unrelated expected fields, tool displays, usage and UTF-16 boundary
+checks remain unchanged. A mismatch reports the first differing JSON path.
+Replaying it requires only Go; no snapshot generator or JavaScript toolchain is
+retained.
 
 Runtime shutdown also drains the owned native process group after its leader exits
 before removing plugin/temporary cache directories. The runtime-helpers replay
