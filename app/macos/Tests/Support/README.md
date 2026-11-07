@@ -177,6 +177,18 @@ The production 260ms animation, input sequence and pixel predicate are unchanged
 missing intermediate evidence still fails rather than retrying or accepting a
 later settled frame.
 
+CI362 also failed the projected-usage card's three-frame comparison for 111
+tokens. Its ordinary host retained neither the images nor actual sample times,
+so that result cannot distinguish a missing animation from missed observation.
+The same method now belongs only to the existing native rolling-number owner,
+which supplies a running AppKit loop and foreground admission. The original
+350/65/330ms timeline, seven updates, interrupted 40/400ms update and 350ms
+reference comparison remain; sleeps request zero coalescing tolerance. All
+original frame inequalities, snapshot/structure identities and appearance count
+are required. Crops and actual times are held in memory until observation ends,
+then saved even on failure; this recording does not establish the old failure's
+cause. The ordinary stable-cell leaf remains enabled and is not duplicated.
+
 ## Title frame arrival
 
 The title capture observer waits for a copied complete WindowServer frame to

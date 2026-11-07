@@ -326,6 +326,20 @@ func (h *harness) create(ctx context.Context, options plugin.DomainCommandOption
 	err = json.Unmarshal(raw, &summary)
 	return summary, raw, err
 }
+func (h *harness) read(ctx context.Context, id string) (report.Content, error) {
+	raw, err := h.domain.Query(ctx, "report.read", encode(report.IdentityInput{ReportID: id}))
+	if err != nil {
+		return report.Content{}, err
+	}
+	var document report.Content
+	if err = json.Unmarshal(raw, &document); err != nil {
+		return report.Content{}, err
+	}
+	if document.ID != id || document.HTML == "" {
+		return report.Content{}, errors.New("Report edit did not read the complete current document")
+	}
+	return document, nil
+}
 func (h *harness) checkQuery(ctx context.Context, id, expectedHTML string) error {
 	raw, err := h.host.Query(ctx, plugin.OperationRequest{PluginID: "report", OperationID: "report.html", Input: encode(report.IdentityInput{ReportID: id})})
 	if err != nil {

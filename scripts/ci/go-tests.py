@@ -119,7 +119,7 @@ def report(prefixes, destination):
              "suites counts all reported packages, including packages without test files.",
              "failures counts failed test nodes plus failed packages with no failed test node; it is not an assertion/defect count.",
              "Failed parent/subtest nodes remain separately visible. Build/package failures, skips and incomplete work are retained in the JSON report.",
-             "Runs overlap (unit/race/properties/platforms); do not add them as unique coverage."]
+             "Counts describe the recorded invocations and must not be summed as unique production coverage."]
     text = "\n".join(rows) + "\n"
     print(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):

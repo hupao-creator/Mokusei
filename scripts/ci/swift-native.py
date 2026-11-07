@@ -10,21 +10,38 @@ import shutil
 import signal
 import sys
 import subprocess
+import time
 from collections import Counter
 
 import deadline
 from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
-from swift_execution import HEADLESS_SUITES, execute_ordinary, headless_suites, suite_filter
+from swift_execution import HEADLESS_SUITES, execute_ordinary, headless_suites, log_progress, suite_filter
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "app/macos/.build/ci-manifest.json"
 
 
+def identity_output(command, **kwargs):
+    started = time.monotonic()
+    log_progress(f"identity BEGIN command={command!r}")
+    outcome = "status=interrupted"
+    try:
+        output = subprocess.check_output(command, **kwargs)
+    except BaseException as error:
+        outcome = f"status=failed exit={getattr(error, 'returncode', None)} error={error!r}"
+        raise
+    else:
+        outcome = "status=passed exit=0"
+        return output
+    finally:
+        log_progress(f"identity END {outcome} elapsed={time.monotonic() - started:.3f}s command={command!r}")
+
+
 def identity():
     commands = [["xcodebuild", "-version"], ["xcrun", "swift", "--version"],
                 ["xcrun", "--sdk", "macosx", "--show-sdk-version"], ["xcrun", "--find", "swiftc"]]
-    fingerprint = b"".join(subprocess.check_output(command) for command in commands)
-    return {"revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+    fingerprint = b"".join(identity_output(command) for command in commands)
+    return {"revision": identity_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "workspace": str(ROOT), "architecture": platform.machine(), "configuration": "debug",
             "toolchain": hashlib.sha256(fingerprint).hexdigest(),
             "run": os.environ.get("GITHUB_RUN_ID"),

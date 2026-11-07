@@ -147,7 +147,10 @@ func run() error {
 	write(linked, "linked.txt", "linked\n")
 	write(linked, ".scratch/tracked.txt", "edited tracked scratch\n")
 	must(os.MkdirAll(filepath.Join(linked, ".scratch/note/go-cache"), 0700))
-	for i := 0; i < 3172; i++ {
+	// Cross the 256-path line-statistics budget with ignored files so they
+	// cannot make otherwise complete tracked/untracked totals unavailable.
+	const ignoredCacheFiles = 257
+	for i := 0; i < ignoredCacheFiles; i++ {
 		write(linked, fmt.Sprintf(".scratch/note/go-cache/%04d-d", i), "generated cache\n")
 	}
 	resolver := environment.New(environment.Current())
@@ -520,7 +523,7 @@ func run() error {
 	}); err != nil {
 		return err
 	}
-	fmt.Println("PASS linked .git file and 3172 ignored cache files do not inflate totals; tracked ignored paths still count")
+	fmt.Printf("PASS linked .git file and %d ignored cache files do not inflate totals; tracked ignored paths still count\n", ignoredCacheFiles)
 
 	must(os.Rename(linked, linked+"-missing"))
 	if err = await("confirmed missing worktree removes extension association", func() bool { return len(catalog()) == 1 }); err != nil {

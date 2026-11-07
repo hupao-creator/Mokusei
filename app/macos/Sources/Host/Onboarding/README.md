@@ -64,7 +64,10 @@ rectangle in the dark animation area. CI retains those frames alongside its
 native evidence. The capture method has an explicit mandatory native owner;
 ordinary SwiftPM execution cannot certify its frame delivery. A small clock
 outside the sampled area keeps complete frames arriving for a paused final scene;
-pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
+capture begins before insertion, while its 400ms observation window waits for
+the real scene to prepare and start or settle. At least two frames must follow
+that boundary, and the opacity check still includes the earlier entry frames.
+Pixel scans and PNG encoding happen only after capture stops. The same suite checks pause/resume, scene replacement and
 unmount/remount ownership.
 Report gathers dense documents into one
 landscape document containing three abstract figures; it is not a report template.
@@ -78,7 +81,12 @@ archiving all conversations still restores landing without replaying setup.
 Verification uses the mounted `NativeMokuLandingTests` for hydration, admission,
 interruption and marker errors. `NativeOnboardingUserFlow` extends the existing
 Go-backed Settings flow with real discovery/resources, independent and inherited
-role settings, Back, failed completion persistence and actual Dock handoff:
+role settings, Back, failed completion persistence and actual Dock handoff. It
+drives the current `off`, `inherit` and `independent` controls, checking disabled
+readiness, hidden execution fields and exact profile restoration after reopening.
+After onboarding, it checks the exact Settings section order for the full
+production application composition, including the contributed `attention.settings`
+section after the built-in role sections:
 
 ```sh
 make runtime

@@ -41,6 +41,10 @@ The migration neither consults the mutable current title nor runs a model;
 unknown titles remain absent so the reader uses the execution timestamp.
 
 Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions.
+`Snapshot` and `Publish` serialize catalog projection and overview-cache updates
+under `projectionMu`. `Snapshot` returns detached state; replays attached to a live
+Runtime use that public read boundary so the background publisher retains the
+same cache ownership.
 Moku audit previews additionally retain the latest 256 successful completed
 `timer` operations across executions so coalesced publication and reconnect can
 catch up immediate communication. The Swift workspace owns their transient

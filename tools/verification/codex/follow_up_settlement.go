@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	core "github.com/hupao-creator/Mokusei/internal/core/runtime"
 )
 
@@ -142,6 +145,8 @@ func verifyFollowUpCase(lifetime context.Context, root, binary, mode string) err
 		return model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: s}}}
 	}
 	var id, original, deliveryID string
+	var mokuInjection *plugin.Injection
+	var mokuAdmissions atomic.Int32
 	if mode == "ended-delayed-moku" {
 		child, err := r.CreateThread(ctx, core.CreateThreadRequest{HarnessID: "codex", Cwd: filepath.Join(root, "work"), Settings: encoded(settings), Input: input("Read the source")})
 		if err != nil {
@@ -157,11 +162,44 @@ func verifyFollowUpCase(lifetime context.Context, root, binary, mode string) err
 		deliveryID = pending[0].ID
 		delete(settings, "thinking")
 		settings["effort"] = "low"
-		moku, err := r.EnsureMokuThread(ctx, "codex", encoded(settings), filepath.Join(root, "work"))
+		savedSettings, settingsRevision, err := r.Settings()
 		if err != nil {
 			return err
 		}
-		started, err := r.SendMokuThread(ctx, moku.ID, input("fixture-settlement-"+mode), nil, nil, nil)
+		nativeSettings, savedSnapshot := encoded(settings), encoded(savedSettings)
+		cwd := filepath.Join(root, "work")
+		moku, err := r.EnsureConfiguredMokuThread(ctx, core.MokuConfiguration{
+			HarnessID: "codex", Settings: nativeSettings, Cwd: cwd,
+			AppliedSettings: savedSettings, SettingsRevision: settingsRevision,
+		})
+		if err != nil {
+			return err
+		}
+		// This replay owns the fixed native profile; the configuration coordinator
+		// is covered separately. Check its persisted authority at both the initial
+		// reservation and the successor after the delayed native terminal.
+		mokuInjection = &plugin.Injection{AdmitNewExecution: func(ctx context.Context) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			applied, err := r.ReadMokuConfiguration()
+			if err != nil {
+				return err
+			}
+			if applied.Unapplied || applied.HarnessID != "codex" || applied.Cwd != cwd || !bytes.Equal(applied.Settings, nativeSettings) || applied.SettingsRevision != settingsRevision || !bytes.Equal(encoded(applied.AppliedSettings), savedSnapshot) {
+				return errors.New("Moku admission lost the exact applied Codex configuration")
+			}
+			change, err := r.MokuConfigurationChange("codex")
+			if err != nil {
+				return err
+			}
+			if change.Applied == nil || change.Pending || change.SettingsRevision != settingsRevision || !bytes.Equal(encoded(change.Settings), savedSnapshot) {
+				return errors.New("Moku admission observed pending or changed saved configuration")
+			}
+			mokuAdmissions.Add(1)
+			return nil
+		}}
+		started, err := r.SendMokuThread(ctx, moku.ID, input("fixture-settlement-"+mode), mokuInjection, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -191,7 +229,7 @@ func verifyFollowUpCase(lifetime context.Context, root, binary, mode string) err
 	}
 	go func() {
 		if deliveryID != "" {
-			result, err := r.SendMokuDelivery(sendCtx, deliveryID, id, input(prompt), nil, nil)
+			result, err := r.SendMokuDelivery(sendCtx, deliveryID, id, input(prompt), mokuInjection, nil)
 			done <- reply{result, err}
 			return
 		}
@@ -213,6 +251,9 @@ func verifyFollowUpCase(lifetime context.Context, root, binary, mode string) err
 		case sent = <-done:
 			return fmt.Errorf("rejected input abandoned before delayed terminal: %+v, %v", sent.result, sent.err)
 		case <-time.After(time.Second):
+		}
+		if deliveryID != "" && mokuAdmissions.Load() != 1 {
+			return fmt.Errorf("Moku successor admitted before delayed terminal: %d admissions", mokuAdmissions.Load())
 		}
 		if mode == "ended-delayed-cancel" {
 			cancelSend()
@@ -279,6 +320,9 @@ func verifyFollowUpCase(lifetime context.Context, root, binary, mode string) err
 		wire, err := os.ReadFile(filepath.Join(root, "successor-dispatched"))
 		if err != nil || string(wire) != prompt+"\n" {
 			return fmt.Errorf("delivery successor dispatch count/content: %q, %v", wire, err)
+		}
+		if count := mokuAdmissions.Load(); count != 2 {
+			return fmt.Errorf("Moku initial/successor admission count: got %d, want 2", count)
 		}
 		return nil
 	}

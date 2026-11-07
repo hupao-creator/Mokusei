@@ -248,6 +248,18 @@ content. Content loading can therefore change the available width; scrolling an
 already loaded document must not. Explicit hidden indicators remain SwiftUI-owned.
 The AppKit subclass and scoped control adapter retain their resident-gutter policy.
 
+`NativeScrollViewportTests` exercises the plain wrapper against an unstyled
+SwiftUI reference in two nonoverlapping visible windows. It retains the
+80→900→80 content-height sequence, native knob/autohiding checks and exact
+scroll-offset and loaded-width comparisons from the scrollbar replay. Current
+content-height callbacks, positive document/viewport dimensions and both native
+overflow states matching the requested phase establish readiness within three
+seconds, including the installed trackless scroller and an unstyled reference
+scroller; an unattached hosting view's empty document
+cannot certify this layout boundary. This method runs once in ordinary graphical
+CI. The separate windowless replay continues to cover AppKit viewports, scoped
+TextEditor/List controls and WebKit styling.
+
 The first-load investigation used a temporary visible window containing the
 production wrapper, an initially empty document, delayed message rows and a
 centered 680pt reading column. In a fresh 900pt legacy-mode window, forcing
@@ -630,7 +642,11 @@ The author comes from the actual Harness-rendered body, including runtime model
 overrides; manifests cannot invent it. Completion time, duration and usage remain
 in the footer. Inherited transcripts containing several turns retain each turn's
 author locally. The [sidebar replay](../../../../../tools/verification/reading-presentation/README.md#thread-history-sidebar)
-covers mounted navigation, author updates, long indices and responsive layout.
+covers mounted navigation, author updates and responsive layout.
+Its keyboard events pass through `NSApplication` so Escape reaches the same
+current-event/window arbitration as application input. Return selects a history
+row before its travel completes; the replay waits for that visit's existing
+interaction-ready state before sending the next Escape.
 
 Remote Markdown images use URLSession HTTP caching and revalidation, with no process-wide URL-only body cache. New document loads therefore honor `Cache-Control: no-store`; mounted images retain their current raster. The streamed 24 MiB body limit and decoded pixel limit remain enforced.
 
@@ -896,6 +912,14 @@ fade-out and stops the timer even while main is busy. Hiding/occlusion preserves
 the last image and cancels sampling; detach/removal retires the generation.
 The timer is not a display-link or a physical-FPS guarantee. Main-thread blockage
 still delays newly requested state, layout, visibility and interaction changes.
+When local performance recording is active, `metal.gpu` spans join each sample
+to successful command-buffer completion using host-clock timestamps, frame ID
+and the native layer's process-local context. Separate `metal.presented` spans
+retain raw presentation timestamps, including zero, as diagnostics for that
+frame. Recording-off rendering adds no presented handler. The native capture
+gate requires fresh GPU work and separate WindowServer cloud movement inside a
+main-thread hold, without predetermined half-interval cadence or a claim of
+physical presentation or a drawable-to-screenshot correspondence.
 
 [NativeStatusSpinner](Design/NativeStatusSpinner.swift) supplies the production
 Codex quarter-ring indicator. Core Animation owns its 800ms linear rotation;

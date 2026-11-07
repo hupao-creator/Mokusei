@@ -71,10 +71,17 @@ for a tool, admission, domain write or native history fork.
   scoped fixtures use private new directories under the real home and remove them
   on success. Failures print their retained path.
 - Child completion fans out to the durable Moku queue, scoped Report runner and
-  scoped Tag runner. Moku updates its note; Report lists tasks, reads the source
-  through its native history fork, checks the returned evidence, and creates an
-  explicitly linked report. Tag creates a pool entry and assigns it to the child.
-- Each scoped Report attempts a foreign-task read and each scoped Tag attempts a
+  scoped Tag runner. Moku uses its own `read_thread` after a real terminal
+  notification, verifies the native history answer, and then updates its note.
+  Each completed child must have that read receipt before initial convergence.
+  Report lists scoped tasks, takes the original `PublicExecution` from batch
+  event `data`, and checks it against `read_lifecycle_events`. Its report links
+  that exact execution and includes required `coverHTML`; it does not replace
+  the event with the task's current execution or request a native history fork.
+  `list_reports` plus complete `read_report` results establish an existing owner;
+  updates use the full read's revision, and only an unowned Thread creates a report.
+  Tag creates a pool entry and assigns it to the child.
+- Each scoped Report attempts a foreign-task `get_thread_status` and each scoped Tag attempts a
   foreign assignment. The actual tools must reject them with the expected scope
   error before the model continues its legitimate work. Scoped list results must
   contain only tasks in their own directory. Distinct scope tag names expose cross-scope writes.
@@ -87,7 +94,11 @@ for a tool, admission, domain write or native history fork.
   native history; the changed global settings and archive flags survive restart.
 - Lifecycle actions add `followup`, `fork`, `interrupt`, `delete`, `clear`,
   `delete-active`, `clear-active` and `recreate`.
-  Followup must create a fresh execution and exactly one Report linked to it.
+  Followup must create a fresh execution and retain its existing Report owner,
+  advancing the revision and replacing the exact execution reference, body and
+  cover evidence. Convergence requires that new reference, not only an unchanged
+  report count. A previously unexecuted fork has no owner and creates exactly one
+  report on its first completion. Other report identities and evidence stay intact.
   Fork must create an independent host/native identity with readable inherited
   history, preserve the full durable source session, and create no Report until
   it executes. The read model request must contain the persisted assistant result;
@@ -96,7 +107,8 @@ for a tool, admission, domain write or native history fork.
 - Interrupt holds the real model response at a request barrier, rejects a stale
   cancellation generation, cancels the active execution and then releases the
   late response. The interrupted execution must stay interrupted and produce no
-  Report. A subsequent followup exercises recovery on the same native session.
+  Report or overwrite an existing Report's execution evidence. A subsequent followup
+  exercises recovery on the same native session.
 - Delete uses the existing `Runtime.DeleteThread` boundary (there is no public
   delete command); the task becomes unreadable while reports remain. Clear uses
   public `history:clear`; task/report/note/outbox state disappears while global
@@ -109,7 +121,8 @@ for a tool, admission, domain write or native history fork.
   Replaying the original command still returns its original receipt; changing
   its body while reusing its ID must return `COMMAND_ID_REUSED`.
 - Fault injection supports HTTP 429, HTTP 500 and truncated SSE for Moku, child,
-  Report, Tag and the read fork. Every requested role fault must actually occur.
+  Report, Tag and Moku's independent read fork. Every requested role fault must actually occur,
+  including generated scenarios with no post-completion `read` action.
   All cases use the same final-state and restart oracle.
 
 The model and reasoning selection come from the installed native catalog. Tool

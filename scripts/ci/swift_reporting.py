@@ -89,7 +89,7 @@ def terminal_methods(log, inventory, errors, *, allow_other=False):
             identity = f"{xctest[1]}/{xctest[2]}"
             if not allow_other or identity in inventory:
                 outcomes.append((identity, xctest[3]))
-        testing = re.match(r"^[✔✘] Test (?!run with )(.+?)(?: with \d+ test cases)? (passed|failed) after ", line)
+        testing = re.match(r"^[✔✘] Test (?!run with )(.+?)(?: with \d+ test cases?)? (passed|failed) after ", line)
         skipped = re.match(r"^[➜↷✘] Test (.+?) skipped(?:[.:]| because)", line)
         if testing or skipped:
             name = testing[1] if testing else skipped[1]

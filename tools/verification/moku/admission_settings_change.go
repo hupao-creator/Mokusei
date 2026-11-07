@@ -90,7 +90,7 @@ func runAdmissionSettingsChangeReplay() error {
 		}
 	}
 	replayAdmissionSettingsChange(filepath.Join(root, "uncertain-outbox"), "outbox", "native", true, false)
-	fmt.Println("PASS settings at successor admission: typed, terminal-event and durable outbox inputs refresh after terminal races, retain admitted configuration during native background work, and adopt pending settings once it drains; exact native non-consumption permits retry and uncertain delivery never replays")
+	fmt.Println("PASS settings at successor admission: typed, terminal-event and durable outbox inputs refresh after terminal races, reject new executions during pending native background work, and adopt pending settings once it drains; exact native non-consumption permits retry and uncertain delivery never replays")
 	return nil
 }
 
@@ -131,6 +131,22 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 		configuration.PendingDeliveries = r.PendingMokuDeliveries
 		configuration.SendDelivery = r.SendMokuDelivery
 	}
+	pendingConfiguration := make(chan struct{}, 1)
+	reportFailure := configuration.ReportFailure
+	configuration.ReportFailure = func(kind string, err error) {
+		expectedKind := "terminal-event"
+		if path == "outbox" {
+			expectedKind = "moku-delivery"
+		}
+		if background && kind == expectedKind && err == plugin.ErrMokuConfigurationPending {
+			select {
+			case pendingConfiguration <- struct{}{}:
+			default:
+			}
+			return
+		}
+		reportFailure(kind, err)
+	}
 	c, err := moku.New(configuration)
 	mokuReplayMust(err)
 	r.SetMoku(c)
@@ -146,6 +162,24 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 		created, createErr := r.CreateThread(mokuReplayContext(), core.CreateThreadRequest{HarnessID: "mock", Input: mokuReplayText("child completion source").Input, Cwd: root, Settings: json.RawMessage(`{"model":"first-model"}`)})
 		mokuReplayMust(createErr)
 		child = created.Record
+	}
+	completeChild := func() {
+		base.mu.Lock()
+		handles := append([]*replayNativeHandle{}, base.handles...)
+		base.mu.Unlock()
+		for i := len(handles) - 1; i >= 0; i-- {
+			handle := handles[i]
+			if handle.open.ThreadID != child.ID {
+				continue
+			}
+			observation := handle.open.ReadThread().Observation
+			finished := time.Now().UnixMilli()
+			observation.LatestExecution.Status = "completed"
+			observation.LatestExecution.FinishedAt = &finished
+			mokuReplayMust(handle.open.SessionState.Commit(mokuReplayContext(), mokuReplayRaw(observation)))
+			return
+		}
+		panic("settings-race child has no native owner")
 	}
 	settings, revision, err := r.Settings()
 	mokuReplayMust(err)
@@ -164,19 +198,7 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 	if path == "typed" {
 		go func() { done <- c.Submit(mokuReplayContext(), mokuReplayText("follow-up crossing execution boundary")) }()
 	} else {
-		base.mu.Lock()
-		handles := append([]*replayNativeHandle{}, base.handles...)
-		base.mu.Unlock()
-		for _, handle := range handles {
-			if handle.open.ThreadID != child.ID {
-				continue
-			}
-			observation := handle.open.ReadThread().Observation
-			finished := time.Now().UnixMilli()
-			observation.LatestExecution.Status = "completed"
-			observation.LatestExecution.FinishedAt = &finished
-			mokuReplayMust(handle.open.SessionState.Commit(mokuReplayContext(), mokuReplayRaw(observation)))
-		}
+		completeChild()
 	}
 	mokuReplayAwait(path+" "+boundary+" admission boundary", gate.entered)
 	// This commits through the old native handle while the input has not yet
@@ -204,7 +226,46 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 		mokuReplayCheck(count == 1, "uncertain input was replayed into a successor")
 		return
 	}
-	if path == "typed" {
+	if background {
+		if path == "typed" {
+			select {
+			case err := <-done:
+				mokuReplayCheck(err == plugin.ErrMokuConfigurationPending, "background successor did not reject with exact pending-configuration evidence")
+			case <-time.After(8 * time.Second):
+				panic("timeout waiting for background successor rejection")
+			}
+		} else {
+			mokuReplayAwait("background "+path+" configuration rejection", pendingConfiguration)
+		}
+		blocked := system.record()
+		applied, err := r.ReadMokuConfiguration()
+		mokuReplayMust(err)
+		mokuReplayCheck(blocked.Observation.LatestExecution.ExecutionID == first.Observation.LatestExecution.ExecutionID && blocked.Observation.LatestExecution.Terminal() && blocked.Observation.BackgroundWork != nil, "pending configuration admitted a successor or retired native background work")
+		mokuReplayCheck(replaySettingsModel(blocked.Settings) == "first-model" && applied.AppliedSettings.Moku.RoutingGuidance == nil, "pending configuration replaced the live background owner's settings")
+		base.mu.Lock()
+		count := base.toolCount
+		base.mu.Unlock()
+		mokuReplayCheck(count == 1, "pending configuration reached native tools")
+		if path == "outbox" {
+			pending, err := r.PendingMokuDeliveries()
+			mokuReplayMust(err)
+			mokuReplayCheck(len(pending) == 1 && !pending[0].Uncertain, "configuration rejection did not retain a retryable durable notification")
+		}
+		observation := blocked.Observation
+		observation.BackgroundWork = nil
+		mokuReplayMust(firstHandle.open.SessionState.Commit(mokuReplayContext(), mokuReplayRaw(observation)))
+		switch path {
+		case "typed":
+			mokuReplayMust(c.Submit(mokuReplayContext(), mokuReplayText("follow-up crossing execution boundary")))
+		case "terminal-event":
+			// Production supplies the durable outbox below. This no-outbox
+			// fallback reports its rejected event; a new lifecycle event can
+			// independently trigger preparation after the background drains.
+			_, err := r.SendThread(mokuReplayContext(), child.ID, mokuReplayText("child completion after background drain").Input)
+			mokuReplayMust(err)
+			completeChild()
+		}
+	} else if path == "typed" {
 		mokuReplayWaitError("settings-race typed send", done)
 	}
 	base.awaitTools(2)
@@ -212,14 +273,8 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 	applied, err := r.ReadMokuConfiguration()
 	mokuReplayMust(err)
 	mokuReplayCheck(second.Observation.LatestExecution.ExecutionID != first.Observation.LatestExecution.ExecutionID, "settings-race fixture did not start a successor")
-	expectedModel, expectedContext := "updated-model", "updated routing policy"
-	if background {
-		expectedModel, expectedContext = "first-model", "first context"
-		mokuReplayCheck(second.Observation.BackgroundWork != nil && applied.AppliedSettings.Moku.RoutingGuidance == nil, "successor changed configuration while native background work remained active")
-	} else {
-		mokuReplayCheck(applied.AppliedSettings.Moku.RoutingGuidance != nil && *applied.AppliedSettings.Moku.RoutingGuidance == "updated routing policy", "successor inherited stale routing guidance")
-	}
-	mokuReplayCheck(replaySettingsModel(second.Settings) == expectedModel, "successor used the wrong model for its native background boundary")
+	mokuReplayCheck(second.Observation.BackgroundWork == nil && applied.AppliedSettings.Moku.RoutingGuidance != nil && *applied.AppliedSettings.Moku.RoutingGuidance == "updated routing policy", "drained successor inherited stale routing guidance")
+	mokuReplayCheck(replaySettingsModel(second.Settings) == "updated-model", "successor used the wrong model for its native background boundary")
 	base.mu.Lock()
 	inputs := append([]replayNativeInput{}, base.inputs...)
 	handles := append([]*replayNativeHandle{}, base.handles...)
@@ -235,7 +290,7 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 		}
 		fresh := false
 		for _, entry := range sent.context {
-			fresh = fresh || entry.ID == "settings-admission-context" && entry.Content == expectedContext
+			fresh = fresh || entry.ID == "settings-admission-context" && entry.Content == "updated routing policy"
 		}
 		mokuReplayCheck(fresh, "successor context does not match its admitted configuration")
 	}
@@ -246,7 +301,7 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 			injection = handle.open.Injection
 		}
 	}
-	mokuReplayCheck(injection != nil && strings.Contains(strings.Join(injection.Instructions, "\n"), "updated routing policy") != background, "successor native instructions do not match its configuration boundary")
+	mokuReplayCheck(injection != nil && strings.Contains(strings.Join(injection.Instructions, "\n"), "updated routing policy"), "successor native instructions do not match its configuration boundary")
 	if path == "typed" {
 		messages := 0
 		for _, raw := range second.Transcript {
@@ -262,22 +317,6 @@ func replayAdmissionSettingsChange(root, path, boundary string, uncertain, backg
 		pending, err := r.PendingMokuDeliveries()
 		mokuReplayMust(err)
 		mokuReplayCheck(len(pending) == 0, "confirmed successor did not consume outbox exactly once")
-	}
-	if background {
-		// A terminal foreground execution can be followed without retiring its
-		// native background owner; only after both drain may the profile change.
-		observation := second.Observation
-		finished := time.Now().UnixMilli()
-		observation.LatestExecution.Status = "completed"
-		observation.LatestExecution.FinishedAt = &finished
-		observation.BackgroundWork = nil
-		mokuReplayMust(firstHandle.open.SessionState.Commit(mokuReplayContext(), mokuReplayRaw(observation)))
-		mokuReplayMust(c.Submit(mokuReplayContext(), mokuReplayText("new settings after background drain")))
-		base.awaitTools(3)
-		drained := system.record()
-		applied, err := r.ReadMokuConfiguration()
-		mokuReplayMust(err)
-		mokuReplayCheck(drained.Observation.BackgroundWork == nil && replaySettingsModel(drained.Settings) == "updated-model" && applied.AppliedSettings.Moku.RoutingGuidance != nil && *applied.AppliedSettings.Moku.RoutingGuidance == "updated routing policy", "drained background owner prevented pending settings adoption")
 	}
 }
 

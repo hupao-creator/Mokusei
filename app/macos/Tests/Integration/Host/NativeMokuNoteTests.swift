@@ -34,7 +34,7 @@ struct NativeMokuNoteTests {
         return result
     }
 
-    private func element(id: String, in root: NSView) -> NSObject? {
+    private func element(id: String, in root: NSView, includingSubviews: Bool = true) -> NSObject? {
         var seen = Set<ObjectIdentifier>()
         func visit(_ object: AnyObject) -> NSObject? {
             guard seen.insert(ObjectIdentifier(object)).inserted, seen.count < 10000,
@@ -51,7 +51,9 @@ struct NativeMokuNoteTests {
             if item.responds(to: legacy), let values = item.perform(legacy, with: "AXChildren")?.takeUnretainedValue() as? [AnyObject] {
                 for value in values { if let found = visit(value) { return found } }
             }
-            if let view = item as? NSView {
+            // Retained native viewports can remain mounted while SwiftUI removes
+            // them from accessibility. Visibility checks must use only AX edges.
+            if includingSubviews, let view = item as? NSView {
                 for child in view.subviews { if let found = visit(child) { return found } }
             }
             return nil
@@ -337,7 +339,7 @@ struct NativeMokuNoteTests {
             let withVoice = mode == "voice" || withMessage
             let state = NativeMokuSceneState()
             state.setWindowVisible(true)
-            state.setNotePanelOpen(true)
+            state.setNotePanelOpen(!withMessage)
             let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
             draft.text = "Keep this draft"
             let note = hasNote ? NativeMokuNote(id: "history-entry", text: "Still unread", revision: 1, updatedAt: 1) : nil
@@ -350,6 +352,12 @@ struct NativeMokuNoteTests {
                 .environment(\.locale, Locale(identifier: "en")), width: width, height: 500)
             defer { window.close(); state.settle() }
             let root = try #require(window.contentView)
+            if withMessage {
+                try await SwiftUIReplay.wait {
+                    element(id: "moku-voice-transcript", in: root, includingSubviews: false) != nil
+                }
+                state.setNotePanelOpen(true)
+            }
             try await SwiftUIReplay.wait { element(id: "moku-note-history", in: root) != nil }
             let button = try #require(element(id: "moku-note-history", in: root))
             #expect(SwiftUIReplay.text(in: root).contains("View Moku conversation history"))
@@ -358,7 +366,7 @@ struct NativeMokuNoteTests {
             let rootScreen = window.convertToScreen(root.convert(root.bounds, to: nil))
             #expect(bounds.width > 60 && bounds.height >= 28)
             if withMessage {
-                #expect(element(id: "moku-voice-transcript", in: root) == nil,
+                #expect(element(id: "moku-voice-transcript", in: root, includingSubviews: false) == nil,
                         "Note owns the reading surface; covered transcript must leave accessibility")
             }
             if withVoice || mode == "running" {

@@ -67,15 +67,23 @@ media events are fixed local fixtures.
 
 - Successor configuration adoption when terminal publication races context
   collection or a native follow-up rejection, across typed inputs, lifecycle
-  events and the durable outbox. Unknown/wrapped admission failures retain the
-  uncertain delivery instead of automatically replaying it.
+  events and the durable outbox. Pending settings reject new executions while
+  native background work remains active. After it drains, explicit typed retry,
+  a new fallback lifecycle event, or the retained durable notification starts
+  one successor with the new model, context and instructions. The no-outbox
+  fallback does not establish durable retry; production supplies the outbox.
+  Unknown/wrapped admission failures retain the uncertain delivery instead of
+  automatically replaying it.
 - Same-owner relay media and exact spoken-result identity across model, routing,
   target-selection and target-catalog changes; retired tools, host replacement
   and failed cleanup still enforce their ownership boundaries.
 - Native voice configuration reconnection, preserved unadmitted handoffs,
   settings reverted after a reconnect token, retained device ownership,
   Stop/cleanup-failure rejection and slow settings admission without blocking
-  media polling. Pending speech prevents premature reconnection.
+  media polling. Native admissions carry the media session's voice scope, as
+  real Codex admission does. Pending speech prevents premature reconnection;
+  pending settings with live background work reject new native foreground
+  input without reserving an execution or committing user audit.
 - Readable initial Moku shells even when native Probe/Describe fails or blocks,
   restoration of an unapplied shell, atomic configured replacement, and restart
   settlement of unfinished tool and assistant audit entries.
@@ -87,11 +95,14 @@ media events are fixed local fixtures.
 - Native voice and relay command protocols: context synchronization before
   durable admission, owner/execution/generation checks, typed-input fences,
   cancellation, retired polling, teardown ownership and visible cleanup failure.
+  Stopped preparation identities remain revoked; fresh attempts reach the
+  injected native failure and stop-before-session-ID cancellation boundaries.
 - A cancelled submission and a stopped voice preparation release their queue
   waiters while an unrelated native admission still owns the coordinator gate.
   The native owner remains admitted, and cancelled media never reaches prepare.
 - Ending relay media releases eight observed admission waiters before the held
-  native owner completes. The owner still commits and retired requests do not.
+  native owner completes. The owner is held after its admitted callback commits
+  user audit; its native tools still finish, and retired requests do not enter.
 - Outbox-backed ordinary terminal notifications bypass the ephemeral queue;
   the fallback path still delivers once. Metadata updates do not redeliver, and
   shutdown drains Moku's queued tool/assistant settlement after cancelling an

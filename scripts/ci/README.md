@@ -13,7 +13,9 @@ content admission. Missing native markers or unexpected skips fail coverage.
 
 CGO and system SQLite remain enabled. Actions installs the toolchain from
 `go.mod`; `scripts/go.sh` remains the local Apple Silicon bootstrap. Darwin-only
-profile-rotation and clipboard-bridge tests run in the native job.
+profile-rotation tests run in the native job. Portable Moku package tests execute
+once in Linux's race-enabled module set; Moku's Go fixtures and native/interop
+replays still execute in the macOS session.
 
 ## Runner deployment
 
@@ -43,12 +45,18 @@ cancels that ref's older work using GitHub's cancelled state; it is never report
 as a successful `Complete coverage` check. Other PRs do not share a repository-wide
 lock. Explicit dispatches have run-specific groups and cannot cancel PR/main work.
 There is no custom API-based obsolete-head/base rejection: the required check
-belongs to its actual checked-out revision and the remote strict ruleset controls
-whether a PR is up to date. This is not GitHub Merge Queue.
+belongs to its actual checked-out revision. A remote strict status-check rule,
+when enabled, additionally controls whether a PR is up to date. This is not GitHub Merge Queue.
 
 Linux Go checks and the `runtime`/`adapters` protocol groups remain independent
 jobs. Those groups represent different production boundaries, not slices of the
 Swift inventory. Extended CLI/system dispatches remain separate from normal CI.
+The [Native CLI workflow](../../.github/workflows/native-cli.yml) runs the four
+pinned CLI/system lanes only on explicit dispatch. The separate
+[Overview performance workflow](../../.github/workflows/overview-performance.yml)
+also requires explicit dispatch with fixed baseline/candidate SHAs. Neither
+workflow is triggered by PRs or pushes, so ordinary CI does not publish skipped
+jobs for these optional checks. Dispatching `CI` itself runs full verification.
 Runner capacity can still queue jobs; removing the repository-wide lock
 does not create additional capacity. A self-hosted provisioner must replenish
 single-job guests and serialize native work across workflows on each physical Mac.
@@ -112,12 +120,24 @@ its 100/90/300ms sampling intervals, three distinct frames and fixed geometry.
 It requires a foreground key window in the AppKit runner and emits
 `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` only after those assertions. The same manifest,
 exclusion and exactly-once receipt audit apply; a skipped or absent run fails.
+The projected-usage animation method uses the same native owner. It requires a
+running AppKit loop and an active, visible key window before its original
+350/65/330ms sampling sequence, retains the original three-frame inequalities
+and interrupted-update/reference checks, and emits
+`PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED` only after all cases pass. All usage crops
+and actual sampling times are retained after observation; zero sleep tolerance
+requests no extra timer coalescing. CI's `--native-owned` selects these two
+methods exactly once; the stable-cell leaf keeps its ordinary graphical execution.
 
 The Moku note capsule hydration/wrapping/copy/input case uses
 `native/moku-execution-links`. It requires the real AppKit loop, tests both
 keyboard and TextKit mouse tracking for all four Harnesses, and emits
 `MOKU_NOTE_EXECUTION_CAPSULES_CONFIRMED`. It is excluded from the ordinary host
 only because that same method has a mandatory native outcome and receipt.
+CI selects only this method with `--native-owned`; the other nine mounted and
+two windowless methods keep their ordinary execution. Both launchers derive
+their selected method identities and expected counts from `swift_ownership.py`;
+their original local commands still run the full suites for diagnosis.
 
 Named live-Go-fixture and isolated-AppKit methods can defer ordinary execution
 only when their mandatory replay supplies the observed passing result. Settings
@@ -141,6 +161,11 @@ component sizes. All GUI work within this session remains serial.
 the native evidence root. `swift.json` retains each process's command, method
 list, environment override, status and timing. `ci-fixtures`, `ci-interop` and
 `ci-native` contain the required replay reports.
+Build identity commands and each ordinary execution mode emit flushed start/end
+diagnostics to stderr, preserving fingerprint and JSON stdout. When a failed or
+interrupted mode unwinds, its finalizer also prints at most the last 12,000 log
+bytes; full logs and receipts remain the evidence, and an abrupt process kill
+cannot guarantee a final tail.
 `swift-tests.py` audits that directory before the native job can pass. Its actual
 method identities and framework totals must match each mode's assigned inventory,
 with exactly one ordinary outcome or the declared native owner. Headless skips
@@ -172,9 +197,12 @@ code. Its always-run report distinguishes:
 
 Nonzero/missing exit status, malformed or incomplete events, empty execution and
 all-skipped commands fail. Partial skips remain visible; Go does not have Swift's
-pre-discovered method audit. Unit, race, property and platform commands overlap,
-so their counts are not unique coverage totals. `-count=1` prevents test-result
-cache hits from replacing execution.
+pre-discovered method audit. Linux unit selection excludes the module packages
+that execute with the race detector. Both steps expand the same job-level module
+pattern list, so adding a race-covered package also removes its duplicate unit
+execution. Integration properties remain a separate package set. Platform runs
+can still overlap Linux coverage, so counts across platforms are not unique
+coverage totals. `-count=1` prevents test-result cache hits from replacing execution.
 
 ## Time and resource tradeoff
 
@@ -234,6 +262,8 @@ coverage and local capture entry points with temporary Git histories and control
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
+Parameterized outcomes retain their exact discovered method identity with either
+Swift Testing's `with 1 test case` or plural `with N test cases` suffix.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
 commit's hosted run must establish actual native execution.
 
@@ -243,18 +273,20 @@ captures. Both control verifiers run in Linux CI.
 
 ## Pull request merge gates
 
-The active [main-pr-gates ruleset](https://github.com/hupao-creator/Mokusei/rules/26004586)
-requires a PR up to date with main and successful **Complete coverage** from
-GitHub Actions. The aggregate requires scope and every job applicable to that
+The project's verification policy requires the final revision's successful
+**Complete coverage** from GitHub Actions before merging code changes. The
+aggregate requires scope and every job applicable to that
 scope. It cannot turn a failed, cancelled, missing or unexpectedly skipped native
-job green. Extended dispatches use the distinct `Extended native CLI coverage`
-name and do not satisfy the ordinary gate.
+job green. The manual `Native CLI` workflow retains its own
+`Extended native CLI coverage` aggregate, which requires all four native lanes
+to succeed and does not satisfy the ordinary gate.
 
-Review conversations must be resolved; the required approving review count is
-zero. There are no bypass actors, and force pushes/deletion of main remain blocked.
-The remote ruleset is separate from workflow code; inspect its actual requirements
-before planning a merge. Local checks and historical green runs cannot replace
-the final revision's required check.
+Remote [repository rules](https://github.com/hupao-creator/Mokusei/rules) and branch
+protection are configured independently of this workflow. Inspect their actual
+enforcement, required checks, freshness and review requirements before planning
+a merge; a named ruleset can exist while disabled. Do not infer active protection
+or bypass permissions from this guide. Local checks and historical green runs
+cannot replace the final revision's CI evidence or an active remote requirement.
 
 ## Restoration boundary and retained test improvements
 

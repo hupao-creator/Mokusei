@@ -293,11 +293,13 @@ struct NativeOverviewTransitionTests {
         try await Task.sleep(for: .milliseconds(750))
         let before = fixture.state.camera.liveTransform
         let beforeA = try frame("a", fixture)
+        let beforePlacements = fixture.state.presentedPlacements
+        let beforeContent = try contentRect(fixture)
         #expect(!fixture.state.camera.manual)
         try expectRenderedAnchor(fixture)
 
-        // Grow one column from two rows to three. Both survivors keep their
-        // world slots, so only the new footprint's framing anchor changes.
+        // With 220pt rows, three cards compact to 2×2 rather than 1×3.
+        // Both survivors keep their world slots while the envelope grows wider.
         fixture.items = [.init(id: "a"), .init(id: "b"), .init(id: "c")]
         fixture.scene = "three"; fixture.selection = "three"
         try await SwiftUIReplay.wait { fixture.state.mountedCardIDs == ["a", "b", "c"] && !fixture.state.isLayingOut }
@@ -306,9 +308,12 @@ struct NativeOverviewTransitionTests {
         #expect(fixture.state.camera.liveTransform.scale == before.scale)
         try expectAnchored(fixture)
         try expectRenderedAnchor(fixture)
-        #expect(fixture.state.presentedPlacements.first { $0.id == "a" }?.row == 0)
-        #expect(fixture.state.presentedPlacements.first { $0.id == "b" }?.row == 1)
-        #expect(fixture.state.presentedPlacements.first { $0.id == "c" }?.row == 2)
+        for survivor in beforePlacements {
+            #expect(fixture.state.presentedPlacements.first { $0.id == survivor.id } == survivor)
+        }
+        let expanded = try contentRect(fixture)
+        #expect(expanded.width == 2 * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap)
+        #expect(expanded.width > beforeContent.width && expanded.height == beforeContent.height)
         #expect(abs(try frame("a", fixture).width - beforeA.width) < 1)
 
         // Shrink back to two rows; the retained scale still holds.
@@ -333,6 +338,7 @@ struct NativeOverviewTransitionTests {
         let window = SwiftUIReplay.window(TransitionCanvas(fixture: fixture), width: 860, height: 780)
         defer { window.close(); fixture.state.camera.dispose() }
         try await settled(fixture)
+        let beforeContent = try contentRect(fixture)
         let manual = NativeOverviewTransform(scale: 1.1, x: 50, y: 100)
         fixture.state.camera.setManualTransform(manual)
         try await Task.sleep(for: .milliseconds(40))
@@ -344,7 +350,8 @@ struct NativeOverviewTransitionTests {
         #expect(fixture.state.camera.liveTransform == manual)
         // The footprint did change, so the unchanged camera proves the manual
         // carve-out rather than an unchanged-bounds early return.
-        #expect(fixture.state.presentedPlacements.contains { $0.row == 2 })
+        let expanded = try contentRect(fixture)
+        #expect(expanded.width > beforeContent.width || expanded.height > beforeContent.height)
         #expect(fixture.state.layoutError == nil)
     }
 
@@ -380,15 +387,23 @@ struct NativeOverviewTransitionTests {
         fixture.selection = "small"
         fixture.reduceMotion = reduceMotion
         fixture.bottomReservedHeight = bottomReservedHeight
-        let window = SwiftUIReplay.window(TransitionCanvas(fixture: fixture), width: 860, height: 780 + bottomReservedHeight)
+        // Eight current cells need four rows (928pt). This viewport admits them
+        // at the readable floor but still requires shrinking the retained scale.
+        let window = SwiftUIReplay.window(TransitionCanvas(fixture: fixture), width: 860, height: 860 + bottomReservedHeight)
         defer { window.close(); fixture.state.camera.dispose() }
         try await settled(fixture)
+        let initialScale = fixture.state.camera.liveTransform.scale
+        let initialCapacityHeight = Double(fixture.viewport.height) - fixture.toolbarBottom - fixture.bottomReservedHeight
+        let expandedHeight = 4 * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap
+        #expect(expandedHeight * initialScale > initialCapacityHeight)
+        #expect(expandedHeight * fixture.state.camera.minimumScale <= initialCapacityHeight)
         fixture.items = [.init(id: "a"), .init(id: "b")] + (0..<6).map { .init(id: "new-\($0)") }
         fixture.scene = "expanded"; fixture.selection = "expanded"
         try await settled(fixture)
         try await Task.sleep(for: .milliseconds(750))
         try expectAnchored(fixture)
         try expectRenderedAnchor(fixture)
+        #expect(fixture.state.camera.liveTransform.scale < initialScale)
         let frames = fixture.items.compactMap { fixture.frames[$0.id] }
         let envelope = frames.reduce(CGRect.null) { $0.union($1) }
         let tolerance = 1 / window.backingScaleFactor
@@ -563,30 +578,36 @@ struct NativeOverviewTransitionTests {
         let window = try await setup(fixture)
         defer { window.close(); fixture.state.camera.dispose() }
         let scale = fixture.state.camera.liveTransform.scale
+        let singleWidth = NativeOverviewLayout.columnWidth * scale
+        let wideWidth = (2 * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap) * scale
+        let shortHeight = NativeOverviewLayout.rowHeight * scale
+        let tallHeight = (2 * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap) * scale
         let identity = try #require(fixture.semanticIdentities["a"])
         fixture.items = [.init(id: "a", rows: 2)]
         var sample: CGRect?
         try await SwiftUIReplay.wait {
             guard fixture.state.isLayingOut, let current = fixture.frames["a"],
-                  current.width > 360 * scale, current.width < 736 * scale else { return false }
+                  current.width > singleWidth, current.width < wideWidth else { return false }
             sample = current
             return true
         }
         let shrinking = try #require(sample)
-        #expect(shrinking.width > 360 * scale && shrinking.width < 736 * scale)
-        #expect(abs(shrinking.height - 220 * scale) < 0.5)
+        #expect(shrinking.width > singleWidth && shrinking.width < wideWidth)
+        #expect(abs(shrinking.height - shortHeight) < 0.5)
         fixture.items[0].presentationID = "content-during-resize"
         fixture.locale = Locale(identifier: "ja")
         try await SwiftUIReplay.wait {
             fixture.presentations["a"] == "content-during-resize" && fixture.semanticLocales["a"] == "ja"
         }
-        try await SwiftUIReplay.wait { (fixture.frames["a"]?.height ?? 0) > 205 * scale }
-        #expect(abs(try frame("a", fixture).width - 360 * scale) < 0.5)
+        // Observe five points of growth beyond the actual old row height; the
+        // former 205pt predicate was already true during a 220pt-high shrink.
+        try await SwiftUIReplay.wait { (fixture.frames["a"]?.height ?? 0) > shortHeight + 5 * scale }
+        #expect(abs(try frame("a", fixture).width - singleWidth) < 0.5)
         try await settled(fixture)
         #expect(fixture.appearances["a"] == 1)
         #expect(fixture.semanticIdentities["a"] == identity)
         #expect(fixture.presentations["a"] == "content-during-resize")
-        #expect(abs(try frame("a", fixture).height - 456 * scale) < 0.5)
+        #expect(abs(try frame("a", fixture).height - tallHeight) < 0.5)
     }
 
     @Test func queuedLayoutDoesNotRestoreStaleCardContent() async throws {

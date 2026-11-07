@@ -187,7 +187,7 @@ func waitFor(condition func() bool) {
 	panic("condition deadline")
 }
 func main() {
-	swiftVoice := flag.Bool("swift-voice", false, "verify actual Swift integer encoding through thread voice connection commands")
+	swiftVoice := flag.Bool("swift-voice", false, "verify actual Swift integer encoding through global Moku voice and retained thread history")
 	flag.Parse()
 	ctx := context.Background()
 	dir, err := os.MkdirTemp("", "mokusei-runtime-verification-")
@@ -237,10 +237,7 @@ func main() {
 		panic("execution missing")
 	}
 	id := created.Record.ID
-	if *swiftVoice {
-		verifySwiftVoice(ctx, r, dir, id)
-	}
-	verifyVoiceDevices(ctx, r, id)
+	verifyRuntimeVoice(ctx, dir, *swiftVoice)
 	snapshotTags, err := plugin.Require[plugin.SemanticTagsSnapshotCapability](r.SnapshotCapabilities(db.Snapshot(), nil), plugin.SemanticTagsSnapshotCapabilityKey)
 	must(err)
 	projectedTags, err := snapshotTags.ReadThreadTags(model.ThreadRef{ThreadID: id, TypeID: "agent"})

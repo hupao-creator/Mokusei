@@ -22,6 +22,7 @@ import MokuseiApplications
     var scale: CGFloat = 1
     var backs = 0
     var externalURLs: [URL] = []
+    let sidecards = NativeReportSidecardPresentation()
     let html = """
         <html><body style='background:white;min-height:2400px'>
         <h1>Report</h1>
@@ -58,6 +59,12 @@ import MokuseiApplications
         </body></html>
         """
     let motion = NativeReadingPageMotion()
+
+    init() {
+        // This HTML-only reader mounts no related-execution UI. Its first body
+        // Escape must close the Report, not cancel a default pending sidecard.
+        sidecards.close()
+    }
 }
 
 private struct ReportNavigationReplay: View {
@@ -88,6 +95,7 @@ private struct ReportNavigationReplay: View {
                     onNativeNavigationChange: { fixture.ready = $0 }, onFailure: { Issue.record(Comment(rawValue: $0.message)) })
                     .modifier(NativeApplicationReadingPanel(enabled: fixture.panel, identifier: "report-reading-panel",
                         onClose: { fixture.backs += 1; fixture.motion.close() }))
+                    .environment(\.nativeReportSidecards, fixture.sidecards)
                     .environment(\.nativeApplicationReadingPanel, fixture.panel)
             }
             .frame(width: geometry.size.width / fixture.scale, height: geometry.size.height / fixture.scale)
@@ -119,6 +127,14 @@ struct NativeReportNavigationTests {
         #expect(outsideHit !== navigation && outsideHit?.isDescendant(of: navigation) != true)
     }
 
+    private func logPanelDOMDiagnostics(_ document: WKWebView) {
+        // Keep diagnostic IPC nonblocking; a failed async replay must rethrow
+        // and close its window without awaiting an unresponsive WebKit page.
+        document.evaluateJavaScript("({focused:document.hasFocus(), active:document.activeElement?.outerHTML, modal:!!document.querySelector('dialog:modal'), events:window.panelEscapeEvents})") { value, failure in
+            print("Report panel DOM diagnostics: value=\(String(describing: value)) error=\(String(describing: failure))")
+        }
+    }
+
     @Test(.requiresDisplay, .enabled(if: ProcessInfo.processInfo.environment["MOKUSEI_READING_PRESENTATION_NATIVE_REPLAY"] == "1",
         "Requires the isolated AppKit event loop for real WebKit mouse/key input: python3 tools/verification/reading-presentation/run.py --report-navigation"))
     func reportNavigationMovesWithPageSurvivesReplacementSuppressionAndZoomAndClicksBack() async throws {
@@ -126,10 +142,14 @@ struct NativeReportNavigationTests {
         let enableAX = NSSelectorFromString("accessibilitySetValue:forAttribute:")
         if app.responds(to: enableAX) { _ = app.perform(enableAX, with: true, with: "AXEnhancedUserInterface") }
         let fixture = ReportNavigationFixture()
-        let window = SwiftUIReplay.window(ReportNavigationReplay(fixture: fixture))
+        let window = SwiftUIReplay.window(EmptyView())
         window.styleMask.formUnion([.fullSizeContentView, .closable, .miniaturizable])
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        // This replay resizes its native viewport. Keep the content responsive
+        // instead of retaining the helper's initial fixed SwiftUI frame.
+        window.contentView = NSHostingView(rootView: ReportNavigationReplay(fixture: fixture)
+            .accessibilityElement(children: .contain))
         defer { window.close() }
         let root = try #require(window.contentView)
         let buttons = try [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].map {
@@ -389,11 +409,17 @@ struct NativeReportNavigationTests {
             const next = document.createElement('a'); next.href = '\(remote.absoluteString)';
             document.body.append(next); next.click();
             """)
-        try await SwiftUIReplay.wait(timeout: .seconds(10)) { document.url == remote && !document.isLoading && portal(in: root) === replaced }
+        // Provisional navigation withdraws the previous document's native
+        // navigation. Observe the portal owned by the ready destination.
+        try await SwiftUIReplay.wait(timeout: .seconds(10)) {
+            document.url == remote && !document.isLoading && fixture.ready && portal(in: root) != nil
+        }
+        let destinationNavigation = try #require(portal(in: root))
         try await Task.sleep(for: .milliseconds(250))
-        assertButtons(hidden: false, navigation: replaced)
+        try assertBack(destinationNavigation, in: root)
+        assertButtons(hidden: false, navigation: destinationNavigation)
         #expect(try await document.evaluateJavaScript("document.querySelector('h1').textContent") as? String == "Short destination")
-        let point = replaced.convert(NSPoint(x: 115, y: 29), to: nil)
+        let point = destinationNavigation.convert(NSPoint(x: 115, y: 29), to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
                 windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
@@ -404,8 +430,8 @@ struct NativeReportNavigationTests {
         // Observe the presented interval instead of assuming a fixed 100ms sample.
         var sawMovingNavigation = false
         try await SwiftUIReplay.wait {
-            if replaced.isDescendant(of: root) {
-                let moving = replaced.convert(replaced.bounds, to: root)
+            if destinationNavigation.isDescendant(of: root) {
+                let moving = destinationNavigation.convert(destinationNavigation.bounds, to: root)
                 sawMovingNavigation = sawMovingNavigation || (moving.minX > 4 && moving.minX < root.bounds.width)
             }
             return !fixture.open
@@ -417,6 +443,14 @@ struct NativeReportNavigationTests {
 
         // The workspace now embeds Report in the same panel stack as Agent.
         // Exercise its real WebKit session without the window-navigation portal.
+        // Keep the requested height within the CI display's usable area: a
+        // responsive host lets AppKit constrain an oversized window. These
+        // panel heights are also integral at every sampled workspace scale.
+        let panelViewport = CGSize(width: 1180, height: 640)
+        var panelWindowFrame = window.frame
+        panelWindowFrame.size.width += panelViewport.width - root.bounds.width
+        panelWindowFrame.size.height += panelViewport.height - root.bounds.height
+        window.setFrame(panelWindowFrame, display: true)
         fixture.panel = true
         fixture.revision = "panel"
         fixture.open = true
@@ -424,14 +458,43 @@ struct NativeReportNavigationTests {
             if view.identifier?.rawValue == "report-reading-panel-frame" { return view }
             return view.subviews.lazy.compactMap { panelFrame(in: $0) }.first
         }
-        try await SwiftUIReplay.wait(timeout: .seconds(15)) {
-            webView(in: root)?.isLoading == false && panelFrame(in: root) != nil && !fixture.motion.active
+        func logPanelReadiness(_ phase: String) {
+            let document = webView(in: root)
+            let anchor = panelFrame(in: root).map { $0.convert($0.bounds, to: root) }
+            print("REPORT_PANEL_READINESS phase=\(phase) requested=\(panelViewport) window=\(window.frame) root=\(root.bounds) contentLayout=\(window.contentLayoutRect) screen=\(String(describing: window.screen?.frame)) visibleFrame=\(String(describing: window.screen?.visibleFrame)) anchor=\(String(describing: anchor)) scale=\(fixture.scale) pageZoom=\(String(describing: document?.pageZoom)) loading=\(String(describing: document?.isLoading)) moving=\(fixture.motion.active) open=\(fixture.open) panel=\(fixture.panel)")
         }
+        do {
+            try await SwiftUIReplay.wait(timeout: .seconds(15)) {
+                root.bounds.size == panelViewport && webView(in: root)?.isLoading == false
+                    && panelFrame(in: root) != nil && !fixture.motion.active
+            }
+        } catch {
+            logPanelReadiness("failed")
+            throw error
+        }
+        logPanelReadiness("ready")
         let panelDocument = try #require(webView(in: root))
         #expect(portal(in: root) == nil && !fixture.ready, "Panel HTML must leave window chrome with the host")
         for scale: CGFloat in [1, 2, 0.5, 1] {
             fixture.scale = scale
-            try await Task.sleep(for: .milliseconds(150))
+            // Crossing the responsive workspace breakpoint animates the main
+            // surface with the 380ms Sidecard fold. Observe its final native
+            // geometry instead of sampling 150ms into that presentation.
+            do {
+                try await SwiftUIReplay.wait {
+                    guard let frame = panelFrame(in: root) else { return false }
+                    let actual = frame.convert(frame.bounds, to: root)
+                    let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
+                    return abs(actual.width - expected.width * scale) < 1 && abs(actual.height - expected.height * scale) < 1
+                        && abs(actual.minX - expected.minX * scale) < 1 && abs(top(frame) - expected.minY * scale) < 1
+                }
+            } catch {
+                let frame = panelFrame(in: root)
+                let actual = frame.map { $0.convert($0.bounds, to: root) }
+                let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
+                print("Report panel geometry diagnostics: scale=\(scale) actual=\(String(describing: actual)) expected=\(expected) root=\(root.bounds) moving=\(fixture.motion.active)")
+                throw error
+            }
             let frame = try #require(panelFrame(in: root))
             let actual = frame.convert(frame.bounds, to: root)
             let expected = NativeReadingPanelGeometry.frame(in: CGSize(width: root.bounds.width / scale, height: root.bounds.height / scale))
@@ -445,14 +508,47 @@ struct NativeReportNavigationTests {
             #expect(portal(in: root) == nil)
             _ = try await panelDocument.evaluateJavaScript("window.scrollTo(0, 0)")
         }
-        window.makeFirstResponder(panelDocument)
-        _ = try await panelDocument.evaluateJavaScript("document.querySelector('input').focus()")
+        try #require(fixture.sidecards.active == nil && fixture.sidecards.pending == nil,
+                     "The HTML-only reader must have no sidecard owning Escape")
+        try #require(panelDocument.window === window && webView(in: root) === panelDocument)
+        try #require(window.makeFirstResponder(panelDocument))
+        // As with the modal above, native WebKit focus crosses processes. The
+        // focused document frame must own each key before testing cancellation.
+        let editorFocused = try await panelDocument.callAsyncJavaScript("""
+            window.panelEscapeEvents = [];
+            document.addEventListener('keydown', event => {
+              if (event.key === 'Escape') window.panelEscapeEvents.push({
+                trusted:event.isTrusted, target:event.target.tagName, active:document.activeElement?.tagName
+              });
+            }, true);
+            document.querySelector('input').focus();
+            const framed = await new Promise(resolve => {
+              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
+              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+            });
+            return framed && document.hasFocus() && document.activeElement.id === 'ordinary';
+            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
+        try #require(editorFocused == true)
         try key(53, "\u{1b}")
         try await Task.sleep(for: .milliseconds(100))
         #expect(fixture.open && fixture.backs == 1, "Editing still owns Escape inside the panel")
-        _ = try await panelDocument.evaluateJavaScript("document.activeElement.blur()")
+        let documentFocused = try await panelDocument.callAsyncJavaScript("""
+            document.activeElement.blur();
+            const framed = await new Promise(resolve => {
+              const timeout = setTimeout(() => { cancelAnimationFrame(frame); resolve(false); }, 3000);
+              const frame = requestAnimationFrame(() => { clearTimeout(timeout); resolve(true); });
+            });
+            return framed && document.hasFocus() && document.activeElement === document.body;
+            """, arguments: [:], in: nil, contentWorld: .page) as? Bool
+        try #require(documentFocused == true)
         try key(53, "\u{1b}")
-        try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
+        do {
+            try await SwiftUIReplay.wait { !fixture.open && fixture.backs == 2 }
+        } catch {
+            print("Report panel Escape diagnostics: open=\(fixture.open) backs=\(fixture.backs) moving=\(fixture.motion.active) sidecard=\(String(describing: fixture.sidecards.active)) pendingSidecard=\(String(describing: fixture.sidecards.pending)) key=\(window.isKeyWindow) active=\(NSApp.isActive) responder=\(String(describing: window.firstResponder))")
+            logPanelDOMDiagnostics(panelDocument)
+            throw error
+        }
         fixture.open = true
         try await SwiftUIReplay.wait(timeout: .seconds(15)) {
             panelFrame(in: root) != nil && webView(in: root)?.isLoading == false && !fixture.motion.active

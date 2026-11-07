@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -55,6 +56,21 @@ def main():
     source = Path(__file__).resolve().parent
     repo = source.parents[2]
     package = repo / "app/macos"
+    native_methods = None
+    if "--native-owned" in sys.argv:
+        checks = {"--moku-execution-links": "moku-execution-links", "--rolling-numbers": "rolling-numbers"}
+        flags = set(sys.argv[1:]) - {"--native-owned"}
+        if len(sys.argv) != 3 or len(flags) != 1 or not flags <= checks.keys():
+            raise SystemExit("--native-owned requires exactly one of --moku-execution-links or --rolling-numbers")
+        check = checks[flags.pop()]
+        sys.path.insert(0, str(repo / "scripts/ci"))
+        from swift_ownership import NATIVE_METHOD_OWNERS
+        # The standalone app has a different module name from SwiftPM. Keep
+        # the declared suite/method identity and its runtime location suffix.
+        native_methods = [name.split(".", 1)[1] for name, owner in NATIVE_METHOD_OWNERS.items()
+                          if owner["group"] == "native" and owner["check"] == check]
+        if not native_methods:
+            raise SystemExit("No declared native methods for " + check)
     if os.environ.get("MOKUSEI_SWIFT_SKIP_BUILD") != "1":
         subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
     developer = Path(subprocess.check_output(["xcrun", "--show-sdk-platform-path"], text=True).strip()) / "Developer"
@@ -181,6 +197,8 @@ def main():
             selected = "mountedProductionReadersHandOffAfterContentAdmission|productionDockFoldsOnSendAndOnlyRestoresAFailedCurrentDraft|rightSidecardButtonsToggleRetainedPluginsWithoutCloseIcons|sidecardApertureTravelsBetweenItsActualLauncherAndPanel|completedSendAllowsClickingAndTypingIntoTheResidentComposer"
         if composer_refocus:
             selected = "completedSendAllowsClickingAndTypingIntoTheResidentComposer"
+        if native_methods is not None:
+            selected = r"(?:^|\.)(?:" + "|".join(re.escape(name) for name in native_methods) + r")(?:/|$)"
         status = replay.run(["--no-parallel", "--filter", selected], timeout=90,
                             launch_services=suite == "NativeSettingsTransitionTests" or "--rolling-numbers" in sys.argv,
                             env=environment,
@@ -207,11 +225,12 @@ def main():
             replay.export(evidence)
             replay.close()
     count = (
+             len(native_methods) if native_methods is not None else
              1 if composer_refocus else
              5 if thread_send_native else
              9 if isolated_input else
              2 if "--report-controls" in sys.argv else
-             6 if "--thread-sidebar" in sys.argv else
+             5 if "--thread-sidebar" in sys.argv else
              12 if "--moku-execution-links" in sys.argv else
              3 if "--rolling-numbers" in sys.argv else
              1 if "--application-navigation" in sys.argv else
@@ -219,7 +238,7 @@ def main():
              4 if "--browser-dialogs" in sys.argv or "--harness-forms" in sys.argv else
              16 if "--overview-search" in sys.argv else
              10 if "--moku-landing" in sys.argv else
-             11 if thread_send else
+             12 if thread_send else
              11 if "--overview-mounting" in sys.argv else
              4 if "--report-navigation" in sys.argv else
              3 if "--settings-transition" in sys.argv or "--local-images" in sys.argv or "--composer-contrast" in sys.argv else
@@ -243,6 +262,8 @@ def main():
         raise SystemExit("FAIL: execution capsules did not confirm their native input path")
     if "--rolling-numbers" in sys.argv and "GIT_TOKEN_FLIP_FRAMES_CONFIRMED" not in result.stdout:
         raise SystemExit("FAIL: token animation did not confirm its original three-frame assertions")
+    if "--rolling-numbers" in sys.argv and "PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED" not in result.stdout:
+        raise SystemExit("FAIL: projected usage did not confirm its original three-frame assertions")
     if glass_captures:
         for name in ["directorySelectionResizeKeepsRoundedGlass", "shortChildMorphKeepsBothCapsuleEnds",
                      "titleReversalAndVisibilityCancellationSettlePixels",
@@ -265,8 +286,8 @@ def main():
             if f"Test {name}() passed" not in result.stdout:
                 raise SystemExit("FAIL: incomplete isolated input replay: " + name)
     if "--application-navigation" in sys.argv:
-        if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 2 test cases passed" not in result.stdout:
-            raise SystemExit("FAIL: application and Git navigation cases did not both pass")
+        if "applicationBackActionSettlesAcrossRedrawLocaleAndRemount(type:) with 1 test case passed" not in result.stdout:
+            raise SystemExit("FAIL: Report application navigation did not pass")
     if "--initial-response" in sys.argv:
         for marker in ["actualGoProjectionsPreserveContentAndStructure()", "publicFactsTakePrecedenceOverPendingInput()",
                        "malformedAndMissingFlagsRemainConservative()", "mountedProductionCardsShowStatesAndFirstContent()"]:

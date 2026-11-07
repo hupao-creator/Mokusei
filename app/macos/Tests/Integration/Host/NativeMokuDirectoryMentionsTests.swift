@@ -66,23 +66,20 @@ struct NativeMokuDirectoryMentionsTests {
         #expect(mentions.selectionRequest?.range == NSRange(location: 3, length: 0))
     }
 
-    @Test func repeatedRenderAndNavigationPreserveResults() async throws {
+    @Test func completionMenuCapsResultsAndWrapsWithinVisibleOptions() async throws {
         let mentions = NativeMokuDirectoryMentions()
-        let catalog = (0..<2_000).map { NativeComposerDirectory(name: JSONText("Workspace-\($0)"), path: JSONText("/work/Workspace-\($0)")) }
+        let catalog = (0..<51).map { NativeComposerDirectory(name: JSONText("Workspace-\($0)"), path: JSONText("/work/Workspace-\($0)")) }
         await mentions.load(enabled: true, using: { catalog })
         let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [] }, discardAttachments: { _ in }))
-        var checksum = 0
-        for query in ["@w", "@wo", "@wor", "@work", "@workspace", "@workspace-1"] {
-            update(mentions, query)
-            // Model the actual menu: options, each row's active index, footer,
-            // scroll target, followed by keyboard navigation and another render.
-            for _ in 0..<3 {
-                checksum += mentions.matches.count
-                for _ in 0..<50 { checksum += mentions.index }
-                #expect(mentions.hasMore)
-                #expect(mentions.handle(.init(key: .down), draft: draft))
-            }
-        }
-        #expect(checksum == 1_800)
+        update(mentions, "@")
+        #expect(mentions.matches == Array(catalog.prefix(50)) && mentions.hasMore)
+        #expect(mentions.index == 0)
+        #expect(mentions.handle(.init(key: .up), draft: draft))
+        #expect(mentions.index == 49)
+        #expect(mentions.handle(.init(key: .down), draft: draft))
+        #expect(mentions.index == 0)
+        update(mentions, "@Workspace-50")
+        #expect(mentions.matches == [catalog[50]] && !mentions.hasMore)
+        #expect(mentions.index == 0)
     }
 }

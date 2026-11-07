@@ -299,6 +299,7 @@ struct NativeSettingsUserFlows {
         let draft = model.draft
         draft.change(replace(draft.value, ["moku", "routingGuidance"], .text("ABC")), textEdit: true)
         try await draft.flushForQuit()
+        try #require(presentation.settingsNavigation.section == "moku")
         let window = SwiftUIReplay.window(NativeSettingsPage(model: model,
             navigation: presentation.settingsNavigation, preferences: preferences,
             harnesses: [AnyHarnessPlugin(CodexHarnessPlugin())], harnessSettings: { _ in AnyView(EmptyView()) },
@@ -307,13 +308,16 @@ struct NativeSettingsUserFlows {
             onClose: { _ in presentation.scene.closeSettings() }))
         defer { window.orderOut(nil); window.contentView = nil; window.close() }
         let root = try #require(window.contentView)
-        func routingEditor(in view: NSView) -> NSTextView? {
-            if let editor = view as? NSTextView, editor.isEditable,
-               editor.accessibilityLabel() == "Enter the rules Moku should follow when selecting models" { return editor }
-            return view.subviews.lazy.compactMap { routingEditor(in: $0) }.first
+        func editableTextViews(in view: NSView) -> [NSTextView] {
+            let descendants = view.subviews.flatMap { editableTextViews(in: $0) }
+            guard let editor = view as? NSTextView, editor.isEditable else { return descendants }
+            return [editor] + descendants
         }
-        try await SwiftUIReplay.wait { routingEditor(in: root)?.string == "ABC" }
-        let editor = try #require(routingEditor(in: root))
+        try await SwiftUIReplay.wait {
+            let editors = editableTextViews(in: root)
+            return editors.count == 1 && editors.first?.string == "ABC"
+        }
+        let editor = try #require(editableTextViews(in: root).first)
         window.makeFirstResponder(editor)
         let undo = try #require(editor.undoManager)
         undo.removeAllActions()

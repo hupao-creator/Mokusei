@@ -105,7 +105,10 @@ The [Report navigation replay](../../../../../tools/verification/reading-present
 checks real WebKit scrolling, intermediate animation alignment, reversal, restoration,
 suppression, resize, activation notifications, 0.25×–5× workspace safe areas,
 editable/dialog key ownership, non-GET new-window rejection and remote-page
-navigation resets with production views.
+navigation resets with production views. Its panel-scale checks observe the
+existing 380ms responsive fold until the native frame reaches the unchanged
+one-point geometry tolerance. Panel Escape checks first observe WebKit's focused
+document frame for editing and for the subsequent non-editing key.
 
 Direct execution requests enter through Report/application `openExecution`,
 explicit `openThread` reading targets, or Moku note `openNoteExecution`. All four

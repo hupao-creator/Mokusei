@@ -32,10 +32,56 @@ and first-frame admission still require main.
 The existing native-decoration WindowServer fixture now includes the production
 spinner and a bounded 200ms main hold. An independent capture queue admits only
 complete frames presented inside the hold after a 30ms exclusion margin. At least
-three frames and changing cloud/ring pixels in both halves are required, with a
-quiet static control. Original 3.9s cloud/scan and camera-identity assertions
-remain intact. Spinner hide/resume must remove/restore its animation. The existing
-native capture CI owner executes these assertions too.
+three frames are required. The ring must change pixels in both halves; the cloud
+must change above the same quiet static control over the eligible hold. Cloud
+independence additionally requires a frame from the observed Metal layer whose
+sampling, submission and successful GPU command-buffer completion all occur
+inside the hold, after the exclusion margin. This rejects a producer that only
+queued work before the hold, without imposing a minimum cloud update cadence.
+The independent pixel gate proves WindowServer movement during that same hold;
+it does not map a specific drawable to a screenshot or certify physical-display
+presentation. Original 3.9s cloud/scan and camera-identity
+assertions remain intact. Spinner hide/resume must remove/restore its animation.
+The existing native capture CI owner executes these assertions too.
+
+Only while a `NativePerformance` recording is active, the render queue creates a
+`metal.gpu` span immediately before sampling. Its frame ID and layer context join
+the sample with the existing command-buffer completion in that same recording.
+Only [`MTLCommandBufferStatus.completed`](https://developer.apple.com/documentation/metal/mtlcommandbufferstatus/completed)
+admits successful GPU work; the
+[`completed handler`](https://developer.apple.com/documentation/metal/mtlcommandbuffer/addcompletedhandler(_:))
+runs after GPU execution finishes. Sampling, the immediate present/commit
+sequence and completion use `CACurrentMediaTime`, so the entire operation must
+fit inside the hold. These timestamps are Mach host seconds:
+[`CACurrentMediaTime`](https://developer.apple.com/documentation/quartzcore/cacurrentmediatime())
+converts `mach_absolute_time`. The recorded span includes CPU sampling, queueing
+and GPU completion delivery; its duration is not GPU execution time.
+
+A separate `metal.presented` span uses the GPU frame ID as its context and stays
+bound to the same recording. It retains raw
+[`MTLDrawable.presentedTime`](https://developer.apple.com/documentation/metal/mtldrawable/presentedtime)
+and callback time only as diagnostics; zero remains absent/dropped presentation
+evidence and is never replaced by callback arrival. The callback retains neither
+drawable nor renderer. The fixture records only around the hold,
+finishes on success or failure, and retains `main-hold-metal.jsonl` plus the exact
+joined witness in `measurements.json`. This observation does not change pacing,
+drawable buffering, generation admission or completion behavior.
+
+The former cloud assertion required movement between three predetermined frames,
+including both halves of the hold. CI 361 captured visible cloud changes during
+its 213.796ms hold, but the selected middle and final frames contained the same
+cloud image. The same capture stream shows repeated cloud images in passing runs
+359 and 360 too. Those observations do not establish a renderer fault; the old
+oracle added a phase-sensitive cadence constraint to the independence objective.
+The first replacement requested a nonzero drawable presentation timestamp, but
+CI 362's complete recording had 16 callbacks with `presentedTime == 0`, before,
+during and after the hold, while WindowServer cloud pixels visibly changed.
+The layer/frame/session association and recording were intact. That evidence
+cannot certify physical presentation or identify a renderer fault. The current
+gate instead requires fresh GPU work and separate WindowServer movement, matching
+this fixture's observation scope. Historical captures do not contain the new
+GPU-completion spans and cannot certify this witness; its first successful
+execution still requires the hosted native run.
 
 Evidence: `.scratch/reading-presentation/NativeOverviewTagGlassTests/`, including
 `native-decoration/main-hold` PNGs, measurements and source/binary provenance.
@@ -50,7 +96,7 @@ Queue ownership and stale completion paths were reviewed; that is not a
 race-detector result. Timer pacing/energy still needs the existing Release
 foreground performance workflow.
 
-Local results on the final implementation:
+Historical local results on the original implementation and cloud half-interval oracle:
 
 - `swift build --package-path app/macos`: passed (Debug application).
 - `swift test --package-path app/macos --filter NativeCloudMetalTests`: all five

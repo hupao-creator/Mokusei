@@ -195,6 +195,17 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if tool == "" {
+			var err error
+			tool, call, args, err = mokuReadPlan(req["input"])
+			if err != nil {
+				p.mu.Lock()
+				p.failures = append(p.failures, err.Error())
+				p.mu.Unlock()
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
 		if tool == "" && strings.Contains(payload, "Mokusei Agent Thread terminal event:") && !hasResult(req["input"], "system_note") {
 			tool, call, args = "update_note", "system_note", object{"text": "SYSTEM_CHAIN_VERIFIED", "expected": nil}
 		}

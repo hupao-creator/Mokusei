@@ -26,7 +26,8 @@ struct NativeOverviewMembershipTests {
             directoryTag: "Project", directoryScope: scope)
     }
 
-    private func report(title: String = "Report", scope: String = "/fixture/A", directoryOnly: Bool = false,
+    private func report(title: String = "Report", introduction: String = "Report introduction", coverRevision: String = "",
+                        scope: String = "/fixture/A", directoryOnly: Bool = false,
                         visible: Bool = true, archived: Bool = false, covers: String = "e1") -> JSONValue {
         var presentation: [JSONText: JSONValue] = ["visible": .bool(visible), "coversExecutions": .array([
             .object(["thread": ApplicationThreadRef(threadID: "a", typeID: "agent").json, "executionId": .text(covers)])])]
@@ -39,7 +40,8 @@ struct NativeOverviewMembershipTests {
                 "tagEmojis": .object(["Shared": .text("🔧")])]),
             "presentations": .array([.object(["id": .text("mokusei.overview"), "apiVersion": .integer(1), "schemaVersion": .integer(1),
                 "value": .object(presentation)])]),
-            "view": .object(["emoji": .text("📊"), "shortDescription": .text("Report introduction"), "previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
+            "view": .object(["coverRevision": .text(coverRevision), "emoji": .text("📊"), "shortDescription": .text(introduction),
+                "previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
     }
 
     private func model(_ directory: URL, gitStatus: @escaping (HarnessThread) -> HarnessGitStatus? = { _ in nil }) throws -> NativeOverviewWorkspaceModel {
@@ -263,16 +265,20 @@ struct NativeOverviewMembershipTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let model = try model(directory), authority = UUID()
-        try deliver([thread()], applications: [report()], to: model, authority: authority)
-        #expect(model.items.map(\.id) == ["report"])
+        try deliver([thread()], applications: [report(coverRevision: "cover-initial")], to: model, authority: authority)
+        #expect(model.items.map(\.id) == ["report"] && model.items.first?.rows == 2)
         let builds = model.membershipBuildCount
-        try deliver([thread()], applications: [report(title: "Updated")], to: model, authority: authority)
+        try deliver([thread()], applications: [report(title: "Updated", introduction: "Updated introduction", coverRevision: "cover-updated")],
+                    to: model, authority: authority)
         let item = try #require(model.items.first)
         guard case .application(_, let snapshot) = model.snapshot(for: item) else { Issue.record("Missing report"); return }
-        #expect(snapshot.entry.title == "Updated" && snapshot.envelope.excerpt == "Updated")
+        // Overview consumes the authored introduction, not the HTML preview.
+        #expect(snapshot.entry.title == "Updated" && snapshot.envelope.excerpt == "Updated introduction")
+        #expect(snapshot.entry.view["coverRevision"] == .text("cover-updated") && item.rows == 2)
         #expect(model.membershipBuildCount == builds)
         try deliver([thread(execution: "e2")], applications: [report()], to: model, authority: authority)
         #expect(model.items.map(\.id) == ["a", "report"])
+        #expect(model.items.first { $0.id == "report" }?.rows == 1)
         try deliver([thread(execution: "e2")], applications: [report(covers: "e2")], to: model, authority: authority)
         #expect(model.items.map(\.id) == ["report"])
         try deliver([thread()], applications: [report(scope: "/fixture/B", directoryOnly: true)], to: model, authority: authority)

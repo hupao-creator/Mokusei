@@ -212,7 +212,7 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 	settle(tagged, "tag")
 	save(func(settings *model.Settings) { set(settings, "tag", false); set(settings, "report", true) })
 	reported := await("report")
-	_, err = reportTool(ctx, reported.handle, "create_report", "keep-report", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Kept report", "html": "<p>Kept content</p>"})
+	_, err = reportTool(ctx, reported.handle, "create_report", "keep-report", model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Kept report", "html": "<p>Kept content</p>", "coverHTML": "<div>Kept report</div>"})
 	must(err)
 	settle(reported, "report")
 	// Alternate active pauses more times than the failure retry budget, retaining
@@ -228,7 +228,7 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 		tool := map[string]string{"tag": "create_tags", "report": "create_report"}[role]
 		args := model.Object{"tags": []any{model.Object{"name": "Keep", "emoji": "🏷️"}}}
 		if role == "report" {
-			args = model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Receipt report", "html": "<p>Once only</p>"}
+			args = model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Receipt report", "html": "<p>Once only</p>", "coverHTML": "<div>Receipt report</div>"}
 		}
 		receipt, err := reportTool(ctx, current.handle, tool, "retained-receipt", args)
 		must(err)
@@ -264,7 +264,7 @@ func verifyBackgroundEnablementCase(ctx context.Context, independent bool) {
 				if !ok {
 					panic("missing bound domain")
 				}
-				_, err := client.(plugin.DomainClient).Execute(ctx, "report.create", raw(model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Late report", "html": "<p>Blocked</p>", "relatedExecutions": []model.ExecutionRef{}}), plugin.DomainCommandOptions{RequestID: fmt.Sprint("late-domain-", n), Batch: &plugin.BatchWriteContext{ConsumerID: id + ".events", BatchID: original.ID, InvocationID: fmt.Sprint("late-domain-", n)}})
+				_, err := client.(plugin.DomainClient).Execute(ctx, "report.create", raw(model.Object{"emoji": "📊", "shortDescription": "Report introduction", "title": "Late report", "html": "<p>Blocked</p>", "coverHTML": "<div>Blocked report</div>", "relatedExecutions": []model.ExecutionRef{}}), plugin.DomainCommandOptions{RequestID: fmt.Sprint("late-domain-", n), Batch: &plugin.BatchWriteContext{ConsumerID: id + ".events", BatchID: original.ID, InvocationID: fmt.Sprint("late-domain-", n)}})
 				expectBackgroundDisabled(err)
 			}
 			if role == "tag" {

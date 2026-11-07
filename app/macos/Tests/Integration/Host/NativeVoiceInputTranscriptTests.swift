@@ -188,7 +188,11 @@ import MokuseiCore
         fixture.releaseHeldPoll([transcript(90, "a", "Late retired poll", final: true)])
         fixture.releasePermissionGate()
         await starting.value
-        #expect(client.state.phase == .closed && fixture.stopRequests == 1)
+        #expect(client.state.phase == .closed && fixture.stopRequests.count == 2)
+        let ownership = try #require(fixture.ownershipID)
+        #expect(fixture.stopRequests.allSatisfy {
+            $0["sessionId"] == .string(session) && $0["ownershipId"] == .string(ownership)
+        })
 
         fixture.session = "b2222222-2222-4222-8222-222222222222"
         fixture.events = [transcript(1, "a", "Old session"), transcript(2, "fresh", "Reconnected", session: fixture.session)]
@@ -315,7 +319,8 @@ import MokuseiCore
     var session: JSONText
     var events: [JSONValue] = []
     var microphoneRequests = 0
-    var stopRequests = 0
+    var ownershipID: JSONText?
+    var stopRequests: [JSONValue] = []
     private var permission: CheckedContinuation<Void, any Error>?
     var holdNextPoll = false
     private var heldPoll: CheckedContinuation<NativeVoiceResult, any Error>?
@@ -326,7 +331,15 @@ import MokuseiCore
             try await withCheckedThrowingContinuation { self.permission = $0 }
         }, command: { request in
             switch request["action"]?.stringValue {
-            case "prepare": return try NativeVoiceResult(.object(["sessionId": .string(self.session), "ownershipId": request["requestId"]!]))
+            case "prepare":
+                self.ownershipID = try #require(request["requestId"]?.voiceText)
+                let source = try #require(request["superThreadId"])
+                let revision = try #require(request["sourceRevision"])
+                #expect(source == .null)
+                return try NativeVoiceResult(.object([
+                    "sessionId": .string(self.session), "ownershipId": request["requestId"]!,
+                    "superThreadId": source, "sourceRevision": revision
+                ]))
             case "poll":
                 if self.holdNextPoll {
                     self.holdNextPoll = false
@@ -334,7 +347,7 @@ import MokuseiCore
                 }
                 let batch = self.events; self.events = []
                 return try NativeVoiceResult(.object(["events": .array(batch)]))
-            case "stop": self.stopRequests += 1; return try NativeVoiceResult(.object([:]))
+            case "stop": self.stopRequests.append(request); return try NativeVoiceResult(.object([:]))
             default: throw CancellationError()
             }
         })

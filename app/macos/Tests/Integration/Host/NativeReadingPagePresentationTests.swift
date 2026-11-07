@@ -190,74 +190,96 @@ struct NativeReadingPagePresentationTests {
                 && abs(sample.size.height - requestedSize.height) <= sample.tolerance
         }
         let count = fixture.parentAppearances
+        enum FrameFailure: Error { case invalidGeometry(String) }
+        var observedReturn: Result<(probe: NSView, position: CGFloat), Error>?
+        let openingObserver = SwiftUIReplay.FrameObserver(view: root) {
+            let sample = observe()
+            openingSamples.append(sample.record)
+            guard let x = sample.x,
+                  x > sample.size.width * 0.4 && x < sample.size.width * 0.6 else { return false }
+            // Qualify and reverse this same committed pose. Resuming an async
+            // test task first would admit a different, potentially settled frame.
+            do {
+                guard let probe = fixture.frontProbe else {
+                    throw FrameFailure.invalidGeometry("The admitted front probe disappeared")
+                }
+                let beforeReturn = probe.convert(probe.bounds, to: root).minX
+                let returnWidth = root.bounds.width
+                let motionActive = fixture.motion.active
+                let currentRoot = window.contentView === root
+                let rootInWindow = root.window === window
+                let probeInWindow = probe.window === window
+                let currentProbe = fixture.frontProbe === probe
+                beforeReturnSample = observe().record
+                beforeReturnSample["x"] = beforeReturn
+                beforeReturnSample["qualifiedWidth"] = returnWidth
+                beforeReturnSample["qualifiedMotionActive"] = motionActive
+                beforeReturnSample["currentProbe"] = currentProbe
+                guard currentRoot && rootInWindow && probeInWindow && currentProbe && motionActive
+                    && beforeReturn > returnWidth * 0.4 && beforeReturn < returnWidth * 0.6 else {
+                    throw FrameFailure.invalidGeometry("The current front must still be in the original opening midpoint before returning")
+                }
+                let textSetBefore = ProcessInfo.processInfo.systemUptime
+                fixture.text = "Latest overview"
+                // Establish that this return has a usable production geometry pair;
+                // a passing direction assertion alone could also use the model fallback.
+                let geometryReadStart = ProcessInfo.processInfo.systemUptime
+                var pendingViews = [root], anchors: [NativeReadingPageAnchorView] = []
+                while let view = pendingViews.popLast() {
+                    if let anchor = view as? NativeReadingPageAnchorView { anchors.append(anchor) }
+                    pendingViews.append(contentsOf: view.subviews)
+                }
+                closeGeometry = ["sampleStartUptime": geometryReadStart, "textSetBeforeUptime": textSetBefore, "anchorCount": anchors.count,
+                    "identity": fixture.identity.string, "axis": fixture.axis == .horizontal ? "horizontal" : "vertical",
+                    "direction": Double(fixture.direction)]
+                guard let owner = anchors.first?.owner else {
+                    throw FrameFailure.invalidGeometry("The admitted native anchors have no geometry owner")
+                }
+                var rootAnchors: [NativeReadingPageAnchorView] = [], frontAnchors: [NativeReadingPageAnchorView] = []
+                var sameOwner = true
+                for anchor in anchors {
+                    if anchor.owner !== owner { sameOwner = false }
+                    if owner.owns(anchor, role: .root) { rootAnchors.append(anchor) }
+                    if owner.owns(anchor, role: .front) { frontAnchors.append(anchor) }
+                }
+                closeGeometry["sameOwner"] = sameOwner
+                closeGeometry["rootCount"] = rootAnchors.count
+                closeGeometry["frontCount"] = frontAnchors.count
+                guard anchors.count == 2 && sameOwner && rootAnchors.count == 1 && frontAnchors.count == 1 else {
+                    throw FrameFailure.invalidGeometry("The current stack must own one root and one front geometry anchor")
+                }
+                let nativeRoot = rootAnchors[0], nativeFront = frontAnchors[0]
+                let nativeRootFrame = nativeRoot.convert(nativeRoot.bounds, to: root)
+                let nativeFrontFrame = nativeFront.convert(nativeFront.bounds, to: root)
+                let sampledProgress = owner.progress(identity: fixture.identity, direction: fixture.direction)
+                closeGeometry["rootFrame"] = ["x": Double(nativeRootFrame.minX), "y": Double(nativeRootFrame.minY),
+                    "width": Double(nativeRootFrame.width), "height": Double(nativeRootFrame.height)]
+                closeGeometry["frontFrame"] = ["x": Double(nativeFrontFrame.minX), "y": Double(nativeFrontFrame.minY),
+                    "width": Double(nativeFrontFrame.width), "height": Double(nativeFrontFrame.height)]
+                closeGeometry["progress"] = sampledProgress.map { $0 as Any } ?? NSNull()
+                closeGeometry["sampleEndUptime"] = ProcessInfo.processInfo.systemUptime
+                guard sampledProgress != nil && abs(nativeFrontFrame.minX - beforeReturn) <= 1 else {
+                    throw FrameFailure.invalidGeometry("The production return sample must match the currently qualified front, without driving layout")
+                }
+                let closeSetBefore = ProcessInfo.processInfo.systemUptime
+                fixture.motion.close()
+                let closeSetAfter = ProcessInfo.processInfo.systemUptime
+                closeSet = ["textSetBeforeUptime": textSetBefore, "beforeUptime": closeSetBefore, "afterUptime": closeSetAfter]
+                observedReturn = .success((probe: probe, position: beforeReturn))
+            } catch {
+                observedReturn = .failure(error)
+            }
+            return true
+        }
+        defer { openingObserver.stop() }
         let openSetBefore = ProcessInfo.processInfo.systemUptime
         fixture.open = true
         let openSetAfter = ProcessInfo.processInfo.systemUptime
         openSet = ["beforeUptime": openSetBefore, "afterUptime": openSetAfter]
-        try await SwiftUIReplay.wait(driveLayout: false) {
-            let sample = observe()
-            openingSamples.append(sample.record)
-            guard let x = sample.x else { return false }
-            return x > sample.size.width * 0.4 && x < sample.size.width * 0.6
-        }
-        let probe = try #require(fixture.frontProbe)
-        let beforeReturn = probe.convert(probe.bounds, to: root).minX
-        let returnWidth = root.bounds.width
-        let motionActive = fixture.motion.active
-        let currentRoot = window.contentView === root
-        let rootInWindow = root.window === window
-        let probeInWindow = probe.window === window
-        let currentProbe = fixture.frontProbe === probe
-        beforeReturnSample = observe().record
-        beforeReturnSample["x"] = beforeReturn
-        beforeReturnSample["qualifiedWidth"] = returnWidth
-        beforeReturnSample["qualifiedMotionActive"] = motionActive
-        beforeReturnSample["currentProbe"] = currentProbe
-        try #require(currentRoot && rootInWindow && probeInWindow && currentProbe && motionActive
-            && beforeReturn > returnWidth * 0.4 && beforeReturn < returnWidth * 0.6,
-            "The current front must still be in the original opening midpoint before returning")
-        let textSetBefore = ProcessInfo.processInfo.systemUptime
-        fixture.text = "Latest overview"
-        // Establish that this return has a usable production geometry pair;
-        // a passing direction assertion alone could also use the model fallback.
-        let geometryReadStart = ProcessInfo.processInfo.systemUptime
-        var pendingViews = [root], anchors: [NativeReadingPageAnchorView] = []
-        while let view = pendingViews.popLast() {
-            if let anchor = view as? NativeReadingPageAnchorView { anchors.append(anchor) }
-            pendingViews.append(contentsOf: view.subviews)
-        }
-        closeGeometry = ["sampleStartUptime": geometryReadStart, "textSetBeforeUptime": textSetBefore, "anchorCount": anchors.count,
-            "identity": fixture.identity.string, "axis": fixture.axis == .horizontal ? "horizontal" : "vertical",
-            "direction": Double(fixture.direction)]
-        let owner = try #require(anchors.first?.owner)
-        var rootAnchors: [NativeReadingPageAnchorView] = [], frontAnchors: [NativeReadingPageAnchorView] = []
-        var sameOwner = true
-        for anchor in anchors {
-            if anchor.owner !== owner { sameOwner = false }
-            if owner.owns(anchor, role: .root) { rootAnchors.append(anchor) }
-            if owner.owns(anchor, role: .front) { frontAnchors.append(anchor) }
-        }
-        closeGeometry["sameOwner"] = sameOwner
-        closeGeometry["rootCount"] = rootAnchors.count
-        closeGeometry["frontCount"] = frontAnchors.count
-        try #require(anchors.count == 2 && sameOwner && rootAnchors.count == 1 && frontAnchors.count == 1,
-            "The current stack must own one root and one front geometry anchor")
-        let nativeRoot = rootAnchors[0], nativeFront = frontAnchors[0]
-        let nativeRootFrame = nativeRoot.convert(nativeRoot.bounds, to: root)
-        let nativeFrontFrame = nativeFront.convert(nativeFront.bounds, to: root)
-        let sampledProgress = owner.progress(identity: fixture.identity, direction: fixture.direction)
-        closeGeometry["rootFrame"] = ["x": Double(nativeRootFrame.minX), "y": Double(nativeRootFrame.minY),
-            "width": Double(nativeRootFrame.width), "height": Double(nativeRootFrame.height)]
-        closeGeometry["frontFrame"] = ["x": Double(nativeFrontFrame.minX), "y": Double(nativeFrontFrame.minY),
-            "width": Double(nativeFrontFrame.width), "height": Double(nativeFrontFrame.height)]
-        closeGeometry["progress"] = sampledProgress.map { $0 as Any } ?? NSNull()
-        closeGeometry["sampleEndUptime"] = ProcessInfo.processInfo.systemUptime
-        try #require(sampledProgress != nil && abs(nativeFrontFrame.minX - beforeReturn) <= 1,
-            "The production return sample must match the currently qualified front, without driving layout")
-        let closeSetBefore = ProcessInfo.processInfo.systemUptime
-        fixture.motion.close()
-        let closeSetAfter = ProcessInfo.processInfo.systemUptime
-        closeSet = ["textSetBeforeUptime": textSetBefore, "beforeUptime": closeSetBefore, "afterUptime": closeSetAfter]
+        try await SwiftUIReplay.wait(driveLayout: false) { observedReturn != nil }
+        let admittedReturn = try #require(observedReturn).get()
+        let probe = admittedReturn.probe
+        let beforeReturn = admittedReturn.position
         try await Task.sleep(for: .milliseconds(100))
         let duringReturn = probe.convert(probe.bounds, to: root).minX
         duringReturnSample = observe().record

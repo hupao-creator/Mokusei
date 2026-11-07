@@ -29,7 +29,7 @@ func runRelayQueueCancellationReplay() (err error) {
 	releaseOwner := func() { releaseOnce.Do(func() { close(ownerRelease) }) }
 	defer releaseOwner()
 	system.h.mu.Lock()
-	system.h.gateAdmission = func(ctx context.Context) error {
+	system.h.gateAfterAdmission = func(ctx context.Context) error {
 		close(ownerEntered)
 		select {
 		case <-ownerRelease:
@@ -41,7 +41,8 @@ func runRelayQueueCancellationReplay() (err error) {
 	}
 	system.h.mu.Unlock()
 	media.delegate(plugin.VoiceDelegation{ID: "relay-owner", Text: "admitting relay work survives", Generation: 0})
-	mokuReplayAwait("relay owner inside native admission", ownerEntered)
+	mokuReplayAwait("relay owner after durable admission", ownerEntered)
+	mokuReplayCheck(voiceReplayHasMessage(system.record(), "admitting relay work survives"), "relay fixture held input before its durable admission")
 	const waiters = 8
 	for index := range waiters {
 		media.delegate(plugin.VoiceDelegation{ID: fmt.Sprintf("relay-waiter-%d", index), Text: fmt.Sprintf("abandoned relay request %d", index), Generation: int64(index + 1)})
@@ -52,8 +53,9 @@ func runRelayQueueCancellationReplay() (err error) {
 	if _, err := system.command("moku:voice", map[string]any{"action": "stop", "sessionId": media.ID()}); err != nil {
 		return err
 	}
-	// The first request remains deliberately held. All unadmitted workers must
-	// disappear before it can advance; a stop-only flag checked later fails here.
+	// The first request has confirmed retention and remains deliberately held.
+	// Unadmitted workers must disappear before it can advance; a stop-only flag
+	// checked later fails here.
 	if err := awaitRelayQueueWorkers(0, 250*time.Millisecond); err != nil {
 		return err
 	}

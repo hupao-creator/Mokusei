@@ -7,15 +7,25 @@ python3 tools/verification/reading-presentation/run.py --thread-send-feedback
 ```
 
 Runs the production detail Dock, Sidecard model/Conversation plugin and Codex
-readers in an isolated AppKit app. Eleven tests cover receipt/catalog/index
+readers in an isolated AppKit app. Twelve tests cover receipt/catalog/index
 ordering, failure, repeat sends/steering, card choices, covering/navigation,
 terminal/replaced executions, explicit current/result/history requests and
-single-execution sessions. Completion keeps the old reader through travel and
-waits for an intentionally delayed destination row (or mounted read error) before
-releasing it. Native accessibility frames must expand toward main and match
-main's final bounds; content identity and first responder are also asserted. Wide
-and stacked layouts, including Reduced Motion policy, retain source, travel,
-waiting and final AppKit-rendered snapshots.
+single-execution sessions. Completion folds the Sidecard to its actual launcher
+while widening the main shell, retaining the old native reader and preparing a
+hidden destination at final width. The replay supplies an active scene and checks
+the production aperture marker during travel, its folded launcher bounds and
+the expanded main-panel marker. An intentionally delayed destination row (or
+mounted read error) must keep the incoming host hidden after folding. Only content
+admission releases the downward page turn; native presentation-layer samples
+verify both moving pages before the same incoming host survives landing. Content
+identity and the absence of a second blank text reveal are also
+asserted. Wide and stacked layouts, including Reduced Motion policy, retain source,
+fold travel, waiting, page travel and final AppKit-rendered snapshots. Reduced
+Motion still waits for content but settles without an intermediate page turn.
+The fold observer is installed before completion and samples native bounds on
+display callbacks, retaining the original travel interval and deadline. Input
+focus is verified by the resident-composer flow below; the layout-only fixture
+does not assign meaning to AppKit's default first-responder object.
 The fixture supplies native content resources and send receipts; it starts no
 Runtime or model-provider task. A graphical AppKit session is required. Set
 `MOKUSEI_THREAD_SEND_WINDOWSERVER=1` to request WindowServer captures instead;
@@ -23,8 +33,8 @@ that explicit mode requires TCC screen-capture permission and fails if denied.
 AppKit caching can omit compositor-owned layers; these snapshots are diagnostic,
 not a pixel acceptance oracle or optical compositor/FPS evidence. This is bounded
 interaction evidence, not a real-provider latency claim. CI uses
-`--thread-send-feedback-native` for only the five native-owned methods; the six
-state/identity methods run in its ordinary suite.
+`--thread-send-feedback-native` for only the five native-owned methods; the seven
+state/identity and scoped-content methods run in its ordinary suite.
 The composer regression sends from the real resident Dock, supplies accepted
 receipt/catalog/content fixtures and waits for completion handoff and outgoing
 reader teardown. Both ordinary detail and exact-execution visits must remain
@@ -36,10 +46,13 @@ It uses the production Host
 input-target admission and native editor; no Runtime/provider task is sent.
 Run just this regression with
 `python3 tools/verification/reading-presentation/run.py --execution-composer-focus`.
-Real right-side launcher controls toggle Conversation, Browser and Voice without
+Real right-side launcher controls toggle Conversation, Browser and retained Voice
+transcripts without
 an independent card Close icon; switching launchers retains execution identity
-and never navigates back or starts voice media. Browser uses a loopback URL and
-Voice uses an inert capability, without external pages or microphone access.
+and never navigates back or starts voice media. Browser uses a loopback URL; Voice
+uses a completed transcript with unavailable live-media capabilities, verifies
+that it remains readable after toggling and records zero media actions. Neither
+external pages nor microphone access are required.
 
 The native subset also checks sidecard fold geometry using colored fixture
 plugins inside `NativeSidecardWorkspaceLayout`. Native aperture bounds must
@@ -50,6 +63,11 @@ the stacking breakpoint and retained divider width. Captures use `fold-*` names;
 `THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED` is required alongside the existing three
 native markers. The fixture supplies content only; folding is the production
 modifier and layout, with normal motion enabled.
+The first source measurement waits for the requested native viewport and stable
+launcher bounds: a wide test window can initially be constrained to the CI screen
+before NSHostingView settles its size. Failure retains the requested and observed
+window/root bounds and launcher frame. This readiness check leaves every opening,
+closing and intermediate-frame assertion and its original tolerance intact.
 
 ## Thread history sidebar
 
@@ -58,8 +76,8 @@ python3 tools/verification/reading-presentation/run.py --thread-sidebar
 ```
 
 Mounts the production conversation, lazy TOC, timeline and turn components in an
-isolated AppKit host. Six integration cases cover selection and Back scroll
-retention, author and visibility controls, Up/Down, Home/End, Return/Space and Escape,
+isolated AppKit host. Five integration tests cover selection and Back scroll
+retention, author and visibility controls, Up/Down, End, Return and Escape,
 inherited history, deletion, arriving successors and external result anchors.
 The visibility case also mounts a production execution summary with reasoning/tool
 counts, checks that its detail body and execution-group action are absent, and
@@ -67,20 +85,18 @@ hides/restores it through the existing overall execution visibility control.
 The running-state case covers both ordinary work rows and static summaries:
 the selected running execution keeps work visible without a collapse control,
 while historical visits and completion retain their own visibility behavior.
-A 2,500-turn fixture asserts bounded mounted index controls and body demand, and
-locates an old turn outside the current window. This is a resource-demand check,
-not an FPS or target-device latency claim. Widths 360, 640 and 1180 exercise long
+Widths 360, 640 and 1180 exercise long
 author accessibility and save settled dark/light screenshots under
 `.scratch/reading-presentation/NativeThreadHistorySidebarTests`. The same mounted
 fixtures verify title-free execution cards keep their author, user messages and
 work content at those widths while full reading pages retain headings.
 
-The ordinary Swift suite runs the four state/layout cases. The pointer case
+The ordinary Swift suite runs the four state/layout tests. The pointer test
 requires the isolated application's running AppKit loop and a foreground visible
 window; CI executes that exact method in `--isolated-input` and the coverage
 collector requires its observed passing outcome. Forced headless admission
 skips display assertions explicitly. The sidebar launcher requires all five
-cases without skips. A finite onscreen pointer replay synchronizes the system
+tests without skips. A finite onscreen pointer replay synchronizes the system
 cursor and native events (restoring the original cursor on exit) to exercise the
 production tracking areas: restored focus, keyboard preview, mark-to-panel handoff,
 rapid row changes and final dismissal. Synthetic arrow/Return pairs acknowledge
@@ -142,7 +158,9 @@ The session-picker case mounts the production Moku reader and window navigation
 at 0.25×, 1× and 5× workspace zoom. It checks native accessibility geometry below
 Back, activates Back, retains the draft and exports `history-session-*.png`.
 
-The composer hold replay queues each down/drag/up through AppKit in order. A
+The composer hold replay mounts the Overview input row, the current owner of
+voice entry. The history click/persistence case separately requires that the
+reader has no voice monitor. The hold proof queues each down/drag/up through AppKit in order. A
 window- and gesture-scoped local monitor anchors a private serial Dispatch timer
 to actual down dispatch. Strict zero-leeway deadlines supply drag after 100ms
 and release after the unchanged 100/800ms duration; the worker creates and posts
@@ -193,11 +211,12 @@ the same directory after removing a reference. Both use the AppKit event loop.
 python3 tools/verification/reading-presentation/run.py --application-navigation
 ```
 
-Mounts the production application and Git reading pages with an observable host
-that renders their published back action. The replay requires navigation to
+Mounts the production Report reading page with an observable host
+that renders its published back action. Git is a Thread extension, not a separate
+application page. The replay requires navigation to
 settle without republishing on unrelated redraws, checks language changes and
 back dispatch, then verifies cleanup and a fresh identity after remounting.
-Missing fixture records exercise both pages' unavailable-content state without
+Missing fixture records exercise the Report's unavailable-content state without
 starting a Runtime, reading a repository or loading WebKit.
 
 ## Overview search and return
@@ -206,7 +225,7 @@ starting a Runtime, reading a repository or loading WebKit.
 python3 tools/verification/reading-presentation/run.py --overview-search
 ```
 
-Runs all 14 existing `NativeOverviewSearchTests` in the AppKit event loop,
+Runs the complete `NativeOverviewSearchTests` suite in the AppKit event loop,
 including the three cases skipped by ordinary SwiftPM: selected-chip search
 morph/reversal at 360/540/1100pt in light/dark appearance, fixture-backed Chinese
 body keyword search, and continuous query edits retaining mounted card identities.
@@ -281,7 +300,8 @@ external page, model request, global input or installed app is used.
 python3 tools/verification/reading-presentation/run.py --browser-viewport
 ```
 
-Runs all eight `NativeBrowserViewportTests` in the isolated AppKit event loop.
+Runs all nine `NativeBrowserViewportTests` and the `NativeMarkdownHTTPMediaTests`
+case in the isolated AppKit event loop.
 Real loopback HTTP fixtures cover rejected iframe/new-window downloads, canceled
 provisional navigation, native word navigation in ordinary and shadow-root text
 editors, modal Escape, annotation capture after target mutation/removal, document
@@ -290,7 +310,7 @@ to its own windows and makes no external page or model request. Run serially wit
 other native replays and SwiftPM builds. Plain SwiftPM still runs the existing
 portal geometry, render layers and navigation cases. The real annotation mouse
 input and focused document responder-chain tests explicitly skip without this
-native replay capability; both run without skips in this eight-test launcher.
+native replay capability; both run without skips in this ten-test launcher.
 
 ## Overview animation and native decoration evidence
 
@@ -378,16 +398,38 @@ capture samples certify optical FPS or GPU time. The required success marker is
 The same fixture also holds the main thread for 200ms after initial rendering.
 Its independent ScreenCaptureKit queue requests 60Hz samples and admits only
 complete frames with presentation timestamps inside the hold (excluding the
-first 30ms). At least three frames and cloud changes in both halves above the
-static control are required. A production Codex spinner in a separate corner
+first 30ms). At least three frames and a cloud change over the eligible hold above
+the same static control are required. A matching `metal.gpu` span must also prove
+that this native layer sampled, submitted and successfully completed a fresh
+frame inside the hold, after the exclusion margin. Frame ID, layer context and
+recording session join these observations, using Mach host seconds and the real
+command buffer's `.completed` status. This proves fresh GPU work and separate
+WindowServer movement; it does not map that drawable to a screenshot or certify
+physical presentation. `metal.presented` spans retain raw presentation timestamps
+and callback times as diagnostics; zero never becomes a successful presentation.
+The local recorder runs only around this capture and finishes on failure too;
+`main-hold-metal.jsonl` and the joined witness in `measurements.json` retain the
+evidence. This rejects a producer that only queued work before the hold, without
+asserting a fixed cloud cadence.
+A production Codex spinner in a separate corner
 must change pixels in both halves too; hiding/resuming its native view must
-remove/restore its compositor animation. `main-hold` PNGs and measurements retain
-the evidence; this does not certify input responsiveness, physical FPS or energy.
+remove/restore its compositor animation. `main-hold` PNGs, per-frame presentation
+times and measurements retain the evidence, including the measured interval
+that fails an assertion. `main-hold-context` retains the same 60Hz stream's
+pre-drain frames and frames excluded by the hold filter; compare their timestamps
+with `mainHoldWindow` to identify the surrounding frames and excluded prefix.
+These diagnostic frames never contribute to the passing frame count or pixel
+assertions. This does not certify input responsiveness, physical FPS or energy.
 
 The same running AppKit host owns
 `NativeReadingPagePresentationTests.retainedOverviewReturnsWithLatestContent`.
 This test requires an actual `NSApplication.run` loop before observing an opening
 midpoint, reversing the page and checking latest Overview content with no remount.
+Its display observer is installed before opening; the original 40–60% pose,
+native anchors and live identity are qualified in the same callback that requests
+the return. Asynchronous polling waits only for that recorded result, so its
+scheduling cannot delay the return past the admitted frame. The three-second
+observation budget is unchanged, and an unobserved midpoint still fails.
 Its original geometry and return assertions remain intact. Ordinary Swift execution
 excludes this exact method; complete coverage requires its native passing outcome
 and `OVERVIEW_RETAINED_RETURN_CONFIRMED`, so deferring it cannot become a skip.
@@ -396,8 +438,12 @@ These are AppKit geometry/content observations, not WindowServer pixel assertion
 The capture launcher requires all seven assigned methods: two tag-glass captures,
 title reversal, excerpt reveal, native decorations, retained Overview return and
 Tag Settings first-frame capture. The last case mounts the production onboarding
-animation across initial entry and retained returns, asserting at least two
-complete WindowServer frames per entry and rejecting a broad light rectangle.
+animation across initial entry and retained returns. Capture starts before
+insertion and keeps every entry frame; the 400ms observation window starts only
+after the native scene has prepared and begun playback (or resumed its settled
+composition). At least two complete frames must follow that readiness boundary,
+and every retained frame must reject a broad light rectangle. Cold texture
+preparation therefore cannot substitute a blank pre-mount frame for entry proof.
 It runs with the real AppKit loop and emits `TAG_ONBOARDING_FIRST_FRAME_CONFIRMED`;
 ordinary SwiftPM timing cannot certify capture delivery. A clock outside the
 sampled area supplies compositor updates during paused final scenes. Frame times,
@@ -534,11 +580,12 @@ Overview and keeps reading routes and their back actions intact.
 python3 tools/verification/reading-presentation/run.py --report-navigation
 ```
 
-Runs the two existing `NativeReportNavigationTests` cases in the isolated AppKit
-runner. The mounted-document case requires its running AppKit event loop for
-trusted WebKit mouse/key delivery and explicitly skips in plain SwiftPM; the
-route-state case still runs there. A green plain Swift run needs this replay to
-complete Report input coverage. A production Report loads fixture HTML in WebKit,
+Runs the four existing `NativeReportNavigationTests` cases in the isolated AppKit
+runner. The mounted navigation and native dialog/download cases require its
+running AppKit event loop for trusted WebKit mouse/key delivery and explicitly
+skip in plain SwiftPM; the recoverable-error and route-state cases still run
+there. A green plain Swift run needs this replay to complete Report input
+coverage. A production Report loads fixture HTML in WebKit,
 opens through the reading stack, replaces its document, changes workspace zoom
 (0.25×/0.8×/1×/1.44×/5×),
 scrolls to collapse/reveal and reverses an in-flight collapse. Intermediate samples
@@ -547,15 +594,36 @@ offset; the collapsed endpoint requires all buttons hidden. Checks cover native
 button sizes/actions, suppression/restoration while scrolled, resize and simulated
 activation/deminiaturize/full-screen-exit notifications without losing the hidden
 state, document focus and the dispatched back-button click. Leaving the Report
-must restore ordinary window controls. The second case checks return to the
-source execution and ordinary thread return to Overview.
+must restore ordinary window controls. The other cases cover native dialogs and
+downloads without document replacement, recovery without retaining a retired
+surface error, and return to the source execution or Overview.
 
 The same mounted case keeps top content outside the fixed navigation safe area,
 checks native word movement in closed Shadow DOM and Escape in editable elements
 and a native HTML dialog, and rejects script-generated navigation keys. Its real
 POST form click must show the non-GET new-window rejection notice without an
 external open or HTTP request. Navigating from a collapsed Report to a short
-loopback HTTP page must restore the native navigation and window controls.
+loopback HTTP page must restore the native navigation and window controls. This
+check acquires the ready destination's portal because the main-frame loading
+cycle withdraws the previous document's navigation; it verifies its hit target,
+back-button click and exit motion with the document.
+
+The panel zoom matrix measures the real Report content anchor in a responsive
+native host. It establishes an actual 1180×640 viewport before the existing
+1×/2×/0.5×/1× cases, so each logical panel height is integral instead of testing
+SwiftUI's rounding of a fractional proposal. The shorter height fits the CI
+display's usable area without overriding AppKit's window constraints. The
+original 15-second readiness gate records the actual window, root, screen visible
+frame, content anchor, WebKit loading/zoom and motion state on success or failure.
+The original sub-point position and size bounds, responsive-layout wait and
+native input assertions remain.
+
+This HTML-only fixture supplies a real, explicitly closed
+`NativeReportSidecardPresentation` through the same environment as the workspace.
+It mounts no related-execution UI, so neither an active nor a pending sidecard
+may own Escape: editing retains the first key, and one body Escape must close
+the Report. The production Report's separate pending-sidecard cancellation
+priority remains unchanged.
 
 This uses real production views and document scroll events, not a duplicated
 animation implementation. It does not exercise physical hover, actual macOS
@@ -608,13 +676,19 @@ MOKUSEI_ROLLING_NUMBER_ARTIFACTS=/tmp/thread-usage-evidence python3 tools/verifi
 ```
 
 Runs two `RollingNumberCellTests` and the Git summary/original-size case in the native application event loop. The
+CI command adds `--native-owned` to run the mandatory Git and projected-usage
+cases; the stable-cell leaf runs once in the ordinary graphical suite. The
 production Codex plugin consumes changing session-state token totals and replaces
 its type-erased card snapshot, covering increases/decreases, compact-unit and
 width changes, stable structure identity, interrupted updates and convergence to
 a freshly mounted reference. The leaf checks retain equal-width digit cells at
 raster scale 2. Incoming glyph direction is no longer automatically checked after
 the unstable direction-correlation test was removed under explicit user authorization.
-Optional PNGs capture the usage region of the production card. These are native
+The projected-usage case requires a running AppKit loop and an active, visible
+key window before its unchanged sampling timeline. It retains every usage crop
+and actual input/capture time under `MOKUSEI_ROLLING_NUMBER_ARTIFACTS`, falling
+back to `MOKUSEI_CI_EVIDENCE` or a temporary directory. Evidence is written after
+observation. These are native
 view snapshots, not optical frame pacing or a live provider/Runtime replay. No
 system motion preference is changed; the number path retains its existing
 always-animate policy. Historical pre-SwiftUI-shell metrics scrolled upward; the
@@ -718,7 +792,10 @@ Markdown cases explicitly skip; this run does not certify those cases.
 runs the production note Markdown callback, Host admission and all four Harness
 readers with delayed content resources. It checks exact result positioning,
 message-completion follow/stop/resume, successor isolation, archived/failed and missing
-execution targets. These cases also run in the complete hosted Swift suite.
+execution targets. CI adds `--native-owned` to select only the capsule method
+declared in `swift_ownership.py`; the other nine mounted and two windowless
+methods run in the complete ordinary Swift suite. The original local command
+retains all twelve methods for diagnosis.
 The running-link case sends enough streaming blocks to fill multiple pages and
 requires that none appear before message completion, including while waiting
 for input. OpenCode's mixed text/reasoning/tool fixture must retain both execution
@@ -791,6 +868,11 @@ mandatory `native/rolling-numbers` CI owner: foreground/key-window admission, th
 original three sampling intervals, three distinct frames and fixed 400×90 geometry
 remain required. `GIT_TOKEN_FLIP_FRAMES_CONFIRMED` and the native process receipt
 are audited; ordinary-suite exclusion never substitutes for that execution.
+The projected-usage method also belongs to this native owner and emits
+`PROJECTED_USAGE_FLIP_FRAMES_CONFIRMED` after its original pixel, identity and
+reference checks. CI's `--native-owned` filter and expected count come from
+`swift_ownership.py`: both native methods run once, and the stable-cell leaf
+remains ordinary without a second execution in this check.
 The rolling producer starts through LaunchServices so macOS admits it as a
 foreground application before the existing window and pixel checks. Its scoped
 artifact paths are forwarded so the original frames and receipts remain retained.
@@ -810,7 +892,12 @@ the active execution's automatic sidecard, real launcher clicks and icon pixels,
 Thread-owned input, and the production upper-left Close. The execution sidecard
 is read-only, so its open state is checked by panel geometry rather than the
 input-sidecard `followUpVisible` flag. Return/interruption input waits for both
-outer admission and automatic sidecard layout to settle.
+the current visit's production `readingEntranceAdmitted` gate and the actual
+panel narrowing for its automatic Sidecard, within the existing three-second
+wait. A quiet full-width panel during main-text reveal is not final readiness.
+The original 450ms stable-frame observation, 100ms exact-frame recheck, real Close
+click and five recovery-event cases remain. Phase, interruption, admission and
+actual/full geometry are logged on readiness or failure.
 The card-identity case includes generated emoji metadata and waits for real
 source anchors. It requires title/emoji to finish their travel with the panel
 and checks the mounted heading stays centered in its current reading viewport

@@ -3,6 +3,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 import deadline
@@ -93,6 +94,27 @@ def ordinary_runs(tests, environment, *, no_parallel=True):
     return runs
 
 
+def log_progress(message):
+    try:
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        print(f"[Swift CI {stamp}] {message}", file=sys.stderr, flush=True)
+    except (OSError, ValueError):
+        # A closed diagnostic stream must not replace a process failure/cancellation.
+        pass
+
+
+def log_failure_tail(path):
+    try:
+        with path.open("rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            stream.seek(max(0, stream.tell() - 12000))
+            tail = stream.read(12000).decode("utf-8", errors="replace")
+    except (OSError, ValueError) as error:
+        log_progress(f"ordinary LOG TAIL unavailable log={path} error={error!r}")
+    else:
+        log_progress(f"ordinary LOG TAIL (at most 12000 bytes) log={path}\n{tail}")
+
+
 def execute_ordinary(tests, root, output, *, revision=None, no_parallel=True):
     environment = dict(os.environ)
     receipt = {"tests": tests, "skip": native_filter(), "status": "running", "startedAt": time.time(),
@@ -110,8 +132,11 @@ def execute_ordinary(tests, root, output, *, revision=None, no_parallel=True):
         for run in receipt["runs"]:
             run.update(status="running", startedAt=time.time())
             save()
+            started = time.monotonic()
+            log_path = output / run["log"]
+            log_progress(f"ordinary BEGIN mode={run['name']} log={log_path}")
             try:
-                with (output / run["log"]).open("w") as log:
+                with log_path.open("w") as log:
                     run["exit_code"] = deadline.run(run["command"], cwd=root,
                         env=environment | run["environment"], stdout=log, stderr=subprocess.STDOUT)
                 run["status"] = "passed" if run["exit_code"] == 0 else "failed"
@@ -122,6 +147,11 @@ def execute_ordinary(tests, root, output, *, revision=None, no_parallel=True):
                 raise
             finally:
                 run["finishedAt"] = time.time()
+                log_progress(f"ordinary END mode={run['name']} status={run['status']} "
+                             f"exit={run['exit_code']} elapsed={time.monotonic() - started:.3f}s "
+                             f"log={log_path} error={run.get('error')!r}")
+                if run["status"] != "passed":
+                    log_failure_tail(log_path)
                 save()
         receipt["exit_code"] = next((run["exit_code"] or 1 for run in receipt["runs"]
                                      if run["status"] != "passed"), 0)

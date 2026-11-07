@@ -29,7 +29,8 @@ The synthetic replay checks:
   follow-ups do not extend it; a healthy 63-second tool survives reconnection.
   Retired-turn late events cannot complete or corrupt the successor during
   admission, and each original/successor input is dispatched exactly once.
-- Native `model/list` controls remain usable without an account probe. A failed
+- Native `model/list` fixtures explicitly finish enumeration with `nextCursor: null`.
+  Model controls remain usable without an account probe. A failed
   account RPC does not block ordinary execution, while model provenance still
   reports that failure and external accounts cannot acquire native ChatGPT voice. A voice owner
   can execute text, admit a new native voice execution, fail its connection,
@@ -181,8 +182,12 @@ checks a single fresh execution and exactly one accepted input for the successor
 The settlement replay also holds the native completion notification behind an
 explicit barrier for longer than the former five-steer retry window. It covers
 ordinary follow-ups, cancellation during that wait, and real Runtime/SQLite Moku
-delivery admission after a child completion. The delivery must leave the outbox
-only after a single successor admission; the original execution stays completed.
+delivery admission after a child completion. The Moku fixture applies the actual
+saved settings snapshot and revision, with an explicit admission authority that
+checks the exact Codex profile and unchanged saved/applied configuration. It
+asserts one initial admission and one successor admission, with no successor
+reserved before terminal publication. The delivery must leave the outbox only
+after that single successor admission; the original execution stays completed.
 
 For focused authentication verification, run
 `./scripts/go.sh run -race ./tools/verification/codex -auth-only`.

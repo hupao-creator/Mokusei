@@ -54,8 +54,8 @@ private struct CenteringCanvas: View {
 struct NativeOverviewCenteringTests {
     @Test(.requiresDisplay) func screenshotMixedFootprintsBalanceBothControlsAndRestoreAfterExtensionChanges() async throws {
         let fixture = CenteringFixture(size: .init(width: 1292, height: 858), count: 6)
-        // Screenshot: one 2×2 execution/extension card, one ordinary thread,
-        // and four standard report footprints fill a 3×3 envelope.
+        // One 2×2 extension card and five 1×1 cards fill a 3×3 envelope.
+        // These are layout footprints, independent of a Report's optional cover.
         fixture.items[0].columns = 2
         fixture.items[0].rows = 2
         let window = SwiftUIReplay.window(CenteringCanvas(fixture: fixture), width: 1400, height: 950)
@@ -63,9 +63,25 @@ struct NativeOverviewCenteringTests {
         try await settle(fixture, in: window)
         try verifyClearance(fixture, in: window)
         let envelope = fixture.frames.values.reduce(CGRect.null) { $0.union($1) }
-        #expect(abs(envelope.minY - 103) < 1 / window.backingScaleFactor)
-        #expect(abs(envelope.maxY - 735) < 1 / window.backingScaleFactor)
-        #expect(fixture.state.camera.transform.scale == 1)
+        let placements = fixture.state.presentedPlacements
+        let columns = (placements.map { $0.column + $0.columns }.max() ?? 0) - (placements.map(\.column).min() ?? 0)
+        let rows = (placements.map { $0.row + $0.rows }.max() ?? 0) - (placements.map(\.row).min() ?? 0)
+        #expect(columns == 3 && rows == 3)
+        let viewport = fixture.cameraViewport(fixture.viewport)
+        let dock = NativeMokuCapsuleLayout.idleSurface(in: CGRect(origin: .zero, size: fixture.viewport))
+        // The wide-viewport policy budgets 128pt vertically, including the Dock.
+        // Derive the remaining gaps from the controls, independently of camera fit.
+        let breathingRoom = 2 * 64.0 - viewport.bottomReservedHeight
+        let expectedTop = viewport.toolbarBottom + breathingRoom / 2
+        let expectedBottom = Double(dock.minY) - breathingRoom / 2
+        let naturalHeight = 3 * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap
+        // Current 220pt rows make this 692pt tall: the 670pt framing region
+        // requires a readable shrink instead of the former natural-scale fit.
+        let expectedScale = (expectedBottom - expectedTop) / naturalHeight
+        #expect(expectedScale >= fixture.state.camera.minimumScale && expectedScale < 1)
+        #expect(abs(envelope.minY - expectedTop) < 1 / window.backingScaleFactor)
+        #expect(abs(envelope.maxY - expectedBottom) < 1 / window.backingScaleFactor)
+        #expect(fixture.state.camera.transform.scale == expectedScale)
         let appearances = fixture.appearances
         for extent in [(2, 2), (2, 1), (1, 1)] {
             fixture.items[1].columns = extent.0

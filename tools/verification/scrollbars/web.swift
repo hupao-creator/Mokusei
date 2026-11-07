@@ -22,13 +22,12 @@ import WebKit
         <iframe id="child" srcdoc="<html><body style='height:1500px'>Frame content</body></html>"></iframe>
         <div class="content"></div>
         <script>
-        window.baseline = [document.documentElement.clientWidth, pane.clientWidth, pane.clientHeight];
         editor.setSelectionRange(5, 9);
         </script></body></html>
         """#, baseURL: nil)
         // Poll document/child readiness without creating a window, activating an
         // app, changing system preferences or sending events to another process.
-        try await wait(in: web, for: "document.readyState === 'complete' && document.adoptedStyleSheets.length === 1 && document.getElementById('child')?.contentDocument?.adoptedStyleSheets.length === 1")
+        try await wait(in: web, for: "document.readyState === 'complete' && innerWidth === 420 && innerHeight === 280 && document.adoptedStyleSheets.length === 1 && document.getElementById('child')?.contentDocument?.adoptedStyleSheets.length === 1")
         let checks = #"""
         (() => {
           const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -36,7 +35,27 @@ import WebKit
           const transparentTrack = el => getComputedStyle(el).scrollbarColor.endsWith('rgba(0, 0, 0, 0)');
           assert([document.documentElement, pane, editor].every(transparentTrack), 'nontransparent native track');
           assert(child.contentWindow.getComputedStyle(child.contentDocument.documentElement).scrollbarColor.endsWith('rgba(0, 0, 0, 0)'), 'frame policy missing');
-          assert(JSON.stringify(baseline) === JSON.stringify([document.documentElement.clientWidth, pane.clientWidth, pane.clientHeight]), 'scrollbar styling changed geometry');
+          assert([document.documentElement, pane, editor].every(el => getComputedStyle(el).scrollbarWidth === 'thin'), 'native thin width policy missing');
+          assert(child.contentWindow.getComputedStyle(child.contentDocument.documentElement).scrollbarWidth === 'thin', 'frame thin width policy missing');
+          // Thin native metrics intentionally differ from the page's initial auto
+          // metrics. Compare decoration against an independent width-only sheet
+          // in this ready viewport, without assuming a platform gutter size.
+          const geometry = () => [innerWidth, innerHeight, document.documentElement.clientWidth, pane.clientWidth, pane.clientHeight];
+          const before = geometry();
+          const nativeThin = new CSSStyleSheet();
+          nativeThin.replaceSync('* { scrollbar-width: thin !important; }');
+          const installed = [...document.adoptedStyleSheets];
+          let reference;
+          try {
+            document.adoptedStyleSheets = [nativeThin];
+            reference = geometry();
+          } finally {
+            document.adoptedStyleSheets = installed;
+          }
+          const after = geometry();
+          const measured = JSON.stringify({before, nativeThin: reference, after});
+          assert(innerWidth === 420 && innerHeight === 280 && pane.getBoundingClientRect().width === 180 && pane.getBoundingClientRect().height === 90, 'viewport bounds changed: ' + measured);
+          assert(JSON.stringify(before) === JSON.stringify(reference) && JSON.stringify(reference) === JSON.stringify(after), 'scrollbar styling changed native thin geometry: ' + measured);
           const track = getComputedStyle(pane, '::-webkit-scrollbar-track');
           assert(track.backgroundColor === 'rgba(0, 0, 0, 0)' && track.boxShadow === 'none' && track.borderWidth === '0px', 'page track override survived');
           pane.scrollTo(200, 240); window.scrollTo(0, 300);
@@ -44,11 +63,12 @@ import WebKit
           assert(editor.selectionStart === 5 && editor.selectionEnd === 9, 'textarea selection changed');
           const dynamic = document.createElement('div'); dynamic.className = 'pane'; document.body.append(dynamic);
           assert(transparentTrack(dynamic), 'dynamic overflow policy missing');
-          return true;
+          return measured;
         })()
         """#
-        let checked = try await web.evaluateJavaScript(checks)
-        precondition(checked as? Bool == true)
+        let checked = try await web.evaluateJavaScript(checks) as? String
+        precondition(checked != nil)
+        FileHandle.standardError.write(Data("WebKit scrollbar geometry: \(checked!)\n".utf8))
         _ = try await web.evaluateJavaScript(NativeWebScrollbarStyle.source, in: nil,
                                              contentWorld: .world(name: "Mokusei.Scrollbars"))
         let retained = try await web.evaluateJavaScript("pane.scrollLeft === 200 && pane.scrollTop === 240 && scrollY === 300 && editor.selectionStart === 5 && editor.selectionEnd === 9")

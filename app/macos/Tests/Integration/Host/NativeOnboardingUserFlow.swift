@@ -50,10 +50,20 @@ import MokuseiApplications
             try await activate("next", in: presentation)
             try await wait("Tag did not inherit the saved Moku profile") { setup.step == .tag && setup.canAdvance }
             try await verifyInherited("tag.settings", in: presentation, window: window)
-            try await control("tag.settings.enabled", operation: "set", value: .bool(false), in: presentation)
-            try await wait("Disabled Tag blocked onboarding") { setup.canAdvance }
-            try await control("tag.settings.enabled", operation: "set", value: .bool(true), in: presentation)
-            try await wait("Re-enabled Tag did not restore readiness") { setup.canAdvance }
+            let enabledTag = try #require(setup.settings.savedSettings["pluginSettings"]?.arrayValue?
+                .first(where: { $0["id"] == .text("tag.settings") })?["value"])
+            try await activate("tag.settings.off", in: presentation)
+            try await wait("Disabled Tag blocked onboarding") {
+                setup.settings.savedSettings["pluginSettings"]?.arrayValue?
+                    .first(where: { $0["id"] == .text("tag.settings") })?["value"]?["enabled"] == .bool(false)
+                    && setup.canAdvance
+            }
+            try await activate("tag.settings.inherit", in: presentation)
+            try await wait("Re-enabled Tag did not restore readiness and saved profile") {
+                setup.settings.savedSettings["pluginSettings"]?.arrayValue?
+                    .first(where: { $0["id"] == .text("tag.settings") })?["value"] == enabledTag
+                    && setup.canAdvance
+            }
             #expect(setup.settings.savedSettings["moku"]?["executionHarnesses"]?["codex"]?["threadSettings"]?["effort"] == .text("high"))
             try await activate("independent", in: presentation)
             try await wait("Tag independent profile did not become ready") {
@@ -94,7 +104,9 @@ import MokuseiApplications
             // Settings, now without the onboarding admission/step sequence.
             try presentation.performInteraction(.openSettings)
             try await wait("Production Settings did not mount") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
-            #expect(presentation.interactionSnapshot()["settingsSections"] == .array([.text("general"), .text("moku"), .text("tag.settings"), .text("report.settings")]))
+            #expect(presentation.interactionSnapshot()["settingsSections"] == .array([
+                .text("general"), .text("moku"), .text("tag.settings"), .text("report.settings"), .text("attention.settings")
+            ]))
             let settings = workspace.settingsModel
             func application(_ id: String) -> JSONValue? {
                 settings.savedSettings["pluginSettings"]?.arrayValue?.first(where: { $0["id"] == .text(id) })?["value"]
@@ -146,19 +158,25 @@ import MokuseiApplications
             let reportBefore = try #require(application("report.settings"))
             for id in ["report.settings", "tag.settings"] {
                 try presentation.performInteraction(.selectSettingsSection(id))
-                try await control(id + ".enabled", operation: "set", value: .bool(false), in: presentation)
-                try await wait("Agent switch did not persist: \(id)") { application(id)?["enabled"] == .bool(false) }
-                let controls = presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? []
-                #expect(!controls.contains { $0["id"] == .text(id + ".inherit") })
+                try await activate(id + ".off", in: presentation)
+                try await wait("Agent off did not persist and hide execution fields: \(id)") {
+                    let controls = presentation.interactionSnapshot()["settings"]?["controls"]?.arrayValue ?? []
+                    return application(id)?["enabled"] == .bool(false)
+                        && controls.contains { $0["id"] == .text(id + ".off") && $0["value"] == .bool(true) }
+                        && !controls.contains {
+                            let controlID = $0["id"]?.stringValue ?? ""
+                            return controlID == id + ".harness" || controlID.hasPrefix(id + ".codex.")
+                        }
+                }
             }
             try presentation.performInteraction(.closeSettings)
             try await wait("Disabled Settings did not close") { !presentation.scene.settingsOpen }
             try presentation.performInteraction(.openSettings)
             try await wait("Disabled Settings did not reopen") { presentation.settingsNavigation.mounted && !presentation.scene.settingsTransitioning }
-            for (id, before) in [("tag.settings", tagBefore), ("report.settings", reportBefore)] {
+            for (id, choice, before) in [("tag.settings", "inherit", tagBefore), ("report.settings", "independent", reportBefore)] {
                 try presentation.performInteraction(.selectSettingsSection(id))
-                try await control(id + ".enabled", operation: "set", value: .bool(true), in: presentation)
-                try await wait("Agent switch did not restore saved profile: \(id)") { application(id) == before }
+                try await activate(id + "." + choice, in: presentation)
+                try await wait("Agent choice did not restore saved profile: \(id)") { application(id) == before }
             }
             try presentation.performInteraction(.closeSettings)
             try await wait("Settings did not release its modal gate") { !presentation.scene.settingsOpen }

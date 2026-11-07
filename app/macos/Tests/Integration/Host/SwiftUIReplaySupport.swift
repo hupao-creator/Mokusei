@@ -1,9 +1,34 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 import Testing
 
 /// AppKit is used by the test runner to host real SwiftUI, never by the production scene.
 @MainActor enum SwiftUIReplay {
+    /// Observe committed native geometry on display callbacks. An asynchronous
+    /// test task can resume after a short-lived animation pose has disappeared.
+    @MainActor final class FrameObserver: NSObject {
+        private var link: CADisplayLink?
+        private var onFrame: (@MainActor () -> Bool)?
+
+        init(view: NSView, onFrame: @escaping @MainActor () -> Bool) {
+            self.onFrame = onFrame
+            super.init()
+            link = view.displayLink(target: self, selector: #selector(displayFrame(_:)))
+            link?.add(to: .main, forMode: .common)
+        }
+
+        func stop() {
+            link?.invalidate()
+            link = nil
+            onFrame = nil
+        }
+
+        @objc private func displayFrame(_ link: CADisplayLink) {
+            if onFrame?() == true { stop() }
+        }
+    }
+
     /// `NSApp` is nil until something touches `NSApplication.shared`; window-less
     /// tests (draft-only) never do. The test runner owns that initialization so
     /// replayed AppKit surfaces and plain draft tests share one safe entry point.
