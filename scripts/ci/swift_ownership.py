@@ -1,4 +1,4 @@
-"""Discovered Swift methods executed only by a mandatory native replay."""
+"""Swift methods executed only by a mandatory native replay."""
 import re
 
 NATIVE_METHOD_OWNERS = {
@@ -40,6 +40,22 @@ NATIVE_METHOD_OWNERS = {
     },
     "MokuseiSettingsIntegrationTests.NativeReadingPagePresentationTests/retainedOverviewReturnsWithLatestContent()": {
         "group": "native", "check": "tag-glass-captures", "marker": "OVERVIEW_RETAINED_RETURN_CONFIRMED",
+    },
+}
+
+
+# These cases compile the production App entry point into a separate executable;
+# they cannot belong to SwiftPM's imported-library test inventory. Their outcomes
+# still require the same single owner receipt, passing result and marker.
+STANDALONE_METHOD_OWNERS = {
+    "ReadingPresentationReplay.NativeWorkspaceLifecycleReplay/reloadWaitsForScopedCleanupBeforeReplacingPresentation()": {
+        "group": "native", "check": "workspace-lifecycle", "marker": "WORKSPACE_RELOAD_RESOURCE_DRAIN_CONFIRMED",
+    },
+    "ReadingPresentationReplay.NativeWorkspaceLifecycleReplay/quitRevokesReloadUntilRejectedSaveRestoresWorkspace()": {
+        "group": "native", "check": "workspace-lifecycle", "marker": "WORKSPACE_QUIT_REVOKES_RELOAD_PUBLICATION_CONFIRMED",
+    },
+    "ReadingPresentationReplay.NativeWorkspaceLifecycleReplay/rejectedQuitCannotLetAnOldReloadClearItsSuccessor()": {
+        "group": "native", "check": "workspace-lifecycle", "marker": "WORKSPACE_RELOAD_SUCCESSOR_IDENTITY_CONFIRMED",
     },
 }
 

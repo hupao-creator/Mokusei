@@ -42,6 +42,9 @@ public final class NativeWorkspaceServices {
                     throw error
                 }
             }
+        }, retainAttachments: { [weak self] ids in
+            guard let self else { throw CancellationError() }
+            return try RuntimeDraftStore.retainAttachments(ids, storageDirectory: self.requireWorkspace().client.storageDirectory)
         }, discardAttachments: { [weak self] ids in
             guard let self else { throw CancellationError() }
             try await self.discard(ids)

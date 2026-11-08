@@ -164,6 +164,10 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
         try await withCommandJournalReplay { replay in
             let first = try await replay.client()
             let forkID = UUID().uuidString, followUpID = UUID().uuidString
+            let attachmentID = "7f3ac760-5b32-4ad0-9b4d-468c4b280ac1"
+            let input: JSONValue = .object(["threadId": .text("forked-thread"), "input": .object([
+                "parts": .array([.object(["kind": .text("local-file"), "file": .object(["id": .text(attachmentID)])])])
+            ])])
             let fork = Task { try await first.invoke("thread:fork", args: [.text("source")], receiptID: forkID, retainingReceipt: true) }
             let forkRequest = try await replay.peer.take("/invoke/thread:fork", id: forkID)
             try forkRequest.reply(.success(.text("forked-thread")))
@@ -173,10 +177,15 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
                 XCTFail("Default acknowledgement forgot an already-created fork")
             } catch { XCTAssertEqual((error as? RuntimeError)?.code, "CONTINUATION_RECEIPT_REQUIRED") }
             let followUp = Task {
-                try await first.invoke("thread:follow-up", args: [.text("forked-thread"), .text("input")],
+                try await first.invoke("thread:follow-up", args: [input],
                     receiptID: followUpID, retainingReceipt: true, replacingReceipt: forkID)
             }
             let followUpRequest = try await replay.peer.take("/invoke/thread:follow-up", id: followUpID)
+            // The successor's exact input already owns its files when HTTP
+            // arrives, even though the runtime has not retained that input yet.
+            let admitted = try RuntimeCommandJournal(storageDirectory: replay.directory).read()
+            XCTAssertNil(admitted[forkID])
+            XCTAssertEqual(admitted[followUpID]?.attachmentIDs, [attachmentID])
 
             let reopened = try await replay.client()
             let outcomes = await reopened.commandOutcomes()
@@ -202,12 +211,20 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
             try await withCommandJournalReplay { replay in
                 let first = try await replay.client()
                 let forkID = UUID().uuidString, followUpID = UUID().uuidString, replacementID = UUID().uuidString
+                let rejectedAttachment = "7f3ac760-5b32-4ad0-9b4d-468c4b280ac2"
+                let replacementAttachment = "7f3ac760-5b32-4ad0-9b4d-468c4b280ac3"
+                let originalInput: JSONValue = .object(["input": .object(["parts": .array([
+                    .object(["kind": .text("local-file"), "file": .object(["id": .text(rejectedAttachment)])])
+                ])])])
+                let replacementInput: JSONValue = .object(["input": .object(["parts": .array([
+                    .object(["kind": .text("local-file"), "file": .object(["id": .text(replacementAttachment)])])
+                ])])])
                 let fork = Task { try await first.invoke("thread:fork", args: [.text("source")], receiptID: forkID, retainingReceipt: true) }
                 let forkRequest = try await replay.peer.take("/invoke/thread:fork", id: forkID)
                 try forkRequest.reply(.success(.text("forked-thread")))
                 _ = try await fork.value
                 let followUp = Task {
-                    try await first.invoke("thread:follow-up", args: [.text("forked-thread"), .text("input")],
+                    try await first.invoke("thread:follow-up", args: [originalInput],
                         receiptID: followUpID, retainingReceipt: true, replacingReceipt: forkID)
                 }
                 let request = try await replay.peer.take("/invoke/thread:follow-up", id: followUpID)
@@ -220,6 +237,8 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
 
                 let reopened = try await replay.client()
                 let rejected = await reopened.commandOutcomes()
+                let rejectedRecords = try RuntimeCommandJournal(storageDirectory: replay.directory).read()
+                XCTAssertEqual(rejectedRecords[followUpID]?.attachmentIDs, [rejectedAttachment])
                 XCTAssertEqual(rejected.map(\.commandID), [followUpID])
                 XCTAssertEqual(rejected.first?.status, .rejected)
                 XCTAssertEqual(rejected.first?.forkReceiptID, forkID)
@@ -237,10 +256,13 @@ final class RuntimeCommandJournalIntegrationTests: XCTestCase {
                 XCTAssertEqual(replay.peer.count("/invoke/thread:fork"), 1)
 
                 let retry = Task {
-                    try await reopened.invoke("thread:follow-up", args: [.text("forked-thread"), .text("input")],
+                    try await reopened.invoke("thread:follow-up", args: [replacementInput],
                         receiptID: replacementID, retainingReceipt: true, replacingReceipt: followUpID)
                 }
                 let replacement = try await replay.peer.take("/invoke/thread:follow-up", id: replacementID)
+                let replacedRecords = try RuntimeCommandJournal(storageDirectory: replay.directory).read()
+                XCTAssertNil(replacedRecords[followUpID])
+                XCTAssertEqual(replacedRecords[replacementID]?.attachmentIDs, [replacementAttachment])
                 let pending = await first.commandOutcomes()
                 XCTAssertEqual(pending.map(\.commandID), [replacementID])
                 XCTAssertEqual(pending.first?.forkReceiptID, forkID)

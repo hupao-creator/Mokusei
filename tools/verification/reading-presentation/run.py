@@ -1,5 +1,6 @@
 """Run production reading integration suites in a staged temporary AppKit app."""
 from pathlib import Path
+from collections import Counter
 import hashlib
 import json
 import os
@@ -80,12 +81,23 @@ def main():
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks)]
     glass_captures = "--tag-glass-captures" in sys.argv
+    workspace_lifecycle = "--workspace-lifecycle" in sys.argv
+    standalone_owners = None
+    if workspace_lifecycle:
+        sys.path.insert(0, str(repo / "scripts/ci"))
+        from swift_ownership import STANDALONE_METHOD_OWNERS
+        standalone_owners = {name: owner for name, owner in STANDALONE_METHOD_OWNERS.items()
+                             if (owner["group"], owner["check"]) == ("native", "workspace-lifecycle")}
+        if not standalone_owners:
+            raise SystemExit("No declared Workspace lifecycle methods")
+        native_methods = [name.split(".", 1)[1] for name in standalone_owners]
     isolated_input = "--isolated-input" in sys.argv
     tag_glass = "--tag-glass" in sys.argv or glass_captures
     thread_send_native = "--thread-send-feedback-native" in sys.argv
     composer_refocus = "--execution-composer-focus" in sys.argv
     thread_send = "--thread-send-feedback" in sys.argv or thread_send_native or composer_refocus
-    suite = ("RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
+    suite = ("NativeWorkspaceLifecycleReplay" if workspace_lifecycle else
+             "RollingNumberCellTests" if "--rolling-numbers" in sys.argv else
              "NativeThreadHistorySidebarTests" if "--thread-sidebar" in sys.argv else
              "NativeApplicationNavigationTests" if "--application-navigation" in sys.argv else
              "ThreadCardInitialResponseTests" if "--initial-response" in sys.argv else
@@ -111,7 +123,11 @@ def main():
               if isolated_input else [suite, "SwiftUIOverviewInteractionTests", "NativeOverviewDecorationCaptureTests", "NativeReadingPagePresentationTests", "NativeOnboardingTagSurfaceTests"] if glass_captures else [suite])
     if "--rolling-numbers" in sys.argv:
         suites.append("GitThreadExtensionTests")
-    tests = [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites]
+    tests = ([source / "WorkspaceLifecycleReplay.swift"] if workspace_lifecycle else
+             [package / f"Tests/Integration/{'Threads' if thread_suite else 'Host'}/{name}.swift" for name in suites])
+    app_sources = sorted((package / "Sources/App").glob("*.swift")) if workspace_lifecycle else []
+    if workspace_lifecycle:
+        args += ["-D", "MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY"]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
     evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
@@ -123,7 +139,7 @@ def main():
         replay.acquire()
         if "NativeMokuHistoryComposerTests" in suites:
             args += compile_native_input_support(replay, repo)
-        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests], extra_args=args)
+        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests, *app_sources], extra_args=args)
         if glass_captures or thread_send:
             # The merge tree and signed replay binary identify what produced the
             # pixels; a PR head label alone does not identify the tested build.
@@ -252,6 +268,13 @@ def main():
         raise SystemExit("FAIL: native replay did not report the complete suite")
     if " skipped" in result.stdout:
         raise SystemExit("FAIL: native replay skipped required cases; inspect the reported environment requirements")
+    if standalone_owners is not None:
+        from swift_reporting import terminal_methods
+        errors = []
+        outcomes = terminal_methods(result.stdout, standalone_owners, errors)
+        if (errors or Counter(outcomes) != Counter((name, "passed") for name in standalone_owners)
+                or any(owner["marker"] not in result.stdout for owner in standalone_owners.values())):
+            raise SystemExit("FAIL: workspace replay lacks exactly one passing outcome and marker per owned method: " + str(errors))
     if thread_send and not composer_refocus and any(marker not in result.stdout for marker in (
             "THREAD_SEND_NATIVE_HANDOFF_CONFIRMED", "THREAD_SEND_DOCK_FEEDBACK_CONFIRMED", "THREAD_SIDECARD_TOGGLES_CONFIRMED", "THREAD_SIDECARD_ORIGIN_GEOMETRY_CONFIRMED")):
         raise SystemExit("FAIL: thread send replay did not confirm both native boundaries")

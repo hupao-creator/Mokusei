@@ -22,20 +22,23 @@ struct RuntimeCommandRecord: Sendable, Equatable {
     let id: String
     let fingerprint: String
     let channel: String
+    let attachmentIDs: [String]
     var status: RuntimeCommandOutcome.Status = .awaitingReceipt
     var forkReceiptID: String?
 
     var json: JSONValue {
         var fields: [String: JSONValue] = ["key": .text(key), "id": .text(id), "fingerprint": .text(fingerprint),
-            "channel": .text(channel), "status": .text(status.rawValue)]
+            "channel": .text(channel), "status": .text(status.rawValue),
+            "attachmentIDs": .array(attachmentIDs.map(JSONValue.text))]
         if let forkReceiptID { fields["forkReceiptID"] = .text(forkReceiptID) }
         return runtimeObject(fields)
     }
     var outcome: RuntimeCommandOutcome {
         .init(commandID: id, channel: channel, status: status, forkReceiptID: forkReceiptID)
     }
-    init(key: String, id: String, fingerprint: String, channel: String, forkReceiptID: String? = nil) {
+    init(key: String, id: String, fingerprint: String, channel: String, attachmentIDs: [String], forkReceiptID: String? = nil) {
         self.key = key; self.id = id; self.fingerprint = fingerprint; self.channel = channel
+        self.attachmentIDs = attachmentIDs
         self.forkReceiptID = forkReceiptID
     }
     init?(_ value: JSONValue) {
@@ -44,13 +47,41 @@ struct RuntimeCommandRecord: Sendable, Equatable {
               let fingerprint = value["fingerprint"]?.stringValue, fingerprint.count == 64,
               fingerprint.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }),
               let channel = value["channel"]?.stringValue, !channel.isEmpty, channel.count <= 128,
+              let references = value["attachmentIDs"]?.arrayValue, references.count <= 20,
               let rawStatus = value["status"]?.stringValue, let status = RuntimeCommandOutcome.Status(rawValue: rawStatus) else { return nil }
+        let attachmentIDs = references.compactMap(Self.attachmentID)
+        guard attachmentIDs.count == references.count else { return nil }
         if let fork = value["forkReceiptID"] {
             guard let forkID = fork.stringValue, Self.validID(forkID), forkID != id, channel == "thread:follow-up" else { return nil }
             forkReceiptID = forkID
         }
         self.key = key; self.id = id; self.fingerprint = fingerprint; self.channel = channel; self.status = status
+        self.attachmentIDs = attachmentIDs
     }
+
+    static func attachmentIDs(for channel: String, args: [JSONValue]) throws -> [String] {
+        guard draftSubmissionChannels.contains(channel) else { return [] }
+        var references = Set<String>()
+        for part in args.first?["input"]?["parts"]?.arrayValue ?? [] {
+            guard let file = part["file"] else { continue }
+            guard let value = file["id"], let id = attachmentID(value) else {
+                throw RuntimeError("INVALID_ATTACHMENT_REFERENCE", "The input contains an invalid managed attachment reference")
+            }
+            references.insert(id)
+        }
+        guard references.count <= 20 else {
+            throw RuntimeError("INVALID_ATTACHMENT_REFERENCE", "The input contains too many managed attachments")
+        }
+        return references.sorted()
+    }
+
+    private static func attachmentID(_ value: JSONValue) -> String? {
+        guard let id = value.stringValue, let uuid = UUID(uuidString: id),
+              uuid.uuidString.lowercased() == id,
+              (1...5).contains(uuid.uuid.6 >> 4), uuid.uuid.8 & 0xc0 == 0x80 else { return nil }
+        return id
+    }
+
     private static func validID(_ value: String) -> Bool {
         (16...128).contains(value.count)
             && value.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 || $0 == 95 }
@@ -72,14 +103,27 @@ extension RuntimeClient {
         try transactCommandJournal { try $0.read() }
     }
 
-    func rememberCommand(key: String, id: String, fingerprint: String, channel: String) throws {
+    func rememberCommand(key: String, id: String, fingerprint: String, channel: String, attachmentIDs: [String]) throws -> Bool {
+        var alreadySubmitted = false
         try transactCommandJournal {
-            try $0.insert(RuntimeCommandRecord(key: key, id: id, fingerprint: fingerprint, channel: channel))
+            // A disconnected write may still be waiting before RetainInput.
+            // Publish its files with the receipt before any HTTP can start.
+            let admitted = try $0.insert(RuntimeCommandRecord(key: key, id: id, fingerprint: fingerprint,
+                channel: channel, attachmentIDs: attachmentIDs))
+            alreadySubmitted = admitted.alreadySubmitted
+            return admitted.records
         }
+        return alreadySubmitted
     }
 
-    func replaceCommand(predecessorID: String, successor: RuntimeCommandRecord) throws {
-        try transactCommandJournal { try $0.replace(predecessorID: predecessorID, successor: successor) }
+    func replaceCommand(predecessorID: String, successor: RuntimeCommandRecord) throws -> Bool {
+        var alreadySubmitted = false
+        try transactCommandJournal {
+            let admitted = try $0.replace(predecessorID: predecessorID, successor: successor)
+            alreadySubmitted = admitted.alreadySubmitted
+            return admitted.records
+        }
+        return alreadySubmitted
     }
 
     func updateCommandStatus(_ id: String, status: RuntimeCommandOutcome.Status,

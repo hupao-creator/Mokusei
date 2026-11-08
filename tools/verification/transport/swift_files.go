@@ -18,19 +18,67 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/platform/profile"
 	"github.com/hupao-creator/Mokusei/internal/platform/transport"
+	"github.com/hupao-creator/Mokusei/internal/services/attachments"
 	"github.com/hupao-creator/Mokusei/tools/verification/swiftfixture"
 )
 
 type swiftFileHost struct {
 	*mockHost
-	filesMu   sync.Mutex
-	uploads   []string
-	downloads []string
+	filesMu    sync.Mutex
+	uploads    []string
+	downloads  []string
+	root       string
+	clientRoot string
+	repository *attachments.Repository
+	staged     []model.Attachment
+}
+
+func (h *swiftFileHost) HasChannel(channel string) bool {
+	return channel == "moku:submit" || channel == "moku:stage-attachments" || channel == "attachment:discard" || h.mockHost.HasChannel(channel)
 }
 
 func (h *swiftFileHost) Invoke(ctx context.Context, channel string, args []json.RawMessage) (any, error) {
+	if channel == "moku:submit" {
+		return h.uncertainAttachmentReceipt(ctx, args)
+	}
 	if channel == "state:load" {
 		return json.RawMessage(`{"revision":1,"defaultCwd":"","threads":[],"executions":[],"applicationThreads":[],"settings":{},"settingsRevision":1}`), nil
+	}
+	if channel == "moku:stage-attachments" {
+		if model.ClientAttachmentLease(ctx) == "" {
+			return nil, errors.New("native stage command lost its attachment lease")
+		}
+		var imports []attachments.Import
+		if len(args) != 1 || json.Unmarshal(args[0], &imports) != nil {
+			return nil, errors.New("invalid native attachment imports")
+		}
+		h.filesMu.Lock()
+		defer h.filesMu.Unlock()
+		staged, err := h.repository.Stage(ctx, imports)
+		if err == nil {
+			h.staged = append(h.staged, staged...)
+		}
+		return staged, err
+	}
+	if channel == "attachment:discard" {
+		var ids []string
+		if len(args) != 1 || json.Unmarshal(args[0], &ids) != nil {
+			return nil, errors.New("invalid native attachment discard")
+		}
+		h.filesMu.Lock()
+		defer h.filesMu.Unlock()
+		return nil, h.repository.Discard(ctx, ids)
+	}
+	if channel == "application:command" && len(args) == 1 {
+		var mode string
+		if json.Unmarshal(args[0], &mode) == nil && (mode == "attachments:collect" || mode == "attachments:reopen") {
+			h.filesMu.Lock()
+			defer h.filesMu.Unlock()
+			if mode == "attachments:reopen" {
+				h.repository = attachments.NewWithClientStorage(h.root, h.clientRoot)
+			}
+			return nil, h.repository.CollectOrphans(ctx, 0)
+		}
 	}
 	return h.mockHost.Invoke(ctx, channel, args)
 }
@@ -51,7 +99,10 @@ func (*swiftFileHost) BrowseFiles(context.Context, *model.HostFileReference) (mo
 func (*swiftFileHost) StageHostFiles(context.Context, []model.HostFileReference) ([]model.Attachment, error) {
 	return nil, errors.New("unused")
 }
-func (h *swiftFileHost) UploadAttachment(_ context.Context, name string, size int64, digest string, source io.Reader) (model.Attachment, error) {
+func (h *swiftFileHost) UploadAttachment(ctx context.Context, name string, size int64, digest string, source io.Reader) (model.Attachment, error) {
+	if model.ClientAttachmentLease(ctx) == "" {
+		return model.Attachment{}, errors.New("native upload lost its attachment lease")
+	}
 	content, err := io.ReadAll(source)
 	if err != nil {
 		return model.Attachment{}, err
@@ -62,9 +113,14 @@ func (h *swiftFileHost) UploadAttachment(_ context.Context, name string, size in
 		return model.Attachment{}, errors.New("native upload differed from the fixed file fixture")
 	}
 	h.filesMu.Lock()
+	defer h.filesMu.Unlock()
+	staged, err := h.repository.StageStream(ctx, name, size, digest, bytes.NewReader(content))
+	if err != nil {
+		return model.Attachment{}, err
+	}
 	h.uploads = append(h.uploads, name)
-	h.filesMu.Unlock()
-	return model.Attachment{ID: "fixture-" + name, Name: name, Size: size, MimeType: "application/octet-stream", Kind: "file"}, nil
+	h.staged = append(h.staged, staged)
+	return staged, nil
 }
 func (h *swiftFileHost) DownloadFile(_ context.Context, reference model.HostFileReference) (*transport.FileDownload, error) {
 	if reference.Path != ".partial" && reference.Path != "ordinary.bin" {
@@ -96,7 +152,9 @@ func verifySwiftFiles() (failure error) {
 		return err
 	}
 	defer func() { failure = errors.Join(failure, owner.Release()) }()
-	host := &swiftFileHost{mockHost: newMockHost()}
+	root := filepath.Join(p.DataDir, "attachments")
+	host := &swiftFileHost{mockHost: newMockHost(), root: root, clientRoot: p.DataDir,
+		repository: attachments.NewWithClientStorage(root, p.DataDir)}
 	defer host.releaseAll()
 	server, err := transport.Start(transport.Options{Profile: p, Epoch: owner.Epoch, Host: host})
 	if err != nil {
@@ -112,23 +170,55 @@ func verifySwiftFiles() (failure error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	command := swiftfixture.Test(ctx, "--no-parallel", "--filter", "RuntimeHostFilesInteropTests")
-	command.Env = append(os.Environ(), "MOKUSEI_SWIFT_FILES_PROFILE="+p.DataDir)
-	var output bytes.Buffer
-	command.Stdout = io.MultiWriter(os.Stdout, &output)
-	command.Stderr = os.Stderr
-	command.WaitDelay = 5 * time.Second
-	if err = command.Run(); err != nil {
+	runSwift := func(phase string, markers ...string) error {
+		command := swiftfixture.Test(ctx, "--no-parallel", "--filter", "RuntimeHostFilesInteropTests")
+		command.Env = append(os.Environ(), "MOKUSEI_SWIFT_FILES_PROFILE="+p.DataDir, "MOKUSEI_SWIFT_FILES_PHASE="+phase)
+		var output bytes.Buffer
+		command.Stdout = io.MultiWriter(os.Stdout, &output)
+		command.Stderr = os.Stderr
+		command.WaitDelay = 5 * time.Second
+		if err := command.Run(); err != nil {
+			return err
+		}
+		for _, marker := range markers {
+			if !bytes.Contains(output.Bytes(), []byte(marker)) {
+				return fmt.Errorf("native host file verification was skipped: %s", marker)
+			}
+		}
+		return nil
+	}
+	if err = runSwift("stage", "PASS native host file boundaries", "PASS native uncertain attachment receipt retained"); err != nil {
 		return err
 	}
-	if !bytes.Contains(output.Bytes(), []byte("PASS native host file boundaries")) {
-		return errors.New("native host file verification was skipped")
-	}
 	host.filesMu.Lock()
-	defer host.filesMu.Unlock()
-	if strings.Join(host.uploads, ",") != "regular.bin,symlink.bin" || strings.Join(host.downloads, ",") != "ordinary.bin,.partial" {
-		return fmt.Errorf("unexpected native transfers: uploads=%v downloads=%v", host.uploads, host.downloads)
+	uploads, downloads, staged := append([]string(nil), host.uploads...), append([]string(nil), host.downloads...), append([]model.Attachment(nil), host.staged...)
+	host.repository = attachments.NewWithClientStorage(root, p.DataDir)
+	err = host.repository.CollectOrphans(ctx, 0)
+	host.filesMu.Unlock()
+	if err != nil {
+		return err
 	}
-	fmt.Println("PASS Go/Swift file replay: FIFO rejection; regular/symlink uploads; ordinary and .partial downloads")
+	if strings.Join(uploads, ",") != "regular.bin,symlink.bin" || strings.Join(downloads, ",") != "ordinary.bin,.partial" || len(staged) != 3 {
+		return fmt.Errorf("unexpected native transfers: uploads=%v downloads=%v staged=%d", uploads, downloads, len(staged))
+	}
+	// Swift has exited, so no process lock can conceal a missing draft reference.
+	for i, attachment := range staged {
+		_, err := os.Stat(attachment.Path)
+		if i != 1 && err != nil {
+			return fmt.Errorf("saved native draft or receipt lost its attachment after restart: %w", err)
+		}
+		if i == 1 && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("abandoned native stage survived its process: %s (%v)", attachment.ID, err)
+		}
+	}
+	if err = runSwift("consume", "PASS native attachment draft restart", "PASS native uncertain attachment receipt released"); err != nil {
+		return err
+	}
+	for _, attachment := range staged {
+		if _, err := os.Stat(attachment.Path); !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("consumed native draft left an attachment: %s (%v)", attachment.ID, err)
+		}
+	}
+	fmt.Println("PASS Go/Swift file replay: checked native transfers; process leases; persisted draft ownership across client exit/restart; released draft collection")
 	return nil
 }

@@ -61,13 +61,28 @@ the lock files themselves are never removed or replaced during cleanup.
 
 [RuntimeOfflineStore](RuntimeOfflineStore.swift) and [RuntimeOfflineRecovery](RuntimeOfflineRecovery.swift) keep profile-local cached reading data, drafts and uncertain command identity. Offline reading/editing does not queue automatic sends or cancellations. On reconnect, a mutation with an uncertain response is checked by its original receipt identity; a newer draft cannot be consumed by an older completion.
 
+Draft document version 2 publishes `attachmentIDs` beside the opaque `value` in
+the same atomic file replacement. Composer saves and accepted-receipt consumption
+supply the exact ready attachment identities; text-only stores supply an empty
+array. The Go attachment repository can retain saved input without interpreting
+the native value schema. Unreadable ownership records stop collection.
+
+`loadRetainingAttachments` reads and pins saved files under the shared
+`ownership.lock` gate. Each restored draft and pending submission holds an
+independent token; a process reference file aggregates only its live tokens.
+Another client's saved-draft replacement cannot revoke an in-memory owner.
+Token updates and draft persistence take the shared gate, while collection takes
+it exclusively. Normal disposal and send completion release their tokens;
+failed final persistence conservatively retains its token until process exit.
+
 [RuntimeOfflineStoreTests](../../Tests/Core/RuntimeOfflineStoreTests.swift) writes
 thread, turn and execution payloads, then reopens the disk cache and checks each
 scope independently. Equal keys in different scope kinds and different keys in
 the same kind remain distinct; a missing scope stays absent.
 
 [RuntimeCommandJournal](RuntimeCommandJournal.swift) serializes command identity
-changes across clients and processes with a stable, private file lock. Every
+changes across clients and processes with the same exclusive ownership gate
+used by Go attachment collection. Every
 insert, status update, acknowledgement and handoff reads the current journal
 inside that lock; restored client snapshots never replace the whole file.
 Recovery only updates an existing matching identity, and an older pending or
@@ -75,6 +90,17 @@ unknown response cannot overwrite an accepted/rejected outcome. Admission and
 outcome reads refresh each client's derived maps. Invalid storage, lock failures
 and failed writes stop new mutations, including when a write may have reached
 disk before reporting failure. The lock file is never removed during cleanup.
+
+Command-journal version 1 records always include canonical `attachmentIDs`,
+persisted before a draft command is submitted, including a fork handoff's new
+follow-up. An uncertain command can still be waiting before Thread retention, so
+its receipt owns the files through the existing forget or acknowledgement
+boundary, including after client process exit. A handoff publishes the successor's
+exact file references and its `forkReceiptID` in the same transaction.
+Only a new admission can create a record; late lookups or results cannot recreate
+a receipt another client has consumed. The transaction also decides whether an
+identity was already admitted, so a concurrent insertion cannot bypass receipt
+lookup. Missing or malformed ownership fields block new writes and collection.
 
 Execution continuation uses `invoke(... retainingReceipt: true)` with an explicit
 command ID. A successful result remains in the durable command journal until
@@ -108,6 +134,16 @@ effects after a host crash or expired outcome; the UI keeps the draft and blocks
 
 [RuntimeHostFiles](RuntimeHostFiles.swift) owns authenticated upload/download and host-file capabilities. Files are selected on the Mac or transferred through the local service. Arbitrary client filesystem paths are not interchangeable with approved host references.
 
+[RuntimeAttachmentLease](RuntimeAttachmentLease.swift) retains one exclusive
+`client-attachment-leases/<uuid>.lock` per local profile and native process.
+Connections carry its identity through the authenticated transport, protecting
+completed staging before a draft is saved. Client close and reconnect keep the
+process lease; normal or abnormal process exit releases the kernel lock. An
+import requires client draft storage and the runtime's canonical profile to
+match. A collector racing lock creation cannot make a detached inode a valid
+owner. Accepted sends release staging only after durable draft consumption;
+Thread, fork and private-session references remain independently retained.
+
 Uploads open without blocking and validate the file descriptor before copying,
 so special files cannot trap a cancelled import. Regular-file symlinks remain
 supported; identity and modification checks reject replacement during copying.
@@ -130,6 +166,9 @@ consumed receipt or downgrade acceptance, and a fork handoff always retains a
 receipt before HTTP, including a denied journal write.
 HTTP and command rejections after handoff retain the original fork identity;
 an explicit replacement preserves it until the accepted draft is consumed.
+Handoff and replacement publish their exact attachment references before HTTP,
+and replacing a rejected predecessor retains the successor's files with the
+original fork lineage.
 
 `NativePerformance.recordTextCache` accumulates hit/miss integers per surface in
 its current recorder, rather than allocating an event for every size proposal.

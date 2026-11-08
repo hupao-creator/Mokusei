@@ -301,7 +301,8 @@ type blockedAttachments struct {
 	retaining chan string
 }
 
-func (b *blockedAttachments) RetainOwners(context.Context, []string) error { return nil }
+func (b *blockedAttachments) RetainOwners(context.Context, []string) error        { return nil }
+func (b *blockedAttachments) CollectOrphans(context.Context, time.Duration) error { return nil }
 func (b *blockedAttachments) RetainInput(ctx context.Context, id string, in model.AgentInput) (model.AgentInput, error) {
 	b.retaining <- id
 	<-ctx.Done()

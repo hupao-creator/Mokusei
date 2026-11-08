@@ -158,6 +158,13 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		s.send(w, 409, resultFailure(model.NewError("STALE_EPOCH", "Runtime service instance has changed")))
 		return
 	}
+	if lease := r.Header.Get("X-Mokusei-Attachment-Lease"); lease != "" {
+		if !model.ValidClientAttachmentLease(lease) {
+			s.send(w, 400, resultFailure(model.NewError("INVALID_ATTACHMENT_LEASE", "Invalid client attachment lease")))
+			return
+		}
+		r = r.WithContext(model.WithClientAttachmentLease(r.Context(), lease))
+	}
 	path := r.URL.EscapedPath()
 	if r.URL.RawQuery != "" {
 		s.send(w, 404, resultFailure(model.NewError("UNKNOWN_COMMAND", "Unknown runtime command")))

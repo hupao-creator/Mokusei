@@ -13,6 +13,7 @@ public struct NativeComposerServices {
     public typealias HostDirectory = (RuntimeHostFileReference?, PluginLifetime) async throws -> RuntimeHostDirectory
     public typealias PreviewAttachment = (NativeComposerStoredAttachment, PluginLifetime) async throws -> Data?
     public typealias OpenHostFile = (RuntimeHostFileReference, PluginLifetime) async throws -> Void
+    public typealias RetainAttachments = ([JSONText]) throws -> RuntimeAttachmentOwner
     public let chooseFiles: ChooseFiles
     public let stageFiles: StageFiles
     public let discardAttachments: ([JSONText]) async throws -> Void
@@ -20,14 +21,17 @@ public struct NativeComposerServices {
     public let hostDirectory: HostDirectory?
     public let previewAttachment: PreviewAttachment?
     public let openHostFile: OpenHostFile?
+    public let retainAttachments: RetainAttachments?
 
     public init(chooseFiles: ChooseFiles? = nil, stageFiles: @escaping StageFiles,
                 attachmentPolicy: AttachmentPolicy? = nil, hostDirectory: HostDirectory? = nil,
                 previewAttachment: PreviewAttachment? = nil, openHostFile: OpenHostFile? = nil,
+                retainAttachments: RetainAttachments? = nil,
                 discardAttachments: @escaping ([JSONText]) async throws -> Void) {
         self.stageFiles = stageFiles
         self.attachmentPolicy = attachmentPolicy; self.hostDirectory = hostDirectory; self.previewAttachment = previewAttachment
         self.openHostFile = openHostFile
+        self.retainAttachments = retainAttachments
         self.discardAttachments = discardAttachments
         self.chooseFiles = chooseFiles ?? { cwd, limit, lifetime in
             try lifetime.checkCancellation()

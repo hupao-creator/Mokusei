@@ -20,6 +20,7 @@ struct NativeComposerAdmissionReplay {
         let pending = NativeComposerAttachment(id: "chip-B", name: "same.txt", status: .pending(size: 1, mimeType: "text/plain"))
         let revision = try persistence.save(text: "new text", directories: [], attachments: [sent, pending])
         try other.save(text: "other text", directories: [], attachments: [sent])
+        #expect(try ownership(directory, scope: "receipts") == .array([.text("staged-A")]))
         #expect(try persistence.consumeAcceptedAttachments(["chip-A": "wrong-file"]) == nil)
         #expect(try persistence.consumeAcceptedAttachments(["wrong-chip": "staged-A"]) == nil)
         #expect(try persistence.loadText()?.revision == revision)
@@ -32,7 +33,44 @@ struct NativeComposerAdmissionReplay {
         #expect(stored["attachments"]?.arrayValue?.count == 1)
         #expect(stored["attachments"]?.arrayValue?.first?["id"] == .text("chip-B"))
         #expect(stored["attachments"]?.arrayValue?.first?["status"] == .text("pending"))
+        #expect(try ownership(directory, scope: "receipts") == .array([]))
+        #expect(try ownership(directory, scope: "other-thread") == .array([.text("staged-A")]))
         #expect(try other.load()?.attachments.map(\.id) == ["chip-A"])
+    }
+
+    @Test(arguments: [false, true])
+    func acceptedStagingReleasesOnlyAfterDurableConsumption(persistenceFails: Bool) async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let persistence = NativeComposerDraftPersistence(storageDirectory: directory, scope: "staging-release")
+        var discarded: [JSONText] = []
+        var consumed = false
+        let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [stored("accepted")] },
+            discardAttachments: { ids in
+                let references = try ownership(directory, scope: "staging-release")
+                #expect(references == .array([]))
+                discarded += ids
+            }), persistence: persistence)
+        draft.text = "send once"
+        await draft.importFiles([.init(data: Data([1]), name: "accepted", mimeType: "text/plain")])
+        #expect(draft.canSubmit && draft.error == nil)
+        let documents = try FileManager.default.contentsOfDirectory(at: directory.appendingPathComponent("client-drafts"),
+            includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }
+        let file = try #require(documents.first)
+        let original = try Data(contentsOf: file)
+        if persistenceFails {
+            try FileManager.default.removeItem(at: file)
+            try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+        }
+        await draft.submit({ _ in }, didConsume: { _ in consumed = true })
+        #expect(consumed == !persistenceFails)
+        #expect(discarded == (persistenceFails ? [] : ["accepted"]))
+        if persistenceFails {
+            #expect(draft.error != nil)
+            try FileManager.default.removeItem(at: file)
+            try original.write(to: file, options: .atomic)
+        }
+        await draft.dispose()
     }
 
     @Test(arguments: [0, 19], [false, true])
@@ -258,6 +296,15 @@ struct NativeComposerAdmissionReplay {
     private func wait(_ condition: () -> Bool) async throws {
         for _ in 0..<200 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
         try #require(condition())
+    }
+
+    private func ownership(_ directory: URL, scope: String) throws -> JSONValue? {
+        let files = try FileManager.default.contentsOfDirectory(at: directory.appendingPathComponent("client-drafts"),
+            includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }
+        let documents = try files.map { try JSONValue(data: Data(contentsOf: $0)) }
+        let document = try #require(documents.first { $0["scope"] == .text(scope) })
+        #expect(document["version"] == .integer(2))
+        return document["attachmentIDs"]
     }
 
     private func stored(_ id: JSONText) -> NativeComposerStoredAttachment {

@@ -771,6 +771,12 @@ stay local. Core retains schema validation and native answer conversion.
 
 Accepted sends consume persisted attachments by chip and staged-file identity even when a successor has advanced the draft revision. Text and directory consumption retain their revision guard. Live successor drafts lose only the accepted chips; pending imports, previews and newer input remain untouched. Repeated consumption is a no-op, and readding the same file with a new identity is independent of the old receipt.
 
+Each draft write publishes its ready staged-file IDs in the Core ownership
+envelope together with its contents. A successful send releases its staging
+reference only after this durable consumption succeeds. A persistence failure
+keeps that reference; the runtime's independent Thread ownership protects
+accepted files after the chip is consumed.
+
 Native text bindings compare UTF-16 code units so canonically equivalent Unicode replacements remain real draft edits.
 `NativeComposerTextInput.preservesSelection` opts Moku into native selection
 retention across temporary focus/availability suspension. It snapshots before

@@ -24,7 +24,8 @@ def command(arguments, *, cwd, env=None, success=True):
 def verify_replay_inventory(audit, repo, environment, group_paths):
     # Literal non-owner boundaries keep shared-plan fixture generation from
     # silently accepting the disappearance of these mandatory replays.
-    for group, required in (("fixtures", "initial-response"), ("interop", "swift-deltas"), ("native", "scrollbars")):
+    for group, required in (("fixtures", "initial-response"), ("interop", "swift-deltas"),
+                            ("native", "scrollbars"), ("native", "workspace-lifecycle")):
         directory = group_paths[group]
         report_path = directory / "report.json"
         report = json.loads(report_path.read_text())
@@ -93,7 +94,7 @@ def verify_interleaved_swift_outcomes(audit, repo, environment, ordinary_log, or
 
 
 def verify_swift_ownership(root, repo, environment):
-    from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
+    from swift_ownership import NATIVE_METHOD_OWNERS, STANDALONE_METHOD_OWNERS, native_filter
     from replay_plan import replay_groups
     scripts = repo / "scripts/ci"
     scripts.mkdir(parents=True)
@@ -209,12 +210,13 @@ def verify_swift_ownership(root, repo, environment):
             cwd=repo, env=environment, success=False)
     (build / "ci-manifest.json").write_text(json.dumps(manifest))
 
+    replay_owners = NATIVE_METHOD_OWNERS | STANDALONE_METHOD_OWNERS
     native_lines = {name: f"✔ Test {name.split('/', 1)[1]}{' with 1 test case' if name.endswith(':)') else ''} passed after 0.001 seconds.\n"
-                    for name in NATIVE_METHOD_OWNERS}
+                    for name in replay_owners}
     native_logs = {name: owner["marker"] + "\n\x1b[32m" + native_lines[name].rstrip() + "\x1b[0m\n"
-                   for name, owner in NATIVE_METHOD_OWNERS.items()}
+                   for name, owner in replay_owners.items()}
     check_logs = {}
-    for name, owner in NATIVE_METHOD_OWNERS.items():
+    for name, owner in replay_owners.items():
         key = (owner["group"], owner["check"])
         check_logs[key] = check_logs.get(key, "") + native_logs[name]
     group_paths = {}
@@ -237,7 +239,7 @@ def verify_swift_ownership(root, repo, environment):
     ordinary_log = evidence / "swift.log"
     ordinary_before = ordinary_log.read_text()
     verify_interleaved_swift_outcomes(audit, repo, environment, ordinary_log, ordinary_before)
-    for native, owner in NATIVE_METHOD_OWNERS.items():
+    for native, owner in replay_owners.items():
         method = native.split("/", 1)[1]
         native_log, native_line = native_logs[native], native_lines[native]
         original = check_logs[owner["group"], owner["check"]]

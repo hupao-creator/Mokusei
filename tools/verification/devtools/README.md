@@ -61,6 +61,11 @@ paths representing different checkouts and fast generations. Their native
 `--data-dir` arguments contain spaces. Initial records and later edits all use
 the production setters and `RuntimeDraftStore.save`, followed by production reads.
 Each write batch checks appearance, language, selected Thread and draft round trips.
+The complete profile snapshot requires exactly three files: preferences, one
+draft and `client-attachment-leases/ownership.lock`. That gate must be a regular,
+empty file with mode `0600` and remain byte-for-byte unchanged between edits;
+both user records must still be nonempty and change. No other file is excluded
+from the snapshot or admitted as an extra record.
 The writer first acquires `RuntimeProfileClientLease`, uses its canonical profile
 and retains the shared lease until process exit. No preference or draft object
 is initialized if admission fails.

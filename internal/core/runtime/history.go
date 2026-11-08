@@ -406,6 +406,8 @@ func (r *Runtime) ClearHistory(ctx context.Context) error {
 		}
 		if err = r.config.Attachments.RetainOwners(ctx, owners); err != nil {
 			r.log("history.attachments", err)
+		} else {
+			r.log("history.attachments.collect", r.config.Attachments.CollectOrphans(ctx, 0))
 		}
 	}
 	if r.config.Workspaces != nil {

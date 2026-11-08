@@ -74,28 +74,68 @@ struct RuntimeOfflineStore: Sendable {
 public struct RuntimeDraftStore: Sendable {
     private let file: URL
     private let scope: JSONText
+    private let storageDirectory: URL
+
+    public struct Retained: Sendable {
+        public let value: JSONValue?
+        public let attachmentIDs: [JSONText]
+        public let owner: RuntimeAttachmentOwner
+    }
 
     public init(storageDirectory: URL, scope: JSONText) {
         self.scope = scope
+        self.storageDirectory = storageDirectory
         let encoded = (try? JSONValue.string(scope).encodedData()) ?? Data()
         file = storageDirectory.appendingPathComponent("client-drafts", isDirectory: true)
             .appendingPathComponent(RuntimePrivateFile.key(encoded) + ".json")
     }
 
     public func load() throws -> JSONValue? {
+        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) { try readDocument()?.value }
+    }
+
+    /// Read and pin under the same gate so another client's replacement of the
+    /// saved draft cannot let collection overtake this restored in-memory owner.
+    public func loadRetainingAttachments() throws -> Retained {
+        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) {
+            let document = try readDocument()
+            let ids = document?.attachmentIDs ?? []
+            let owner = try RuntimeAttachmentLease.ownerWhileLocked(in: storageDirectory, attachmentIDs: ids)
+            return Retained(value: document?.value, attachmentIDs: ids, owner: owner)
+        }
+    }
+
+    public static func retainAttachments(_ attachmentIDs: [JSONText], storageDirectory: URL) throws -> RuntimeAttachmentOwner {
+        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) {
+            try RuntimeAttachmentLease.ownerWhileLocked(in: storageDirectory, attachmentIDs: attachmentIDs)
+        }
+    }
+
+    private func readDocument() throws -> (value: JSONValue, attachmentIDs: [JSONText])? {
         guard FileManager.default.fileExists(atPath: file.path) else { return nil }
         let data = try RuntimePrivateFile.read(file, maximumBytes: RuntimeProtocol.maxRequestBytes)
         let document = try JSONValue(data: data)
-        guard document["version"]?.intValue == 1, document["scope"] == .string(scope), let value = document["value"] else {
+        guard document["version"]?.intValue == 2, document["scope"] == .string(scope),
+              let attachmentIDs = document["attachmentIDs"]?.arrayValue,
+              attachmentIDs.allSatisfy({ if case .string = $0 { return true }; return false }),
+              let value = document["value"] else {
             throw RuntimeError("DRAFT_STORAGE_INVALID", "The saved draft could not be read")
         }
-        return value
+        let ids = attachmentIDs.compactMap { value -> JSONText? in
+            if case let .string(id) = value { return id }; return nil
+        }
+        return (value, ids)
     }
 
-    public func save(_ value: JSONValue) throws {
-        let data = try runtimeObject(["version": .integer(1), "scope": .string(scope), "value": value]).encodedData()
+    public func save(_ value: JSONValue, attachmentIDs: [JSONText] = []) throws {
+        // The repository reads this versioned ownership envelope without knowing
+        // the native composer's value schema. Publish both in one atomic write.
+        let data = try runtimeObject(["version": .integer(2), "scope": .string(scope),
+            "attachmentIDs": .array(attachmentIDs.map(JSONValue.string)), "value": value]).encodedData()
         guard data.count <= RuntimeProtocol.maxRequestBytes else { throw RuntimeError("DRAFT_TOO_LARGE", "The draft exceeds the local storage limit") }
-        try RuntimePrivateFile.write(data, to: file)
+        try RuntimeAttachmentLease.withSharedOwnership(in: storageDirectory) {
+            try RuntimePrivateFile.write(data, to: file)
+        }
     }
 }
 

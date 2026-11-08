@@ -75,7 +75,7 @@ The native job performs these stages:
    graphical remainder, both with `--skip-build --no-parallel`. Every ordinary
    method belongs to exactly one process; fixture-backed windowless suites move
    only when their existing producer environment is supplied.
-5. Run all ten `interop` checks and all twelve `native` checks serially.
+5. Run all ten `interop` checks and all thirteen `native` checks serially.
 6. Audit the actual ordinary/native outcomes, then retain logs, receipts, captures
    and the coverage summary together.
 
@@ -186,6 +186,13 @@ another check does not substitute. Reports limited with `--check` are useful for
 local diagnosis but cannot satisfy a complete CI replay group. Display-capability
 skips fail CI. The audit checks the current revision and the complete ordinary
 selection rather than inferring execution from a command or cache hit.
+
+The `workspace-lifecycle` replay compiles the actual App entry point into its own
+AppKit executable. Its three methods are declared separately in
+`STANDALONE_METHOD_OWNERS`, outside SwiftPM's imported-library inventory. The
+launcher selects those exact methods, and the aggregate requires one successful
+owner receipt, one passing outcome and the cleanup/publication marker for each.
+Unknown, missing, repeated or misrouted outcomes still fail the audit.
 
 Each native attempt uploads one `macos-native-evidence-attempt-N` artifact. A
 failed-job-only retry reruns the entire native job when that job failed; successful

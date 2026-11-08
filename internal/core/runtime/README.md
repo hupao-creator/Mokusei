@@ -14,6 +14,14 @@ does not change `note.updatedAt`, create lifecycle events or wake Moku.
 
 [threads.go](threads.go) owns thread identity, execution admission and serialized session access. Harness session data remains opaque; each Harness validates it and produces its public observation and renderer projection. Accepted work belongs to the service and survives client disconnection.
 
+Attachment cleanup follows durable owner removal. Thread deletion releases its
+attachment references after the database commit; startup and history reset first
+reconcile surviving Thread/private-session owners and then collect. The attachment
+service protects native drafts and live import processes independently, so failed
+admission does not consume a draft. Unreadable client ownership stops collection
+and is logged without preventing startup. See the
+[attachment ownership contract](../../services/attachments/README.md).
+
 [tool_audit.go](tool_audit.go) wraps production Moku/Tag/Report injections at the
 shared native Open boundary, capturing execution/owner identity at callback entry.
 Logging, retry-metadata and diagnostic-classification failures preserve callback

@@ -5,15 +5,23 @@ import Foundation
 /// kernel lock. A client's restored snapshot is never a replacement document.
 struct RuntimeCommandJournal: Sendable {
     typealias Records = [String: RuntimeCommandRecord]
+    struct Admission {
+        let records: Records
+        let alreadySubmitted: Bool
+    }
     let storageDirectory: URL
     private var file: URL { storageDirectory.appendingPathComponent("client-command-journal.json") }
-    private var lockFile: URL { storageDirectory.appendingPathComponent("client-command-journal.lock") }
 
     func read() throws -> Records { try withLock { try readLocked() } }
 
-    func insert(_ record: RuntimeCommandRecord) throws -> Records {
+    func insert(_ record: RuntimeCommandRecord) throws -> Admission {
         guard record.forkReceiptID == nil else { throw Self.conflict() }
-        return try transaction { records in try Self.insert(record, into: &records) }
+        var alreadySubmitted = false
+        let records = try transaction { records in
+            alreadySubmitted = records[record.id] != nil
+            try Self.insert(record, into: &records)
+        }
+        return Admission(records: records, alreadySubmitted: alreadySubmitted)
     }
 
     func remove(_ id: String, matching expected: RuntimeCommandRecord? = nil,
@@ -45,12 +53,21 @@ struct RuntimeCommandJournal: Sendable {
         }
     }
 
-    func replace(predecessorID: String, successor: RuntimeCommandRecord) throws -> Records {
-        try transaction { records in
-            guard let predecessor = records[predecessorID], successor.channel == "thread:follow-up",
+    func replace(predecessorID: String, successor: RuntimeCommandRecord) throws -> Admission {
+        var alreadySubmitted = false
+        let records = try transaction { records in
+            guard successor.channel == "thread:follow-up",
                   successor.id != predecessorID, successor.forkReceiptID == nil, successor.status == .awaitingReceipt else {
                 throw Self.missingPredecessor(predecessorID)
             }
+            // A concurrent admission may already have transferred the
+            // predecessor. The transaction decides whether to query or send.
+            if records[successor.id] != nil {
+                try Self.insert(successor, into: &records)
+                alreadySubmitted = true
+                return
+            }
+            guard let predecessor = records[predecessorID] else { throw Self.missingPredecessor(predecessorID) }
             let forkReceiptID: String
             if predecessor.channel == "thread:fork", predecessor.status == .accepted { forkReceiptID = predecessor.id }
             else if predecessor.channel == "thread:follow-up", predecessor.status == .rejected, let fork = predecessor.forkReceiptID { forkReceiptID = fork }
@@ -60,6 +77,7 @@ struct RuntimeCommandJournal: Sendable {
             records.removeValue(forKey: predecessorID)
             try Self.insert(next, into: &records)
         }
+        return Admission(records: records, alreadySubmitted: alreadySubmitted)
     }
 
     static func checkAdmission(channel: String, key: String, records: Records, excluding: String? = nil) throws {
@@ -98,6 +116,7 @@ struct RuntimeCommandJournal: Sendable {
 
     private static func sameRequest(_ lhs: RuntimeCommandRecord, _ rhs: RuntimeCommandRecord) -> Bool {
         lhs.id == rhs.id && lhs.key == rhs.key && lhs.fingerprint == rhs.fingerprint && lhs.channel == rhs.channel
+            && lhs.attachmentIDs == rhs.attachmentIDs
     }
     private static func missingPredecessor(_ id: String) -> RuntimeError {
         RuntimeError("CONTINUATION_RECEIPT_REQUIRED", "The fork or rejected follow-up receipt is no longer available for this continuation", receiptID: id)
@@ -161,32 +180,21 @@ struct RuntimeCommandJournal: Sendable {
               directory.st_mode & S_IFMT == S_IFDIR, directory.st_uid == getuid(), directory.st_mode & 0o022 == 0 else {
             throw Self.unavailable()
         }
-        // The lock inode is stable across atomic journal replacements. Never
-        // remove it: a second inode would admit two simultaneous transactions.
-        let fd = lockFile.path.withCString {
-            Darwin.open($0, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0o600)
-        }
-        guard fd >= 0 else { throw Self.unavailable() }
-        defer { Darwin.close(fd) }
-        try validateLock(fd)
-        let acquire: (Int32, Int32) -> Int32 = flock
-        while acquire(fd, LOCK_EX) != 0 {
-            if errno == EINTR { continue }
-            throw Self.unavailable()
-        }
-        try validateLock(fd)
-        var currentDirectory = stat()
-        guard storageDirectory.path.withCString({ Darwin.lstat($0, &currentDirectory) }) == 0,
-              currentDirectory.st_dev == directory.st_dev, currentDirectory.st_ino == directory.st_ino else { throw Self.unavailable() }
-        return try operation()
-    }
-
-    private func validateLock(_ descriptor: Int32) throws {
-        var opened = stat(), named = stat()
-        guard Darwin.fstat(descriptor, &opened) == 0,
-              lockFile.path.withCString({ Darwin.lstat($0, &named) }) == 0,
-              Self.privateFile(opened), Self.privateFile(named),
-              opened.st_dev == named.st_dev, opened.st_ino == named.st_ino else { throw Self.unavailable() }
+        // One stable gate serializes journal changes with draft read-and-pin
+        // and Go collection; a separate journal lock cannot fence that handoff.
+        do {
+            return try RuntimeAttachmentLease.withExclusiveOwnership(in: storageDirectory) {
+                var currentDirectory = stat()
+                guard storageDirectory.path.withCString({ Darwin.lstat($0, &currentDirectory) }) == 0,
+                      currentDirectory.st_dev == directory.st_dev, currentDirectory.st_ino == directory.st_ino else { throw Self.unavailable() }
+                return try operation()
+            }
+        } catch let failure as RuntimeError {
+            if ["UNSAFE_ATTACHMENT_LEASE", "ATTACHMENT_LEASE_IO", "ATTACHMENT_LEASE_BUSY"].contains(failure.code) {
+                throw Self.unavailable()
+            }
+            throw failure
+        } catch { throw Self.unavailable() }
     }
     private static func privateFile(_ value: stat) -> Bool {
         value.st_mode & S_IFMT == S_IFREG && value.st_uid == getuid() && value.st_mode & 0o077 == 0 && value.st_nlink == 1

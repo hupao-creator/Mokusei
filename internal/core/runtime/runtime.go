@@ -45,6 +45,7 @@ type AttachmentStore interface {
 	InheritOwners(context.Context, string, string) error
 	ReleaseOwner(context.Context, string) error
 	RetainOwners(context.Context, []string) error
+	CollectOrphans(context.Context, time.Duration) error
 }
 type Config struct {
 	Store              *store.Store
@@ -206,6 +207,9 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			cancel()
 			return nil, e
 		}
+		// Cleanup has no authority to discard unreadable client drafts. Keep
+		// startup available so the native owner can recover its saved input.
+		r.log("attachments.collect", config.Attachments.CollectOrphans(ctx, 0))
 	}
 	if config.Workspaces != nil {
 		threads, e := r.Threads()

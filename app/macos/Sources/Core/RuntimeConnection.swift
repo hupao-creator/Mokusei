@@ -9,6 +9,7 @@ public struct RuntimeConnection: Sendable, Equatable, CustomStringConvertible, C
     public let protocolVersion: Int
     public let pid: Int
     public let dataDir: String
+    var attachmentLease: String?
 
     public init(port: Int, token: String, epoch: String, protocolVersion: Int, pid: Int, dataDir: String) {
         self.port = port
@@ -17,6 +18,12 @@ public struct RuntimeConnection: Sendable, Equatable, CustomStringConvertible, C
         self.protocolVersion = protocolVersion
         self.pid = pid
         self.dataDir = dataDir
+        attachmentLease = nil
+    }
+
+    public static func == (left: Self, right: Self) -> Bool {
+        left.port == right.port && left.token == right.token && left.epoch == right.epoch
+            && left.protocolVersion == right.protocolVersion && left.pid == right.pid && left.dataDir == right.dataDir
     }
 
     public var description: String { "RuntimeConnection(port: \(port), epoch: \(epoch), pid: \(pid), token: <redacted>)" }

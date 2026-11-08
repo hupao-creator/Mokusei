@@ -4,6 +4,14 @@
 
 Local clients discover the selected profile's private connection metadata and authenticate requests against its token and service epoch. The server listens only on loopback.
 
+Native imports also carry `X-Mokusei-Attachment-Lease`, a canonical UUID naming
+the importing process's private lock inside that same profile. Authentication
+precedes header validation; accepted command contexts preserve this owner after
+HTTP disconnection, and streaming file calls carry it through their normal
+request context. The attachment service verifies the actual kernel lock before
+staging. This is a local filesystem lifetime, not a reconnect or remote-device
+lease; native staging rejects a client storage directory outside the host profile.
+
 [receipts.go](receipts.go) and [receipt_query.go](receipt_query.go) retain command identity and results. A lost mutation response is resolved by querying its original command ID. Reconnecting does not blindly resend uncertain work. Disconnecting a presentation lease does not cancel work that the service has already accepted.
 
 Service revocation cancels every admitted Host call before drain, including reads

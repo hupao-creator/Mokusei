@@ -8,6 +8,7 @@ import MokuseiComposition
 import MokuseiUI
 import SwiftUI
 
+#if !MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
 @main @MainActor
 struct Mokusei {
     static func main() {
@@ -22,6 +23,7 @@ struct Mokusei {
         WorkspaceApp.main()
     }
 }
+#endif
 
 @MainActor
 private struct WorkspaceApp: App {
@@ -52,7 +54,7 @@ private struct WorkspaceApp: App {
 }
 
 @MainActor @Observable
-private final class WorkspaceSession {
+final class WorkspaceSession {
     var model: NativeWorkspaceModel?
     var presentation: NativeWorkspacePresentation?
     var error: String?
@@ -66,6 +68,8 @@ private final class WorkspaceSession {
     private var zoomURL: URL?
     private var performanceDirectory: URL?
     private var task: Task<Void, Never>?
+    private(set) var reloadTask: Task<Void, Never>?
+    private var operationID: UUID?
     private var quitting = false
     private var finishingQuit = false
     private var quitSavingSettings = false
@@ -102,6 +106,12 @@ private final class WorkspaceSession {
             if let executable = Bundle.main.executableURL { exitCleanup = NativeRuntimeExitCleanup(profile: profile, executable: executable) }
         } catch { startup.fail(); self.error = error.localizedDescription }
     }
+    #if MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY
+    init(model: NativeWorkspaceModel) {
+        self.model = model
+        presentation = NativeWorkspacePresentation(workspace: model)
+    }
+    #endif
     func start() {
         guard let model else { return }
         startup.shellReady(); model.start()
@@ -121,21 +131,41 @@ private final class WorkspaceSession {
     }
     func reload() {
         guard !busy, !quitting, let model else { return }
+        model.resetSettingsForReload()
+        let retiring = presentation
+        replacePresentation(for: model) {
+            await retiring?.release()
+            await model.voice.stopAll()
+            await model.harnessHost.releaseAll()
+        }
+    }
+    private func replacePresentation(for model: NativeWorkspaceModel, after cleanup: @escaping @MainActor () async -> Void) {
+        let operationID = UUID()
+        self.operationID = operationID
         busy = true
-        task = Task {
-            defer { if !quitting { busy = false; task = nil } }
-            model.resetSettingsForReload()
-            await presentation?.release()
-            await model.voice.stopAll(); await model.harnessHost.releaseAll()
+        let pending = Task {
+            defer {
+                if self.operationID == operationID {
+                    self.operationID = nil; reloadTask = nil; task = nil; busy = false
+                }
+            }
+            // Cancellation revokes publication, not the scoped resource drain.
+            // A rejected Quit joins this same retirement before restoring a UI owner.
+            await cleanup()
+            guard !Task.isCancelled, self.operationID == operationID, !quitting else { return }
             model.voice.receive(.connection(model.connection)); model.settingsOpen = false
             presentation = NativeWorkspacePresentation(workspace: model); generation = UUID()
         }
+        reloadTask = pending
+        task = pending
     }
     func quit(discardSettings: Bool = false) {
         guard !quitting else {
             NativeDiagnosticExit.forceExit { exitCleanup?.prepareForExit() }
         }
         quitting = true; busy = true
+        let operationID = UUID()
+        self.operationID = operationID
         quitSavingSettings = !discardSettings
         exitCleanup?.captureEpoch()
         task?.cancel()
@@ -143,6 +173,7 @@ private final class WorkspaceSession {
         // not join that work; the epoch-fenced exit helper finishes it instead.
         quitDeadline = Task {
             do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            guard !Task.isCancelled, self.operationID == operationID, quitting else { return }
             if quitSavingSettings {
                 rejectQuitForSettings(RuntimeError("SETTINGS_UNSAVED", "Saving settings timed out."))
                 return
@@ -154,12 +185,12 @@ private final class WorkspaceSession {
             if !discardSettings {
                 do { try await model?.settingsModel.draft.flushForQuit() }
                 catch {
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled, self.operationID == operationID, quitting else { return }
                     rejectQuitForSettings(error)
                     return
                 }
             }
-            guard !Task.isCancelled, quitting else { return }
+            guard !Task.isCancelled, self.operationID == operationID, quitting else { return }
             quitSavingSettings = false
             do {
                 try await model?.stop()
@@ -171,11 +202,16 @@ private final class WorkspaceSession {
     private func rejectQuitForSettings(_ error: Error) {
         quitDeadline?.cancel(); quitDeadline = nil
         task?.cancel(); task = nil
+        operationID = nil
         quitting = false; quitSavingSettings = false; busy = false
         quitSettingsBlocked = true
         self.error = model?.preferences.locale.text(
             "设置尚未保存。可以继续编辑，或不保存并退出。\n\(error.localizedDescription)",
             "Settings have not been saved. Keep editing, or quit without saving.\n\(error.localizedDescription)") ?? error.localizedDescription
+        if let reloadTask, let model {
+            // Keep the failed Settings draft; restarting Reload would discard it.
+            replacePresentation(for: model) { await reloadTask.value }
+        }
     }
     private func finishQuit() {
         // A late runtime-cleanup completion must not cut short a drain already
