@@ -4,11 +4,64 @@ import Testing
 import MokuseiTestSupport
 #endif
 import MokuseiCore
+import MokuseiPluginUI
+@testable import MokuseiUI
 @testable import MokuseiVoice
 
 @MainActor
 @Suite(.serializedNative)
 struct NativeVoiceOwnershipTests {
+    @Test func typedInputReceiptRecoveryKeepsItsVoiceFenceAndNewPlayback() async throws {
+        let replay = VoiceReplay()
+        let call = replay.call()
+        await call.client.start()
+        do {
+            try await NativeSubmissionFixture.run { fixture in
+                fixture.server.dropReplyChannels = ["moku:submit"]
+                fixture.draft.text = "Typed during an active call"
+                let sender = NativeMokuSubmission(workspace: fixture.workspace)
+                let source: JSONValue = .object([:])
+                var captures = 0
+                func send(_ submission: NativeComposerSubmission) async throws {
+                    try await sender.send(input: submission.input, source: source) {
+                        captures += 1
+                        return call.client.fenceTypedInput(.object(["input": submission.input]))
+                    }
+                }
+                func consumed(_ submission: NativeComposerSubmission) async {
+                    await sender.didConsumeDraft(input: submission.input, source: source)
+                }
+                try call.media.message("response.created", response: "old-playback")
+                try call.media.message("response.done", response: "old-playback")
+                await fixture.draft.submit(send, didConsume: consumed)
+                #expect(fixture.draft.error != nil && fixture.draft.text == "Typed during an active call")
+                let original = try #require(fixture.server.invocations("moku:submit").first)
+                let voice = try #require(original.body["args"]?.arrayValue?.first?["voiceInput"])
+                #expect(voice["sessionId"] == .string(call.backend.sessionID))
+                #expect(voice["ownershipId"] == .string(call.backend.ownershipID))
+                let inputID = try #require(voice["inputId"]?.stringValue)
+                #expect(UUID(uuidString: inputID) != nil)
+                #expect(!call.media.messages.isEmpty)
+
+                // A newer response may already be audible while the old HTTP
+                // result is unresolved. Receipt recovery must not fence it.
+                try call.media.message("response.created", response: "new-playback")
+                let messages = call.media.messages
+                await fixture.draft.submit(send, didConsume: consumed)
+                #expect(captures == 1 && call.media.messages == messages)
+                #expect(fixture.server.invocations("moku:submit").count == 1)
+                let commandID = try #require(original.body["commandId"]?.stringValue)
+                #expect(fixture.server.receiptRequests.contains(commandID))
+                #expect(fixture.draft.error == nil && fixture.draft.text.isEmpty)
+                #expect(await fixture.client.commandOutcomes().isEmpty)
+            }
+        } catch {
+            await call.client.stop()
+            throw error
+        }
+        await call.client.stop()
+    }
+
     @Test func nativeSettingsReconnectRetainsCallIntentAndMute() async throws {
         let replay = VoiceReplay()
         let call = replay.call()

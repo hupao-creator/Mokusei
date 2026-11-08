@@ -84,6 +84,12 @@ remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
   authorize automatic replay. Missing/invalid dispositions fail the session.
   Isolated completion steering uses the same exact-run reservation; the shared
   completion mailbox retains its conservative settled/retry contract.
+- Native answer writes and the local interaction commit are ordered before
+  event reduction, including immediate settlement. A rejected write retains the
+  pending interaction; a completed write consumes it before callbacks resume.
+  The event gate does not block Interrupt or Close from retiring a backpressured
+  pipe. Expiry callbacks serialize with answers and recheck their exact execution
+  and interaction, so an already fired timer cannot fail answered or later work.
 - Streaming state commits are coalesced at 50 ms. Native boundaries commit
   immediately. Reopening a persisted live execution interrupts it without
   starting the CLI; the next send can resume its native session.
@@ -192,6 +198,13 @@ superseded by refresh. A failed native process cleanup remains observable and
 fences replacement discovery until a new adapter is constructed.
 
 Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.
+
+Interaction lifecycle fixtures run the production adapter and Session dispatcher
+against a child-process peer. A controlled pipe write pauses after the complete
+answer reaches native input, exposing immediate settlement and already fired
+expiry callbacks before local consumption. Separate partial-write cases require
+Interrupt and Close to unblock the pipe; the adapter replay covers a cancelled
+pre-write answer followed by a successful retry of the same interaction.
 
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices

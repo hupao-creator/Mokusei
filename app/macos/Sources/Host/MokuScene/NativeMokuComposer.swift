@@ -351,6 +351,7 @@ public struct NativeMokuHistoryComposer: View {
     public var suppressInitialFocus = false
     public var loadMentionDirectories: (() async throws -> [NativeComposerDirectory])?
     public let onSend: (NativeComposerSubmission) async throws -> Void
+    public let onSendConsumed: (NativeComposerSubmission) async -> Void
     public let onCancel: () -> Void
     @State private var mentions = NativeMokuDirectoryMentions()
     @State private var availableHeight: CGFloat = 420
@@ -362,12 +363,15 @@ public struct NativeMokuHistoryComposer: View {
                 activeVoiceControls: AnyView = AnyView(EmptyView()), voiceBackground: AnyView = AnyView(EmptyView()),
                 voiceModeActive: Bool = false,
                 loadMentionDirectories: (() async throws -> [NativeComposerDirectory])? = nil,
-                onSend: @escaping (NativeComposerSubmission) async throws -> Void, onCancel: @escaping () -> Void,
+                onSend: @escaping (NativeComposerSubmission) async throws -> Void,
+                onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
+                onCancel: @escaping () -> Void,
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
         self.draft = draft; self.cwd = cwd; self.disabled = disabled; self.running = running
         self.focusEnabled = focusEnabled; self.focusRequestKey = focusRequestKey; self.suppressInitialFocus = suppressInitialFocus
-        self.loadMentionDirectories = loadMentionDirectories; self.onSend = onSend; self.onCancel = onCancel
+        self.loadMentionDirectories = loadMentionDirectories; self.onSend = onSend
+        self.onSendConsumed = onSendConsumed; self.onCancel = onCancel
     }
     public var body: some View {
         NativeMokuComposerInput(draft: draft, cwd: cwd, disabled: disabled,
@@ -376,7 +380,11 @@ public struct NativeMokuHistoryComposer: View {
             mentions: mentions, showsEyes: true,
             selectionRequest: mentions.selectionRequest, onEditorStateChange: mentions.update,
             onKeyDown: { mentions.handle($0, draft: draft) },
-            onSend: { guard !disabled else { return }; Task { await draft.submit(onSend) } })
+            onSend: {
+                guard !disabled else { return }
+                let sendingDraft = draft, send = onSend, consumed = onSendConsumed
+                Task { await sendingDraft.submit(send, didConsume: consumed) }
+            })
             .fixedSize(horizontal: false, vertical: true)
             .background { NativeMokuCapsuleGlass() }
             .clipShape(RoundedRectangle(cornerRadius: NativeMokuCapsuleLayout.cornerRadius))

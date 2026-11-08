@@ -7,7 +7,7 @@ extension RuntimeClient {
     /// Writes require a live authoritative connection. Persisting an ID tracks
     /// one submitted operation; it is never an offline queue or a replay payload.
     public func invoke(_ channel: String, args: [JSONValue] = [], receiptID: String? = nil,
-                       retainingReceipt: Bool = false) async throws -> JSONValue {
+                       retainingReceipt: Bool = false, replacingReceipt: String? = nil) async throws -> JSONValue {
         try assertOpen()
         restoreOfflineState()
         if explicitlyStopped { throw RuntimeError("SERVICE_STOPPING", "Runtime service was stopped") }
@@ -20,22 +20,23 @@ extension RuntimeClient {
                 throw RuntimeError("OFFLINE_COMMAND_DISABLED", "Connect and synchronize with the host before submitting this action; the draft is saved on this device")
             }
             if let commandJournalFailure { throw commandJournalFailure }
+            try refreshCommandJournal()
         }
         // A state load that starts the client must not coalesce with the handshake's
         // hydration load, which would wait recursively for its own startup.
         let key = receiptID.map { "receipt:\($0)" } ?? (readOnly ? UUID().uuidString : fingerprint)
+        if let replacingReceipt {
+            guard channel == "thread:follow-up", retainingReceipt, let receiptID,
+                  receiptID != replacingReceipt else {
+                throw RuntimeError("INVALID_RECEIPT_HANDOFF", "Only a retained follow-up can take ownership of a fork continuation receipt")
+            }
+        }
         // A new fingerprint cannot stand in for unresolved continuation work.
         // This durable barrier also protects a reopened window that has lost
         // the original fork/send stage. Same-key ordinary retries still query
         // their original receipt through deliverWrite.
-        let continuationChannels: Set<String> = ["thread:fork", "thread:follow-up"]
-        if continuationChannels.contains(channel), let held = commandRecords.values.first(where: {
-            continuationChannels.contains($0.channel) && $0.key != key && $0.status != .rejected
-        }) {
-            throw RuntimeError("CONTINUATION_RECEIPT_REQUIRED",
-                "A previous thread command still owns receipt \(held.id). Resolve and consume it before submitting different thread work.",
-                receiptID: held.id)
-        }
+        try RuntimeCommandJournal.checkAdmission(channel: channel, key: key,
+            records: commandRecords, excluding: replacingReceipt)
         if let receiptID, let previous = explicitReceipts[receiptID], previous != fingerprint {
             throw RuntimeError("RECEIPT_CONFLICT", "A receipt cannot be retried with different command arguments")
         }
@@ -52,9 +53,16 @@ extension RuntimeClient {
             throw RuntimeError("REQUEST_TOO_LARGE", "Runtime request exceeds the 144 MiB limit")
         }
         if !readOnly {
-            try rememberCommand(key: key, id: id, fingerprint: fingerprint, channel: channel)
-            unresolvedCommands[key] = id
+            if let replacingReceipt, !alreadySubmitted {
+                // Keep the accepted fork durable until the successor has its own
+                // identity. A crash can retain either phase, never neither.
+                try replaceCommand(predecessorID: replacingReceipt,
+                    successor: RuntimeCommandRecord(key: key, id: id, fingerprint: fingerprint, channel: channel))
+            } else {
+                try rememberCommand(key: key, id: id, fingerprint: fingerprint, channel: channel)
+            }
         }
+        let submittedRecord = commandRecords[id]
         // Receipt settlement is part of the shared operation, so no coalesced
         // waiter can return (and issue another command) before it is complete.
         let observed = channel == "app:update-settings" || channel == "harness:settings-presentation" || channel == "harness:detect-installations"
@@ -72,31 +80,43 @@ extension RuntimeClient {
                     value["status"]?.stringValue == "conflict" ? .conflict : .completed, flowID: flowID, operationID: id,
                     revision: value["settingsRevision"]?.intValue, durationMs: Date().timeIntervalSince(started) * 1000)) }
                 self.activeCommands.removeValue(forKey: key)
-                if retainingReceipt && !readOnly {
-                    self.commandRecords[id]?.status = .accepted
-                    try self.persistCommandJournal()
+                if readOnly {
+                    // Reads never own durable journal entries. Another client
+                    // may have registered this explicit ID since our snapshot.
+                    self.explicitReceipts.removeValue(forKey: id)
+                } else if retainingReceipt {
+                    try self.updateCommandStatus(id, status: .accepted, matching: submittedRecord)
                 } else {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
-                    self.forgetCommand(id)
+                    self.forgetCommand(id, matching: submittedRecord)
                 }
                 return value
             } catch {
                 if observed { self.reportSettingsDiagnostic(SettingsDiagnostic(.command, .failed, flowID: flowID, operationID: id,
                     durationMs: Date().timeIntervalSince(started) * 1000)) }
                 self.activeCommands.removeValue(forKey: key)
-                if !readOnly, let error = error as? RuntimeError,
+                if readOnly {
+                    self.explicitReceipts.removeValue(forKey: id)
+                } else if let error = error as? RuntimeError,
                    error.kind == .uncertain || error.code == "COMMAND_OUTCOME_INDETERMINATE" || error.code == "COMMAND_OUTCOME_UNCERTAIN" {
                     self.unresolvedCommands[key] = id
                     if self.status == .connected { self.scheduleReceiptRecovery() }
+                } else if (error as? RuntimeError)?.kind == .commandRejected, retainingReceipt {
+                    try self.updateCommandStatus(id, status: .rejected, matching: submittedRecord)
+                } else if (error as? RuntimeError)?.kind == .requestRejected,
+                          submittedRecord?.forkReceiptID != nil {
+                    // The input was rejected, but its fork already exists. Keep
+                    // that lineage until the caller replaces or consumes it.
+                    try self.updateCommandStatus(id, status: .rejected, matching: submittedRecord)
                 } else if (error as? RuntimeError)?.kind == .commandRejected && !retainingReceipt {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
-                    self.forgetCommand(id)
-                } else if (error as? RuntimeError)?.kind == .requestRejected || readOnly {
+                    self.forgetCommand(id, matching: submittedRecord)
+                } else if (error as? RuntimeError)?.kind == .requestRejected {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
-                    self.forgetCommand(id)
+                    self.forgetCommand(id, matching: submittedRecord)
                 }
                 throw error
             }
@@ -118,6 +138,7 @@ extension RuntimeClient {
     /// before acknowledging this retained journal entry.
     public func resolveCommandReceipt(_ id: String) async throws -> JSONValue {
         try assertOpen(); restoreOfflineState()
+        try refreshCommandJournal()
         guard commandRecords[id] != nil, !explicitlyStopped, status == .connected, hydration == nil,
               let owner = connection else { throw RuntimeError.uncertain(id) }
         guard let result = try await lookupCommand(id, owner: owner) else { throw RuntimeError.uncertain(id) }
