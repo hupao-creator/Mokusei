@@ -114,9 +114,9 @@ func TestCreationSchemaAdvertisesWorktreeName(t *testing.T) {
 	}
 }
 
-// The check itself must fail when a single variant stops advertising the field,
+// The check itself must fail when the shared root stops advertising the field,
 // so this test cannot silently pass after a partial schema regression.
-func TestCreationSchemaCheckRejectsVariantWithoutWorktreeName(t *testing.T) {
+func TestCreationSchemaCheckRejectsRootWithoutWorktreeName(t *testing.T) {
 	description, err := DescribeThreadCreation([]TargetDescription{
 		{HarnessID: "native", NativeSchema: json.RawMessage(`{"type":"object","properties":{"model":{"type":"string"}},"required":["model"]}`)},
 		{HarnessID: "deferred", DeferredNative: true},
@@ -128,14 +128,13 @@ func TestCreationSchemaCheckRejectsVariantWithoutWorktreeName(t *testing.T) {
 	if err := json.Unmarshal(description.InputSchema, &root); err != nil {
 		t.Fatal(err)
 	}
-	variants := root["oneOf"].([]any)
-	delete(variants[1].(map[string]any)["properties"].(map[string]any), "worktreeName")
+	delete(root["properties"].(map[string]any), "worktreeName")
 	mutated, err := json.Marshal(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := checkWorktreeNameSchema(mutated); err == nil {
-		t.Fatal("schema check accepted a variant without worktreeName")
+		t.Fatal("schema check accepted a root without worktreeName")
 	}
 }
 
@@ -176,32 +175,65 @@ func TestCreationSchemaAndParserRejectNULWorktreeName(t *testing.T) {
 	}
 }
 
+func TestCreationSchemaReportsOnlySelectedHarnessOptions(t *testing.T) {
+	description, err := DescribeThreadCreation([]TargetDescription{
+		{HarnessID: "alpha", NativeSchema: json.RawMessage(`{"type":"object","properties":{"choice":{"const":"alpha"}},"required":["choice"],"additionalProperties":false}`)},
+		{HarnessID: "beta", NativeSchema: json.RawMessage(`{"type":"object","properties":{"choice":{"const":"beta"}},"required":["choice"],"additionalProperties":false}`)},
+	}, "/moku")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var definition map[string]any
+	if err := json.Unmarshal(description.InputSchema, &definition); err != nil {
+		t.Fatal(err)
+	}
+	if _, present := definition["oneOf"]; present {
+		t.Fatal("root oneOf would let an earlier harness exhaust a host's error budget")
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	if err := compiler.AddResource("urn:creation", definition); err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := compiler.Compile("urn:creation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// gamma fails both harness branches; only the selected alpha branch may be
+	// reported, or Moku could attribute beta's expected values to alpha.
+	request := map[string]any{"prompt": "inspect", "worktree": false, "harnessId": "alpha", "options": map[string]any{"choice": "gamma"}}
+	validationErr := compiled.Validate(request)
+	if validationErr == nil {
+		t.Fatal("creation schema accepted invalid options")
+	}
+	message := validationErr.Error()
+	if !strings.Contains(message, "must be 'alpha'") {
+		t.Fatalf("selected harness error omitted its expected value: %s", message)
+	}
+	if strings.Contains(message, "must be 'beta'") {
+		t.Fatalf("selected harness error included another branch: %s", message)
+	}
+}
+
 func checkWorktreeNameSchema(raw json.RawMessage) error {
 	var root map[string]any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return err
 	}
-	variants, ok := root["oneOf"].([]any)
-	if !ok || len(variants) < 2 {
-		return fmt.Errorf("creation schema variants = %d, want native and deferred", len(variants))
+	properties, ok := root["properties"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema omitted properties")
 	}
-	schemas := append([]any{root}, variants...)
-	for index, raw := range schemas {
-		properties, ok := raw.(map[string]any)["properties"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("schema branch %d omitted properties", index)
-		}
-		field, ok := properties["worktreeName"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("schema branch %d omitted worktreeName", index)
-		}
-		if field["type"] != "string" || field["maxLength"] != float64(ThreadCreationWorktreeNameMaxCharacters) {
-			return fmt.Errorf("schema branch %d worktreeName = %#v", index, field)
-		}
-		not, _ := field["not"].(map[string]any)
-		if not["pattern"] != "\u0000" {
-			return fmt.Errorf("schema branch %d worktreeName does not reject NUL: %#v", index, field)
-		}
+	field, ok := properties["worktreeName"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema omitted worktreeName")
+	}
+	if field["type"] != "string" || field["maxLength"] != float64(ThreadCreationWorktreeNameMaxCharacters) {
+		return fmt.Errorf("worktreeName = %#v", field)
+	}
+	not, _ := field["not"].(map[string]any)
+	if not["pattern"] != "\u0000" {
+		return fmt.Errorf("worktreeName does not reject NUL: %#v", field)
 	}
 	blankRule := false
 	for _, raw := range root["allOf"].([]any) {

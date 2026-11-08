@@ -20,7 +20,7 @@ native failures cannot authorize replay or clear an uncertain outbox attempt.
 
 ## Tools and creation
 
-[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. Inclusive property hints expose choices from closed union branches without replacing their exact validation. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution.
+[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. Inclusive property hints expose choices from closed union branches without replacing their exact validation. `create_thread` selects a native `options` schema through a per-`harnessId` conditional rather than a root union, so hosted validators report only the selected Harness branch; an earlier branch cannot exhaust their bounded error output. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution.
 
 Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
