@@ -65,6 +65,33 @@ def verify_replay_inventory(audit, repo, environment, group_paths):
     print("PASS complete replay inventory: fixtures/interop/native non-owner omissions, duplicate/unknown names, failed/incomplete receipts and missing/misrouted logs")
 
 
+def verify_interleaved_swift_outcomes(audit, repo, environment, ordinary_log, ordinary_before):
+    outcome = "✔ Test case1(value:) with 2 test cases passed after 0.001 seconds.\n"
+    if ordinary_before.count(outcome) != 1:
+        raise AssertionError("Expected exactly one controlled parameterized outcome")
+    # Retain the observed split inside `enabled`; a quoted lookalike on the
+    # same physical line must neither count nor swallow the genuine record.
+    quoted = json.dumps({"diagnostic": outcome.rstrip("\n")}, ensure_ascii=False)
+    prefix = quoted + ' MOKU_EXECUTION_LINK_RECEIPTS {"scroll":{"e'
+    suffix = 'nabled":true}}\n'
+    for label, record, success in (
+            ("interleaved", outcome, True),
+            ("quoted only", "", False),
+            ("truncated", outcome.replace(" seconds.\n", " seconds\n"), False),
+            ("duplicate", outcome + outcome, False),
+            ("substituted", outcome.replace("case1(value:)", "unknown(value:)"), False)):
+        ordinary_log.write_text(ordinary_before.replace(outcome, prefix + record + suffix, 1))
+        output = command(audit, cwd=repo, env=environment, success=success)
+        if not success:
+            if "observed method identities omit, repeat or substitute assigned tests." not in output:
+                raise AssertionError(f"{label}: missing inventory rejection\n{output}")
+            if label != "substituted" and "incomplete Swift Testing counts" not in output:
+                raise AssertionError(f"{label}: missing terminal count rejection\n{output}")
+    ordinary_log.write_text(ordinary_before)
+    command(audit, cwd=repo, env=environment)
+    print("PASS actual Swift audit: interleaved complete outcome, quoted lookalike, missing/truncated/duplicate/substituted records")
+
+
 def verify_swift_ownership(root, repo, environment):
     from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
     from replay_plan import replay_groups
@@ -209,6 +236,7 @@ def verify_swift_ownership(root, repo, environment):
     verify_replay_inventory(audit, repo, environment, group_paths)
     ordinary_log = evidence / "swift.log"
     ordinary_before = ordinary_log.read_text()
+    verify_interleaved_swift_outcomes(audit, repo, environment, ordinary_log, ordinary_before)
     for native, owner in NATIVE_METHOD_OWNERS.items():
         method = native.split("/", 1)[1]
         native_log, native_line = native_logs[native], native_lines[native]

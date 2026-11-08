@@ -40,7 +40,8 @@ import MokuseiApplications
             try await wait("Moku native execution profile did not become ready") { setup.step == .moku && setup.canAdvance }
             #expect(setup.selectedHost?.descriptor.id == "codex")
             #expect(setup.targets == ["codex"])
-            // Editor readiness does not join the target-selection save seeded by discovery.
+            // Discovery advances while its seeded targets are still autosaving.
+            // Settle that write before measuring whether an incomplete profile persists.
             try await setup.settings.draft.flush()
             let savedBeforeIncompleteEdit = setup.settings.draft.saved
             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)

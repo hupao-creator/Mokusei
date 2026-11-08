@@ -36,6 +36,15 @@ model request: a real asynchronous `session_shutdown` hook must release its
 temporary lock before adapter Close returns. The deterministic replay also
 checks EOF cleanup and bounded termination of a child that ignores EOF/SIGTERM.
 
+The default deterministic replay also runs the real Pi adapter and RPC child
+under Core Runtime with SQLite. A native EOF barrier proves interruption cannot
+publish its terminal state or snapshot before shutdown finishes writing the
+session file. It checks the final JSONL snapshot after SQLite closes and reopens,
+the retired child has been reaped, and a successor execution completes without
+late shutdown events rewriting the old terminal execution. This runs without
+`-timeouts` and is included in the default CI `pi-usage` interop check;
+`-artifacts` retains `runtime-lifecycle-state.json`.
+
 The real Pi 1.0.0 scenario exercises the native loader, host extension, read guard, Go tool callback, persistence, independent clone, cancellation and recovery. It uses isolated native configuration and a localhost-only sandbox. It does not contact a paid model, use account login or prove future Pi compatibility.
 
 The installed-native run also checks a loopback Responses model: explicit thinking

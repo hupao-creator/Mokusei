@@ -277,6 +277,11 @@ names, failed or incomplete receipts and missing or misrouted logs separately
 from the Swift owner assertions.
 Parameterized outcomes retain their exact discovered method identity with either
 Swift Testing's `with 1 test case` or plural `with N test cases` suffix.
+Concurrent diagnostics can precede an intact Swift Testing outcome on the same
+physical line. Counts and identities share the complete record boundary,
+including its numeric duration, final punctuation and newline or end of log.
+Controller cases retain the observed mid-JSON prefix and reject quoted
+lookalikes, missing/truncated records and duplicate/substituted methods.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
 commit's hosted run must establish actual native execution.
 
