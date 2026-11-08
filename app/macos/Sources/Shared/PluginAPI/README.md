@@ -25,6 +25,14 @@ both modes, and changing a mode/profile preserves the switch.
 
 [Composition/NativePlugins.swift](../../Composition/NativePlugins.swift) registers the Codex, Claude, Pi, OpenCode, Report/Tag and Conversation/Browser/Voice modules for macOS. Runtime publishes active Sidecard enablement; desired settings alone do not authorize a native instance. Local plugin state is scoped by thread identity.
 
+`ApplicationExecutionReferencesUI.subscribe` takes the exact execution references
+whose source facts the renderer consumes. The host routes changed Thread IDs and
+application coverage-binding changes through a reverse listener index. Renderers
+replace the subscription when their reference set changes; cancellation removes
+both lifetime handlers and reverse dependencies. Indexed Thread lookup avoids
+whole-catalog scans for each reference. An unrelated Thread update therefore does
+not refresh every Report card or issue unrelated relation queries.
+
 Execution reference metadata carries the Harness identity and display name. Report
 cards and related execution rows obtain its native logo through the renderer's
 execution references capability, preserving the Harness's appearance-specific colors.

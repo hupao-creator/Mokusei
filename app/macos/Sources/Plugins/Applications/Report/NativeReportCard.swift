@@ -35,7 +35,7 @@ import SwiftUI
             }
             .onAppear { requestedReferences = props.entry.view.relatedExecutions; subscribe() }
             .onDisappear { unsubscribe?(); unsubscribe = nil }
-            .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; readReferences() }
+            .onChange(of: props.entry.view.relatedExecutions) { _, next in requestedReferences = next; subscribe() }
             .onChange(of: props.entry.ref) { _, _ in requestedReferences = props.entry.view.relatedExecutions; subscribe() }
     }
     private var metadata: some View {
@@ -85,7 +85,7 @@ import SwiftUI
         unsubscribe?(); unsubscribe = nil
         do {
             let capability = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI)
-            unsubscribe = capability.subscribe { readReferences() }; readReferences()
+            unsubscribe = capability.subscribe(requestedReferences) { readReferences() }; readReferences()
         } catch { failure = error.localizedDescription }
     }
     private func readReferences() {

@@ -135,6 +135,8 @@ func main() {
 	check(db.Snapshot().Has("committed") && !db.Snapshot().Has("uncommitted"), "WAL recovery lost committed or kept uncommitted write")
 	must(db.Close())
 	replayLifecycleValidation(ctx, root)
+	replayLocalStoreChanges(ctx, root)
+	replayLocalLifecycleChanges(ctx, root)
 	gitRoot := filepath.Join(root, "project")
 	must(os.Mkdir(gitRoot, 0700))
 	git := func(cwd string, args ...string) string {

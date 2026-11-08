@@ -27,9 +27,12 @@ type Status struct {
 	Reason           string `json:"reason,omitempty"`
 }
 type Options struct {
-	Trace         func(plugin.SearchDiagnostic)
-	Store         *store.Store
-	Sources       func(store.Snapshot, bool) ([]Source, error)
+	Trace   func(plugin.SearchDiagnostic)
+	Store   *store.Store
+	Sources func(store.Snapshot, bool) ([]Source, error)
+	// SourceChanges projects only owner keys that differ between immutable
+	// snapshots. A zero previous snapshot requests initial enumeration.
+	SourceChanges func(current, previous store.Snapshot, includeContent bool) ([]Source, error)
 	WatchInterval time.Duration
 	RetryMin      time.Duration
 	RetryMax      time.Duration
@@ -39,6 +42,7 @@ type Manager struct {
 	ctx                     context.Context
 	cancel                  context.CancelFunc
 	control                 sync.Mutex
+	buildMu                 sync.Mutex
 	mu                      sync.Mutex
 	paused, closed, working bool
 	workerCancel            context.CancelFunc
@@ -50,6 +54,10 @@ type Manager struct {
 	retryAfter              time.Time
 	retrieval               retrievalCache
 	watcherDone             chan struct{}
+	maintenanceWake         chan struct{}
+	sourceSnapshot          store.Snapshot
+	sourceGeneration        uint64
+	builtGeneration         uint64
 }
 
 func readConfig(snapshot store.Snapshot) (Config, error) {
@@ -94,7 +102,7 @@ func New(ctx context.Context, options Options) (*Manager, error) {
 	if options.RetryMax < options.RetryMin {
 		options.RetryMax = max(5*time.Minute, options.RetryMin)
 	}
-	m := &Manager{options: options, ctx: life, cancel: cancel, watcherDone: make(chan struct{})}
+	m := &Manager{options: options, ctx: life, cancel: cancel, watcherDone: make(chan struct{}), maintenanceWake: make(chan struct{}, 1)}
 	m.requestCtx, m.requestCancel = context.WithCancel(life)
 	go m.watch()
 	return m, nil
@@ -116,10 +124,13 @@ func (m *Manager) Status(ctx context.Context) (Status, error) {
 		if err := ctx.Err(); err != nil {
 			return Status{}, err
 		}
-		document := m.retrieval.document(ctx, snapshot, documentPrefix+RefKey(source.Ref))
-		if currentDocument(source, document) {
+		stamp, err := readStamp(snapshot, source)
+		if err != nil {
+			return Status{}, err
+		}
+		if currentStamp(snapshot, source, stamp) {
 			s.Indexed++
-			if document.Truncated {
+			if stamp.Truncated {
 				s.Truncated++
 			}
 		} else {
@@ -128,11 +139,11 @@ func (m *Manager) Status(ctx context.Context) (Status, error) {
 	}
 	return s, nil
 }
-func (m *Manager) launch() {
+func (m *Manager) launch() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed || m.paused || m.working {
-		return
+		return false
 	}
 	ctx, cancel := context.WithCancel(m.requestCtx)
 	m.working = true
@@ -154,6 +165,22 @@ func (m *Manager) launch() {
 			m.retryAfter = time.Time{}
 		}
 	}()
+	return true
+}
+
+// Invalidate covers source registrations, which can change without a store
+// commit. Normal owner changes use the immutable snapshot diff instead.
+func (m *Manager) Invalidate() {
+	m.mu.Lock()
+	m.sourceGeneration++
+	m.mu.Unlock()
+	m.wakeMaintenance()
+}
+func (m *Manager) wakeMaintenance() {
+	select {
+	case m.maintenanceWake <- struct{}{}:
+	default:
+	}
 }
 func (m *Manager) stopWorker() {
 	m.mu.Lock()
@@ -188,6 +215,7 @@ func (m *Manager) Resume() {
 		m.reason = ""
 		m.retryAttempts = 0
 		m.retryAfter = time.Time{}
+		m.wakeMaintenance()
 	}
 }
 func (m *Manager) Close() error {
@@ -200,29 +228,32 @@ func (m *Manager) Close() error {
 	return err
 }
 func (m *Manager) build(ctx context.Context) (err error) {
-	ctx, id := plugin.SearchOperation(ctx)
-	started := time.Now()
-	event := plugin.SearchDiagnostic{Event: "search.index.completed", OperationID: id}
-	m.trace(plugin.SearchDiagnostic{Event: "search.index.started", OperationID: id})
-	defer func() {
-		event.DurationMS = plugin.SearchDuration(started)
-		event.Outcome = "completed"
-		if err != nil {
-			event.Outcome = "failed"
-			event.Reason = plugin.SearchFailure(err)
-		}
-		m.trace(event)
-	}()
+	m.buildMu.Lock()
+	defer m.buildMu.Unlock()
 	snapshot := m.options.Store.Snapshot()
 	c, err := readConfig(snapshot)
 	if err != nil {
 		return err
 	}
-	sources, err := m.options.Sources(snapshot, true)
+	m.mu.Lock()
+	previous, generation := m.sourceSnapshot, m.sourceGeneration
+	builtGeneration := m.builtGeneration
+	m.mu.Unlock()
+	configHash, _ := snapshot.RecordHash(configKey)
+	previousConfigHash, _ := previous.RecordHash(configKey)
+	if generation != builtGeneration || configHash != previousConfigHash {
+		previous = store.Snapshot{}
+	}
+	var sources []Source
+	if m.options.SourceChanges != nil {
+		sources, err = m.options.SourceChanges(snapshot, previous, true)
+	} else if snapshot.Revision() != previous.Revision() {
+		sources, err = m.options.Sources(snapshot, true)
+	}
 	if err != nil {
 		return err
 	}
-	event.Epoch = c.Epoch
+	pending := make([]Source, 0, len(sources))
 	for _, source := range sources {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -230,22 +261,52 @@ func (m *Manager) build(ctx context.Context) (err error) {
 		if source.Busy {
 			continue
 		}
-		var old Document
-		if _, err := snapshot.Get(documentPrefix+RefKey(source.Ref), &old); err != nil {
-			return err
-		}
-		if currentDocument(source, old) {
-			continue
-		}
-		document, err := prepareSource(source, old)
+		stamp, err := readStamp(snapshot, source)
 		if err != nil {
 			return err
 		}
-		if err := persist(ctx, m.options.Store, c, source, document); err != nil {
-			return err
+		if !currentStamp(snapshot, source, stamp) {
+			pending = append(pending, source)
 		}
-		event.DocumentCount++
 	}
+	if len(pending) > 0 {
+		ctx, id := plugin.SearchOperation(ctx)
+		started := time.Now()
+		event := plugin.SearchDiagnostic{Event: "search.index.completed", OperationID: id, Epoch: c.Epoch}
+		m.trace(plugin.SearchDiagnostic{Event: "search.index.started", OperationID: id})
+		defer func() {
+			event.DurationMS = plugin.SearchDuration(started)
+			event.Outcome = "completed"
+			if err != nil {
+				event.Outcome = "failed"
+				event.Reason = plugin.SearchFailure(err)
+			}
+			m.trace(event)
+		}()
+		for _, source := range pending {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			document, err := prepareSource(source)
+			if err != nil {
+				return err
+			}
+			if err := persist(ctx, m.options.Store, c, source, document); err != nil {
+				return err
+			}
+			event.DocumentCount++
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// A busy owner is deliberately acknowledged here: its next committed source
+	// change will make it eligible again. Only extraction failures retain retry
+	// work, so one busy thread cannot poll the entire index forever.
+	m.mu.Lock()
+	m.sourceSnapshot = snapshot
+	m.builtGeneration = generation
+	m.mu.Unlock()
 	return nil
 }
 func (m *Manager) trace(event plugin.SearchDiagnostic) {

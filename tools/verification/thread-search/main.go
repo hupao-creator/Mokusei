@@ -196,6 +196,7 @@ func main() {
 	asset, err := os.ReadFile(assetPath)
 	must(err)
 	assert(string(asset) == "existing asset", "existing model files remain untouched")
+	verifyMaintenanceFanout(ctx, directory)
 	verifyApplications(ctx, directory)
 	verifyDiagnostics(ctx, filepath.Join(directory, "diagnostics"))
 	fmt.Println("PASS keyword Runtime/SQLite: legacy migration, source preservation, retired APIs, Chinese body/AND/scope, archive, updates, reopen, history clear and application/Report text")

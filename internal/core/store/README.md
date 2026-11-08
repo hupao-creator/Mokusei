@@ -60,9 +60,10 @@ and cancellation checks happen before beginning the SQLite transaction. Record
 writes, entity ordering, lifecycle events, consumer batches, receipts, outcomes,
 and the new revision share one `BEGIN IMMEDIATE` / `COMMIT` boundary.
 Lifecycle validation checks changed records against the complete staged view;
-unchanged history retains its validation from the committed snapshot. Removing
-an event performs a full reference check, so unchanged work and outcomes cannot
-be left pointing to a missing fact. Opening a database still validates all records.
+unchanged history retains its validation from the committed snapshot. Event-local
+reverse indexes retain work and outcome references, so an event deletion checks
+those references without scanning unrelated history. Opening a database still
+validates all records.
 
 Once SQLite starts the transaction, `Update` waits for a definite result even
 if its context is cancelled. Successful COMMIT always publishes the new snapshot
@@ -75,10 +76,27 @@ copies, including input passed to custom `UnmarshalJSON` implementations. Old
 snapshots remain valid after later commits. Unchanged byte-identical writes and
 unchanged ordering do not increment the revision.
 
+Record and order indexes are persistent compressed radix trees. A transaction
+snapshot copies only changed key paths and shares untouched branches and values;
+one telemetry write does not copy every record or order. `Keys(prefix)` descends
+directly to its range, and `Count(prefix)` reads the cached subtree count.
+`ChangedKeys(previous, prefix)` compares shared branches and returns exact source
+changes, including removals, in key order. Coalesced commits need no retained
+revision journal. `PrefixEqual` and `OrderChanged` let consumers reject unrelated
+updates before materializing a collection. A zero previous snapshot is the full
+initial read; independently opened stores do not share the in-memory branches.
+Collection caches can retain `RecordPrefix(prefix)`, an opaque `RecordSnapshot`
+whose `ChangedKeys` baseline holds only that subtree. It does not retain a full
+old store snapshot or unrelated record bodies.
+
 `Subscribe` returns a channel of committed revisions, including the current
 revision immediately. Notifications coalesce for slow readers; consumers reread
 the snapshot. Durable lifecycle delivery uses persisted events and outcomes,
 not this channel's delivery count.
+`SubscribeLifecycle` uses scope/type/source routes, the consumer's own work and
+outcomes, and an optional exact observed record. A local fact wakes matching
+routes rather than enumerating all active scoped consumers. Its initial revision,
+coalescing, unsubscribe and store-close behavior match `Subscribe`.
 `Snapshot.EventRevision()` changes only for event writes or deletions;
 `LifecycleRevision()` also includes work and outcome changes. Consumers can skip
 unrelated commits by comparing these markers within the same open store. They
@@ -137,12 +155,42 @@ Receipts deduplicate transactional state changes; an irreversible external side
 effect still requires its own idempotency mechanism.
 
 `Snapshot.Events`, `Pending`, `Work`, and paged `History` support restart recovery
-and consumer processing. Events sort by creation time and then ID. Pending
-queries exclude acknowledged events and apply optional scope filters; history
-includes per-consumer outcomes. Scope authorization remains the caller's job.
+and consumer processing. Events sort by creation time and then ID. Scope, type
+and source indexes select streams before reading event bodies; returned event
+data remains detached from the immutable index. `NewEvents` compares selected
+streams against a previous snapshot; long-lived live subscriptions use
+`EventReader` to retain only those streams and seen identities.
+
+Pending queries exclude acknowledged events. Long-lived consumers use
+`PendingReader` to retain their unacknowledged selection and reconcile only
+changes to those streams and their own outcomes. Already processed history does
+not become recurring work on every notification. The reader serializes concurrent
+calls, supports older snapshots, and copies its filter/exclusion inputs. Neither
+reader retains a complete prior snapshot: idle scoped consumers do not pin old
+unrelated thread or private-session bodies. Their retained event/outcome branches
+belong to the selected lifecycle streams.
+
+`QueryHistory` applies explicit event IDs and exclusions before pagination;
+an empty non-nil ID list selects nothing. It joins outcomes only for returned
+events, using the reverse outcome index. Batch reads therefore do not walk all
+pages of history to find a handful of requested identities. `History` is the
+filter-only convenience wrapper. Scope authorization remains the caller's job.
+These indexes are derived from validated records and rebuilt on open; the
+durable SQLite format is unchanged.
 
 ## Source and verification
 
-[store.go](store.go) owns admission and transactions, [sqlite.go](sqlite.go) owns schema and durable writes, [snapshot.go](snapshot.go) owns immutable reads, and [lifecycle.go](lifecycle.go) owns events, work and receipts.
+[store.go](store.go) owns admission and transactions, [sqlite.go](sqlite.go) owns
+schema and durable writes, [snapshot.go](snapshot.go) and [index.go](index.go) own
+immutable reads, and [lifecycle.go](lifecycle.go) owns events, work and receipts.
+[lifecycle_index.go](lifecycle_index.go) owns query indexes and pending readers;
+[lifecycle_subscriptions.go](lifecycle_subscriptions.go) owns routed notifications.
 
-Run `./scripts/go.sh run -race ./tools/verification/storage-workspaces` from the repository root. Runtime domain validation is also exercised by the [runtime and application-host replays](../../../tools/verification/README.md).
+Run `./scripts/go.sh run -race ./tools/verification/storage-workspaces` from the
+repository root. The production replay checks retained/staged snapshot isolation,
+compressed-branch insertion/deletion and exact diffs, scoped notification routing,
+acknowledgements, event-local outcomes, pagination and reopen. Allocation probes
+compare one-key transaction snapshots, warm pending reads and exact-ID history
+with 64 versus 4,096 unrelated or acknowledged facts; they assert bounded memory
+growth rather than machine-dependent timing. Runtime domain validation is also
+exercised by the [runtime and application-host replays](../../../tools/verification/README.md).

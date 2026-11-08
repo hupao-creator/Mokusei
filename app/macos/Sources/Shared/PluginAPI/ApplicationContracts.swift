@@ -246,7 +246,7 @@ struct ApplicationRecordReader {
         guard case .bool(let value) = try require(key) else { throw PluginContractError("\(path).\(key) must be boolean") }; return value
     }
     func array(_ key: String) throws -> [JSONValue] {
-        guard case .array(let value) = try require(key) else { throw PluginContractError("\(path).\(key) must be an array") }; return value
+        guard let value = try require(key).arrayValue else { throw PluginContractError("\(path).\(key) must be an array") }; return value
     }
     func texts(_ key: String) throws -> [JSONText] {
         try array(key).map { guard case .string(let value) = $0 else { throw PluginContractError("\(path).\(key) must contain text") }; return value }

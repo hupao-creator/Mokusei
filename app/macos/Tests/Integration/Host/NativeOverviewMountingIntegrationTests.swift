@@ -173,6 +173,17 @@ struct NativeOverviewMountingIntegrationTests {
         #expect(fixture.markerIDs == identities)
         #expect(fixture.appearances == appearances)
         #expect(fixture.state.overflowAttentionCount == 1)
+        let attentionVisits = fixture.state.attentionVisibilityVisitCount
+        let solves = fixture.state.layoutSolveCount
+        let mounted = fixture.state.mountedCardIDs
+        let panUpdates = 8
+        // The production camera callback visits the one attention identity on
+        // each input update, independently of the 64 unrelated completed cards.
+        for _ in 0..<panUpdates { fixture.state.camera.pan(deltaX: 1, deltaY: 1) }
+        #expect(fixture.state.attentionVisibilityVisitCount == attentionVisits + panUpdates)
+        #expect(fixture.state.layoutSolveCount == solves)
+        #expect(fixture.state.mountedCardIDs == mounted)
+        #expect(fixture.markerIDs == identities && fixture.appearances == appearances)
         fixture.state.camera.returnToAuto()
         try await SwiftUIReplay.wait { fixture.state.camera.isAnimating }
         #expect(fixture.state.mountedCardIDs == Set(fixture.items.map(\.id)))

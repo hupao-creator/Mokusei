@@ -201,6 +201,7 @@ func main() {
 	verifyComputePool(ctx)
 	verifyProjectionWorkers(ctx, dir)
 	verifyProjectionReuse(ctx, dir)
+	verifyPublisherFanout(ctx, dir)
 	verifyCommittedRecords(ctx, dir)
 	verifyLifecycleSubscriptions(ctx, dir)
 	database := filepath.Join(dir, "state.sqlite")

@@ -268,7 +268,7 @@ func ocJSONString(_ value: JSONValue) -> JSONText {
         }
         return JSONText(codeUnits: result + [34])
     }
-    if case .array(let entries) = value { return ocJSONStringID(entries) }
+    if let entries = value.arrayValue { return ocJSONStringID(entries) }
     if case .object(let object) = value {
         let keys = object.keys.sorted { $0.codeUnits.lexicographicallyPrecedes($1.codeUnits) }
         var units: [UInt16] = [123]

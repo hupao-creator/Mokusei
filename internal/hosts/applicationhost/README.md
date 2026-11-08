@@ -37,6 +37,12 @@ CommandDefinition 分成 Plan 和 Reduce：
 
 `Records.List` 保留 collection 的持久顺序；未列入顺序的记录按 key 排序追加，已不存在的记录跳过。枚举以一次 membership set 合并顺序与现存记录，避免 collection 增长时反复线性查找；返回值仍由同一 snapshot 解码。
 
+`Records.Count` 直接读取 collection 前缀索引的数量。Collection 可声明纯函数
+`RecordIndex`；`Records.LookupIDs` 查询该 snapshot 中匹配的 record IDs，不加载
+记录正文。宿主首次使用时建立索引，之后只对 bytes 变化的记录调用索引函数；
+旧 snapshot、事务中的 staged writes 和回滚后的读取都以各自的 immutable
+snapshot 为准。索引读取与 List 一样需要 collection scope，不扩展插件权限。
+
 查询、Plan 与 Reduce 的 context 携带宿主复制的 `Owner`（BackgroundAgentRef）；用户调用为零值。后台 DomainClient 的 owner 不来自 input。scope 型应用使用该身份约束自己的记录读写；任务 snapshot 的 `Scope` 由 Runtime 解析，应用不自行访问文件系统来决定归属。
 
 后台命令的 options 带 `RequestID` 和 `BatchWriteContext{ConsumerID,BatchID,InvocationID}`。宿主检查 agent namespace 和当前活动 batch，按该 batch 的 invocation 保留原子结果。相同调用重放得到同一结果；复用身份但改变参数失败。不同 batch 不共享幂等身份。
@@ -56,6 +62,11 @@ ThreadTypeDefinition 通过 Project 返回 title/view 和可选的稳定 Scope�
 | Conversation | 读取、初始化配置和嵌回宿主授权的 Harness session |
 
 `Host.CatalogSnapshot` 支持整个 runtime aggregate 使用同一 store snapshot。Conversation catalog 由宿主的 ProjectSession 回调进行 Harness overview 投影，不能直接泄露持久会话全文。
+
+`Host.CatalogChanges` 使用 snapshot 的结构差异，只投影发生变化的记录；完整
+ordering 仅在增删或顺序变化时生成。精确 source hash 缓存每条应用投影，返回
+的 JSON 与缓存独立持有。普通 telemetry、lifecycle outcome 或其他 collection
+写入不会重新解码或调用无关应用的 projector。
 
 ### 后台能力与生命周期
 

@@ -2,21 +2,47 @@
 
 [NativeOverviewWorkspaceModel](NativeOverviewWorkspaceModel.swift) projects public catalog records into visible cards, tags, selection and search scope. [NativeOverviewCanvas](NativeOverviewCanvas.swift) owns structural geometry; the registered plugin supplies each card's semantic content. All placements in the selected layout remain mounted, including outgoing cards through exit. Camera movement alone does not mount/unmount cards or start structural transitions.
 
-[Membership facts](NativeOverviewMembership.swift) separate filter membership from streaming card content. The main-actor workspace retains only current-catalog identity lists for All and exposed filters, resolving them against the latest records before projection/search. Visibility, archive state, scope/labels, tags/emoji, creation/order, covered executions and locale invalidate membership; a new authority or explicit refresh also rebuilds it. Content-only updates still refresh plugin snapshots and Moku operations. Cache storage is bounded by the current catalog and exposed filters, is replaced on invalidation and is released on stop. The [CPU benchmark and scenario matrix](../../../../../tools/verification/overview-performance/README.md) distinguishes these costs from GUI and GPU work.
+[Membership facts](NativeOverviewMembership.swift) separate filter membership from
+streaming card content. Admitted catalog deltas carry changed identities into the
+workspace; content-only changes compare those identities' facts and refresh only
+selected changed card slots, without scanning or sorting the selection. This also
+applies to active searches when the changed record's metadata match is unchanged.
+Activity-only mutations do no catalog/card work. Full snapshots, explicit refresh,
+locale changes and reordered surviving records retain full reconciliation.
+Same-patch removal and upsert of an existing identity, including renderer recovery
+at the same revision, retains its slot and follows the changed-record path. Only
+real creation/deletion or an explicit relative reorder marks structure dirty;
+membership facts still invalidate affected scopes when the replacement changes them.
 
-Rebuilding membership partitions eligible Agent Threads by canonical scope once, so each directory and child scans only its scope. Application candidates still follow the full selection rules, including unscoped documents and covered executions. The partition exists only during that rebuild; it does not retain another catalog or change equal-date ordering.
+The [membership index](NativeOverviewMembershipIndex.swift) retains identities and
+selection results per canonical scope. Execution, visibility, archive, tag and
+scope changes reselect only affected old/new scopes. Unscoped applications have
+reverse label dependencies so their matching directories and Inbox semantic
+filters remain current. Coverage uses exact execution sets rather than checking
+every selected application for each task. Stable per-scope order comes from the
+admitted catalog positions; changing one scope cannot reorder equal-date records
+in another. Cached inputs, membership facts, directory labels and results are
+bounded by current catalog identities and exposed filters and are released on stop.
 
-That rebuild also publishes global conversation availability before filtering,
-search and report coverage, including directory-only documents. Moku uses these
-facts for its empty-workspace landing; an unloaded catalog remains unknown. While
-the first creation awaits native admission, the canvas and filters stay covered
-by landing so a durable, unadmitted shell cannot replace the primary input. Ordinary
-eligibility rules, including archive and terminal visibility, are shared
-with Overview rather than reimplemented by the Dock. The
+Global conversation availability is updated from changed eligible records before
+filtering, search and report coverage, including directory-only documents. Moku
+uses these facts for its empty-workspace landing; an unloaded catalog remains
+unknown. The All membership is invalidated lazily and resolved when that view is
+requested. Filter chrome and Moku still receive the complete filter description
+when membership changes, so producing that public output scales with the output
+size; unrelated scope selections and card projections are reused. Selecting a
+filter, changing search membership/rank or changing card geometry retains the
+ordinary complete selected-layout transaction.
+
+While the first creation awaits native admission, the canvas and filters stay
+covered by landing so a durable, unadmitted shell cannot replace the primary
+input. Ordinary eligibility rules, including archive and terminal visibility,
+are shared with Overview rather than reimplemented by the Dock. The
 [native landing replay](../../../../../tools/verification/reading-presentation/README.md#empty-workspace-and-first-dispatch)
-checks this distinction against real catalog transactions.
-
-The same rebuild also normalizes each distinct tag/label once and supplies those keys to the existing selection rules. This memo is local to the synchronous rebuild, bounded by its distinct labels, and discarded before another locale/catalog revision can use it. Standalone selection calls retain the ordinary normalization path.
+checks this distinction against real catalog transactions. Each scope selection
+normalizes its distinct labels once. The
+[CPU benchmark and scenario matrix](../../../../../tools/verification/overview-performance/README.md)
+distinguishes model work from GUI and GPU work.
 
 All Overview cards, including Agent Threads and Report, use opaque palette
 surfaces and a soft border, including completed cards.
@@ -52,9 +78,9 @@ installs it synchronously at each admitted catalog transaction; the canvas reads
 only its structural revision and retains a stable slot for each mounted
 structural identity. A content-only change updates that card's slot directly,
 without rebuilding the canvas body, its two placement loops or a second
-`items`-to-`rendered` state copy. The input transaction still compares/indexes the
-current collection; this boundary does not claim constant-time model projection.
-Array-based fixture hosts feed the same store and layout state machine.
+`items`-to-`rendered` state copy. The production delta path updates only changed card slots and attention identities;
+structural changes retain the full selected-layout transaction. Array-based
+fixture hosts feed the same store and layout state machine.
 
 Each card retains separate Equatable shell and semantic boundaries outside its
 spatial frame. The shell keeps a neutral palette surface;
@@ -70,6 +96,12 @@ The model retains those slots' current presentation IDs alongside queued
 revision snapshots until exit finishes. A queued revision can adopt newer
 content only for the same structural identity; A→B→A lifecycle history remains
 FIFO. Source replacement cancels the old queued work and refreshes ownership.
+
+Presented placements have an identity index rebuilt only with a new layout.
+Each pan/zoom input checks the current attention identities against that index,
+so finished and unrelated placements do not participate. The empty attention set
+returns immediately. The mounted replay checks the actual callback's visit count
+while preserving mounted identities and solver state.
 
 Offscreen attention changes notify the mounted coordinator without routing
 ordinary text updates through canvas attachment or moving the camera. Structural,

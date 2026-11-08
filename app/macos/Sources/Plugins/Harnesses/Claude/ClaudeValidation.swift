@@ -155,6 +155,7 @@ private func claudeValidateInteractionJSON(_ root: JSONValue) throws {
         case .number(let number): guard number.isFinite else { throw claudeInvalid("interaction JSON") }; characters += 32
         case .string(let text): guard !text.codeUnits.contains(0) else { throw claudeInvalid("interaction JSON") }; characters += text.codeUnits.count
         case .array(let values): pending += values.map { ($0,depth+1) }
+        case .catalog(let values): pending += values.map { ($0,depth+1) }
         case .object(let values):
             for (key,value) in values {
                 guard !key.codeUnits.contains(0) else { throw claudeInvalid("interaction JSON") }

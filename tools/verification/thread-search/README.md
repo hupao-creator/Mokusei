@@ -16,7 +16,11 @@ second-term-only candidates excluded in both query orders, title identifiers,
 scope isolation, exclusion of paraphrase-only matches, archive/unarchive,
 source updates, cache invalidation,
 database reopening, history clearing, Application reducer deletion and Report
-HTML text projection. Unit tests additionally cover continuous Unicode body
+HTML text projection. The automatic-maintenance replay runs the production
+manager, Application host and SQLite at 8 and 128 unrelated documents. Plugin
+callback counts require zero unrelated projections for a busy owner/telemetry
+write, one projection and extraction for one changed application, and atomic
+owner-local body/stamp deletion. Unit tests additionally cover continuous Unicode body
 bounds, busy-source deferral, cancellation, late-query fencing and unchanged
 source reuse, plus metadata/body AND matching on cold and cached queries.
 

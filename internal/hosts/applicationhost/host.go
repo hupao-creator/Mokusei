@@ -58,6 +58,10 @@ type Host struct {
 	instances        map[string]plugin.BackgroundAgentRef
 	scopeMu          sync.Mutex
 	operations       sync.WaitGroup
+	indexMu          sync.Mutex
+	indexes          map[string]*recordIndex
+	catalogMu        sync.Mutex
+	catalogCache     map[string]catalogEntry
 }
 type ownedAgent struct {
 	owner      string

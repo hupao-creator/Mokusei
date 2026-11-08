@@ -10,6 +10,19 @@ stream retirement/reset, errors, gaps or budget pressure. Pending reads never
 transfer. Connected reads await fresh snapshots; persisted content is an offline
 fallback. Route-owned prefetch uses the same production subscription path; opening a reading view does not start an agent process.
 
+Catalog arrays are admitted once into [persistent ordered records](RuntimeRecordCollection.swift).
+An ordinary upsert copies logarithmic index paths and retains earlier event
+snapshots without copying unrelated records. `JSONValue.catalog` is an internal
+representation: equality, hashing and wire/cache encoding retain ordinary JSON
+array semantics. A remove and upsert for the same ID in one mutation preserves
+its order slot and resets the revision fence only for the first upsert. Deleting
+an ID in one transaction and recreating it later appends a new slot. Explicit
+ordering remains authoritative and validates the supplied complete order; full
+snapshots/reconnects still validate every identity. Whole-array readers materialize
+only when they request the collection. Native catalog preparation consumes the
+accepted mutation identities and decodes only changed envelopes. Activity-only
+mutations advance the stream revision without rewriting the offline state cache.
+
 [RuntimeSettingsReads](RuntimeSettingsReads.swift) admits settings presentation
 and single-Harness installation reads before they open HTTP connections. At most
 four discovery reads run per client, with one per global Harness (or Thread

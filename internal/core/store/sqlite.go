@@ -147,7 +147,7 @@ func (d *database) load() (_ *snapshotData, err error) {
 			_ = d.exec("ROLLBACK")
 		}
 	}()
-	data := &snapshotData{records: make(map[string]*storedRecord), orders: make(map[string][]string)}
+	data := &snapshotData{}
 	if err = d.readMeta(data); err != nil {
 		return nil, err
 	}
@@ -231,7 +231,9 @@ func (d *database) readRecords(data *snapshotData) error {
 		if !utf8.Valid(raw) || !json.Valid(raw) {
 			return ErrInvalidState
 		}
-		data.records[s.Text(0)] = newStoredRecord(raw)
+		key, value := s.Text(0), newStoredRecord(raw)
+		data.records = indexSet(data.records, key, value)
+		data.lifecycle.update(key, value)
 	}
 	return nil
 }
@@ -250,10 +252,15 @@ func (d *database) readOrders(data *snapshotData) error {
 			break
 		}
 		kind, id := s.Text(0), s.Text(2)
-		if validKey(kind) != nil || validKey(id) != nil || s.Integer(1) != int64(len(data.orders[kind])) {
+		order, _ := indexGet(data.orders, kind)
+		if order == nil {
+			order = &storedOrder{}
+			data.orders = indexSet(data.orders, kind, order)
+		}
+		if validKey(kind) != nil || validKey(id) != nil || s.Integer(1) != int64(len(order.ids)) {
 			return ErrInvalidState
 		}
-		data.orders[kind] = append(data.orders[kind], id)
+		order.ids = append(order.ids, id)
 	}
 	return nil
 }

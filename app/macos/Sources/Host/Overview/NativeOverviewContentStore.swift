@@ -8,11 +8,12 @@ import Foundation
 public final class NativeOverviewContentStore {
     public private(set) var structureRevision: UInt64 = 0
     public private(set) var isEmpty = true
-    @ObservationIgnored public private(set) var items: [NativeOverviewItem] = []
+    public var items: [NativeOverviewItem] { order.compactMap { records[$0] } }
     @ObservationIgnored private(set) var records: [String: NativeOverviewItem] = [:]
     @ObservationIgnored private(set) var activeIDs = Set<String>()
     @ObservationIgnored private(set) var attentionIDs = Set<String>()
     @ObservationIgnored private var structure: [String] = []
+    @ObservationIgnored private var order: [String] = []
     @ObservationIgnored private var slots: [String: OverviewCardContentState] = [:]
     @ObservationIgnored private var retained: [UUID: Set<String>] = [:]
     @ObservationIgnored private var observers: [UUID: () -> Void] = [:]
@@ -27,7 +28,7 @@ public final class NativeOverviewContentStore {
         let nextAttention = Set(next.filter(\.needsAttention).map(\.id))
         let changedStructure = structure != nextStructure
         let changedAttention = attentionIDs != nextAttention
-        items = next
+        order = next.map(\.id)
         records = nextRecords
         activeIDs = Set(nextRecords.keys)
         attentionIDs = nextAttention
@@ -42,6 +43,22 @@ public final class NativeOverviewContentStore {
         if changedStructure || changedAttention {
             for observer in Array(observers.values) { observer() }
         }
+    }
+
+    /// A semantic transaction only visits its changed cards. Structural
+    /// replacements return false before changing any slot so the caller can
+    /// enqueue the ordinary whole-layout transaction with its exact history.
+    func update(_ changed: [NativeOverviewItem]) -> Bool {
+        guard changed.allSatisfy({ records[$0.id]?.structuralIdentity == $0.structuralIdentity }) else { return false }
+        var changedAttention = false
+        for item in changed {
+            records[item.id] = item
+            slots[item.structuralIdentity]?.install(item)
+            if item.needsAttention { changedAttention = attentionIDs.insert(item.id).inserted || changedAttention }
+            else { changedAttention = attentionIDs.remove(item.id) != nil || changedAttention }
+        }
+        if changedAttention { for observer in Array(observers.values) { observer() } }
+        return true
     }
 
     func slot(for item: NativeOverviewItem) -> OverviewCardContentState {

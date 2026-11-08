@@ -25,6 +25,7 @@ private struct ClaudeSchemaPrefix {
         if done { return allowTruncation }
         guard depth <= 32 else { return false }
         switch value {
+        case .catalog(let values): return match(.array(Array(values)), depth: depth)
         case .array(let values):
             guard emit("[") else { return false }; if done { return allowTruncation }
             if values.isEmpty { return emit("]") }

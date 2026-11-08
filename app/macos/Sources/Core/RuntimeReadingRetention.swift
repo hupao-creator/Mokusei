@@ -81,6 +81,7 @@ extension JSONValue {
         case .integer(let integer): 32 + integer.literal.utf8.count
         case .string(let text): 32 + text.codeUnits.count * 2
         case .array(let values): 64 + values.reduce(0) { $0 + 32 + $1.readingRetentionCost }
+        case .catalog(let values): 64 + values.reduce(0) { $0 + 32 + $1.readingRetentionCost }
         case .object(let values): 64 + values.reduce(0) { $0 + 64 + $1.key.codeUnits.count * 2 + $1.value.readingRetentionCost }
         }
     }

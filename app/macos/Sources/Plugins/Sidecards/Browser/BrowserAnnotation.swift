@@ -64,6 +64,7 @@ enum BrowserText {
     static func prettyJSON(_ value: JSONValue, depth: Int = 0) throws -> String {
         let indent = String(repeating: "  ", count: depth)
         switch value {
+        case let .catalog(values): return try prettyJSON(.array(Array(values)), depth: depth)
         case let .object(fields):
             if fields.isEmpty { return "{}" }
             let rows = try fields.keys.sorted { $0.codeUnits.lexicographicallyPrecedes($1.codeUnits) }.map { key in

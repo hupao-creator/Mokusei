@@ -163,10 +163,7 @@ struct NativeReportDetail: View {
                         width: layout.surfaceWidth, height: layout.surfaceHeight), ready: sidecards.executionReady)
                 } : nil)
         }
-        .onAppear {
-            do { unsubscribe = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI).subscribe(invalidateRelations); refresh() }
-            catch { failure = error.localizedDescription }
-        }
+        .onAppear { subscribeReferences(); refresh() }
         .onDisappear { unsubscribe?(); unsubscribe = nil; sidecards.cancel(); entranceAdmitted = false }
         .onChange(of: expanded) { _, open in
             if open { refresh() }
@@ -180,7 +177,7 @@ struct NativeReportDetail: View {
             if returning == nil { refresh() }
         }
         .onChange(of: props.entry.view.contentRevision) { _, _ in sidecards.updateDocument(nil) }
-        .onChange(of: props.entry.view.relatedExecutions) { _, _ in refresh() }
+        .onChange(of: props.entry.view.relatedExecutions) { _, _ in subscribeReferences(); refresh() }
         .onChange(of: props.entry.revision) { _, _ in refresh() }
         .task(id: relationsRefresh) {
             // The long-lived subscription only invalidates State. Read from
@@ -290,6 +287,13 @@ struct NativeReportDetail: View {
         guard !sidecards.retainingForReturn else { return }
         invalidateRelations()
         refreshReferences()
+    }
+    private func subscribeReferences() {
+        unsubscribe?(); unsubscribe = nil
+        do {
+            unsubscribe = try props.context.capabilities.require(ApplicationCapabilities.executionReferencesUI)
+                .subscribe(props.entry.view.relatedExecutions, invalidateRelations)
+        } catch { failure = error.localizedDescription }
     }
     private func invalidateRelations() {
         if relationsLoading { relationsPending = true }

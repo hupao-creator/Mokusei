@@ -36,6 +36,9 @@ public enum JSONValue: Sendable, Hashable {
     case integer(JSONInteger)
     case string(JSONText)
     case array([JSONValue])
+    /// Internal catalog storage; it encodes and compares exactly as a JSON array.
+    /// Network decoding never constructs this case before collection admission.
+    case catalog(RuntimeRecordCollection<JSONValue>)
     case object([JSONText: JSONValue])
 
     public static let maximumDepth = 512
@@ -93,8 +96,53 @@ public enum JSONValue: Sendable, Hashable {
     }
 
     public var arrayValue: [JSONValue]? {
-        guard case let .array(value) = self else { return nil }
+        switch self {
+        case .array(let value): return value
+        case .catalog(let value): return Array(value)
+        default: return nil
+        }
+    }
+
+    public var isArray: Bool {
+        switch self { case .array, .catalog: true; default: false }
+    }
+
+    public var catalogValue: RuntimeRecordCollection<JSONValue>? {
+        guard case .catalog(let value) = self else { return nil }
         return value
+    }
+
+    public static func == (lhs: JSONValue, rhs: JSONValue) -> Bool {
+        switch (lhs, rhs) {
+        case (.null, .null): true
+        case (.bool(let a), .bool(let b)): a == b
+        case (.number(let a), .number(let b)): a == b
+        case (.integer(let a), .integer(let b)): a == b
+        case (.string(let a), .string(let b)): a == b
+        case (.object(let a), .object(let b)): a == b
+        case (.array(let a), .array(let b)): a == b
+        case (.catalog(let a), .catalog(let b)): a == b
+        case (.catalog(let a), .array(let b)): a.count == b.count && a.elementsEqual(b)
+        case (.array(let a), .catalog(let b)): a.count == b.count && a.elementsEqual(b)
+        default: false
+        }
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        switch self {
+        case .null: hasher.combine(0)
+        case .bool(let value): hasher.combine(1); hasher.combine(value)
+        case .number(let value): hasher.combine(2); hasher.combine(value)
+        case .integer(let value): hasher.combine(3); hasher.combine(value)
+        case .string(let value): hasher.combine(4); hasher.combine(value)
+        case .array(let values):
+            hasher.combine(5); hasher.combine(values.count)
+            for value in values { hasher.combine(value) }
+        case .catalog(let values):
+            hasher.combine(5); hasher.combine(values.count)
+            for value in values { hasher.combine(value) }
+        case .object(let values): hasher.combine(6); hasher.combine(values)
+        }
     }
 
     public var objectValue: [JSONText: JSONValue]? {
@@ -373,6 +421,14 @@ private struct JSONEncoderBytes {
         case let .integer(value): bytes.append(contentsOf: value.literal.utf8)
         case let .string(value): encodeString(value)
         case let .array(values):
+            guard depth < maxDepth else { throw JSONCodingError(reason: "maximum nesting depth exceeded") }
+            bytes.append(0x5B)
+            for (index, value) in values.enumerated() {
+                if index != 0 { bytes.append(0x2C) }
+                try encode(value, depth: depth + 1)
+            }
+            bytes.append(0x5D)
+        case let .catalog(values):
             guard depth < maxDepth else { throw JSONCodingError(reason: "maximum nesting depth exceeded") }
             bytes.append(0x5B)
             for (index, value) in values.enumerated() {

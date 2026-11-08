@@ -137,13 +137,14 @@ public struct ApplicationExecutionPresentation: Hashable, Sendable {
 @MainActor
 public struct ApplicationExecutionReferencesUI {
     public let read: ([ApplicationExecutionRef]) throws -> [ApplicationExecutionPresentation]
-    /// The host returns cancellation for the same aggregate catalog subscription.
-    public let subscribe: (@escaping () -> Void) -> () -> Void
+    /// Only changes to these source Threads or their application bindings notify
+    /// this observer. Replace the subscription when the reference set changes.
+    public let subscribe: ([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void
     /// Renderer-only native factory; public reference metadata stays plain data.
     public let execution: (ApplicationExecutionRef) throws -> AnyView
     public let logo: (JSONText, CGFloat) throws -> AnyView
     public init(read: @escaping ([ApplicationExecutionRef]) throws -> [ApplicationExecutionPresentation],
-                subscribe: @escaping (@escaping () -> Void) -> () -> Void,
+                subscribe: @escaping ([ApplicationExecutionRef], @escaping () -> Void) -> () -> Void,
                 logo: @escaping (JSONText, CGFloat) throws -> AnyView,
                 execution: @escaping (ApplicationExecutionRef) throws -> AnyView = { _ in throw PluginContractError("Execution reader unavailable") }) {
         self.read = read; self.subscribe = subscribe; self.logo = logo; self.execution = execution

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -67,6 +66,7 @@ type Filter struct {
 }
 type PendingQuery struct {
 	Filters      []Filter // OR across filters; empty means every event
+	EventIDs     []string // nil selects all matching events; empty selects none
 	ExcludeIDs   []string
 	ExcludeTypes []string
 	Limit        int // zero means unlimited
@@ -74,6 +74,14 @@ type PendingQuery struct {
 type HistoryEntry struct {
 	Event
 	Outcomes map[string]Outcome `json:"outcomes"`
+}
+
+type HistoryQuery struct {
+	Filters     []Filter
+	EventIDs    []string // nil selects all matching events; empty selects none
+	ExcludedIDs map[string]bool
+	Offset      int
+	Limit       int
 }
 
 var consumerIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -279,81 +287,60 @@ func (s Snapshot) Pending(consumerID string, query PendingQuery) ([]Event, error
 	if !validConsumerID(consumerID) || query.Limit < 0 {
 		return nil, errors.New("invalid lifecycle pending query")
 	}
-	events, err := s.Events()
-	if err != nil {
-		return nil, err
-	}
 	result := []Event{}
-	for _, event := range events {
-		if s.Has(outcomePrefix+consumerID+":"+event.ID) || slices.Contains(query.ExcludeIDs, event.ID) || slices.Contains(query.ExcludeTypes, event.Type) || !matchesFilters(event, query.Filters) {
-			continue
+	err := s.visitEvents(query.Filters, query.EventIDs, func(entry *indexedEvent) bool {
+		event := entry.event
+		if s.Has(outcomePrefix+consumerID+":"+event.ID) || slices.Contains(query.ExcludeIDs, event.ID) || slices.Contains(query.ExcludeTypes, event.Type) {
+			return true
 		}
-		result = append(result, event)
-		if query.Limit > 0 && len(result) >= query.Limit {
-			break
-		}
-	}
-	return result, nil
+		result = append(result, copyEvent(event))
+		return query.Limit == 0 || len(result) < query.Limit
+	})
+	return result, err
 }
 func (s Snapshot) Events() ([]Event, error) {
 	events := []Event{}
-	for _, key := range s.Keys(eventPrefix) {
-		var event Event
-		if _, err := s.Get(key, &event); err != nil {
-			return nil, err
-		}
-		events = append(events, event)
-	}
-	sort.Slice(events, func(i, j int) bool {
-		if events[i].CreatedAt == events[j].CreatedAt {
-			return events[i].ID < events[j].ID
-		}
-		return events[i].CreatedAt < events[j].CreatedAt
+	err := s.visitEvents(nil, nil, func(entry *indexedEvent) bool {
+		events = append(events, copyEvent(entry.event))
+		return true
 	})
-	return events, nil
+	return events, err
 }
 func (s Snapshot) History(filters []Filter, offset, limit int) ([]HistoryEntry, bool, error) {
-	if offset < 0 || limit < 1 || limit > 1000 {
+	return s.QueryHistory(HistoryQuery{Filters: filters, Offset: offset, Limit: limit})
+}
+
+// QueryHistory applies identity and scope selection before pagination. Outcome
+// lookup is indexed by the returned event, not a scan over every consumer.
+func (s Snapshot) QueryHistory(query HistoryQuery) ([]HistoryEntry, bool, error) {
+	if query.Offset < 0 || query.Limit < 1 || query.Limit > 1000 {
 		return nil, false, errors.New("invalid lifecycle history page")
 	}
-	events, err := s.Events()
-	if err != nil {
-		return nil, false, err
-	}
-	matched := []Event{}
-	for _, event := range events {
-		if matchesFilters(event, filters) {
-			matched = append(matched, event)
+	entries := []HistoryEntry{}
+	matched := 0
+	more := false
+	err := s.visitEvents(query.Filters, query.EventIDs, func(entry *indexedEvent) bool {
+		if query.ExcludedIDs[entry.event.ID] {
+			return true
 		}
-	}
-	if offset >= len(matched) {
-		return []HistoryEntry{}, false, nil
-	}
-	end := min(offset+limit, len(matched))
-	entries := make([]HistoryEntry, 0, end-offset)
-	outcomes := map[string]map[string]Outcome{}
-	for _, key := range s.Keys(outcomePrefix) {
-		consumer, id, ok := strings.Cut(strings.TrimPrefix(key, outcomePrefix), ":")
-		if !ok {
-			return nil, false, ErrInvalidState
+		if matched < query.Offset {
+			matched++
+			return true
 		}
-		var outcome Outcome
-		if _, err := s.Get(key, &outcome); err != nil {
-			return nil, false, err
+		if len(entries) == query.Limit {
+			more = true
+			return false
 		}
-		if outcomes[id] == nil {
-			outcomes[id] = map[string]Outcome{}
-		}
-		outcomes[id][consumer] = outcome
-	}
-	for _, event := range matched[offset:end] {
-		values := outcomes[event.ID]
-		if values == nil {
-			values = map[string]Outcome{}
-		}
-		entries = append(entries, HistoryEntry{event, values})
-	}
-	return entries, end < len(matched), nil
+		outcomes := map[string]Outcome{}
+		root, _ := indexGet(s.data.lifecycle.outcomes, entry.event.ID)
+		indexWalk(root, func(consumer string, outcome Outcome) bool {
+			outcomes[consumer] = outcome
+			return true
+		})
+		entries = append(entries, HistoryEntry{Event: copyEvent(entry.event), Outcomes: outcomes})
+		return true
+	})
+	return entries, more, err
 }
 func matchesFilters(event Event, filters []Filter) bool {
 	if len(filters) == 0 {
@@ -439,20 +426,27 @@ func validateLifecycleRecord(snapshot Snapshot, key string) error {
 	return nil
 }
 func validateLifecycleChanges(tx *Tx, next Snapshot) error {
-	deletedEvent := false
+	deletedEvents := []string{}
 	for key, value := range tx.writes {
 		if strings.HasPrefix(key, eventPrefix) {
 			if value != nil && tx.base.Has(key) {
 				return errors.New("lifecycle events are immutable")
 			}
-			deletedEvent = deletedEvent || value == nil
+			if value == nil {
+				deletedEvents = append(deletedEvents, strings.TrimPrefix(key, eventPrefix))
+			}
 		}
 	}
-	// The committed baseline is validated at open and on each prior commit.
-	// Deleting an event can invalidate unchanged work or outcomes, so retain
-	// the full reference check for that uncommon path.
-	if deletedEvent {
-		return validateLifecycle(next)
+	// The baseline is validated at open and each commit. Reverse indexes keep
+	// unchanged work/outcome references visible when their event is removed,
+	// without decoding all other history to prove the same invariant again.
+	for _, id := range deletedEvents {
+		if _, exists := indexGet(next.data.lifecycle.outcomes, id); exists {
+			return errors.New("lifecycle event still has outcomes")
+		}
+		if _, exists := indexGet(next.data.lifecycle.workEvents, id); exists {
+			return errors.New("lifecycle event still has active work")
+		}
 	}
 	for key, value := range tx.writes {
 		if value != nil {

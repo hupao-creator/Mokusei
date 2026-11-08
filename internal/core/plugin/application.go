@@ -75,6 +75,14 @@ type CollectionDefinition struct {
 	OwnerPluginID string
 	Retention     string // history or settings
 	Contract      ValueContract
+	Indexes       []RecordIndex
+}
+
+// RecordIndex derives lookup keys from an admitted collection value. The host
+// owns snapshot coherence and updates only records whose immutable bytes changed.
+type RecordIndex struct {
+	ID   string
+	Keys func(json.RawMessage) ([]string, error)
 }
 type CapabilityKey struct {
 	ID         string
@@ -168,6 +176,8 @@ func (s MutationScope) Token() uint64      { return s.token }
 type RecordsReader interface {
 	Get(collectionID, recordID string) (*model.VersionedRecord, error)
 	List(collectionID string) ([]model.VersionedRecord, error)
+	Count(collectionID string) (int, error)
+	LookupIDs(collectionID, indexID, key string) ([]string, error)
 	// An empty recordID claims the whole collection, including membership changes.
 	Scope(collectionID, recordID string) (MutationScope, error)
 }
