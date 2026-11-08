@@ -5,6 +5,15 @@ import subprocess
 import sys
 from swift_ownership import NATIVE_METHOD_OWNERS
 
+# stdout diagnostics can be split around an intact Swift Testing stderr record.
+# Share the complete record boundary between counts and identities; a quoted
+# diagnostic with a closing quote/brace is not a terminal outcome.
+SWIFT_TEST_OUTCOME = re.compile(
+    r"[✔✘] Test (?!run with )((?:(?![✔✘] Test )[^\r\n])+?)"
+    r"(?: with \d+ test cases?)? (passed|failed) after \d+(?:\.\d+)? seconds"
+    r"(?: with \d+ (?:known )?issues?(?: \(including \d+ known issues?\))?)?"
+    r"\.(?=\r?\n|\Z)")
+
 
 def summarize(logs):
     rows = ["| Run / framework | tests | suites | issues | skipped | executed |",
@@ -51,7 +60,7 @@ def summarize(logs):
             issue_count = re.search(r"with (\d+) (?:known )?issues?", detail)
             issues = int(issue_count[1]) if issue_count else (0 if status == "passed" else None)
             skipped = len(re.findall(r"(?m)^[➜↷✘] Test [^\n]* skipped(?:[.:]| because)", log))
-            ran = len(re.findall(r"(?m)^[✔✘] Test (?!run with )[^\n]* (?:passed|failed) after ", log))
+            ran = len(SWIFT_TEST_OUTCOME.findall(log))
             executed += ran
             results.append({"run": label, "framework": "Swift Testing", "tests": tests,
                             "suites": suites, "issues": issues, "skipped": skipped,
@@ -80,7 +89,7 @@ def terminal_methods(log, inventory, errors, *, allow_other=False):
         by_name.setdefault(test.split("/", 1)[1], []).append(test)
     current_suites = []
     outcomes = []
-    for line in log.splitlines():
+    for line in log.splitlines(keepends=True):
         suite = re.match(r"^◇ Suite (.+) started\.", line)
         if suite:
             current_suites.append(suite[1].strip('"'))
@@ -89,7 +98,7 @@ def terminal_methods(log, inventory, errors, *, allow_other=False):
             identity = f"{xctest[1]}/{xctest[2]}"
             if not allow_other or identity in inventory:
                 outcomes.append((identity, xctest[3]))
-        testing = re.match(r"^[✔✘] Test (?!run with )(.+?)(?: with \d+ test cases?)? (passed|failed) after ", line)
+        testing = SWIFT_TEST_OUTCOME.search(line)
         skipped = re.match(r"^[➜↷✘] Test (.+?) skipped(?:[.:]| because)", line)
         if testing or skipped:
             name = testing[1] if testing else skipped[1]

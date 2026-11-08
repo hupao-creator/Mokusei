@@ -61,6 +61,10 @@ The UI periodically refreshes active queries as body indexing completes.
 Verification: [thread-search replay](../../../tools/verification/thread-search/README.md)
 and `./scripts/go.sh test -race ./internal/services/threadsearch` cover real
 SQLite indexing, cache invalidation, migration, bounds, cancellation and lifecycle.
+Multi-term cases keep first-term-only and second-term-only candidates in scope,
+so substring OR cannot satisfy the AND contract. Service tests exercise metadata
+and indexed bodies in both query orders, including cached results; the Runtime
+replay independently verifies body matches and rejects both partial candidates.
 
 ## Moku deterministic grep
 

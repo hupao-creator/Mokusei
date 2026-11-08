@@ -173,6 +173,13 @@ are forbidden; only the existing named graphical deferrals remain. Same-count om
 substitutions, duplicate methods, unexpected skips and missing terminal summaries
 fail. An early exit with status zero cannot certify incomplete tests.
 
+Replay completeness is independent of Swift method ownership. The runner and
+audit use the same [command inventory](replay_plan.py); each `fixtures`, `interop`
+and `native` report must contain every planned check exactly once, including
+checks such as `scrollbars` that own no discovered Swift method. Missing,
+duplicate or unknown names fail. Every check must have a passing status, a zero
+process exit code and its own retained log, including fixture producers.
+
 Every mandatory native owner needs one successful process receipt, one passing
 method outcome and its execution marker at the declared group/check. A pass at
 another check does not substitute. Reports limited with `--check` are useful for
@@ -240,6 +247,8 @@ The runtime group executes the content-publication benchmark assertions with
 three iterations under the race detector (revision continuity and no-op/changed
 event behavior, without a timing threshold). The adapters group includes the
 reader plan-projection replay for active, terminal and inherited Codex/Claude turns.
+It also executes the production Pi read-guard module with Node and checks refusal
+of native and custom tool calls, without requiring a live Pi CLI.
 Native groups need the current Swift build and graphical capabilities. The
 [verification policy](verification-policy.md) records independent defect coverage
 and the limited device/signed-package acceptance requirements.
@@ -262,8 +271,17 @@ coverage and local capture entry points with temporary Git histories and control
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
+Successful audit fixtures contain the complete replay inventory. Literal
+non-owner fixture/interop/native checks exercise omission, duplicate/unknown
+names, failed or incomplete receipts and missing or misrouted logs separately
+from the Swift owner assertions.
 Parameterized outcomes retain their exact discovered method identity with either
 Swift Testing's `with 1 test case` or plural `with N test cases` suffix.
+Concurrent diagnostics can precede an intact Swift Testing outcome on the same
+physical line. Counts and identities share the complete record boundary,
+including its numeric duration, final punctuation and newline or end of log.
+Controller cases retain the observed mid-JSON prefix and reject quoted
+lookalikes, missing/truncated records and duplicate/substituted methods.
 These fixtures establish control behavior, not Swift/macOS rendering. The current
 commit's hosted run must establish actual native execution.
 
