@@ -64,7 +64,7 @@ const threadCreationWorktreeGuidance = "Explicitly pass worktree:true by default
 
 // Routing intent must be interpreted by the coordinator that selects the target;
 // runtime text filtering cannot distinguish it from meaningful task content.
-const threadTaskPromptGuidance = "Separate target routing from the work assigned to the target Agent. Honor the user's explicit target Harness, model and thinking choice over general routing guidance; apply it through create_thread's harnessId and options. " +
+const threadTaskPromptGuidance = "Separate target routing from the work assigned to the target Agent. Honor the user's explicit target Harness, model and thinking choice over general routing guidance; apply it through create_thread's single named target and its native settings. " +
 	"Write create_thread and send_to_thread prompts directly to the receiving Agent, describing the actual work, necessary context, constraints and expected results. Omit only routing or dispatch instructions already fulfilled by selecting that target; do not repeat them as requests to use, ask, or delegate to another model or Agent. Selecting a target model does not itself request a child Agent. " +
 	"Preserve explicit requests for child Agents, parallel work, separate planner/implementer/reviewer roles, and model names or quoted instructions that matter to the actual work. Interpret intent in context, never remove text merely because it names a model or mentions delegation. " +
 	"send_to_thread does not change the target Thread's configuration. If a requested routing choice is not satisfied there, select a correctly configured target or explain the limitation to the user; do not ask the existing Agent to compensate by spawning a child."

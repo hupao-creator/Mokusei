@@ -58,7 +58,7 @@ func replayDelayedMokuCommit(terminalObserved bool) {
 	defer releaseCallback()
 	mokuReplayMust(c.Submit(mokuReplayContext(), orchestratorInput("first execution before delayed callback")))
 	first := w.mokuRecord()
-	raw, err := w.call("create_thread", `{"worktree":false,"prompt":"read target","harnessId":"mock","options":{"model":"mock-model"}}`)
+	raw, err := w.call("create_thread", `{"worktree":false,"prompt":"read target","target":{"mock":{"model":"mock-model"}}}`)
 	mokuReplayMust(err)
 	var child struct {
 		ThreadID string `json:"threadId"`

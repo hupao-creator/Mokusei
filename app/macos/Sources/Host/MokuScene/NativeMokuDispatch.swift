@@ -17,15 +17,17 @@ public struct NativeMokuDispatch: Equatable, Sendable {
 
     init?(operation: JSONValue, executionIsActive: Bool) {
         guard operation["name"]?.stringValue == "create_thread",
-              let harness = Self.text(operation["arguments"]?["harnessId"]) else { return nil }
-        let arguments = operation["arguments"], options = arguments?["options"], result = operation["result"]
-        harnessID = JSONText(harness)
+              let target = operation["arguments"]?["target"]?.objectValue, target.count == 1,
+              let selected = target.first, selected.value.objectValue != nil,
+              Self.text(.string(selected.key)) != nil else { return nil }
+        let arguments = operation["arguments"], options = selected.value, result = operation["result"]
+        harnessID = selected.key
         prompt = arguments?["prompt"]?.stringValue
-        // Display the exact native model options supplied by the caller.
-        model = Self.text(options?["model"])
-        provider = Self.text(options?["provider"])
-        if let mode = Self.text(options?["thinking"]?["mode"]) {
-            thinking = mode == "effort" ? Self.text(options?["thinking"]?["effort"]) : mode
+        // Use the selected target's public fields without inventing defaults.
+        model = Self.text(options["model"])
+        provider = Self.text(options["provider"])
+        if let mode = Self.text(options["thinking"]?["mode"]) {
+            thinking = mode == "effort" ? Self.text(options["thinking"]?["effort"]) : mode
         } else { thinking = nil }
         let completed = operation["completedAt"]?.numberValue != nil
         let startedID = Self.text(result?["threadId"])

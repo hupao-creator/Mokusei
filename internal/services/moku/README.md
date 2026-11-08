@@ -20,7 +20,7 @@ native failures cannot authorize replay or clear an uncertain outbox attempt.
 
 ## Tools and creation
 
-[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. Inclusive property hints expose choices from closed union branches without replacing their exact validation. `create_thread` selects a native `options` schema through a per-`harnessId` conditional rather than a root union, so hosted validators report only the selected Harness branch; an earlier branch cannot exhaust their bounded error output. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution.
+[tool_schema.go](tool_schema.go) composes tool schemas from Harness declarations. `create_thread` takes a `target` object with exactly one Harness key containing its native settings. Each Harness has its own named property, so model-facing fields and catalog descriptions retain their ownership even when a host discards root composition keywords. Inclusive property hints expose model/thinking choices only within that Harness; native fields are never merged across targets. The target's union selects a key without validating other Harnesses' options, keeping bounded error output focused on the supplied target. [schema_validation.go](schema_validation.go) and each Harness validate the actual request before execution; the parser decodes the one key into the existing internal Harness/options pair.
 
 Fixed tool schemas compile once per installed binding and are reused for that
 configuration generation. Dynamic target schemas remain freshly discovered and
@@ -119,7 +119,7 @@ unchanged Codex binary-version facts no longer expire merely with catalog TTL.
 No timing measurement or native replay was performed for this Sprint.
 
 Both creation/follow-up prompt schemas carry target-routing guidance: explicit
-user choices take precedence over general routing guidance and belong in the target's `harnessId`/`options`. Moku addresses the receiving Agent
+user choices take precedence over general routing guidance and belong under the single Harness key in `create_thread.target`. Moku addresses the receiving Agent
 with the actual work and omits only dispatch requirements already fulfilled by
 that selection. A target-model choice alone is not a request for a child Agent.
 Explicit child-Agent, parallel-work and role requirements, and model names or

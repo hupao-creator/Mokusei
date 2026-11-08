@@ -187,7 +187,7 @@ func (p *provider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			for i := 0; i < max(1, len(p.workspaces)); i++ {
 				id := createCallID(i)
 				if !hasResult(req["input"], id) {
-					tool, call, args = "create_thread", id, object{"prompt": "SYSTEM_CHAIN_CHILD: reply with SYSTEM_CHILD_DONE", "harnessId": "codex", "worktree": false, "options": object{"model": p.model, "thinking": object{"mode": "effort", "effort": p.effort}, "serviceTier": "default"}}
+					tool, call, args = "create_thread", id, object{"prompt": "SYSTEM_CHAIN_CHILD: reply with SYSTEM_CHILD_DONE", "worktree": false, "target": object{"codex": object{"model": p.model, "thinking": object{"mode": "effort", "effort": p.effort}, "serviceTier": "default"}}}
 					if len(p.workspaces) > 0 {
 						args["cwd"] = p.workspaces[i]
 					}

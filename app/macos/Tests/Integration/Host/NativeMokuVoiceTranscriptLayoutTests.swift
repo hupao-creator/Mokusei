@@ -162,7 +162,7 @@ import MokuseiPluginUI
                 if dispatch {
                     let operation: JSONValue = .object(["type": .text("tool-operation"), "id": .text("dispatch"),
                         "executionId": .text("execution"), "name": .text("create_thread"),
-                        "arguments": .object(["harnessId": .text("codex"), "prompt": .text("Task"), "worktree": .bool(true)])])
+                        "arguments": .object(["target": .object(["codex": .object([:])]), "prompt": .text("Task"), "worktree": .bool(true)])])
                     let thread = try HarnessThread(id: "moku", harnessID: "codex", revision: 1, sessionState: .null,
                         observation: .init(latestExecution: .init(executionID: "execution", status: .running, startedAt: 1)),
                         cwd: "/tmp", settings: .object([:]), createdAt: 1, updatedAt: 2, title: "Moku", tags: [],

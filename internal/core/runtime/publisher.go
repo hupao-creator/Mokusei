@@ -298,10 +298,12 @@ func auditPreview(items []json.RawMessage) []json.RawMessage {
 						if name == "error" {
 							limit = 8192
 						}
-						if len([]rune(value)) > limit {
-							value = string([]rune(value)[:limit])
-						}
-						preview[name] = value
+						preview[name] = auditTextPreview(value, limit)
+					}
+				}
+				if key == "arguments" && item["name"] == "create_thread" {
+					if target := auditTargetPreview(source["target"]); target != nil {
+						preview["target"] = target
 					}
 				}
 				item[key] = preview
@@ -313,4 +315,44 @@ func auditPreview(items []json.RawMessage) []json.RawMessage {
 		}
 	}
 	return result
+}
+
+// The Dock needs the selected Harness and its display fields, not arbitrary
+// native options. Reject ambiguous identities and keep every copied string bounded;
+// the stored operation remains the source for full dispatch details.
+func auditTargetPreview(value any) map[string]any {
+	target, ok := value.(map[string]any)
+	if !ok || len(target) != 1 {
+		return nil
+	}
+	for harness, raw := range target {
+		native, ok := raw.(map[string]any)
+		if !ok || harness == "" || len([]rune(harness)) > 256 {
+			return nil
+		}
+		options := map[string]any{}
+		for _, name := range []string{"model", "provider"} {
+			if text, ok := native[name].(string); ok {
+				options[name] = auditTextPreview(text, 256)
+			}
+		}
+		if source, ok := native["thinking"].(map[string]any); ok {
+			thinking := map[string]any{}
+			for _, name := range []string{"mode", "effort"} {
+				if text, ok := source[name].(string); ok {
+					thinking[name] = auditTextPreview(text, 256)
+				}
+			}
+			options["thinking"] = thinking
+		}
+		return map[string]any{harness: options}
+	}
+	return nil
+}
+
+func auditTextPreview(value string, limit int) string {
+	if len([]rune(value)) > limit {
+		return string([]rune(value)[:limit])
+	}
+	return value
 }

@@ -10,14 +10,14 @@ import (
 )
 
 func TestCreateRequestRejectsProviderBinding(t *testing.T) {
-	raw := json.RawMessage(`{"prompt":"inspect the repo","harnessId":"pi","worktree":false,"provider":{"connectionId":"local:opencode-go","model":"grok-4.7"},"options":{"provider":"opencode-go","model":"grok-4.7"}}`)
+	raw := json.RawMessage(`{"prompt":"inspect the repo","target":{"pi":{"provider":"opencode-go","model":"grok-4.7"}},"worktree":false,"provider":{"connectionId":"local:opencode-go","model":"grok-4.7"}}`)
 	if _, err := ParseCreateRequest(raw); err == nil {
 		t.Fatal("removed top-level Provider binding was accepted")
 	}
 }
 
 func TestCreateRequestKeepsNativeProviderOption(t *testing.T) {
-	raw := json.RawMessage(`{"prompt":"inspect the repo","harnessId":"pi","worktree":false,"options":{"provider":"opencode-go","model":"grok-4.7"}}`)
+	raw := json.RawMessage(`{"prompt":"inspect the repo","target":{"pi":{"provider":"opencode-go","model":"grok-4.7"}},"worktree":false}`)
 	request, err := ParseCreateRequest(raw)
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +30,7 @@ func TestCreateRequestKeepsNativeProviderOption(t *testing.T) {
 
 func TestCreateRequestWorktreeName(t *testing.T) {
 	request := func(worktree any, name any) json.RawMessage {
-		value := map[string]any{"prompt": "inspect the repo", "harnessId": "pi", "options": map[string]any{"model": "m"}, "cwd": "/project"}
+		value := map[string]any{"prompt": "inspect the repo", "target": map[string]any{"pi": map[string]any{"model": "m"}}, "cwd": "/project"}
 		if worktree != nil {
 			value["worktree"] = worktree
 		}
@@ -92,7 +92,7 @@ func TestCreateRequestWorktreeName(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			if name == "null" {
-				raw = json.RawMessage(`{"prompt":"inspect the repo","harnessId":"pi","options":{"model":"m"},"cwd":"/project","worktree":true,"worktreeName":null}`)
+				raw = json.RawMessage(`{"prompt":"inspect the repo","target":{"pi":{"model":"m"}},"cwd":"/project","worktree":true,"worktreeName":null}`)
 			}
 			if _, err := ParseCreateRequest(raw); err == nil {
 				t.Fatalf("invalid worktreeName was accepted: %s", raw)
@@ -160,7 +160,7 @@ func TestCreationSchemaAndParserRejectNULWorktreeName(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := map[string]any{
-		"prompt": "inspect the repo", "harnessId": "native", "options": map[string]any{"model": "m"},
+		"prompt": "inspect the repo", "target": map[string]any{"native": map[string]any{"model": "m"}},
 		"worktree": true, "cwd": "/project", "worktreeName": "fix\x00auth",
 	}
 	if compiled.Validate(request) == nil {
@@ -201,7 +201,7 @@ func TestCreationSchemaReportsOnlySelectedHarnessOptions(t *testing.T) {
 	}
 	// gamma fails both harness branches; only the selected alpha branch may be
 	// reported, or Moku could attribute beta's expected values to alpha.
-	request := map[string]any{"prompt": "inspect", "worktree": false, "harnessId": "alpha", "options": map[string]any{"choice": "gamma"}}
+	request := map[string]any{"prompt": "inspect", "worktree": false, "target": map[string]any{"alpha": map[string]any{"choice": "gamma"}}}
 	validationErr := compiled.Validate(request)
 	if validationErr == nil {
 		t.Fatal("creation schema accepted invalid options")

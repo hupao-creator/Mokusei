@@ -160,13 +160,13 @@ func runRelaySettingsChangeReplay() error {
 	speak("dispatch target change")
 	var schema struct {
 		Properties struct {
-			Harness struct {
-				Enum []string `json:"enum"`
-			} `json:"harnessId"`
+			Target struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			} `json:"target"`
 		} `json:"properties"`
 	}
 	mokuReplayMust(json.Unmarshal(relaySettingsTool(s, "create_thread").InputSchema, &schema))
-	mokuReplayCheck(len(schema.Properties.Harness.Enum) == 1 && schema.Properties.Harness.Enum[0] == "other", "relay tools retained removed dispatch target")
+	mokuReplayCheck(len(schema.Properties.Target.Properties) == 1 && schema.Properties.Target.Properties["other"] != nil, "relay tools retained removed dispatch target")
 
 	// A relay is independent of target tool discovery too. Its long-lived media
 	// must not pin the first catalog until the user disconnects.

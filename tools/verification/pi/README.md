@@ -47,6 +47,14 @@ late shutdown events rewriting the old terminal execution. This runs without
 
 The real Pi 1.0.0 scenario exercises the native loader, host extension, read guard, Go tool callback, persistence, independent clone, cancellation and recovery. It uses isolated native configuration and a localhost-only sandbox. It does not contact a paid model, use account login or prove future Pi compatibility.
 
+The host-tool scenario also injects the production Moku creation schema using
+the installed Pi catalog plus a synthetic OpenCode target. The actual model
+requests before and after the host tool call must retain `target.pi` and
+`target.opencode`, their separate fields, exact inventory descriptions and
+single-target selectors. Captured declarations are retained in
+`native-evidence.json`; the scripted provider never calls `create_thread`, so
+this verifies the model-facing declaration rather than task creation.
+
 The installed-native run also checks a loopback Responses model: explicit thinking
 selection must reach the actual HTTP request as `reasoning.effort=high`, with the
 exact model and final reply preserved. Deterministic cases reject missing effort

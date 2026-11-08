@@ -117,8 +117,9 @@ The installed-CLI replay uses an isolated native Fast default and explicitly
 requests standard service. Native thread replies and all six local Provider
 requests must retain standard service, including fork and resume. Its injected
 tools include the real Moku-composed Codex creation schema; the captured
-model-facing declaration must expose `options.serviceTier` as required. The
-scripted Provider never calls that creation tool.
+model-facing declaration must expose `target.codex.serviceTier` as required and
+retain the target selector as an object with required `codex`. The scripted
+Provider never calls that creation tool.
 
 `-voice-only` additionally checks launch-catalog reuse and account/configuration
 invalidation, idle fresh-process prewarming, repeated direct calls, consuming a

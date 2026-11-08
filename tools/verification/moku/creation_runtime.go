@@ -49,7 +49,7 @@ func runWorktreeCreationReplay() error {
 	mokuReplayMust(os.WriteFile(filepath.Join(repository, "fixture.txt"), []byte("committed"), 0600))
 	git("add", "fixture.txt")
 	git("-c", "user.name=Replay", "-c", "user.email=replay@example.invalid", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture")
-	worktreeJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "isolated fix", "cwd": repository, "prompt": "isolated delegated task", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	worktreeJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "isolated fix", "cwd": repository, "prompt": "isolated delegated task", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayMust(err)
 	var isolated struct {
 		ThreadID             string `json:"threadId"`
@@ -85,18 +85,18 @@ func runWorktreeCreationReplay() error {
 			WorktreeCwd string `json:"worktreeCwd"`
 		} `json:"workspace"`
 	}
-	unicodeJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "修复登录", "cwd": repository, "prompt": "unicode delegated task", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	unicodeJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "修复登录", "cwd": repository, "prompt": "unicode delegated task", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayMust(err)
 	mokuReplayMust(json.Unmarshal(unicodeJSON, &unicode))
 	mokuReplayCheck(unicode.WorktreeName == "修复登录" && !unicode.WorktreeNameAdjusted && unicode.Notice == "", "Unicode worktreeName was not returned unchanged: "+string(unicodeJSON))
 	mokuReplayCheck(filepath.Base(unicode.Workspace.WorktreeCwd) == "修复登录", "Unicode worktreeName did not reach the filesystem: "+unicode.Workspace.WorktreeCwd)
-	unicodeJSON, err = createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "修复登录", "cwd": repository, "prompt": "unicode collision task", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	unicodeJSON, err = createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "worktreeName": "修复登录", "cwd": repository, "prompt": "unicode collision task", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayMust(err)
 	mokuReplayMust(json.Unmarshal(unicodeJSON, &unicode))
 	mokuReplayCheck(unicode.WorktreeName == "修复登录-2" && unicode.WorktreeNameAdjusted && unicode.Notice != "", "collision did not report an adjusted effective name: "+string(unicodeJSON))
-	_, err = createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "cwd": root, "prompt": "invalid non-Git workspace", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	_, err = createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": true, "cwd": root, "prompt": "invalid non-Git workspace", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayCheck(err != nil && strings.Contains(err.Error(), "Git"), "true accepted non-Git workspace")
-	directJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "cwd": repository, "prompt": "direct workspace task", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	directJSON, err := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "cwd": repository, "prompt": "direct workspace task", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayMust(err)
 	var direct struct {
 		ThreadID string `json:"threadId"`

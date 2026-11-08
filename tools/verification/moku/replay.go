@@ -62,7 +62,7 @@ func runRuntimeReplay() error {
 			sendTool = binding
 		}
 	}
-	createdJSON, e := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "prompt": "fixed delegated task", "harnessId": "mock", "options": map[string]string{"model": "first-model"}})})
+	createdJSON, e := createTool.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "prompt": "fixed delegated task", "target": map[string]any{"mock": map[string]string{"model": "first-model"}}})})
 	mokuReplayMust(e)
 	var created struct {
 		ThreadID  string `json:"threadId"`

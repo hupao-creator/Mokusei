@@ -61,7 +61,7 @@ func verifyRequiredServiceTier(ctx context.Context, root, binary string) error {
 		if choice.name != "omitted" {
 			options["serviceTier"] = choice.value
 		}
-		request := object{"worktree": false, "harnessId": "codex", "prompt": "A fixture task", "options": options}
+		request := object{"worktree": false, "prompt": "A fixture task", "target": object{"codex": options}}
 		if accepted := compiled.Validate(request) == nil; accepted != choice.valid {
 			return fmt.Errorf("Moku schema %s tier: accepted=%v", choice.name, accepted)
 		}
