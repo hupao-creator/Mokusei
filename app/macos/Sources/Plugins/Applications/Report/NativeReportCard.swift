@@ -58,7 +58,7 @@ import SwiftUI
                 TimelineView(.periodic(from: .now, by: 30)) { clock in Text(updatedLabel(now: clock.date)) }
             }.font(NativeTypography.inter(size: 11)).foregroundStyle(NativePalette.overview.faint.swiftUI)
                 .padding(.top, 5).padding(.trailing, ThreadCardProviderStatus.cornerClearance)
-            ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(2)
+            ThreadCardExcerpt(content: props.entry.view.shortDescription.string).lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
             if let failure { Text(failure).font(NativeTypography.inter(size: 10)).foregroundStyle(NativePalette.overview.danger.swiftUI) }
         }.padding(18).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
