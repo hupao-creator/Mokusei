@@ -178,6 +178,12 @@ func serveFixture() {
 					if text == "usage-missing" {
 						delete(message, "usage")
 					}
+				default:
+					if strings.HasPrefix(text, "usage-format-") {
+						total, err := strconv.Atoi(strings.TrimPrefix(text, "usage-format-"))
+						check(err == nil && total >= 0, "usage format fixture total")
+						message["usage"] = map[string]any{"input": total, "output": 0, "cacheRead": 0, "cacheWrite": 0, "totalTokens": total}
+					}
 				}
 				emitFixture(map[string]any{"type": "message_end", "message": message})
 				// No agent_settled: the execution remains running during retry/tool work.

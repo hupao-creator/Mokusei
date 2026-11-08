@@ -126,7 +126,12 @@ func main() {
 	db, err := store.Open(path)
 	must(err)
 	defer func() { db.Close() }()
-	seed(db, thread("body", "Maintenance", "离线删除与后台清理"), thread("literal", "exact-ID-42", "different subject"))
+	seed(db,
+		thread("body", "Maintenance", "离线删除与后台清理"),
+		thread("first-term-only", "First term", "离线删除"),
+		thread("second-term-only", "Second term", "后台清理"),
+		thread("literal", "exact-ID-42", "different subject"),
+	)
 	sourceHash, _ := db.Snapshot().RecordHash("thread:body")
 	_, err = db.Update(ctx, func(tx *store.Tx) error {
 		if err := tx.Put("search-config", map[string]any{"pipeline": "retired-vector-space", "revision": 7, "epoch": 2, "enabled": false, "indexPaused": true}); err != nil {
@@ -156,7 +161,12 @@ func main() {
 	assert(result.Mode == "keyword" && len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "Chinese body substring")
 	assert(len(query(r, "清空历史", refs("body")...).Hits) == 0, "no paraphrase-only results")
 	assert(len(query(r, "离线删除", refs("literal")...).Hits) == 0, "candidate scope")
-	assert(len(query(r, "离线删除 后台", refs("body")...).Hits) == 1, "body AND terms")
+	assert(len(query(r, "离线删除", refs("first-term-only")...).Hits) == 1, "first-term-only body is indexed")
+	assert(len(query(r, "后台", refs("second-term-only")...).Hits) == 1, "second-term-only body is indexed")
+	for _, text := range []string{"离线删除 后台", "后台 离线删除"} {
+		result := query(r, text, refs("body", "first-term-only", "second-term-only", "literal")...)
+		assert(result.Mode == "keyword" && len(result.Hits) == 1 && result.Hits[0].Ref.ThreadID == "body", "body AND terms exclude partial-term matches: "+text)
+	}
 	assert(query(r, "exact-ID-42", refs("body", "literal")...).Hits[0].Ref.ThreadID == "literal", "identifier match")
 	_, err = db.Update(ctx, func(tx *store.Tx) error {
 		if err := tx.Put("attention-thread:body", threadattention.Thread{Hidden: true, Revision: 1}); err != nil {

@@ -21,12 +21,57 @@ def command(arguments, *, cwd, env=None, success=True):
     return result.stdout + result.stderr
 
 
+def verify_replay_inventory(audit, repo, environment, group_paths):
+    # Literal non-owner boundaries keep shared-plan fixture generation from
+    # silently accepting the disappearance of these mandatory replays.
+    for group, required in (("fixtures", "initial-response"), ("interop", "swift-deltas"), ("native", "scrollbars")):
+        directory = group_paths[group]
+        report_path = directory / "report.json"
+        report = json.loads(report_path.read_text())
+        checks = report["checks"]
+        matches = [check for check in checks if check["name"] == required]
+        if len(matches) != 1:
+            raise AssertionError(f"Required {group}/{required} must remain in the replay plan exactly once")
+        required_check = matches[0]
+        unknown = required_check | {"name": "unknown-replay", "log": "unknown-replay.log"}
+        (directory / unknown["log"]).write_text("")
+        inventory_error = f"{group}: replay checks do not match the complete plan exactly once"
+        cases = [
+            ("missing", [check for check in checks if check["name"] != required], inventory_error),
+            ("duplicate", checks + [required_check], inventory_error),
+            ("unknown", [unknown if check["name"] == required else check for check in checks], inventory_error),
+        ]
+        for mutation in ({"status": "failed"}, {"status": "running"}, {"exit_code": 7},
+                         {"exit_code": None}, {"exit_code": False}):
+            cases.append((str(mutation), [check | mutation if check["name"] == required else check for check in checks],
+                          f"{group}/{required}: missing successful replay process receipt."))
+        cases.append(("wrong log", [check | {"log": unknown["log"]} if check["name"] == required else check for check in checks],
+                      f"{group}/{required}: expected its own replay log {required}.log."))
+        for label, changed_checks, diagnostic in cases:
+            report_path.write_text(json.dumps(report | {"checks": changed_checks}))
+            output = command(audit, cwd=repo, env=environment, success=False)
+            if diagnostic not in output:
+                raise AssertionError(f"{group}/{required} {label}: expected {diagnostic}\n{output}")
+        report_path.write_text(json.dumps(report))
+        (directory / unknown["log"]).unlink()
+        log = directory / required_check["log"]
+        original_log = log.read_text()
+        log.unlink()
+        output = command(audit, cwd=repo, env=environment, success=False)
+        if f"{group}: missing actual replay log {required}.log." not in output:
+            raise AssertionError(output)
+        log.write_text(original_log)
+    command(audit, cwd=repo, env=environment)
+    print("PASS complete replay inventory: fixtures/interop/native non-owner omissions, duplicate/unknown names, failed/incomplete receipts and missing/misrouted logs")
+
+
 def verify_swift_ownership(root, repo, environment):
     from swift_ownership import NATIVE_METHOD_OWNERS, native_filter
+    from replay_plan import replay_groups
     scripts = repo / "scripts/ci"
     scripts.mkdir(parents=True)
     for name in ("swift-native.py", "swift-tests.py", "swift_coverage.py", "swift_reporting.py",
-                 "swift_ownership.py", "swift_execution.py", "replays.py", "deadline.py"):
+                 "swift_ownership.py", "swift_execution.py", "replays.py", "replay_plan.py", "deadline.py"):
         shutil.copyfile(SCRIPTS / name, scripts / name)
     native_names = set(NATIVE_METHOD_OWNERS)
     tests = sorted(native_names
@@ -146,21 +191,22 @@ def verify_swift_ownership(root, repo, environment):
         key = (owner["group"], owner["check"])
         check_logs[key] = check_logs.get(key, "") + native_logs[name]
     group_paths = {}
+    groups = replay_groups("go", evidence)
     for group in ("fixtures", "interop", "native"):
         directory = evidence / ("ci-" + group)
         directory.mkdir()
         group_paths[group] = directory
-        logs = {check: log for (owner_group, check), log in check_logs.items() if owner_group == group} or {"fixture": ""}
         checks = []
-        for name, log in logs.items():
+        for name, _ in groups[group]:
             filename = name + ".log"
-            (directory / filename).write_text(log)
+            (directory / filename).write_text(check_logs.get((group, name), ""))
             checks.append({"name": name, "status": "passed", "exit_code": 0, "log": filename})
         report = {"revision": manifest["revision"], "group": group, "checks": checks}
         (directory / "report.json").write_text(json.dumps(report))
     environment.update(MOKUSEI_CI_EVIDENCE=str(evidence), RUNNER_TEMP=str(root), GITHUB_SHA=manifest["revision"])
     audit = [sys.executable, str(scripts / "swift-tests.py")]
     command(audit, cwd=repo, env=environment)
+    verify_replay_inventory(audit, repo, environment, group_paths)
     ordinary_log = evidence / "swift.log"
     ordinary_before = ordinary_log.read_text()
     for native, owner in NATIVE_METHOD_OWNERS.items():

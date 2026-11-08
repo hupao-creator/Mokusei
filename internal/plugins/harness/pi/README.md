@@ -99,6 +99,10 @@ recovery and cancellation before native command dispatch.
 `resources/read-guard.mjs` blocks all native tool calls during a history read.
 Its command registration lets Go verify the exact guard file loaded. Both
 resources are embedded by `go:embed`; neither requires Node or npm to build.
+The default Linux adapter replay imports the actual guard resource with Node
+and invokes its registered callback for native and custom tool calls, requiring
+`block: true` independently of the command marker. The installed-Pi replay
+retains responsibility for proving the native loader and tool boundary.
 
 ## Preserved native limits
 

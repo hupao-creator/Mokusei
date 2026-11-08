@@ -11,14 +11,25 @@ retains the durations. The native configuration is disposable; user account
 files are not read or changed.
 
 `./scripts/go.sh run -race ./tools/verification/pi -swift-usage -timeout 10m`
-additionally feeds 60 Go-produced durable/overview/thread/execution/turn fixtures
+additionally feeds 100 Go-produced durable/overview/thread/execution/turn fixtures
 through the real Swift Pi plugin and checks the Overview card and execution-usage
 API. The deterministic replay covers per-call native fields (including cache,
 reasoning and native `totalTokens`), running accumulation, zero/missing usage on
-failed requests, retry streaming, reopen and execution isolation. `-artifacts`
+failed requests, retry streaming, reopen and execution isolation. Fixed display
+literals also cover 999, K/M/B thresholds, fractional compact values and the
+exact half-step 1,250 → `1.3K`. Both the Overview card and execution-usage API
+must match these independent strings; the test never formats its own expected
+value with production code. `-artifacts`
 retains `usage-fixtures.json`; no user profile or model service is involved.
 The native mode also checks real installed Pi `message_end` usage against the
 loopback provider's fixed 25-token response.
+
+`python3 tools/verification/pi/read-guard.py` runs in the default Linux adapters
+CI group with Node 22+ and its standard modules. It imports the actual bundled
+`read-guard.mjs`, invokes its registered callback for native and custom tools,
+and requires literal `block: true`; registering a handler alone cannot pass.
+No installed Pi, account or model service is needed. The extended native CLI
+replay still checks the real Pi loader and compatibility boundary.
 
 `-mode native-shutdown` checks only installed Pi disposal, without sending a
 model request: a real asynchronous `session_shutdown` hook must release its
