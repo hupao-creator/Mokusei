@@ -111,7 +111,7 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 	properties := map[string]any{
 		"prompt": promptSchema, "cwd": cwdSchema, "worktree": worktreeSchema, "worktreeName": worktreeNameSchema,
 		"harnessId": map[string]any{"type": "string", "enum": result.TargetHarnessIDs},
-		"options":   map[string]any{"type": "object", "description": "Settings for the selected harnessId. Match its model-specific branch below; candidate values across branches are not interchangeable. Supply all fields required by that branch explicitly."},
+		"options":   map[string]any{"type": "object", "description": "Settings for the selected harnessId. Match its model-specific branch below; candidate values across branches are not interchangeable. Supply all fields required by that branch explicitly and use only fields that branch allows; fields copied from another harness's branch are rejected."},
 	}
 	schema := mokuObjectSchema(properties, "harnessId", "options", "worktree", "prompt")
 	// Keep the true/cwd dependency visible to schema clients as well as the parser.
@@ -125,9 +125,41 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 			"then": map[string]any{"properties": map[string]any{"worktreeName": map[string]any{"pattern": `^\s*$`}}},
 		},
 	}
+	// Union hints stay in the emitted properties, but the discriminator is
+	// emitted as one conditional per harness instead of a root oneOf. Host
+	// validators such as Pi's TypeBox cap collected errors and report oneOf
+	// branch failures in order; an early harness branch can exhaust that budget
+	// and hide the error from the branch harnessId actually selected.
 	schema["oneOf"] = variants
-	result.InputSchema = mokuRaw(mokuVisibleUnionProperties(schema))
+	visible := mokuVisibleUnionProperties(schema)
+	conditions, _ := visible["allOf"].([]any)
+	for _, value := range visible["oneOf"].([]any) {
+		variant, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		properties, ok := variant["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+		conditions = append(conditions, mokuHarnessOptionsCondition(properties["harnessId"], properties["options"]))
+	}
+	delete(visible, "oneOf")
+	visible["allOf"] = conditions
+	result.InputSchema = mokuRaw(visible)
 	return result, nil
+}
+
+// The not-guard fails only when harnessId selects this branch. Other harnesses
+// satisfy anyOf through the guard without validating the options schema, so a
+// rejected selection reports only its own branch and expected values. The
+// options branch comes first so its errors survive an error cap even when the
+// guard's own failure is truncated.
+func mokuHarnessOptionsCondition(harnessID, options any) map[string]any {
+	return map[string]any{"anyOf": []any{
+		map[string]any{"properties": map[string]any{"options": options}},
+		map[string]any{"not": map[string]any{"properties": map[string]any{"harnessId": harnessID}, "required": []string{"harnessId"}}},
+	}}
 }
 
 // ParseCreateRequest validates the protocol boundary. The coordinator must

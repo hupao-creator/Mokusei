@@ -23,8 +23,26 @@ func runCreationContractReplay() error {
 	mokuReplayMust(err)
 	var definition map[string]any
 	mokuReplayMust(json.Unmarshal(description.InputSchema, &definition))
-	// Both the root and every creation variant must expose the required field.
-	schemas := append([]any{definition}, definition["oneOf"].([]any)...)
+	// Common fields live on the root object; only harness-specific options are
+	// selected through the per-harness conditionals.
+	schemas := []any{definition}
+	guarded := map[string]bool{}
+	for _, raw := range definition["allOf"].([]any) {
+		branch := raw.(map[string]any)
+		options, _ := branch["anyOf"].([]any)
+		if len(options) != 2 {
+			continue
+		}
+		guard, _ := options[1].(map[string]any)["not"].(map[string]any)
+		guardProperties, _ := guard["properties"].(map[string]any)
+		harness, _ := guardProperties["harnessId"].(map[string]any)
+		if value, ok := harness["const"].(string); ok {
+			guarded[value] = true
+		}
+	}
+	for _, target := range targets {
+		mokuReplayCheck(guarded[target.HarnessID], "creation schema omitted harness options conditional for "+target.HarnessID)
+	}
 	for _, raw := range schemas {
 		schema := raw.(map[string]any)
 		required := schema["required"].([]any)
