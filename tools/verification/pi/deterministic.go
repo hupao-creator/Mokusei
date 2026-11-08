@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -129,7 +130,13 @@ func verifyAdapter(ctx context.Context) {
 	check(interaction.Questions[0].Options[0].Value == "rawchoice", "sanitized public native choice")
 	answer, _ := json.Marshal(interaction.Questions[0].Options[0].Value)
 	check(handle.Respond(ctx, model.RespondRequest{ExecutionID: "stale-execution", InteractionID: interaction.ID, ActionID: "submit", Answers: map[string]json.RawMessage{"answer": answer}}) != nil, "stale execution answered Pi interaction")
-	err = handle.Respond(ctx, model.RespondRequest{ExecutionID: "question", InteractionID: interaction.ID, ActionID: "submit", Answers: map[string]json.RawMessage{"answer": answer}})
+	interactionReply := model.RespondRequest{ExecutionID: "question", InteractionID: interaction.ID, ActionID: "submit", Answers: map[string]json.RawMessage{"answer": answer}}
+	beforeAnswer := store.Read()
+	cancelledAnswer, cancelAnswer := context.WithCancel(ctx)
+	cancelAnswer()
+	check(errors.Is(handle.Respond(cancelledAnswer, interactionReply), context.Canceled), "cancel answer before native write")
+	check(bytes.Equal(beforeAnswer, store.Read()), "rejected answer retains its pending interaction")
+	err = handle.Respond(ctx, interactionReply)
 	check(err == nil, "answer interaction")
 	waitStatus(ctx, store, "question", "completed")
 	check(send(handle, "editor", "edit") == nil, "editor prompt")
@@ -193,7 +200,7 @@ func verifyAdapter(ctx context.Context) {
 	waitStatus(ctx, recoveredStore, "recovered-next", "completed")
 	check(recovered.Close() == nil, "close recovery handle")
 	check(recovered.Close() == nil, "idempotent close")
-	fmt.Println("PASS Pi adapter replay: send/stream/settle, ack cancellation, steering rejection, native interaction response, empty todo persistence, cancel/resume, independent fork, crash recovery")
+	fmt.Println("PASS Pi adapter replay: send/stream/settle, ack cancellation, steering rejection, cancelled interaction answer retry, native interaction response, empty todo persistence, cancel/resume, independent fork, crash recovery")
 	bridgeStore := &memoryStore{}
 	bridgeRecord := model.SessionRecord{ID: "bridge", HarnessID: "pi", Cwd: root, Settings: settings}
 	var toolCalls atomic.Int64

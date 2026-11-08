@@ -406,7 +406,9 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 withTransaction(transaction) { progress = initialProgress + (targetProgress - initialProgress) * eased }
                 motion.recordProgressWrite(progress, reason: closing ? "closing-step" : "opening-step", generation: token)
                 guard time < 1 else { break }
-                do { try await Task.sleep(for: .milliseconds(8)) } catch { return }
+                // Do not grant wake-up coalescing extra leeway between animation
+                // samples. Elapsed time still determines progress after scheduler delays.
+                do { try await Task.sleep(for: .milliseconds(8), tolerance: .zero) } catch { return }
             }
             guard generation == token else { return }
             animationTask = nil

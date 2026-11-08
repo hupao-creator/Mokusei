@@ -16,10 +16,13 @@ history without an execution identity cannot silently become current input.
 
 `NativeComposerDraft.submit` optionally notifies its owner through `didConsume`
 after the captured accepted revision has been consumed without a storage error.
-The resident Dock captures this callback with the original send, so closing or
-replacing its view cannot acknowledge another draft. Execution continuation
-uses it to release a retained accepted receipt; failed/uncertain sends never call
-it. Existing callers without retained receipts keep their ordinary behavior.
+The resident Dock and Moku history composer capture this callback with the
+original send, so closing or replacing their views cannot acknowledge another
+draft. Execution continuation and Moku submission use it to release a retained
+accepted receipt; failed/uncertain sends never call it. Moku's Host also captures
+the original Report/directory source for that callback, independently of the
+currently visible route. Existing callers without retained receipts keep their
+ordinary behavior.
 
 `NativeComposerTextInput` keeps an unconsumed focus request pending while the
 editor is unavailable or focus is suspended. Eligibility changes retry that
@@ -589,6 +592,16 @@ replay synchronously requires the current two anchors to share one owner, produc
 a valid sample and agree with the already-qualified front within the original
 one-point tolerance. It records the native frames, progress and sampling times
 without forcing layout; a model-fallback-only run cannot certify this path.
+
+The non-panel progress loop requests zero tolerance for its existing 8ms sleep.
+[CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
+recorded a 76.938ms gap between consecutive progress writes, from 0.394718 to
+0.645411, while display callbacks continued and native geometry followed those
+writes. The source values themselves skipped the replay's midpoint interval.
+An unspecified [clock tolerance](https://developer.apple.com/documentation/swift/continuousclock/sleep%28until%3Atolerance%3A%29)
+permits wake-up coalescing; zero removes that allowance without guaranteeing
+exact scheduling. Preparation, elapsed-time sampling, curves, durations and
+cancellation retain their existing behavior.
 
 An external result request is the host route's entry document, so its Back and
 Escape use that route's return action. It gains an internal history return only

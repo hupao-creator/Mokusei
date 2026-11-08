@@ -129,6 +129,20 @@ missed midpoint; capture failure is recorded without replacing the original
 test failure. No image capture or file write occurs during the measured interval,
 and no production timestamps are collected unless the test observer is installed.
 
+[CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
+captured the missing distinction: consecutive source writes at 625.966ms and
+702.903ms assigned progress 0.394718 and 0.645411, a 76.938ms gap with no midpoint
+value. Display callbacks continued between them; the probe and front anchor
+remained at x=714, then both read x=418 about 5.3ms after the next write.
+The post-failure PNG shows the settled detail only. CI #387 had passed with a
+64.485ms source-write gap and one qualifying write; that pass does not negate
+the later failure. The production loop now supplies `tolerance: .zero` to the
+same 8ms sleep, removing unspecified wake-up coalescing allowance. Scheduler
+delays remain possible, and progress still follows elapsed time. The preparation
+delay, curve, duration, cancellation and every replay predicate and deadline
+remain unchanged. Verification uses the existing replay and its captured
+write/geometry timeline.
+
 ## Execution-link streaming input
 
 The running execution-link replay supplies complete Markdown paragraphs while

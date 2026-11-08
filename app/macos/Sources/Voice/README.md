@@ -27,6 +27,15 @@ realtime replies without a task handoff use the ordered media response boundary.
 
 [NativeVoiceProtocol.swift](NativeVoiceProtocol.swift) tracks generating and buffered response identities separately. At a typed-input action the client synchronously cancels the observed response and clears active buffered audio over the ordered data channel before dispatch. `response.done` does not prove the playback buffer drained. Interrupted identities prevent delayed events from reviving an old response. Buffer clearing is not deferred/retried by a later caption or rejected submission.
 
+The Host captures that typed-input fence only for the first admission attempt
+of a logical Moku submission. It keeps the original voice input ID and
+Report/directory source with the submission while recovering an uncertain
+response. Retrying the saved input queries its receipt rather than fencing the
+current media again; a newer response keeps playing. The durable receipt remains
+protected until the original persisted draft is consumed, and blocks a reopened
+owner that has lost the submission context. The native ownership replay drives
+this path through the production Host sender and loopback Runtime client.
+
 Business input/result ownership uses sideband generation fences, not VAD/caption timing. A nonterminal `speech-error` preserves the media session; connection/protocol errors end it. Accepted speech transport does not prove audible playback, and uncertain speech is not resent automatically.
 
 ## Transcripts and visualization
