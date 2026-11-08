@@ -46,7 +46,7 @@ import MokuseiApplications
             let savedBeforeIncompleteEdit = setup.settings.draft.saved
             try await control("moku.codex.model", operation: "select", value: .text("settings-explicit"), in: presentation)
             try await wait("Incomplete native model choices did not block Continue") { !setup.editorReady && !setup.canAdvance }
-            try await setup.advance()
+            await setup.advance()
             #expect(setup.step == .moku && setup.settings.draft.saved == savedBeforeIncompleteEdit)
             try await control("moku.codex.effort", operation: "select", value: .text("high"), in: presentation)
             try await wait("Completed Moku profile did not become ready") { setup.canAdvance }

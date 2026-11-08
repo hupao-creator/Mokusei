@@ -103,6 +103,8 @@ force unchanged Swift sources to recompile. An older toolchain retains the
 ordinary build; the log records which path executed. The first build with this
 flag must populate new records before later cache restores can benefit. This
 does not bypass SwiftPM's build, modify source timestamps or reuse test outcomes.
+The complete Swift build treats warnings as errors, including the test sources
+whose objects are reused by isolated replays.
 
 Native replay compilers share a module cache under the current runner's temporary
 directory; local replays use the checkout's `.build/native-replay/modules`.
@@ -110,6 +112,17 @@ Only compiler imports are shared. Every replay still stages its current sources,
 objects, resources and framework in a new bundle, compiles and signs that bundle,
 and owns its separate workspace, process, graphical lease and evidence. The
 Objective-C input helper and scrollbar compiler use the same import cache.
+
+In CI, reading-presentation replays reuse only the selected test sources' objects
+and shared test support from that verified SwiftPM build. Selection uses exact
+source entries in each target's output-file map. The current checkout, runner
+architecture, configuration, run and attempt must match the exported build
+manifest; missing, duplicate or whole-module objects fail the replay. Launch
+receipts record source, object, output-map and signed-binary hashes. Each replay
+still compiles its AppKit entry point and isolation source, and the native input
+bridge retains its separate strict Clang compile. Local launches and the
+standalone Workspace lifecycle suite retain source compilation. Test selection,
+native ownership and complete-execution audits remain unchanged.
 
 The [shared execution plan](swift_execution.py) selects reviewed windowless
 suites by an anchored suite-prefix filter. The graphical command has no positive
@@ -303,6 +316,9 @@ coverage and local capture entry points with temporary Git histories and control
 external executables. It rejects omissions, duplicate/substituted methods, wrong
 commits, incomplete zero exits, unexpected skips, missing receipts/markers and
 partial or misrouted native evidence; real subprocesses check deadline termination.
+Real temporary object maps exercise exact selected-source staging and hashes,
+atomic linker inputs on failure, and rejection of missing, duplicate, escaped,
+whole-module or stale-build objects without needing a macOS linker.
 Successful audit fixtures contain the complete replay inventory. Literal
 non-owner fixture/interop/native checks exercise omission, duplicate/unknown
 names, failed or incomplete receipts and missing or misrouted logs separately
@@ -351,9 +367,12 @@ No local status publication or external signing extension is part of the gate.
 shares its reviewed suite registry with ordinary CI/local execution.
 Every selected method must pass exactly once, without skips. It does not replace
 full hosted native verification. Independent fixture producers run at most two
-at once, starting the longest voice producer first (`replays.py fixtures --jobs 1`
+at once, starting the longest Moku producer first (`replays.py fixtures --jobs 1`
 retains the diagnostic serial control). These producers write separate exports;
 all six outputs are checked before they enter the Swift consumers.
+Scripted voice CLI child processes omit the race runtime's post-main sleep;
+their race instrumentation, the production parent's race settings, protocol
+barriers and the real speech-receipt timeout remain active.
 Each command has its own logs/result and cancellation drains all owned process
 groups. GUI and interop replays remain serial.
 

@@ -1,7 +1,9 @@
 """Exercise real CI scope, native evidence and deadline commands in isolation."""
+import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import signal
@@ -97,7 +99,7 @@ def verify_swift_build(root, repo, environment):
     invocation = root / "swift-build-invocation.json"
     launcher = [sys.executable, str(repo / "scripts/ci/swift-native.py"), "build"]
     complete_build = ["swift", "build", "--package-path", "app/macos", "--build-tests",
-                      "--force-resolved-versions", "--disable-index-store"]
+                      "--force-resolved-versions", "--disable-index-store", "-Xswiftc", "-warnings-as-errors"]
     flag = "-enable-incremental-file-hashing"
     supported_help = f"  {flag}  Enable input and dependency content hashes\n"
     unavailable_help = ("  -disable-incremental-file-hashing  Disable content hashes\n"
@@ -119,6 +121,132 @@ def verify_swift_build(root, repo, environment):
         if f"build incremental-file-hashing={capability}" not in output:
             raise AssertionError(f"Swift build must report the actual hashing capability\n{output}")
     print("PASS actual Swift build CLI: exact capability detection, complete current-source build arguments, repository directory and nonzero propagation")
+
+
+def verify_native_test_objects(root, repo):
+    root, repo = root.resolve(), repo.resolve()
+    spec = importlib.util.spec_from_file_location("native_replay_control",
+                                                SCRIPTS.parents[1] / "tools/verification/native_replay.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    package = repo / "app/macos"
+    production = package / f".build/{platform.machine()}-apple-macosx/debug"
+    evidence = root / "object-evidence"
+    evidence.mkdir()
+    fixtures = [
+        ("MokuseiTestSupport", "Support", "NativeTestEnvironment.swift", b"support"),
+        ("MokuseiSettingsIntegrationTests", "Integration/Host", "SwiftUIReplaySupport.swift", b"host helper"),
+        ("MokuseiSettingsIntegrationTests", "Integration/Host", "Selected.swift", b"host test"),
+        ("MokuseiGitIntegrationTests", "Integration/Threads", "Selected.swift", b"thread test"),
+    ]
+    selections, maps, objects = {}, {}, {}
+    for index, (target, directory, name, content) in enumerate(fixtures):
+        source = package / "Tests" / directory / name
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("// " + content.decode() + "\n")
+        build = production / (target + ".build")
+        build.mkdir(parents=True, exist_ok=True)
+        obj = build / f"compiled-{index}.o"  # The map, not a basename guess, locates the object.
+        selections.setdefault(target, []).append(source)
+        maps.setdefault(target, {"": {"swift-dependencies": "primary.swiftdeps"}})[str(source)] = {"object": str(obj)}
+        objects[obj] = content
+    host = "MokuseiSettingsIntegrationTests"
+    source = selections[host][-1]
+    unrelated = source.with_name("Unselected.swift")
+    unrelated.write_text("// Must not be linked\n")
+    extra = production / (host + ".build/Unselected.o")
+    maps[host][str(unrelated)] = {"object": str(extra)}
+    objects[extra] = b"unselected"
+    outside = root / "outside.o"
+    outside.write_bytes(b"outside target")
+    original = root / "production.o"
+    original.write_bytes(b"production")
+    current_manifest = package / ".build/ci-manifest.json"
+    manifest = {"revision": command(["git", "rev-parse", "HEAD"], cwd=repo).strip(),
+                "workspace": str(repo.resolve()), "architecture": platform.machine(), "configuration": "debug",
+                "run": "object-fixture-run", "attempt": "1", "toolchain": "fixture-toolchain"}
+
+    def reset():
+        data = json.dumps(manifest)
+        current_manifest.write_text(data)
+        (evidence / "build-manifest.json").write_text(data)
+        for target, mapping in maps.items():
+            (production / (target + ".build/output-file-map.json")).write_text(json.dumps(mapping))
+        for path, content in objects.items():
+            path.write_bytes(content)
+
+    def replay():
+        # Only skip macOS bundle construction; selection, Git identity, copying
+        # and persisted evidence all use the real implementation and files.
+        item = module.NativeReplay.__new__(module.NativeReplay)
+        item.root = Path(tempfile.mkdtemp(prefix="object-replay-", dir=root))
+        item.build = item.root / "build"
+        item.build.mkdir()
+        item.production, item.configuration = production, "debug"
+        item.objects, item.manifest = [str(original)], {}
+        return item
+
+    def reject(selection, diagnostic):
+        item = replay()
+        try:
+            item.reuse_test_objects(repo, selection)
+        except RuntimeError as error:
+            if diagnostic not in str(error):
+                raise AssertionError(f"Expected {diagnostic!r}, got {error}") from error
+        else:
+            raise AssertionError("Accepted invalid native object selection: " + diagnostic)
+        if item.objects != [str(original)]:
+            raise AssertionError("A failed partial selection appended objects to the linker inputs")
+
+    overrides = {"MOKUSEI_CI_EVIDENCE": str(evidence), "GITHUB_RUN_ID": manifest["run"], "GITHUB_RUN_ATTEMPT": "1"}
+    previous = {key: os.environ.get(key) for key in overrides}
+    os.environ.update(overrides)
+    try:
+        reset()
+        item = replay()
+        item.reuse_test_objects(repo, selections)
+        receipt = json.loads((item.root / "launch.json").read_text())["swiftPMTestObjects"]
+        if (item.objects[0] != str(original) or len(item.objects) != 5 or len(receipt["objects"]) != 4
+                or {Path(path).read_bytes() for path in item.objects[1:]} != {b"support", b"host helper", b"host test", b"thread test"}
+                or {entry["source"] for entry in receipt["objects"]} != {
+                    str(path.relative_to(repo)) for paths in selections.values() for path in paths}):
+            raise AssertionError("Native replay must stage exactly the four selected source objects")
+        for entry in receipt["objects"]:
+            if (entry["objectSHA256"] != hashlib.sha256(Path(entry["stagedObject"]).read_bytes()).hexdigest()
+                    or entry["sourceSHA256"] != hashlib.sha256((repo / entry["source"]).read_bytes()).hexdigest()):
+                raise AssertionError("Native object receipt must identify the actual staged object and current source")
+        reject({"MokuseiNativePackageTests": selections[host]}, "Unknown or empty Swift replay object selection")
+        reject({host: []}, "Unknown or empty Swift replay object selection")
+        for label, entry in (("missing entry", None), ("duplicate object", maps[host][str(selections[host][0])]),
+                             ("outside target", {"object": str(outside)}), ("whole module", {"object": str(extra)})):
+            reset()
+            mapping = dict(maps[host])
+            if entry is None:
+                del mapping[str(source)]
+            else:
+                mapping["" if label == "whole module" else str(source)] = entry
+            (production / (host + ".build/output-file-map.json")).write_text(json.dumps(mapping))
+            reject(selections, "requires per-source objects" if label == "whole module" else
+                   "No compiled Swift replay object" if entry is None else "Missing, duplicate or unexpected Swift replay object")
+        reset()
+        Path(maps[host][str(source)]["object"]).unlink()
+        reject(selections, "Missing, duplicate or unexpected Swift replay object")
+        for mutation in ({"revision": "stale"}, {"run": "old-run"}, {"attempt": "2"}):
+            reset()
+            data = json.dumps(manifest | mutation)
+            current_manifest.write_text(data)
+            (evidence / "build-manifest.json").write_text(data)
+            reject(selections, "require the current checkout and CI attempt's build")
+        reset()
+        (evidence / "build-manifest.json").write_text(json.dumps(manifest | {"toolchain": "stale-evidence"}))
+        reject(selections, "differs from the verified CI evidence")
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+    print("PASS real native object selection: exact staged sources/hashes, unknown/empty targets, missing/duplicate/escaped/WMO objects, atomic linker inputs and stale revision/run/attempt/evidence rejection")
 
 
 def verify_swift_ownership(root, repo, environment):
@@ -466,6 +594,7 @@ def main():
                 env=dict(os.environ, MOKUSEI_CI_STARTED_AT="0"))
         print("PASS real subprocess completion, nonzero status and deadline termination")
         verify_swift_ownership(root, repo, environment)
+        verify_native_test_objects(root, repo)
         outer_env = root / "parent-github-env"
         outer_env.write_text("untouched\n")
         print(command([sys.executable, str(SCRIPTS / "verify-headless-parallel.py")], cwd=root,

@@ -136,6 +136,7 @@ func verifyVoiceConfigurationCase(parent context.Context, root, binary string, a
 	}
 	env["MOKUSEI_CODEX_REPLAY_PEER"] = "1"
 	env["MOKUSEI_CODEX_REPLAY_ROOT"] = root
+	env["GORACE"] = strings.TrimSpace(env["GORACE"] + " atexit_sleep_ms=0")
 	env["MOKUSEI_CODEX_REPLAY_VOICE_CONFIGURATION"] = "1"
 	if cancelFails {
 		env["MOKUSEI_CODEX_REPLAY_VOICE_CANCEL_FAILURE"] = "1"

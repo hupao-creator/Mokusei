@@ -22,6 +22,9 @@ func runSyntheticVoice(ctx context.Context, root string) error {
 	}
 	environment["MOKUSEI_CODEX_REPLAY_PEER"] = "1"
 	environment["MOKUSEI_CODEX_REPLAY_ROOT"] = root
+	// Only scripted CLI children receive this map. The production adapter runs
+	// in the parent with its usual race options; peers need no post-main sleep.
+	environment["GORACE"] = strings.TrimSpace(environment["GORACE"] + " atexit_sleep_ms=0")
 	self, err := os.Executable()
 	if err != nil {
 		return err

@@ -27,10 +27,12 @@ geometry assertions retain their original numerical precision.
 Fixture-gated methods may defer only to their required Go/AppKit replay step;
 see the [verification policy](../../../../scripts/ci/verification-policy.md).
 
-The isolated reading-presentation launcher compiles the same support source with
+The isolated reading-presentation launcher uses the same support source with
 the selected tests. Their conditional `SWIFT_PACKAGE` import lets SwiftPM share
-one support module across targets while standalone native apps use the identical
-gate. Native replays reject skipped cases as incomplete verification.
+one support module across targets. CI replays link that module's object and only
+the selected test objects from the current verified build; local launches and
+the standalone Workspace lifecycle suite compile the identical gate from source.
+Native replays reject skipped cases as incomplete verification.
 
 `SwiftUIReplay.window` requests the test application's enhanced accessibility
 interface before mounting. Self-inspection must not depend on another suite or
@@ -206,6 +208,14 @@ priority. This requests timely observation without forced layout, widening
 bands, changing production animation duration, extending deadlines or retrying
 input. OS preemption can still make the original assertions fail; retain actual
 sample times and frame ages when diagnosing that outcome.
+
+The shared `.serializedNative` case scope requests the same process activity
+after gate admission and keeps it through asynchronous fixture cleanup. It ends
+the activity before releasing the gate on success, failure or cancellation;
+queued cases hold no activity. This covers ordinary SwiftPM graphical tests and
+gated windowless cases without initializing `NSApplication`. Sleep intervals
+and tolerances, iteration counts, deadlines, layout/display driving and all
+behavioral assertions retain their existing values.
 
 The scheduling contract is documented by Swift's
 [ContinuousClock implementation](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift)

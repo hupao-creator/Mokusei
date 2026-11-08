@@ -50,7 +50,7 @@ def identity():
 
 def build():
     command = ["xcrun", "swift", "build", "--package-path", "app/macos", "--build-tests",
-               "--force-resolved-versions", "--disable-index-store"]
+               "--force-resolved-versions", "--disable-index-store", "-Xswiftc", "-warnings-as-errors"]
     # A fresh checkout changes mtimes even for identical sources. Let the Swift
     # driver compare contents against its own build records instead of trusting
     # cached binaries or adjusting source timestamps ourselves.

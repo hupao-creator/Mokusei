@@ -203,7 +203,7 @@ the gesture is in flight. The original start-count, draft and detachment
 assertions, 90-second replay timeout and owned-process stack capture remain unchanged.
 Posting receipts do not claim physical input delivery.
 
-CI uses `--isolated-input` to compile the same history-composer, browser-viewport,
+CI uses `--isolated-input` to link the same history-composer, browser-viewport,
 Report, Thread TOC and Landing test sources into one AppKit host. It executes
 exactly the nine input/responder, pointer and native-panel methods deferred by
 SwiftPM, requiring all nine to pass without skips, while their remaining methods execute
@@ -285,8 +285,17 @@ test gate to prevent cross-suite window/focus contention. This isolated launcher
 additionally exercises AppKit's application event loop. It requires a successful
 process status, the complete suite's pass marker and no skipped cases.
 
-The launcher compiles the same [test environment](../../../app/macos/Tests/Support/README.md)
-source as SwiftPM. Missing graphical capability produces explicit test skips in a
+The launcher uses the same [test environment](../../../app/macos/Tests/Support/README.md)
+as SwiftPM. When both `MOKUSEI_SWIFT_SKIP_BUILD=1` and `MOKUSEI_CI_EVIDENCE` are set,
+it stages only the selected test and shared-support objects from the current
+verified SwiftPM build. Exact source mappings, checkout/run/attempt identity and
+the exported manifest are checked before linking; missing or mismatched objects
+fail without falling back to another build. The full SwiftPM build treats warnings
+as errors. `main.swift`, isolation support and the native input bridge still
+compile for each replay. Local launches and the standalone Workspace lifecycle
+suite compile their test sources as before. Launch and capture provenance
+receipts retain the selected source, object, output-map and executable hashes.
+Missing graphical capability produces explicit test skips in a
 plain test run; it fails an explicitly requested native replay as incomplete.
 The [Swift audit](../swift-tests/README.md) records the scheduling/host controls,
 headless admission check and existing Go-fixture skips. Do not treat a successful

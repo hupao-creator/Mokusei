@@ -8,6 +8,13 @@ go run -race ./tools/verification/codex
 
 The executable reuses itself as a scripted external Codex CLI. It creates an isolated temporary HOME, native data directory and workspace, and removes them when the run finishes. No installed Codex, credentials, Node, Python, model service or external network is needed. A failed assertion exits nonzero. This is an integration command, not a unit-test suite.
 
+Voice fixtures set `GORACE=atexit_sleep_ms=0` only in their scripted CLI child
+environments, avoiding the race detector's one-second post-main delay on each
+version/catalog probe and app-server exit. Child race instrumentation remains
+enabled; production adapters run in the parent with its usual race options.
+Protocol barriers, process cleanup checks and the real ten-second speech receipt
+timeout remain unchanged.
+
 The scripted peer advertises version `999.0.0` so production newest-candidate
 discovery selects it ahead of a locally installed app bundle. Its protocol
 user-agent fixtures remain independent of that discovery version.
