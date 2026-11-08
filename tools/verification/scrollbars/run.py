@@ -8,9 +8,10 @@ import tempfile
 repo = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(repo / "scripts/ci"))
 from deadline import run
+sys.path.insert(0, str(repo / "tools/verification"))
+from native_replay import native_module_cache
 
-cache = repo / ".build/scrollbars/modules"
-cache.mkdir(parents=True, exist_ok=True)
+cache = native_module_cache(repo)
 with tempfile.TemporaryDirectory(prefix="mokusei-scrollbars-") as output:
     binary = Path(output) / "scrollbars"
     status = run([

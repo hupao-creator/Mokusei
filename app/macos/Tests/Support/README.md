@@ -27,10 +27,12 @@ geometry assertions retain their original numerical precision.
 Fixture-gated methods may defer only to their required Go/AppKit replay step;
 see the [verification policy](../../../../scripts/ci/verification-policy.md).
 
-The isolated reading-presentation launcher compiles the same support source with
+The isolated reading-presentation launcher uses the same support source with
 the selected tests. Their conditional `SWIFT_PACKAGE` import lets SwiftPM share
-one support module across targets while standalone native apps use the identical
-gate. Native replays reject skipped cases as incomplete verification.
+one support module across targets. CI replays link that module's object and only
+the selected test objects from the current verified build; local launches and
+the standalone Workspace lifecycle suite compile the identical gate from source.
+Native replays reject skipped cases as incomplete verification.
 
 `SwiftUIReplay.window` requests the test application's enhanced accessibility
 interface before mounting. Self-inspection must not depend on another suite or

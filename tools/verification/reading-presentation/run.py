@@ -34,7 +34,7 @@ def compile_native_input_support(replay, repo):
     object_file = staged / "NativeInputSupport.o"
     command = ["/usr/bin/xcrun", "--sdk", "macosx", "clang", "-fobjc-arc", "-Wall", "-Wextra", "-Werror",
                "-isysroot", sdk, "-target", target, "-fmodules",
-               "-fmodules-cache-path=" + str(replay.root / "ClangModuleCache"),
+               "-fmodules-cache-path=" + str(replay.module_cache),
                "-I", str(include), "-fmodule-map-file=" + str(module_map),
                "-c", str(staged / "NativeInputSupport.m"), "-o", str(object_file)]
     receipt = {"inputSHA256": inputs, "stagedInputs": staged_inputs, "compileCommand": command,
@@ -76,10 +76,16 @@ def main():
         subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
     developer = Path(subprocess.check_output(["xcrun", "--show-sdk-platform-path"], text=True).strip()) / "Developer"
     frameworks = developer / "Library/Frameworks"
+    private_frameworks = developer / "Library/PrivateFrameworks"
+    libraries = developer / "usr/lib"
     toolchain = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip()).parent.parent
+    # Selected SwiftPM objects can retain module-wide XCTestSwiftSupport anchors.
+    # Match SwiftPM's SDK platform test paths, including XCTestCore at runtime.
     args = ["-g", "-plugin-path", str(toolchain / "lib/swift/host/plugins/testing"),
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
-            "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks)]
+            "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks),
+            "-Xlinker", "-rpath", "-Xlinker", str(private_frameworks),
+            "-L", str(libraries), "-Xlinker", "-rpath", "-Xlinker", str(libraries)]
     glass_captures = "--tag-glass-captures" in sys.argv
     workspace_lifecycle = "--workspace-lifecycle" in sys.argv
     standalone_owners = None
@@ -129,6 +135,7 @@ def main():
     if workspace_lifecycle:
         args += ["-D", "MOKUSEI_WORKSPACE_LIFECYCLE_REPLAY"]
     support = package / "Tests/Integration/Host/SwiftUIReplaySupport.swift"
+    test_environment = package / "Tests/Support/NativeTestEnvironment.swift"
     replay = NativeReplay(repo, "ReadingPresentationReplay", "com.mokusei.reading-presentation-replay")
     evidence = repo / ".scratch/reading-presentation" / ("isolated-input" if isolated_input else suite)
     provenance = None
@@ -139,7 +146,21 @@ def main():
         replay.acquire()
         if "NativeMokuHistoryComposerTests" in suites:
             args += compile_native_input_support(replay, repo)
-        replay.compile([source / "main.swift", package / "Tests/Support/NativeTestEnvironment.swift", support, *tests, *app_sources], extra_args=args)
+        reuse_objects = (not workspace_lifecycle and os.environ.get("MOKUSEI_SWIFT_SKIP_BUILD") == "1"
+                         and "MOKUSEI_CI_EVIDENCE" in os.environ)
+        if reuse_objects:
+            selected_objects = {"MokuseiTestSupport": [test_environment],
+                                "MokuseiSettingsIntegrationTests": [support]}
+            test_target = "MokuseiGitIntegrationTests" if thread_suite else "MokuseiSettingsIntegrationTests"
+            selected_objects.setdefault(test_target, []).extend(tests)
+            replay.reuse_test_objects(repo, selected_objects)
+            compile_sources = [source / "main.swift"]
+        else:
+            compile_sources = [source / "main.swift", test_environment, support, *tests, *app_sources]
+        replay.compile(compile_sources, extra_args=args)
+        if reuse_objects:
+            replay.manifest["swiftPMTestObjects"]["signedReplayExecutableSHA256"] = hashlib.sha256(
+                replay.executable.read_bytes()).hexdigest()
         if glass_captures or thread_send:
             # The merge tree and signed replay binary identify what produced the
             # pixels; a PR head label alone does not identify the tested build.
@@ -167,6 +188,8 @@ def main():
                 "inputSHA256": {str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest() for path in inputs},
                 "signedReplayExecutableSHA256": hashlib.sha256(replay.executable.read_bytes()).hexdigest(),
             }
+            if reuse_objects:
+                provenance["swiftPMTestObjects"] = replay.manifest["swiftPMTestObjects"]
             for directory in capture_evidence:
                 directory.mkdir(parents=True, exist_ok=True)
                 (directory / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")

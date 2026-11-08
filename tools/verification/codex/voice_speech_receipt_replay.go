@@ -44,6 +44,7 @@ func verifyVoiceSpeechReceipt(parent context.Context, root, binary string) error
 	}
 	env["MOKUSEI_CODEX_REPLAY_PEER"] = "1"
 	env["MOKUSEI_CODEX_REPLAY_ROOT"] = root
+	env["GORACE"] = strings.TrimSpace(env["GORACE"] + " atexit_sleep_ms=0")
 	env["MOKUSEI_CODEX_REPLAY_VOICE_CONFIGURATION"] = "1"
 	capture := filepath.Join(root, "speech-appends.jsonl")
 	env["MOKUSEI_CODEX_REPLAY_SPEECH_RECEIPT_CAPTURE"] = capture

@@ -55,32 +55,10 @@ jobs:
         with:
           persist-credentials: false
 
-      # scripts/go.sh downloads Go 1.27.3 but rejects non-Darwin/arm64 hosts.
-      # setup-go honors go.mod's toolchain directive without changing go.mod.
-      - uses: actions/setup-go@v6
-        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
-        id: go
-        with:
-          go-version-file: go.mod
-          cache: false
-
-      - name: Locate Go caches
-        if: ${{ needs.scope.outputs.documentation_only != 'true' }}
-        id: go-cache
-        run: |
-          go version
-          printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
-          printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v4
+      - uses: ./.github/actions/setup-go
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
         with:
-          path: |
-            ${{ steps.go-cache.outputs.modules }}
-            ${{ steps.go-cache.outputs.build }}
-          key: ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-go-${{ steps.go.outputs.go-version }}-
+          cache-scope: unit
 
       - name: Go formatting
         if: ${{ needs.scope.outputs.documentation_only != 'true' }}
@@ -183,10 +161,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v6
+      - uses: ./.github/actions/setup-go
         with:
-          go-version-file: go.mod
-          cache: true
+          cache-scope: integration-${{ matrix.group }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -219,10 +196,9 @@ jobs:
           persist-credentials: false
       - name: Verify runner platform
         run: python3 scripts/ci/macos-runner-preflight.py
-      - uses: actions/setup-go@v6
+      - uses: ./.github/actions/setup-go
         with:
-          go-version-file: go.mod
-          cache: true
+          cache-scope: native
       - name: Prepare the native toolchain
         id: toolchain
         run: |
@@ -245,7 +221,7 @@ jobs:
         id: swift-build
         run: |
           set -o pipefail
-          python3 scripts/ci/deadline.py xcrun swift build --package-path app/macos --build-tests --force-resolved-versions --disable-index-store 2>&1 | tee "$MOKUSEI_CI_EVIDENCE/build.log"
+          python3 scripts/ci/deadline.py python3 scripts/ci/swift-native.py build 2>&1 | tee "$MOKUSEI_CI_EVIDENCE/build.log"
           python3 scripts/ci/deadline.py xcrun swiftc scripts/ci/native-environment.swift -o app/macos/.build/ci-native-environment
           python3 scripts/ci/swift-native.py prepare
           python3 scripts/ci/swift-native.py verify --evidence "$MOKUSEI_CI_EVIDENCE"

@@ -621,7 +621,8 @@ private final class ReplayVoiceBackend {
             if failure == "prepare" { throw NativeVoiceError("prepare failed") }
             var result: [JSONText: JSONValue] = ["sessionId": .string(id), "ownershipId": request["requestId"]!]
             if let revision = request["sourceRevision"] {
-                result["superThreadId"] = try #require(request["superThreadId"])
+                let superThreadID: JSONValue = try #require(request["superThreadId"])
+                result["superThreadId"] = superThreadID
                 result["sourceRevision"] = revision
             }
             return try NativeVoiceResult(.object(result))
