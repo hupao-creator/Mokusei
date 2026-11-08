@@ -76,13 +76,15 @@ def main():
         subprocess.run(["xcrun", "swift", "build", "--package-path", str(package)], cwd=repo, check=True)
     developer = Path(subprocess.check_output(["xcrun", "--show-sdk-platform-path"], text=True).strip()) / "Developer"
     frameworks = developer / "Library/Frameworks"
+    private_frameworks = developer / "Library/PrivateFrameworks"
     libraries = developer / "usr/lib"
     toolchain = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip()).parent.parent
     # Selected SwiftPM objects can retain module-wide XCTestSwiftSupport anchors.
-    # Match SwiftPM's SDK platform test-library paths at link and launch time.
+    # Match SwiftPM's SDK platform test paths, including XCTestCore at runtime.
     args = ["-g", "-plugin-path", str(toolchain / "lib/swift/host/plugins/testing"),
             "-plugin-path", str(developer / "usr/lib/swift/host/plugins"),
             "-F", str(frameworks), "-Xlinker", "-rpath", "-Xlinker", str(frameworks),
+            "-Xlinker", "-rpath", "-Xlinker", str(private_frameworks),
             "-L", str(libraries), "-Xlinker", "-rpath", "-Xlinker", str(libraries)]
     glass_captures = "--tag-glass-captures" in sys.argv
     workspace_lifecycle = "--workspace-lifecycle" in sys.argv
