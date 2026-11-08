@@ -6,17 +6,31 @@ import SwiftUI
 
 @MainActor @Observable
 public final class NativeReadingPageMotion {
+    struct ProgressWrite {
+        let uptime: TimeInterval
+        let progress: Double
+        let reason: String
+        let generation: Int
+    }
     private final class WeakMotion { weak var value: NativeReadingPageMotion?; init(_ value: NativeReadingPageMotion) { self.value = value } }
     private static var registry: [WeakMotion] = []
     public fileprivate(set) var active = false
     fileprivate var replacementDirection: CGFloat = 1
     @ObservationIgnored fileprivate var closeAction: (() -> Void)?
     @ObservationIgnored fileprivate var cancelAction: ((Bool) -> Void)?
+    // The native replay installs this per-instance observer. Production takes
+    // no timestamps or geometry samples when there is no observer.
+    @ObservationIgnored var progressWriteObserver: ((ProgressWrite) -> Void)?
     public init() { Self.registry.removeAll { $0.value == nil }; Self.registry.append(WeakMotion(self)) }
     public func close() { closeAction?() }
     public func cancel(finishingClose: Bool = false) { cancelAction?(finishingClose) }
     public static func cancelAll(finishingClose: Bool = false) {
         registry.forEach { $0.value?.cancel(finishingClose: finishingClose) }
+    }
+    fileprivate func recordProgressWrite(_ progress: Double, reason: String, generation: Int) {
+        guard let progressWriteObserver else { return }
+        progressWriteObserver(.init(uptime: ProcessInfo.processInfo.systemUptime,
+                                    progress: progress, reason: reason, generation: generation))
     }
 }
 
@@ -60,6 +74,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
     @State private var mountedIdentity: JSONText?
     @State private var animationTask: Task<Void, Never>?
     @State private var geometry = NativeReadingPageGeometry()
+    @State private var frames = NativeReadingPageFrames()
 
     public init(open: Bool, identity: JSONText, motion: NativeReadingPageMotion,
                 enabled: Bool = true, focusBlur: Bool = false, stationaryParent: Bool = false,
@@ -181,6 +196,14 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                         .accessibilityHidden(true)
                 }
             }
+            .background {
+                if !panel {
+                    NativeReadingPageFrameSource(frames: frames)
+                        .frame(width: bounds.size.width, height: bounds.size.height)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
             .onChange(of: bounds.size) { _, _ in settle(finishingClose: true) }
         }
         .clipped()
@@ -239,6 +262,8 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             else { onClose() }
             return
         }
+        animationTask?.cancel(); animationTask = nil
+        frames.stop()
         generation += 1
         let token = generation
         preparingClose = true
@@ -262,6 +287,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         // turn an explicit cancellation into navigation.
         let finishClose = finishingClose && (closing || preparingClose) && open && mountedIdentity == identity
         animationTask?.cancel(); animationTask = nil
+        frames.stop()
         generation += 1
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
@@ -276,6 +302,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             replacing = false
             motion.active = false
         }
+        motion.recordProgressWrite(progress, reason: "settle", generation: generation)
         onParentPresentationChange?(!open || finishClose)
         if finishClose { onClose() }
     }
@@ -326,6 +353,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
         }
         if panel {
             animationTask?.cancel(); animationTask = nil
+            frames.stop()
             generation += 1
             replacing = false
             self.closing = closing
@@ -341,10 +369,12 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 ? .timingCurve(0.76, 0, 0.24, 1, duration: duration) : curve) {
                 progress = closing ? 0 : 1
             }
+            motion.recordProgressWrite(progress, reason: "panel-target", generation: generation)
             return
         }
         let returningDuringOpening = closing && axis == .horizontal && motion.active && !self.closing && !replacing
-        animationTask?.cancel()
+        animationTask?.cancel(); animationTask = nil
+        let frameGeneration = frames.begin()
         generation += 1
         let token = generation
         let initialProgress: Double
@@ -355,6 +385,7 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             var transaction = Transaction(animation: nil)
             transaction.disablesAnimations = true
             withTransaction(transaction) { progress = displayed }
+            motion.recordProgressWrite(progress, reason: "native-return-pose", generation: generation)
             initialProgress = displayed
         } else { initialProgress = progress }
         replacing = false
@@ -373,11 +404,12 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
             // parent on return) before advancing the shared timeline. Without
             // preparation SwiftUI can coalesce insertion with its final pose.
             do { try await Task.sleep(for: .seconds(2.0 / 60)) } catch { return }
-            guard generation == token else { return }
+            guard !Task.isCancelled, generation == token else { return }
             let start = ContinuousClock.now
-            while true {
-                // Check before writing: a settle may have run between the
-                // previous frame and this task resuming.
+            animationTask = nil
+            frames.start(generation: frameGeneration) {
+                // A settle or retarget may have retired this route after the
+                // display callback was queued. Progress has no asynchronous hop.
                 guard generation == token else { return }
                 let elapsed = start.duration(to: .now)
                 let seconds = Double(elapsed.components.seconds)
@@ -387,16 +419,15 @@ public struct NativeReadingPageStack<Parent: View, Front: View>: View {
                 var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { progress = initialProgress + (targetProgress - initialProgress) * eased }
-                guard time < 1 else { break }
-                do { try await Task.sleep(for: .milliseconds(8)) } catch { return }
+                motion.recordProgressWrite(progress, reason: closing ? "closing-step" : "opening-step", generation: token)
+                guard generation == token, time >= 1 else { return }
+                frames.stop()
+                motion.active = false
+                self.closing = false
+                if !closing { onParentPresentationChange?(false) }
+                // Keep destination, navigation and selection until return ends.
+                if closing { onClose() }
             }
-            guard generation == token else { return }
-            animationTask = nil
-            motion.active = false
-            self.closing = false
-            if !closing { onParentPresentationChange?(false) }
-            // Keep destination, navigation and selection until return ends.
-            if closing { onClose() }
         }
     }
 }

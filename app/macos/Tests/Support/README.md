@@ -92,7 +92,7 @@ discarded as flaky.
 This method now uses `SwiftUIReplay.wait(driveLayout: false)`, which requires an
 actual running `NSApplication` event loop. Other callers retain the default
 layout/display driving behavior. Repeated synchronous all-window layout and
-display share the main actor with the production animation task and can disturb
+display share the main actor with production animation callbacks and can disturb
 the observation; passive waiting removes that intervention, not OS scheduling
 uncertainty. Each wait retains the original three-second deadline and 10ms sleep.
 
@@ -108,6 +108,52 @@ retained with their uptime clock; no 50ms diagnostic subsampling omits checks.
 The original return direction, latest content and parent appearance assertions
 remain. No wider band, longer animation or deadline, retry, skip, or retrospective
 midpoint interpolation can substitute for the actual prerequisite.
+
+Run `42442726336` observed 178 display callbacks but no qualifying midpoint:
+the front stayed at x=722 from 667.909–719.472ms, then read x=461 at 734.029ms.
+The unchanged band was 472–708 points; opening remained active and its window
+and viewport stayed valid. Those native samples do not identify whether progress
+writes or their delivery to native geometry were delayed or coalesced.
+
+This replay alone installs an internal, per-motion progress-write observer. It
+records `ProcessInfo.systemUptime`, the assigned progress, reason and generation
+after the production transaction, without reading geometry in that callback.
+The existing display callback additionally reads the current root/front anchors;
+neither observer drives layout or display. Progress writes and opening samples
+each retain at most 2048 entries, with explicit dropped counts and the latest
+opening sample retained separately. The observer is removed before exit or a
+failure capture. If the opening wait fails, one ScreenCaptureKit image is saved
+as `retained-overview-post-failure.png` under `MOKUSEI_READING_MOTION_ARTIFACTS`.
+Its request/capture timestamps and post-failure label distinguish it from the
+missed midpoint; capture failure is recorded without replacing the original
+test failure. No image capture or file write occurs during the measured interval,
+and no production timestamps are collected unless the test observer is installed.
+
+[CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
+captured the missing distinction: consecutive source writes at 625.966ms and
+702.903ms assigned progress 0.394718 and 0.645411, a 76.938ms gap with no midpoint
+value. Display callbacks continued between them; the probe and front anchor
+remained at x=714, then both read x=418 about 5.3ms after the next write.
+The post-failure PNG shows the settled detail only. CI #387 had passed with a
+64.485ms source-write gap and one qualifying write; that pass does not negate
+the later failure. The trace establishes a source gap, not its specific
+scheduling cause. The subsequent zero-tolerance sleep version passed
+[CI #392](https://github.com/hupao-creator/Mokusei/actions/runs/42451341019), but
+source writes at 545.733ms, 614.662ms and 683.106ms were still about 69ms apart.
+The unchanged 1.2-second Bezier curve's progress 0.4–0.6 interval lasts only
+59.801ms, so one admitted midpoint does not remove the source-cadence risk.
+
+Production non-panel progress now advances synchronously on a screen display
+callback, with no task or timer hop between that callback and the progress write.
+The existing preparation delay, elapsed-time origin, curve, duration, cancellation
+and every replay predicate and deadline remain unchanged. `FrameObserver` still
+independently observes committed native geometry; it does not drive production
+progress, require callback ordering, force layout or certify WindowServer pixels.
+Offscreen windows use a real screen clock; windowless preparation/cancellation
+tests create no display link and do not claim rendered completion. The separate
+history-replacement completion timer still runs without a window. Verification
+uses the existing replay and its captured write/geometry timeline; main-thread or
+display stalls can still make the original prerequisite fail.
 
 ## Execution-link streaming input
 

@@ -71,53 +71,63 @@ type Config struct {
 	OutputLocale       func(context.Context) (string, error)
 }
 type Runtime struct {
-	mokuDeliveryMu          sync.Mutex
-	mokuDeliveryEpoch       string
-	serviceMu               sync.Mutex
-	serviceDraining         bool
-	serviceAdmissions       int
-	configurationAdmissions map[*serviceAdmissionToken]struct{}
-	mokuHarnessChanging     bool
-	threadCacheMu           sync.Mutex
-	threadCacheRevision     uint64
-	projectionMu            sync.Mutex
-	compute                 *workpool.Pool
-	threadCache             map[string]cachedThread
-	overviewCache           map[string]cachedOverview
-	search                  *threadsearch.Manager
-	voiceOnce               sync.Once
-	voice                   *threadvoice.Manager
-	config                  Config
-	ctx                     context.Context
-	cancel                  context.CancelFunc
-	generationCtx           context.Context
-	generationCancel        context.CancelFunc
-	lifecycleMu             sync.Mutex
-	mu                      sync.Mutex
-	configurationGate       chan struct{}
-	closed                  bool
-	resetting               bool
-	generation              uint64
-	handles                 map[string]*threadHandle
-	locks                   map[string]*threadCommandLock
-	deleting                map[string]bool
-	sendClaims              map[string]map[*sendClaim]struct{}
-	cancellationStates      map[string]*threadCancellation
-	operations              sync.WaitGroup
-	closeOnce               sync.Once
-	closeErr                error
-	publishMu               sync.Mutex
-	baseline                model.AppState
-	listeners               map[uint64]func(json.RawMessage)
-	threadListeners         map[uint64]func(model.ThreadRecord)
-	nextListener            uint64
-	stopStore               func()
-	publisherDone           chan struct{}
-	lifecycle               *lifecycleCapability
-	pendingPublications     []json.RawMessage
-	delivering              bool
-	pendingActivities       []model.RuntimeActivity
-	publisherWake           chan struct{}
+	mokuDeliveryMu            sync.Mutex
+	mokuDeliveryEpoch         string
+	serviceMu                 sync.Mutex
+	serviceDraining           bool
+	serviceAdmissions         int
+	configurationAdmissions   map[*serviceAdmissionToken]struct{}
+	mokuHarnessChanging       bool
+	threadCacheMu             sync.Mutex
+	threadCacheRevision       uint64
+	projectionMu              sync.Mutex
+	compute                   *workpool.Pool
+	threadCache               map[string]cachedThread
+	overviewCache             map[string]cachedOverview
+	search                    *threadsearch.Manager
+	voiceOnce                 sync.Once
+	voice                     *threadvoice.Manager
+	config                    Config
+	ctx                       context.Context
+	cancel                    context.CancelFunc
+	generationCtx             context.Context
+	generationCancel          context.CancelFunc
+	lifecycleMu               sync.Mutex
+	mu                        sync.Mutex
+	configurationGate         chan struct{}
+	closed                    bool
+	resetting                 bool
+	generation                uint64
+	handles                   map[string]*threadHandle
+	locks                     map[string]*threadCommandLock
+	deleting                  map[string]bool
+	sendClaims                map[string]map[*sendClaim]struct{}
+	cancellationStates        map[string]*threadCancellation
+	operations                sync.WaitGroup
+	closeOnce                 sync.Once
+	closeErr                  error
+	publishMu                 sync.Mutex
+	baseline                  model.AppState
+	publicationSnapshot       store.Snapshot
+	publishedThreads          map[string]model.ThreadRecord
+	publishedApplications     map[string]model.ApplicationThread
+	publishedApplicationOrder []string
+	publishedThreadOrder      map[string]int
+	publishedAgentRuns        map[string]model.AgentRun
+	pendingAgentRuns          map[string]*model.AgentRun
+	publicationRetries        map[string]bool
+	applicationGeneration     uint64
+	publishedAppGeneration    uint64
+	listeners                 map[uint64]func(json.RawMessage)
+	threadListeners           map[uint64]func(model.ThreadRecord)
+	nextListener              uint64
+	stopStore                 func()
+	publisherDone             chan struct{}
+	lifecycle                 *lifecycleCapability
+	pendingPublications       []json.RawMessage
+	delivering                bool
+	pendingActivities         []model.RuntimeActivity
+	publisherWake             chan struct{}
 }
 
 func New(ctx context.Context, config Config) (*Runtime, error) {
@@ -220,13 +230,19 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 			_ = r.compute.Close(context.Background())
 		}
 	}()
-	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, Trace: config.SearchTrace})
+	r.search, err = threadsearch.New(lifetime, threadsearch.Options{Store: config.Store, Sources: r.searchSources, SourceChanges: r.searchSourceChanges, Trace: config.SearchTrace})
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	r.baseline, err = r.project()
+	r.publicationSnapshot = config.Store.Snapshot()
+	r.baseline, err = r.projectSnapshot(r.publicationSnapshot)
 	if err != nil {
+		r.search.Close()
+		cancel()
+		return nil, err
+	}
+	if err = r.initializePublication(); err != nil {
 		r.search.Close()
 		cancel()
 		return nil, err
@@ -273,7 +289,9 @@ func New(ctx context.Context, config Config) (*Runtime, error) {
 func (r *Runtime) SetApplications(applications Applications) {
 	r.mu.Lock()
 	r.config.Applications = applications
+	r.applicationGeneration++
 	r.mu.Unlock()
+	r.search.Invalidate()
 	r.Publish()
 }
 func (r *Runtime) SetMoku(moku Moku) { r.mu.Lock(); r.config.Moku = moku; r.mu.Unlock() }

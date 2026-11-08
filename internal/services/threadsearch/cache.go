@@ -10,8 +10,8 @@ import (
 
 const documentCacheBytes = 64 << 20
 
-// Cached documents are immutable. Index builders read their own mutable copy
-// from the store; query/status readers never modify these slices.
+// Cached documents are immutable. Only queries need their bodies; status and
+// index freshness use the separate bounded stamp.
 type cachedDocument struct {
 	hash  string
 	value Document
@@ -126,7 +126,7 @@ func resultKey(snapshot store.Snapshot, config Config, request QueryRequest, sou
 	for _, source := range sources {
 		key := RefKey(source.Ref)
 		if scope[key] {
-			hash, _ := snapshot.RecordHash(documentPrefix + key)
+			hash, _ := snapshot.RecordHash(documentKey(source))
 			ownerHash, _ := snapshot.RecordHash(source.Owner)
 			stamps = append(stamps, stamp{key, source.Owner, source.OwnerHash, ownerHash, source.Identity, source.Title, source.Cwd, hash, source.Tags})
 		}

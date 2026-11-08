@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -17,9 +16,12 @@ type snapshotData struct {
 	revision          uint64
 	eventRevision     uint64
 	lifecycleRevision uint64
-	records           map[string]*storedRecord
-	orders            map[string][]string
+	records           *indexNode[*storedRecord]
+	orders            *indexNode[*storedOrder]
+	lifecycle         lifecycleIndex
 }
+
+type storedOrder struct{ ids []string }
 
 type storedRecord struct {
 	body json.RawMessage
@@ -37,7 +39,7 @@ func (s Snapshot) RecordHash(key string) (string, bool) {
 	if s.data == nil {
 		return "", false
 	}
-	record, ok := s.data.records[key]
+	record, ok := indexGet(s.data.records, key)
 	if !ok {
 		return "", false
 	}
@@ -46,10 +48,14 @@ func (s Snapshot) RecordHash(key string) (string, bool) {
 
 // RecordBytes is the immutable source size used for bounded compute admission.
 func (s Snapshot) RecordBytes(key string) int64 {
-	if s.data == nil || s.data.records[key] == nil {
+	if s.data == nil {
 		return 0
 	}
-	return int64(len(s.data.records[key].body))
+	record, _ := indexGet(s.data.records, key)
+	if record == nil {
+		return 0
+	}
+	return int64(len(record.body))
 }
 
 // Snapshot is an immutable committed view. All returned slices are copies;
@@ -82,7 +88,7 @@ func (s Snapshot) Get(key string, dst any) (bool, error) {
 	if s.data == nil {
 		return false, nil
 	}
-	value, ok := s.data.records[key]
+	value, ok := indexGet(s.data.records, key)
 	if !ok {
 		return false, nil
 	}
@@ -97,7 +103,7 @@ func (s Snapshot) Raw(key string) (json.RawMessage, bool) {
 	if s.data == nil {
 		return nil, false
 	}
-	value, ok := s.data.records[key]
+	value, ok := indexGet(s.data.records, key)
 	if !ok {
 		return nil, false
 	}
@@ -107,26 +113,96 @@ func (s Snapshot) Has(key string) bool {
 	if s.data == nil {
 		return false
 	}
-	_, ok := s.data.records[key]
+	_, ok := indexGet(s.data.records, key)
 	return ok
 }
 func (s Snapshot) Keys(prefix string) []string {
 	keys := []string{}
 	if s.data != nil {
-		for key := range s.data.records {
-			if strings.HasPrefix(key, prefix) {
-				keys = append(keys, key)
-			}
-		}
+		indexWalk(indexPrefix(s.data.records, prefix), func(key string, _ *storedRecord) bool {
+			keys = append(keys, key)
+			return true
+		})
 	}
-	sort.Strings(keys)
 	return keys
 }
-func (s Snapshot) Order(kind string) []string {
-	if s.data == nil {
-		return []string{}
+
+// Count returns the size of a prefix range without enumerating its records.
+func (s Snapshot) Count(prefix string) int {
+	if s.data != nil {
+		if root := indexPrefix(s.data.records, prefix); root != nil {
+			return root.count
+		}
 	}
-	return append([]string{}, s.data.orders[kind]...)
+	return 0
+}
+
+func (s Snapshot) Order(kind string) []string {
+	if s.data != nil {
+		if order, ok := indexGet(s.data.orders, kind); ok {
+			return append([]string{}, order.ids...)
+		}
+	}
+	return []string{}
+}
+
+// ChangedKeys returns exact byte changes, additions and removals in key order.
+// Shared index branches are skipped, including across coalesced commits. A zero
+// previous snapshot reports all current keys; no revision journal can expire.
+func (s Snapshot) ChangedKeys(previous Snapshot, prefix string) []string {
+	return s.RecordPrefix(prefix).ChangedKeys(previous.RecordPrefix(prefix))
+}
+
+// RecordSnapshot is an opaque change baseline for one record range. It retains
+// only that index subtree, so an idle collection cache does not pin unrelated
+// old thread or private-session bodies through a complete Snapshot.
+type RecordSnapshot struct{ records *indexNode[*storedRecord] }
+
+func (s Snapshot) RecordPrefix(prefix string) RecordSnapshot {
+	if s.data == nil {
+		return RecordSnapshot{}
+	}
+	return RecordSnapshot{records: indexPrefix(s.data.records, prefix)}
+}
+
+func (s RecordSnapshot) ChangedKeys(previous RecordSnapshot) []string {
+	keys := []string{}
+	s.changedRecords(previous, func(key string, _, _ *storedRecord) bool {
+		keys = append(keys, key)
+		return true
+	})
+	return keys
+}
+
+// PrefixEqual checks a collection without materializing its keys or values.
+func (s Snapshot) PrefixEqual(previous Snapshot, prefix string) bool {
+	return s.RecordPrefix(prefix).changedRecords(previous.RecordPrefix(prefix), func(string, *storedRecord, *storedRecord) bool { return false })
+}
+
+func (s RecordSnapshot) changedRecords(previous RecordSnapshot, visit func(string, *storedRecord, *storedRecord) bool) bool {
+	return indexDiff(previous.records, s.records, func(key string, old, current *storedRecord) bool {
+		if old != nil && current != nil && old.hash == current.hash {
+			return true
+		}
+		return visit(key, old, current)
+	})
+}
+
+func (s Snapshot) OrderChanged(previous Snapshot, kind string) bool {
+	var before, after *storedOrder
+	if previous.data != nil {
+		before, _ = indexGet(previous.data.orders, kind)
+	}
+	if s.data != nil {
+		after, _ = indexGet(s.data.orders, kind)
+	}
+	if before == after {
+		return false
+	}
+	if before == nil || after == nil {
+		return true
+	}
+	return !slices.Equal(before.ids, after.ids)
 }
 
 // Tx is valid only for the synchronous duration of its Update callback. Do not
@@ -212,7 +288,7 @@ func (t *Tx) PutRaw(key string, value json.RawMessage) error {
 	if !utf8.Valid(value) || !json.Valid(value) {
 		return fmt.Errorf("state %q is not UTF-8 JSON", key)
 	}
-	if old, ok := t.base.data.records[key]; ok && bytes.Equal(old.body, value) {
+	if old, ok := indexGet(t.base.data.records, key); ok && bytes.Equal(old.body, value) {
 		delete(t.writes, key)
 		return nil
 	}
@@ -258,7 +334,7 @@ func (t *Tx) SetOrder(kind string, ids []string) error {
 	return nil
 }
 
-// Snapshot copies the transaction's maps; later writes cannot change that view.
+// Snapshot copies changed index paths; later writes cannot change that view.
 func (t *Tx) Snapshot() Snapshot {
 	if !t.active {
 		return Snapshot{}
@@ -266,9 +342,9 @@ func (t *Tx) Snapshot() Snapshot {
 	return t.snapshot()
 }
 func (t *Tx) snapshot() Snapshot {
-	data := &snapshotData{revision: t.base.Revision(), eventRevision: t.base.EventRevision(), lifecycleRevision: t.base.LifecycleRevision(), records: make(map[string]*storedRecord, len(t.base.data.records)+len(t.writes)), orders: make(map[string][]string, len(t.base.data.orders)+len(t.orders))}
-	for key, value := range t.base.data.records {
-		data.records[key] = value
+	data := &snapshotData{}
+	if t.base.data != nil {
+		*data = *t.base.data
 	}
 	for key, value := range t.writes {
 		if strings.HasPrefix(key, eventPrefix) {
@@ -277,20 +353,18 @@ func (t *Tx) snapshot() Snapshot {
 		} else if strings.HasPrefix(key, workPrefix) || strings.HasPrefix(key, outcomePrefix) {
 			data.lifecycleRevision = data.revision + 1
 		}
+		data.lifecycle.update(key, value)
 		if value == nil {
-			delete(data.records, key)
+			data.records = indexDelete(data.records, key)
 		} else {
-			data.records[key] = value
+			data.records = indexSet(data.records, key, value)
 		}
-	}
-	for kind, ids := range t.base.data.orders {
-		data.orders[kind] = ids
 	}
 	for kind, ids := range t.orders {
 		if len(ids) == 0 {
-			delete(data.orders, kind)
+			data.orders = indexDelete(data.orders, kind)
 		} else {
-			data.orders[kind] = ids
+			data.orders = indexSet(data.orders, kind, &storedOrder{ids: ids})
 		}
 	}
 	return Snapshot{data}

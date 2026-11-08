@@ -193,7 +193,7 @@ public final class NativeWorkspaceModel {
 
     func installPrepared(_ snapshot: JSONValue, event: RuntimeClientEvent) async {
         do {
-            let prepared = try await catalogPreparation.prepare(snapshot)
+            let prepared = try await catalogPreparation.prepare(snapshot, event: event)
             // Shutdown may fail and leave this window alive. Keep installing
             // ordered catalog events until the observer is actually cancelled.
             guard !Task.isCancelled else { return }

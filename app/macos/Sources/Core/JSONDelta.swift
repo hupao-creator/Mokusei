@@ -124,7 +124,7 @@ public enum JSONDelta {
             case .frozen(.object), .object:
                 guard case let .key(key) = component else { throw invalid("invalid object path") }
                 return try object().child(key)
-            case .frozen(.array), .array:
+            case .frozen(.array), .frozen(.catalog), .array:
                 guard case let .index(index) = component else { throw invalid("invalid array path") }
                 return try array().child(index)
             default:
@@ -148,6 +148,10 @@ public enum JSONDelta {
             case let .array(array): return array
             case let .frozen(.array(values)):
                 let array = WorkingArray(values)
+                storage = .array(array)
+                return array
+            case let .frozen(.catalog(values)):
+                let array = WorkingArray(Array(values))
                 storage = .array(array)
                 return array
             default: throw invalid("splice requires arrays")

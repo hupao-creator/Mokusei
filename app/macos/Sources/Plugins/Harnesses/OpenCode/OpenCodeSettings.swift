@@ -358,7 +358,7 @@ private struct OpenCodeResourceStatus: View {
 private func ocNullish(_ values: JSONValue?...) -> JSONValue? { values.compactMap { $0 }.first { $0 != .null } }
 private func ocTruthy(_ value: JSONValue?) -> Bool {
     guard let value else { return false }
-    switch value { case .integer: return true; case .null: return false; case .bool(let flag): return flag; case .number(let value): return value != 0; case .string(let value): return !value.codeUnits.isEmpty; case .array, .object: return true }
+    switch value { case .integer: return true; case .null: return false; case .bool(let flag): return flag; case .number(let value): return value != 0; case .string(let value): return !value.codeUnits.isEmpty; case .array, .catalog, .object: return true }
 }
 
 func ocExclusiveModelReason(_ model: JSONValue, variant: JSONValue?, agent: JSONValue?) -> String? {

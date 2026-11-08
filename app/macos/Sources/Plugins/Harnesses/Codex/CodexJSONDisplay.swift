@@ -36,6 +36,7 @@ func codexPrettyJSONString(_ value: JSONValue) -> String {
                 result += index == values.count - 1 ? [10] : [44, 10]
             }
             return result + indent + [93]
+        case .catalog(let values): return render(.array(Array(values)), depth: depth)
         case .object(let fields):
             if fields.isEmpty { return [123, 125] }
             let keys = fields.keys.sorted { $0.codeUnits.lexicographicallyPrecedes($1.codeUnits) }
@@ -81,6 +82,7 @@ private struct CodexPrettyJSONMatcher {
                 try emit(index == values.count - 1 ? "\n" : ",\n")
             }
             try emit(String(repeating: "  ", count: depth) + "]")
+        case .catalog(let values): try render(.array(Array(values)), depth: depth)
         case .object(let values):
             if values.isEmpty { try emit("{}"); return }
             try emit("{\n")

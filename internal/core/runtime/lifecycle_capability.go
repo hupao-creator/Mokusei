@@ -19,9 +19,10 @@ type lifecycleCapability struct {
 	consumers map[string]*lifecycleConsumer
 }
 type lifecycleConsumer struct {
-	cap        *lifecycleCapability
-	definition plugin.LifecycleConsumerDefinition
-	excluded   map[string]bool
+	cap           *lifecycleCapability
+	definition    plugin.LifecycleConsumerDefinition
+	excluded      map[string]bool
+	pendingReader *store.PendingReader
 }
 
 func (l *lifecycleCapability) Register(def plugin.LifecycleConsumerDefinition) (plugin.LifecycleConsumer, error) {
@@ -48,16 +49,21 @@ func (l *lifecycleCapability) Register(def plugin.LifecycleConsumerDefinition) (
 		if err != nil {
 			return nil, err
 		}
-		events, err := snapshot.Events()
+		ids, err := snapshot.EventIDs(append(storeFilters(c.definition.Filter), storeFilters(c.definition.History)...))
 		if err != nil {
 			return nil, err
 		}
-		for _, event := range events {
-			if !exists || !contains(work.EventIDs, event.ID) {
-				c.excluded[event.ID] = true
+		for _, id := range ids {
+			if !exists || !contains(work.EventIDs, id) {
+				c.excluded[id] = true
 			}
 		}
 	}
+	excluded := make([]string, 0, len(c.excluded))
+	for id := range c.excluded {
+		excluded = append(excluded, id)
+	}
+	c.pendingReader = store.NewPendingReader(c.ID(), storeFilters(c.definition.Filter), excluded)
 	l.consumers[def.ID] = c
 	return c, nil
 }
@@ -66,16 +72,15 @@ func (l *lifecycleCapability) Subscribe(ctx context.Context, scope plugin.Lifecy
 		return nil, err
 	}
 	snapshot := l.runtime.config.Store.Snapshot()
-	events, err := snapshot.Events()
+	filters := storeFilters(scope)
+	if len(scope) == 0 {
+		filters = []store.Filter{{Types: []string{}}}
+	}
+	reader, err := store.NewEventReader(snapshot, filters)
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
-	eventRevision := snapshot.EventRevision()
-	for _, e := range events {
-		seen[e.ID] = true
-	}
-	changes, unsubscribe := l.runtime.config.Store.Subscribe()
+	changes, unsubscribe := l.runtime.config.Store.SubscribeLifecycle("", filters, "")
 	lifetime, cancel := context.WithCancel(ctx)
 	var once sync.Once
 	stop := func() { once.Do(func() { cancel(); unsubscribe() }) }
@@ -90,23 +95,13 @@ func (l *lifecycleCapability) Subscribe(ctx context.Context, scope plugin.Lifecy
 					return
 				}
 				snapshot := l.runtime.config.Store.Snapshot()
-				if snapshot.EventRevision() == eventRevision {
-					continue
-				}
-				events, err := snapshot.Events()
+				events, err := reader.Read(snapshot)
 				if err != nil {
 					l.runtime.log("lifecycle.subscribe", err)
 					continue
 				}
-				eventRevision = snapshot.EventRevision()
 				for _, event := range events {
-					if seen[event.ID] {
-						continue
-					}
-					seen[event.ID] = true
-					if matchesScope(event, scope) {
-						safeLifecycleCallback(func() { listener(publicEvent(event)) }, l.runtime.log)
-					}
+					safeLifecycleCallback(func() { listener(publicEvent(event)) }, l.runtime.log)
 				}
 			}
 		}
@@ -138,22 +133,16 @@ func (c *lifecycleConsumer) Pending(query plugin.PendingEventsQuery) ([]plugin.L
 	return c.pending(c.cap.runtime.config.Store.Snapshot(), query)
 }
 func (c *lifecycleConsumer) pending(snapshot store.Snapshot, query plugin.PendingEventsQuery) ([]plugin.LifecycleEvent, error) {
-	events, err := snapshot.Pending(c.ID(), store.PendingQuery{Filters: storeFilters(c.definition.Filter), ExcludeIDs: query.ExcludeIDs, ExcludeTypes: query.ExcludeTypes})
-	if err != nil {
-		return nil, err
-	}
 	result := []plugin.LifecycleEvent{}
 	if len(c.definition.Filter) == 0 {
 		return result, nil
 	}
+	events, err := c.pendingReader.Read(snapshot, store.PendingQuery{ExcludeIDs: query.ExcludeIDs, ExcludeTypes: query.ExcludeTypes, Limit: query.Limit})
+	if err != nil {
+		return nil, err
+	}
 	for _, event := range events {
-		if c.excluded[event.ID] || !matchesScope(event, c.definition.Filter) {
-			continue
-		}
 		result = append(result, publicEvent(event))
-		if query.Limit > 0 && len(result) >= query.Limit {
-			break
-		}
 	}
 	return result, nil
 }
@@ -166,42 +155,28 @@ func (c *lifecycleConsumer) Read(query plugin.LifecycleHistoryQuery) (plugin.Pag
 	if err != nil || offset < 0 || query.Limit < 1 || query.Limit > 1000 {
 		return plugin.Page[plugin.LifecycleHistoryEntry]{}, errors.New("invalid lifecycle history page")
 	}
-	all := []store.HistoryEntry{}
-	snapshot := c.cap.runtime.config.Store.Snapshot()
-	for pageOffset := 0; ; pageOffset += 1000 {
-		page, more, err := snapshot.History(storeFilters(c.definition.History), pageOffset, 1000)
-		if err != nil {
-			return plugin.Page[plugin.LifecycleHistoryEntry]{}, err
-		}
-		all = append(all, page...)
-		if !more {
-			break
-		}
-	}
-	filtered := []plugin.LifecycleHistoryEntry{}
-	if len(c.definition.History) > 0 {
-		for _, entry := range all {
-			if c.excluded[entry.ID] || !matchesScope(entry.Event, c.definition.History) || (query.EventIDs != nil && !contains(query.EventIDs, entry.ID)) {
-				continue
-			}
-			outcomes := map[string]string{}
-			for key, value := range entry.Outcomes {
-				outcomes[key] = string(value)
-			}
-			filtered = append(filtered, plugin.LifecycleHistoryEntry{LifecycleEvent: publicEvent(entry.Event), Outcomes: outcomes})
-		}
-	}
 	result := plugin.Page[plugin.LifecycleHistoryEntry]{Items: []plugin.LifecycleHistoryEntry{}}
-	if offset >= len(filtered) {
+	if len(c.definition.History) == 0 {
 		return result, nil
 	}
-	end := min(offset+query.Limit, len(filtered))
-	result.Items = filtered[offset:end]
-	if end < len(filtered) {
-		result.NextCursor = strconv.Itoa(end)
+	snapshot := c.cap.runtime.config.Store.Snapshot()
+	entries, more, err := snapshot.QueryHistory(store.HistoryQuery{Filters: storeFilters(c.definition.History), EventIDs: query.EventIDs, ExcludedIDs: c.excluded, Offset: offset, Limit: query.Limit})
+	if err != nil {
+		return result, err
+	}
+	for _, entry := range entries {
+		outcomes := map[string]string{}
+		for key, value := range entry.Outcomes {
+			outcomes[key] = string(value)
+		}
+		result.Items = append(result.Items, plugin.LifecycleHistoryEntry{LifecycleEvent: publicEvent(entry.Event), Outcomes: outcomes})
+	}
+	if more {
+		result.NextCursor = strconv.Itoa(offset + len(result.Items))
 	}
 	return result, nil
 }
+
 func (c *lifecycleConsumer) Begin(ctx context.Context, ids []string) (plugin.LifecycleWork, error) {
 	release, err := c.cap.runtime.beginServiceAdmission(false)
 	if err != nil {
@@ -238,7 +213,7 @@ func (c *lifecycleConsumer) Settle(ctx context.Context, id, outcome string) erro
 	return err
 }
 func (c *lifecycleConsumer) assertEvents(snapshot store.Snapshot, ids []string) error {
-	pending, err := snapshot.Pending(c.ID(), store.PendingQuery{Filters: storeFilters(c.definition.Filter)})
+	pending, err := snapshot.Pending(c.ID(), store.PendingQuery{Filters: storeFilters(c.definition.Filter), EventIDs: ids})
 	if err != nil {
 		return err
 	}
@@ -261,7 +236,15 @@ func (c *lifecycleConsumer) Subscribe(ctx context.Context, listener func(plugin.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	changes, unsubscribe := c.cap.runtime.config.Store.Subscribe()
+	filters := storeFilters(c.definition.Filter)
+	if len(c.definition.Filter) == 0 {
+		filters = []store.Filter{{Types: []string{}}}
+	}
+	observedKey := ""
+	if observe != nil {
+		observedKey = privateSessionKey(observe.Owner, observe.SessionKey)
+	}
+	changes, unsubscribe := c.cap.runtime.config.Store.SubscribeLifecycle(c.ID(), filters, observedKey)
 	lifetime, cancel := context.WithCancel(ctx)
 	var once sync.Once
 	stop := func() { once.Do(func() { cancel(); unsubscribe() }) }
@@ -341,14 +324,6 @@ func storeFilters(scope plugin.LifecycleScope) []store.Filter {
 		result = append(result, store.Filter{Sources: f.Sources, ExcludeSources: f.ExcludeSources, Types: f.Types, ExcludeTypes: f.ExcludeTypes, SubjectKinds: f.SubjectKinds, SubjectTypeIDs: f.SubjectTypeIDs, ExcludeSubjectTypeIDs: f.ExcludeSubjectTypeIDs, SubjectIDs: f.SubjectIDs, Scope: f.Scope})
 	}
 	return result
-}
-func matchesScope(e store.Event, scope plugin.LifecycleScope) bool {
-	for _, f := range scope {
-		if (f.Sources == nil || contains(f.Sources, e.Source)) && !contains(f.ExcludeSources, e.Source) && (f.Types == nil || contains(f.Types, e.Type)) && !contains(f.ExcludeTypes, e.Type) && (f.SubjectKinds == nil || contains(f.SubjectKinds, e.Subject.Kind)) && (f.SubjectTypeIDs == nil || contains(f.SubjectTypeIDs, e.Subject.TypeID)) && !contains(f.ExcludeSubjectTypeIDs, e.Subject.TypeID) && (f.SubjectIDs == nil || contains(f.SubjectIDs, e.Subject.ID)) && (f.Scope == "" || f.Scope == e.Scope) {
-			return true
-		}
-	}
-	return false
 }
 
 func cloneLifecycleScope(scope plugin.LifecycleScope) plugin.LifecycleScope {

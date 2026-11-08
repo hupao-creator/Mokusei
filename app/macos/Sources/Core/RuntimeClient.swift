@@ -341,8 +341,7 @@ public actor RuntimeClient {
             // Keep the buffer in its single bounded store while refetching. Do not
             // call acceptMutation here: its gap recovery would await this same task.
             for attempt in 0...1 {
-                let snapshot = try await invoke("state:load")
-                try RuntimeState.validateSnapshot(snapshot)
+                let snapshot = try RuntimeState.admittingSnapshot(await invoke("state:load"))
                 try assertHydrationCurrent(generation: expected, epoch: epoch, stream: id)
                 guard let applied = try RuntimeState.replaying(bufferedMutations, over: snapshot) else {
                     if attempt == 0 { continue }
@@ -396,7 +395,7 @@ public actor RuntimeClient {
             state = try RuntimeState.applying(mutation, to: refreshed)
         } else { state = try RuntimeState.applying(mutation, to: current) }
         emit(.mutation(mutation, state: state!, authority: stateAuthority))
-        readingStateDirty = true; scheduleReadingCache()
+        if RuntimeState.hasStateChanges(mutation) { readingStateDirty = true; scheduleReadingCache() }
     }
 
     public func close() {

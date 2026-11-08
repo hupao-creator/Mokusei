@@ -72,6 +72,9 @@ public enum PluginJSONValidation {
         case .array(let values):
             guard depth < maxDepth else { throw PluginContractError("Plugin JSON exceeds maximum nesting depth") }
             for child in values { try visit(child, depth: depth + 1, maxDepth: maxDepth) }
+        case .catalog(let values):
+            guard depth < maxDepth else { throw PluginContractError("Plugin JSON exceeds maximum nesting depth") }
+            for child in values { try visit(child, depth: depth + 1, maxDepth: maxDepth) }
         case .object(let values):
             guard depth < maxDepth else { throw PluginContractError("Plugin JSON exceeds maximum nesting depth") }
             for child in values.values { try visit(child, depth: depth + 1, maxDepth: maxDepth) }

@@ -13,7 +13,10 @@ import (
 )
 
 func (r *Runtime) project() (model.AppState, error) {
-	snap := r.config.Store.Snapshot()
+	return r.projectSnapshot(r.config.Store.Snapshot())
+}
+
+func (r *Runtime) projectSnapshot(snap store.Snapshot) (model.AppState, error) {
 	threads, err := r.projectThreads(snap)
 	if err != nil {
 		return model.AppState{}, err
@@ -78,7 +81,15 @@ func (r *Runtime) project() (model.AppState, error) {
 			}
 		}
 	}
-	sort.Slice(state.AgentRuns, func(i, j int) bool { return state.AgentRuns[i].AgentID < state.AgentRuns[j].AgentID })
+	sort.Slice(state.AgentRuns, func(i, j int) bool {
+		if state.AgentRuns[i].AgentID == state.AgentRuns[j].AgentID {
+			if state.AgentRuns[i].Scope == state.AgentRuns[j].Scope {
+				return state.AgentRuns[i].ExecutionID < state.AgentRuns[j].ExecutionID
+			}
+			return state.AgentRuns[i].Scope < state.AgentRuns[j].Scope
+		}
+		return state.AgentRuns[i].AgentID < state.AgentRuns[j].AgentID
+	})
 	return state, nil
 }
 
@@ -86,22 +97,21 @@ func (r *Runtime) project() (model.AppState, error) {
 // continuous baseRevision chain even when several adapters commit concurrently.
 func (r *Runtime) Publish() {
 	r.projectionMu.Lock()
-	next, err := r.project()
+	snapshot := r.config.Store.Snapshot()
+	next, mutation, appGeneration, err := r.projectMutation(snapshot)
 	if err != nil {
 		r.projectionMu.Unlock()
 		r.log("state.publish", err)
 		return
 	}
 	r.publishMu.Lock()
-	previous := r.baseline
-	r.publishMu.Unlock()
-	next.Revision = previous.Revision + 1
-	mutation := stateMutation(previous, next)
-	r.publishMu.Lock()
 	if len(r.pendingActivities) > 0 {
 		mutation.Activities = append([]model.RuntimeActivity{}, r.pendingActivities...)
 	}
 	if emptyMutation(mutation) {
+		r.applyPublication(mutation)
+		r.publicationSnapshot = snapshot
+		r.publishedAppGeneration = appGeneration
 		r.publishMu.Unlock()
 		r.projectionMu.Unlock()
 		return
@@ -114,6 +124,9 @@ func (r *Runtime) Publish() {
 		return
 	}
 	r.baseline = next
+	r.applyPublication(mutation)
+	r.publicationSnapshot = snapshot
+	r.publishedAppGeneration = appGeneration
 	r.pendingActivities = nil
 	r.pendingPublications = append(r.pendingPublications, raw)
 	deliver := !r.delivering
@@ -215,78 +228,6 @@ func (r *Runtime) publishActivity(threadID, harnessID string, activity model.Har
 	case r.publisherWake <- struct{}{}:
 	default:
 	}
-}
-func stateMutation(old, next model.AppState) model.StateMutation {
-	m := model.StateMutation{Type: "state-patched", BaseRevision: old.Revision, Revision: next.Revision}
-	if old.SearchRevision != next.SearchRevision {
-		m.SearchRevision = &next.SearchRevision
-	}
-	m.Threads = collectionPatch(old.Threads, next.Threads, func(t model.ThreadRecord) string { return t.ID },
-		func(t model.ThreadRecord) int64 { return t.Revision })
-	m.ApplicationThreads = collectionPatch(old.ApplicationThreads, next.ApplicationThreads, func(t model.ApplicationThread) string { return t.ID }, nil)
-	if !same(old.Settings, next.Settings) {
-		m.Settings = &next.Settings
-	}
-	if old.SettingsRevision != next.SettingsRevision {
-		m.SettingsRevision = &next.SettingsRevision
-	}
-	if old.DefaultCwd != next.DefaultCwd {
-		m.DefaultCwd = &next.DefaultCwd
-	}
-	if !same(old.Executions, next.Executions) {
-		m.Executions = &next.Executions
-	}
-	if !same(old.AgentRuns, next.AgentRuns) {
-		m.AgentRuns = &next.AgentRuns
-	}
-	if !same(old.TagRedirects, next.TagRedirects) {
-		m.TagRedirects = &next.TagRedirects
-	}
-	if !same(old.Plugins, next.Plugins) {
-		m.Plugins = &next.Plugins
-	}
-	return m
-}
-
-// revision, when supplied, orders record incarnations. A record identity whose
-// revision does not advance was recreated in place after deletion.
-// Clients discard upserts they cannot order against their cached revision, so
-// publish a removal in the same patch and let the new incarnation install from
-// empty. Nil revision opts a collection out of this ordering.
-func collectionPatch[T any](old, next []T, id func(T) string, revision func(T) int64) *model.CollectionPatch[T] {
-	oldByID := map[string]T{}
-	newByID := map[string]T{}
-	oldOrder := []string{}
-	newOrder := []string{}
-	p := &model.CollectionPatch[T]{Upserts: []T{}, RemovedIDs: []string{}}
-	for _, v := range old {
-		oldByID[id(v)] = v
-		oldOrder = append(oldOrder, id(v))
-	}
-	for _, v := range next {
-		key := id(v)
-		newByID[key] = v
-		newOrder = append(newOrder, key)
-		before, ok := oldByID[key]
-		if !ok || !same(before, v) {
-			p.Upserts = append(p.Upserts, v)
-			if ok && revision != nil && revision(v) <= revision(before) {
-				p.RemovedIDs = append(p.RemovedIDs, key)
-			}
-		}
-	}
-	for _, v := range old {
-		if _, ok := newByID[id(v)]; !ok {
-			p.RemovedIDs = append(p.RemovedIDs, id(v))
-		}
-	}
-	if !same(oldOrder, newOrder) {
-		p.Order = &newOrder
-	}
-	if len(p.Upserts) == 0 && len(p.RemovedIDs) == 0 && p.Order == nil {
-		return nil
-	}
-	return p
 }
 func emptyMutation(m model.StateMutation) bool {
 	return m.Threads == nil && m.ApplicationThreads == nil && m.DefaultCwd == nil && m.Executions == nil && m.AgentRuns == nil && m.TagRedirects == nil && m.Settings == nil && m.SettingsRevision == nil && m.SearchRevision == nil && m.Plugins == nil && len(m.Activities) == 0

@@ -14,6 +14,10 @@ import (
 )
 
 func (h *harness) replay(ctx context.Context) (string, error) {
+	if err := verifyCollectionFanout(ctx); err != nil {
+		return "", err
+	}
+	h.checks = append(h.checks, "catalog/index production callbacks stay at zero for telemetry and one for a point update at N=16 and N=256, with snapshot and ownership isolation")
 	if err := verifyCollectionList(ctx); err != nil {
 		return "", err
 	}

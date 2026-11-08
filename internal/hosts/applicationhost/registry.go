@@ -63,6 +63,14 @@ func (r *registry) Collection(d plugin.CollectionDefinition) error {
 		return errors.New("duplicate collection")
 	}
 	d.Contract = detachedContract(d.Contract)
+	seenIndexes := map[string]bool{}
+	for _, index := range d.Indexes {
+		if !contributionID.MatchString(index.ID) || index.Keys == nil || seenIndexes[index.ID] {
+			return errors.New("invalid or duplicate collection index")
+		}
+		seenIndexes[index.ID] = true
+	}
+	d.Indexes = slices.Clone(d.Indexes)
 	r.host.collections[d.ID] = d
 	return nil
 }

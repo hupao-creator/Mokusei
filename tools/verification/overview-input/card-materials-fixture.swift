@@ -35,7 +35,7 @@ import MokuseiHarnessOpenCode
     let report: ApplicationThreadProps<NativeReportView>
     init() {
         let reference = ApplicationThreadRef(threadID: "fixture-report", typeID: "report.document")
-        let references = ApplicationExecutionReferencesUI(read: { _ in [] }, subscribe: { _ in {} },
+        let references = ApplicationExecutionReferencesUI(read: { _ in [] }, subscribe: { _, _ in {} },
             logo: { _, _ in AnyView(EmptyView()) })
         let capabilities = try! ApplicationCapabilityAccess<ApplicationRendererPhase>(
             scope: .init(pluginID: "report", thread: reference), requires: [

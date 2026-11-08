@@ -28,14 +28,23 @@ public final class NativeApplicationHost {
     public let workspace: NativeWorkspaceModel
     public let navigation: NativeApplicationNavigationCallbacks
     lazy var git = NativeGitWorkspaceModel(host: self)
-    private var referenceListeners: [UUID: () -> Void] = [:]
+    private struct ReferenceListener {
+        let threads: Set<JSONText>
+        let callback: () -> Void
+    }
+    private var referenceListeners: [UUID: ReferenceListener] = [:]
+    private var listenersByThread: [JSONText: Set<UUID>] = [:]
+    private var applicationBindings: [JSONText: Set<JSONText>] = [:]
+    private var htmlApplications = Set<JSONText>()
+    private var stopCatalogObservation: (() -> Void)?
     private var observing = true
     let htmlPreloader = NativeApplicationHTMLPreloader()
     public private(set) var isReleased = false
 
     public init(workspace: NativeWorkspaceModel, navigationCallbacks: NativeApplicationNavigationCallbacks) {
         self.workspace = workspace; navigation = navigationCallbacks
-        observeCatalog()
+        catalogChanged(.init(reset: true))
+        stopCatalogObservation = workspace.catalog.observeChanges { [weak self] in self?.catalogChanged($0) }
     }
     public var overviewFactories: NativeOverviewApplicationFactories {
         NativeOverviewApplicationFactories(projectionCapabilities: { [weak self] plugin, entry in
@@ -47,7 +56,9 @@ public final class NativeApplicationHost {
         }, gitStatus: { [weak self] thread in self?.git.status(thread: thread) })
     }
     public func release() {
-        git.stop(); isReleased = true; observing = false; referenceListeners.removeAll()
+        git.stop(); isReleased = true; observing = false
+        stopCatalogObservation?(); stopCatalogObservation = nil
+        referenceListeners.removeAll(); listenersByThread.removeAll(); applicationBindings.removeAll(); htmlApplications.removeAll()
         htmlPreloader.setEnabled(false)
     }
     public func entry(_ ref: ApplicationThreadRef) throws -> ApplicationThreadCatalogEntry<JSONValue> {
@@ -188,7 +199,7 @@ public final class NativeApplicationHost {
             // This capability presents ordinary Agent Threads only, including
             // historical executions. Application conversations are not agents.
             let thread = reference.thread.typeID == "agent"
-                ? workspace.catalog.threads.first(where: { $0.id == reference.thread.threadID }) : nil
+                ? workspace.catalog.thread(reference.thread.threadID) : nil
             guard let thread else {
                 return ApplicationExecutionPresentation(reference: reference,
                     title: JSONText(workspace.preferences.locale.text("已删除的 Agent Thread", "Deleted Agent Thread")),
@@ -207,31 +218,52 @@ public final class NativeApplicationHost {
                 preview: preview)
         }
     }
-    func subscribeReferences(_ listener: @escaping () -> Void, lifetime: PluginLifetime) -> () -> Void {
+    func subscribeReferences(_ references: [ApplicationExecutionRef], listener: @escaping () -> Void,
+                             lifetime: PluginLifetime) -> () -> Void {
         guard !lifetime.isCancelled, observing else { return {} }
-        let id = UUID(); referenceListeners[id] = listener
-        let token = lifetime.onCancel { [weak self] in self?.referenceListeners[id] = nil }
+        let id = UUID()
+        let threads = Set(references.filter { $0.thread.typeID == "agent" }.map { $0.thread.threadID })
+        referenceListeners[id] = .init(threads: threads, callback: listener)
+        for thread in threads { listenersByThread[thread, default: []].insert(id) }
+        let token = lifetime.onCancel { [weak self] in self?.removeReferenceListener(id) }
         return { [weak self, weak lifetime] in
-            self?.referenceListeners[id] = nil; lifetime?.removeHandler(token)
+            self?.removeReferenceListener(id); lifetime?.removeHandler(token)
         }
     }
-    private func observeCatalog() {
-        guard observing else { return }
-        withObservationTracking {
-            _ = workspace.catalog.revision
-            let hasHTML = workspace.catalog.applicationThreads.contains { value in
-                guard case .string(let typeID)? = value["ref"]?["typeId"],
-                      let plugin = try? workspace.plugins.applications.requireThread(typeID) else { return false }
-                return plugin.hasDetail && isEnabled(plugin.ownerPluginID)
-                    && plugin.requires.contains(ApplicationCapabilities.isolatedHTML.requirement)
-            }
-            htmlPreloader.setEnabled(hasHTML)
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                guard let self, self.observing else { return }
-                for (id, callback) in Array(self.referenceListeners) where self.referenceListeners[id] != nil { callback() }
-                self.observeCatalog()
-            }
+    private func removeReferenceListener(_ id: UUID) {
+        guard let listener = referenceListeners.removeValue(forKey: id) else { return }
+        for thread in listener.threads {
+            listenersByThread[thread]?.remove(id)
+            if listenersByThread[thread]?.isEmpty == true { listenersByThread.removeValue(forKey: thread) }
         }
+    }
+    private func catalogChanged(_ change: NativeCatalogChanges) {
+        guard observing else { return }
+        var affectedThreads = change.threadIDs
+        let applications: Set<JSONText>
+        if change.reset || change.fields.contains("plugins") {
+            applications = Set(workspace.catalog.applicationThreads.compactMap { raw in
+                guard case .string(let id) = raw["id"] else { return nil }; return id
+            }).union(applicationBindings.keys).union(htmlApplications)
+        } else { applications = change.applicationIDs }
+        for id in applications {
+            let raw = workspace.catalog.applicationJSON(id)
+            let previous = applicationBindings[id] ?? []
+            let entry = raw.flatMap { try? workspace.catalog.applicationEntry(json: $0) }
+            let projection = entry.flatMap { try? NativeOverviewApplicationEntry(entry: $0) }
+            let bindings = Set((projection?.coveredExecutions ?? []).filter { $0.thread.typeID == "agent" }.map { $0.thread.threadID })
+            if bindings.isEmpty { applicationBindings.removeValue(forKey: id) }
+            else { applicationBindings[id] = bindings }
+            if previous != bindings { affectedThreads.formUnion(previous); affectedThreads.formUnion(bindings) }
+            if let entry, let plugin = try? workspace.plugins.applications.requireThread(entry.ref.typeID),
+               plugin.hasDetail, isEnabled(plugin.ownerPluginID),
+               plugin.requires.contains(ApplicationCapabilities.isolatedHTML.requirement) {
+                htmlApplications.insert(id)
+            } else { htmlApplications.remove(id) }
+        }
+        htmlPreloader.setEnabled(!htmlApplications.isEmpty)
+        let listeners = change.reset ? Set(referenceListeners.keys)
+            : affectedThreads.reduce(into: Set<UUID>()) { $0.formUnion(listenersByThread[$1] ?? []) }
+        for id in listeners { referenceListeners[id]?.callback() }
     }
 }

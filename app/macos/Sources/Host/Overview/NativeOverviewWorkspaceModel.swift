@@ -69,12 +69,14 @@ public final class NativeOverviewWorkspaceModel {
         }
     }
     public private(set) var sceneKey = "\u{0}default"
-    public private(set) var items: [NativeOverviewItem] = []
+    public var items: [NativeOverviewItem] { content.items }
     /// Global eligible cards, before tags/search and report coverage. Nil means
     /// no catalog has been projected yet; an unloaded workspace is not empty.
     public private(set) var globalConversationCount: Int?
     public private(set) var hasEstablishedConversation = false
-    public private(set) var revisions: [NativeOverviewLayoutRevision] = []
+    public private(set) var revisions: [NativeOverviewLayoutRevision] = [] {
+        didSet { queuedPresentationIDs = Set(revisions.flatMap { $0.items.map(\.presentationID) }) }
+    }
     public private(set) var recoveryEpoch: UInt64 = 0
     public private(set) var operations: [NativeOverviewMokuOperation] = []
     public var featuredOperation: NativeOverviewMokuOperation? { operations.last(where: { $0.phase == .running }) ?? operations.last }
@@ -99,18 +101,36 @@ public final class NativeOverviewWorkspaceModel {
     @ObservationIgnored private var harnessCache: [JSONText: HarnessOverviewSnapshot] = [:]
     @ObservationIgnored private var applicationCache: [JSONText: (JSONValue, ApplicationOverviewSnapshot)] = [:]
     @ObservationIgnored private(set) var membershipBuildCount = 0
+    @ObservationIgnored private(set) var projectionVisitCount = 0
+    @ObservationIgnored private(set) var catalogChangeVisitCount = 0
+    @ObservationIgnored private var queuedPresentationIDs = Set<String>()
+    @ObservationIgnored private var keywordMemberIDs = Set<String>()
+    @ObservationIgnored private var catalogIDs = Set<String>()
     @ObservationIgnored private var catalogGeneration: UInt64?
     @ObservationIgnored private var membershipFacts: NativeOverviewMembershipFacts?
     @ObservationIgnored private(set) var filterContextFacts: [JSONValue] = []
-    @ObservationIgnored private var filterMembers: [String: NativeOverviewMembership] = [:]
-    private var redundantSemanticFilterKeys = Set<String>()
+    @ObservationIgnored private var membershipIndex = NativeOverviewMembershipIndex()
+    private var filterMembers: [String: NativeOverviewMembership] { membershipIndex.members }
+    private var redundantSemanticFilterKeys: Set<String> { membershipIndex.redundant }
+    var membershipSelectionCount: Int { membershipIndex.selectionCount }
+    var membershipApplicationCandidateVisits: Int { membershipIndex.applicationCandidateVisits }
     @ObservationIgnored private var allMembers = NativeOverviewMembership()
+    @ObservationIgnored private var allMembersDirty = false
+    @ObservationIgnored private var globalApplicationIDs = Set<JSONText>()
+    @ObservationIgnored private var establishedThreadIDs = Set<JSONText>()
+    @ObservationIgnored private var pendingInsertedIDs = Set<String>()
     @ObservationIgnored private var globalThreadIDs = Set<JSONText>()
     @ObservationIgnored private var overviewEntries: [ApplicationThreadRef: (JSONValue, NativeOverviewApplicationEntry)] = [:]
     @ObservationIgnored private var operationProjectionReady = false
+    @ObservationIgnored private var operationThreadID: JSONText?
     @ObservationIgnored private var operationTranscript: JSONValue?
-    @ObservationIgnored private var catalogThreads: [HarnessThread] = []
-    @ObservationIgnored private var catalogApplications: [NativeOverviewApplicationEntry] = []
+    private var catalogThreads: [HarnessThread] { workspace.catalog.threads }
+    @ObservationIgnored private var applicationRecords = RuntimeRecordCollection<NativeOverviewApplicationEntry>()
+    // Whole reads use the runtime's authoritative order. The typed index only
+    // owns decoding, so changed-ID Set iteration cannot reorder tied cards.
+    private var catalogApplications: [NativeOverviewApplicationEntry] {
+        workspace.catalog.applicationIDs.compactMap { applicationRecords[$0] }
+    }
     @ObservationIgnored private var applicationsByRef: [ApplicationThreadRef: NativeOverviewApplicationEntry] = [:]
     @ObservationIgnored private var catalogApplicationJSON: [JSONText: JSONValue] = [:]
     @ObservationIgnored private var directoryTags = NativeOverviewDirectoryTagCache()
@@ -156,7 +176,7 @@ public final class NativeOverviewWorkspaceModel {
             snapshotAuthority = authority
             catalogGeneration = nil; membershipFacts = nil
             overviewEntries.removeAll()
-            operationTranscript = nil; operationProjectionReady = false
+            operationThreadID = nil; operationTranscript = nil; operationProjectionReady = false
             recoveryEpoch += 1
             contextID = UUID().uuidString
             committedFacts = nil
@@ -165,7 +185,7 @@ public final class NativeOverviewWorkspaceModel {
     }
 
     /// Also useful after a host factory or plugin registry changes at startup.
-    public func refresh() { catalogGeneration = nil; membershipFacts = nil; operationTranscript = nil; operationProjectionReady = false; reconcile(captureMutation: false) }
+    public func refresh() { catalogGeneration = nil; membershipFacts = nil; operationThreadID = nil; operationTranscript = nil; operationProjectionReady = false; reconcile(captureMutation: false) }
 
     /// Host observations can change card geometry without changing catalog membership.
     public func refreshCardExtensions() { reconcile(captureMutation: true) }
@@ -296,9 +316,10 @@ public final class NativeOverviewWorkspaceModel {
         return allFilters.first { $0.matches(tag, kind: kind, scope: scope.isEmpty ? nil : scope) }
     }
 
-    private func reconcile(captureMutation: Bool) {
+    private func reconcile(captureMutation: Bool, refreshSelection: Bool = true) {
         do {
-            let previousCatalogIDs = Set(catalogThreads.map { $0.id.string } + catalogApplications.map { $0.entry.ref.threadID.string })
+            if try applyCatalogChanges(captureMutation: captureMutation) { return }
+            let previousCatalogIDs = catalogIDs
             let previousItems = items
             let previousScene = sceneKey
             if catalogGeneration != workspace.catalog.installGeneration {
@@ -314,13 +335,10 @@ public final class NativeOverviewWorkspaceModel {
                 }
                 let liveRefs = Set(nextApplications.map { $0.entry.ref })
                 overviewEntries = overviewEntries.filter { liveRefs.contains($0.key) }
-                if !operationProjectionReady || operationTranscript != workspace.catalog.moku?.transcript {
-                    operationProjectionReady = true
-                    operationTranscript = workspace.catalog.moku?.transcript
-                    operations = NativeOverviewMokuOperation.project(transcript: operationTranscript)
-                }
-                catalogThreads = workspace.catalog.threads
-                catalogApplications = nextApplications
+                refreshMokuOperations()
+                applicationRecords = .init()
+                for item in nextApplications { applicationRecords.updateValue(item, forKey: item.entry.ref.threadID) }
+                catalogIDs = Set(catalogThreads.map { $0.id.string } + nextApplications.map { $0.entry.ref.threadID.string })
                 applicationsByRef = Dictionary(uniqueKeysWithValues: nextApplications.map { ($0.entry.ref, $0) })
                 catalogApplicationJSON = Dictionary(uniqueKeysWithValues: zip(nextApplications, workspace.catalog.applicationThreads).map { ($0.0.entry.ref.threadID, $0.1) })
                 directoryTags.update(threads: catalogThreads)
@@ -329,12 +347,14 @@ public final class NativeOverviewWorkspaceModel {
                     rebuildMembership()
                     membershipFacts = nextFacts
                 }
+                let harnessIDs = Set(catalogThreads.map(\.id)), applicationIDs = Set(nextApplications.map { $0.entry.ref.threadID })
+                harnessCache = harnessCache.filter { harnessIDs.contains($0.key) }
+                applicationCache = applicationCache.filter { applicationIDs.contains($0.key) }
                 catalogGeneration = workspace.catalog.installGeneration
             }
-            let nextApplications = catalogApplications
             // Redirects depend on selection too; selecting another tag must not
             // wait for the next catalog transaction.
-            if let selection = tagSelection {
+            if refreshSelection, let selection = tagSelection {
                 tagSelection = NativeOverviewSelection.resolve(selection, redirects: workspace.catalog.tagRedirects,
                     directoryTags: catalogThreads.map { directoryTags.values[$0.cwd] ?? "" } +
                         catalogApplications.flatMap { $0.entry.tags.directoryTags.map(\.string) })
@@ -365,7 +385,7 @@ public final class NativeOverviewWorkspaceModel {
                 sceneKey = browseSceneKey
                 let selectedTags = selectedFilter.map { [$0.tag] + $0.aliases } ?? (selectedTag.isEmpty ? [] : [selectedTag])
                 scope = selectedFilter.flatMap { filterMembers[$0.selectionKey] }.map(resolve)
-                    ?? (selectedTags.isEmpty ? resolve(allMembers) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
+                    ?? (selectedTags.isEmpty ? resolve(allMembership()) : collection(tags: selectedTags, kind: tagSelection?.kind, scope: selectedScope))
             } else {
                 // Search every eligible owner, including directory-only documents
                 // and tasks covered by reports. Browsing tags and report coverage
@@ -376,6 +396,7 @@ public final class NativeOverviewWorkspaceModel {
             let keyword = search.filter(scope, directoryTags: directoryTags.values)
             scheduleContentSearch(scope: scope, keyword: keyword)
             let keywordIDs = Set(keyword.threads.map { $0.id.string } + keyword.applications.map { $0.entry.ref.threadID.string })
+            keywordMemberIDs = keywordIDs
             let selected = NativeOverviewCollection(
                 threads: scope.threads.filter { keywordIDs.contains($0.id.string) || contentRanks?[$0.id.string] != nil },
                 applications: scope.applications.filter { keywordIDs.contains($0.entry.ref.threadID.string) || contentRanks?[$0.entry.ref.threadID.string] != nil })
@@ -384,21 +405,144 @@ public final class NativeOverviewWorkspaceModel {
             if captureMutation, facts.overviewVisible, previousScene == sceneKey,
                previousItems.map(\.structuralIdentity) != nextItems.map(\.structuralIdentity) {
                 revision += 1
-                let inserted = Set((catalogThreads.map { $0.id.string } + nextApplications.map { $0.entry.ref.threadID.string }).filter { !previousCatalogIDs.contains($0) })
+                let inserted = catalogIDs.subtracting(previousCatalogIDs).union(pendingInsertedIDs)
                 revisions.append(.init(revision: revision, sceneKey: sceneKey, items: nextItems, instantEntryIDs: inserted))
             }
-            items = nextItems
             content.install(nextItems)
             presentationDirty = false
             error = nil
-            // Plugin caches retain only the current catalog; queued presentation
-            // snapshots are pinned separately by revisions and canvas retention.
-            let harnessIDs = Set(catalogThreads.map(\.id)), applicationIDs = Set(nextApplications.map { $0.entry.ref.threadID })
-            harnessCache = harnessCache.filter { harnessIDs.contains($0.key) }
-            applicationCache = applicationCache.filter { applicationIDs.contains($0.key) }
+            pendingInsertedIDs.removeAll()
             pruneSnapshots()
             publishContext()
         } catch { self.error = error.localizedDescription; workspace.report(error) }
+    }
+
+    /// A catalog mutation carries its accepted identities all the way to card
+    /// slots. Unchanged membership/order leaves every other card and filter alone.
+    private func applyCatalogChanges(captureMutation: Bool) throws -> Bool {
+        let change = workspace.catalog.changes
+        guard error == nil, let generation = catalogGeneration, generation &+ 1 == workspace.catalog.installGeneration,
+              !change.reset, let membershipFacts, membershipFacts.localeIsCurrent,
+              !change.threadOrderChanged, !change.applicationOrderChanged,
+              change.fields.isDisjoint(with: ["tagRedirects", "plugins", "settings", "searchRevision"]) else { return false }
+        var changedThreads: [HarnessThread] = []
+        var changedApplications: [(id: JSONText, raw: JSONValue?, old: NativeOverviewApplicationEntry?, next: NativeOverviewApplicationEntry?)] = []
+        var membershipThreads = Set<JSONText>(), membershipApplications = Set<JSONText>()
+        for id in change.threadIDs {
+            catalogChangeVisitCount += 1
+            let thread = workspace.catalog.thread(id)
+            let ordinary = thread.flatMap { $0.moku == true ? nil : $0 }
+            if !membershipFacts.matches(thread, id: id)
+                || (change.threadStructureIDs.contains(id) && (ordinary != nil || !membershipFacts.matches(nil, id: id))) {
+                membershipThreads.insert(id)
+            }
+            if let ordinary { changedThreads.append(ordinary) }
+        }
+        for id in change.applicationIDs {
+            catalogChangeVisitCount += 1
+            let raw = workspace.catalog.applicationJSON(id), previous = applicationRecords[id]
+            let next = try raw.map { try NativeOverviewApplicationEntry(entry: workspace.catalog.applicationEntry(json: $0)) }
+            let ref = next?.entry.ref ?? previous?.entry.ref
+            if change.applicationStructureIDs.contains(id) || previous?.entry.ref != next?.entry.ref
+                || ref.map({ !membershipFacts.matches(next, ref: $0) }) == true { membershipApplications.insert(id) }
+            changedApplications.append((id, raw, previous, next))
+        }
+        let changedMembership = !membershipThreads.isEmpty || !membershipApplications.isEmpty
+        let search = NativeOverviewSearch(isSearching ? searchQuery : "")
+        var changedSearchMatches = false
+        if !search.terms.isEmpty {
+            let changed = NativeOverviewSelection.candidates(threads: changedThreads, applications: changedApplications.compactMap(\.next))
+            let matches = search.filter(changed, directoryTags: directoryTags.values)
+            let matchIDs = Set(matches.threads.map { $0.id.string } + matches.applications.map { $0.entry.ref.threadID.string })
+            changedSearchMatches = (change.threadIDs.union(change.applicationIDs)).contains { matchIDs.contains($0.string) != keywordMemberIDs.contains($0.string) }
+        }
+        for id in change.threadIDs {
+            let thread = workspace.catalog.thread(id)
+            directoryTags.update(thread, id: id)
+            if let thread, thread.moku != true {
+                if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
+            } else { catalogIDs.remove(id.string); harnessCache.removeValue(forKey: id) }
+            if membershipThreads.contains(id) {
+                membershipFacts.update(thread, id: id)
+                let candidates = NativeOverviewSelection.candidates(threads: thread.map { $0.moku == true ? [] : [$0] } ?? [], applications: [])
+                if let candidate = candidates.threads.first {
+                    globalThreadIDs.insert(id)
+                    if candidate.observation.latestExecution != nil { establishedThreadIDs.insert(id) }
+                    else { establishedThreadIDs.remove(id) }
+                } else { globalThreadIDs.remove(id); establishedThreadIDs.remove(id) }
+            }
+        }
+        for (id, raw, previous, next) in changedApplications {
+            if let previous, previous.entry.ref != next?.entry.ref {
+                overviewEntries.removeValue(forKey: previous.entry.ref); applicationsByRef.removeValue(forKey: previous.entry.ref)
+                applicationCache.removeValue(forKey: id)
+            }
+            if let raw, let next {
+                overviewEntries[next.entry.ref] = (raw, next); applicationsByRef[next.entry.ref] = next
+                applicationRecords.updateValue(next, forKey: id); catalogApplicationJSON[id] = raw
+                if catalogIDs.insert(id.string).inserted { pendingInsertedIDs.insert(id.string) }
+            } else {
+                applicationRecords.removeValue(forKey: id); catalogApplicationJSON.removeValue(forKey: id)
+                catalogIDs.remove(id.string); applicationCache.removeValue(forKey: id)
+            }
+            if membershipApplications.contains(id) {
+                membershipFacts.update(next, previous: previous?.entry.ref)
+                if !NativeOverviewSelection.candidates(threads: [], applications: next.map { [$0] } ?? []).applications.isEmpty { globalApplicationIDs.insert(id) }
+                else { globalApplicationIDs.remove(id) }
+            }
+        }
+        var affectedScopes = Set<String>()
+        if changedMembership {
+            membershipBuildCount += 1; allMembersDirty = true
+            affectedScopes = membershipIndex.update(threadIDs: membershipThreads, applicationIDs: membershipApplications,
+                catalog: workspace.catalog, directoryTags: directoryTags.values, application: { applicationRecords[$0] })
+            publishMembership(); refreshGlobalAvailability()
+        }
+        if !operationProjectionReady || operationThreadID != workspace.catalog.moku?.id
+            || workspace.catalog.moku.map({ change.threadIDs.contains($0.id) }) == true { refreshMokuOperations() }
+        catalogGeneration = workspace.catalog.installGeneration
+        guard presentationActive else {
+            presentationDirty = true
+            if changedMembership { publishContext() }
+            return true
+        }
+        if changedMembership {
+            let current = matchingFilter(tag: selectedTag, scope: selectedScope, kind: tagSelection?.kind)
+            if isSearching || current == nil || current?.count == 0 || affectedScopes.contains(selectedScope) {
+                reconcile(captureMutation: captureMutation, refreshSelection: false)
+                return true
+            }
+            selectedFilter = current
+            publishContext()
+        }
+        if changedSearchMatches {
+            reconcile(captureMutation: captureMutation, refreshSelection: false)
+            return true
+        }
+        let selected = NativeOverviewCollection(
+            threads: changedThreads.filter { content.activeIDs.contains($0.id.string) },
+            applications: changedApplications.compactMap(\.next).filter { content.activeIDs.contains($0.entry.ref.threadID.string) })
+        let next = try project(selected)
+        let previousTokens = next.compactMap { content.records[$0.id]?.presentationID }
+        guard content.update(next) else {
+            reconcile(captureMutation: captureMutation, refreshSelection: false)
+            return true
+        }
+        let currentTokens = Set(next.map(\.presentationID))
+        for token in previousTokens where !retainedPresentationIDs.contains(token) && !queuedPresentationIDs.contains(token) {
+            if !currentTokens.contains(token) { snapshots.removeValue(forKey: token) }
+        }
+        error = nil
+        return true
+    }
+
+    private func refreshMokuOperations() {
+        operationThreadID = workspace.catalog.moku?.id
+        if !operationProjectionReady || operationTranscript != workspace.catalog.moku?.transcript {
+            operationProjectionReady = true
+            operationTranscript = workspace.catalog.moku?.transcript
+            operations = NativeOverviewMokuOperation.project(transcript: operationTranscript)
+        }
     }
 
     private var searchAvailable: Bool {
@@ -474,82 +618,43 @@ public final class NativeOverviewWorkspaceModel {
               applications: membership.applications.map { applicationsByRef[$0]! })
     }
 
+    private func allMembership() -> NativeOverviewMembership {
+        if allMembersDirty {
+            allMembers = NativeOverviewMembership(collection(tags: [], kind: nil))
+            allMembersDirty = false
+        }
+        return allMembers
+    }
+
     private func rebuildMembership() {
         membershipBuildCount += 1
-        filterMembers.removeAll(keepingCapacity: true)
-        redundantSemanticFilterKeys.removeAll(keepingCapacity: true)
-        allMembers = NativeOverviewMembership(collection(tags: [], kind: nil))
-        let candidates = NativeOverviewSelection.candidates(threads: catalogThreads, applications: catalogApplications)
-        globalConversationCount = workspace.catalog.revision >= 0 ? candidates.count : nil
+        let threads = catalogThreads, applications = catalogApplications
+        allMembersDirty = true
+        let candidates = NativeOverviewSelection.candidates(threads: threads, applications: applications)
         globalThreadIDs = Set(candidates.threads.map(\.id))
-        hasEstablishedConversation = !candidates.applications.isEmpty
-            || candidates.threads.contains { $0.observation.latestExecution != nil }
-        // The same few labels recur across many cards and child selections.
-        // This synchronous rebuild owns the memo; nothing survives a locale,
-        // catalog or authority change, and no raw catalog content is retained.
-        var tagKeys: [String: String] = [:]
-        func normalized(_ tag: String) -> String {
-            if let cached = tagKeys[tag] { return cached }
-            let value = NativeOverviewSelection.key(tag)
-            tagKeys[tag] = value
-            return value
-        }
-        let browseCandidates = NativeOverviewCollection(threads: candidates.threads.filter { !$0.attentionHidden }, applications: candidates.applications)
-        filters = NativeOverviewSelection.filters(browseCandidates, directoryTags: directoryTags.values, key: normalized)
-        // Every exposed filter has one canonical scope. Partition once rather
-        // than decoding every thread's scope again for every directory/child.
-        // Applications still use the full candidate list: an unscoped document
-        // can participate by directory label under the existing selection rules.
-        let threadsByScope = Dictionary(grouping: browseCandidates.threads, by: NativeOverviewSelection.scope)
-        func members(for filter: NativeOverviewFilter) -> NativeOverviewCollection {
-            NativeOverviewSelection.select(threads: threadsByScope[filter.scope] ?? [], applications: candidates.applications,
-                tags: [filter.tag] + filter.aliases, kind: filter.isDirectory ? .directory : .semantic,
-                scope: filter.scope, directoryTags: directoryTags.values, key: normalized)
-        }
-        for index in filters.indices {
-            var filter = filters[index]
-            let selected = members(for: filter)
-            filterMembers[filter.selectionKey] = NativeOverviewMembership(selected)
-            filter.count = selected.count
-            for childIndex in filter.children.indices {
-                var child = filter.children[childIndex]
-                let selected = members(for: child)
-                filterMembers[child.selectionKey] = NativeOverviewMembership(selected)
-                child.count = selected.count
-                filter.children[childIndex] = child
-            }
-            if filter.isDirectory, let child = filter.children.first, filter.children.count == 1 {
-                // Count all semantic names, including one equal to the directory
-                // label (which the ordinary menu already omits).
-                let semanticNames = (threadsByScope[filter.scope] ?? []).flatMap { $0.tags.map(\.string) }
-                    + candidates.applications.filter { $0.entry.scope?.string == filter.scope }
-                        .flatMap { $0.entry.tags.semanticTags.map(\.string) }
-                let semanticKeys = Set(semanticNames.map(normalized).filter { !$0.isEmpty })
-                let childMembers = filterMembers[child.selectionKey]!
-                let directoryMembers = filterMembers[filter.selectionKey]!
-                // Compare the actual post-coverage identities, not badge counts
-                // or search results. Agent and application identities stay distinct.
-                if semanticKeys.count == 1,
-                   Set(directoryMembers.threads) == Set(childMembers.threads),
-                   Set(directoryMembers.applications) == Set(childMembers.applications) {
-                    redundantSemanticFilterKeys.insert(child.selectionKey)
-                }
-            }
-            filters[index] = filter
-        }
-        filterContextFacts = allFilters.map { filter in
-            let members = filterMembers[filter.selectionKey]!
-            let threads = members.threads.map { ApplicationThreadRef(threadID: $0, typeID: "agent").json }
-                + members.applications.map(\.json)
-            return .object(["tag": .text(filter.tag), "kind": .text(filter.isDirectory ? "directory" : "semantic"),
-                "scope": filter.scope.isEmpty ? .null : .text(filter.scope),
-                "aliases": .array(filter.aliases.map(JSONValue.text)), "count": .integer(filter.count), "threads": .array(threads)])
-        }
+        globalApplicationIDs = Set(candidates.applications.map { $0.entry.ref.threadID })
+        establishedThreadIDs = Set(candidates.threads.filter { $0.observation.latestExecution != nil }.map(\.id))
+        refreshGlobalAvailability()
+        membershipIndex.reset(threads: threads, applications: applications, catalog: workspace.catalog,
+            directoryTags: directoryTags.values, application: { applicationRecords[$0] })
+        publishMembership()
+    }
+
+    private func refreshGlobalAvailability() {
+        globalConversationCount = workspace.catalog.revision >= 0 ? globalThreadIDs.count + globalApplicationIDs.count : nil
+        hasEstablishedConversation = !globalApplicationIDs.isEmpty || !establishedThreadIDs.isEmpty
+    }
+
+    private func publishMembership() {
+        let next = membershipIndex.filters
+        if filters != next { filters = next }
+        filterContextFacts = membershipIndex.contextFacts(filters: next)
     }
 
     func containsGlobalThread(_ id: JSONText) -> Bool { globalThreadIDs.contains(id) }
 
     private func project(_ collection: NativeOverviewCollection) throws -> [NativeOverviewItem] {
+        projectionVisitCount += collection.count
         var entries: [(created: Double, index: Int, item: NativeOverviewItem)] = []
         for thread in collection.threads {
             let input = HarnessThreadInput(thread: thread, git: applicationFactories.gitStatus(thread))
@@ -670,8 +775,10 @@ public final class NativeOverviewWorkspaceModel {
         try? await workspace.client.updateOverviewContext(nil)
         content.stop()
         snapshots.removeAll(); revisions.removeAll(); harnessCache.removeAll(); applicationCache.removeAll(); directoryTags.removeAll()
-        membershipFacts = nil; filterMembers.removeAll(); redundantSemanticFilterKeys.removeAll(); allMembers = .init(); applicationsByRef.removeAll()
+        membershipFacts = nil; membershipIndex = .init(); allMembers = .init(); allMembersDirty = false; applicationsByRef.removeAll()
         globalThreadIDs.removeAll(); globalConversationCount = nil; hasEstablishedConversation = false
+        applicationRecords = .init(); catalogIDs.removeAll(); keywordMemberIDs.removeAll()
+        globalApplicationIDs.removeAll(); establishedThreadIDs.removeAll(); pendingInsertedIDs.removeAll()
     }
 }
 

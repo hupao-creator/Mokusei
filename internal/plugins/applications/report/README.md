@@ -173,7 +173,10 @@ the report's referenced ordinary Threads within the report scope, resolves each
 exact execution through its Harness, and separates current Thread execution facts
 from the report's execution facts. It distinguishes missing Thread, missing
 execution and changed scope. Binding counts include archived and historical
-conflicts, but disclose no unrelated report content. The reader shows current
+conflicts, but disclose no unrelated report content. A host-owned snapshot index
+maps referenced Threads to their report IDs. After its initial construction,
+only changed reports update this index; a Thread or telemetry change never
+reparses unrelated report HTML. The reader shows current
 running/waiting/completed/failed/interrupted state and background work separately
 from the cited execution's timing; the cited state and ID remain out of the card.
 Unknown historical facts never borrow current results. Queries coalesce streaming catalog invalidations; departure

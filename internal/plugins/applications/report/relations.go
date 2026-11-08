@@ -8,10 +8,25 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
 
-// The host plans the whole collection and runs reducers in its single writer.
-// Checking here covers concurrent creates/updates, including archived documents,
-// without a second ownership index that could drift from retained report data.
-func validateBindings(rows []model.VersionedRecord, reportID string, previous, next []model.ExecutionRef) error {
+const bindingIndex = "report.bindings"
+
+func bindingKeys(raw json.RawMessage) ([]string, error) {
+	var value struct {
+		RelatedExecutions []model.ExecutionRef `json:"relatedExecutions"`
+	}
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(value.RelatedExecutions))
+	for _, ref := range value.RelatedExecutions {
+		keys = append(keys, ref.Thread.ThreadID)
+	}
+	return keys, nil
+}
+
+// The index is derived from this reader's exact immutable snapshot, including
+// staged writes. Collection scopes still serialize concurrent binding changes.
+func validateBindings(records plugin.RecordsReader, reportID string, previous, next []model.ExecutionRef) error {
 	retained := map[model.ExecutionRef]bool{}
 	for _, ref := range previous {
 		retained[ref] = true
@@ -27,17 +42,14 @@ func validateBindings(rows []model.VersionedRecord, reportID string, previous, n
 	if len(wanted) == 0 {
 		return nil
 	}
-	for _, row := range rows {
-		if row.ID == reportID {
-			continue
-		}
-		value, err := ParseData(row.Value)
+	for threadID := range wanted {
+		owners, err := records.LookupIDs(CollectionID, bindingIndex, threadID)
 		if err != nil {
 			return err
 		}
-		for _, ref := range value.RelatedExecutions {
-			if wanted[ref.Thread.ThreadID] {
-				return model.NewError("SUPER_THREAD_BINDING_CONFLICT", fmt.Sprintf("Thread %s 已绑定 Super Thread %s。请更新原 Super Thread，或先从原报告解除关联后再绑定；原有报告和执行记录均已保留。 / This Thread already belongs to Super Thread %s. Update that Super Thread, or unlink it there before rebinding. Existing reports and executions are preserved.", ref.Thread.ThreadID, row.ID, row.ID))
+		for _, owner := range owners {
+			if owner != reportID {
+				return model.NewError("SUPER_THREAD_BINDING_CONFLICT", fmt.Sprintf("Thread %s 已绑定 Super Thread %s。请更新原 Super Thread，或先从原报告解除关联后再绑定；原有报告和执行记录均已保留。 / This Thread already belongs to Super Thread %s. Update that Super Thread, or unlink it there before rebinding. Existing reports and executions are preserved.", threadID, owner, owner))
 			}
 		}
 	}
@@ -102,24 +114,13 @@ func relatedExecutions(record model.VersionedRecord, value Data, context plugin.
 	if err != nil {
 		return result, err
 	}
-	rows, err := context.Records.List(CollectionID)
-	if err != nil {
-		return result, err
-	}
 	counts := map[string]int{}
 	for _, ref := range value.RelatedExecutions {
-		counts[ref.Thread.ThreadID] = 0
-	}
-	for _, row := range rows {
-		data, err := ParseData(row.Value)
+		owners, err := context.Records.LookupIDs(CollectionID, bindingIndex, ref.Thread.ThreadID)
 		if err != nil {
 			return result, err
 		}
-		for _, ref := range data.RelatedExecutions {
-			if _, wanted := counts[ref.Thread.ThreadID]; wanted {
-				counts[ref.Thread.ThreadID]++
-			}
-		}
+		counts[ref.Thread.ThreadID] = len(owners)
 	}
 	for _, ref := range value.RelatedExecutions {
 		item := RelatedExecution{Reference: ref, BindingCount: counts[ref.Thread.ThreadID]}

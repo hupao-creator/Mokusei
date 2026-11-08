@@ -15,7 +15,7 @@ public struct NativeOverviewTagSelection: Equatable, Sendable {
 
 /// Only the host's documented mokusei.overview presentation is interpreted here.
 /// Application view/session values remain opaque and are decoded by their plugin.
-struct NativeOverviewApplicationEntry {
+struct NativeOverviewApplicationEntry: Sendable {
     let entry: ApplicationThreadCatalogEntry<JSONValue>
     let visible: Bool
     let directoryOnly: Bool
@@ -55,6 +55,8 @@ struct NativeOverviewCollection {
 /// and retain only paths present in the current catalog (including archives).
 struct NativeOverviewDirectoryTagCache {
     private(set) var values: [JSONText: String] = [:]
+    private var owners: [JSONText: JSONText] = [:]
+    private var counts: [JSONText: Int] = [:]
 
     mutating func update(threads: [HarnessThread]) {
         var next: [JSONText: String] = [:]
@@ -67,9 +69,27 @@ struct NativeOverviewDirectoryTagCache {
                 : thread.directoryTag.string
         }
         values = next
+        owners = Dictionary(uniqueKeysWithValues: threads.map { ($0.id, $0.cwd) })
+        counts = threads.reduce(into: [:]) { $0[$1.cwd, default: 0] += 1 }
     }
 
-    mutating func removeAll() { values.removeAll() }
+    mutating func update(_ thread: HarnessThread?, id: JSONText) {
+        let thread = thread.flatMap { $0.moku == true ? nil : $0 }
+        if owners[id] != thread?.cwd {
+            if let old = owners.removeValue(forKey: id) {
+                let count = (counts[old] ?? 1) - 1
+                if count == 0 { counts.removeValue(forKey: old); values.removeValue(forKey: old) }
+                else { counts[old] = count }
+            }
+            if let thread { owners[id] = thread.cwd; counts[thread.cwd, default: 0] += 1 }
+        }
+        if let thread {
+            values[thread.cwd] = thread.directoryScope.codeUnits.isEmpty
+                ? values[thread.cwd] ?? NativeOverviewSelection.directoryTag(thread) : thread.directoryTag.string
+        }
+    }
+
+    mutating func removeAll() { values.removeAll(); owners.removeAll(); counts.removeAll() }
 }
 
 enum NativeOverviewSelection {
@@ -384,15 +404,15 @@ enum NativeOverviewSelection {
             }
             return keys.isEmpty || item.entry.tags.tags.contains { keys.contains(key($0.string)) }
         }.sorted { a, b in a.element.entry.createdAt == b.element.entry.createdAt ? a.offset < b.offset : a.element.entry.createdAt < b.element.entry.createdAt }.map(\.element)
+        let covered = merge ? Set(visibleApplications.flatMap(\.coveredExecutions)) : []
         let visibleThreads = available.threads.enumerated().filter { _, thread in
             if let selectedScope, scope(thread) != selectedScope { return false }
             // A directory label is presentation, not membership: a symlink or
             // linked checkout can have another label within the same scope.
             let matchesDirectoryScope = kind == .directory && selectedScope != nil
             guard matchesDirectoryScope || keys.isEmpty || ([directoryTags[thread.cwd] ?? directoryTag(thread)] + thread.tags.map(\.string)).contains(where: { keys.contains(key($0)) }) else { return false }
-            return !merge || !visibleApplications.contains { item in item.coveredExecutions.contains { link in
-                link.thread.typeID == JSONText("agent") && link.thread.threadID == thread.id && link.executionID == thread.observation.latestExecution?.executionID
-            } }
+            guard merge, let execution = thread.observation.latestExecution?.executionID else { return true }
+            return !covered.contains(.init(thread: .init(threadID: thread.id, typeID: "agent"), executionID: execution))
         }.sorted { a, b in a.element.createdAt == b.element.createdAt ? a.offset < b.offset : a.element.createdAt < b.element.createdAt }.map(\.element)
         return .init(threads: visibleThreads, applications: visibleApplications)
     }
@@ -449,6 +469,12 @@ enum NativeOverviewSelection {
                                                 isDirectory: true, selectionKey: "scope:\(scopeID):all", children: limited))
             }
         }
+        return orderedFilters(top, key: key)
+    }
+
+    static func orderedFilters(_ filters: [NativeOverviewFilter],
+                               key: (String) -> String = NativeOverviewSelection.key) -> [NativeOverviewFilter] {
+        var top = filters
         var labelCounts: [String: Int] = [:]
         for filter in top where filter.isDirectory {
             labelCounts[key(filter.tag), default: 0] += 1

@@ -49,6 +49,13 @@ The migration neither consults the mutable current title nor runs a model;
 unknown titles remain absent so the reader uses the execution timestamp.
 
 Catalog snapshots contain bounded overview projections. [projection_cache.go](projection_cache.go) and [publisher.go](publisher.go) provide revisioned catalog/content publication. Full conversation, turn and execution bodies use independent content subscriptions.
+Publication reconciles structurally changed store keys into private identity maps;
+an activity-only wake or telemetry commit does not enumerate the catalog. Only
+changed Thread/application records are projected and compared. Private session
+updates decode their own record and publish the active-run list only when its
+facts change. Explicit snapshots still materialize the complete public state,
+and structural ordering patches carry their complete required order. Failed
+Thread renderers retain the existing null projection and retry only that identity.
 `Snapshot` and `Publish` serialize catalog projection and overview-cache updates
 under `projectionMu`. `Snapshot` returns detached state; replays attached to a live
 Runtime use that public read boundary so the background publisher retains the
@@ -170,10 +177,14 @@ Plugin enablement is captured by the composition at startup. Saving desired `har
 
 [lifecycle.go](lifecycle.go) records facts in the same transaction as their business change. Subject identity/type and event source are distinct. Retired Moku histories retain their `moku` subject type and are excluded from ordinary-task capabilities, semantic-tag mutation and directory-scope discovery. Durable consumers retain batches, retries, receipts and outcomes; live subscriptions observe new commits without replaying old events. Moku receives ordinary terminal notifications through its durable outbox and direct user-input facts through live subscriptions. Background agents own their own processing queues.
 
-Lifecycle subscriptions skip store revisions that cannot change their input.
-Live subscriptions track the event generation; durable subscriptions track the
-lifecycle generation and the exact observed private-session record hash, so a
-session observation still wakes its runner independently of new lifecycle facts.
+Lifecycle subscriptions route commits by scope, event type/source, consumer work
+and outcomes, and the exact observed private-session record. An unrelated scope
+does not wake its runners. Live readers reconcile added matching facts; durable
+readers retain pending identities and reconcile only their streams and outcomes,
+without repeatedly decoding acknowledged history. Both retain selected lifecycle
+index branches rather than complete old snapshots. Private-session observations
+still wake their runner independently of new lifecycle facts. Batch history reads
+select requested event identities before pagination and join only their outcomes.
 
 [scope_agents.go](scope_agents.go), [background_scope.go](background_scope.go) and [lifecycle_capability.go](lifecycle_capability.go) bind background instances to explicit directory scopes. Inbox is a valid scope, distinct from global authority. Task reads, events and private-session access intersect the owner's binding. Report and Tag use per-directory instances; their native sessions initialize lazily and are disposed when idle.
 

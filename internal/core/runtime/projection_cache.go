@@ -173,6 +173,12 @@ func (r *Runtime) projectThreads(snapshot store.Snapshot) ([]model.ThreadRecord,
 	}
 	next := make(map[string]cachedOverview, len(threads))
 	for i, entry := range entries {
+		if entry.hash == "" {
+			if r.publicationRetries == nil {
+				r.publicationRetries = map[string]bool{}
+			}
+			r.publicationRetries[threads[i].ID] = true
+		}
 		next[threads[i].ID] = entry
 		threads[i] = entry.record
 		threads[i].AttentionHidden = snapshot.Has(attentionHiddenPrefix + entry.record.ID)

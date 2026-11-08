@@ -27,18 +27,20 @@ var (
 // Store has one ordered writer. Snapshots never expose its backing byte slices.
 // The callback supplied to Update must not recursively call Update or Close.
 type Store struct {
-	path          string
-	db            *database
-	lock          *os.File
-	current       atomic.Pointer[snapshotData]
-	admission     sync.Mutex
-	closing       bool
-	requests      chan request
-	closed        chan struct{}
-	closeErr      error
-	fatal         error // writer goroutine only
-	subscribersMu sync.Mutex
-	subscribers   map[chan uint64]struct{}
+	path                 string
+	db                   *database
+	lock                 *os.File
+	current              atomic.Pointer[snapshotData]
+	admission            sync.Mutex
+	closing              bool
+	requests             chan request
+	closed               chan struct{}
+	closeErr             error
+	fatal                error // writer goroutine only
+	subscribersMu        sync.Mutex
+	subscribers          map[chan uint64]struct{}
+	lifecycleSubscribers map[chan uint64][]string
+	lifecycleRoutes      map[string]map[chan uint64]struct{}
 }
 
 type request struct {
@@ -93,7 +95,7 @@ func Open(path string) (*Store, error) {
 		release()
 		return nil, err
 	}
-	s := &Store{path: abs, db: db, lock: lock, requests: make(chan request, 128), closed: make(chan struct{}), subscribers: make(map[chan uint64]struct{})}
+	s := &Store{path: abs, db: db, lock: lock, requests: make(chan request, 128), closed: make(chan struct{}), subscribers: make(map[chan uint64]struct{}), lifecycleSubscribers: make(map[chan uint64][]string), lifecycleRoutes: make(map[string]map[chan uint64]struct{})}
 	s.current.Store(data)
 	go s.run()
 	return s, nil
@@ -191,6 +193,11 @@ func (s *Store) run() {
 				delete(s.subscribers, ch)
 				close(ch)
 			}
+			for ch := range s.lifecycleSubscribers {
+				delete(s.lifecycleSubscribers, ch)
+				close(ch)
+			}
+			s.lifecycleRoutes = nil
 			s.subscribersMu.Unlock()
 			return
 		}
@@ -235,19 +242,9 @@ func (s *Store) execute(r request) (Snapshot, error) {
 	s.current.Store(next.data)
 	s.subscribersMu.Lock()
 	for ch := range s.subscribers {
-		select {
-		case ch <- next.Revision():
-		default:
-			select {
-			case <-ch:
-			default:
-			}
-			select {
-			case ch <- next.Revision():
-			default:
-			}
-		}
+		notifyRevision(ch, next.Revision())
 	}
+	s.notifyLifecycle(tx, next)
 	s.subscribersMu.Unlock()
 	return next, nil
 }

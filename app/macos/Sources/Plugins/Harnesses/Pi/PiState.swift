@@ -189,7 +189,7 @@ struct PiReader {
     func optionalText(_ key: String, maximum: Int = .max, nonempty: Bool = false, noNUL: Bool = false) throws -> JSONText? {
         value[key] == nil ? nil : try text(key, maximum: maximum, nonempty: nonempty, noNUL: noNUL)
     }
-    func array(_ key: String) throws -> [JSONValue] { guard case let .array(v) = try required(key) else { throw Self.failure }; return v }
+    func array(_ key: String) throws -> [JSONValue] { guard let v = try required(key).arrayValue else { throw Self.failure }; return v }
     func bool(_ key: String) throws -> Bool { guard case let .bool(v) = try required(key) else { throw Self.failure }; return v }
     func optionalBool(_ key: String) throws -> Bool? { value[key] == nil ? nil : try bool(key) }
     func number(_ key: String, minimum: Double = -.infinity, maximum: Double = .infinity) throws -> Double {
