@@ -150,6 +150,7 @@ func TestCancellingRPCResponseWaitKeepsCompletedWrite(t *testing.T) {
 	rpc := &rpcTransport{
 		stdin: input, writeGate: make(chan struct{}, 1), pending: map[string]chan rpcResult{}, closed: make(chan struct{}),
 		stdout: io.NopCloser(strings.NewReader("")), stderr: io.NopCloser(strings.NewReader("")), cmd: &exec.Cmd{}, done: processDone,
+		readDone: processDone, stderrDone: processDone,
 	}
 	defer rpc.Close()
 	done := make(chan error, 1)
@@ -205,6 +206,7 @@ func TestCancellingStartedRPCWriteClosesConnection(t *testing.T) {
 		stdin: stalledRPCInput{File: writer, started: started}, writeGate: make(chan struct{}, 1),
 		stdout: io.NopCloser(strings.NewReader("")), stderr: io.NopCloser(strings.NewReader("")),
 		cmd: &exec.Cmd{}, done: processDone, closed: make(chan struct{}), pending: map[string]chan rpcResult{},
+		readDone: processDone, stderrDone: processDone,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
