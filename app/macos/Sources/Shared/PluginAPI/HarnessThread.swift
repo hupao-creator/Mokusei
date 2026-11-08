@@ -86,7 +86,7 @@ public struct HarnessThread: Hashable, Sendable {
             guard moku, archived == nil else {
                 throw PluginContractError("thread.moku must be true and cannot carry archived")
             }
-            guard transcript.isArray else {
+            guard transcript?.isArray == true else {
                 throw PluginContractError("thread.transcript must be an array for Moku")
             }
         }
