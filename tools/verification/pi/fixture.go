@@ -100,6 +100,7 @@ func serveFixture() {
 		emitFixture(map[string]any{"type": "agent_settled"})
 	}
 	scanner := bufio.NewScanner(os.Stdin)
+	lifecycleShutdown := false
 	for scanner.Scan() {
 		var frame map[string]any
 		_ = json.Unmarshal(scanner.Bytes(), &frame)
@@ -117,7 +118,11 @@ func serveFixture() {
 				check(os.WriteFile(filepath.Join(root, fmt.Sprintf("settings-start-%d", os.Getpid())), nil, 0600) == nil, "record settings process")
 				time.Sleep(200 * time.Millisecond)
 			}
-			response(map[string]any{"sessionFile": sessionPath, "sessionId": "id", "thinkingLevel": "high", "model": map[string]any{"id": "model", "provider": "provider", "reasoning": true, "input": []string{"text", "image"}}})
+			model := map[string]any{"id": "model", "provider": "provider", "reasoning": true, "input": []string{"text", "image"}}
+			if mode == "runtime-lifecycle" {
+				model = runtimeLifecycleModel()
+			}
+			response(map[string]any{"sessionFile": sessionPath, "sessionId": "id", "thinkingLevel": "high", "model": model})
 		case "get_commands":
 			if mode == "request-timeout" {
 				continue
@@ -128,6 +133,10 @@ func serveFixture() {
 			}
 			response(map[string]any{"commands": []any{map[string]any{"name": "command", "source": "extension", "sourceInfo": map[string]any{"path": "/extension"}}}})
 		case "get_available_models":
+			if mode == "runtime-lifecycle" {
+				response(map[string]any{"models": []any{runtimeLifecycleModel()}})
+				continue
+			}
 			response(map[string]any{"models": []any{map[string]any{"id": "model", "provider": "provider", "baseUrl": "hidden", "thinkingLevelMap": map[string]any{"off": nil, "high": "high"}, "compat": map[string]any{"supportsReasoningEffort": false}}, map[string]any{"id": "unknown", "provider": "provider"}}})
 		case "get_available_thinking_levels":
 			response(map[string]any{"levels": []string{"off", "high"}})
@@ -152,6 +161,9 @@ func serveFixture() {
 			finish()
 		case "prompt":
 			text, _ := frame["message"].(string)
+			if mode == "runtime-lifecycle" {
+				lifecycleShutdown = runtimeLifecyclePrompt(text, sessionPath) || lifecycleShutdown
+			}
 			if text == "handled" {
 				response(map[string]any{"disposition": "handled"})
 				continue
@@ -246,6 +258,9 @@ func serveFixture() {
 				return
 			}
 		}
+	}
+	if lifecycleShutdown {
+		runtimeLifecycleShutdown(sessionPath)
 	}
 	if mode == "graceful-close" {
 		// Native RPC owns asynchronous session_shutdown hooks. EOF is its normal

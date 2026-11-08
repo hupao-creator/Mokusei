@@ -460,6 +460,8 @@ func (s *Session) OnFailure(listener func(error)) func() {
 	}
 }
 
+// Close stops native work and joins its process/readers. It deliberately does
+// not join dispatch: a subscriber may close the Session from its own callback.
 func (s *Session) Close() error {
 	s.mu.Lock()
 	if s.failure == nil {

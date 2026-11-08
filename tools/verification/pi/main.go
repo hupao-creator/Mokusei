@@ -115,6 +115,7 @@ func runDeterministic(ctx context.Context) error {
 		verifyAdapter(ctx)
 		verifyUsage(ctx)
 		verifyProcessOrdering(ctx)
+		verifyRuntimeLifecycle(ctx)
 		return ctx.Err()
 	})
 }
