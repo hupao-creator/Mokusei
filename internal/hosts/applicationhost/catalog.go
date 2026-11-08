@@ -7,11 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/core/store"
 )
+
+type catalogEntry struct {
+	hash  string
+	value model.ApplicationThread
+}
 
 func newCommandID() string {
 	var data [16]byte
@@ -50,21 +56,15 @@ func (h *Host) CatalogSnapshot(ctx context.Context, snap store.Snapshot) ([]mode
 		if !h.enabled(definition.OwnerPluginID) {
 			continue
 		}
-		reader := newReader(h, definition.OwnerPluginID, snap)
-		records, err := reader.List(definition.CollectionID)
-		if err != nil {
-			return nil, err
-		}
-		for _, record := range records {
-			if seen[record.ID] {
+		for _, recordID := range catalogOrder(snap, definition.CollectionID) {
+			if seen[recordID] {
 				return nil, errors.New("application catalog has duplicate thread identity")
 			}
-			seen[record.ID] = true
+			seen[recordID] = true
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			thread := model.ApplicationThreadRecord{VersionedRecord: record, Ref: model.ThreadRef{ThreadID: record.ID, TypeID: id}}
-			entry, err := h.projectThread(ctx, definition, thread)
+			entry, err := h.catalogThread(ctx, snap, definition, recordID)
 			if err != nil {
 				return nil, err
 			}
@@ -72,6 +72,114 @@ func (h *Host) CatalogSnapshot(ctx context.Context, snap store.Snapshot) ([]mode
 		}
 	}
 	return result, nil
+}
+
+func catalogOrder(snapshot store.Snapshot, collection string) []string {
+	ids := snapshot.Order(orderKey(collection))
+	result := make([]string, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if !seen[id] && snapshot.Has(recordKey(collection, id)) {
+			seen[id] = true
+			result = append(result, id)
+		}
+	}
+	prefix := recordKey(collection, "")
+	for _, key := range snapshot.Keys(prefix) {
+		id := strings.TrimPrefix(key, prefix)
+		if !seen[id] {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+
+// CatalogChanges projects only changed application records. Full ordering is
+// materialized only when collection membership/order actually changes.
+func (h *Host) CatalogChanges(ctx context.Context, previous, snapshot store.Snapshot) (*model.CollectionPatch[model.ApplicationThread], error) {
+	if err := h.begin(); err != nil {
+		return nil, err
+	}
+	defer h.operations.Done()
+	patch := &model.CollectionPatch[model.ApplicationThread]{Upserts: []model.ApplicationThread{}, RemovedIDs: []string{}}
+	orderChanged := previous.Revision() == 0
+	for _, typeID := range sortedKeys(h.threadTypes) {
+		definition := h.threadTypes[typeID]
+		if !h.enabled(definition.OwnerPluginID) {
+			continue
+		}
+		prefix := recordKey(definition.CollectionID, "")
+		orderChanged = orderChanged || snapshot.OrderChanged(previous, orderKey(definition.CollectionID))
+		for _, key := range snapshot.ChangedKeys(previous, prefix) {
+			id := strings.TrimPrefix(key, prefix)
+			if !snapshot.Has(key) {
+				patch.RemovedIDs = append(patch.RemovedIDs, id)
+				h.catalogMu.Lock()
+				delete(h.catalogCache, key)
+				h.catalogMu.Unlock()
+				orderChanged = true
+				continue
+			}
+			entry, err := h.catalogThread(ctx, snapshot, definition, id)
+			if err != nil {
+				return nil, err
+			}
+			patch.Upserts = append(patch.Upserts, entry)
+			orderChanged = orderChanged || !previous.Has(key)
+		}
+	}
+	if orderChanged {
+		order := []string{}
+		seen := map[string]bool{}
+		for _, typeID := range sortedKeys(h.threadTypes) {
+			definition := h.threadTypes[typeID]
+			if h.enabled(definition.OwnerPluginID) {
+				for _, id := range catalogOrder(snapshot, definition.CollectionID) {
+					if seen[id] {
+						return nil, errors.New("application catalog has duplicate thread identity")
+					}
+					seen[id] = true
+					order = append(order, id)
+				}
+			}
+		}
+		patch.Order = &order
+	}
+	if len(patch.Upserts) == 0 && len(patch.RemovedIDs) == 0 && patch.Order == nil {
+		return nil, nil
+	}
+	return patch, nil
+}
+
+func (h *Host) catalogThread(ctx context.Context, snapshot store.Snapshot, definition plugin.ThreadTypeDefinition, id string) (model.ApplicationThread, error) {
+	key := recordKey(definition.CollectionID, id)
+	hash, _ := snapshot.RecordHash(key)
+	h.catalogMu.Lock()
+	defer h.catalogMu.Unlock()
+	entry, cached := h.catalogCache[key]
+	if !cached || entry.hash != hash {
+		_, record, err := h.readThread(snapshot, model.ThreadRef{ThreadID: id, TypeID: definition.ID})
+		if err != nil {
+			return model.ApplicationThread{}, err
+		}
+		value, err := h.projectThread(ctx, definition, record)
+		if err != nil {
+			return model.ApplicationThread{}, err
+		}
+		entry = catalogEntry{hash: hash, value: value}
+		if h.catalogCache == nil {
+			h.catalogCache = map[string]catalogEntry{}
+		}
+		h.catalogCache[key] = entry
+	}
+	// Catalog callers own the returned projections, including their opaque JSON.
+	raw, err := json.Marshal(entry.value)
+	if err != nil {
+		return model.ApplicationThread{}, err
+	}
+	var detached model.ApplicationThread
+	err = json.Unmarshal(raw, &detached)
+	return detached, err
 }
 func (h *Host) projectThread(ctx context.Context, definition plugin.ThreadTypeDefinition, record model.ApplicationThreadRecord) (model.ApplicationThread, error) {
 	projection, err := definition.Project(record)

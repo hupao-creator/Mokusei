@@ -15,8 +15,8 @@ struct RuntimeOfflineStore: Sendable {
     }
 
     func state() -> JSONValue? {
-        guard let value = read("state"), (try? RuntimeState.validateSnapshot(value)) != nil else { return nil }
-        return value
+        guard let value = read("state") else { return nil }
+        return try? RuntimeState.admittingSnapshot(value)
     }
 
     func content(thread: JSONText, scope: RuntimeContentScope) -> JSONValue? {

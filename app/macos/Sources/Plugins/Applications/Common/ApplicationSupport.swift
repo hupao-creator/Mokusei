@@ -32,7 +32,7 @@ struct NativeApplicationRecord {
         return result
     }
     func array(_ key: String) throws -> [JSONValue] {
-        guard case .array(let value) = try require(key) else { throw PluginContractError("\(path).\(key) must be an array") }; return value
+        guard let value = try require(key).arrayValue else { throw PluginContractError("\(path).\(key) must be an array") }; return value
     }
     func bool(_ key: String) throws -> Bool {
         guard case .bool(let value) = try require(key) else { throw PluginContractError("\(path).\(key) must be boolean") }; return value

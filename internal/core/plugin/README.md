@@ -67,6 +67,11 @@ The Overview capability exposes only `ReadClients` for background classification
 
 ## Other plugin categories
 
+Application collections may declare pure `RecordIndex` extractors. The host
+maintains these against exact immutable snapshots; `Records.LookupIDs` and
+`Records.Count` share the collection-level authority of `Records.List`, while
+avoiding unrelated record-body reads. They add no database or cross-plugin access.
+
 - [Application host](../../hosts/applicationhost/README.md): records, transactions, projections and background participants, declared in [application.go](application.go) and [capabilities.go](capabilities.go).
 - [Context host](../../hosts/contexthost/README.md): Moku-only context collection, declared in [context.go](context.go).
 - [Native Plugin API](../../../app/macos/Sources/Shared/PluginAPI/README.md): Swift presentation and Sidecard contracts.

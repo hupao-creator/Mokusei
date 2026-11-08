@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
@@ -19,6 +20,25 @@ func searchVisible(thread model.ThreadRecord) bool {
 	}
 	return true
 }
+func (r *Runtime) searchThreadSource(snapshot store.Snapshot, thread model.ThreadRecord, includeContent bool) (threadsearch.Source, bool) {
+	if !searchVisible(thread) {
+		return threadsearch.Source{}, false
+	}
+	owner := "thread:" + thread.ID
+	hash, _ := snapshot.RecordHash(owner)
+	source := threadsearch.Source{Ref: model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}, Owner: owner, OwnerHash: hash, Identity: owner + "\x00" + strconv.FormatInt(thread.CreatedAt, 10), Title: thread.Title, Cwd: thread.Cwd, Tags: thread.Tags}
+	source.Busy = thread.Observation.BackgroundWork != nil || (thread.Observation.LatestExecution != nil && !thread.Observation.LatestExecution.Terminal())
+	if includeContent {
+		if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
+			if adapter, ok := harness.SessionState().(plugin.SearchTextAdapter); ok {
+				source.LoadContent = func() (string, error) {
+					return adapter.SearchText(bytes.Clone(thread.SessionState))
+				}
+			}
+		}
+	}
+	return source, true
+}
 func (r *Runtime) searchSources(snapshot store.Snapshot, includeContent bool) ([]threadsearch.Source, error) {
 	threads, err := r.cachedThreads(snapshot)
 	if err != nil {
@@ -26,23 +46,9 @@ func (r *Runtime) searchSources(snapshot store.Snapshot, includeContent bool) ([
 	}
 	sources := []threadsearch.Source{}
 	for _, thread := range threads {
-		if !searchVisible(thread) {
-			continue
+		if source, eligible := r.searchThreadSource(snapshot, thread, includeContent); eligible {
+			sources = append(sources, source)
 		}
-		owner := "thread:" + thread.ID
-		hash, _ := snapshot.RecordHash(owner)
-		source := threadsearch.Source{Ref: model.ThreadRef{ThreadID: thread.ID, TypeID: "agent"}, Owner: owner, OwnerHash: hash, Identity: owner + "\x00" + strconv.FormatInt(thread.CreatedAt, 10), Title: thread.Title, Cwd: thread.Cwd, Tags: thread.Tags}
-		source.Busy = thread.Observation.BackgroundWork != nil || (thread.Observation.LatestExecution != nil && !thread.Observation.LatestExecution.Terminal())
-		if includeContent {
-			if harness := r.config.Harnesses[thread.HarnessID]; harness != nil {
-				if adapter, ok := harness.SessionState().(plugin.SearchTextAdapter); ok {
-					source.LoadContent = func() (string, error) {
-						return adapter.SearchText(bytes.Clone(thread.SessionState))
-					}
-				}
-			}
-		}
-		sources = append(sources, source)
 	}
 	r.mu.Lock()
 	applications := r.config.Applications
@@ -51,6 +57,35 @@ func (r *Runtime) searchSources(snapshot store.Snapshot, includeContent bool) ([
 		SearchSources(store.Snapshot, bool) ([]threadsearch.Source, error)
 	}); ok {
 		entries, err := host.SearchSources(snapshot, includeContent)
+		if err != nil {
+			return nil, err
+		}
+		sources = append(sources, entries...)
+	}
+	return sources, nil
+}
+
+func (r *Runtime) searchSourceChanges(snapshot, previous store.Snapshot, includeContent bool) ([]threadsearch.Source, error) {
+	sources := []threadsearch.Source{}
+	for _, key := range snapshot.ChangedKeys(previous, "thread:") {
+		if !snapshot.Has(key) {
+			continue
+		}
+		thread, err := r.cachedThread(r.ctx, snapshot, strings.TrimPrefix(key, "thread:"))
+		if err != nil {
+			return nil, err
+		}
+		if source, eligible := r.searchThreadSource(snapshot, thread, includeContent); eligible {
+			sources = append(sources, source)
+		}
+	}
+	r.mu.Lock()
+	applications := r.config.Applications
+	r.mu.Unlock()
+	if host, ok := applications.(interface {
+		SearchSourceChanges(store.Snapshot, store.Snapshot, bool) ([]threadsearch.Source, error)
+	}); ok {
+		entries, err := host.SearchSourceChanges(snapshot, previous, includeContent)
 		if err != nil {
 			return nil, err
 		}

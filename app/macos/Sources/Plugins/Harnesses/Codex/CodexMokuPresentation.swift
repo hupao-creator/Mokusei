@@ -121,7 +121,7 @@ func codexHeadPoints(_ text: JSONText, limit: Int) -> JSONText {
 func codexJSONString(_ value: JSONValue) -> String {
     // These IDs are JSON.stringify tuples. Keep JavaScript's short control
     // escapes as well as its lossless isolated-surrogate escaping.
-    if case .array(let values) = value { return "[" + values.map(codexJSONString).joined(separator: ",") + "]" }
+    if let values = value.arrayValue { return "[" + values.map(codexJSONString).joined(separator: ",") + "]" }
     if case .string(let text) = value {
         var result = "\""
         var index = 0

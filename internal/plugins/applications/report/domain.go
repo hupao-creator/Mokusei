@@ -89,7 +89,7 @@ func dataContract() plugin.ValueContract {
 // RegisterDomain installs the complete Report record and user/background
 // audiences. The host enforces durable batched writes before running reducers.
 func RegisterDomain(registry plugin.Registry) error {
-	if err := registry.Collection(plugin.CollectionDefinition{ID: CollectionID, OwnerPluginID: "report", Retention: "history", Contract: dataContract()}); err != nil {
+	if err := registry.Collection(plugin.CollectionDefinition{ID: CollectionID, OwnerPluginID: "report", Retention: "history", Contract: dataContract(), Indexes: []plugin.RecordIndex{{ID: bindingIndex, Keys: bindingKeys}}}); err != nil {
 		return err
 	}
 	if err := registerContextQueries(registry); err != nil {
@@ -256,11 +256,11 @@ func RegisterDomain(registry plugin.Registry) error {
 			if err := model.Unmarshal(raw, &input); err != nil {
 				return nil, err
 			}
-			rows, err := context.Records.List(CollectionID)
+			count, err := context.Records.Count(CollectionID)
 			if err != nil {
 				return nil, err
 			}
-			if len(rows) >= MaxDocuments {
+			if count >= MaxDocuments {
 				return nil, errors.New("Super Thread 数量过多")
 			}
 			scope, err := reportScope(context.Owner)
@@ -271,7 +271,7 @@ func RegisterDomain(registry plugin.Registry) error {
 			if err != nil {
 				return nil, err
 			}
-			if err := validateBindings(rows, "", nil, input.RelatedExecutions); err != nil {
+			if err := validateBindings(context.Records, "", nil, input.RelatedExecutions); err != nil {
 				return nil, err
 			}
 			value := Data{CoverHTML: input.CoverHTML, Emoji: input.Emoji, ShortDescription: input.ShortDescription, Scope: scope, Title: input.Title, HTML: input.HTML, ContentRevision: context.AllocateID("content"), RelatedExecutions: input.RelatedExecutions, TagSources: sources}
@@ -393,10 +393,6 @@ func RegisterDomain(registry plugin.Registry) error {
 				value.ContentRevision = context.AllocateID("content")
 			}
 			if input.RelatedExecutions != nil {
-				rows, err := context.Records.List(CollectionID)
-				if err != nil {
-					return nil, err
-				}
 				// Retained references remain readable after source deletion. Only
 				// newly bound/replaced executions need fresh completion evidence.
 				added := []model.ExecutionRef{}
@@ -413,7 +409,7 @@ func RegisterDomain(registry plugin.Registry) error {
 				if err != nil {
 					return nil, err
 				}
-				if err := validateBindings(rows, record.ID, value.RelatedExecutions, *input.RelatedExecutions); err != nil {
+				if err := validateBindings(context.Records, record.ID, value.RelatedExecutions, *input.RelatedExecutions); err != nil {
 					return nil, err
 				}
 				for _, ref := range *input.RelatedExecutions {

@@ -5,7 +5,7 @@ import MokuseiPluginAPI
 /// Only facts read by selection/ordering belong in this key. Content, progress
 /// and revision changes still project fresh cards, without rebuilding every
 /// directory and semantic filter. Array order matters for equal creation dates.
-struct NativeOverviewMembershipFacts: Equatable {
+final class NativeOverviewMembershipFacts: Equatable {
     private struct Thread: Equatable {
         let id: JSONText
         let createdAt: Double
@@ -42,14 +42,43 @@ struct NativeOverviewMembershipFacts: Equatable {
             directoryOnly = item.directoryOnly; coveredExecutions = item.coveredExecutions
         }
     }
-    private let threads: [Thread]
-    private let applications: [Application]
+    private var threads: [JSONText: Thread]
+    private var applications: [ApplicationThreadRef: Application]
+    private var threadOrder: [JSONText]?
+    private var applicationOrder: [ApplicationThreadRef]?
     private let locale: String
 
     init(threads: [HarnessThread], applications: [NativeOverviewApplicationEntry]) {
-        self.threads = threads.map(Thread.init)
-        self.applications = applications.map(Application.init)
+        self.threads = Dictionary(uniqueKeysWithValues: threads.map { ($0.id, Thread($0)) })
+        self.applications = Dictionary(uniqueKeysWithValues: applications.map { ($0.entry.ref, Application($0)) })
+        threadOrder = threads.map(\.id)
+        applicationOrder = applications.map(\.entry.ref)
         locale = Locale.current.identifier
+    }
+
+    static func == (lhs: NativeOverviewMembershipFacts, rhs: NativeOverviewMembershipFacts) -> Bool {
+        lhs.threads == rhs.threads && lhs.applications == rhs.applications && lhs.locale == rhs.locale
+            && lhs.threadOrder == rhs.threadOrder && lhs.applicationOrder == rhs.applicationOrder
+    }
+    func update(_ thread: HarnessThread?, id: JSONText) {
+        let next = thread.flatMap { $0.moku == true ? nil : Thread($0) }
+        if (threads[id] == nil) != (next == nil) { threadOrder = nil }
+        threads[id] = next
+    }
+    func update(_ item: NativeOverviewApplicationEntry?, previous: ApplicationThreadRef?) {
+        if let previous, previous != item?.entry.ref { applications.removeValue(forKey: previous); applicationOrder = nil }
+        if let item {
+            if applications[item.entry.ref] == nil { applicationOrder = nil }
+            applications[item.entry.ref] = Application(item)
+        }
+    }
+
+    var localeIsCurrent: Bool { locale == Locale.current.identifier }
+    func matches(_ thread: HarnessThread?, id: JSONText) -> Bool {
+        threads[id] == thread.flatMap { $0.moku == true ? nil : Thread($0) }
+    }
+    func matches(_ application: NativeOverviewApplicationEntry?, ref: ApplicationThreadRef) -> Bool {
+        applications[ref] == application.map(Application.init)
     }
 }
 

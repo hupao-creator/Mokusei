@@ -30,25 +30,18 @@ func (m *Manager) automaticStep(dirty bool) bool {
 	if !m.canMaintain() {
 		return dirty
 	}
-	if !dirty {
-		return false
-	}
-	status, err := m.Status(m.ctx)
-	if err != nil {
-		m.mu.Lock()
-		m.retryLocked("internal")
-		m.mu.Unlock()
-		return true
-	}
-	if status.PendingDocuments == 0 {
+	m.mu.Lock()
+	retry := m.retryAttempts > 0
+	m.mu.Unlock()
+	if !dirty && !retry {
 		return false
 	}
 	m.control.Lock()
 	defer m.control.Unlock()
-	if m.canMaintain() {
-		m.launch()
+	if m.canMaintain() && m.launch() {
+		return false
 	}
-	return true
+	return dirty
 }
 
 func (m *Manager) watch() {
@@ -67,8 +60,11 @@ func (m *Manager) watch() {
 				return
 			}
 			dirty = true
+		case <-m.maintenanceWake:
+			dirty = true
 		case <-ticker.C:
-			// Retry failed extraction and defer busy owners until their source settles.
+			// Failures retry without a new write. Busy owners wait for their own
+			// source change; automatic maintenance never asks for global Status.
 			dirty = m.automaticStep(dirty)
 		}
 	}

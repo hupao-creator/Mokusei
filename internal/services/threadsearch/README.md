@@ -12,11 +12,26 @@ Attention Agent collapse only changes browsing, so those threads remain searchab
 ## Documents and queries
 
 [documents.go](documents.go) stores a bounded continuous text projection under
-`keyword-text-v1`. Metadata is bounded to 512 runes and body content to 134550
-runes, retaining the former indexed-body coverage. Busy sources wait until their
-owner settles. Unchanged source hashes reuse current documents without extracting
-history again. The decoded document cache has a 64 MiB budget; the result cache
-holds at most eight queries.
+`keyword-text-v2`. Metadata is bounded to 512 runes and body content to 134550
+runes, retaining the former indexed-body coverage. Automatic maintenance diffs
+immutable owner records and projects only the changed ordinary Threads or declared
+Application collections. Telemetry, other application collections and derived
+index commits do not enumerate sources. Busy sources wait for their next owner
+change; they do not keep a periodic global scan alive. Failed extraction retains
+bounded exponential retry, independent of incoming event volume.
+
+Each indexed body has a bounded stamp containing its source/body hashes, pipeline
+version and truncation flag. Status and index freshness read these stamps without
+decoding body text; unchanged sources do not extract history again. Body and stamp
+commit atomically under the owner/epoch fence. Their keys share an owner prefix,
+so deleting one source only removes its own derived rows. The decoded query-body
+cache has a 64 MiB budget; the result cache holds at most eight queries.
+
+Initial discovery, source-registration replacement and history-epoch changes
+reconcile the complete eligible set. Explicit status/query reads may enumerate
+the requested catalog; the automatic scheduler never uses global status as its
+work queue. A coalesced store notification still discovers every changed owner
+by comparing snapshots, and cancellation never acknowledges unfinished work.
 
 [query.go](query.go) matches whitespace-separated terms as substring AND across
 metadata and indexed body text. Native case/diacritic/width-folded metadata
@@ -29,7 +44,9 @@ There are no vector scores or paraphrase-only matches.
 ## Compatibility and lifecycle
 
 Opening an old search configuration migrates only `search-config`, derived
-`search-document:*` and retired `search-usage` records. Old disabled/paused model
+`search-document:*`, `search-document-stamp:*` and retired `search-usage` records.
+The v2 pipeline rebuilds only this derived state to establish owner-addressed keys
+and independent freshness stamps. Old disabled/paused model
 settings do not disable keyword search. Source conversations, reports,
 preferences and other settings are preserved. Old model files remain on disk
 unused; this version neither reads nor deletes them. Background indexing rebuilds

@@ -23,6 +23,8 @@ private enum CodexStateAdmission {
         case .number(let number): return number.isFinite
         case .array(let values):
             return depth < JSONValue.maximumDepth && values.allSatisfy { json($0, depth: depth + 1) }
+        case .catalog(let values):
+            return depth < JSONValue.maximumDepth && values.allSatisfy { json($0, depth: depth + 1) }
         case .object(let values):
             return depth < JSONValue.maximumDepth && values.values.allSatisfy { json($0, depth: depth + 1) }
         }

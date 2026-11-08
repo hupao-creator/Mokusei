@@ -89,7 +89,7 @@ private struct GitRecord {
         guard case .bool(let value) = try require(key) else { throw PluginContractError("Invalid \(path).\(key.string) boolean") }; return value
     }
     func array(_ key: JSONText) throws -> [JSONValue] {
-        guard case .array(let value) = try require(key) else { throw PluginContractError("Invalid \(path).\(key.string) array") }; return value
+        guard let value = try require(key).arrayValue else { throw PluginContractError("Invalid \(path).\(key.string) array") }; return value
     }
     func enumeration<T: RawRepresentable & CaseIterable>(_ key: JSONText, _ type: T.Type) throws -> T where T.RawValue == String {
         let text = try text(key)

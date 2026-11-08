@@ -86,7 +86,7 @@ public struct HarnessThread: Hashable, Sendable {
             guard moku, archived == nil else {
                 throw PluginContractError("thread.moku must be true and cannot carry archived")
             }
-            guard case .array = transcript else {
+            guard transcript.isArray else {
                 throw PluginContractError("thread.transcript must be an array for Moku")
             }
         }
@@ -532,6 +532,7 @@ public enum HarnessResponseAnswer: Hashable, Sendable {
         switch json {
         case let .string(text): self = .text(text)
         case let .array(values): self = .multiple(try values.map { try ThreadContractReader.rawText($0, path: "answer") })
+        case let .catalog(values): self = .multiple(try values.map { try ThreadContractReader.rawText($0, path: "answer") })
         default: throw PluginContractError("answer must be a string or array of strings")
         }
     }
@@ -692,7 +693,7 @@ private struct ThreadContractReader {
     }
     func optionalInteger(_ key: JSONText) throws -> Int? { values[key] == nil ? nil : try integer(key) }
     func array(_ key: JSONText) throws -> [JSONValue] {
-        guard case let .array(value) = try required(key) else { throw PluginContractError("\(path).\(key.string) must be an array") }
+        guard let value = try required(key).arrayValue else { throw PluginContractError("\(path).\(key.string) must be an array") }
         return value
     }
     func optionalArray(_ key: JSONText) throws -> [JSONValue]? { values[key] == nil ? nil : try array(key) }
@@ -717,6 +718,8 @@ private struct ThreadContractReader {
         case .string, .bool, .integer: return
         case let .number(number) where number.isFinite: return
         case let .array(values) where array:
+            for value in values { _ = try rawText(value, path: path) }
+        case let .catalog(values) where array:
             for value in values { _ = try rawText(value, path: path) }
         default: throw PluginContractError("\(path) must be a string, finite number, boolean\(array ? " or string array" : "")")
         }

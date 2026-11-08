@@ -137,7 +137,7 @@ func (m *Manager) Query(ctx context.Context, request QueryRequest) (result Query
 		if strings.Contains(strings.ToLower(source.Title), strings.ToLower(strings.TrimSpace(request.Query))) {
 			scores[key] += 1
 		}
-		document := m.retrieval.document(ctx, snapshot, documentPrefix+key)
+		document := m.retrieval.document(ctx, snapshot, documentKey(source))
 		if document.Version != indexVersion || document.SourceHash != source.OwnerHash {
 			continue
 		}
@@ -187,7 +187,12 @@ func persist(ctx context.Context, s *store.Store, c Config, source Source, docum
 		if !exists || hash != source.OwnerHash || live.Epoch != c.Epoch {
 			return nil
 		}
-		return tx.Put(documentPrefix+RefKey(source.Ref), document)
+		key := documentKey(source)
+		if err := tx.Put(key, document); err != nil {
+			return err
+		}
+		hash, _ = tx.RecordHash(key)
+		return tx.Put(stampKey(source), documentStamp{SourceHash: source.OwnerHash, DocumentHash: hash, Version: indexVersion, Truncated: document.Truncated})
 	})
 	return err
 }

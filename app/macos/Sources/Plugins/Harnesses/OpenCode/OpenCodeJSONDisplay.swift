@@ -24,6 +24,7 @@ extension OpenCodeMessage {
 private func ocOrderIndependentDisplay(_ value: JSONValue, depth: Int, rawString: Bool = false) throws -> JSONText {
     if rawString, case .string(let text) = value { return text }
     switch value {
+    case .catalog(let values): return try ocOrderIndependentDisplay(.array(Array(values)), depth: depth, rawString: rawString)
     case .object(let object):
         guard object.isEmpty else { throw OpenCodeToolDisplayError.missingProjection }
         return "{}"
@@ -71,6 +72,7 @@ private struct OpenCodeJSONDisplayMatcher {
                 try emit(index == children.count - 1 ? "\n" : ",\n")
             }
             try emit(String(repeating: "  ", count: depth) + "]")
+        case .catalog(let children): try render(.array(Array(children)), depth: depth)
         case .object(let children):
             if children.isEmpty { try emit("{}"); return }
             try emit("{\n")

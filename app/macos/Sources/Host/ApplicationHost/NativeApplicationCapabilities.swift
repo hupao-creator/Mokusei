@@ -78,7 +78,7 @@ extension NativeApplicationHost {
                 read: { [weak self] references in
                     guard let self else { throw CancellationError() }; try lifetime.checkCancellation()
                     return try executionReferences(references)
-                }, subscribe: { [weak self] listener in self?.subscribeReferences(listener, lifetime: lifetime) ?? {} },
+                }, subscribe: { [weak self] references, listener in self?.subscribeReferences(references, listener: listener, lifetime: lifetime) ?? {} },
                 logo: { [weak self] id, size in
                     guard let self, !isReleased else { throw CancellationError() }
                     try lifetime.checkCancellation()
@@ -225,15 +225,17 @@ private struct NativeApplicationHTMLCapabilityView: View {
 
 /// Catalog observation remains mounted with the selected execution; the ordinary
 /// reader owns its content lease and revokes it when selection changes.
+@MainActor
 private struct NativeApplicationReferencedExecution: View {
     let host: NativeApplicationHost
     let reference: ApplicationExecutionRef
+    @State private var catalogRevision = 0
+    @State private var lifetime = PluginLifetime()
+    @State private var unsubscribe: (() -> Void)?
     var body: some View {
         Group {
-            // thread(id) reads an ObservationIgnored lookup cache. Read the
-            // observable catalog so a retained reader receives the new execution
-            // envelope as well as its independently subscribed Harness content.
-            if let thread = host.workspace.catalog.threads.first(where: { $0.id == reference.thread.threadID }), !thread.mokuHistory {
+            let _ = catalogRevision
+            if let thread = host.workspace.catalog.thread(reference.thread.threadID), thread.moku != true, !thread.mokuHistory {
                 NativeHarnessThreadView(host: host.workspace.harnessHost,
                     input: HarnessThreadInput(thread: thread), presentation: .execution(reference.executionID))
                     .environment(\.threadRelatedExecution, true)
@@ -244,5 +246,13 @@ private struct NativeApplicationReferencedExecution: View {
                     .nativeReadingContentReady()
             }
         }.id(reference)
+            .onAppear { subscribeReference() }
+            .onChange(of: reference) { _, _ in subscribeReference() }
+            .onDisappear { unsubscribe?(); unsubscribe = nil }
+    }
+
+    private func subscribeReference() {
+        unsubscribe?()
+        unsubscribe = host.subscribeReferences([reference], listener: { catalogRevision += 1 }, lifetime: lifetime)
     }
 }

@@ -202,7 +202,7 @@ func claudeJSONString(_ value: JSONValue) -> String {
     // escapes as well as its lossless isolated-surrogate escaping.
     if case .object(let values) = value { return "{" + values.map { claudeJSONString(.string($0.key)) + ":" + claudeJSONString($0.value) }.joined(separator:",") + "}" }
     if let number = value.numberValue { return claudeJSNumber(number) }
-    if case .array(let values) = value { return "[" + values.map(claudeJSONString).joined(separator: ",") + "]" }
+    if let values = value.arrayValue { return "[" + values.map(claudeJSONString).joined(separator: ",") + "]" }
     if case .string(let text) = value {
         var result = "\""
         var index = 0

@@ -61,7 +61,11 @@ public final class NativeOverviewCanvasState {
     public fileprivate(set) var layoutError: String?
     public fileprivate(set) var overflowAttentionCount = 0
     public fileprivate(set) var isLayingOut = false
-    public fileprivate(set) var presentedPlacements: [NativeOverviewPlacement] = []
+    public fileprivate(set) var presentedPlacements: [NativeOverviewPlacement] = [] {
+        didSet { placementsByID = Dictionary(uniqueKeysWithValues: presentedPlacements.map { ($0.id, $0) }) }
+    }
+    @ObservationIgnored fileprivate var placementsByID: [String: NativeOverviewPlacement] = [:]
+    @ObservationIgnored public fileprivate(set) var attentionVisibilityVisitCount = 0
     @ObservationIgnored fileprivate var retryHandler: (() -> Void)?
     @ObservationIgnored fileprivate var hostOwner: UUID?
     @ObservationIgnored fileprivate var inputFocused = false
@@ -83,7 +87,7 @@ public final class NativeOverviewCanvasState {
         camera.stageCoordinator = motionStages
     }
     public func displayedFrame(for id: String) -> CGRect? {
-        guard !isLayingOut, let placement = presentedPlacements.first(where: { $0.id == id }) else { return nil }
+        guard !isLayingOut, let placement = placementsByID[id] else { return nil }
         let frame = placement.cardFrame
         let transform = camera.liveTransform
         return CGRect(x: frame.minX * transform.scale + transform.x, y: frame.minY * transform.scale + transform.y,
@@ -452,14 +456,17 @@ public struct NativeOverviewCanvas<Content: View>: View {
                 state.overflowAttentionCount = 0
                 return
             }
-            state.overflowAttentionCount = state.presentedPlacements.filter { placement in
-                attention.contains(placement.id) && !NativeOverviewCameraGeometry.isVisible(
+            state.overflowAttentionCount = attention.reduce(0) { count, id in
+                state.attentionVisibilityVisitCount += 1
+                guard let placement = state.placementsByID[id] else { return count }
+                let visible = NativeOverviewCameraGeometry.isVisible(
                     .init(left: Double(placement.column) * NativeOverviewLayout.columnPitch,
                           top: Double(placement.row) * NativeOverviewLayout.rowPitch,
                           width: Double(placement.columns) * NativeOverviewLayout.columnPitch - NativeOverviewLayout.gap,
                           height: Double(placement.rows) * NativeOverviewLayout.rowPitch - NativeOverviewLayout.gap),
                     transform: state.camera.liveTransform, viewport: viewport)
-            }.count
+                return count + (visible ? 0 : 1)
+            }
         }
         state.refreshInteractionPause()
     }
