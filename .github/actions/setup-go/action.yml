@@ -23,7 +23,8 @@ runs:
     # Hosted images do not necessarily include our pinned patch release.
     # Cache only that version, not every Go SDK preinstalled on the runner.
     - name: Restore the pinned Go SDK
-      uses: actions/cache@v4
+      id: sdk-cache
+      uses: actions/cache/restore@v4
       with:
         path: ${{ runner.tool_cache }}/go/${{ steps.version.outputs.version }}
         key: go-sdk-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
@@ -32,6 +33,13 @@ runs:
       with:
         go-version: ${{ steps.version.outputs.version }}
         cache: false
+    # A later test failure must not discard a successfully installed SDK.
+    - name: Save the installed Go SDK
+      if: ${{ steps.sdk-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.tool_cache }}/go/${{ steps.version.outputs.version }}
+        key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
     - name: Locate Go caches
       id: paths
       shell: bash

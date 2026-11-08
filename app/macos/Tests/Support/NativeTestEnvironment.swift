@@ -41,20 +41,14 @@ public struct SerializedNativeTrait: TestTrait, SuiteTrait, TestScoping {
         trace("begin")
         do {
             try Task.checkCancellation()
-            // Match the isolated replay's timer-precision request while this
-            // case owns native state, including its asynchronous cleanup.
-            let activity = ProcessInfo.processInfo.beginActivity(
-                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
-                reason: "Run native test observations at their existing intervals")
-            defer { ProcessInfo.processInfo.endActivity(activity) }
             try await function()
+            trace("end")
+            await NativeTestGate.shared.release()
         } catch {
             trace("error")
             await NativeTestGate.shared.release()
             throw error
         }
-        trace("end")
-        await NativeTestGate.shared.release()
     }
 }
 

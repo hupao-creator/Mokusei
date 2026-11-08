@@ -295,6 +295,11 @@ as errors. `main.swift`, isolation support and the native input bridge still
 compile for each replay. Local launches and the standalone Workspace lifecycle
 suite compile their test sources as before. Launch and capture provenance
 receipts retain the selected source, object, output-map and executable hashes.
+The launcher adds the active Xcode platform's `Developer/usr/lib` to its link
+and runtime search paths, matching SwiftPM's test-library location. A selected
+object can retain its original module's `XCTestSwiftSupport` link dependency
+even when that source does not import XCTest; this links the SDK support library
+without adding other test objects or an XCTest runner.
 Missing graphical capability produces explicit test skips in a
 plain test run; it fails an explicitly requested native replay as incomplete.
 The [Swift audit](../swift-tests/README.md) records the scheduling/host controls,

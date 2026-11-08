@@ -209,14 +209,6 @@ bands, changing production animation duration, extending deadlines or retrying
 input. OS preemption can still make the original assertions fail; retain actual
 sample times and frame ages when diagnosing that outcome.
 
-The shared `.serializedNative` case scope requests the same process activity
-after gate admission and keeps it through asynchronous fixture cleanup. It ends
-the activity before releasing the gate on success, failure or cancellation;
-queued cases hold no activity. This covers ordinary SwiftPM graphical tests and
-gated windowless cases without initializing `NSApplication`. Sleep intervals
-and tolerances, iteration counts, deadlines, layout/display driving and all
-behavioral assertions retain their existing values.
-
 The scheduling contract is documented by Swift's
 [ContinuousClock implementation](https://github.com/swiftlang/swift/blob/main/stdlib/public/Concurrency/ContinuousClock.swift)
 and Apple's [latencyCritical activity option](https://developer.apple.com/documentation/foundation/processinfo/activityoptions/latencycritical).

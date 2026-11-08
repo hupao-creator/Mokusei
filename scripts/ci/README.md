@@ -66,6 +66,8 @@ single-job guests and serialize native work across workflows on each physical Ma
 
 The [Go setup action](../../.github/actions/setup-go/action.yml) caches only the
 pinned SDK's tool-cache directory, including its installation-complete marker.
+It saves a successful installation immediately, so a later test failure does not
+force another SDK download on the next run.
 Its compiler cache has a separate key for each workload and changes with Go
 module files, source, embedded resources and verification inputs. Restore prefixes
 reuse previous compilation where Go's own input validation permits it. A fixed
