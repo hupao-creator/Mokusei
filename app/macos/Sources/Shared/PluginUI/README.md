@@ -122,9 +122,10 @@ its environment comes from the enclosing SwiftUI surface and its layout width
 stays at the destination width throughout return travel. Reversal samples native
 presentation layers, and generation-fenced completion cannot admit or close a
 replacement route. Resize, cancellation, reduced motion and inactive scenes
-settle through the reading stack's existing ownership. Vertical history and
-non-panel navigation retain their original driver. Returning refreshes the
-retained Overview before starting a settled panel's close.
+settle through the reading stack's existing ownership. Vertical history keeps
+its identity animation and completion timer; non-panel navigation samples its
+shared progress on display callbacks. Returning refreshes the retained Overview
+before starting a settled panel's close.
 
 The stack publishes `nativeReadingEntranceReady` from that actual completion
 boundary and, when present, the existing title/emoji ink handoff. Secondary
@@ -593,15 +594,38 @@ a valid sample and agree with the already-qualified front within the original
 one-point tolerance. It records the native frames, progress and sampling times
 without forcing layout; a model-fallback-only run cannot certify this path.
 
-The non-panel progress loop requests zero tolerance for its existing 8ms sleep.
+Non-panel progress is written synchronously from a per-stack display callback in
+[NativeReadingPageFrames](Conversation/NativeReadingPageFrames.swift).
 [CI #389](https://github.com/hupao-creator/Mokusei/actions/runs/42448341067)
 recorded a 76.938ms gap between consecutive progress writes, from 0.394718 to
 0.645411, while display callbacks continued and native geometry followed those
-writes. The source values themselves skipped the replay's midpoint interval.
-An unspecified [clock tolerance](https://developer.apple.com/documentation/swift/continuousclock/sleep%28until%3Atolerance%3A%29)
-permits wake-up coalescing; zero removes that allowance without guaranteeing
-exact scheduling. Preparation, elapsed-time sampling, curves, durations and
-cancellation retain their existing behavior.
+writes. The source values themselves skipped the replay's midpoint interval;
+the trace does not identify which scheduling mechanism caused the gap. The
+zero-tolerance sleep attempt passed
+[CI #392](https://github.com/hupao-creator/Mokusei/actions/runs/42451341019), but
+still recorded successive 68.928ms and 68.444ms source-write gaps. The replay's
+1.2-second emphasized curve spends only 59.801ms between progress 0.4 and 0.6,
+so that pass did not establish a sufficiently regular source cadence.
+
+The display callback now writes progress directly, without another task or timer
+resume. The existing preparation sleep and the `ContinuousClock` origin taken
+when preparation ends are unchanged; every sample uses actual elapsed time and
+the same curve and duration. A native anchor attaches the clock only while a
+window exists. It chooses that window's screen, or the main/first screen for an
+offscreen window, and rebinds when the window or screen configuration changes.
+This uses a screen display link so existing offscreen-window navigation can still
+advance. Without a window, the request remains cancellable and produces no
+frames. The anchor draws nothing, takes no input or accessibility focus, and is
+separate from the two geometry anchors used for opening reversal.
+
+Settle and retarget revoke both the route generation and the frame request;
+native teardown revokes the request before a late preparation can arm it.
+Stopping clears the callback and invalidates the link. The terminal sample stops
+the driver before the existing navigation completion, while ordinary disappearance
+still cancels without navigating. Parent preparation, committed-pose reversal,
+panel travel and history replacement retain their existing owners. Display or
+main-thread stalls can still delay presentation; this removes the independently
+scheduled producer rather than promising every intermediate pose is displayed.
 
 An external result request is the host route's entry document, so its Back and
 Escape use that route's return action. It gains an internal history return only
