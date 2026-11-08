@@ -27,6 +27,7 @@ public final class NativeWorkspacePresentation {
     private var reportInputReady = false
     @ObservationIgnored private var executionDrafts: [ApplicationExecutionRef: NativeComposerDraft] = [:]
     @ObservationIgnored private lazy var executionContinuation = NativeExecutionContinuation(workspace: workspace)
+    @ObservationIgnored private lazy var mokuSubmission = NativeMokuSubmission(workspace: workspace)
     @ObservationIgnored private var reportInputBack: (() -> Void)?
     private var executionSendNavigation: (route: UUID, generation: UUID, reference: ApplicationExecutionRef, destination: ApplicationExecutionRef, reportSelection: UUID?)?
     var awaitingExecutionContinuation: Bool {
@@ -429,21 +430,33 @@ public final class NativeWorkspacePresentation {
             enabled: workspace.canExecute(thread), identity: identity)
     }
 
-    public func sendMoku(_ submission: NativeComposerSubmission) async throws {
-        guard !onboarding.blocksWorkspace else { throw PluginContractError("Complete onboarding before sending a task.") }
-        guard scene.mokuOpen || !reportExecutionSelected else { throw CancellationError() }
-        var request: [JSONText: JSONValue] = ["input": submission.input]
-        if let id = mokuSuperThreadID { request["superThreadId"] = .string(id) }
+    var mokuSubmissionSource: JSONValue {
+        var source: [JSONText: JSONValue] = [:]
+        if let id = mokuSuperThreadID { source["superThreadId"] = .string(id) }
         if selected == nil, !scene.mokuOpen, !scene.cameraActive, !scene.settingsOpen,
            let filter = overview.filters.first(where: {
                $0.matches(overview.selectedTag, kind: overview.tagSelection?.kind, scope: overview.selectedScope)
            }), filter.isDirectory {
-            request["directoryScopeId"] = .text(filter.scope)
+            source["directoryScopeId"] = .text(filter.scope)
         }
+        return .object(source)
+    }
+
+    public func sendMoku(_ submission: NativeComposerSubmission, source: JSONValue = .object([:])) async throws {
+        guard !onboarding.blocksWorkspace else { throw PluginContractError("Complete onboarding before sending a task.") }
+        guard (scene.mokuOpen || !reportExecutionSelected), source == mokuSubmissionSource,
+              var request = source.objectValue else { throw CancellationError() }
+        request["input"] = submission.input
         workspace.dismissOperationError()
-        let fencedRequest = workspace.voice.moku.fenceTypedInput(.object(request))
-        await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
-        _ = try await workspace.invoke("moku:submit", args: [fencedRequest])
+        try await mokuSubmission.send(input: submission.input, source: source) {
+            let fencedRequest = workspace.voice.moku.fenceTypedInput(.object(request))
+            await overview.recordUserAction(kind: "moku-input", text: JSONText(submission.text))
+            return fencedRequest
+        }
+    }
+
+    func didConsumeMokuDraft(_ submission: NativeComposerSubmission, source: JSONValue) async {
+        await mokuSubmission.didConsumeDraft(input: submission.input, source: source)
     }
 
     public var dockThread: HarnessThread? { dockThreadID.flatMap(workspace.catalog.thread) }
@@ -882,7 +895,9 @@ public struct NativeWorkspaceView: View {
                     }, error: model.localizedOperationError,
                     openExternal: { url in presentation.perform { try await model.services.openExternal(JSONText(url.absoluteString)) } },
                     onBack: { presentation.scene.closeHistory() },
-                    onSend: { try await presentation.sendMoku($0) }, onCancel: { presentation.cancelMoku(observed: thread) })
+                    onSend: { try await presentation.sendMoku($0) },
+                    onSendConsumed: { await presentation.didConsumeMokuDraft($0, source: .object([:])) },
+                    onCancel: { presentation.cancelMoku(observed: thread) })
                     .environment(\.nativeReadingNavigation, nil)
             }
         } dock: {
@@ -890,6 +905,7 @@ public struct NativeWorkspaceView: View {
                 let detail = presentation.dockThread
                 let reportExecution = presentation.reportExecution
                 let superThreadID = presentation.mokuSuperThreadID
+                let mokuSource = presentation.mokuSubmissionSource
                 let execution = presentation.dockExecution
                 let sidecardComposer = presentation.sidecardComposer
                 let detailRunning = detail.map {
@@ -952,11 +968,15 @@ public struct NativeWorkspaceView: View {
                         else {
                             guard presentation.navigationRouteID == routeID,
                                   presentation.mokuSuperThreadID == superThreadID else { throw CancellationError() }
-                            try await presentation.sendMoku(submission)
+                            try await presentation.sendMoku(submission, source: mokuSource)
                         }
                     }, onSendConsumed: { submission in
-                        guard sidecardComposer == nil, let detail else { return }
-                        await presentation.didConsumeThreadDraft(submission, threadID: detail.id, executionID: execution?.executionID)
+                        guard sidecardComposer == nil else { return }
+                        if let detail {
+                            await presentation.didConsumeThreadDraft(submission, threadID: detail.id, executionID: execution?.executionID)
+                        } else {
+                            await presentation.didConsumeMokuDraft(submission, source: mokuSource)
+                        }
                     }, onCancel: {
                         if let detail {
                             guard presentation.navigationRouteID == routeID, presentation.dockThreadID == detail.id,

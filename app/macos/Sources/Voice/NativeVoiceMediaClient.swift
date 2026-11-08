@@ -364,6 +364,8 @@ public final class NativeVoiceMediaClient {
     }
 
     /// Called synchronously at the actual Moku submit action, before dispatch.
+    /// The Host captures this once per submission; receipt retries keep the
+    /// captured request instead of interrupting a newer response here again.
     /// An audio failure must never discard the user's text. No late poll/caption
     /// can clear the playback of a newer request.
     public func fenceTypedInput(_ request: JSONValue) -> JSONValue {

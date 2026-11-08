@@ -15,6 +15,8 @@ from swift_ownership import native_filter
 HEADLESS_SUITES = {
     "MokuseiCoreTests.RuntimeProtocolTests",
     "MokuseiCoreTests.RuntimeAppliedDeliveryTests",
+    "MokuseiCoreTests.RuntimeCommandJournalIntegrationTests",
+    "MokuseiCoreTests.RuntimeOfflineStoreTests",
     "MokuseiCoreTests.RuntimeQueryCancellationTests",
     "MokuseiGitIntegrationTests.ClaudeErrorSurfacingTests",
     "MokuseiGitIntegrationTests.ThreadCardExtensionLayoutTests",

@@ -17,7 +17,8 @@ in force. See [Report continuation](../../../../design/report-execution-continua
 
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
-at least 0.83.0. Mokusei does not launch a Node renderer, bridge server, or
+at least 0.99.0 for authoritative `started`/`queued`/`handled` prompt replies.
+Mokusei does not launch a Node renderer, bridge server, or
 separate JavaScript build for this adapter.
 
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
@@ -57,14 +58,48 @@ remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
   hooks. Only a child that fails to exit is escalated to SIGTERM, then SIGKILL,
   with one-second bounds at each stage. Sending EOF and SIGTERM together can
   make Pi force an early exit before its cleanup releases native resources.
+  Stopping admission and completing cleanup are separate boundaries: Close
+  returns success only after the child has been reaped and both stdout/stderr
+  readers have finished. Readers receive a bounded drain interval before their
+  descriptors close and a bounded join afterward. Missing completion evidence
+  returns a cleanup error; concurrent and repeated Close calls share that result.
+  Application callbacks are not part of this join, so a subscriber can safely
+  call Session.Close from its own callback.
 - A prompt response accepts input; only `agent_settled` completes its run.
   `agent_end` can precede queued work. A consumed input fails its submission;
   a consumed steering input leaves the admitted native run intact.
-- Thread inputs and execution state commit before `SendRequest.Admitted` and
-  before native dispatch. A rejected admission never dispatches native work.
+- Thread inputs and execution state commit before native dispatch. New executions
+  call `SendRequest.Admitted` before dispatch; ordinary follow-ups acknowledge
+  only after a native acceptance reply, so rejected/handled input stays unadmitted.
+- Ordinary follow-ups reserve their exact live native run before retention.
+  A run that already settled returns `ErrExecutionEnded` after Thread callbacks
+  drain, allowing Core to reserve a successor without retaining the old input.
+  An execution ID already present in terminal history is rejected the same way.
+  Once reserved, native settlement waits for input acceptance and acknowledgement.
+  The wire reader handles `queued` as part of that run; `started` after the old
+  run settled continues the reserved execution and replaces only the preceding
+  physical run's terminal outcome. A fast continuation can therefore finish
+  before the sending goroutine resumes without becoming unowned work.
+  Rejection or cancellation before prompt dispatch releases the original outcome.
+  A complete prompt frame with unknown acceptance retires the session and cannot
+  authorize automatic replay. Missing/invalid dispositions fail the session.
+  Isolated completion steering uses the same exact-run reservation; the shared
+  completion mailbox retains its conservative settled/retry contract.
+- Native answer writes and the local interaction commit are ordered before
+  event reduction, including immediate settlement. A rejected write retains the
+  pending interaction; a completed write consumes it before callbacks resume.
+  The event gate does not block Interrupt or Close from retiring a backpressured
+  pipe. Expiry callbacks serialize with answers and recheck their exact execution
+  and interaction, so an already fired timer cannot fail answered or later work.
 - Streaming state commits are coalesced at 50 ms. Native boundaries commit
   immediately. Reopening a persisted live execution interrupts it without
   starting the CLI; the next send can resume its native session.
+  Thread shutdown reads the final native JSONL only after successful cleanup.
+  An incomplete cleanup preserves the retained snapshot and blocks this handle
+  from admitting a replacement input or native connection. Ordinary cleanup
+  diagnostics after a completed drain do not establish that permanent fence.
+  Connection replacement and the staging-to-cloned-session handoff propagate
+  cleanup errors before starting the next native owner.
 - `message_end.usage` describes one model call, not an execution/session total.
   Durable messages retain those native counts; compact renderer scopes carry
   derived `executionUsage` totals keyed by execution ID without rewriting the
@@ -97,9 +132,21 @@ A callback panic becomes a tool error without exposing its panic payload or
 terminating the runtime. Local package fixtures cover cleanup barriers, panic
 recovery and cancellation before native command dispatch.
 
+Local shutdown tests use real child processes for EOF, SIGTERM/SIGKILL escalation,
+owner cancellation, concurrent Close results and final native JSONL publication.
+A blocked protocol reader exercises the incomplete-cleanup path; callback-driven
+Close cases ensure the application dispatcher is never asked to join itself.
+The adapter scenario crosses Open, Send, Close and the committed session-state
+projection. Existing deterministic runtime and native replays cover the wider
+storage and external-CLI boundaries.
+
 `resources/read-guard.mjs` blocks all native tool calls during a history read.
 Its command registration lets Go verify the exact guard file loaded. Both
 resources are embedded by `go:embed`; neither requires Node or npm to build.
+The default Linux adapter replay imports the actual guard resource with Node
+and invokes its registered callback for native and custom tool calls, requiring
+`block: true` independently of the command marker. The installed-Pi replay
+retains responsibility for proving the native loader and tool boundary.
 
 ## Preserved native limits
 
@@ -153,12 +200,19 @@ fences replacement discovery until a new adapter is constructed.
 
 Editor RPC requests retain optional `prefill` text verbatim through normalized events and the committed public string-form default. The response consumes Core-validated values so an unchanged initial value can be omitted from the wire answer map without losing it. Non-string prefill is rejected at RPC decoding. The deterministic Pi replay covers child-process editor requests through default adoption and native reply.
 
+Interaction lifecycle fixtures run the production adapter and Session dispatcher
+against a child-process peer. A controlled pipe write pauses after the complete
+answer reaches native input, exposing immediate settlement and already fired
+expiry callbacks before local consumption. Separate partial-write cases require
+Interrupt and Close to unblock the pipe; the adapter replay covers a cancelled
+pre-write answer followed by a successful retry of the same interaction.
+
 This Harness does not advertise `ThreadCapabilities.FollowUpOnly`: its native
 input protocol has no proven atomic active-only condition. Lazy Moku notices
 therefore wait for the next independently triggered input and travel with its
 system context, even while this Harness is running. An explicit follow-up-only
 Send returns `ErrFollowUpUnavailable` before retaining or dispatching anything;
-ordinary inputs keep their existing behavior.
+ordinary inputs use the admission reservation described above.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior

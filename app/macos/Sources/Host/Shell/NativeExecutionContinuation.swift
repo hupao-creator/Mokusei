@@ -16,13 +16,17 @@ final class NativeExecutionContinuation {
         let executionID: JSONText?
         let input: JSONValue
         let phase: Phase
+        let predecessorReceiptID: String?
         let receiptID = "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
         var attempted = false
         var result: JSONValue?
         var accepted: ApplicationExecutionRef?
         var draftConsumed = false
-        init(threadID: JSONText, executionID: JSONText?, input: JSONValue, phase: Phase) {
+        var retryPredecessorReceiptID: String?
+        init(threadID: JSONText, executionID: JSONText?, input: JSONValue, phase: Phase,
+             predecessorReceiptID: String? = nil) {
             self.threadID = threadID; self.executionID = executionID; self.input = input; self.phase = phase
+            self.predecessorReceiptID = predecessorReceiptID
         }
         func matches(threadID: JSONText, executionID: JSONText?, input: JSONValue) -> Bool {
             self.threadID == threadID && self.executionID == executionID && self.input == input
@@ -43,6 +47,14 @@ final class NativeExecutionContinuation {
             if previous.draftConsumed {
                 try await release(previous)
                 operation = nil
+            } else if let predecessor = previous.retryPredecessorReceiptID {
+                // A definite failure did not consume input. The branch already
+                // exists, so edited input may retry only this same destination.
+                guard previous.threadID == threadID, previous.executionID == executionID else {
+                    throw blocked(predecessor)
+                }
+                return try await advance(Operation(threadID: threadID, executionID: executionID,
+                    input: input, phase: previous.phase, predecessorReceiptID: predecessor))
             } else {
                 guard previous.matches(threadID: threadID, executionID: executionID, input: input) else {
                     throw blocked(previous.receiptID, detail: workspace.preferences.locale.text(
@@ -54,9 +66,7 @@ final class NativeExecutionContinuation {
         }
         // After relaunch, a receipt without its original source/input/phase is
         // a barrier, not permission to infer a new fork or input destination.
-        let held = await workspace.client.commandOutcomes().first {
-            ["thread:fork", "thread:follow-up"].contains($0.channel) && $0.status != .rejected
-        }
+        let held = await workspace.client.commandOutcomes().first { $0.requiresContinuationContext }
         if let held {
             await workspace.client.reconcileCommandReceipts()
             throw blocked(held.commandID, detail: workspace.preferences.locale.text(
@@ -81,7 +91,12 @@ final class NativeExecutionContinuation {
         if let accepted = current.accepted { return accepted }
         let result: JSONValue
         do { result = try await outcome(current) }
-        catch let error as RuntimeError where error.kind == .commandRejected {
+        catch let error as RuntimeError where error.kind == .commandRejected
+            || (error.kind == .requestRejected && current.predecessorReceiptID != nil) {
+            if current.predecessorReceiptID != nil {
+                current.retryPredecessorReceiptID = current.receiptID
+                throw error
+            }
             // Only a definite rejection releases a phase. Unknown, pending and
             // indeterminate receipts never reach this branch.
             try await release(current)
@@ -98,10 +113,11 @@ final class NativeExecutionContinuation {
         case .fork(let reference):
             guard case .string(let id) = result["threadId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID) }
             forks[reference] = id
-            try await release(current)
-            operation = nil
+            // invoke transfers the durable barrier atomically when it registers
+            // the follow-up. Releasing here would orphan the fork after a crash.
             return try await advance(Operation(threadID: current.threadID, executionID: current.executionID,
-                input: current.input, phase: .followUp(threadID: id, expected: nil)))
+                input: current.input, phase: .followUp(threadID: id, expected: nil),
+                predecessorReceiptID: current.receiptID))
         case .followUp(let threadID, _):
             guard case .string(let id) = result["executionId"], !id.codeUnits.isEmpty else { throw blocked(current.receiptID) }
             let accepted = ApplicationExecutionRef(thread: .init(threadID: threadID, typeID: "agent"), executionID: id)
@@ -137,14 +153,28 @@ final class NativeExecutionContinuation {
                     request = .object(fields)
                 }
                 current.attempted = true
-                result = try await workspace.client.invoke(channel, args: [request], receiptID: current.receiptID, retainingReceipt: true)
+                result = try await workspace.client.invoke(channel, args: [request], receiptID: current.receiptID,
+                    retainingReceipt: true, replacingReceipt: current.predecessorReceiptID)
             }
             current.result = result
             return result
         } catch let error as RuntimeError where error.kind == .commandRejected { throw error }
         catch {
-            let tracked = await workspace.client.commandOutcomes().contains { $0.commandID == current.receiptID }
-            if recovering || tracked { throw blocked(current.receiptID) }
+            let outcomes = await workspace.client.commandOutcomes()
+            let tracked = outcomes.first { $0.commandID == current.receiptID }
+            if let failure = error as? RuntimeError, failure.kind == .requestRejected,
+               tracked?.forkReceiptID != nil, tracked?.status == .rejected {
+                throw failure
+            }
+            if recovering || tracked != nil { throw blocked(current.receiptID) }
+            if let predecessor = current.predecessorReceiptID,
+               outcomes.contains(where: { $0.commandID == predecessor }) {
+                // Preparation or journal admission failed before dispatch. The
+                // original fork still owns the barrier; retry this handoff only.
+                current.attempted = false
+                current.retryPredecessorReceiptID = predecessor
+                throw blocked(predecessor)
+            }
             // The client persists admission before HTTP and retains every
             // ambiguous outcome. No entry on a first attempt means no admission
             // or a definite request rejection, not an uncertain command result.

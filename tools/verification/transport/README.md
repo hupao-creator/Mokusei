@@ -39,7 +39,10 @@ draft with two independent live owners and a pending-submission owner; collectio
 must wait for all three to release after the persisted draft is consumed. The
 uncertain receipt is acknowledged separately before its final collection. The
 receipt fixture returns before Thread retention, and a second client writes its
-journal without overwriting that outstanding receipt. This checks the actual
+journal without overwriting that outstanding receipt. Its command ID uses the
+production Swift millisecond-timestamp and lowercase UUID format; the first
+process saves that exact identity beside its fixture attachment metadata for the
+second process to acknowledge. This checks the actual
 Swift ownership envelopes and HTTP header against Go's collector across process
 exit, restoration, interleaved client writes and explicit consumption.
 

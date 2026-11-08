@@ -113,8 +113,10 @@ func runDeterministic(ctx context.Context) error {
 		verifyTransport(ctx)
 		verifyResponsesThinking()
 		verifyAdapter(ctx)
+		verifyAdmissionOrdering(ctx)
 		verifyUsage(ctx)
 		verifyProcessOrdering(ctx)
+		verifyRuntimeLifecycle(ctx)
 		return ctx.Err()
 	})
 }

@@ -114,6 +114,7 @@ public actor RuntimeClient {
     }
     public func uncertainReceipts() -> [String] {
         restoreOfflineState()
+        try? refreshCommandJournal()
         return commandRecords.values.filter { $0.status != .accepted && $0.status != .rejected }.map(\.id).sorted()
     }
 

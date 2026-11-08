@@ -152,7 +152,7 @@ variables before its first boundary operation; invalid supplied inputs still fai
 | --- | --- | --- |
 | `GoDeltaInteropTests.testGoGeneratedDeltasReconstructNativeContent` | `MOKUSEI_GO_DELTA_FIXTURES`: Go-generated before/patch/after corpus | `./tools/verification/transport -swift-deltas` |
 | `IntegerWireTests.testExportActualSwiftRequestsToGo` | `MOKUSEI_SWIFT_INTEGER_REQUESTS` and `MOKUSEI_SWIFT_VOICE_THREAD`: output path and thread for the Go consumer | `./tools/verification/runtime -swift-voice` |
-| `PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage` | `MOKUSEI_PI_USAGE_FIXTURES`: 60 Go usage projections | `./tools/verification/pi -swift-usage -timeout 10m` |
+| `PiTokenUsageTests.testGoUsageProjectionsReachNativeCardAndExecutionUsage` | `MOKUSEI_PI_USAGE_FIXTURES`: 100 Go usage projections with independent compact-display literals | `./tools/verification/pi -swift-usage -timeout 10m` |
 | `RuntimeHostFilesInteropTests.testNativeUploadsAndDownloadsCrossTheGoTransportBoundary` | `MOKUSEI_SWIFT_FILES_PROFILE`: authenticated live Go file host | `./tools/verification/transport -swift-files` |
 | `RuntimeSettingsCapacityInteropTests.testColdSettingsBurstAndCancellation` | `MOKUSEI_SWIFT_SETTINGS_PROFILE`: Go HTTP admission/cancellation fixture | `./tools/verification/transport -swift-settings-capacity` |
 | `RuntimeShutdownInteropTests.testCanonicalProfileIdentity` | `MOKUSEI_PROFILE_IDENTITY_MANIFEST`: canonical paths, aliases and owned live profile | `./tools/verification/runtime-helpers --swift-shutdown` |

@@ -11,19 +11,39 @@ retains the durations. The native configuration is disposable; user account
 files are not read or changed.
 
 `./scripts/go.sh run -race ./tools/verification/pi -swift-usage -timeout 10m`
-additionally feeds 60 Go-produced durable/overview/thread/execution/turn fixtures
+additionally feeds 100 Go-produced durable/overview/thread/execution/turn fixtures
 through the real Swift Pi plugin and checks the Overview card and execution-usage
 API. The deterministic replay covers per-call native fields (including cache,
 reasoning and native `totalTokens`), running accumulation, zero/missing usage on
-failed requests, retry streaming, reopen and execution isolation. `-artifacts`
+failed requests, retry streaming, reopen and execution isolation. Fixed display
+literals also cover 999, K/M/B thresholds, fractional compact values and the
+exact half-step 1,250 → `1.3K`. Both the Overview card and execution-usage API
+must match these independent strings; the test never formats its own expected
+value with production code. `-artifacts`
 retains `usage-fixtures.json`; no user profile or model service is involved.
 The native mode also checks real installed Pi `message_end` usage against the
 loopback provider's fixed 25-token response.
+
+`python3 tools/verification/pi/read-guard.py` runs in the default Linux adapters
+CI group with Node 22+ and its standard modules. It imports the actual bundled
+`read-guard.mjs`, invokes its registered callback for native and custom tools,
+and requires literal `block: true`; registering a handler alone cannot pass.
+No installed Pi, account or model service is needed. The extended native CLI
+replay still checks the real Pi loader and compatibility boundary.
 
 `-mode native-shutdown` checks only installed Pi disposal, without sending a
 model request: a real asynchronous `session_shutdown` hook must release its
 temporary lock before adapter Close returns. The deterministic replay also
 checks EOF cleanup and bounded termination of a child that ignores EOF/SIGTERM.
+
+The default deterministic replay also runs the real Pi adapter and RPC child
+under Core Runtime with SQLite. A native EOF barrier proves interruption cannot
+publish its terminal state or snapshot before shutdown finishes writing the
+session file. It checks the final JSONL snapshot after SQLite closes and reopens,
+the retired child has been reaped, and a successor execution completes without
+late shutdown events rewriting the old terminal execution. This runs without
+`-timeouts` and is included in the default CI `pi-usage` interop check;
+`-artifacts` retains `runtime-lifecycle-state.json`.
 
 The real Pi 1.0.0 scenario exercises the native loader, host extension, read guard, Go tool callback, persistence, independent clone, cancellation and recovery. It uses isolated native configuration and a localhost-only sandbox. It does not contact a paid model, use account login or prove future Pi compatibility.
 
@@ -46,3 +66,23 @@ forbidden write, concurrent questions, provider errors, cancellation/media failu
 cleanup, lazy forks and an actively running source remaining unchanged.
 
 The deterministic replay also sends an editor request from the RPC child process, checks its multiline Unicode prefill in the committed public form, and submits the unchanged default through production preflight and native response.
+
+The interaction replay cancels an answer before its native write, verifies that
+the committed interaction remains pending, and retries the same answer through
+the child process. `./scripts/go.sh test -race ./internal/plugins/harness/pi`
+also exercises the production adapter and Session dispatcher with controlled OS
+pipes: immediate settlement before Write returns, a queued expiry callback, and
+Interrupt/Close during a partially written answer. These fixtures do not call a
+copied reducer or require the installed Pi CLI.
+
+The admission replay runs the production Session and Thread adapter over real
+child-process pipes. It blocks a subscriber while native settlement advances,
+rejects the stale reservation without another run, and then checks terminal
+execution IDs before retention. Its ordinary follow-up matrix covers settlement
+before a `started` reply, a queued input completing before its reply, handled and
+rejected input, a missing disposition, cancellation during settings preflight,
+uncertain acceptance after a full prompt write, and process exit after completion.
+Assertions check acknowledgement counts, the exact owning execution, one retained
+follow-up/reply and restoration of unconsumed input rather than copying admission
+logic. Pi versions before 0.99.0 are rejected because their prompt replies cannot
+distinguish these acceptance outcomes.

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -445,18 +446,31 @@ func verifyCommandJournal(ctx context.Context) {
 	client := startLease(ctx, p.client)
 	defer client.stop()
 	file := p.stage(model.WithClientAttachmentLease(ctx, leaseID))
-	persistJournal(p, commandRecord(file, "unresolved"))
+	persistJournal(p, commandRecord(file, "awaitingReceipt"))
 	client.stop()
-	for _, status := range []string{"unresolved", "unknown", "indeterminate", "accepted"} {
+	for _, status := range []string{"awaitingReceipt", "pending", "unknown", "indeterminate", "accepted", "rejected"} {
 		persistJournal(p, commandRecord(file, status))
 		p.restart(ctx)
 		assertReadable(ctx, p, file)
 		must(p.repo.CollectOrphans(ctx, 0))
 		assertReadable(ctx, p, file)
 	}
-	persistJournal(p)
+	// A consumed fork receipt may survive only as the successor's lineage. It
+	// must not make that otherwise valid record unreadable to the collector.
+	successorFile := p.stage(ctx)
+	successor := commandRecord(successorFile, "awaitingReceipt")
+	successor["id"] = "44444444-5555-4666-8777-888888888888"
+	successor["channel"] = "thread:follow-up"
+	successor["forkReceiptID"] = "55555555-6666-4777-8888-999999999999"
+	persistJournal(p, successor)
 	p.restart(ctx)
 	assertRemoved(p, file)
+	assertReadable(ctx, p, successorFile)
+	must(p.repo.CollectOrphans(ctx, 0))
+	assertReadable(ctx, p, successorFile)
+	persistJournal(p)
+	p.restart(ctx)
+	assertRemoved(p, successorFile)
 }
 
 func verifyCorruptJournal(ctx context.Context) {
@@ -465,15 +479,38 @@ func verifyCorruptJournal(ctx context.Context) {
 	client := startLease(ctx, p.client)
 	defer client.stop()
 	file := p.stage(model.WithClientAttachmentLease(ctx, leaseID))
+	cases := []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{"missing-attachments", func(record map[string]any) { delete(record, "attachmentIDs") }},
+		{"null-fork", func(record map[string]any) { record["forkReceiptID"] = nil }},
+		{"non-string-fork", func(record map[string]any) { record["forkReceiptID"] = 42 }},
+		{"short-fork", func(record map[string]any) { record["forkReceiptID"] = "short" }},
+		{"long-fork", func(record map[string]any) { record["forkReceiptID"] = strings.Repeat("a", 129) }},
+		{"invalid-fork-character", func(record map[string]any) { record["forkReceiptID"] = "invalid/receipt_identity" }},
+		{"self-fork", func(record map[string]any) { record["forkReceiptID"] = record["id"] }},
+		{"wrong-channel", func(record map[string]any) { record["channel"] = "thread:send" }},
+		{"unknown-field", func(record map[string]any) { record["unsupportedOwner"] = []string{file.ID} }},
+	}
+	// A live importer protects this file until the first invalid durable record
+	// is installed; all subsequent retention must be the fail-closed collector.
 	record := commandRecord(file, "unknown")
 	delete(record, "attachmentIDs")
 	persistJournal(p, record)
 	client.stop()
-	require(p.repo.CollectOrphans(ctx, 0) != nil, "command record without attachmentIDs authorized collection")
-	assertReadable(ctx, p, file)
-	p.restart(ctx)
-	assertReadable(ctx, p, file)
-	assertCollectionFailureLogged(p)
+	for _, item := range cases {
+		record := commandRecord(file, "unknown")
+		record["channel"] = "thread:follow-up"
+		record["forkReceiptID"] = "55555555-6666-4777-8888-999999999999"
+		item.mutate(record)
+		persistJournal(p, record)
+		require(p.repo.CollectOrphans(ctx, 0) != nil, "%s command record authorized collection", item.name)
+		assertReadable(ctx, p, file)
+		p.restart(ctx)
+		assertReadable(ctx, p, file)
+		assertCollectionFailureLogged(p)
+	}
 	persistJournal(p)
 	p.restart(ctx)
 	assertRemoved(p, file)

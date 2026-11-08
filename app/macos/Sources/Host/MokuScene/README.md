@@ -150,6 +150,23 @@ approved appearance and editor checks without a live Runtime.
 
 Directory completion opens above the editor within the same capsule. The editor stays seated at the bottom; scrolling suggestions are clipped to their own area. Selection keys and IME handling use the existing completion state. On macOS, native paste/drop imports files. The Dock and history capsule surfaces have no Moku context menu on right-click or Control-click. Native text editing menus and the voice control's own menu remain available. An accepted send consumes only its submitted draft revision; failure retains it.
 
+[NativeMokuSubmission](../Shell/NativeMokuSubmission.swift) retains one logical
+Moku submission through admission, receipt recovery and persisted draft
+consumption. The first action captures its input, Report/directory source,
+voice fence and command ID. An uncertain retry queries that same receipt;
+changed input or a different Report/directory cannot consume the original
+submission. Returning to its original source permits receipt recovery without
+repeating the voice interruption or constructing another request.
+Dock, Report and history capture the source with their send and consumption
+callbacks. A successful response retains its receipt until `didConsume` confirms
+the accepted draft revision was consumed without a storage error, including a
+late or disposed owner. Reopening without the original in-memory association
+keeps the durable receipt as a barrier; it never guesses that restored text is
+new work. `NativeSubmissionReplay` exercises the production Host, composer,
+HTTP client and journal through lost responses, storage failure and reopening;
+the native voice ownership replay also checks that recovery leaves newer
+playback intact, and the mounted history composer checks its consumption hook.
+
 An empty or whitespace-only draft without attachments/directories mounts no Send
 button or circular background, including in accessibility. Its empty layout seat
 keeps the editor width stable. Attachment/directory-only input still exposes Send;
@@ -709,8 +726,12 @@ Each continuation phase retains its original source, input, destination and
 command ID. An uncertain retry queries that receipt before any routing decision;
 a confirmed fork can then proceed to its first follow-up, while a confirmed
 follow-up consumes the original draft without sending it again. Changed input
-or missing phase association after reopening blocks new work and identifies
-the protected receipt. Successful follow-up receipts remain protected until the
+cannot replace an uncertain phase. A fork's durable receipt transfers to its
+follow-up in one journal transaction before dispatch. If that follow-up is
+definitively rejected, its receipt still retains the fork association: the
+original sender can accept corrected input for that same branch, while a
+reopened owner without the phase context blocks new work and identifies the
+protected receipt. Successful follow-up receipts remain protected until the
 captured draft consumption callback, including late/disposed owners. A receipt
 release callback is identity-fenced against a newer operation. This policy is
 shared by Report and Agent input; there is no force-resend button.

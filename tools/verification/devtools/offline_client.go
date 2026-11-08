@@ -352,6 +352,8 @@ func seedOfflineProfile(ctx context.Context, binary, directory, identity string)
 	writer.quit(ctx)
 }
 
+const offlineAttachmentOwnershipLock = "client-attachment-leases/ownership.lock"
+
 func offlineSnapshot(directory string) map[string][]byte {
 	files := make(map[string][]byte)
 	must(filepath.WalkDir(directory, func(path string, entry fs.DirEntry, err error) error {
@@ -365,10 +367,21 @@ func offlineSnapshot(directory string) map[string][]byte {
 		if err != nil {
 			return err
 		}
+		if name == offlineAttachmentOwnershipLock {
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
+			if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 {
+				return fmt.Errorf("attachment ownership lock must be a regular 0600 file: %s", path)
+			}
+		}
 		files[name], err = os.ReadFile(path)
 		return err
 	}))
-	check(len(files) == 2 && len(files["desktop-preferences.json"]) > 0, "native writer did not persist exactly preferences and one draft")
+	check(len(files) == 3 && len(files["desktop-preferences.json"]) > 0, "native writer did not persist exactly preferences, one draft and the attachment ownership lock")
+	gate, exists := files[offlineAttachmentOwnershipLock]
+	check(exists && len(gate) == 0, "native writer did not persist the empty attachment ownership lock")
 	drafts := 0
 	for name := range files {
 		if strings.HasPrefix(name, "client-drafts/") {
@@ -390,7 +403,17 @@ func changedOfflineRecords(before, after map[string][]byte) bool {
 		return false
 	}
 	for name, data := range before {
-		if len(after[name]) == 0 || bytes.Equal(data, after[name]) {
+		next, exists := after[name]
+		if !exists {
+			return false
+		}
+		if name == offlineAttachmentOwnershipLock {
+			if !bytes.Equal(data, next) {
+				return false
+			}
+			continue
+		}
+		if len(next) == 0 || bytes.Equal(data, next) {
 			return false
 		}
 	}

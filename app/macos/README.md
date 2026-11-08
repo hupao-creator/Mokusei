@@ -204,7 +204,7 @@ documentation for lifecycle boundaries and the production fixture command.
 
 Super Thread cards with an authored cover occupy the shared 1×2 Overview footprint
 (360×456pt). A passive 360×308 HTML/CSS cover and the original metadata share one
-outer card, separated by 4pt; the introduction is limited to two lines. The Report
+outer card, separated by 4pt; the introduction is limited to three lines. The Report
 plugin fetches `report.cover` by the independent catalog cover revision instead
 of carrying HTML in the catalog. Its nonpersistent, input-transparent WebKit document
 blocks script execution, navigation and external resources. Closing/unmounting

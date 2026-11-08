@@ -204,12 +204,13 @@ func (r *Repository) commandAttachmentIDs(live map[string]bool) error {
 		Version int    `json:"version"`
 		HostID  string `json:"hostID"`
 		Records []struct {
-			Key           string   `json:"key"`
-			ID            string   `json:"id"`
-			Fingerprint   string   `json:"fingerprint"`
-			Channel       string   `json:"channel"`
-			Status        string   `json:"status"`
-			AttachmentIDs []string `json:"attachmentIDs"`
+			Key           string          `json:"key"`
+			ID            string          `json:"id"`
+			Fingerprint   string          `json:"fingerprint"`
+			Channel       string          `json:"channel"`
+			Status        string          `json:"status"`
+			AttachmentIDs []string        `json:"attachmentIDs"`
+			ForkReceiptID json.RawMessage `json:"forkReceiptID"`
 		} `json:"records"`
 	}
 	if err = model.Unmarshal(data, &journal); err != nil || journal.Version != 1 || journal.HostID != "local" || journal.Records == nil || len(journal.Records) > 128 {
@@ -219,6 +220,12 @@ func (r *Repository) commandAttachmentIDs(live map[string]bool) error {
 		if record.ID == "" || record.Channel == "" || record.AttachmentIDs == nil || len(record.AttachmentIDs) > MaxMessageCount {
 			return errors.New("client command attachment ownership is incomplete; collection stopped")
 		}
+		if len(record.ForkReceiptID) != 0 {
+			var forkID string
+			if err := json.Unmarshal(record.ForkReceiptID, &forkID); err != nil || !validCommandReceiptID(forkID) || forkID == record.ID || record.Channel != "thread:follow-up" {
+				return errors.New("client command contains an invalid fork receipt; collection stopped")
+			}
+		}
 		for _, id := range record.AttachmentIDs {
 			if !managedID.MatchString(id) {
 				return errors.New("client command contains an invalid attachment owner; collection stopped")
@@ -227,6 +234,19 @@ func (r *Repository) commandAttachmentIDs(live map[string]bool) error {
 		}
 	}
 	return nil
+}
+
+func validCommandReceiptID(value string) bool {
+	if len(value) < 16 || len(value) > 128 {
+		return false
+	}
+	for _, character := range value {
+		if character >= '0' && character <= '9' || character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' || character == '-' || character == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func readClientDraft(file *os.File) ([]byte, error) {

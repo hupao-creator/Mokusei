@@ -36,6 +36,7 @@ type threadHandle struct {
 	cancel                    context.CancelFunc
 	mu                        sync.Mutex
 	sendMu                    sync.Mutex
+	eventMu                   sync.Mutex
 	connMu                    sync.Mutex
 	state                     State
 	rpc                       *Session
@@ -49,6 +50,7 @@ type threadHandle struct {
 	reads                     sync.WaitGroup
 	closeDone                 chan struct{}
 	closeErr                  error
+	cleanupErr                error
 }
 
 func newID(prefix string) string {
@@ -175,10 +177,14 @@ func (h *threadHandle) stopSession(expected *Session, status, reason string) err
 	var closeErr error
 	if rpc != nil {
 		closeErr = rpc.Close()
+		h.rememberCleanupFailure(closeErr)
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.state.SessionFile != "" {
+	if closeErr == nil {
+		closeErr = h.cleanupErr
+	}
+	if closeErr == nil && h.state.SessionFile != "" {
 		data, err := os.ReadFile(h.state.SessionFile)
 		if err == nil {
 			h.state.NativeSessionJSONL = string(data)
@@ -187,6 +193,17 @@ func (h *threadHandle) stopSession(expected *Session, status, reason string) err
 		}
 	}
 	return errors.Join(h.finishLocked(status, reason), closeErr)
+}
+
+func (h *threadHandle) rememberCleanupFailure(err error) {
+	if errors.Is(err, errRPCCleanupIncomplete) {
+		h.mu.Lock()
+		// Retiring the pointer cannot grant a replacement permission to reuse a
+		// native session whose former owner has not proved cleanup completion.
+		h.cleanupErr = err
+		h.closing = true
+		h.mu.Unlock()
+	}
 }
 func (h *threadHandle) fail(err error) {
 	h.mu.Lock()
@@ -201,9 +218,10 @@ func (h *threadHandle) canExecute() bool {
 	defer h.mu.Unlock()
 	return !h.closed && !h.closing && activeExecution(&h.state) != nil
 }
-func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Session, error) {
+func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (_ *Session, err error) {
 	h.connMu.Lock()
 	defer h.connMu.Unlock()
+	defer func() { h.rememberCleanupFailure(err) }()
 	record := h.open.ReadThread()
 	cwd := record.Cwd
 	if record.Worktree != nil && record.Worktree.Cwd != "" {
@@ -221,6 +239,11 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	configData, _ := json.Marshal([]any{cwd, settings})
 	config := string(configData)
 	h.mu.Lock()
+	if h.cleanupErr != nil {
+		err := h.cleanupErr
+		h.mu.Unlock()
+		return nil, err
+	}
 	if steer {
 		rpc := h.rpc
 		valid := rpc != nil && !h.closing && !h.closed
@@ -250,15 +273,17 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	life, cancel := context.WithCancel(h.ctx)
 	h.connectionCancel = cancel
 	h.mu.Unlock()
-	if old != nil {
-		_ = old.Close()
-	}
 	accepted := false
 	defer func() {
 		if !accepted {
 			cancel()
 		}
 	}()
+	if old != nil {
+		if err := old.Close(); err != nil {
+			return nil, err
+		}
+	}
 	directory := filepath.Join(h.host.HarnessDataRoot, h.open.ThreadID)
 	if filepath.Base(h.open.ThreadID) != h.open.ThreadID || h.open.ThreadID == "." {
 		return nil, errors.New("invalid Pi Thread ID")
@@ -341,8 +366,8 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	}
 	success := false
 	defer func() {
-		if !success {
-			_ = rpc.Close()
+		if !success && rpc != nil {
+			err = errors.Join(err, rpc.Close())
 		}
 	}()
 	if staging != "" {
@@ -369,7 +394,11 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 		return nil, err
 	}
 	if staging != "" {
-		_ = rpc.Close()
+		err = rpc.Close()
+		rpc = nil
+		if err != nil {
+			return nil, err
+		}
 		args = append([]string{"--session-dir", directory, "--session", native.SessionFile}, modelArgs...)
 		args = append(args, hostArgs...)
 		rpc, err = StartSession(life, ProcessOptions{ExecutablePath: executable, Cwd: cwd, Env: env, Args: args, Bridge: bridge})
@@ -388,6 +417,8 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	h.connectionConfig = config
 	h.mu.Unlock()
 	rpc.Subscribe(func(event Event) {
+		h.eventMu.Lock()
+		defer h.eventMu.Unlock()
 		h.mu.Lock()
 		if h.rpc != rpc || h.closed || h.closing {
 			h.mu.Unlock()
@@ -489,12 +520,50 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 		h.mu.Unlock()
 		return errors.New("Pi Thread disposed")
 	}
+	if h.cleanupErr != nil {
+		err := h.cleanupErr
+		h.mu.Unlock()
+		return err
+	}
 	current := activeExecution(&h.state)
 	if current != nil && current.ExecutionID != request.ExecutionID {
 		h.mu.Unlock()
 		return errors.New("Pi already has active Execution")
 	}
 	steering := current != nil
+	var reservation *steerReservation
+	if steering {
+		rpc := h.rpc
+		if rpc == nil || h.closing {
+			h.mu.Unlock()
+			return errors.New("Pi active Execution has no native connection")
+		}
+		reservation, err = rpc.reserveSteer(nil)
+		if err != nil {
+			h.mu.Unlock()
+			if err != plugin.ErrExecutionEnded {
+				return err
+			}
+			if err = rpc.FlushEvents(ctx); err != nil {
+				return err
+			}
+			h.mu.Lock()
+			ended := activeExecution(&h.state) == nil
+			h.mu.Unlock()
+			if !ended {
+				return errors.New("Pi terminal outcome has not been persisted")
+			}
+			return plugin.ErrExecutionEnded
+		}
+		defer reservation.release()
+	} else {
+		for _, execution := range h.state.Executions {
+			if execution.ExecutionID == request.ExecutionID {
+				h.mu.Unlock()
+				return plugin.ErrExecutionEnded
+			}
+		}
+	}
 	backup, _ := json.Marshal(h.state)
 	echo := &userEcho{ID: newID("pi-"), ExecutionID: request.ExecutionID, Text: input.Message}
 	if !steering {
@@ -551,7 +620,7 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 	defer stopWatch()
 	defer stopAcceptance()
 	var rpc *Session
-	if err = ctx.Err(); err == nil && request.Admitted != nil {
+	if err = ctx.Err(); err == nil && !steering && request.Admitted != nil {
 		err = request.Admitted()
 	}
 	if err == nil {
@@ -573,9 +642,17 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 			err = assertRuntimeSettings(ctx, rpc, settings, h.open.RequireExplicitSettings)
 		}
 	}
+	nativeAccepted := false
 	if err == nil {
 		input.Steer = steering
-		err = rpc.Prompt(ctx, input)
+		if steering {
+			nativeAccepted, err = reservation.submit(ctx, input)
+			if err == nil && request.Admitted != nil {
+				err = request.Admitted()
+			}
+		} else {
+			err = rpc.Prompt(ctx, input)
+		}
 		if err == nil {
 			stopAcceptance()
 			stopWatch()
@@ -596,7 +673,7 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 				err = errors.Join(err, fenceErr)
 			}
 			h.mu.Lock()
-			if !echo.Echoed {
+			if !nativeAccepted && !echo.Echoed {
 				h.state.Messages = slices.DeleteFunc(h.state.Messages, func(row MessageState) bool { return row.ID == echo.ID })
 				h.echoes = slices.DeleteFunc(h.echoes, func(row *userEcho) bool { return row == echo })
 				commitErr := h.commitLocked()
@@ -824,16 +901,38 @@ func (h *threadHandle) interactionLocked(event Event, current *model.PublicExecu
 	}
 	item := pendingInteraction{NativeID: event.ID, Method: event.Method, Options: options, NativeOptions: nativeOptions}
 	if event.Timeout != nil {
-		item.Timer = time.AfterFunc(time.Duration(min(*event.Timeout, 2147483647))*time.Millisecond, func() { h.fail(errors.New("Pi user request expired; rerun task")) })
+		executionID := current.ExecutionID
+		item.Timer = time.AfterFunc(time.Duration(min(*event.Timeout, 2147483647))*time.Millisecond, func() { h.expireInteraction(executionID, id) })
 	}
 	h.interactions[id] = item
 	current.Status = "waiting-for-user"
 	current.Interactions = append(current.Interactions, interaction)
 	return h.commitLocked()
 }
+func (h *threadHandle) expireInteraction(executionID, interactionID string) {
+	// Stop cannot retract an already queued timer callback. Serialize expiry
+	// with answers and new sends, then verify that this request still owns work.
+	h.sendMu.Lock()
+	defer h.sendMu.Unlock()
+	h.mu.Lock()
+	_, pending := h.interactions[interactionID]
+	current := activeExecution(&h.state)
+	rpc := h.rpc
+	expired := pending && current != nil && current.ExecutionID == executionID && rpc != nil && !h.closed && !h.closing
+	h.mu.Unlock()
+	if expired {
+		_ = h.stopSession(rpc, "failed", "Pi user request expired; rerun task")
+	}
+}
 func (h *threadHandle) Respond(ctx context.Context, request model.RespondRequest) error {
 	h.sendMu.Lock()
 	defer h.sendMu.Unlock()
+	// A native settlement may arrive before the answer's Write returns. Keep
+	// callbacks behind the local interaction commit. Respond only writes a
+	// frame; it never waits for a callback. Do not hold mu during pipe I/O so
+	// Interrupt and Close can still retire a blocked connection.
+	h.eventMu.Lock()
+	defer h.eventMu.Unlock()
 	h.mu.Lock()
 	item, ok := h.interactions[request.InteractionID]
 	current := activeExecution(&h.state)

@@ -11,7 +11,125 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/hupao-creator/Mokusei/internal/core/model"
+	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 )
+
+func TestSteerWaitsForPublishedTerminalBeforeRenewal(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	s := &Session{
+		nextRun: 1, run: &nativeRun{id: 1, completed: make(chan runResult, 1)},
+		listeners: make(map[int64]func(Event)), failures: make(map[int64]func(error)),
+		wake: make(chan struct{}, 1), closed: make(chan struct{}), dispatched: make(chan struct{}),
+	}
+	id := "e1"
+	state := &editorStateStore{}
+	h := &threadHandle{
+		ctx: ctx, rpc: s,
+		open: plugin.OpenContext{SessionState: state},
+		state: State{Version: 1, LatestExecutionID: &id,
+			Executions: []model.PublicExecution{{ExecutionID: id, Status: "running", StartedAt: 1}}},
+		interactions: make(map[string]pendingInteraction),
+	}
+	reduced := make(chan error, 1)
+	s.Subscribe(func(event Event) {
+		h.mu.Lock()
+		err := h.reduceLocked(event)
+		h.mu.Unlock()
+		reduced <- err
+	})
+	s.receive(map[string]any{"type": "agent_settled"})
+	<-s.wake
+	admitted := 0
+	done := make(chan error, 1)
+	go func() {
+		done <- h.Send(ctx, plugin.SendRequest{
+			ExecutionID: id, Input: model.AgentInput{Parts: []model.AgentInputPart{{Kind: "text", Text: "late follow-up"}}},
+			Admitted: func() error { admitted++; return errors.New("expired input was acknowledged") },
+		})
+	}()
+	select {
+	case <-s.wake:
+		// FlushEvents has queued its fence while the old terminal callback is
+		// still undelivered. Resume the actual Session dispatcher now.
+	case err := <-done:
+		t.Fatalf("send returned before publishing the queued terminal: %v", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	go s.dispatch()
+	defer func() { close(s.closed); <-s.dispatched }()
+	select {
+	case err := <-done:
+		if err != plugin.ErrExecutionEnded {
+			t.Fatalf("ended reservation returned %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	select {
+	case err := <-reduced:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if admitted != 0 || len(h.state.Messages) != 0 || len(h.state.Executions) != 1 || !h.state.Executions[0].Terminal() {
+		t.Fatalf("stale input changed its completed execution: admitted=%d state=%+v", admitted, h.state)
+	}
+}
+
+func TestResolvedSteerPreservesTerminalOnDisconnect(t *testing.T) {
+	for _, outcome := range []string{"queued", "started", "handled", "rejected"} {
+		t.Run(outcome, func(t *testing.T) {
+			run := &nativeRun{id: 1, completed: make(chan runResult, 1)}
+			s := &Session{run: run, listeners: make(map[int64]func(Event)), failures: make(map[int64]func(error)),
+				wake: make(chan struct{}, 1), closed: make(chan struct{}), dispatched: make(chan struct{})}
+			trace := make(chan string, 3)
+			s.Subscribe(func(event Event) { trace <- event.Type + ":" + event.Completion.Status })
+			s.OnFailure(func(error) { trace <- "disconnected" })
+			pending, err := s.reserveSteer(run)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.receive(map[string]any{"type": "agent_settled"})
+			if outcome == "rejected" {
+				pending.observe(rpcResult{err: errors.New("native rejected input")})
+			} else {
+				pending.observe(rpcResult{message: map[string]any{"disposition": outcome}})
+			}
+			if outcome == "started" {
+				// The replacement physical run also finishes before the host
+				// resumes acknowledgement of its already-retained input.
+				s.receive(map[string]any{"type": "agent_settled"})
+			}
+			s.fail(io.EOF)
+			pending.release()
+			go s.dispatch()
+			select {
+			case <-s.dispatched:
+			case <-time.After(5 * time.Second):
+				t.Fatal("terminal/failure callbacks did not drain")
+			}
+			if len(trace) != 2 || <-trace != "settled:completed" || <-trace != "disconnected" {
+				t.Fatal("disconnect replaced or reordered the known native terminal")
+			}
+			select {
+			case result := <-run.completed:
+				if result.err != nil || result.completion.Status != "completed" {
+					t.Fatalf("native completion lost its outcome: %+v", result)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("native completion did not settle")
+			}
+		})
+	}
+}
 
 type recordingRPCInput struct {
 	writes chan []byte
@@ -150,6 +268,7 @@ func TestCancellingRPCResponseWaitKeepsCompletedWrite(t *testing.T) {
 	rpc := &rpcTransport{
 		stdin: input, writeGate: make(chan struct{}, 1), pending: map[string]chan rpcResult{}, closed: make(chan struct{}),
 		stdout: io.NopCloser(strings.NewReader("")), stderr: io.NopCloser(strings.NewReader("")), cmd: &exec.Cmd{}, done: processDone,
+		readDone: processDone, stderrDone: processDone,
 	}
 	defer rpc.Close()
 	done := make(chan error, 1)
@@ -205,6 +324,7 @@ func TestCancellingStartedRPCWriteClosesConnection(t *testing.T) {
 		stdin: stalledRPCInput{File: writer, started: started}, writeGate: make(chan struct{}, 1),
 		stdout: io.NopCloser(strings.NewReader("")), stderr: io.NopCloser(strings.NewReader("")),
 		cmd: &exec.Cmd{}, done: processDone, closed: make(chan struct{}), pending: map[string]chan rpcResult{},
+		readDone: processDone, stderrDone: processDone,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

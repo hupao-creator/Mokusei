@@ -16,10 +16,13 @@ history without an execution identity cannot silently become current input.
 
 `NativeComposerDraft.submit` optionally notifies its owner through `didConsume`
 after the captured accepted revision has been consumed without a storage error.
-The resident Dock captures this callback with the original send, so closing or
-replacing its view cannot acknowledge another draft. Execution continuation
-uses it to release a retained accepted receipt; failed/uncertain sends never call
-it. Existing callers without retained receipts keep their ordinary behavior.
+The resident Dock and Moku history composer capture this callback with the
+original send, so closing or replacing their views cannot acknowledge another
+draft. Execution continuation and Moku submission use it to release a retained
+accepted receipt; failed/uncertain sends never call it. Moku's Host also captures
+the original Report/directory source for that callback, independently of the
+currently visible route. Existing callers without retained receipts keep their
+ordinary behavior.
 
 `NativeComposerTextInput` keeps an unconsumed focus request pending while the
 editor is unavailable or focus is suspended. Eligibility changes retry that

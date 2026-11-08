@@ -21,6 +21,7 @@ public struct NativeMokuThreadView: View {
     public let openExternal: ((URL) -> Void)?
     public let onBack: () -> Void
     public let onSend: (NativeComposerSubmission) async throws -> Void
+    public let onSendConsumed: (NativeComposerSubmission) async -> Void
     public let onCancel: () -> Void
     @Environment(\.locale) private var locale
     @State private var navigation: ThreadDetailBackAction
@@ -41,6 +42,7 @@ public struct NativeMokuThreadView: View {
                 error: String? = nil, openExternal: ((URL) -> Void)? = nil,
                 onBack: @escaping () -> Void,
                 onSend: @escaping (NativeComposerSubmission) async throws -> Void,
+                onSendConsumed: @escaping (NativeComposerSubmission) async -> Void = { _ in },
                 onCancel: @escaping () -> Void,
                 canStartVoice: @escaping () -> Bool = { false },
                 startVoice: @escaping () -> Void = {}) {
@@ -48,7 +50,8 @@ public struct NativeMokuThreadView: View {
         self.running = running; self.disabled = disabled
         self.error = error; self.loadMentionDirectories = loadMentionDirectories
         self.openExternal = openExternal; self.backLabel = backLabel; self.focusEnabled = focusEnabled
-        self.onNavigationChange = onNavigationChange; self.onBack = onBack; self.onSend = onSend; self.onCancel = onCancel
+        self.onNavigationChange = onNavigationChange; self.onBack = onBack; self.onSend = onSend
+        self.onSendConsumed = onSendConsumed; self.onCancel = onCancel
         _navigation = State(initialValue: ThreadDetailBackAction(label: backLabel ?? "返回俯瞰", onBack: onBack))
     }
     public var body: some View {
@@ -79,7 +82,8 @@ public struct NativeMokuThreadView: View {
                     running: running || thread.observation.isExecutionActive,
                     focusEnabled: focusEnabled, focusRequestKey: focusRequest,
                     suppressInitialFocus: readingTarget?.message != nil,
-                    loadMentionDirectories: loadMentionDirectories, onSend: onSend, onCancel: onCancel)
+                    loadMentionDirectories: loadMentionDirectories, onSend: onSend,
+                    onSendConsumed: onSendConsumed, onCancel: onCancel)
                     .frame(maxWidth: 560)
                     .padding(.horizontal, 24).padding(.trailing, 76)
             }

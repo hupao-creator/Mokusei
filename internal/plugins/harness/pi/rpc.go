@@ -29,6 +29,8 @@ const (
 	versionCacheTTL   = 5 * time.Minute
 )
 
+var errRPCCleanupIncomplete = errors.New("Pi RPC cleanup incomplete")
+
 type ProcessOptions struct {
 	ExecutablePath string
 	Cwd            string
@@ -252,18 +254,18 @@ func probeVersion(executable, cwd string, env []string) (string, error) {
 	version := strings.TrimSpace(stdout.String())
 	parts := stableVersion.FindStringSubmatch(version)
 	if len(parts) != 4 {
-		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.83.0. Check pi --version")
+		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
 	}
 	numbers := make([]int64, 3)
 	for i, part := range parts[1:] {
 		n, err := strconv.ParseInt(part, 10, 64)
 		if err != nil || n > 9007199254740991 {
-			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.83.0. Check pi --version")
+			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
 		}
 		numbers[i] = n
 	}
-	if numbers[0] == 0 && numbers[1] < 83 {
-		return "", fmt.Errorf("Pi CLI %s is too old; upgrade to Pi >= 0.83.0 for the required RPC completion protocol", version)
+	if numbers[0] == 0 && numbers[1] < 99 {
+		return "", fmt.Errorf("Pi CLI %s is too old; upgrade to Pi >= 0.99.0 for authoritative prompt admission outcomes", version)
 	}
 	return version, nil
 }
@@ -289,12 +291,14 @@ type rpcTransport struct {
 	readDone     chan struct{}
 	closed       chan struct{}
 	closeOnce    sync.Once
+	closeErr     error
 	writeGate    chan struct{}
 	mu           sync.Mutex
 	failure      error
 	sequence     int64
 	nextListener int64
 	pending      map[string]chan rpcResult
+	responses    map[string]func(rpcResult)
 	events       map[int64]func(map[string]any)
 	failures     map[int64]func(error)
 }
@@ -413,17 +417,14 @@ func startRPC(ctx context.Context, options ProcessOptions) (*rpcTransport, error
 	if options.Bridge != nil {
 		bridge, bridgeErr := startBridge(ctx, rpc.bridgeConn, *options.Bridge, rpc.fail)
 		if bridgeErr != nil {
-			_ = rpc.Close()
-			return nil, bridgeErr
+			return nil, errors.Join(bridgeErr, rpc.Close())
 		}
 		rpc.mu.Lock()
 		rpc.bridge = bridge
 		failed := rpc.failure
 		rpc.mu.Unlock()
 		if failed != nil {
-			_ = bridge.Close()
-			_ = rpc.Close()
-			return nil, failed
+			return nil, errors.Join(failed, bridge.Close(), rpc.Close())
 		}
 	}
 	startup, cancel := context.WithTimeout(ctx, rpcStartupTimeout)
@@ -436,8 +437,7 @@ func startRPC(ctx context.Context, options ProcessOptions) (*rpcTransport, error
 		if errors.Is(startup.Err(), context.DeadlineExceeded) {
 			err = fmt.Errorf("Pi RPC startup timed out")
 		}
-		_ = rpc.Close()
-		return nil, err
+		return nil, errors.Join(err, rpc.Close())
 	}
 	return rpc, nil
 }
@@ -486,6 +486,7 @@ func (r *rpcTransport) fail(err error) {
 	for id, response := range r.pending {
 		response <- rpcResult{err: err}
 		delete(r.pending, id)
+		delete(r.responses, id)
 	}
 	listeners := make([]func(error), 0, len(r.failures))
 	for _, listener := range r.failures {
@@ -552,19 +553,28 @@ func (r *rpcTransport) read() {
 		if frame["type"] == "response" {
 			id, _ := frame["id"].(string)
 			response := r.pending[id]
+			observe := r.responses[id]
 			delete(r.pending, id)
+			delete(r.responses, id)
+			r.mu.Unlock()
 			if response != nil {
+				result := rpcResult{}
 				if frame["success"] == true {
 					data, _ := frame["data"].(map[string]any)
 					if data == nil {
 						data = map[string]any{}
 					}
-					response <- rpcResult{message: data}
+					result.message = data
 				} else {
-					response <- rpcResult{err: fmt.Errorf("Pi RPC command rejected")}
+					result.err = fmt.Errorf("Pi RPC command rejected")
 				}
+				// Protocol bookkeeping must see acceptance before the next event,
+				// even when the requesting goroutine has not been scheduled yet.
+				if observe != nil {
+					observe(result)
+				}
+				response <- result
 			}
-			r.mu.Unlock()
 		} else {
 			listeners := make([]func(map[string]any), 0, len(r.events))
 			for _, listener := range r.events {
@@ -642,23 +652,39 @@ func (r *rpcTransport) write(ctx context.Context, message map[string]any) error 
 }
 
 func (r *rpcTransport) request(ctx context.Context, command map[string]any) (map[string]any, error) {
+	response, _, err := r.requestObserved(ctx, command, nil)
+	return response, err
+}
+
+// observe runs on the wire reader before later events, without r.mu. It is only
+// for nonblocking protocol state; application callbacks belong to Session.queue.
+// written reports a complete frame. A failed partial write still retires the
+// transport; false alone is not proof that an input may be replayed.
+func (r *rpcTransport) requestObserved(ctx context.Context, command map[string]any, observe func(rpcResult)) (responseData map[string]any, written bool, err error) {
 	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("Pi RPC request cancelled: %w", err)
+		return nil, false, fmt.Errorf("Pi RPC request cancelled: %w", err)
 	}
 	r.mu.Lock()
 	if r.failure != nil {
 		err := r.failure
 		r.mu.Unlock()
-		return nil, err
+		return nil, false, err
 	}
 	r.sequence++
 	id := fmt.Sprintf("oa-%d", r.sequence)
 	response := make(chan rpcResult, 1)
 	r.pending[id] = response
+	if observe != nil {
+		if r.responses == nil {
+			r.responses = make(map[string]func(rpcResult))
+		}
+		r.responses[id] = observe
+	}
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
 		delete(r.pending, id)
+		delete(r.responses, id)
 		r.mu.Unlock()
 	}()
 	message := cloneRecord(command)
@@ -667,29 +693,29 @@ func (r *rpcTransport) request(ctx context.Context, command map[string]any) (map
 	defer cancel()
 	if err := r.write(requestCtx, message); err != nil {
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+			return nil, false, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 		}
 		if requestCtx.Err() != nil {
 			// The writer retires partial frames itself. A timeout before the
 			// write gate was acquired must leave the active command intact.
-			return nil, fmt.Errorf("Pi RPC request timed out")
+			return nil, false, fmt.Errorf("Pi RPC request timed out")
 		}
 		err = fmt.Errorf("Pi RPC request could not be written: %w", err)
 		r.fail(err)
-		return nil, err
+		return nil, false, err
 	}
 	select {
 	case result := <-response:
-		return result.message, result.err
+		return result.message, true, result.err
 	case <-ctx.Done():
-		return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+		return nil, true, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 	case <-requestCtx.Done():
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+			return nil, true, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 		}
 		err := fmt.Errorf("Pi RPC request timed out")
 		r.fail(err)
-		return nil, err
+		return nil, true, err
 	}
 }
 
@@ -729,6 +755,8 @@ func (r *rpcTransport) onFailure(listener func(error)) func() {
 
 func (r *rpcTransport) Close() error {
 	r.closeOnce.Do(func() {
+		// failure stops admission; closed publishes this cleanup attempt's
+		// result. Only a nil result certifies both process exit and reader joins.
 		defer close(r.closed)
 		r.mu.Lock()
 		if r.failure == nil {
@@ -736,39 +764,64 @@ func (r *rpcTransport) Close() error {
 			for id, response := range r.pending {
 				response <- rpcResult{err: r.failure}
 				delete(r.pending, id)
+				delete(r.responses, id)
 			}
 		}
 		bridge := r.bridge
 		r.mu.Unlock()
 		if bridge != nil {
-			_ = bridge.Close()
-		}
-		if r.bridgeConn != nil {
-			_ = r.bridgeConn.Close()
+			r.closeErr = errors.Join(r.closeErr, bridge.Close())
+		} else if r.bridgeConn != nil {
+			r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.bridgeConn.Close()))
 		}
 		// EOF is Pi's normal shutdown request and lets asynchronous native
 		// session_shutdown hooks release their resources. Sending SIGTERM and
 		// EOF together can enter shutdown twice; Pi then exits immediately and
 		// skips the first disposal. Escalate only when EOF does not finish.
-		_ = r.stdin.Close()
-		select {
-		case <-r.done:
-		case <-time.After(time.Second):
-			_ = killProcessGroup(r.cmd, syscall.SIGTERM)
-			select {
-			case <-r.done:
-			case <-time.After(time.Second):
-				_ = killProcessGroup(r.cmd, syscall.SIGKILL)
-				select {
-				case <-r.done:
-				case <-time.After(time.Second):
-				}
+		r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.stdin.Close()))
+		if !waitRPCShutdown(r.done) {
+			r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGTERM))
+			if !waitRPCShutdown(r.done) {
+				r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGKILL))
+				_ = waitRPCShutdown(r.done)
 			}
 		}
 		// The direct child may have exited while grandchildren remain alive.
-		_ = killProcessGroup(r.cmd, syscall.SIGKILL)
-		_ = r.stdout.Close()
-		_ = r.stderr.Close()
+		r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGKILL))
+		// Give readers EOF before closing their descriptors. Closing a pipe can
+		// interrupt I/O, but cannot prove a protocol callback has returned.
+		drained := waitRPCShutdown(r.readDone, r.stderrDone)
+		r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.stdout.Close()), rpcCloseError(r.stderr.Close()))
+		if !drained && !waitRPCShutdown(r.readDone, r.stderrDone) {
+			r.closeErr = errors.Join(r.closeErr, fmt.Errorf("%w: stdout/stderr readers did not finish", errRPCCleanupIncomplete))
+		}
+		select {
+		case <-r.done:
+		default:
+			r.closeErr = errors.Join(r.closeErr, fmt.Errorf("%w: process wait did not finish after SIGKILL", errRPCCleanupIncomplete))
+		}
 	})
-	return nil
+	return r.closeErr
+}
+
+func waitRPCShutdown(done ...<-chan struct{}) bool {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	for _, completion := range done {
+		select {
+		case <-completion:
+		case <-timer.C:
+			return false
+		}
+	}
+	return true
+}
+
+func rpcCloseError(err error) error {
+	// Cancellation may already have closed stdin, and bridge shutdown owns its
+	// socket. Repeated descriptor closure is not an incomplete cleanup.
+	if errors.Is(err, os.ErrClosed) || errors.Is(err, net.ErrClosed) {
+		return nil
+	}
+	return err
 }

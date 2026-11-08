@@ -28,10 +28,14 @@ It covers:
   references. Its exact process references retain the file across Runtime
   restart; clearing them permits collection even while that client remains alive.
 - The durable command journal preserves uncertain inputs without any surviving
-  process lease or draft. `unresolved`, `unknown`, `indeterminate` and `accepted`
-  records each retain attachments across restart until the records are removed.
-  A record missing `attachmentIDs` blocks collection and reports a startup error;
-  it cannot be interpreted as an empty reference set.
+  process lease or draft. `awaitingReceipt`, `pending`, `unknown`, `indeterminate`,
+  `accepted` and `rejected` records each retain attachments across restart until
+  the records are removed. A follow-up successor with optional `forkReceiptID`
+  retains its own inputs after its fork receipt has been consumed; replacing an
+  old record releases only that old record's attachments. Missing `attachmentIDs`,
+  null, malformed, self-referencing or wrongly routed fork lineage, and unknown
+  journal fields block collection and report a startup error rather than being
+  interpreted as an empty reference set.
 - A real `SendThread` reaches `RetainInput` and then fails at native `Open`.
   Deleting that thread and discarding its chip still preserve the persisted draft.
 - A separate child process holds a real `flock` on the client's UUID lease file.

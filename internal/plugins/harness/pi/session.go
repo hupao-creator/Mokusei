@@ -61,7 +61,6 @@ func (r *nativeRun) accept(event Event) Event {
 	if event.Type != "settled" {
 		return event
 	}
-	r.steering.End()
 	completion := Completion{RunID: r.id, Status: "completed", FinishReason: "other"}
 	if r.assistant != nil {
 		completion.Text = r.assistant.Text
@@ -76,8 +75,12 @@ func (r *nativeRun) accept(event Event) Event {
 			completion.FinishReason = r.assistant.StopReason
 		}
 	}
-	r.once.Do(func() { r.completed <- runResult{completion: completion} })
 	return Event{Type: "settled", Completion: &completion}
+}
+
+func (r *nativeRun) complete(completion Completion) {
+	r.steering.End()
+	r.once.Do(func() { r.completed <- runResult{completion: completion} })
 }
 
 type Session struct {
@@ -88,6 +91,7 @@ type Session struct {
 	failure      error
 	nextRun      int64
 	run          *nativeRun
+	pending      *steerReservation
 	nextListener int64
 	listeners    map[int64]func(Event)
 	failures     map[int64]func(error)
@@ -125,8 +129,18 @@ func (s *Session) fail(err error) {
 		return
 	}
 	s.failure = err
+	if pending := s.pending; pending != nil && pending.resolved && pending.settled != nil {
+		// Once acceptance or rejection is known, a process exit must not
+		// replace a native terminal because acknowledgement/rollback is slow.
+		pending.run.complete(*pending.settled.Completion)
+		s.enqueueEventLocked(*pending.settled)
+		pending.settled = nil
+	}
 	if s.run != nil {
 		s.run.fail(err)
+	}
+	if s.pending != nil {
+		s.pending.run.fail(err)
 	}
 	listeners := make([]func(error), 0, len(s.failures))
 	for _, listener := range s.failures {
@@ -163,8 +177,24 @@ func (s *Session) receive(frame map[string]any) {
 		return
 	}
 	if event.Type == "settled" {
+		run := s.run
 		s.run = nil
+		if s.pending != nil && s.pending.run == run {
+			// A retained ordinary input still owns this execution. The native
+			// reply decides whether this is its final outcome or the preceding
+			// run's outcome before prompt(steer) started a continuation.
+			s.pending.settled = &event
+			s.mu.Unlock()
+			return
+		}
+		run.complete(*event.Completion)
 	}
+	s.enqueueEventLocked(event)
+	s.mu.Unlock()
+	s.signalDispatch()
+}
+
+func (s *Session) enqueueEventLocked(event Event) {
 	listeners := make([]func(Event), 0, len(s.listeners))
 	for _, listener := range s.listeners {
 		listeners = append(listeners, listener)
@@ -172,8 +202,6 @@ func (s *Session) receive(frame map[string]any) {
 	if len(listeners) > 0 {
 		s.queue = append(s.queue, sessionDelivery{event: event, listeners: listeners})
 	}
-	s.mu.Unlock()
-	s.signalDispatch()
 }
 
 func (s *Session) signalDispatch() {
@@ -303,38 +331,152 @@ func (s *Session) ThinkingLevels(ctx context.Context) ([]string, error) {
 	return piStrings(response["levels"], "thinking levels")
 }
 
-func (s *Session) begin(steer bool, policy *CompletionPolicy) (*nativeRun, bool, error) {
+func (s *Session) begin(policy *CompletionPolicy) (*nativeRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.failure != nil {
-		return nil, false, s.failure
+		return nil, s.failure
+	}
+	if s.pending != nil {
+		return nil, fmt.Errorf("Pi native input admission is pending")
 	}
 	if s.run != nil {
-		if !steer {
-			return nil, false, fmt.Errorf("Pi native session already has an active run")
-		}
-		return s.run, false, nil
+		return nil, fmt.Errorf("Pi native session already has an active run")
 	}
 	s.nextRun++
 	s.run = &nativeRun{id: s.nextRun, policy: policy, completed: make(chan runResult, 1)}
-	return s.run, true, nil
+	return s.run, nil
 }
 
-func (s *Session) submit(ctx context.Context, run *nativeRun, input PromptInput, startsRun bool) error {
+// A steerReservation binds input before Thread retention, under the same lock that
+// consumes native settlement. Settlement after this boundary waits for the
+// input's reply and durable acknowledgement; settlement before it is retryable.
+type steerReservation struct {
+	session  *Session
+	run      *nativeRun
+	settled  *Event
+	resolved bool
+	accepted bool
+	err      error
+}
+
+func (s *Session) reserveSteer(expected *nativeRun) (*steerReservation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failure != nil {
+		return nil, s.failure
+	}
+	if s.pending != nil {
+		return nil, fmt.Errorf("Pi native input admission is pending")
+	}
+	if s.run == nil || expected != nil && s.run != expected {
+		return nil, plugin.ErrExecutionEnded
+	}
+	pending := &steerReservation{session: s, run: s.run}
+	s.pending = pending
+	return pending, nil
+}
+
+func (p *steerReservation) observe(result rpcResult) {
+	s := p.session
+	s.mu.Lock()
+	if s.pending != p || s.failure != nil {
+		s.mu.Unlock()
+		return
+	}
+	if result.err != nil {
+		p.resolved = true
+		p.err = result.err
+		s.mu.Unlock()
+		return
+	}
+	var protocolErr error
+	switch result.message["disposition"] {
+	case "handled":
+		p.resolved = true
+		p.err = fmt.Errorf("Pi consumed this input in an extension without starting or queuing it as an agent task. Check Pi input extensions and resend the task")
+	case "queued":
+		p.resolved = true
+		p.accepted = true
+	case "started":
+		if p.settled == nil {
+			protocolErr = fmt.Errorf("Pi started a continuation without settling its previous run")
+			break
+		}
+		// Pi reports started before the new run's events on the same wire.
+		// Continue the already-reserved execution; its old physical run no
+		// longer supplies the terminal result for this accepted input.
+		p.accepted = true
+		p.resolved = true
+		p.settled = nil
+		p.run.assistant = nil
+		s.run = p.run
+	default:
+		protocolErr = fmt.Errorf("Pi prompt response has no valid admission disposition")
+	}
+	if protocolErr != nil {
+		p.err = protocolErr
+	}
+	s.mu.Unlock()
+	if protocolErr != nil {
+		s.fail(protocolErr)
+		go func() { _ = s.rpc.Close() }()
+	}
+}
+
+func (p *steerReservation) submit(ctx context.Context, input PromptInput) (bool, error) {
+	command := map[string]any{"type": "prompt", "message": input.Message, "streamingBehavior": "steer"}
+	if len(input.Images) > 0 {
+		command["images"] = input.Images
+	}
+	_, written, err := p.session.rpc.requestObserved(ctx, command, p.observe)
+	s := p.session
+	s.mu.Lock()
+	accepted, resolved := p.accepted, p.resolved
+	if p.err != nil {
+		err = p.err
+	}
+	if err == nil && (!resolved || !accepted) {
+		err = s.failure
+		if err == nil {
+			err = fmt.Errorf("Pi did not confirm reserved input acceptance")
+		}
+	}
+	s.mu.Unlock()
+	if err != nil && written && !resolved {
+		// A written prompt may start a native continuation. Without its reply
+		// there is no safe way to release the old terminal or authorize replay.
+		s.fail(err)
+		go func() { _ = s.rpc.Close() }()
+	}
+	return accepted, err
+}
+
+func (p *steerReservation) release() {
+	s := p.session
+	s.mu.Lock()
+	if s.pending == p {
+		s.pending = nil
+		if p.settled != nil && s.failure == nil {
+			p.run.complete(*p.settled.Completion)
+			s.enqueueEventLocked(*p.settled)
+		}
+	}
+	s.mu.Unlock()
+	s.signalDispatch()
+}
+
+func (s *Session) submitInitial(ctx context.Context, run *nativeRun, input PromptInput) error {
 	command := map[string]any{"type": "prompt", "message": input.Message}
 	if len(input.Images) > 0 {
 		command["images"] = input.Images
 	}
-	if input.Steer {
-		command["streamingBehavior"] = "steer"
-	}
 	response, err := s.rpc.request(ctx, command)
 	if err == nil && response["disposition"] == "handled" {
-		// Pi 0.99 extensions may consume an input without starting work. A
-		// consumed steer rejects only that submission, keeping its run alive.
+		// Extensions may consume an input without starting agent work.
 		err = fmt.Errorf("Pi consumed this input in an extension without starting or queuing it as an agent task. Check Pi input extensions and resend the task")
 	}
-	if err != nil && startsRun {
+	if err != nil {
 		s.mu.Lock()
 		run.fail(err)
 		if s.run == run {
@@ -350,11 +492,20 @@ func (s *Session) Prompt(ctx context.Context, input PromptInput) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	run, startsRun, err := s.begin(input.Steer, nil)
+	if input.Steer {
+		pending, err := s.reserveSteer(nil)
+		if err != nil {
+			return err
+		}
+		defer pending.release()
+		_, err = pending.submit(ctx, input)
+		return err
+	}
+	run, err := s.begin(nil)
 	if err != nil {
 		return err
 	}
-	return s.submit(ctx, run, input, startsRun)
+	return s.submitInitial(ctx, run, input)
 }
 
 // Complete submits an isolated prompt and waits for that run's own successful
@@ -367,7 +518,7 @@ func (s *Session) CompleteSteerable(ctx context.Context, input PromptInput, poli
 	if err := ctx.Err(); err != nil {
 		return Completion{}, err
 	}
-	run, _, err := s.begin(false, &policy)
+	run, err := s.begin(&policy)
 	if err != nil {
 		return Completion{}, err
 	}
@@ -375,18 +526,20 @@ func (s *Session) CompleteSteerable(ctx context.Context, input PromptInput, poli
 	run.steering = steering
 	s.mu.Unlock()
 	input.Steer = false
-	if err := s.submit(ctx, run, input, true); err != nil {
+	if err := s.submitInitial(ctx, run, input); err != nil {
 		return Completion{}, err
 	}
 	steering.Bind(func(ctx context.Context, text string) error {
-		s.mu.Lock()
-		current := s.run == run
-		s.mu.Unlock()
-		if !current {
+		pending, err := s.reserveSteer(run)
+		if err == plugin.ErrExecutionEnded {
 			return plugin.ErrPromptSettled
 		}
-		// Never use begin(true): a settled run must not allocate another run.
-		return s.submit(ctx, run, PromptInput{Message: text, Steer: true}, false)
+		if err != nil {
+			return err
+		}
+		defer pending.release()
+		_, err = pending.submit(ctx, PromptInput{Message: text, Steer: true})
+		return err
 	})
 	var result runResult
 	select {
@@ -460,6 +613,8 @@ func (s *Session) OnFailure(listener func(error)) func() {
 	}
 }
 
+// Close stops native work and joins its process/readers. It deliberately does
+// not join dispatch: a subscriber may close the Session from its own callback.
 func (s *Session) Close() error {
 	s.mu.Lock()
 	if s.failure == nil {
@@ -468,6 +623,10 @@ func (s *Session) Close() error {
 	if s.run != nil {
 		s.run.fail(s.failure)
 		s.run = nil
+	}
+	if s.pending != nil {
+		s.pending.run.fail(s.failure)
+		s.pending = nil
 	}
 	s.listeners = map[int64]func(Event){}
 	s.failures = map[int64]func(error){}

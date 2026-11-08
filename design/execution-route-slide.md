@@ -16,6 +16,18 @@ source reference and sidecard-selection identities fence the result. Returning t
 the list, folding, choosing Browser or leaving cannot be undone by a late receipt.
 Same-execution steering leaves the reader and its scroll position untouched.
 
+A historical fork retains its accepted receipt until the client atomically
+replaces it with the follow-up receipt in the profile journal, before dispatching
+the follow-up. Preparation or storage failure keeps the original fork as the
+durable barrier and retries the same handoff. A crash on either side therefore
+cannot leave an existing branch without any continuation receipt. Reopening
+without its original source/input context still blocks rather than inferring a
+new fork from the catalog.
+The successor retains the original fork identity even when its input is
+definitely rejected. The live sender can then replace that rejected receipt
+and retry edited input on the same branch; it cannot release the branch barrier
+or choose another source. Unknown outcomes remain query-only.
+
 `NativeReportExecutionScroll` retains the actual outgoing native reader at its
 current scroll position. The incoming exact reader loads through the ordinary
 capability, including scoped row/Markdown readiness, errors and unavailable

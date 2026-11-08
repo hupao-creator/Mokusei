@@ -2,7 +2,6 @@ import Foundation
 import XCTest
 import MokuseiCore
 
-private let attachmentReceiptID = "native_attachment_uncertain_receipt"
 private let attachmentReceiptFixture = "verification-attachment-receipt.json"
 
 /// Extends the authenticated file replay with a receipt that has no Thread owner.
@@ -14,6 +13,7 @@ func holdUncertainAttachment(client: RuntimeClient, profile: RuntimeProfile, fil
         // This actor restores before the first client creates its receipt, so
         // rewriting its cached journal would silently discard that new owner.
         try await other.start()
+        let attachmentReceiptID = "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
         let input: JSONValue = .object(["parts": .array([
             .object(["kind": .text("local-file"), "file": .object(["id": .text(id)])])
         ])])
@@ -35,7 +35,7 @@ func holdUncertainAttachment(client: RuntimeClient, profile: RuntimeProfile, fil
         let journal = try JSONValue(data: Data(contentsOf: profile.dataDirectory.appendingPathComponent("client-command-journal.json")))
         let record = try XCTUnwrap(journal["records"]?.arrayValue?.first { $0["id"]?.stringValue == attachmentReceiptID })
         XCTAssertEqual(record["attachmentIDs"], .array([.text(id)]))
-        let metadata = try JSONValue.object(["attachment": file]).encodedData()
+        let metadata = try JSONValue.object(["attachment": file, "receiptID": .text(attachmentReceiptID)]).encodedData()
         try metadata.write(to: profile.dataDirectory.appendingPathComponent(attachmentReceiptFixture), options: .atomic)
     } catch {
         await other.close()
@@ -48,6 +48,7 @@ func holdUncertainAttachment(client: RuntimeClient, profile: RuntimeProfile, fil
 func releaseUncertainAttachment(client: RuntimeClient, profile: RuntimeProfile) async throws {
     let metadataURL = profile.dataDirectory.appendingPathComponent(attachmentReceiptFixture)
     let metadata = try JSONValue(data: Data(contentsOf: metadataURL))
+    let attachmentReceiptID = try XCTUnwrap(metadata["receiptID"]?.stringValue)
     let path = try XCTUnwrap(metadata["attachment"]?["path"]?.stringValue)
     let outcomes = await client.commandOutcomes()
     XCTAssertTrue(outcomes.contains { $0.commandID == attachmentReceiptID },
