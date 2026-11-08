@@ -55,6 +55,10 @@ media events are fixed local fixtures.
   target-catalog tool bindings.
 - Execution ownership: an interleaved terminal commit cannot recreate a stale
   tool scope or cause a read against a delegated model after cancellation.
+- Out-of-order commit delivery: a note snapshot from a completed execution
+  arriving after its successor cannot cancel the successor's in-flight read or
+  revoke its next tool call. A delayed first terminal notification still settles
+  that older execution's pending audit without taking the successor's scope.
 - Context timeouts, cached telemetry, discarded results from retired generations,
   and shutdown waiting for a contributor that has not yet released its work.
 - Real configuration admission locks, deferred settings while running, idle

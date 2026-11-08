@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import ScreenCaptureKit
 import SwiftUI
 import Testing
 #if SWIFT_PACKAGE
@@ -153,13 +154,25 @@ struct NativeReadingPagePresentationTests {
         var setupSamples: [[String: Any]] = [], openingSamples: [[String: Any]] = [], returnSamples: [[String: Any]] = []
         var openSet: [String: Any] = [:], closeSet: [String: Any] = [:], closeGeometry: [String: Any] = [:]
         var beforeReturnSample: [String: Any] = [:], duringReturnSample: [String: Any] = [:]
-        @MainActor func observe() -> (x: CGFloat?, size: CGSize, tolerance: CGFloat, active: Bool, record: [String: Any]) {
+        let diagnosticLimit = 2048
+        var progressWrites: [NativeReadingPageMotion.ProgressWrite] = []
+        progressWrites.reserveCapacity(diagnosticLimit)
+        openingSamples.reserveCapacity(diagnosticLimit)
+        var droppedProgressWrites = 0, droppedOpeningSamples = 0
+        var latestOpeningSample: [String: Any] = [:], failureState: [String: Any] = [:], failureImage: [String: Any] = [:]
+        weak var sampledRootAnchor: NativeReadingPageAnchorView?
+        weak var sampledFrontAnchor: NativeReadingPageAnchorView?
+        fixture.motion.progressWriteObserver = { sample in
+            if progressWrites.count < diagnosticLimit { progressWrites.append(sample) }
+            else { droppedProgressWrites += 1 }
+        }
+        @MainActor func observe(anchors: Bool = false) -> (x: CGFloat?, size: CGSize, tolerance: CGFloat, active: Bool, record: [String: Any]) {
             let x = fixture.frontProbe.map { $0.convert($0.bounds, to: root).minX }
             let size = root.bounds.size
             let tolerance = 1 / max(1, window.backingScaleFactor)
             let active = fixture.motion.active
             let now = ProcessInfo.processInfo.systemUptime
-            let record: [String: Any] = ["uptime": now, "elapsedMilliseconds": (now - diagnosticStart) * 1000,
+            var record: [String: Any] = ["uptime": now, "elapsedMilliseconds": (now - diagnosticStart) * 1000,
                 "x": x.map { $0 as Any } ?? NSNull(), "rootWidth": size.width, "rootHeight": size.height,
                 "pixelTolerance": tolerance, "motionActive": active, "open": fixture.open,
                 "renderedText": fixture.renderedText, "parentAppearances": fixture.parentAppearances,
@@ -167,14 +180,44 @@ struct NativeReadingPagePresentationTests {
                 "applicationActive": NSApp.isActive, "windowVisible": window.isVisible, "windowKey": window.isKeyWindow,
                 "currentRoot": window.contentView === root, "rootInWindow": root.window === window,
                 "probeInWindow": fixture.frontProbe?.window === window]
+            if anchors {
+                // Read the same native surfaces on the existing display callback;
+                // progress-write callbacks only append their small value sample.
+                record["anchorReadStartUptime"] = ProcessInfo.processInfo.systemUptime
+                if sampledRootAnchor?.window !== window || sampledFrontAnchor?.window !== window {
+                    var pending = [root]
+                    while let view = pending.popLast() {
+                        if let anchor = view as? NativeReadingPageAnchorView, let owner = anchor.owner {
+                            if owner.owns(anchor, role: .root) { sampledRootAnchor = anchor }
+                            if owner.owns(anchor, role: .front) { sampledFrontAnchor = anchor }
+                        }
+                        pending.append(contentsOf: view.subviews)
+                    }
+                }
+                for (name, anchor) in [("rootAnchorFrame", sampledRootAnchor), ("frontAnchorFrame", sampledFrontAnchor)] {
+                    if let anchor {
+                        let frame = anchor.convert(anchor.bounds, to: root)
+                        record[name] = ["x": Double(frame.minX), "y": Double(frame.minY),
+                                        "width": Double(frame.width), "height": Double(frame.height)]
+                    } else { record[name] = NSNull() }
+                }
+                record["anchorsShareOwner"] = sampledRootAnchor?.owner != nil && sampledRootAnchor?.owner === sampledFrontAnchor?.owner
+                record["anchorReadEndUptime"] = ProcessInfo.processInfo.systemUptime
+            }
             return (x, size, tolerance, active, record)
         }
         defer {
+            fixture.motion.progressWriteObserver = nil
+            let writes: [[String: Any]] = progressWrites.map { ["uptime": $0.uptime,
+                "elapsedMilliseconds": ($0.uptime - diagnosticStart) * 1000, "progress": $0.progress,
+                "reason": $0.reason, "generation": $0.generation] }
             let diagnostic: [String: Any] = ["clock": "ProcessInfo.systemUptime", "diagnosticStartUptime": diagnosticStart,
                 "driveLayout": false, "requestedWidth": requestedSize.width, "requestedHeight": requestedSize.height,
                 "setupChecks": setupSamples.count, "setupSamples": setupSamples,
-                "openSet": openSet, "openingChecks": openingSamples.count, "openingSamples": openingSamples,
-                "latestOpeningSample": openingSamples.last ?? [:], "beforeReturn": beforeReturnSample,
+                "openSet": openSet, "openingChecks": openingSamples.count + droppedOpeningSamples, "openingSamples": openingSamples,
+                "latestOpeningSample": latestOpeningSample, "beforeReturn": beforeReturnSample,
+                "diagnosticLimit": diagnosticLimit, "progressWrites": writes, "droppedProgressWrites": droppedProgressWrites,
+                "droppedOpeningSamples": droppedOpeningSamples, "failureState": failureState, "failureImage": failureImage,
                 "closeSet": closeSet, "closeGeometry": closeGeometry, "duringReturn": duringReturnSample,
                 "returnChecks": returnSamples.count, "returnSamples": returnSamples, "finalState": observe().record]
             if let data = try? JSONSerialization.data(withJSONObject: diagnostic, options: [.sortedKeys]),
@@ -193,8 +236,10 @@ struct NativeReadingPagePresentationTests {
         enum FrameFailure: Error { case invalidGeometry(String) }
         var observedReturn: Result<(probe: NSView, position: CGFloat), Error>?
         let openingObserver = SwiftUIReplay.FrameObserver(view: root) {
-            let sample = observe()
-            openingSamples.append(sample.record)
+            let sample = observe(anchors: true)
+            latestOpeningSample = sample.record
+            if openingSamples.count < diagnosticLimit { openingSamples.append(sample.record) }
+            else { droppedOpeningSamples += 1 }
             guard let x = sample.x,
                   x > sample.size.width * 0.4 && x < sample.size.width * 0.6 else { return false }
             // Qualify and reverse this same committed pose. Resuming an async
@@ -276,7 +321,14 @@ struct NativeReadingPagePresentationTests {
         fixture.open = true
         let openSetAfter = ProcessInfo.processInfo.systemUptime
         openSet = ["beforeUptime": openSetBefore, "afterUptime": openSetAfter]
-        try await SwiftUIReplay.wait(driveLayout: false) { observedReturn != nil }
+        do { try await SwiftUIReplay.wait(driveLayout: false) { observedReturn != nil } }
+        catch {
+            failureState = observe().record
+            openingObserver.stop()
+            fixture.motion.progressWriteObserver = nil
+            failureImage = await captureRetainedOverviewFailure(window)
+            throw error
+        }
         let admittedReturn = try #require(observedReturn).get()
         let probe = admittedReturn.probe
         let beforeReturn = admittedReturn.position
@@ -292,6 +344,45 @@ struct NativeReadingPagePresentationTests {
         }
         #expect(fixture.parentAppearances == count)
         print("OVERVIEW_RETAINED_RETURN_CONFIRMED AppKit=true latestContent=true preservedParent=true")
+    }
+
+    private func captureRetainedOverviewFailure(_ window: NSWindow) async -> [String: Any] {
+        // The failed interval is already over. This single WindowServer image is
+        // post-failure context, never evidence of the missed opening midpoint.
+        var record: [String: Any] = ["stage": "post-failure; not the opening midpoint",
+            "source": "WindowServer/ScreenCaptureKit", "requestedUptime": ProcessInfo.processInfo.systemUptime]
+        do {
+            let shareable = try await SCShareableContent.currentProcess
+            guard let target = shareable.windows.first(where: { $0.windowID == CGWindowID(window.windowNumber) }) else {
+                record["error"] = "The failed replay window is not shareable"
+                return record
+            }
+            let configuration = SCStreamConfiguration()
+            configuration.width = Int(target.frame.width * window.backingScaleFactor)
+            configuration.height = Int(target.frame.height * window.backingScaleFactor)
+            configuration.showsCursor = false
+            configuration.ignoreShadowsSingleWindow = true
+            record["captureStartUptime"] = ProcessInfo.processInfo.systemUptime
+            let image = try await SCScreenshotManager.captureImage(
+                contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: configuration)
+            record["captureEndUptime"] = ProcessInfo.processInfo.systemUptime
+            guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+                record["error"] = "WindowServer image could not be encoded as PNG"
+                return record
+            }
+            let directory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MOKUSEI_READING_MOTION_ARTIFACTS"]
+                ?? FileManager.default.temporaryDirectory.appendingPathComponent("reading-presentation").path)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let destination = directory.appendingPathComponent("retained-overview-post-failure.png")
+            try png.write(to: destination)
+            record["path"] = destination.path
+            record["pixelWidth"] = image.width
+            record["pixelHeight"] = image.height
+        } catch {
+            record["error"] = String(describing: error)
+            record["captureEndUptime"] = ProcessInfo.processInfo.systemUptime
+        }
+        return record
     }
     private func pixels(_ window: NSWindow) throws -> (left: NSColor, right: NSColor) {
         let root = try #require(window.contentView)

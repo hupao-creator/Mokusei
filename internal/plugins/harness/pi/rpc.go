@@ -254,18 +254,18 @@ func probeVersion(executable, cwd string, env []string) (string, error) {
 	version := strings.TrimSpace(stdout.String())
 	parts := stableVersion.FindStringSubmatch(version)
 	if len(parts) != 4 {
-		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.83.0. Check pi --version")
+		return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
 	}
 	numbers := make([]int64, 3)
 	for i, part := range parts[1:] {
 		n, err := strconv.ParseInt(part, 10, 64)
 		if err != nil || n > 9007199254740991 {
-			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.83.0. Check pi --version")
+			return "", fmt.Errorf("Pi CLI returned an unrecognized or prerelease version; Mokusei requires a stable Pi release >= 0.99.0. Check pi --version")
 		}
 		numbers[i] = n
 	}
-	if numbers[0] == 0 && numbers[1] < 83 {
-		return "", fmt.Errorf("Pi CLI %s is too old; upgrade to Pi >= 0.83.0 for the required RPC completion protocol", version)
+	if numbers[0] == 0 && numbers[1] < 99 {
+		return "", fmt.Errorf("Pi CLI %s is too old; upgrade to Pi >= 0.99.0 for authoritative prompt admission outcomes", version)
 	}
 	return version, nil
 }
@@ -298,6 +298,7 @@ type rpcTransport struct {
 	sequence     int64
 	nextListener int64
 	pending      map[string]chan rpcResult
+	responses    map[string]func(rpcResult)
 	events       map[int64]func(map[string]any)
 	failures     map[int64]func(error)
 }
@@ -485,6 +486,7 @@ func (r *rpcTransport) fail(err error) {
 	for id, response := range r.pending {
 		response <- rpcResult{err: err}
 		delete(r.pending, id)
+		delete(r.responses, id)
 	}
 	listeners := make([]func(error), 0, len(r.failures))
 	for _, listener := range r.failures {
@@ -551,19 +553,28 @@ func (r *rpcTransport) read() {
 		if frame["type"] == "response" {
 			id, _ := frame["id"].(string)
 			response := r.pending[id]
+			observe := r.responses[id]
 			delete(r.pending, id)
+			delete(r.responses, id)
+			r.mu.Unlock()
 			if response != nil {
+				result := rpcResult{}
 				if frame["success"] == true {
 					data, _ := frame["data"].(map[string]any)
 					if data == nil {
 						data = map[string]any{}
 					}
-					response <- rpcResult{message: data}
+					result.message = data
 				} else {
-					response <- rpcResult{err: fmt.Errorf("Pi RPC command rejected")}
+					result.err = fmt.Errorf("Pi RPC command rejected")
 				}
+				// Protocol bookkeeping must see acceptance before the next event,
+				// even when the requesting goroutine has not been scheduled yet.
+				if observe != nil {
+					observe(result)
+				}
+				response <- result
 			}
-			r.mu.Unlock()
 		} else {
 			listeners := make([]func(map[string]any), 0, len(r.events))
 			for _, listener := range r.events {
@@ -641,23 +652,39 @@ func (r *rpcTransport) write(ctx context.Context, message map[string]any) error 
 }
 
 func (r *rpcTransport) request(ctx context.Context, command map[string]any) (map[string]any, error) {
+	response, _, err := r.requestObserved(ctx, command, nil)
+	return response, err
+}
+
+// observe runs on the wire reader before later events, without r.mu. It is only
+// for nonblocking protocol state; application callbacks belong to Session.queue.
+// written reports a complete frame. A failed partial write still retires the
+// transport; false alone is not proof that an input may be replayed.
+func (r *rpcTransport) requestObserved(ctx context.Context, command map[string]any, observe func(rpcResult)) (responseData map[string]any, written bool, err error) {
 	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("Pi RPC request cancelled: %w", err)
+		return nil, false, fmt.Errorf("Pi RPC request cancelled: %w", err)
 	}
 	r.mu.Lock()
 	if r.failure != nil {
 		err := r.failure
 		r.mu.Unlock()
-		return nil, err
+		return nil, false, err
 	}
 	r.sequence++
 	id := fmt.Sprintf("oa-%d", r.sequence)
 	response := make(chan rpcResult, 1)
 	r.pending[id] = response
+	if observe != nil {
+		if r.responses == nil {
+			r.responses = make(map[string]func(rpcResult))
+		}
+		r.responses[id] = observe
+	}
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
 		delete(r.pending, id)
+		delete(r.responses, id)
 		r.mu.Unlock()
 	}()
 	message := cloneRecord(command)
@@ -666,29 +693,29 @@ func (r *rpcTransport) request(ctx context.Context, command map[string]any) (map
 	defer cancel()
 	if err := r.write(requestCtx, message); err != nil {
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+			return nil, false, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 		}
 		if requestCtx.Err() != nil {
 			// The writer retires partial frames itself. A timeout before the
 			// write gate was acquired must leave the active command intact.
-			return nil, fmt.Errorf("Pi RPC request timed out")
+			return nil, false, fmt.Errorf("Pi RPC request timed out")
 		}
 		err = fmt.Errorf("Pi RPC request could not be written: %w", err)
 		r.fail(err)
-		return nil, err
+		return nil, false, err
 	}
 	select {
 	case result := <-response:
-		return result.message, result.err
+		return result.message, true, result.err
 	case <-ctx.Done():
-		return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+		return nil, true, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 	case <-requestCtx.Done():
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
+			return nil, true, fmt.Errorf("Pi RPC request cancelled: %w", ctx.Err())
 		}
 		err := fmt.Errorf("Pi RPC request timed out")
 		r.fail(err)
-		return nil, err
+		return nil, true, err
 	}
 }
 
@@ -737,6 +764,7 @@ func (r *rpcTransport) Close() error {
 			for id, response := range r.pending {
 				response <- rpcResult{err: r.failure}
 				delete(r.pending, id)
+				delete(r.responses, id)
 			}
 		}
 		bridge := r.bridge

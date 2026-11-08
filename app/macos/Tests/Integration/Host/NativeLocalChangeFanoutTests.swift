@@ -61,8 +61,8 @@ struct NativeLocalChangeFanoutTests {
         }
     }
 
-    @Test(arguments: [8, 128])
-    func contentAndActivityVisitOnlyChangedOwners(unrelatedCount: Int) async throws {
+    @Test(arguments: [8, 128], [false, true])
+    func contentAndActivityVisitOnlyChangedOwners(unrelatedCount: Int, replacement: Bool) async throws {
         let threads = try [thread("target")] + (0..<unrelatedCount).map { try thread(JSONText("thread-\($0)")) }
         let applications = [report("report-target")] + (0..<unrelatedCount).map { report("report-\($0)") }
         try await withFixture(threads: threads, applications: applications) { fixture in
@@ -70,11 +70,17 @@ struct NativeLocalChangeFanoutTests {
             let originalItems = model.items
             let projections = model.projectionVisitCount, visits = model.catalogChangeVisitCount
             let selections = model.membershipSelectionCount
+            let candidates = model.membershipApplicationCandidateVisits
             let admissions = fixture.workspace.catalog.applicationAdmissionCount
-            try await fixture.patch(["threads": patch(upserts: [try thread("target", title: "Latest thread", revision: 1).json])])
+            let revision = replacement ? 0 : 1
+            try await fixture.patch(["threads": patch(
+                upserts: [try thread("target", title: "Latest thread", revision: revision).json],
+                removed: replacement ? ["target"] : [])])
             #expect(model.projectionVisitCount == projections + 1)
             #expect(model.catalogChangeVisitCount == visits + 1)
             #expect(model.membershipSelectionCount == selections)
+            #expect(model.membershipApplicationCandidateVisits == candidates)
+            #expect(model.items.map(\.id) == originalItems.map(\.id))
             #expect(fixture.workspace.catalog.applicationAdmissionCount == admissions)
             #expect(model.items.filter { $0.id != "target" } == originalItems.filter { $0.id != "target" })
             let threadItem = try #require(model.items.first { $0.id == "target" })
@@ -85,11 +91,13 @@ struct NativeLocalChangeFanoutTests {
 
             let beforeApplication = model.items
             try await fixture.patch(["applicationThreads": patch(upserts: [
-                report("report-target", title: "Latest report", introduction: "Latest introduction", revision: 1)
-            ])])
+                report("report-target", title: "Latest report", introduction: "Latest introduction", revision: revision)
+            ], removed: replacement ? ["report-target"] : [])])
             #expect(model.projectionVisitCount == projections + 2)
             #expect(model.catalogChangeVisitCount == visits + 2)
             #expect(model.membershipSelectionCount == selections)
+            #expect(model.membershipApplicationCandidateVisits == candidates)
+            #expect(model.items.map(\.id) == originalItems.map(\.id))
             #expect(fixture.workspace.catalog.applicationAdmissionCount == admissions + 1)
             #expect(model.items.filter { $0.id != "report-target" } == beforeApplication.filter { $0.id != "report-target" })
             let reportItem = try #require(model.items.first { $0.id == "report-target" })
@@ -109,7 +117,7 @@ struct NativeLocalChangeFanoutTests {
             let previousApplications = try #require(beforeActivity["applicationThreads"]?.catalogValue)
             #expect(currentThreads.sharesStorage(with: previousThreads))
             #expect(currentApplications.sharesStorage(with: previousApplications))
-            print("LOCAL_CHANGE_FANOUT unrelated=\(unrelatedCount) contentVisits=1 contentProjections=1 activityVisits=0")
+            print("LOCAL_CHANGE_FANOUT unrelated=\(unrelatedCount) replacement=\(replacement) contentVisits=1 contentProjections=1 activityVisits=0")
         }
     }
 
@@ -225,9 +233,16 @@ struct NativeLocalChangeFanoutTests {
             #expect(model.items.map(\.id) == ["a1", "b2", "b1", "ra1", "rb2", "rb1"])
             model.selectTag(nil)
             #expect(model.items.map(\.id) == ["a1", "a2", "b2", "b1", "ra1", "ra2", "rb2", "rb1"])
+            // Each order detector must force reconciliation independently;
+            // updating both collections together could hide a missed reorder.
             try await fixture.patch([
-                "threads": patch(order: ["a1", "a2", "b1", "b2"]),
-                "applicationThreads": patch(order: ["ra1", "ra2", "rb1", "rb2"])
+                "threads": patch(upserts: [try thread("b2", title: "Recreated", scope: "/fixture/B").json],
+                    removed: ["b2"], order: ["a1", "a2", "b1", "b2"])
+            ])
+            #expect(model.items.map(\.id) == ["a1", "a2", "b1", "b2", "ra1", "ra2", "rb2", "rb1"])
+            try await fixture.patch([
+                "applicationThreads": patch(upserts: [report("rb2", title: "Recreated", scope: "/fixture/B")],
+                    removed: ["rb2"], order: ["ra1", "ra2", "rb1", "rb2"])
             ])
             #expect(model.items.map(\.id) == ["a1", "a2", "b1", "b2", "ra1", "ra2", "rb1", "rb2"])
 
@@ -313,7 +328,7 @@ struct NativeLocalChangeFanoutTests {
                     .object(["thread": $0.thread.json, "executionId": .string($0.executionID)])
                 })])])]),
             "view": .object(["coverRevision": .text(""), "emoji": .text("📊"), "shortDescription": .text(introduction),
-                "previewText": .text(title), "contentRevision": .text(title), "relatedExecutions": .array([])])])
+                "previewText": .text(title), "contentRevision": .text(Data((title + "\u{0}" + introduction).utf8).base64EncodedString()), "relatedExecutions": .array([])])])
     }
 
     private func patch(upserts: [JSONValue] = [], removed: [JSONText] = [], order: [JSONText]? = nil) -> JSONValue {

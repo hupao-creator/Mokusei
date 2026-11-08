@@ -156,7 +156,10 @@ struct NativePreparedCatalog: Sendable {
         })
         for raw in removedThreads {
             guard case .string(let id) = raw else { throw PluginContractError("Invalid removed thread identity") }
-            if next[id] != nil { change.threadIDs.insert(id); change.threadStructureIDs.insert(id) }
+            if next[id] != nil {
+                change.threadIDs.insert(id)
+                if !upsertThreadIDs.contains(id) { change.threadStructureIDs.insert(id) }
+            }
             if !upsertThreadIDs.contains(id) { next.removeValue(forKey: id) }
         }
         for raw in upsertThreads {
@@ -168,11 +171,8 @@ struct NativePreparedCatalog: Sendable {
         }
         if mutation["threads"]?["order"] != nil {
             let order = source.ids
-            let removed = Set(removedThreads.compactMap { raw -> JSONText? in
-                guard case .string(let id) = raw else { return nil }; return id
-            })
             var position = -1
-            for id in order where !removed.contains(id) {
+            for id in order {
                 if let previousPosition = previous.records.position(of: id) {
                     if previousPosition < position { change.threadOrderChanged = true }
                     position = previousPosition
@@ -188,7 +188,10 @@ struct NativePreparedCatalog: Sendable {
         }
         for raw in mutation["applicationThreads"]?["removedIds"]?.arrayValue ?? [] {
             guard case .string(let id) = raw else { throw PluginContractError("Invalid removed application identity") }
-            if previous.applications[id] != nil { change.applicationIDs.insert(id); change.applicationStructureIDs.insert(id) }
+            if previous.applications[id] != nil {
+                change.applicationIDs.insert(id)
+                if applications[id] == nil { change.applicationStructureIDs.insert(id) }
+            }
         }
         for raw in mutation["applicationThreads"]?["upserts"]?.arrayValue ?? [] {
             guard case .string(let id) = raw["id"], let value = applications[id] else { throw PluginContractError("Invalid admitted application identity") }
@@ -198,11 +201,8 @@ struct NativePreparedCatalog: Sendable {
             if previous.applications[id] == nil { change.applicationStructureIDs.insert(id) }
         }
         if mutation["applicationThreads"]?["order"] != nil {
-            let removed = Set((mutation["applicationThreads"]?["removedIds"]?.arrayValue ?? []).compactMap { raw -> JSONText? in
-                guard case .string(let id) = raw else { return nil }; return id
-            })
             var position = -1
-            for id in applications.ids where !removed.contains(id) {
+            for id in applications.ids {
                 if let previousPosition = previous.applications.position(of: id) {
                     if previousPosition < position { change.applicationOrderChanged = true }
                     position = previousPosition

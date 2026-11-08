@@ -130,6 +130,51 @@ struct NativeBrowserAnnotationTests {
         }
     }
 
+    @Test func lateReceiptKeepsItsTerminalOutcomeAfterASuccessorIsObserved() async throws {
+        for status in [PublicExecution.Status.completed, .failed, .interrupted] {
+            let profile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            var continuation: CheckedContinuation<SidecardSendReceipt, Error>?
+            let original = try context(stage: { _ in [] }, send: { _ in
+                try await withCheckedThrowingContinuation { continuation = $0 }
+            }, discard: { _ in }, storageDirectory: profile)
+            let presentation = BrowserSidecardPresentation(context: original, lifetime: PluginLifetime())
+            let batch = try annotations(1)
+            presentation.pending = batch
+            presentation.supplementalText = "Late receipt draft"
+            presentation.send(textOnly: true)
+            try await wait { continuation != nil }
+            presentation.release()
+
+            let execution = try PublicExecution(executionID: "e1", status: status, startedAt: 0, finishedAt: 1)
+            let terminal = try context(stage: { _ in [] }, send: { _ in .init(executionID: "unused") },
+                discard: { _ in }, storageDirectory: profile, observation: .init(latestExecution: execution), revision: 1)
+            let reopened = BrowserSidecardPresentation(context: terminal, lifetime: PluginLifetime())
+            // Another client's successor can be observed before this client's
+            // accepted command receipt arrives over its independent connection.
+            let successor = try PublicExecution(executionID: "e2", status: .running, startedAt: 2)
+            let next = try context(stage: { _ in [] }, send: { _ in .init(executionID: "unused") },
+                discard: { _ in }, storageDirectory: profile, observation: .init(latestExecution: successor), revision: 2)
+            reopened.update(next)
+            continuation?.resume(returning: .init(executionID: "e1")); continuation = nil
+            try await wait { !reopened.sending }
+            let expectedIDs = status == .completed ? [] : batch.map(\.id)
+            #expect(reopened.pending.map(\.id) == expectedIDs)
+            #expect(reopened.pending.map(\.png) == (status == .completed ? [] : batch.map(\.png)))
+            #expect(reopened.supplementalText == (status == .completed ? "" : "Late receipt draft"))
+            #expect(reopened.sendError.isEmpty == (status == .completed))
+            #expect(BrowserRunSessions.annotationDraft(for: original).submitted.isEmpty)
+
+            let finishedSuccessor = try PublicExecution(executionID: "e2", status: .failed, startedAt: 2, finishedAt: 3)
+            let finished = try context(stage: { _ in [] }, send: { _ in .init(executionID: "unused") },
+                discard: { _ in }, storageDirectory: profile, observation: .init(latestExecution: finishedSuccessor), revision: 3)
+            reopened.update(finished); reopened.update(finished); reopened.update(terminal)
+            #expect(reopened.pending.map(\.id) == expectedIDs)
+            #expect(reopened.supplementalText == (status == .completed ? "" : "Late receipt draft"))
+            #expect(BrowserRunSessions.annotationDraft(for: original).submitted.isEmpty)
+            reopened.release()
+        }
+    }
+
     @Test func changingThreadDuringScreenshotStageCannotSendIntoEitherThread() async throws {
         var continuation: CheckedContinuation<[SidecardStagedAttachment], Error>?
         var urls: [URL] = [], oldSends = 0, nextSends = 0, discarded: [JSONText] = []

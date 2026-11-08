@@ -28,6 +28,13 @@ validated at creation admission.
 
 [tools.go](tools.go) implements `list_threads`, `create_thread`, `describe_native_harness`, `get_thread_status`, `send_to_thread`, `interrupt_thread`, `read_thread`, `talk`, `timer` and `update_note`. Tool calls and results are audited under the owning Moku execution; cancellation follows the captured owner. Creation success means the target input was admitted, not that its work has completed. Listing and reads retain bounded, explicit public access.
 
+Tool scopes follow the current Moku Thread's monotonic record revision, not the
+arrival order of commit callbacks. A delayed note or metadata notification cannot
+cancel a successor's tools or revive a completed execution's scope. Reinstalling
+configuration for the same Thread preserves that revision floor; replacement
+and restart initialize it from the adopted Thread. Older terminal facts still
+settle their own audit rows and voice replies independently of scope authority.
+
 Production tools also use the shared [private invocation journal](../../platform/diagnostics/README.md).
 Transcript operations keep host `callId`/`id` meanings and additionally carry
 `invocationId` and `harnessCallId` for correlation. Callback-entry failures before

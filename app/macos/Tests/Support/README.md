@@ -109,6 +109,26 @@ The original return direction, latest content and parent appearance assertions
 remain. No wider band, longer animation or deadline, retry, skip, or retrospective
 midpoint interpolation can substitute for the actual prerequisite.
 
+Run `42442726336` observed 178 display callbacks but no qualifying midpoint:
+the front stayed at x=722 from 667.909–719.472ms, then read x=461 at 734.029ms.
+The unchanged band was 472–708 points; opening remained active and its window
+and viewport stayed valid. Those native samples do not identify whether progress
+writes or their delivery to native geometry were delayed or coalesced.
+
+This replay alone installs an internal, per-motion progress-write observer. It
+records `ProcessInfo.systemUptime`, the assigned progress, reason and generation
+after the production transaction, without reading geometry in that callback.
+The existing display callback additionally reads the current root/front anchors;
+neither observer drives layout or display. Progress writes and opening samples
+each retain at most 2048 entries, with explicit dropped counts and the latest
+opening sample retained separately. The observer is removed before exit or a
+failure capture. If the opening wait fails, one ScreenCaptureKit image is saved
+as `retained-overview-post-failure.png` under `MOKUSEI_READING_MOTION_ARTIFACTS`.
+Its request/capture timestamps and post-failure label distinguish it from the
+missed midpoint; capture failure is recorded without replacing the original
+test failure. No image capture or file write occurs during the measured interval,
+and no production timestamps are collected unless the test observer is installed.
+
 ## Execution-link streaming input
 
 The running execution-link replay supplies complete Markdown paragraphs while

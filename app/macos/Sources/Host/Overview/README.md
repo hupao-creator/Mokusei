@@ -9,6 +9,10 @@ selected changed card slots, without scanning or sorting the selection. This als
 applies to active searches when the changed record's metadata match is unchanged.
 Activity-only mutations do no catalog/card work. Full snapshots, explicit refresh,
 locale changes and reordered surviving records retain full reconciliation.
+Same-patch removal and upsert of an existing identity, including renderer recovery
+at the same revision, retains its slot and follows the changed-record path. Only
+real creation/deletion or an explicit relative reorder marks structure dirty;
+membership facts still invalidate affected scopes when the replacement changes them.
 
 The [membership index](NativeOverviewMembershipIndex.swift) retains identities and
 selection results per canonical scope. Execution, visibility, archive, tag and
