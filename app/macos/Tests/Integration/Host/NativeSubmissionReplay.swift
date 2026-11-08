@@ -88,7 +88,7 @@ struct NativeSubmissionReplay {
             let input = NativeComposerSubmission(text: "Same text", directories: [], attachments: []).input
             let original: JSONValue = .object(["directoryScopeId": .text("scope-A")])
             var captures = 0
-            func send(_ source: JSONValue) async throws {
+            @MainActor func send(_ source: JSONValue) async throws {
                 try await sender.send(input: input, source: source) {
                     captures += 1
                     var request = source.objectValue!
@@ -117,7 +117,7 @@ struct NativeSubmissionReplay {
             let sender = NativeMokuSubmission(workspace: fixture.workspace)
             let source: JSONValue = .object([:])
             var captures = 0
-            func send(_ text: String) async throws {
+            @MainActor func send(_ text: String) async throws {
                 let input = NativeComposerSubmission(text: text, directories: [], attachments: []).input
                 try await sender.send(input: input, source: source) {
                     captures += 1
