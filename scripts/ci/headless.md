@@ -10,9 +10,9 @@ The graphical process explicitly sets `MOKUSEI_TEST_HEADLESS=0`, so an inherited
 windowless override cannot suppress its display admission. It still needs the
 real graphical session; this setting does not manufacture display capability.
 
-The registry in [swift_execution.py](swift_execution.py) contains 35 self-contained
-suites (200 method declarations at the cleanup baseline) and four fixture-backed
-suites (29 declarations). The latter move only when their existing Go producer's
+The registry in [swift_execution.py](swift_execution.py) contains 36 self-contained
+suites, including the offline reading cache's isolated scope/reopen case, and four
+fixture-backed suites. The latter move only when their existing Go producer's
 environment is present: Moku dispatch/status, Timer, tag emoji and voice events.
 Without those variables they retain their previous ordinary execution/deferral.
 The [migration audit](../../tools/verification/swift-tests/headless-migration-20261104.md)
@@ -29,7 +29,7 @@ python3 scripts/ci/swift-native.py headless --evidence /tmp/new-windowless-evide
 Use a fresh evidence directory. This independent command runs the same reviewed
 selection without launching its graphical remainder. It includes the four
 fixture-backed suites only when their producer variables are supplied. Counts
-above describe source declarations, not parameterized cases or a completed run;
+above describe suites, not parameterized cases or a completed run;
 the actual current-build inventory remains authoritative.
 Every selected method must pass exactly once; absent suites, missing/duplicate
 outcomes, any skip, incomplete summaries and nonzero process status fail.

@@ -48,6 +48,11 @@ the lock files themselves are never removed or replaced during cleanup.
 
 [RuntimeOfflineStore](RuntimeOfflineStore.swift) and [RuntimeOfflineRecovery](RuntimeOfflineRecovery.swift) keep profile-local cached reading data, drafts and uncertain command identity. Offline reading/editing does not queue automatic sends or cancellations. On reconnect, a mutation with an uncertain response is checked by its original receipt identity; a newer draft cannot be consumed by an older completion.
 
+[RuntimeOfflineStoreTests](../../Tests/Core/RuntimeOfflineStoreTests.swift) writes
+thread, turn and execution payloads, then reopens the disk cache and checks each
+scope independently. Equal keys in different scope kinds and different keys in
+the same kind remain distinct; a missing scope stays absent.
+
 Execution continuation uses `invoke(... retainingReceipt: true)` with an explicit
 command ID. A successful result remains in the durable command journal until
 its caller consumes the matching draft. Acknowledgement waits only for that

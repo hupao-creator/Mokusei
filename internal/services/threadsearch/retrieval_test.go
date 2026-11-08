@@ -142,6 +142,44 @@ func TestKeywordScopeCacheAndSourceLifecycle(t *testing.T) {
 		t.Fatal("cached hit survived source deletion")
 	}
 }
+
+func TestKeywordQueryRequiresEveryTerm(t *testing.T) {
+	for _, field := range []string{"metadata", "body"} {
+		t.Run(field, func(t *testing.T) {
+			f := newSearchFixture(t, false)
+			for _, source := range []struct{ id, text string }{
+				{"complete", "离线删除与后台清理"},
+				{"first-only", "离线删除"},
+				{"second-only", "后台清理"},
+			} {
+				record := searchRecord{Title: source.text}
+				if field == "body" {
+					record = searchRecord{Title: "Maintenance", Body: source.text}
+				}
+				f.seed(t, source.id, record)
+			}
+			f.build(t)
+			for _, partial := range []struct{ query, id string }{
+				{"离线删除", "first-only"},
+				{"后台", "second-only"},
+			} {
+				result := f.query(t, partial.query, partial.id)
+				if len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != partial.id {
+					t.Fatalf("partial fixture is not searchable: %+v", result)
+				}
+			}
+			for _, query := range []string{"离线删除 后台", "后台 离线删除"} {
+				for range 2 {
+					result := f.query(t, query, "complete", "first-only", "second-only")
+					if result.Mode != "keyword" || len(result.Hits) != 1 || result.Hits[0].Ref.ThreadID != "complete" {
+						t.Fatalf("AND query %q returned a partial-term match: %+v", query, result)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestLiteralSearchKeepsContinuousBoundedUnicodeBody(t *testing.T) {
 	f := newSearchFixture(t, false)
 	body := strings.Repeat("界", 1198) + "边界词" + strings.Repeat("尾", 140000) + "OUTSIDE_BOUND"
