@@ -80,22 +80,37 @@ final class BrowserAnnotationDraft {
     var submitted: [JSONText: BrowserSubmittedAnnotations] = [:]
     private(set) var latestExecution: PublicExecution?
     private var observedRevision = -1
+    @ObservationIgnored private var receiptOutcomes: [JSONText: PublicExecution.Status]?
+
+    func beginReceipt() {
+        // The receipt's execution is unknown until send returns. Keep terminal
+        // observations only across that await, including presentation replacement.
+        receiptOutcomes = [:]
+    }
+
+    @discardableResult
+    func finishReceipt(for executionID: JSONText? = nil) -> PublicExecution.Status? {
+        defer { receiptOutcomes = nil }
+        guard let executionID else { return nil }
+        let latest = latestExecution?.executionID == executionID ? latestExecution?.status : nil
+        return receiptOutcomes?[executionID] ?? latest
+    }
 
     func observe(_ thread: HarnessThread) {
         guard thread.revision >= observedRevision else { return }
         observedRevision = thread.revision
         latestExecution = thread.observation.latestExecution
-        guard let execution = latestExecution, let delivery = submitted[execution.executionID] else { return }
+        guard let execution = latestExecution else { return }
         switch execution.status {
-        case .completed: submitted[execution.executionID] = nil
-        case .failed, .interrupted:
-            submitted[execution.executionID] = nil
-            let ids = Set(pending.map(\.id))
-            pending = delivery.batch.filter { !ids.contains($0.id) } + pending
-            supplementalText = [delivery.text, supplementalText].filter { !$0.isEmpty }.joined(separator: " ")
-            sendError = execution.status == .failed ? "执行失败，批注已恢复。可以重试，或仅发送文字。" : "执行已停止，批注已恢复。"
-        case .running, .waitingForUser: break
+        case .running, .waitingForUser: return
+        case .completed, .failed, .interrupted:
+            receiptOutcomes?[execution.executionID] = execution.status
         }
+        guard let delivery = submitted.removeValue(forKey: execution.executionID), execution.status != .completed else { return }
+        let ids = Set(pending.map(\.id))
+        pending = delivery.batch.filter { !ids.contains($0.id) } + pending
+        supplementalText = [delivery.text, supplementalText].filter { !$0.isEmpty }.joined(separator: " ")
+        sendError = execution.status == .failed ? "执行失败，批注已恢复。可以重试，或仅发送文字。" : "执行已停止，批注已恢复。"
     }
 }
 
@@ -254,7 +269,7 @@ public final class BrowserSidecardPresentation {
         let boundContext = context
         let owner = contextGeneration
         sending = true; sendError = ""
-        defer { draft.sending = false }
+        defer { draft.finishReceipt(); draft.sending = false }
         var submissionError: Error?
         var staged: [JSONText] = []
         var directory: URL?
@@ -282,11 +297,11 @@ public final class BrowserSidecardPresentation {
             }
             var input: [JSONText: JSONValue] = ["parts": .array(parts)]
             if !annotations.isEmpty { input["annotations"] = .array(annotations) }
+            draft.beginReceipt()
             let receipt = try await boundContext.send(.object(input))
+            let outcome = draft.finishReceipt(for: receipt.executionID)
             // An accepted receipt consumes its exact batch even if navigation
             // released the presentation while the runtime admitted the send.
-            let execution = draft.latestExecution
-            let outcome = execution?.executionID == receipt.executionID ? execution?.status : nil
             if outcome == .failed { throw PluginContractError("执行失败，批注仍保留。详情见线程记录。") }
             if outcome == .interrupted { throw PluginContractError("执行已停止，批注仍保留。") }
             if outcome != .completed {

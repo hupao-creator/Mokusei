@@ -203,6 +203,12 @@ while preserving unsent annotation comments, screenshots, supplementary text and
 pending execution recovery. Deleting an annotation only removes that annotation;
 remaining supplementary text stays editable and can be sent on its own. Accepted
 send receipts consume their exact batch even after its presentation unmounts.
+While a send awaits its receipt, that profile/thread draft retains observed
+terminal outcomes by execution ID. A successor cannot overwrite the accepted
+execution's result: failed/interrupted batches stay recoverable and completed
+batches release their recovery payload. The observation cache exists only for
+the outstanding receipt and is cleared on success or error; it is not execution
+history. Repeated or stale observations cannot restore the batch twice.
 Native view/session generations reject late page callbacks after a switch or
 teardown. Collapsing or covering a card is distinct from ending its underlying
 activity.

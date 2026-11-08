@@ -531,6 +531,39 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 		return errors.New("Pi already has active Execution")
 	}
 	steering := current != nil
+	var reservation *steerReservation
+	if steering {
+		rpc := h.rpc
+		if rpc == nil || h.closing {
+			h.mu.Unlock()
+			return errors.New("Pi active Execution has no native connection")
+		}
+		reservation, err = rpc.reserveSteer(nil)
+		if err != nil {
+			h.mu.Unlock()
+			if err != plugin.ErrExecutionEnded {
+				return err
+			}
+			if err = rpc.FlushEvents(ctx); err != nil {
+				return err
+			}
+			h.mu.Lock()
+			ended := activeExecution(&h.state) == nil
+			h.mu.Unlock()
+			if !ended {
+				return errors.New("Pi terminal outcome has not been persisted")
+			}
+			return plugin.ErrExecutionEnded
+		}
+		defer reservation.release()
+	} else {
+		for _, execution := range h.state.Executions {
+			if execution.ExecutionID == request.ExecutionID {
+				h.mu.Unlock()
+				return plugin.ErrExecutionEnded
+			}
+		}
+	}
 	backup, _ := json.Marshal(h.state)
 	echo := &userEcho{ID: newID("pi-"), ExecutionID: request.ExecutionID, Text: input.Message}
 	if !steering {
@@ -587,7 +620,7 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 	defer stopWatch()
 	defer stopAcceptance()
 	var rpc *Session
-	if err = ctx.Err(); err == nil && request.Admitted != nil {
+	if err = ctx.Err(); err == nil && !steering && request.Admitted != nil {
 		err = request.Admitted()
 	}
 	if err == nil {
@@ -609,9 +642,17 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 			err = assertRuntimeSettings(ctx, rpc, settings, h.open.RequireExplicitSettings)
 		}
 	}
+	nativeAccepted := false
 	if err == nil {
 		input.Steer = steering
-		err = rpc.Prompt(ctx, input)
+		if steering {
+			nativeAccepted, err = reservation.submit(ctx, input)
+			if err == nil && request.Admitted != nil {
+				err = request.Admitted()
+			}
+		} else {
+			err = rpc.Prompt(ctx, input)
+		}
 		if err == nil {
 			stopAcceptance()
 			stopWatch()
@@ -632,7 +673,7 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 				err = errors.Join(err, fenceErr)
 			}
 			h.mu.Lock()
-			if !echo.Echoed {
+			if !nativeAccepted && !echo.Echoed {
 				h.state.Messages = slices.DeleteFunc(h.state.Messages, func(row MessageState) bool { return row.ID == echo.ID })
 				h.echoes = slices.DeleteFunc(h.echoes, func(row *userEcho) bool { return row == echo })
 				commitErr := h.commitLocked()

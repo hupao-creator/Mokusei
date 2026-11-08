@@ -63,3 +63,15 @@ also exercises the production adapter and Session dispatcher with controlled OS
 pipes: immediate settlement before Write returns, a queued expiry callback, and
 Interrupt/Close during a partially written answer. These fixtures do not call a
 copied reducer or require the installed Pi CLI.
+
+The admission replay runs the production Session and Thread adapter over real
+child-process pipes. It blocks a subscriber while native settlement advances,
+rejects the stale reservation without another run, and then checks terminal
+execution IDs before retention. Its ordinary follow-up matrix covers settlement
+before a `started` reply, a queued input completing before its reply, handled and
+rejected input, a missing disposition, cancellation during settings preflight,
+uncertain acceptance after a full prompt write, and process exit after completion.
+Assertions check acknowledgement counts, the exact owning execution, one retained
+follow-up/reply and restoration of unconsumed input rather than copying admission
+logic. Pi versions before 0.99.0 are rejected because their prompt replies cannot
+distinguish these acceptance outcomes.
