@@ -1,0 +1,53 @@
+name: Set up cached Go
+description: Reuse the pinned toolchain and refresh compiler outputs as source inputs change.
+inputs:
+  cache-scope:
+    description: Independent compiler workload; prevents jobs from freezing each other's cache.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Read the pinned Go toolchain
+      id: version
+      shell: bash
+      run: |
+        python3 - <<'PY'
+        import os, re
+        from pathlib import Path
+        match = re.search(r'^toolchain go(\d+\.\d+\.\d+)\s*$', Path('go.mod').read_text(), re.MULTILINE)
+        if not match:
+            raise SystemExit('CI requires an exact toolchain directive in go.mod')
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+            output.write(f'version={match[1]}\n')
+        PY
+    # Hosted images do not necessarily include our pinned patch release.
+    # Cache only that version, not every Go SDK preinstalled on the runner.
+    - name: Restore the pinned Go SDK
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.tool_cache }}/go/${{ steps.version.outputs.version }}
+        key: go-sdk-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
+    - uses: actions/setup-go@v6
+      id: go
+      with:
+        go-version: ${{ steps.version.outputs.version }}
+        cache: false
+    - name: Locate Go caches
+      id: paths
+      shell: bash
+      run: |
+        go version
+        printf 'modules=%s\n' "$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+        printf 'build=%s\n' "$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+    # Actions caches are immutable. A dependency-only key never saves newly
+    # compiled project packages after the first successful run.
+    - name: Restore and refresh Go compilation
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ steps.paths.outputs.modules }}
+          ${{ steps.paths.outputs.build }}
+        key: go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ hashFiles('cmd/**', 'internal/**', 'tools/verification/**', '.github/actions/setup-go/action.yml') }}
+        restore-keys: |
+          go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-${{ hashFiles('go.mod', 'go.sum') }}-
+          go-build-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.go.outputs.go-version }}-${{ inputs.cache-scope }}-

@@ -12,6 +12,15 @@ import tempfile
 import time
 
 
+def native_module_cache(repo):
+    """Reuse compiler imports without sharing replay binaries or runtime state."""
+    runner_temp = os.environ.get("RUNNER_TEMP")
+    cache = (Path(runner_temp) / "mokusei-native-module-cache" if runner_temp
+             else repo / ".build/native-replay/modules")
+    cache.mkdir(parents=True, exist_ok=True)
+    return cache.resolve()
+
+
 class NativeReplay:
     def __init__(self, repo, name, bundle_id, configuration="debug"):
         if configuration not in {"debug", "release"}:
@@ -25,11 +34,13 @@ class NativeReplay:
         self.executable.parent.mkdir(parents=True)
         self.build = self.root / "build"
         self.build.mkdir()
+        self.module_cache = native_module_cache(repo)
         self.lock = None
         self.process = None
         self.termination_handler = None
         self.stopped_pids = set()
-        self.manifest = {"root": str(self.root), "workspace": str(self.workspace)}
+        self.manifest = {"root": str(self.root), "workspace": str(self.workspace),
+                         "moduleCache": str(self.module_cache)}
         self.isolation_source = repo / "tools/verification/NativeReplayIsolation.swift"
         package = repo / "app/macos"
         production = package / f".build/{platform.machine()}-apple-macosx/{configuration}"
@@ -84,7 +95,7 @@ class NativeReplay:
                 "-parse-as-library", "-target", f"{platform.machine()}-apple-macosx26.0",
                 "-I", str(self.build / "Modules"), "-F", str(self.application / "Contents/Frameworks"),
                 "-framework", "LiveKitWebRTC", "-Xlinker", "-rpath", "-Xlinker",
-                "@executable_path/../Frameworks", "-module-cache-path", str(self.root / "ModuleCache")]
+                "@executable_path/../Frameworks", "-module-cache-path", str(self.module_cache)]
         for include in self.includes:
             args += ["-I", str(include), "-Xcc", "-fmodule-map-file=" + str(include / "module.modulemap")]
         subprocess.run([*args, *extra_args, *staged, *self.objects, "-o", str(self.executable)],

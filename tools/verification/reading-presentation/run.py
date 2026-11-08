@@ -34,7 +34,7 @@ def compile_native_input_support(replay, repo):
     object_file = staged / "NativeInputSupport.o"
     command = ["/usr/bin/xcrun", "--sdk", "macosx", "clang", "-fobjc-arc", "-Wall", "-Wextra", "-Werror",
                "-isysroot", sdk, "-target", target, "-fmodules",
-               "-fmodules-cache-path=" + str(replay.root / "ClangModuleCache"),
+               "-fmodules-cache-path=" + str(replay.module_cache),
                "-I", str(include), "-fmodule-map-file=" + str(module_map),
                "-c", str(staged / "NativeInputSupport.m"), "-o", str(object_file)]
     receipt = {"inputSHA256": inputs, "stagedInputs": staged_inputs, "compileCommand": command,

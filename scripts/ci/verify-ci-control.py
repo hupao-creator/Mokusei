@@ -93,6 +93,34 @@ def verify_interleaved_swift_outcomes(audit, repo, environment, ordinary_log, or
     print("PASS actual Swift audit: interleaved complete outcome, quoted lookalike, missing/truncated/duplicate/substituted records")
 
 
+def verify_swift_build(root, repo, environment):
+    invocation = root / "swift-build-invocation.json"
+    launcher = [sys.executable, str(repo / "scripts/ci/swift-native.py"), "build"]
+    complete_build = ["swift", "build", "--package-path", "app/macos", "--build-tests",
+                      "--force-resolved-versions", "--disable-index-store"]
+    flag = "-enable-incremental-file-hashing"
+    supported_help = f"  {flag}  Enable input and dependency content hashes\n"
+    unavailable_help = ("  -disable-incremental-file-hashing  Disable content hashes\n"
+                        f"  {flag}-extra  A distinct option\n"
+                        f"  -other-flag  Description mentions {flag}\n")
+    for supported, exit_code in ((True, 0), (False, 0), (True, 7)):
+        invocation.unlink(missing_ok=True)
+        result = subprocess.run(launcher, cwd=root, text=True, capture_output=True, timeout=10,
+                                env=dict(environment, CI_SWIFT_BUILD_INVOCATION=str(invocation),
+                                         CI_SWIFT_BUILD_HELP=supported_help if supported else unavailable_help,
+                                         CI_SWIFT_BUILD_EXIT=str(exit_code)))
+        output = result.stdout + result.stderr
+        if result.returncode != exit_code:
+            raise AssertionError(f"Swift build must preserve exit {exit_code}, got {result.returncode}\n{output}")
+        expected = {"arguments": complete_build + (["-Xswiftc", flag] if supported else []), "cwd": str(repo.resolve())}
+        if not invocation.exists() or json.loads(invocation.read_text()) != expected:
+            raise AssertionError(f"Swift build must retain all build parameters and use the current repository\n{output}")
+        capability = "enabled" if supported else "unavailable"
+        if f"build incremental-file-hashing={capability}" not in output:
+            raise AssertionError(f"Swift build must report the actual hashing capability\n{output}")
+    print("PASS actual Swift build CLI: exact capability detection, complete current-source build arguments, repository directory and nonzero propagation")
+
+
 def verify_swift_ownership(root, repo, environment):
     from swift_ownership import NATIVE_METHOD_OWNERS, STANDALONE_METHOD_OWNERS, native_filter
     from replay_plan import replay_groups
@@ -114,7 +142,13 @@ def verify_swift_ownership(root, repo, environment):
     bin_dir.mkdir()
     peer = bin_dir / "xcrun"
     peer.write_text("#!/usr/bin/env python3\nimport json, os, sys, time\nfrom pathlib import Path\n"
-                    "if sys.argv[1:4] == ['swift', 'test', 'list']:\n"
+                    "if sys.argv[1:] == ['swiftc', '-help-hidden']:\n"
+                    "    print(os.environ['CI_SWIFT_BUILD_HELP'])\n"
+                    "elif sys.argv[1:3] == ['swift', 'build']:\n"
+                    "    Path(os.environ['CI_SWIFT_BUILD_INVOCATION']).write_text(json.dumps(\n"
+                    "        {'arguments': sys.argv[1:], 'cwd': str(Path.cwd())}))\n"
+                    "    raise SystemExit(int(os.environ['CI_SWIFT_BUILD_EXIT']))\n"
+                    "elif sys.argv[1:4] == ['swift', 'test', 'list']:\n"
                     "    print(Path(os.environ['CI_SWIFT_INVENTORY']).read_text())\n"
                     "elif sys.argv[1:3] == ['swift', 'test']:\n"
                     "    if os.environ.get('CI_SWIFT_BLOCK'):\n"
@@ -128,6 +162,7 @@ def verify_swift_ownership(root, repo, environment):
     (bin_dir / "xcodebuild").chmod(0o755)
     environment = dict(environment, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
                        CI_SWIFT_INVENTORY=str(inventory), CI_SWIFT_ARGUMENTS=str(root / "swift-arguments.json"))
+    verify_swift_build(root, repo, environment)
     command([sys.executable, str(scripts / "swift-native.py"), "prepare"], cwd=repo, env=environment)
     manifest = json.loads((build / "ci-manifest.json").read_text())
     if manifest["tests"] != tests or manifest["nativeMethods"] != NATIVE_METHOD_OWNERS:
