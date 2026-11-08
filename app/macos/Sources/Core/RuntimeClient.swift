@@ -151,9 +151,10 @@ public actor RuntimeClient {
     }
     private func startInitial(generation expected: Int) async throws {
         setStatus(.connecting)
-        let value = try await manager.start()
+        let started = try await manager.start()
         try assertOpen()
         guard generation == expected else { throw CancellationError() }
+        let value = try connectionWithAttachmentLease(started)
         connection = value
         try await establish(value, generation: expected)
     }
@@ -289,8 +290,9 @@ public actor RuntimeClient {
                 try Task.checkCancellation()
                 guard generation == expected && !closed else { return }
                 if let next, !explicitlyStopped || next.epoch != connection?.epoch {
-                    connection = next; explicitlyStopped = false
-                    try await establish(next, generation: expected)
+                    let owned = try connectionWithAttachmentLease(next)
+                    connection = owned; explicitlyStopped = false
+                    try await establish(owned, generation: expected)
                     return
                 }
             } catch {

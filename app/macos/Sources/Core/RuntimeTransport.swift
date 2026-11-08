@@ -137,6 +137,7 @@ final class RuntimeHTTPChannel: NSObject, URLSessionDataDelegate, @unchecked Sen
         if !token.isEmpty { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.setValue(String(RuntimeProtocol.version), forHTTPHeaderField: "X-Mokusei-Protocol")
         request.setValue(epoch, forHTTPHeaderField: "X-Mokusei-Epoch")
+        if let lease = connection.attachmentLease { request.setValue(lease, forHTTPHeaderField: "X-Mokusei-Attachment-Lease") }
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

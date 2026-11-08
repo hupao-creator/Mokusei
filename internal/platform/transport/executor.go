@@ -75,6 +75,7 @@ func (e *commandExecutor) execute(ctx context.Context, channel string, raw []byt
 		// Every call ends with the service. Reads also end with their client;
 		// admitted writes retain their receipt when only the client disconnects.
 		callContext := model.WithClientDevice(e.context, model.ClientDeviceID(ctx))
+		callContext = model.WithClientAttachmentLease(callContext, model.ClientAttachmentLease(ctx))
 		if model.IsReadOnlyChannel(channel) {
 			var cancel context.CancelFunc
 			callContext, cancel = context.WithCancel(ctx)

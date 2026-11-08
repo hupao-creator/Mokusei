@@ -30,6 +30,19 @@ their checked bytes and basename. A delayed FIFO writer releases a regressed
 blocking open so the assertion fails without hanging the native process. This
 mode needs the macOS/Swift toolchain but no graphical application or provider.
 
+The same replay stages through the real attachment repository. Both command
+imports and file uploads must carry the native process lease. Collection keeps
+active staging across client close and repository reopen; after the first Swift
+process exits, a version-2 draft and an uncertain command receipt retain their
+files while abandoned staging is collected. A second Swift process restores the
+draft with two independent live owners and a pending-submission owner; collection
+must wait for all three to release after the persisted draft is consumed. The
+uncertain receipt is acknowledged separately before its final collection. The
+receipt fixture returns before Thread retention, and a second client writes its
+journal without overwriting that outstanding receipt. This checks the actual
+Swift ownership envelopes and HTTP header against Go's collector across process
+exit, restoration, interleaved client writes and explicit consumption.
+
 Cold native settings admission has its own macOS replay:
 
 ```sh

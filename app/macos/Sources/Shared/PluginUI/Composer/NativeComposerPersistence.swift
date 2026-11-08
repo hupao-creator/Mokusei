@@ -45,6 +45,14 @@ public struct NativeComposerDraftPersistence: Sendable {
         return try decode(value)
     }
 
+    @MainActor func loadRetainingAttachments() throws -> (snapshot: Snapshot?, owner: RuntimeAttachmentOwner) {
+        let retained = try store.loadRetainingAttachments()
+        let snapshot = try retained.value.map(decode)
+        let ready = Set(snapshot?.attachments.compactMap(\.attachment).map(\.id) ?? [])
+        guard ready == Set(retained.attachmentIDs) else { throw PluginContractError("保存的草稿附件归属无法读取") }
+        return (snapshot, retained.owner)
+    }
+
     @MainActor private func decode(_ value: JSONValue) throws -> Snapshot {
         guard let revision = value["revision"]?.stringValue, UUID(uuidString: revision) != nil,
               case let .string(text) = value["text"], let directories = value["directories"]?.arrayValue,
@@ -119,7 +127,8 @@ public struct NativeComposerDraftPersistence: Sendable {
             return .object(value)
         }
         try store.save(.object(["revision": .text(revision), "text": .string(textValue),
-                               "directories": .array(directoryValues), "attachments": .array(attachmentValues)]))
+                               "directories": .array(directoryValues), "attachments": .array(attachmentValues)]),
+                       attachmentIDs: attachments.compactMap(\.attachment).map(\.id))
         return revision
     }
 
@@ -144,7 +153,8 @@ public struct NativeComposerDraftPersistence: Sendable {
             guard case .string(let id) = $0["id"] else { return true }
             return !removed.contains(id)
         })
-        try store.save(.object(value))
+        try store.save(.object(value), attachmentIDs: snapshot.attachments
+            .filter { !removed.contains($0.id) }.compactMap(\.attachment).map(\.id))
         return (snapshot.revision, revision)
     }
 

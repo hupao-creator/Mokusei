@@ -274,7 +274,7 @@ func (b *Bootstrap) open(ctx context.Context) error {
 		return err
 	}
 	sort.Slice(catalog, func(i, j int) bool { return catalog[i].Key < catalog[j].Key })
-	b.attachments = attachments.New(filepath.Join(stateRoot, "attachments"))
+	b.attachments = attachments.NewWithClientStorage(filepath.Join(stateRoot, "attachments"), data)
 	manager := workspaces.New(workspaces.Paths{MokuCwd: mokuCwd, TemporaryRoot: temporary, RegistryPath: filepath.Join(stateRoot, "managed-worktrees.json")})
 	runtimeConfig := core.Config{Store: b.store, Harnesses: b.harnesses, DataDir: stateRoot, DefaultCwd: defaultCwd, Attachments: b.attachments, Contexts: b.contexts, Plugins: catalog, Log: b.log, Workspaces: manager, DisabledHarnesses: b.disabled, RefreshEnvironment: b.resolver.Refresh, ExtraCapabilities: map[string]any{plugin.OverviewControlCapabilityKey.ID: overviewControl{broker: b.options.Overview}}}
 	runtimeConfig.TelemetryLedger = b.ledger

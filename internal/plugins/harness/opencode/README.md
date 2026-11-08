@@ -32,6 +32,13 @@ The adapter accepts stable OpenCode 2.x releases beginning with 2.0.25. Protocol
 native event shapes and the descending session allocator follow the installed
 `@opencode/protocol` and `@opencode/schema` 2.0.25 definitions.
 
+Installation owns npm's process group, its lifecycle-script descendants and both
+output readers. Cancellation and leader exit drain them with bounded TERM/KILL
+cleanup before returning; uncertain cleanup remains an error. Combined captured
+output is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
+remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
+checks the production installation path with a local npm executable fixture.
+
 Go owns process startup/shutdown, authenticated HTTP, reconnecting SSE, durable log
 reconciliation, session identity reservation, state projections, execution admission,
 steering, permissions/forms, tools, model validation and provider/account policy.

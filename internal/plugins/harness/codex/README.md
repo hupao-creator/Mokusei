@@ -9,6 +9,13 @@ source must satisfy the existing idle/native-work gates. See
 
 [adapter.go](adapter.go) constructs the adapter; [executable.go](executable.go) discovers the user's installed Codex. [native.go](native.go) and [transport.go](transport.go) own app-server sessions, JSON-RPC and process cleanup. Codex owns model/account configuration and native history; Mokusei owns admission, durable public state and injected application capabilities.
 
+Installation owns the shell pipeline's process group and both output readers.
+Cancellation and leader exit drain descendants with bounded TERM/KILL cleanup
+before returning; uncertain cleanup remains an error. Combined captured output
+is limited to 8 MiB, and cancellation, output-limit and nonzero-exit failures
+remain observable. The [installer replay](../../../../tools/verification/harness-install/README.md)
+checks the production installation path with local executable fixtures.
+
 Moku rejects empty initial model catalogs and reports partial creation capabilities
 when thinking controls are unknown. Target discovery reads the catalog independently of the default
 execution profile; configuration-keyed cache snapshots never replace native

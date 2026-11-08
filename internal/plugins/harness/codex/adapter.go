@@ -10,8 +10,8 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/platform/discovery"
+	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -116,11 +116,13 @@ func (a *Adapter) Install(ctx context.Context) error {
 	if e != nil {
 		return e
 	}
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", "curl -fsSL https://chatgpt.com/codex/install.sh | sh")
-	cmd.Env = append(env, "CODEX_NON_INTERACTIVE=1")
-	output, e := cmd.CombinedOutput()
+	// The installation owns the pipeline and every descendant holding its pipes.
+	result, e := processgroup.Run(ctx, "/bin/sh", []string{"-c", "curl -fsSL https://chatgpt.com/codex/install.sh | sh"}, "", append(env, "CODEX_NON_INTERACTIVE=1"), 8*1024*1024)
+	if e == nil && result.ExitCode != 0 {
+		e = fmt.Errorf("exit status %d", result.ExitCode)
+	}
 	if e != nil {
-		return fmt.Errorf("Codex install failed: %w: %s", e, tail(string(output), 8192))
+		return fmt.Errorf("Codex install failed: %w: %s", e, tail(strings.TrimSpace(result.Stdout+"\n"+result.Stderr), 8192))
 	}
 	return nil
 }

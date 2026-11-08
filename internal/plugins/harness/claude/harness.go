@@ -16,6 +16,7 @@ import (
 
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
 )
 
 type Harness struct {
@@ -92,17 +93,21 @@ func (h *Harness) Detect(ctx context.Context, cwd string) (plugin.Installation, 
 	return plugin.Installation{Status: "installed", ExecutablePath: path}, nil
 }
 func (h *Harness) Install(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", "set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash")
+	var env []string
 	if h.host.Environment != nil {
-		env, e := h.host.Environment(ctx)
+		values, e := h.host.Environment(ctx)
 		if e != nil {
 			return e
 		}
-		cmd.Env = environmentList(env)
+		env = environmentList(values)
 	}
-	output, e := cmd.CombinedOutput()
+	// A shell exit does not release descendants or their inherited output pipes.
+	result, e := processgroup.Run(ctx, "/bin/bash", []string{"-c", "set -o pipefail; curl -fsSL https://claude.ai/install.sh | bash"}, "", env, 8*1024*1024)
+	if e == nil && result.ExitCode != 0 {
+		e = fmt.Errorf("exit status %d", result.ExitCode)
+	}
 	if e != nil {
-		return fmt.Errorf("Claude installer failed: %w: %s", e, clip(string(output), 4000))
+		return fmt.Errorf("Claude installer failed: %w: %s", e, clip(strings.TrimSpace(result.Stderr+"\n"+result.Stdout), 4000))
 	}
 	return nil
 }

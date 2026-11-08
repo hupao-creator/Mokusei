@@ -18,7 +18,12 @@ public final class NativeComposerDraft {
     nonisolated public static let maximumClipboardBytes = 20 * 1024 * 1024
     public var text = "" { didSet { editRevision &+= 1; persist() } }
     public private(set) var directories: [NativeComposerDirectory] = [] { didSet { persist(semanticChange: directories != oldValue) } }
-    public private(set) var attachments: [NativeComposerAttachment] = [] { didSet { persist(semanticChange: attachments != oldValue) } }
+    public private(set) var attachments: [NativeComposerAttachment] = [] {
+        didSet {
+            updateAttachmentOwner()
+            persist(semanticChange: attachments != oldValue)
+        }
+    }
     public var importing: Bool { staging || pastePreparation != nil }
     private var staging = false
     private var pastePreparation: NativeComposerPastePreparation?
@@ -31,6 +36,7 @@ public final class NativeComposerDraft {
     @ObservationIgnored private let lifetime = PluginLifetime()
     @ObservationIgnored private let services: NativeComposerServices
     @ObservationIgnored private let persistence: NativeComposerDraftPersistence?
+    @ObservationIgnored private var attachmentOwner: RuntimeAttachmentOwner?
     @ObservationIgnored private var restoring = false
     @ObservationIgnored private var savedRevision: String?
     @ObservationIgnored private var protectedAttachmentIDs: Set<JSONText> = []
@@ -42,7 +48,10 @@ public final class NativeComposerDraft {
         self.services = services; self.persistence = persistence
         restoring = true
         do {
-            if let saved = try persistence?.load() {
+            let retained = try persistence?.loadRetainingAttachments()
+            if let retained { attachmentOwner = retained.owner }
+            else { attachmentOwner = try services.retainAttachments?([]) }
+            if let saved = retained?.snapshot {
                 text = saved.text; directories = saved.directories; attachments = saved.attachments
                 savedRevision = saved.revision
                 directoryRevisions = Dictionary(uniqueKeysWithValues: directories.map { ($0.path, UUID()) })
@@ -212,6 +221,12 @@ public final class NativeComposerDraft {
         let mentionedRevisions = directoryRevisions
         let submission = NativeComposerSubmission(text: text, directories: sentDirectories,
                                                    attachments: sentAttachments.compactMap(\.attachment))
+        let submissionOwner: RuntimeAttachmentOwner?
+        do {
+            submissionOwner = try attachmentOwner?.capture(submission.attachments.map(\.id))
+                ?? services.retainAttachments?(submission.attachments.map(\.id))
+        } catch { record(error); return }
+        defer { try? submissionOwner?.release() }
         submitting = true; error = nil
         protectedAttachmentIDs = Set(submission.attachments.map(\.id))
         defer { submitting = false }
@@ -234,8 +249,14 @@ public final class NativeComposerDraft {
         // Removing a chip or disposing a surface cannot delete bytes still
         // referenced by a command waiting for its admission receipt.
         let retired = accepted ? retiredAttachmentIDs.subtracting(protectedAttachmentIDs) : retiredAttachmentIDs
+        // Thread admission retains its own reference. Release staging only after
+        // the consumed draft is durable; a failed save must keep its lease.
+        let consumedIDs = consumed ? Set(submission.attachments.map(\.id)) : []
         protectedAttachmentIDs = []; retiredAttachmentIDs = []
-        await discard(Array(retired))
+        // End the temporary send owner before Discard asks the repository to
+        // collect. An uncertain outcome is retained by the command journal.
+        try? submissionOwner?.release()
+        await discard(Array(retired.union(consumedIDs)))
     }
 
     public func clear(_ clearSession: () async throws -> Void) async {
@@ -279,6 +300,9 @@ public final class NativeComposerDraft {
         guard !isDisposed else { return }
         persist(semanticChange: false)
         isDisposed = true; pastePreparation?.finish(); lifetime.cancel()
+        if persistence != nil, savedRevision == nil { attachmentOwner?.preserveUntilProcessExit() }
+        else { try? attachmentOwner?.release() }
+        attachmentOwner = nil
         // A host switch or app exit retires the view, not the unsent draft.
         // Its staged IDs remain available to the next owner of this file.
         if persistence != nil {
@@ -345,6 +369,12 @@ public final class NativeComposerDraft {
         let revision = semanticChange ? UUID().uuidString : savedRevision ?? UUID().uuidString
         do { savedRevision = try persistence.save(text: text, directories: directories, attachments: attachments, revision: revision) }
         catch { savedRevision = nil; self.error = "草稿未能保存到设备：\(error.localizedDescription)" }
+    }
+
+    private func updateAttachmentOwner() {
+        guard !isDisposed else { return }
+        do { try attachmentOwner?.replace(attachments.compactMap(\.attachment).map(\.id)) }
+        catch { self.error = "草稿附件归属未能保存：\(error.localizedDescription)" }
     }
 
     private func consumePersisted(revision: String?, attachments: [NativeComposerAttachment], directories: Set<JSONText>, clearText: Bool = true) throws {

@@ -48,6 +48,30 @@ the lock files themselves are never removed or replaced during cleanup.
 
 [RuntimeOfflineStore](RuntimeOfflineStore.swift) and [RuntimeOfflineRecovery](RuntimeOfflineRecovery.swift) keep profile-local cached reading data, drafts and uncertain command identity. Offline reading/editing does not queue automatic sends or cancellations. On reconnect, a mutation with an uncertain response is checked by its original receipt identity; a newer draft cannot be consumed by an older completion.
 
+Draft document version 2 publishes `attachmentIDs` beside the opaque `value` in
+the same atomic file replacement. Composer saves and accepted-receipt consumption
+supply the exact ready attachment identities; text-only stores supply an empty
+array. The Go attachment repository can retain saved input without interpreting
+the native value schema. Unreadable ownership records stop collection.
+
+`loadRetainingAttachments` reads and pins saved files under the shared
+`ownership.lock` gate. Each restored draft and pending submission holds an
+independent token; a process reference file aggregates only its live tokens.
+Another client's saved-draft replacement cannot revoke an in-memory owner.
+Token updates and draft persistence take the shared gate, while collection takes
+it exclusively. Normal disposal and send completion release their tokens;
+failed final persistence conservatively retains its token until process exit.
+
+Command-journal version 1 records always include canonical `attachmentIDs`,
+persisted before a draft command is submitted. An uncertain command can still
+be waiting before Thread retention, so its receipt owns the files through the
+existing forget or acknowledgement boundary, including after client process
+exit. Journal updates read, merge and write only the changed receipt under the
+exclusive ownership gate; another client cannot overwrite retained outcomes.
+Only a new admission can create a record; late lookups or results cannot recreate
+a receipt another client has consumed.
+Missing or malformed ownership fields block new writes and collection.
+
 Execution continuation uses `invoke(... retainingReceipt: true)` with an explicit
 command ID. A successful result remains in the durable command journal until
 its caller consumes the matching draft. Acknowledgement waits only for that
@@ -69,6 +93,16 @@ from catalog state. Receipt lookup/retention cannot establish exactly-once nativ
 effects after a host crash or expired outcome; the UI keeps the draft and blocks.
 
 [RuntimeHostFiles](RuntimeHostFiles.swift) owns authenticated upload/download and host-file capabilities. Files are selected on the Mac or transferred through the local service. Arbitrary client filesystem paths are not interchangeable with approved host references.
+
+[RuntimeAttachmentLease](RuntimeAttachmentLease.swift) retains one exclusive
+`client-attachment-leases/<uuid>.lock` per local profile and native process.
+Connections carry its identity through the authenticated transport, protecting
+completed staging before a draft is saved. Client close and reconnect keep the
+process lease; normal or abnormal process exit releases the kernel lock. An
+import requires client draft storage and the runtime's canonical profile to
+match. A collector racing lock creation cannot make a detached inode a valid
+owner. Accepted sends release staging only after durable draft consumption;
+Thread, fork and private-session references remain independently retained.
 
 Uploads open without blocking and validate the file descriptor before copying,
 so special files cannot trap a cancelled import. Regular-file symlinks remain

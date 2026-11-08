@@ -15,14 +15,17 @@ struct RuntimeCommandRecord: Sendable {
     let id: String
     let fingerprint: String
     let channel: String
+    let attachmentIDs: [String]
     var status: RuntimeCommandOutcome.Status = .awaitingReceipt
 
     var json: JSONValue {
         runtimeObject(["key": .text(key), "id": .text(id), "fingerprint": .text(fingerprint),
-            "channel": .text(channel), "status": .text(status.rawValue)])
+            "channel": .text(channel), "status": .text(status.rawValue),
+            "attachmentIDs": .array(attachmentIDs.map(JSONValue.text))])
     }
-    init(key: String, id: String, fingerprint: String, channel: String) {
+    init(key: String, id: String, fingerprint: String, channel: String, attachmentIDs: [String]) {
         self.key = key; self.id = id; self.fingerprint = fingerprint; self.channel = channel
+        self.attachmentIDs = attachmentIDs
     }
     init?(_ value: JSONValue) {
         guard let key = value["key"]?.stringValue, key.count <= 256,
@@ -31,8 +34,35 @@ struct RuntimeCommandRecord: Sendable {
               let fingerprint = value["fingerprint"]?.stringValue, fingerprint.count == 64,
               fingerprint.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }),
               let channel = value["channel"]?.stringValue, !channel.isEmpty, channel.count <= 128,
+              let references = value["attachmentIDs"]?.arrayValue, references.count <= 20,
               let rawStatus = value["status"]?.stringValue, let status = RuntimeCommandOutcome.Status(rawValue: rawStatus) else { return nil }
+        let attachmentIDs = references.compactMap(Self.attachmentID)
+        guard attachmentIDs.count == references.count else { return nil }
         self.key = key; self.id = id; self.fingerprint = fingerprint; self.channel = channel; self.status = status
+        self.attachmentIDs = attachmentIDs
+    }
+
+    static func attachmentIDs(for channel: String, args: [JSONValue]) throws -> [String] {
+        guard draftSubmissionChannels.contains(channel) else { return [] }
+        var references = Set<String>()
+        for part in args.first?["input"]?["parts"]?.arrayValue ?? [] {
+            guard let file = part["file"] else { continue }
+            guard let value = file["id"], let id = attachmentID(value) else {
+                throw RuntimeError("INVALID_ATTACHMENT_REFERENCE", "The input contains an invalid managed attachment reference")
+            }
+            references.insert(id)
+        }
+        guard references.count <= 20 else {
+            throw RuntimeError("INVALID_ATTACHMENT_REFERENCE", "The input contains too many managed attachments")
+        }
+        return references.sorted()
+    }
+
+    private static func attachmentID(_ value: JSONValue) -> String? {
+        guard let id = value.stringValue, let uuid = UUID(uuidString: id),
+              uuid.uuidString.lowercased() == id,
+              (1...5).contains(uuid.uuid.6 >> 4), uuid.uuid.8 & 0xc0 == 0x80 else { return nil }
+        return id
     }
 }
 
@@ -46,23 +76,8 @@ extension RuntimeClient {
         guard !offlineRestored else { return }
         offlineRestored = true
         if state == nil { state = offlineStore.state() }
-        guard FileManager.default.fileExists(atPath: receiptJournalURL.path) else { return }
         do {
-            let data = try RuntimePrivateFile.read(receiptJournalURL, maximumBytes: 256 * 1024)
-            let document = try JSONValue(data: data)
-            guard document["version"]?.intValue == 1,
-                  document["hostID"]?.stringValue == "local",
-                  let records = document["records"]?.arrayValue, records.count <= 128 else {
-                throw RuntimeError("COMMAND_JOURNAL_INVALID", "The saved command outcomes require recovery before sending new work")
-            }
-            var restored: [String: RuntimeCommandRecord] = [:]
-            var keys = Set<String>()
-            for value in records {
-                guard let record = RuntimeCommandRecord(value), restored[record.id] == nil, keys.insert(record.key).inserted else {
-                    throw RuntimeError("COMMAND_JOURNAL_INVALID", "The saved command outcomes require recovery before sending new work")
-                }
-                restored[record.id] = record
-            }
+            let restored = try readCommandJournal()
             commandRecords = restored
             for record in restored.values {
                 unresolvedCommands[record.key] = record.id
@@ -73,24 +88,86 @@ extension RuntimeClient {
         }
     }
 
-    func persistCommandJournal() throws {
-        let records = commandRecords.values.sorted { $0.id < $1.id }.map(\.json)
-        let data = try runtimeObject(["version": .integer(1), "hostID": .text("local"), "records": .array(records)]).encodedData()
-        do { try RuntimePrivateFile.write(data, to: receiptJournalURL) }
+    private func readCommandJournal() throws -> [String: RuntimeCommandRecord] {
+        do { _ = try FileManager.default.attributesOfItem(atPath: receiptJournalURL.path) }
+        catch let error as CocoaError where error.code == .fileReadNoSuchFile { return [:] }
+        let data = try RuntimePrivateFile.read(receiptJournalURL, maximumBytes: 256 * 1024)
+        let document = try JSONValue(data: data)
+        guard document["version"]?.intValue == 1, document["hostID"]?.stringValue == "local",
+              let records = document["records"]?.arrayValue, records.count <= 128 else {
+            throw RuntimeError("COMMAND_JOURNAL_INVALID", "The saved command outcomes require recovery before sending new work")
+        }
+        var restored: [String: RuntimeCommandRecord] = [:]
+        var keys = Set<String>()
+        for value in records {
+            guard let record = RuntimeCommandRecord(value), restored[record.id] == nil, keys.insert(record.key).inserted else {
+                throw RuntimeError("COMMAND_JOURNAL_INVALID", "The saved command outcomes require recovery before sending new work")
+            }
+            restored[record.id] = record
+        }
+        return restored
+    }
+
+    @discardableResult
+    func persistCommandJournal(upserting record: RuntimeCommandRecord? = nil, creating: Bool = false,
+                               removing id: String? = nil) throws -> Bool {
+        do {
+            // Other clients may have admitted writes since this actor restored
+            // its cache. Change only this receipt under the collector's gate.
+            return try RuntimeAttachmentLease.withExclusiveOwnership(in: storageDirectory) {
+                var current = try readCommandJournal()
+                if let record {
+                    let previous = current[record.id]
+                    if let previous, previous.key != record.key || previous.fingerprint != record.fingerprint {
+                        throw RuntimeError("RECEIPT_CONFLICT", "A receipt cannot be retried with different command arguments")
+                    }
+                    if creating, let previous {
+                        commandRecords[record.id] = previous
+                        return true
+                    }
+                    if !creating, previous == nil {
+                        // A different client consumed this receipt while a
+                        // lookup or command result was suspended. It is final.
+                        commandRecords.removeValue(forKey: record.id)
+                        unresolvedCommands = unresolvedCommands.filter { $0.value != record.id }
+                        explicitReceipts.removeValue(forKey: record.id)
+                        return false
+                    }
+                    if let previous = current.values.first(where: { $0.key == record.key && $0.id != record.id }) {
+                        throw RuntimeError("RECEIPT_CONFLICT", "A saved command already owns this input; resolve its receipt before sending",
+                            receiptID: previous.id)
+                    }
+                    current[record.id] = record
+                }
+                if let id { current.removeValue(forKey: id) }
+                guard current.count <= 128 else {
+                    throw RuntimeError("TOO_MANY_UNRESOLVED_COMMANDS", "Inspect pending command outcomes before submitting more work")
+                }
+                let records = current.values.sorted { $0.id < $1.id }.map(\.json)
+                let data = try runtimeObject(["version": .integer(1), "hostID": .text("local"), "records": .array(records)]).encodedData()
+                try RuntimePrivateFile.write(data, to: receiptJournalURL)
+                return false
+            }
+        }
+        catch let error as RuntimeError { throw error }
         catch { throw RuntimeError("COMMAND_JOURNAL_UNAVAILABLE", "The command could not be tracked on this device; check available storage before sending") }
     }
 
-    func rememberCommand(key: String, id: String, fingerprint: String, channel: String) throws {
+    func rememberCommand(key: String, id: String, fingerprint: String, channel: String, attachmentIDs: [String]) throws -> Bool {
         if let commandJournalFailure { throw commandJournalFailure }
-        guard commandRecords[id] == nil else { return }
-        commandRecords[id] = RuntimeCommandRecord(key: key, id: id, fingerprint: fingerprint, channel: channel)
-        do { try persistCommandJournal() }
+        guard commandRecords[id] == nil else { return true }
+        // A disconnected write can still be waiting before RetainInput. The
+        // receipt, including its files, must outlive the submitting draft.
+        let record = RuntimeCommandRecord(key: key, id: id, fingerprint: fingerprint,
+            channel: channel, attachmentIDs: attachmentIDs)
+        commandRecords[id] = record
+        do { return try persistCommandJournal(upserting: record, creating: true) }
         catch { commandRecords[id] = nil; throw error }
     }
 
     func forgetCommand(_ id: String) {
         guard let previous = commandRecords.removeValue(forKey: id) else { return }
-        do { try persistCommandJournal() }
+        do { try persistCommandJournal(removing: id) }
         catch {
             // Retaining an already-settled ID is safe; dropping an untracked ID
             // would allow a relaunch to issue duplicate work with a new ID.
@@ -166,7 +243,7 @@ extension RuntimeClient {
         default: throw RuntimeError("INVALID_RECEIPT", "Runtime returned an unknown command receipt status")
         }
         commandRecords[id] = record
-        try persistCommandJournal()
+        try persistCommandJournal(upserting: record)
         return outcome
     }
 
@@ -183,7 +260,7 @@ extension RuntimeClient {
             throw RuntimeError("ACCEPTED_DRAFT_PROTECTED", "This input was accepted; consume its receipt from the draft or explicitly confirm a new submission")
         }
         commandRecords.removeValue(forKey: id)
-        do { try persistCommandJournal() }
+        do { try persistCommandJournal(removing: id) }
         catch { commandRecords[id] = previous; throw error }
         unresolvedCommands = unresolvedCommands.filter { $0.value != id }
         explicitReceipts.removeValue(forKey: id)

@@ -19,6 +19,7 @@ extension RuntimeClient {
             guard status == .connected, hydration == nil else {
                 throw RuntimeError("OFFLINE_COMMAND_DISABLED", "Connect and synchronize with the host before submitting this action; the draft is saved on this device")
             }
+            if channel == "moku:stage-attachments", let connection { try connection.requireAttachmentLease() }
             if let commandJournalFailure { throw commandJournalFailure }
         }
         // A state load that starts the client must not coalesce with the handshake's
@@ -44,7 +45,7 @@ extension RuntimeClient {
             throw RuntimeError("TOO_MANY_UNRESOLVED_COMMANDS", "Inspect pending command outcomes before submitting more work")
         }
         let id = receiptID ?? unresolvedCommands[key] ?? "\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.lowercased())"
-        let alreadySubmitted = commandRecords[id] != nil
+        let alreadySubmitted: Bool
         explicitReceipts[id] = fingerprint
         let body = try runtimeObject(["commandId": .text(id), "args": .array(args)]).encodedData()
         guard body.count <= RuntimeProtocol.maxRequestBytes else {
@@ -52,9 +53,10 @@ extension RuntimeClient {
             throw RuntimeError("REQUEST_TOO_LARGE", "Runtime request exceeds the 144 MiB limit")
         }
         if !readOnly {
-            try rememberCommand(key: key, id: id, fingerprint: fingerprint, channel: channel)
+            alreadySubmitted = try rememberCommand(key: key, id: id, fingerprint: fingerprint, channel: channel,
+                attachmentIDs: RuntimeCommandRecord.attachmentIDs(for: channel, args: args))
             unresolvedCommands[key] = id
-        }
+        } else { alreadySubmitted = false }
         // Receipt settlement is part of the shared operation, so no coalesced
         // waiter can return (and issue another command) before it is complete.
         let observed = channel == "app:update-settings" || channel == "harness:settings-presentation" || channel == "harness:detect-installations"
@@ -74,7 +76,7 @@ extension RuntimeClient {
                 self.activeCommands.removeValue(forKey: key)
                 if retainingReceipt && !readOnly {
                     self.commandRecords[id]?.status = .accepted
-                    try self.persistCommandJournal()
+                    if let record = self.commandRecords[id] { try self.persistCommandJournal(upserting: record) }
                 } else {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
@@ -87,8 +89,10 @@ extension RuntimeClient {
                 self.activeCommands.removeValue(forKey: key)
                 if !readOnly, let error = error as? RuntimeError,
                    error.kind == .uncertain || error.code == "COMMAND_OUTCOME_INDETERMINATE" || error.code == "COMMAND_OUTCOME_UNCERTAIN" {
-                    self.unresolvedCommands[key] = id
-                    if self.status == .connected { self.scheduleReceiptRecovery() }
+                    if self.commandRecords[id] != nil {
+                        self.unresolvedCommands[key] = id
+                        if self.status == .connected { self.scheduleReceiptRecovery() }
+                    }
                 } else if (error as? RuntimeError)?.kind == .commandRejected && !retainingReceipt {
                     self.unresolvedCommands = self.unresolvedCommands.filter { $0.value != id }
                     self.explicitReceipts.removeValue(forKey: id)
@@ -208,7 +212,7 @@ extension RuntimeClient {
                 guard let refreshed else {
                     if uncertain { throw RuntimeError.uncertain(receiptID) }; throw error
                 }
-                connection = refreshed
+                connection = try connectionWithAttachmentLease(refreshed)
             }
         }
         throw RuntimeError.uncertain(receiptID)

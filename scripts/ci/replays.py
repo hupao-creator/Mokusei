@@ -59,12 +59,12 @@ def main():
     groups = {
         "runtime": [(name, go + ["./tools/verification/" + name]) for name in [
             "transport", "runtime-concurrency", "storage-workspaces", "command-boundaries",
-            "applicationhost", "settings-shell", "thread-metadata", "thread-search", "git",
+            "applicationhost", "settings-shell", "thread-metadata", "thread-search", "git", "attachment-lifecycle",
         ]] + [("content-publication", [args.go, "test", "-race", "./internal/platform/transport",
                                        "-run", "^$", "-bench", "^Benchmark(Unchanged|Changed)Content$",
                                        "-benchtime", "3x"])],
         "adapters": [(name.replace("/", "-"), go + ["./tools/verification/" + name]) for name in [
-            "claude", "codex", "opencode", "console-oauth", "artificialanalysis",
+            "claude", "codex", "opencode", "harness-install", "console-oauth", "artificialanalysis",
             "artificialanalysis/lifecycle", "maintenance", "thread-detail-performance",
         ]],
         "fixtures": [
@@ -96,7 +96,7 @@ def main():
             ("note-exposure", go + ["./tools/verification/moku", "-swift-note-exposure"]),
             *[(name, [sys.executable, "tools/verification/reading-presentation/run.py", "--" + name]
                      + (["--native-owned"] if name in {"moku-execution-links", "rolling-numbers"} else []))
-              for name in ["browser-dialogs", "application-navigation", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
+              for name in ["browser-dialogs", "application-navigation", "workspace-lifecycle", "moku-execution-links", "rolling-numbers", "tag-glass-captures",
                            "settings-transition", "isolated-input"]],
             ("thread-send-feedback", [sys.executable, "tools/verification/reading-presentation/run.py", "--thread-send-feedback-native"]),
             ("scrollbars", [sys.executable, "tools/verification/scrollbars/run.py"]),

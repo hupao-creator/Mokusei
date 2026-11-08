@@ -23,7 +23,8 @@ separate JavaScript build for this adapter.
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
 `AvailabilityProbe`, `WorkspaceDiscoverer`, `ModelCatalogSource`,
 and `DiscussionPreparer`. Installation of the external
-Pi CLI belongs to the application's Harness installation flow.
+Pi CLI is manual through the native client's installation guide; this adapter
+does not implement `plugin.Installer` or launch an installation subprocess.
 
 The native Moku settings model menu retains the exact provider/model tuple in a
 length-prefixed selection identity. Slashes inside either native identifier do

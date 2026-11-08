@@ -99,7 +99,8 @@ extension RuntimeClient {
         struct Request: Encodable { let references: [RuntimeHostFileReference] }
         let body = try JSONEncoder().encode(Request(references: references))
         let value = try await fileOperation { connection, transport in
-            try runtimeResult(await transport.request(connection: connection, path: "/files/stage-host", method: "POST", body: body, timeout: 600))
+            try connection.requireAttachmentLease()
+            return try runtimeResult(await transport.request(connection: connection, path: "/files/stage-host", method: "POST", body: body, timeout: 600))
         }
         guard let records = value.arrayValue, records.count == references.count else { throw RuntimeError("INVALID_RESPONSE", "Incomplete host attachment import") }
         return records
@@ -116,6 +117,7 @@ extension RuntimeClient {
         }
         let metadata = try await withTaskCancellationHandler { try await prepare.value } onCancel: { prepare.cancel() }
         return try await fileOperation { connection, transport in
+            try connection.requireAttachmentLease()
             let channel = try RuntimeHTTPChannel(connection: connection, path: "/files/upload", method: "POST", body: nil,
                 timeout: 600, uploadFile: frozen, headers: [
                     "Content-Type": "application/octet-stream", "Content-Length": String(metadata.size),

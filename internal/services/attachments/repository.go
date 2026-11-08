@@ -48,12 +48,13 @@ type Import struct {
 }
 
 type manifest struct {
-	ID       string `json:"id"`
-	Path     string `json:"path"`
-	Name     string `json:"name"`
-	MimeType string `json:"mimeType"`
-	Size     int64  `json:"size"`
-	SHA256   string `json:"sha256"`
+	ID          string `json:"id"`
+	Path        string `json:"path"`
+	Name        string `json:"name"`
+	MimeType    string `json:"mimeType"`
+	Size        int64  `json:"size"`
+	SHA256      string `json:"sha256"`
+	ClientLease string `json:"clientLease,omitempty"`
 }
 
 type ownerIndex struct {
@@ -62,12 +63,20 @@ type ownerIndex struct {
 }
 
 type Repository struct {
-	root    string
-	mu      sync.Mutex
-	staging sync.Map
+	root       string
+	clientRoot string
+	mu         sync.Mutex
+	staging    sync.Map
+	pending    sync.Map
 }
 
 func New(root string) *Repository { return &Repository{root: root} }
+
+// Native clients and the daemon share one local profile. Draft references are
+// read from their atomic client records, rather than copied into another index.
+func NewWithClientStorage(root, clientRoot string) *Repository {
+	return &Repository{root: root, clientRoot: clientRoot}
+}
 
 func (r *Repository) Stage(ctx context.Context, imports []Import) ([]model.Attachment, error) {
 	r.mu.Lock()
@@ -259,6 +268,16 @@ func (r *Repository) stageReader(ctx context.Context, displayName, extension, mi
 	if expectedSize < 0 || expectedSize > sizeLimit(mime) {
 		return result, errors.New("附件过大")
 	}
+	lease := model.ClientAttachmentLease(ctx)
+	if lease != "" {
+		active, e := r.clientLeaseActive(lease)
+		if e != nil {
+			return result, e
+		}
+		if !active {
+			return result, errors.New("附件导入的客户端已退出")
+		}
+	}
 	id, err := newID()
 	if err != nil {
 		return result, err
@@ -305,7 +324,7 @@ func (r *Repository) stageReader(ctx context.Context, displayName, extension, mi
 	if closeErr != nil {
 		return result, closeErr
 	}
-	m := manifest{ID: id, Path: path, Name: name, MimeType: mime, Size: n, SHA256: digest}
+	m := manifest{ID: id, Path: path, Name: name, MimeType: mime, Size: n, SHA256: digest, ClientLease: lease}
 	if err = os.MkdirAll(filepath.Join(r.root, ".metadata"), 0700); err != nil {
 		return result, err
 	}
@@ -314,6 +333,11 @@ func (r *Repository) stageReader(ctx context.Context, displayName, extension, mi
 	}
 	if err = ctx.Err(); err != nil {
 		return result, err
+	}
+	if lease == "" {
+		// Internal service imports retain their handoff until RetainInput or
+		// Discard. The in-memory owner ends when this repository is retired.
+		r.pending.Store(id, true)
 	}
 	return attachment(m), nil
 }
@@ -404,6 +428,9 @@ func (r *Repository) RetainInput(ctx context.Context, threadID string, input mod
 	if err = r.writeOwners(owners); err != nil {
 		return model.AgentInput{}, err
 	}
+	for _, id := range ids {
+		r.pending.Delete(id)
+	}
 	return canonical, nil
 }
 
@@ -468,11 +495,11 @@ func (r *Repository) ReleaseOwner(ctx context.Context, threadID string) error {
 	if err != nil {
 		return err
 	}
-	if _, exists := owners[threadID]; !exists {
-		return nil
-	}
 	delete(owners, threadID)
-	return r.writeOwners(owners)
+	if err = r.writeOwners(owners); err != nil {
+		return err
+	}
+	return r.collectOrphans(ctx, 0, owners)
 }
 
 func (r *Repository) Preview(ctx context.Context, threadID, id string) (string, error) {
@@ -551,18 +578,28 @@ func (r *Repository) Discard(ctx context.Context, ids []string) error {
 	if err != nil {
 		return err
 	}
-	live := ownedIDs(owners)
 	for _, id := range ids {
 		if err = ctx.Err(); err != nil {
 			return err
 		}
-		if !live[id] {
-			if err = r.remove(id); err != nil {
-				return err
-			}
+		data, e := os.ReadFile(r.manifestPath(id))
+		if errors.Is(e, os.ErrNotExist) {
+			continue
 		}
+		if e != nil {
+			return e
+		}
+		var m manifest
+		if e = model.Unmarshal(data, &m); e != nil || m.ID != id {
+			return errors.New("附件 staging metadata 无效")
+		}
+		m.ClientLease = ""
+		if err = atomicJSON(r.manifestPath(id), m); err != nil {
+			return err
+		}
+		r.pending.Delete(id)
 	}
-	return nil
+	return r.collectOrphans(ctx, 0, owners)
 }
 
 func (r *Repository) CollectOrphans(ctx context.Context, ttl time.Duration) error {
@@ -575,14 +612,31 @@ func (r *Repository) CollectOrphans(ctx context.Context, ttl time.Duration) erro
 	if err != nil {
 		return err
 	}
+	return r.collectOrphans(ctx, ttl, owners)
+}
+
+func (r *Repository) collectOrphans(ctx context.Context, ttl time.Duration, owners map[string][]string) error {
+	unlock, err := r.lockClientOwnership(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	readers, err := r.liveClientAttachmentIDs()
+	if err != nil {
+		return err
+	}
 	entries, err := os.ReadDir(r.root)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return r.collectClientLeases()
 	}
 	if err != nil {
 		return err
 	}
 	live := ownedIDs(owners)
+	for id := range readers {
+		live[id] = true
+	}
+	var candidates []string
 	cutoff := time.Now().Add(-ttl)
 	for _, entry := range entries {
 		if err = ctx.Err(); err != nil {
@@ -594,6 +648,28 @@ func (r *Repository) CollectOrphans(ctx context.Context, ttl time.Duration) erro
 		if _, active := r.staging.Load(entry.Name()); active {
 			continue
 		}
+		if _, active := r.pending.Load(entry.Name()); active {
+			continue
+		}
+		data, e := os.ReadFile(r.manifestPath(entry.Name()))
+		if e != nil && !errors.Is(e, os.ErrNotExist) {
+			return e
+		}
+		if e == nil {
+			var m manifest
+			if e = model.Unmarshal(data, &m); e != nil || m.ID != entry.Name() {
+				return errors.New("附件 staging metadata 无效；停止回收")
+			}
+			if m.ClientLease != "" {
+				active, e := r.clientLeaseActive(m.ClientLease)
+				if e != nil {
+					return e
+				}
+				if active {
+					continue
+				}
+			}
+		}
 		info, err := entry.Info()
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -602,7 +678,89 @@ func (r *Repository) CollectOrphans(ctx context.Context, ttl time.Duration) erro
 			return err
 		}
 		if !info.ModTime().After(cutoff) {
-			if err = r.remove(entry.Name()); err != nil {
+			candidates = append(candidates, entry.Name())
+		}
+	}
+	// Freeze live-process protection before reading durable references. A client
+	// may atomically save its draft and exit during this pass. Reading the draft
+	// first and probing its now-ended lease afterward could delete that new save.
+	// Resolve every draft before deleting any candidate; unreadable is not empty.
+	drafts, err := r.draftAttachmentIDs()
+	if err != nil {
+		return err
+	}
+	for _, id := range candidates {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if !drafts[id] {
+			if err = r.remove(id); err != nil {
+				return err
+			}
+		}
+	}
+	for id := range drafts {
+		live[id] = true
+	}
+	if err = r.collectDetachedManifests(ctx, cutoff, live); err != nil {
+		return err
+	}
+	return r.collectClientLeases()
+}
+
+func (r *Repository) collectDetachedManifests(ctx context.Context, cutoff time.Time, live map[string]bool) error {
+	directory := filepath.Join(r.root, ".metadata")
+	if err := privateClientDirectory(directory); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		id := strings.TrimSuffix(entry.Name(), ".json")
+		if entry.Name() == id || !managedID.MatchString(id) || live[id] {
+			continue
+		}
+		if _, active := r.staging.Load(id); active {
+			continue
+		}
+		if _, active := r.pending.Load(id); active {
+			continue
+		}
+		if _, err = os.Lstat(filepath.Join(r.root, id)); err == nil {
+			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.ModTime().After(cutoff) {
+			data, err := os.ReadFile(r.manifestPath(id))
+			if err != nil {
+				return err
+			}
+			var m manifest
+			if err = model.Unmarshal(data, &m); err != nil || m.ID != id {
+				return errors.New("附件 staging metadata 无效；停止回收")
+			}
+			if m.ClientLease != "" {
+				active, err := r.clientLeaseActive(m.ClientLease)
+				if err != nil {
+					return err
+				}
+				if active {
+					continue
+				}
+			}
+			if err = os.Remove(r.manifestPath(id)); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
 		}
@@ -735,14 +893,13 @@ func (r *Repository) remove(id string) error {
 	if !managedID.MatchString(id) {
 		return errors.New("附件 ID 无效")
 	}
-	if err := os.RemoveAll(filepath.Join(r.root, id)); err != nil {
+	r.pending.Delete(id)
+	// Remove metadata first: if deletion is interrupted, the remaining payload
+	// directory is still discoverable by the next collection pass.
+	if err := os.Remove(r.manifestPath(id)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	err := os.Remove(r.manifestPath(id))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return err
+	return os.RemoveAll(filepath.Join(r.root, id))
 }
 func attachment(m manifest) model.Attachment {
 	return model.Attachment{ID: m.ID, Path: m.Path, Name: m.Name, MimeType: m.MimeType, Size: m.Size, Kind: KindForMimeType(m.MimeType)}

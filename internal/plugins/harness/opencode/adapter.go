@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
+	"github.com/hupao-creator/Mokusei/internal/platform/processgroup"
 )
 
 type Harness struct {
@@ -79,11 +82,19 @@ func (h *Harness) Install(ctx context.Context) error {
 	if path == "" {
 		return errors.New("installing external OpenCode requires npm; install @opencode/cli@2.0.25 manually")
 	}
-	cmd := exec.CommandContext(ctx, path, "install", "--global", "@opencode/cli@2.0.25")
+	var values []string
 	for k, v := range env {
-		cmd.Env = append(cmd.Env, k+"="+v)
+		values = append(values, k+"="+v)
 	}
-	return cmd.Run()
+	// npm lifecycle scripts belong to this installation, including after npm exits.
+	result, err := processgroup.Run(ctx, path, []string{"install", "--global", "@opencode/cli@2.0.25"}, "", values, 8*1024*1024)
+	if err == nil && result.ExitCode != 0 {
+		err = fmt.Errorf("exit status %d", result.ExitCode)
+	}
+	if err != nil {
+		return fmt.Errorf("OpenCode installer failed: %w: %s", err, clip(strings.TrimSpace(result.Stderr+"\n"+result.Stdout), 8192))
+	}
+	return nil
 }
 func (h *Harness) launch(ctx context.Context, s Settings, cwd string, isolated bool) (*Runtime, error) {
 	options, err := captureLaunch(ctx, h.host, s, cwd)

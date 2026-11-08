@@ -1,5 +1,23 @@
 # Reading-page background presentation replay
 
+## Workspace Reload and rejected Quit
+
+```sh
+python3 tools/verification/reading-presentation/run.py --workspace-lifecycle
+```
+
+Compiles the production `Sources/App` lifecycle owner with this replay's AppKit
+entry point and mounts the real workspace presentation. Three integration cases
+hold a real Harness content resource's asynchronous release: ordinary Reload
+waits before replacing its presentation; Quit revokes a pending Reload while a
+Settings save is unresolved; and repeated rejected Quits cannot let old tasks
+clear their successor. Rejected Quit restores a fresh presentation only after
+the original cleanup drains, preserving the same failed or composing Settings
+draft. The fixture supplies release gates and a rejected save receipt; it does
+not duplicate the lifecycle state machine or launch a Runtime/provider process.
+The launcher requires all three passing cases and their boundary markers.
+This replay runs in CI's existing serial `native` group.
+
 ## Thread send, execution entry and completion handoff
 
 ```sh
