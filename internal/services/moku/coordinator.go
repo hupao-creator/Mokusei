@@ -51,6 +51,7 @@ type Coordinator struct {
 	cleanupFailure         error
 	admissions             map[*userAdmission]bool
 	scopes                 map[string]executionScope
+	scopeRevision          int64
 	observed               map[string]string
 	events                 []coordinatorEvent
 	eventWake              chan struct{}
@@ -97,6 +98,7 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 	c.refreshWake = make(chan struct{}, 1)
 	c.events = nil
 	c.id = ""
+	c.scopeRevision = 0
 	c.observed = make(map[string]string)
 	c.applied = nil
 	c.injection = nil
@@ -175,6 +177,7 @@ func (c *Coordinator) Start(ctx context.Context, start plugin.RuntimeStartContex
 		}
 		if record.Moku {
 			c.id = record.ID
+			c.scopeRevision = record.Revision
 		} else if c.config.PendingDeliveries != nil && c.config.SendDelivery != nil {
 			continue
 		}
@@ -613,7 +616,7 @@ func (c *Coordinator) Clear(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		c.installConfiguration(replacement.ID, configuration)
+		c.installConfiguration(replacement, configuration)
 		return nil
 	})
 }
@@ -675,7 +678,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 		if err != nil {
 			return current, err
 		}
-		c.installConfiguration(current.ID, configuration)
+		c.installConfiguration(current, configuration)
 		applied = &configuration
 	} else if applied == nil {
 		configuration := SessionConfiguration{HarnessID: current.HarnessID, Settings: current.Settings, AppliedSettings: settings, SettingsRevision: revision, Cwd: c.config.Workspace}
@@ -686,7 +689,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 			}
 			configuration = stored
 		}
-		c.installConfiguration(current.ID, configuration)
+		c.installConfiguration(current, configuration)
 		applied = &configuration
 	}
 	if !live(current) && applied != nil && (applied.Unapplied || !sameMokuSettings(applied.AppliedSettings, settings)) {
@@ -761,7 +764,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				return current, err
 			}
 		}
-		c.installConfiguration(current.ID, configuration)
+		c.installConfiguration(current, configuration)
 		applied = &configuration
 	}
 	c.mu.Lock()
@@ -792,7 +795,7 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 				c.mu.Unlock()
 				return current, err
 			}
-			c.installConfiguration(current.ID, *applied)
+			c.installConfiguration(latest, *applied)
 			prepared = &description
 			injection = nil
 		}
@@ -843,13 +846,18 @@ func (c *Coordinator) ensurePrepared(ctx context.Context) (model.ThreadRecord, e
 	}
 	return c.config.Thread(current.ID)
 }
-func (c *Coordinator) installConfiguration(id string, configuration SessionConfiguration) {
+func (c *Coordinator) installConfiguration(record model.ThreadRecord, configuration SessionConfiguration) {
 	c.mu.Lock()
 	for _, scope := range c.scopes {
 		scope.cancel()
 	}
 	c.scopes = make(map[string]executionScope)
-	c.id = id
+	if c.id != record.ID {
+		c.scopeRevision = record.Revision
+	} else {
+		c.scopeRevision = max(c.scopeRevision, record.Revision)
+	}
+	c.id = record.ID
 	c.applied = &configuration
 	c.injection = nil
 	c.description = nil

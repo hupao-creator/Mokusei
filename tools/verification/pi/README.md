@@ -46,3 +46,15 @@ forbidden write, concurrent questions, provider errors, cancellation/media failu
 cleanup, lazy forks and an actively running source remaining unchanged.
 
 The deterministic replay also sends an editor request from the RPC child process, checks its multiline Unicode prefill in the committed public form, and submits the unchanged default through production preflight and native response.
+
+The admission replay runs the production Session and Thread adapter over real
+child-process pipes. It blocks a subscriber while native settlement advances,
+rejects the stale reservation without another run, and then checks terminal
+execution IDs before retention. Its ordinary follow-up matrix covers settlement
+before a `started` reply, a queued input completing before its reply, handled and
+rejected input, a missing disposition, cancellation during settings preflight,
+uncertain acceptance after a full prompt write, and process exit after completion.
+Assertions check acknowledgement counts, the exact owning execution, one retained
+follow-up/reply and restoration of unconsumed input rather than copying admission
+logic. Pi versions before 0.99.0 are rejected because their prompt replies cannot
+distinguish these acceptance outcomes.

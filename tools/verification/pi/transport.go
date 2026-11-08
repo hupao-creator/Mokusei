@@ -13,13 +13,13 @@ import (
 )
 
 func verifyTransport(ctx context.Context) {
-	for _, v := range []string{"0.83.0", "1.0.0", "2.1.5+build.1"} {
+	for _, v := range []string{"0.99.0", "1.0.0", "2.1.5+build.1"} {
 		o := fixtureOptions("")
 		o.Env["MOKUSEI_PI_VERIFICATION_VERSION"] = v
 		got, err := pi.GetVersion(ctx, o)
 		check(err == nil && got == v, "stable version acceptance")
 	}
-	for _, v := range []string{"0.82.9", "1.0.0-beta", "v1.0.0", "01.0.0", "9007199254740992.0.0"} {
+	for _, v := range []string{"0.83.0", "0.98.9", "1.0.0-beta", "v1.0.0", "01.0.0", "9007199254740992.0.0"} {
 		o := fixtureOptions("")
 		o.Env["MOKUSEI_PI_VERIFICATION_VERSION"] = v
 		_, err := pi.GetVersion(ctx, o)

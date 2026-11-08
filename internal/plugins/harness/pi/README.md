@@ -17,7 +17,8 @@ in force. See [Report continuation](../../../../design/report-execution-continua
 
 `pi.New(plugin.HostContext)` is the Go implementation of the Pi Agent Harness.
 It uses the external `pi --mode rpc` process and requires a stable Pi release
-at least 0.83.0. Mokusei does not launch a Node renderer, bridge server, or
+at least 0.99.0 for authoritative `started`/`queued`/`handled` prompt replies.
+Mokusei does not launch a Node renderer, bridge server, or
 separate JavaScript build for this adapter.
 
 The adapter implements `plugin.Harness`, `Forker`, `PromptCompleter`,
@@ -59,8 +60,23 @@ remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
 - A prompt response accepts input; only `agent_settled` completes its run.
   `agent_end` can precede queued work. A consumed input fails its submission;
   a consumed steering input leaves the admitted native run intact.
-- Thread inputs and execution state commit before `SendRequest.Admitted` and
-  before native dispatch. A rejected admission never dispatches native work.
+- Thread inputs and execution state commit before native dispatch. New executions
+  call `SendRequest.Admitted` before dispatch; ordinary follow-ups acknowledge
+  only after a native acceptance reply, so rejected/handled input stays unadmitted.
+- Ordinary follow-ups reserve their exact live native run before retention.
+  A run that already settled returns `ErrExecutionEnded` after Thread callbacks
+  drain, allowing Core to reserve a successor without retaining the old input.
+  An execution ID already present in terminal history is rejected the same way.
+  Once reserved, native settlement waits for input acceptance and acknowledgement.
+  The wire reader handles `queued` as part of that run; `started` after the old
+  run settled continues the reserved execution and replaces only the preceding
+  physical run's terminal outcome. A fast continuation can therefore finish
+  before the sending goroutine resumes without becoming unowned work.
+  Rejection or cancellation before prompt dispatch releases the original outcome.
+  A complete prompt frame with unknown acceptance retires the session and cannot
+  authorize automatic replay. Missing/invalid dispositions fail the session.
+  Isolated completion steering uses the same exact-run reservation; the shared
+  completion mailbox retains its conservative settled/retry contract.
 - Streaming state commits are coalesced at 50 ms. Native boundaries commit
   immediately. Reopening a persisted live execution interrupts it without
   starting the CLI; the next send can resume its native session.
@@ -157,7 +173,7 @@ input protocol has no proven atomic active-only condition. Lazy Moku notices
 therefore wait for the next independently triggered input and travel with its
 system context, even while this Harness is running. An explicit follow-up-only
 Send returns `ErrFollowUpUnavailable` before retaining or dispatching anything;
-ordinary inputs keep their existing behavior.
+ordinary inputs use the admission reservation described above.
 
 `search.go` supplies completed-execution public passages with their execution IDs
 for Moku grep. Existing index text joins the same passages, preserving its prior
