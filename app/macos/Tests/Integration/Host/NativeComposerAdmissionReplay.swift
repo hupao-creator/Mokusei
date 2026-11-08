@@ -47,7 +47,8 @@ struct NativeComposerAdmissionReplay {
         var consumed = false
         let draft = NativeComposerDraft(services: .init(stageFiles: { _, _ in [stored("accepted")] },
             discardAttachments: { ids in
-                #expect(try ownership(directory, scope: "staging-release") == .array([]))
+                let references = try ownership(directory, scope: "staging-release")
+                #expect(references == .array([]))
                 discarded += ids
             }), persistence: persistence)
         draft.text = "send once"
