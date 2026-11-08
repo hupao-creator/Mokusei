@@ -179,7 +179,11 @@ func (c *Coordinator) committed(record model.ThreadRecord) {
 		return
 	}
 	execution := record.Observation.LatestExecution
-	if record.Moku && record.ID == c.id && execution != nil {
+	// Commit notifications can overtake one another after their transactions.
+	// Only a newer owner snapshot may replace tool authority; an older terminal
+	// fact must still reach its own audit/voice settlement below.
+	if record.Moku && record.ID == c.id && record.Revision > c.scopeRevision && execution != nil {
+		c.scopeRevision = record.Revision
 		for id, scope := range c.scopes {
 			if id != execution.ExecutionID || execution.Terminal() {
 				scope.cancel()

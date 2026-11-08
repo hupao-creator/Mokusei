@@ -982,6 +982,7 @@ func runOrchestratorReplay() error {
 		{"tool terminal cancellation", replayOrchestratorToolCancellation},
 		{"startup rollback", replayOrchestratorStartRollback},
 		{"stale terminal execution scope", replayOrchestratorStaleScope},
+		{"out-of-order committed snapshots", replayOrchestratorCommitOrder},
 	} {
 		if err := runMokuReplaySection(fixture.name, func() error { fixture.run(); return nil }); err != nil {
 			return err

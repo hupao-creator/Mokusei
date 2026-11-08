@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -92,12 +93,14 @@ func serveFixture() {
 		_ = json.NewEncoder(file).Encode(map[string]any{"type": "session", "cwd": cwd})
 		_ = file.Close()
 	}
+	running := false
 	finish := func() {
 		emitFixture(map[string]any{"type": "message_start", "message": map[string]any{"role": "assistant", "content": []any{}}})
 		emitFixture(map[string]any{"type": "message_end", "message": map[string]any{"role": "assistant", "content": []any{map[string]any{"type": "text", "text": "Hello world"}}, "stopReason": "stop"}})
 		emitFixture(map[string]any{"type": "agent_end"})
 		time.Sleep(20 * time.Millisecond)
 		emitFixture(map[string]any{"type": "agent_settled"})
+		running = false
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	lifecycleShutdown := false
@@ -139,6 +142,17 @@ func serveFixture() {
 			}
 			response(map[string]any{"models": []any{map[string]any{"id": "model", "provider": "provider", "baseUrl": "hidden", "thinkingLevelMap": map[string]any{"off": nil, "high": "high"}, "compat": map[string]any{"supportsReasoningEffort": false}}, map[string]any{"id": "unknown", "provider": "provider"}}})
 		case "get_available_thinking_levels":
+			if mode == "admission-cancel-preflight" && running {
+				finish()
+				gate := os.Getenv("MOKUSEI_PI_VERIFICATION_ADMISSION")
+				check(os.WriteFile(filepath.Join(gate, "ready"), nil, 0600) == nil, "signal blocked admission preflight")
+				for {
+					if _, err := os.Stat(filepath.Join(gate, "release")); err == nil {
+						break
+					}
+					time.Sleep(time.Millisecond)
+				}
+			}
 			response(map[string]any{"levels": []string{"off", "high"}})
 		case "clone":
 			if directory != "" {
@@ -164,11 +178,63 @@ func serveFixture() {
 			if mode == "runtime-lifecycle" {
 				lifecycleShutdown = runtimeLifecyclePrompt(text, sessionPath) || lifecycleShutdown
 			}
+			if strings.HasPrefix(mode, "admission-") && text == "follow-up" {
+				check(running && frame["streamingBehavior"] == "steer", "ordinary input is reserved against its active run")
+				finishContinuation := func() {
+					emitFixture(map[string]any{"type": "agent_start"})
+					emitFixture(map[string]any{"type": "message_start", "message": map[string]any{"role": "user", "content": []any{map[string]any{"type": "text", "text": text}}}})
+					emitFixture(map[string]any{"type": "message_start", "message": map[string]any{"role": "assistant", "content": []any{}}})
+					emitFixture(map[string]any{"type": "message_end", "message": map[string]any{"role": "assistant", "content": []any{map[string]any{"type": "text", "text": "Continuation result"}}, "stopReason": "stop"}})
+					emitFixture(map[string]any{"type": "agent_settled"})
+					running = false
+				}
+				if mode == "admission-queued" {
+					// The queued input can finish before the command response is read.
+					finishContinuation()
+					response(map[string]any{"disposition": "queued"})
+					continue
+				}
+				finish()
+				switch mode {
+				case "admission-started", "admission-exit":
+					response(map[string]any{"disposition": "started"})
+					running = true
+					finishContinuation()
+					if mode == "admission-exit" {
+						return
+					}
+				case "admission-handled", "admission-handled-exit":
+					response(map[string]any{"disposition": "handled"})
+					if mode == "admission-handled-exit" {
+						return
+					}
+				case "admission-rejected", "admission-rejected-exit":
+					emitFixture(map[string]any{"type": "response", "id": frame["id"], "success": false})
+					if mode == "admission-rejected-exit" {
+						return
+					}
+				case "admission-unknown":
+					response(map[string]any{})
+				case "admission-cancel-written":
+					check(os.WriteFile(filepath.Join(os.Getenv("MOKUSEI_PI_VERIFICATION_ADMISSION"), "ready"), nil, 0600) == nil, "signal written admission")
+					// EOF confirms that uncertain acceptance retires this session.
+					_, _ = io.Copy(io.Discard, os.Stdin)
+					return
+				default:
+					panic("unexpected admission fixture prompt: " + mode)
+				}
+				continue
+			}
 			if text == "handled" {
 				response(map[string]any{"disposition": "handled"})
 				continue
 			}
-			response(map[string]any{})
+			disposition := "started"
+			if running {
+				disposition = "queued"
+			}
+			running = true
+			response(map[string]any{"disposition": disposition})
 			if strings.HasPrefix(text, "usage-") {
 				message := map[string]any{"role": "assistant", "model": "model", "provider": "provider", "content": []any{}}
 				emitFixture(map[string]any{"type": "message_start", "message": message})
@@ -260,6 +326,7 @@ func serveFixture() {
 			emitFixture(map[string]any{"type": "agent_end"})
 			time.Sleep(80 * time.Millisecond)
 			emitFixture(map[string]any{"type": "agent_settled"})
+			running = false
 			if mode == "exit-settled" {
 				return
 			}
