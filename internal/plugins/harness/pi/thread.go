@@ -36,6 +36,7 @@ type threadHandle struct {
 	cancel                    context.CancelFunc
 	mu                        sync.Mutex
 	sendMu                    sync.Mutex
+	eventMu                   sync.Mutex
 	connMu                    sync.Mutex
 	state                     State
 	rpc                       *Session
@@ -388,6 +389,8 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	h.connectionConfig = config
 	h.mu.Unlock()
 	rpc.Subscribe(func(event Event) {
+		h.eventMu.Lock()
+		defer h.eventMu.Unlock()
 		h.mu.Lock()
 		if h.rpc != rpc || h.closed || h.closing {
 			h.mu.Unlock()
@@ -824,16 +827,38 @@ func (h *threadHandle) interactionLocked(event Event, current *model.PublicExecu
 	}
 	item := pendingInteraction{NativeID: event.ID, Method: event.Method, Options: options, NativeOptions: nativeOptions}
 	if event.Timeout != nil {
-		item.Timer = time.AfterFunc(time.Duration(min(*event.Timeout, 2147483647))*time.Millisecond, func() { h.fail(errors.New("Pi user request expired; rerun task")) })
+		executionID := current.ExecutionID
+		item.Timer = time.AfterFunc(time.Duration(min(*event.Timeout, 2147483647))*time.Millisecond, func() { h.expireInteraction(executionID, id) })
 	}
 	h.interactions[id] = item
 	current.Status = "waiting-for-user"
 	current.Interactions = append(current.Interactions, interaction)
 	return h.commitLocked()
 }
+func (h *threadHandle) expireInteraction(executionID, interactionID string) {
+	// Stop cannot retract an already queued timer callback. Serialize expiry
+	// with answers and new sends, then verify that this request still owns work.
+	h.sendMu.Lock()
+	defer h.sendMu.Unlock()
+	h.mu.Lock()
+	_, pending := h.interactions[interactionID]
+	current := activeExecution(&h.state)
+	rpc := h.rpc
+	expired := pending && current != nil && current.ExecutionID == executionID && rpc != nil && !h.closed && !h.closing
+	h.mu.Unlock()
+	if expired {
+		_ = h.stopSession(rpc, "failed", "Pi user request expired; rerun task")
+	}
+}
 func (h *threadHandle) Respond(ctx context.Context, request model.RespondRequest) error {
 	h.sendMu.Lock()
 	defer h.sendMu.Unlock()
+	// A native settlement may arrive before the answer's Write returns. Keep
+	// callbacks behind the local interaction commit. Respond only writes a
+	// frame; it never waits for a callback. Do not hold mu during pipe I/O so
+	// Interrupt and Close can still retire a blocked connection.
+	h.eventMu.Lock()
+	defer h.eventMu.Unlock()
 	h.mu.Lock()
 	item, ok := h.interactions[request.InteractionID]
 	current := activeExecution(&h.state)

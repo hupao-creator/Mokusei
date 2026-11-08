@@ -141,11 +141,15 @@ struct NativeMokuHistoryComposerTests {
         await draft.importFiles([.init(data: Data("notes".utf8), name: "notes.txt", mimeType: "text/plain")])
         var reject = true
         var submissions: [NativeComposerSubmission] = []
+        var consumed: [NativeComposerSubmission] = []
         func composer() -> NativeMokuHistoryComposer {
             NativeMokuHistoryComposer(draft: draft, cwd: "/tmp/history-workspace", suppressInitialFocus: true,
                 onSend: { submission in
                     submissions.append(submission)
                     if reject { throw PluginContractError("history admission failed") }
+                }, onSendConsumed: { submission in
+                    #expect(draft.text.isEmpty && draft.attachments.isEmpty && draft.directories.isEmpty)
+                    consumed.append(submission)
                 }, onCancel: {})
         }
         let host = NSHostingView(rootView: composer())
@@ -159,6 +163,7 @@ struct NativeMokuHistoryComposerTests {
         try enter(input, window: window)
         try await Task.sleep(for: .milliseconds(100))
         #expect(submissions.count == 1)
+        #expect(consumed.isEmpty)
         #expect(submissions.first?.directories.first?.path == "/tmp/history-workspace")
         #expect(submissions.first?.attachments.first?.id == "history-file")
         #expect(draft.text == "历史上下文里的跟进")
@@ -172,6 +177,7 @@ struct NativeMokuHistoryComposerTests {
         try enter(input, window: window)
         try await Task.sleep(for: .milliseconds(100))
         #expect(submissions.count == 2)
+        #expect(consumed.count == 1 && consumed.first?.text == "历史上下文里的跟进")
         #expect(draft.text.isEmpty && draft.attachments.isEmpty && draft.directories.isEmpty)
         #expect(draft.error == nil)
         #expect(editor(in: host) === input)
