@@ -273,6 +273,7 @@ final class NativeSubmissionFixture {
             "defaultCwd": .text(directory.path), "settings": .object([:]),
             "threads": .array([]), "executions": .array([]), "applicationThreads": .array([])])
         server = try NativeSubmissionHTTPFixture()
+        server.results["harness:detect-installations"] = NativeSubmissionHTTPFixture.success(.object([:]))
     }
 
     static func run(_ body: @MainActor (NativeSubmissionFixture) async throws -> Void) async throws {
@@ -293,7 +294,12 @@ final class NativeSubmissionFixture {
             protocolVersion: RuntimeProtocol.version, pid: Int(getpid()), dataDir: directory.path)
         await workspace.client.connectSubmissionFixture(endpoint, snapshot: snapshot)
         workspace.start()
-        try await wait { workspace.runtimeAvailable }
+        // Startup discovery owns a temporary receipt. Join its completed load
+        // before tests measure the journal or make command preparation fail.
+        try await wait {
+            workspace.runtimeAvailable && workspace.settingsModel.installationLoadState == .loaded
+                && !workspace.settingsModel.probing
+        }
     }
 
     func install(_ threads: [HarnessThread]) async throws {
