@@ -57,6 +57,13 @@ remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
   hooks. Only a child that fails to exit is escalated to SIGTERM, then SIGKILL,
   with one-second bounds at each stage. Sending EOF and SIGTERM together can
   make Pi force an early exit before its cleanup releases native resources.
+  Stopping admission and completing cleanup are separate boundaries: Close
+  returns success only after the child has been reaped and both stdout/stderr
+  readers have finished. Readers receive a bounded drain interval before their
+  descriptors close and a bounded join afterward. Missing completion evidence
+  returns a cleanup error; concurrent and repeated Close calls share that result.
+  Application callbacks are not part of this join, so a subscriber can safely
+  call Session.Close from its own callback.
 - A prompt response accepts input; only `agent_settled` completes its run.
   `agent_end` can precede queued work. A consumed input fails its submission;
   a consumed steering input leaves the admitted native run intact.
@@ -80,6 +87,12 @@ remains authoritative beyond configuration-keyed, TTL-bounded snapshots.
 - Streaming state commits are coalesced at 50 ms. Native boundaries commit
   immediately. Reopening a persisted live execution interrupts it without
   starting the CLI; the next send can resume its native session.
+  Thread shutdown reads the final native JSONL only after successful cleanup.
+  An incomplete cleanup preserves the retained snapshot and blocks this handle
+  from admitting a replacement input or native connection. Ordinary cleanup
+  diagnostics after a completed drain do not establish that permanent fence.
+  Connection replacement and the staging-to-cloned-session handoff propagate
+  cleanup errors before starting the next native owner.
 - `message_end.usage` describes one model call, not an execution/session total.
   Durable messages retain those native counts; compact renderer scopes carry
   derived `executionUsage` totals keyed by execution ID without rewriting the
@@ -111,6 +124,14 @@ their cleanup before returning. Tool implementations must observe cancellation.
 A callback panic becomes a tool error without exposing its panic payload or
 terminating the runtime. Local package fixtures cover cleanup barriers, panic
 recovery and cancellation before native command dispatch.
+
+Local shutdown tests use real child processes for EOF, SIGTERM/SIGKILL escalation,
+owner cancellation, concurrent Close results and final native JSONL publication.
+A blocked protocol reader exercises the incomplete-cleanup path; callback-driven
+Close cases ensure the application dispatcher is never asked to join itself.
+The adapter scenario crosses Open, Send, Close and the committed session-state
+projection. Existing deterministic runtime and native replays cover the wider
+storage and external-CLI boundaries.
 
 `resources/read-guard.mjs` blocks all native tool calls during a history read.
 Its command registration lets Go verify the exact guard file loaded. Both

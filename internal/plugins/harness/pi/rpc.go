@@ -29,6 +29,8 @@ const (
 	versionCacheTTL   = 5 * time.Minute
 )
 
+var errRPCCleanupIncomplete = errors.New("Pi RPC cleanup incomplete")
+
 type ProcessOptions struct {
 	ExecutablePath string
 	Cwd            string
@@ -289,6 +291,7 @@ type rpcTransport struct {
 	readDone     chan struct{}
 	closed       chan struct{}
 	closeOnce    sync.Once
+	closeErr     error
 	writeGate    chan struct{}
 	mu           sync.Mutex
 	failure      error
@@ -414,17 +417,14 @@ func startRPC(ctx context.Context, options ProcessOptions) (*rpcTransport, error
 	if options.Bridge != nil {
 		bridge, bridgeErr := startBridge(ctx, rpc.bridgeConn, *options.Bridge, rpc.fail)
 		if bridgeErr != nil {
-			_ = rpc.Close()
-			return nil, bridgeErr
+			return nil, errors.Join(bridgeErr, rpc.Close())
 		}
 		rpc.mu.Lock()
 		rpc.bridge = bridge
 		failed := rpc.failure
 		rpc.mu.Unlock()
 		if failed != nil {
-			_ = bridge.Close()
-			_ = rpc.Close()
-			return nil, failed
+			return nil, errors.Join(failed, bridge.Close(), rpc.Close())
 		}
 	}
 	startup, cancel := context.WithTimeout(ctx, rpcStartupTimeout)
@@ -437,8 +437,7 @@ func startRPC(ctx context.Context, options ProcessOptions) (*rpcTransport, error
 		if errors.Is(startup.Err(), context.DeadlineExceeded) {
 			err = fmt.Errorf("Pi RPC startup timed out")
 		}
-		_ = rpc.Close()
-		return nil, err
+		return nil, errors.Join(err, rpc.Close())
 	}
 	return rpc, nil
 }
@@ -756,6 +755,8 @@ func (r *rpcTransport) onFailure(listener func(error)) func() {
 
 func (r *rpcTransport) Close() error {
 	r.closeOnce.Do(func() {
+		// failure stops admission; closed publishes this cleanup attempt's
+		// result. Only a nil result certifies both process exit and reader joins.
 		defer close(r.closed)
 		r.mu.Lock()
 		if r.failure == nil {
@@ -769,34 +770,58 @@ func (r *rpcTransport) Close() error {
 		bridge := r.bridge
 		r.mu.Unlock()
 		if bridge != nil {
-			_ = bridge.Close()
-		}
-		if r.bridgeConn != nil {
-			_ = r.bridgeConn.Close()
+			r.closeErr = errors.Join(r.closeErr, bridge.Close())
+		} else if r.bridgeConn != nil {
+			r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.bridgeConn.Close()))
 		}
 		// EOF is Pi's normal shutdown request and lets asynchronous native
 		// session_shutdown hooks release their resources. Sending SIGTERM and
 		// EOF together can enter shutdown twice; Pi then exits immediately and
 		// skips the first disposal. Escalate only when EOF does not finish.
-		_ = r.stdin.Close()
-		select {
-		case <-r.done:
-		case <-time.After(time.Second):
-			_ = killProcessGroup(r.cmd, syscall.SIGTERM)
-			select {
-			case <-r.done:
-			case <-time.After(time.Second):
-				_ = killProcessGroup(r.cmd, syscall.SIGKILL)
-				select {
-				case <-r.done:
-				case <-time.After(time.Second):
-				}
+		r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.stdin.Close()))
+		if !waitRPCShutdown(r.done) {
+			r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGTERM))
+			if !waitRPCShutdown(r.done) {
+				r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGKILL))
+				_ = waitRPCShutdown(r.done)
 			}
 		}
 		// The direct child may have exited while grandchildren remain alive.
-		_ = killProcessGroup(r.cmd, syscall.SIGKILL)
-		_ = r.stdout.Close()
-		_ = r.stderr.Close()
+		r.closeErr = errors.Join(r.closeErr, killProcessGroup(r.cmd, syscall.SIGKILL))
+		// Give readers EOF before closing their descriptors. Closing a pipe can
+		// interrupt I/O, but cannot prove a protocol callback has returned.
+		drained := waitRPCShutdown(r.readDone, r.stderrDone)
+		r.closeErr = errors.Join(r.closeErr, rpcCloseError(r.stdout.Close()), rpcCloseError(r.stderr.Close()))
+		if !drained && !waitRPCShutdown(r.readDone, r.stderrDone) {
+			r.closeErr = errors.Join(r.closeErr, fmt.Errorf("%w: stdout/stderr readers did not finish", errRPCCleanupIncomplete))
+		}
+		select {
+		case <-r.done:
+		default:
+			r.closeErr = errors.Join(r.closeErr, fmt.Errorf("%w: process wait did not finish after SIGKILL", errRPCCleanupIncomplete))
+		}
 	})
-	return nil
+	return r.closeErr
+}
+
+func waitRPCShutdown(done ...<-chan struct{}) bool {
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	for _, completion := range done {
+		select {
+		case <-completion:
+		case <-timer.C:
+			return false
+		}
+	}
+	return true
+}
+
+func rpcCloseError(err error) error {
+	// Cancellation may already have closed stdin, and bridge shutdown owns its
+	// socket. Repeated descriptor closure is not an incomplete cleanup.
+	if errors.Is(err, os.ErrClosed) || errors.Is(err, net.ErrClosed) {
+		return nil
+	}
+	return err
 }

@@ -49,6 +49,7 @@ type threadHandle struct {
 	reads                     sync.WaitGroup
 	closeDone                 chan struct{}
 	closeErr                  error
+	cleanupErr                error
 }
 
 func newID(prefix string) string {
@@ -175,10 +176,14 @@ func (h *threadHandle) stopSession(expected *Session, status, reason string) err
 	var closeErr error
 	if rpc != nil {
 		closeErr = rpc.Close()
+		h.rememberCleanupFailure(closeErr)
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.state.SessionFile != "" {
+	if closeErr == nil {
+		closeErr = h.cleanupErr
+	}
+	if closeErr == nil && h.state.SessionFile != "" {
 		data, err := os.ReadFile(h.state.SessionFile)
 		if err == nil {
 			h.state.NativeSessionJSONL = string(data)
@@ -187,6 +192,17 @@ func (h *threadHandle) stopSession(expected *Session, status, reason string) err
 		}
 	}
 	return errors.Join(h.finishLocked(status, reason), closeErr)
+}
+
+func (h *threadHandle) rememberCleanupFailure(err error) {
+	if errors.Is(err, errRPCCleanupIncomplete) {
+		h.mu.Lock()
+		// Retiring the pointer cannot grant a replacement permission to reuse a
+		// native session whose former owner has not proved cleanup completion.
+		h.cleanupErr = err
+		h.closing = true
+		h.mu.Unlock()
+	}
 }
 func (h *threadHandle) fail(err error) {
 	h.mu.Lock()
@@ -201,9 +217,10 @@ func (h *threadHandle) canExecute() bool {
 	defer h.mu.Unlock()
 	return !h.closed && !h.closing && activeExecution(&h.state) != nil
 }
-func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Session, error) {
+func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (_ *Session, err error) {
 	h.connMu.Lock()
 	defer h.connMu.Unlock()
+	defer func() { h.rememberCleanupFailure(err) }()
 	record := h.open.ReadThread()
 	cwd := record.Cwd
 	if record.Worktree != nil && record.Worktree.Cwd != "" {
@@ -221,6 +238,11 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	configData, _ := json.Marshal([]any{cwd, settings})
 	config := string(configData)
 	h.mu.Lock()
+	if h.cleanupErr != nil {
+		err := h.cleanupErr
+		h.mu.Unlock()
+		return nil, err
+	}
 	if steer {
 		rpc := h.rpc
 		valid := rpc != nil && !h.closing && !h.closed
@@ -250,15 +272,17 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	life, cancel := context.WithCancel(h.ctx)
 	h.connectionCancel = cancel
 	h.mu.Unlock()
-	if old != nil {
-		_ = old.Close()
-	}
 	accepted := false
 	defer func() {
 		if !accepted {
 			cancel()
 		}
 	}()
+	if old != nil {
+		if err := old.Close(); err != nil {
+			return nil, err
+		}
+	}
 	directory := filepath.Join(h.host.HarnessDataRoot, h.open.ThreadID)
 	if filepath.Base(h.open.ThreadID) != h.open.ThreadID || h.open.ThreadID == "." {
 		return nil, errors.New("invalid Pi Thread ID")
@@ -341,8 +365,8 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 	}
 	success := false
 	defer func() {
-		if !success {
-			_ = rpc.Close()
+		if !success && rpc != nil {
+			err = errors.Join(err, rpc.Close())
 		}
 	}()
 	if staging != "" {
@@ -369,7 +393,11 @@ func (h *threadHandle) ensureConnection(ctx context.Context, steer bool) (*Sessi
 		return nil, err
 	}
 	if staging != "" {
-		_ = rpc.Close()
+		err = rpc.Close()
+		rpc = nil
+		if err != nil {
+			return nil, err
+		}
 		args = append([]string{"--session-dir", directory, "--session", native.SessionFile}, modelArgs...)
 		args = append(args, hostArgs...)
 		rpc, err = StartSession(life, ProcessOptions{ExecutablePath: executable, Cwd: cwd, Env: env, Args: args, Bridge: bridge})
@@ -488,6 +516,11 @@ func (h *threadHandle) Send(ctx context.Context, request plugin.SendRequest) err
 	if h.closed {
 		h.mu.Unlock()
 		return errors.New("Pi Thread disposed")
+	}
+	if h.cleanupErr != nil {
+		err := h.cleanupErr
+		h.mu.Unlock()
+		return err
 	}
 	current := activeExecution(&h.state)
 	if current != nil && current.ExecutionID != request.ExecutionID {

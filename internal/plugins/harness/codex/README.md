@@ -31,6 +31,20 @@ the write returning, so a response-wait cancellation does not kill the session.
 Prepared launch resources are disposed even when cancellation prevents process
 startup, so isolated configuration does not outlive a rejected launch.
 
+Thread Read uses a separate ephemeral native fork when source history is
+available. Missing history or a failed fork read uses a snapshot fallback in an
+isolated read-only session and temporary workspace.
+Each temporary session is registered with the Handle and releases its own exact
+registration on return, even when a fallback replaces the current session.
+Handle Close cancels and joins in-flight reads before returning. Read answers
+are not projected into the source session; their native processes, temporary
+workspace and one-shot configuration homes are drained on successful cleanup.
+[adapter_read_test.go](adapter_read_test.go) exercises the real Open/Read/Close
+path against external JSONL peers, including repeated reads, fork/fallback
+success, launch/turn failure, cancellation and concurrent/repeated Close. It
+checks ownership release, process exit, temporary-file cleanup and source-state
+preservation without an installed Codex or model account.
+
 Resume supplies tool definitions again while preserving native history in the same home. Tool schema changes do not themselves discard compacted context. Ordinary/extend modes share a home; exclusive mode uses isolated configuration. User-global Codex configuration is not rewritten.
 
 Exclusive sessions do not copy `auth.json` or own refresh tokens.

@@ -1003,7 +1003,13 @@ func (h *Handle) Read(ctx context.Context, question string) (string, error) {
 	h.mu.Lock()
 	h.reads[native] = true
 	h.mu.Unlock()
-	defer func() { _ = native.Close(); h.mu.Lock(); delete(h.reads, native); h.mu.Unlock() }()
+	// A snapshot fallback replaces native; this cleanup still owns the original.
+	defer func(readNative *NativeSession) {
+		_ = readNative.Close()
+		h.mu.Lock()
+		delete(h.reads, readNative)
+		h.mu.Unlock()
+	}(native)
 	options.SessionID = ""
 	options.ForkSessionID = str(snapshot["primarySessionId"])
 	options.Settings["ephemeral"] = true
