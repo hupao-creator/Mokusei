@@ -48,6 +48,11 @@ the lock files themselves are never removed or replaced during cleanup.
 
 [RuntimeOfflineStore](RuntimeOfflineStore.swift) and [RuntimeOfflineRecovery](RuntimeOfflineRecovery.swift) keep profile-local cached reading data, drafts and uncertain command identity. Offline reading/editing does not queue automatic sends or cancellations. On reconnect, a mutation with an uncertain response is checked by its original receipt identity; a newer draft cannot be consumed by an older completion.
 
+[RuntimeOfflineStoreTests](../../Tests/Core/RuntimeOfflineStoreTests.swift) writes
+thread, turn and execution payloads, then reopens the disk cache and checks each
+scope independently. Equal keys in different scope kinds and different keys in
+the same kind remain distinct; a missing scope stays absent.
+
 [RuntimeCommandJournal](RuntimeCommandJournal.swift) serializes command identity
 changes across clients and processes with a stable, private file lock. Every
 insert, status update, acknowledgement and handoff reads the current journal

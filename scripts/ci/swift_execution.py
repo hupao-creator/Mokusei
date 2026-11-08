@@ -16,6 +16,7 @@ HEADLESS_SUITES = {
     "MokuseiCoreTests.RuntimeProtocolTests",
     "MokuseiCoreTests.RuntimeAppliedDeliveryTests",
     "MokuseiCoreTests.RuntimeCommandJournalIntegrationTests",
+    "MokuseiCoreTests.RuntimeOfflineStoreTests",
     "MokuseiCoreTests.RuntimeQueryCancellationTests",
     "MokuseiGitIntegrationTests.ClaudeErrorSurfacingTests",
     "MokuseiGitIntegrationTests.ThreadCardExtensionLayoutTests",

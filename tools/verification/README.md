@@ -131,6 +131,7 @@ minimized `testdata/rapid` replay file; rerun with the printed `-rapid.seed` or
 | `./tools/verification/claude` | Native protocol fixture and real Go MCP subprocess |
 | `./tools/verification/codex` | Codex protocol replay; see its README for the real CLI/local provider mode |
 | `./tools/verification/pi -mode all` | Protocol plus real Pi/host extension/read guard with local provider |
+| `python3 tools/verification/pi/read-guard.py` | Actual bundled Pi read guard blocks native and custom tools independently of its registration marker; default Linux adapter CI, no installed Pi required |
 | `./tools/verification/opencode` | Settings, credentials, timeout and frozen renderer comparison; see README for native CLI cases |
 | `./tools/verification/settings` | Real Swift settings flow against Go daemon and external CLI fixture; workspace prefetch, scope cache, HTTP read coalescing, bounded failure retry, teardown, installation invalidation and reconnect |
 | `./tools/verification/settings-shell` | Schema, normalization, CAS, diagnostic bounds and redaction |

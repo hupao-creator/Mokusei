@@ -30,9 +30,9 @@ func verifyUsage(ctx context.Context) {
 	check(err == nil, "open usage thread")
 	defer handle.Close()
 	fixtures := []model.Object{}
-	capture := func(name, id string, expected *pi.Usage, total *int) {
+	capture := func(name, id string, expected *pi.Usage, total *int, display *string) {
 		raw := store.Read()
-		fixtures = append(fixtures, model.Object{"name": name + "/durable", "state": json.RawMessage(raw), "executionId": id, "expected": total})
+		fixtures = append(fixtures, model.Object{"name": name + "/durable", "state": json.RawMessage(raw), "executionId": id, "expected": total, "expectedDisplay": display})
 		for _, kind := range []string{"overview", "thread", "execution", "turn"} {
 			projection, err := adapter.SessionState().ProjectRenderer(raw, model.RendererScope{Kind: kind, Key: id})
 			check(err == nil, "project usage "+kind)
@@ -50,7 +50,7 @@ func verifyUsage(ctx context.Context) {
 			if expected != nil {
 				check(actual.Input == expected.Input && actual.Output == expected.Output && actual.CacheRead == expected.CacheRead && actual.CacheWrite == expected.CacheWrite, "usage counts "+name+"/"+kind)
 			}
-			fixtures = append(fixtures, model.Object{"name": name + "/" + kind, "state": json.RawMessage(projection), "executionId": id, "expected": total})
+			fixtures = append(fixtures, model.Object{"name": name + "/" + kind, "state": json.RawMessage(projection), "executionId": id, "expected": total, "expectedDisplay": display})
 		}
 	}
 	send := func(id, text string, count int) {
@@ -72,20 +72,21 @@ func verifyUsage(ctx context.Context) {
 		}
 	}
 	a, b := 121, 343
+	firstDisplay, bothDisplay, zeroDisplay := "121", "343", "0"
 	first := &pi.Usage{Input: 11, Output: 7, CacheRead: 100, CacheWrite: 3}
 	both := &pi.Usage{Input: 24, Output: 12, CacheRead: 300, CacheWrite: 7}
 	send("first", "usage-stream", 1)
-	capture("initial-stream", "first", nil, nil)
+	capture("initial-stream", "first", nil, nil, nil)
 	send("first", "usage-first", 2)
-	capture("first-call", "first", first, &a)
+	capture("first-call", "first", first, &a, &firstDisplay)
 	send("first", "usage-next", 3)
-	capture("second-call", "first", both, &b)
+	capture("second-call", "first", both, &b, &bothDisplay)
 	send("first", "usage-zero", 4)
-	capture("failed-zero", "first", both, &b)
+	capture("failed-zero", "first", both, &b, &bothDisplay)
 	send("first", "usage-missing", 5)
-	capture("failed-missing", "first", both, &b)
+	capture("failed-missing", "first", both, &b, &bothDisplay)
 	send("first", "usage-stream", 6)
-	capture("retry-stream", "first", both, &b)
+	capture("retry-stream", "first", both, &b, &bothDisplay)
 	// A process restart settles the old execution but must not reset its usage.
 	snapshot := store.Read()
 	check(handle.Close() == nil, "close usage thread")
@@ -95,19 +96,39 @@ func verifyUsage(ctx context.Context) {
 	check(err == nil, "reopen usage thread")
 	defer handle.Close()
 	waitStatus(ctx, store, "first", "interrupted")
-	capture("reopened", "first", both, &b)
+	capture("reopened", "first", both, &b, &bothDisplay)
 	send("second", "usage-first", 7)
-	capture("new-execution", "second", first, &a)
-	capture("old-execution", "first", both, &b)
+	capture("new-execution", "second", first, &a, &firstDisplay)
+	capture("old-execution", "first", both, &b, &bothDisplay)
 	check(handle.Interrupt(ctx) == nil, "interrupt usage replay")
-	capture("settled", "second", first, &a)
+	capture("settled", "second", first, &a, &firstDisplay)
 	zero := 0
 	send("zero-only", "usage-zero", 8)
-	capture("only-failed-zero", "zero-only", &pi.Usage{}, &zero)
+	capture("only-failed-zero", "zero-only", &pi.Usage{}, &zero, &zeroDisplay)
 	check(handle.Interrupt(ctx) == nil, "interrupt zero-only replay")
 	send("missing-only", "usage-missing", 9)
-	capture("only-failed-missing", "missing-only", nil, nil)
+	capture("only-failed-missing", "missing-only", nil, nil, nil)
 	check(handle.Interrupt(ctx) == nil, "interrupt missing-only replay")
+	// Exercise every compact unit through native RPC and every renderer scope.
+	// Keep display literals independent of the Swift formatter's thresholds and rounding.
+	for index, sample := range []struct {
+		total   int
+		display string
+	}{
+		{999, "999"},
+		{1_000, "1.0K"},
+		{1_200, "1.2K"},
+		{1_250, "1.3K"},
+		{1_000_000, "1.0M"},
+		{1_200_000, "1.2M"},
+		{1_000_000_000, "1.0B"},
+		{1_200_000_000, "1.2B"},
+	} {
+		id := fmt.Sprintf("format-%d", sample.total)
+		send(id, "usage-"+id, 10+index)
+		capture(id, id, &pi.Usage{Input: int64(sample.total)}, &sample.total, &sample.display)
+		check(handle.Interrupt(ctx) == nil, "interrupt "+id+" replay")
+	}
 	data, err := json.Marshal(fixtures)
 	check(err == nil && writeArtifact("usage-fixtures.json", data) == nil, "write usage fixtures")
 	if verificationConfig.swiftUsage {
@@ -123,5 +144,5 @@ func verifyUsage(ctx context.Context) {
 		fmt.Print(output.String())
 		check(err == nil && bytes.Contains(output.Bytes(), []byte(fmt.Sprintf("PASS Pi usage fixtures: %d", len(fixtures)))), "Swift usage replay: "+fmt.Sprint(err))
 	}
-	fmt.Println("PASS Pi usage replay: per-call native fields, running totals, failed zero/missing usage, retry streaming, durable reopen, execution isolation, compact scopes")
+	fmt.Println("PASS Pi usage replay: per-call native fields, running totals, failed zero/missing usage, retry streaming, durable reopen, execution isolation, compact scopes, unit-boundary fixtures")
 }
