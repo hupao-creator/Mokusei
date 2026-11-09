@@ -22,6 +22,9 @@ extension EnvironmentValues {
 
 struct ThreadAuthorLabel: View {
     let author: JSONValue?
+    /// Turns publish their author by preference after mounting, so a missing
+    /// value is not yet evidence that the Harness recorded no model.
+    var resolved = true
     @Environment(\.locale) private var locale
 
     private var label: String {
@@ -30,9 +33,21 @@ struct ThreadAuthorLabel: View {
         return "Author: \(model ?? localize("未知模型")) · \(effort ?? localize("未记录"))"
     }
     var body: some View {
-        Text(label).font(NativeTypography.mono(size: 12))
-            .lineLimit(1).truncationMode(.middle)
-            .help(label).accessibilityLabel(label).textSelection(.enabled)
+        if resolved {
+            Text(label).font(NativeTypography.mono(size: 12))
+                .lineLimit(1).truncationMode(.middle)
+                .help(label).accessibilityLabel(label).textSelection(.enabled)
+        } else {
+            // Reserve the line while the owning turn resolves its author, so the
+            // header never claims an unknown model during ordinary loading.
+            HStack(spacing: 5) {
+                Text("Author:")
+                RoundedRectangle(cornerRadius: 3).frame(width: 150, height: 8)
+            }
+            .font(NativeTypography.mono(size: 12))
+            .lineLimit(1)
+            .accessibilityHidden(true)
+        }
     }
     private func localize(_ value: String) -> String { NativePluginLocalization.localize(value, locale: locale) }
 }
@@ -40,6 +55,7 @@ struct ThreadAuthorLabel: View {
 struct ThreadReadingHeader: View {
     @Environment(\.threadAgentDetail) private var agentDetail
     let author: JSONValue?
+    var authorResolved = true
     var showsAuthor = true
     var showsFilters = true
     var showsWorkFilter = true
@@ -52,12 +68,12 @@ struct ThreadReadingHeader: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
-                if showsAuthor { ThreadAuthorLabel(author: author).fixedSize() }
+                if showsAuthor { ThreadAuthorLabel(author: author, resolved: authorResolved).fixedSize() }
                 Spacer(minLength: 0)
                 if showsFilters { filters }
             }
             VStack(alignment: .leading, spacing: 8) {
-                if showsAuthor { ThreadAuthorLabel(author: author).frame(maxWidth: .infinity, alignment: .leading) }
+                if showsAuthor { ThreadAuthorLabel(author: author, resolved: authorResolved).frame(maxWidth: .infinity, alignment: .leading) }
                 if showsFilters { filters }
             }
         }

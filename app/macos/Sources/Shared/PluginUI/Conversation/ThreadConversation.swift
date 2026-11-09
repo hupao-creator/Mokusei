@@ -390,7 +390,8 @@ public struct ThreadConversation: View {
             if !rows.isEmpty {
                 let selected = selectedRowID
                 let authorID = visibleRows.first { $0.id == selected }?.execution?.id
-                ThreadReadingHeader(author: authorID.flatMap { authors[$0] }, showsAuthor: authorID != nil,
+                ThreadReadingHeader(author: authorID.flatMap { authors[$0] },
+                    authorResolved: authorID.map { authors[$0] != nil } ?? false, showsAuthor: authorID != nil,
                     showsFilters: !executionCard, showsWorkFilter: !selectedIsRunning, users: userMessages, work: work,
                     toggleUsers: { userMessages.toggle() }, toggleWork: { manualWork = !work })
                     .padding(.top, showsDocumentHeading ? 12 : 0).padding(.bottom, executionCard ? 12 : 16)
@@ -623,7 +624,9 @@ private struct ThreadHistoryDocument: View {
                     .focusable().focusEffectDisabled().focused($headingFocused)
             }
             if page != nil {
-                ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] }, showsAuthor: page?.execution != nil,
+                ThreadReadingHeader(author: page?.execution.flatMap { authors[$0.id] },
+                    authorResolved: page?.execution.map { authors[$0.id] != nil } ?? false,
+                    showsAuthor: page?.execution != nil,
                     showsWorkFilter: !running, users: users, work: work, toggleUsers: { users.toggle() }, toggleWork: toggleWork)
                 Divider().overlay(NativePalette.thread.lineSoft.swiftUI)
             }
