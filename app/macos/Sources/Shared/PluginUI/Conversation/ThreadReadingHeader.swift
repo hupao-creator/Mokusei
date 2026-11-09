@@ -27,7 +27,7 @@ struct ThreadAuthorLabel: View {
     private var label: String {
         let model = author?["model"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
         let effort = author?["effort"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
-        return "Author: \(model ?? localize("未知模型")) · \(localize(effort ?? "未记录"))"
+        return "Author: \(model ?? localize("未知模型")) · \(effort ?? localize("未记录"))"
     }
     var body: some View {
         Text(label).font(NativeTypography.mono(size: 12))

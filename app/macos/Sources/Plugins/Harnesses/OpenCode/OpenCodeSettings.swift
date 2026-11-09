@@ -198,9 +198,11 @@ private struct OpenCodeProfileFields: View {
     }
     private var thinkingOptions: [NativeSettingsOption] {
         var result: [NativeSettingsOption] = [.init(id: "", label: t("请选择"), disabled: true)]
-        if let thinking = value["thinking"], !choices.contains(thinking) { result.append(.init(id: ocJSONStringID([thinking]), label: t(ocThinkingLabel(thinking)) + " · " + t("目录中不可用"))) }
-        return result + choices.map { .init(id: ocJSONStringID([$0]), label: t(ocThinkingLabel($0))) }
+        if let thinking = value["thinking"], !choices.contains(thinking) { result.append(.init(id: ocJSONStringID([thinking]), label: thinkingLabel(thinking) + " · " + t("目录中不可用"))) }
+        return result + choices.map { .init(id: ocJSONStringID([$0]), label: thinkingLabel($0)) }
     }
+    /// Effort values render verbatim; only the missing-mode placeholder is shared copy.
+    private func thinkingLabel(_ value: JSONValue) -> String { value["mode"] == nil ? t("未选择") : ocThinkingLabel(value) }
     private var variantOptions: [NativeSettingsOption] {
         var result: [NativeSettingsOption] = [.init(id: "", label: t(executionSnapshot ? "请选择" : "OpenCode 原生默认"), disabled: executionSnapshot)]
         if executionSnapshot { result.append(.init(id: "default", label: t("基础模型变体"))) }

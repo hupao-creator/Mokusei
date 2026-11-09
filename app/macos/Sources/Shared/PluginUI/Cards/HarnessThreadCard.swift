@@ -185,7 +185,9 @@ private struct ThreadCardIdentity: View {
     private var effort: String? {
         if let value = identity.effort, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            value.trimmingCharacters(in: .whitespacesAndNewlines) != "default" {
-            return cardLocalized(value, identity.harness?.brandKey == "codex" ? Locale(identifier: "en") : locale)
+            // Harness-provided effort values are shown verbatim; only the
+            // shared "not selected" placeholder is renderer copy.
+            return value == "未选择" ? cardLocalized(value, locale) : value
         }
         return identity.model == nil ? nil : cardLocalized("默认", locale)
     }

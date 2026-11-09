@@ -99,7 +99,7 @@ public struct OpenCodeOverviewCard: View {
     public var body: some View {
         let execution = input.thread.observation.latestExecution
         let identity = ThreadCardIdentityView(title: input.thread.title.string, harness: .init(brandKey: "opencode", label: "OpenCode", logoSource: OpenCodeLogo.source),
-            model: projection.model, effort: ocLocalized(projection.effort, locale: locale),
+            model: projection.model, effort: projection.effort,
             runtime: execution.map { .init(startedAt: $0.startedAt, endedAt: $0.finishedAt) }, steer: projection.steer,
             excerpt: projection.excerpt, message: projection.message, initialResponse: projection.initialResponse, initialResponseContent: projection.initialResponseContent)
         HarnessThreadCard(identity: identity, presentation: projection.presentation, onRespond: respond,
