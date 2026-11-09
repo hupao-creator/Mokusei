@@ -3,9 +3,7 @@ import Foundation
 /// Shared component copy only. Harness catalogs remain owned by their plugins.
 public enum NativePluginLocalization {
     public static func localize(_ source: String, locale: Locale) -> String {
-        guard locale.language.languageCode?.identifier != "zh" else {
-            return ["low": "低", "medium": "中", "high": "高", "xhigh": "极高", "minimal": "极少", "none": "无"][source] ?? source
-        }
+        guard locale.language.languageCode?.identifier != "zh" else { return source }
         return NativePluginEnglishCatalog.values[source] ?? english[source] ?? source
     }
 
@@ -78,7 +76,6 @@ public enum NativePluginLocalization {
         "无效的网页选区": "Invalid page selection", "无效的网页选区尺寸": "Invalid page selection size",
         "无效的网页滚动位置": "Invalid page scroll position", "网页选择器过长": "The page selector is too long",
         "网页选区文本过长": "The selected page text is too long",
-        "一只小猫坐在电脑后面，等待新的想法。": "A cat behind a computer, waiting for a new idea.",
-        "low": "Low", "medium": "Medium", "high": "High", "xhigh": "Extra high", "minimal": "Minimal", "none": "None"
+        "一只小猫坐在电脑后面，等待新的想法。": "A cat behind a computer, waiting for a new idea."
     ]
 }
