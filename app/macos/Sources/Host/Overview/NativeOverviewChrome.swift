@@ -888,7 +888,7 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
                 }
             }
             .contentShape(shape)
-            .glassEffect(.clear.tint(active ? selectionTint : nil).interactive(), in: shape)
+            .glassEffect(.regular.tint(active ? selectionTint : nil).interactive(), in: shape)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: active)
     }
 
