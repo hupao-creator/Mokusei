@@ -1,6 +1,7 @@
 package codex
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -108,7 +109,11 @@ func TestAppServerQueuedWriteCancellationKeepsTransport(t *testing.T) {
 	}
 }
 
-func startBackpressureServer(t *testing.T) (*AppServer, <-chan struct{}) {
+const backpressureInputMarker = "MOKUSEI_BLOCKED_PIPE_INPUT:"
+const backpressurePrefixRead = "fixture/blocked-pipe-prefix-read"
+const backpressurePrefixBytes = 256
+
+func startBackpressureServer(t *testing.T, readPrefix bool) (*AppServer, <-chan struct{}) {
 	t.Helper()
 	root := t.TempDir()
 	binary, err := os.Executable()
@@ -125,15 +130,19 @@ func startBackpressureServer(t *testing.T) (*AppServer, <-chan struct{}) {
 	disposed := make(chan struct{})
 	startCtx, cancelStart := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelStart()
+	environment := []string{
+		"PATH=/usr/bin:/bin",
+		"MOKUSEI_CODEX_TEST_BINARY=" + binary,
+		"MOKUSEI_CODEX_BACKPRESSURE_PEER=1",
+	}
+	if readPrefix {
+		environment = append(environment, "MOKUSEI_CODEX_BACKPRESSURE_READ_PREFIX=1")
+	}
 	server, err := StartAppServer(startCtx, LaunchOptions{
-		Executable: launcher,
-		Cwd:        root,
-		Environment: []string{
-			"PATH=/usr/bin:/bin",
-			"MOKUSEI_CODEX_TEST_BINARY=" + binary,
-			"MOKUSEI_CODEX_BACKPRESSURE_PEER=1",
-		},
-		Dispose: func() error { close(disposed); return nil },
+		Executable:  launcher,
+		Cwd:         root,
+		Environment: environment,
+		Dispose:     func() error { close(disposed); return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -146,22 +155,42 @@ func startBackpressureServer(t *testing.T) (*AppServer, <-chan struct{}) {
 	return server, disposed
 }
 
-func TestAppServerBlockedPipeWriteHonorsDeadline(t *testing.T) {
-	server, disposed := startBackpressureServer(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+func TestAppServerBlockedPipeWriteHonorsCancellation(t *testing.T) {
+	server, disposed := startBackpressureServer(t, true)
+	observed := make(chan Map, 1)
+	server.SetHandler(func(method string, params Map, _ any) {
+		if method == backpressurePrefixRead {
+			observed <- params
+		}
+	}, nil)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	result := make(chan error, 1)
 	go func() {
-		_, err := server.Call(ctx, "turn/start", Map{"input": strings.Repeat("x", 8*1024*1024)})
+		input := backpressureInputMarker + strings.Repeat("x", 8*1024*1024-len(backpressureInputMarker))
+		_, err := server.Call(ctx, "turn/start", Map{"input": input})
 		result <- err
 	}()
+	// Encoding and scheduling cannot start this cancellation: only the real
+	// peer's receipt proves that the large frame has entered the pipe.
+	select {
+	case params := <-observed:
+		if str(params["method"]) != "turn/start" || num(params["bytes"]) != backpressurePrefixBytes || str(params["inputMarker"]) != backpressureInputMarker {
+			t.Fatalf("peer did not confirm the target frame prefix: %v", params)
+		}
+	case err := <-result:
+		t.Fatalf("native call ended before its frame prefix was read: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("native peer did not observe the target frame prefix")
+	}
+	cancel()
 	select {
 	case err := <-result:
-		if !errors.Is(err, context.DeadlineExceeded) {
+		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("blocked write returned %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("native pipe write ignored the request deadline")
+		t.Fatal("native pipe write ignored request cancellation")
 	}
 	server.mu.Lock()
 	closed, pending := server.closed, len(server.pending)
@@ -185,7 +214,7 @@ func TestAppServerBlockedPipeWriteHonorsDeadline(t *testing.T) {
 }
 
 func TestAppServerCancellationKeepsCompletedFrame(t *testing.T) {
-	server, _ := startBackpressureServer(t)
+	server, _ := startBackpressureServer(t, false)
 	stdin, ok := server.stdin.(interface {
 		io.WriteCloser
 		SetWriteDeadline(time.Time) error
@@ -218,12 +247,40 @@ func TestCodexBackpressurePeer(t *testing.T) {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
 	defer cancel()
+	// Keep one reader across both handshake frames and the target prefix, so
+	// buffered read-ahead cannot consume bytes behind the prefix barrier.
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadBytes('\n')
 	var initialize Map
-	if err := json.NewDecoder(os.Stdin).Decode(&initialize); err != nil || initialize["method"] != "initialize" {
+	if err != nil || json.Unmarshal(line, &initialize) != nil || initialize["method"] != "initialize" || initialize["id"] == nil {
 		os.Exit(2)
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(Map{"id": initialize["id"], "result": Map{}}); err != nil {
 		os.Exit(3)
+	}
+	line, err = reader.ReadBytes('\n')
+	var initialized Map
+	if err != nil || json.Unmarshal(line, &initialized) != nil || initialized["method"] != "initialized" || initialized["id"] != nil {
+		os.Exit(4)
+	}
+	if os.Getenv("MOKUSEI_CODEX_BACKPRESSURE_READ_PREFIX") == "1" {
+		prefix := make([]byte, backpressurePrefixBytes)
+		if _, err := io.ReadFull(reader, prefix); err != nil {
+			os.Exit(5)
+		}
+		// This bounded prefix must end inside the input string. Completing only
+		// its JSON delimiters validates the envelope without reading the large tail.
+		var frame Map
+		if json.Unmarshal(append(prefix, []byte(`"}}`)...), &frame) != nil || frame["method"] != "turn/start" || frame["id"] == nil {
+			os.Exit(6)
+		}
+		input := str(obj(frame["params"])["input"])
+		if !strings.HasPrefix(input, backpressureInputMarker) || len(input) <= len(backpressureInputMarker) || strings.TrimPrefix(input, backpressureInputMarker) != strings.Repeat("x", len(input)-len(backpressureInputMarker)) {
+			os.Exit(7)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(Map{"method": backpressurePrefixRead, "params": Map{"method": "turn/start", "bytes": backpressurePrefixBytes, "inputMarker": backpressureInputMarker}}); err != nil {
+			os.Exit(8)
+		}
 	}
 	// A live native peer that stops reading must not defeat caller cancellation.
 	// SIGTERM ends the fixture without a timer or any external subprocess.

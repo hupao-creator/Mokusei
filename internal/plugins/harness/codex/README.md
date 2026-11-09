@@ -145,6 +145,16 @@ turn through its interrupt acknowledgement, allowing normal realtime shutdown
 to finish. Failed interrupt acknowledgement remains a visible cleanup failure;
 generic, joined and possibly projected errors keep the ordinary fault path.
 
+When that fault has retired the app-server, stopping media joins the native
+process and tool bridge instead of requiring an RPC acknowledgement from the
+closed channel. A typed transport failure identifies this case without treating
+native RPC rejections or cancellation failures as successful cleanup. Process or
+bridge drain failures remain errors. Prewarming checks the native owner's and
+transport's existing retirement state and must itself win retirement of a live
+owner before launching its replacement; joining a concurrent fault's cleanup
+grants no replacement authority. This cleanup does not recover input, and the
+original voice error event is retained.
+
 Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
 
 ## Initial response cards

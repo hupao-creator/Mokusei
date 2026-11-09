@@ -192,7 +192,21 @@ func verifyVoiceConfigurationCase(parent context.Context, root, binary string, a
 	unsubscribeRequest := voice.(plugin.VoiceRequestSource).OnRequest(func(context.Context, plugin.VoiceDelegation, string) error { requests.Add(1); return nil })
 	defer unsubscribeRequest()
 	barrier := make(chan struct{}, 1)
+	nativeFailureObserved := make(chan struct{})
+	resumeNativeFailure := make(chan struct{})
+	var failureObservedOnce, resumeFailureOnce sync.Once
+	resumeFailure := func() { resumeFailureOnce.Do(func() { close(resumeNativeFailure) }) }
+	defer resumeFailure()
 	unsubscribeEvent := voice.OnEvent(func(event plugin.VoiceEvent) {
+		if admissionErr != nil && admissionErr != plugin.ErrMokuConfigurationPending && event.Type == "error" {
+			// Hold the public callback before its watcher can release the voice.
+			// Explicit owner cleanup must work even when automatic cleanup loses.
+			failureObservedOnce.Do(func() { close(nativeFailureObserved) })
+			select {
+			case <-resumeNativeFailure:
+			case <-ctx.Done():
+			}
+		}
 		if event.Type == "transcript" && event.Text != nil && *event.Text == voiceConfigurationBarrier {
 			select {
 			case barrier <- struct{}{}:
@@ -283,7 +297,7 @@ func verifyVoiceConfigurationCase(parent context.Context, root, binary string, a
 			return ctx.Err()
 		}
 		if err := closer.CloseForConfiguration(ctx); err != nil {
-			return err
+			return fmt.Errorf("close idle voice for configuration: %w", err)
 		}
 	}
 	release()
@@ -320,14 +334,14 @@ func verifyVoiceConfigurationCase(parent context.Context, root, binary string, a
 			select {
 			case err := <-closeDone:
 				if err != nil {
-					return err
+					return fmt.Errorf("finish configuration close after recovery: %w", err)
 				}
 			case <-ctx.Done():
 				return ctx.Err()
 			}
 		}
 		if err := closer.CloseForConfiguration(ctx); err != nil {
-			return err
+			return fmt.Errorf("repeat configuration close after recovery: %w", err)
 		}
 	} else {
 		// Let the rejected native notification itself terminate its peer before
@@ -341,13 +355,21 @@ func verifyVoiceConfigurationCase(parent context.Context, root, binary string, a
 			case <-time.After(time.Millisecond):
 			}
 		}
+		select {
+		case <-nativeFailureObserved:
+		case <-ctx.Done():
+			return fmt.Errorf("observe rejected native voice failure before owner cleanup: %w", ctx.Err())
+		}
 		// Join the real native owner before deciding that no recovery callback
-		// exists. No timing-based grace period can prove this negative result.
-		if err := handle.Close(); err != nil {
-			return err
+		// exists, while the error callback still holds automatic voice cleanup.
+		// No timing-based grace period can prove either ownership or non-recovery.
+		closeErr := handle.Close()
+		resumeFailure()
+		if closeErr != nil {
+			return fmt.Errorf("close rejected native voice owner: %w", closeErr)
 		}
 		if err := closer.CloseForConfiguration(ctx); err != nil {
-			return err
+			return fmt.Errorf("close rejected voice for configuration: %w", err)
 		}
 	}
 	if len(recovered) != 0 || requests.Load() != 0 || admission.projected.Load() != 0 || toolCalls.Load() != 0 {

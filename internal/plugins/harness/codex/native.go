@@ -937,8 +937,33 @@ func (n *NativeSession) request(method string, p Map, id any) {
 	n.mu.Unlock()
 	n.publish(Map{"type": "interaction-opened", "interaction": interaction})
 }
+
+// Either owner retirement or an earlier transport failure forbids automatic
+// reuse. These facts are monotonic, although process/bridge drain may follow.
+func (n *NativeSession) retiring() bool {
+	n.mu.Lock()
+	closed := n.closed
+	n.mu.Unlock()
+	if closed {
+		return true
+	}
+	n.server.mu.Lock()
+	defer n.server.mu.Unlock()
+	return n.server.closed
+}
+
 func (n *NativeSession) Close() error {
+	_, err := n.close()
+	return err
+}
+
+// Only the call that wins retirement of a still-live owner may replace it for
+// prewarming. Joining another caller's retirement grants no replacement right.
+func (n *NativeSession) close() (retiredLive bool, err error) {
 	n.closeOnce.Do(func() {
+		n.server.mu.Lock()
+		retiredLive = !n.server.closed
+		n.server.mu.Unlock()
 		n.mu.Lock()
 		n.closed = true
 		bridge := n.bridge
@@ -955,7 +980,7 @@ func (n *NativeSession) Close() error {
 		}
 		n.closeErr = errors.Join(n.closeErr, n.server.Close())
 	})
-	return n.closeErr
+	return retiredLive, n.closeErr
 }
 func turnSettings(s Map, roots []string) Map {
 	r := present(s, "model", "effort", "serviceTier", "personality", "approvalPolicy", "approvalsReviewer", "summary", "outputSchema")

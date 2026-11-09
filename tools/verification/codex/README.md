@@ -71,6 +71,11 @@ The synthetic replay checks:
 - Native voice configuration rejection before Core/tool admission, exact
   handoff recovery only after process and bridge cleanup, generic/uncertain
   rejection without automatic recovery, and concurrent configuration closure.
+  Generic/joined rejection holds the real voice error callback until explicit
+  owner cleanup joins the retired peer; a faster asynchronous watcher cannot hide
+  a stale `realtime/stop` call against the closed server. The callback is released
+  on every exit, and exact-pending recovery and cancellation-error assertions stay
+  independent of this ordering.
   Use `-voice-configuration-only` for these external-process protocol fixtures.
 - Voice relay, direct owner and private discussion startup with a newer CLI.
   The focused `-voice-only` replay also accepts future, unversioned and empty
