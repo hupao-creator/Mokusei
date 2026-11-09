@@ -136,6 +136,9 @@ public struct ThreadDetailTurn: View {
     /// Native tail classification before streaming replies are withheld from rows.
     /// Default closed: visible work alone cannot prove it is still the stream tail.
     public let executionTailIsWork: Bool
+    /// Steer cards belong to the live execution. Read-only inherited transcripts
+    /// reuse this turn without an owning execution and keep their input visible.
+    public let showsSteerMessages: Bool
 
     @Environment(\.threadAuthorInHeader) private var authorInHeader
     @Environment(\.threadDetailVisibility) private var visibility
@@ -145,7 +148,8 @@ public struct ThreadDetailTurn: View {
     public init(id: JSONText, author: JSONValue? = nil, rows: [ThreadDetailRow],
                 reasoningUsage: ThreadReasoningUsage? = nil, createdAt: Double,
                 updatedAt: Double, status: String, completedAt: Double? = nil,
-                usage: AnyView? = nil, active: Bool, executionRunning: Bool = false, executionTailIsWork: Bool = false) {
+                usage: AnyView? = nil, active: Bool, executionRunning: Bool = false,
+                executionTailIsWork: Bool = false, showsSteerMessages: Bool? = nil) {
         self.id = id
         self.author = author
         self.rows = rows
@@ -158,6 +162,7 @@ public struct ThreadDetailTurn: View {
         self.active = active
         self.executionRunning = executionRunning
         self.executionTailIsWork = executionTailIsWork
+        self.showsSteerMessages = showsSteerMessages ?? executionRunning
     }
 
     private var filteredRows: [ThreadDetailRow] {
@@ -168,7 +173,11 @@ public struct ThreadDetailTurn: View {
             // a Harness supplies an attention style for the failed record.
             if $0.execution != nil { return workVisible }
             return switch $0.kind {
-            case .content, .attention, .steer: true
+            case .content, .attention: true
+            // Follow-ups describe input admitted into this execution, so they
+            // belong to its live flow only. The same running signal that holds
+            // back the terminal footer removes them once it is no longer running.
+            case .steer: showsSteerMessages
             case .work: workVisible
             case .user: !agentDetail && visibility.userMessages
             }

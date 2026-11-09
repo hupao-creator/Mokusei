@@ -872,6 +872,13 @@ private struct OverviewTagButtonBody: View {
     }
 }
 
+/// The `.regular` glass variant draws a system shadow outside its shape. That
+/// shadow is composited by the system outside the SwiftUI view's layer, so a
+/// `clipShape` on the chip (or the bar's capsule clip) cannot trim it. The
+/// chips sit 4pt apart, so the untrimmed shadows overlap into a visible band.
+/// Use the `.clear` variant, which casts no shadow, and paint the frost in the
+/// view layer: a material fill follows the shape and stays clipped, while the
+/// tint and `.interactive()` response still come from the glass.
 private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
     let active: Bool
     let shape: S
@@ -885,6 +892,8 @@ private struct OverviewTagGlassSurface<S: Shape>: ViewModifier {
             .background {
                 if reduceTransparency {
                     shape.fill(Color(white: scheme == .dark ? 0.16 : 0.94))
+                } else {
+                    shape.fill(.thinMaterial)
                 }
             }
             .contentShape(shape)

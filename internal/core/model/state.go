@@ -92,11 +92,3 @@ type RendererScope struct {
 	Kind string `json:"kind"`
 	Key  string `json:"key,omitempty"`
 }
-type ContentTarget struct {
-	ThreadID string        `json:"threadId"`
-	Scope    RendererScope `json:"scope"`
-}
-type ContentSubscription struct {
-	SubscriptionID string         `json:"subscriptionId"`
-	Target         *ContentTarget `json:"target"`
-}

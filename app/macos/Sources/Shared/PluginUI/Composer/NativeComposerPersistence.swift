@@ -24,20 +24,8 @@ public struct NativeComposerDraftPersistence: Sendable {
         public let textValue: JSONText
     }
 
-    public func isSameDraft(as other: Self) -> Bool { identity == other.identity }
-
     @MainActor public func loadText() throws -> TextSnapshot? {
         try load().map { .init(revision: $0.revision, textValue: $0.textValue) }
-    }
-
-    @MainActor @discardableResult
-    public func saveText(_ text: JSONText, revision: String = UUID().uuidString) throws -> String {
-        try save(textValue: text, directories: [], attachments: [], revision: revision)
-    }
-
-    @MainActor public func consumeText(expectedRevision: String) throws -> TextSnapshot? {
-        try consume(expectedRevision: expectedRevision, attachmentIDs: [], directoryPaths: [])
-            .map { .init(revision: $0.revision, textValue: $0.textValue) }
     }
 
     @MainActor func load() throws -> Snapshot? {

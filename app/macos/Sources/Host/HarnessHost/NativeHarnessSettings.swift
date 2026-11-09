@@ -217,27 +217,6 @@ public final class NativeHarnessSettingsSurface {
         }
     }
 
-    /// This is the explicit second submission after a rejected compare-and-swap.
-    /// It resubmits only the captured delta; the editor baseline stays frozen until
-    /// the host accepts it, and another intervening save can conflict again.
-    public func retryThreadSettings() async throws {
-        try checkAuthority()
-        guard let pendingThreadChange, let latestThreadSettings else { return }
-        try await saveThreadSettings(pendingThreadChange, expectedRevision: latestThreadSettings.revision)
-    }
-
-    public func continueEditingThreadSettings() {
-        guard !isSavingThreadSettings else { return }
-        pendingThreadChange = nil; threadSettingsFailure = nil
-    }
-
-    public func reloadThreadSettings() throws {
-        try checkAuthority()
-        guard !isSavingThreadSettings, let latestThreadSettings else { return }
-        baselineThreadSettings = latestThreadSettings; pendingThreadChange = nil
-        threadSettingsFailure = nil; threadSettingsEditorID = UUID()
-    }
-
     func saveThreadSettings(_ change: JSONValue, expectedRevision: Int) async throws {
         try checkAuthority()
         guard !isSavingThreadSettings, case .thread(let id) = configuration.scope else { throw CancellationError() }

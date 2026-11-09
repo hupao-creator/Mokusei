@@ -8,11 +8,6 @@ public extension NativeTypography {
         variableFont(postScriptName: "Inter-Regular", family: "Inter", size: size, weight: weight, range: 100...900)
     }
 
-    static func monoPlatformFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
-        variableFont(postScriptName: "JetBrainsMono-Regular", family: "JetBrains Mono", size: size,
-                     weight: weight, range: 100...800, cascade: monoSubsets.map(\.postScript))
-    }
-
     static func settingsPlatformFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
         let systemWeight: NativePlatformFont.Weight
         switch weight {
@@ -29,13 +24,7 @@ public extension NativeTypography {
         return NativePlatformFont.systemFont(ofSize: size, weight: systemWeight)
     }
 
-    // Compatibility spellings keep existing shared components on one font path.
-    static func interNSFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
-        interPlatformFont(size: size, weight: weight)
-    }
-    static func monoNSFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
-        monoPlatformFont(size: size, weight: weight)
-    }
+    // Compatibility spelling keeps existing shared components on one font path.
     static func settingsNSFont(size: CGFloat, weight: CGFloat = 400) -> NativePlatformFont {
         settingsPlatformFont(size: size, weight: weight)
     }

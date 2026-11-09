@@ -488,9 +488,13 @@ recorded message time. It has no author/sequence heading, receipt state or statu
 icon. Missing time is not replaced by the execution timestamp. Text that does not
 fit the actual reading width can expand; attachment/annotation detail reuses the
 Harness's existing user-message renderer only after expansion. System Reduce
-Motion removes the explicit expansion animation. `.steer` rows remain visible
-independently of user-input/work visibility and split execution summaries in their
-native order, without creating an execution or moving the input target.
+Motion removes the explicit expansion animation. `.steer` rows render only while
+their execution is running and become invisible once it is no longer running
+(completed, failed, interrupted or waiting for input), even though the model, wire
+fields and retained input remain. Read-only inherited transcripts that reuse this
+row style without an owning execution retain their input. They stay independent of
+user-input/work visibility and split execution summaries in their native order
+while running, without creating an execution or moving the input target.
 Codex uses non-internal `follow-up` messages; Claude uses non-internal prompt
 indices after zero within an exact turn. Pi/OpenCode use persisted ordinary-input
 `followUp` identity, owned by their send boundary. Unknown native/imported input

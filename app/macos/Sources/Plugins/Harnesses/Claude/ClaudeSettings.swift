@@ -223,7 +223,7 @@ struct ClaudeHarnessSettingsView: View {
         let prompt = props.executionSnapshot ? fixed ? "模型不提供推理强度配置" : "请选择推理强度" : "跟随 Claude 配置"
         var options = [NativeSettingsOption(id:"",label:t(prompt),disabled:props.executionSnapshot && !fixed)]
         if let effort = profile["effort"]?.stringValue, !efforts.contains(effort) { options.append(NativeSettingsOption(id:JSONText(effort),label:effort + " · " + t("目录中不可用"))) }
-        options += efforts.map { NativeSettingsOption(id:JSONText($0),label:["low":"Low","medium":"Medium","high":"High","xhigh":"Extra high","max":"Maximum"][$0] ?? $0) }
+        options += efforts.map { NativeSettingsOption(id:JSONText($0),label:$0) }
         return options
     }
     private func updatedProfile(_ profile: JSONValue) -> JSONValue {
