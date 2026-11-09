@@ -167,17 +167,6 @@ public struct MokuCharacterModel: Sendable {
         if orbit || orbitOpacity.value > 0.001 { orbitClockOffset += delta }
     }
 
-    public mutating func snapToTargets(now: Double) {
-        body = bodyTargets.map(MokuAnimatedPoint.init); satellite = satelliteTargets.map(MokuAnimatedPoint.init)
-        satelliteOpacity = MokuSpring(showsSatellite ? 1 : 0)
-        orbitOpacity = MokuSpring(orbit ? 1 : 0); thoughtRadius = MokuSpring(thought && shape != .mark ? 19 : 0)
-        let eyes = MokuGeometry.eyes(expression, layout: layout)
-        leftEye = MokuAnimatedEye(eyes.left); rightEye = MokuAnimatedEye(eyes.right)
-        if showsSatellite { leftEye.opacity.value = 0; rightEye.opacity.value = 0 }
-        gazeX = MokuSpring(0); gazeY = MokuSpring(0); gazeTargetX = 0; gazeTargetY = 0
-        blinkStarted = -.infinity; bounceStarted = -.infinity; nodStarted = -.infinity; lastFrameAt = now
-    }
-
     public mutating func advance(now: Double) {
         let frameScale = min(34, max(0, now - lastFrameAt)) / (1000 / 60)
         lastFrameAt = now

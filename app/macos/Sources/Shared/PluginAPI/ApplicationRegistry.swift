@@ -207,9 +207,6 @@ public final class ApplicationPluginRegistry {
     public func requireThread(_ id: JSONText) throws -> AnyApplicationThreadPlugin {
         guard let result = threads[id] else { throw PluginContractError("Application thread type is not registered: \(id.string)") }; return result
     }
-    public func requireSettings(_ id: JSONText) throws -> AnyApplicationSettingsPlugin {
-        guard let result = settings[id] else { throw PluginContractError("Application settings are not registered: \(id.string)") }; return result
-    }
 }
 
 @MainActor

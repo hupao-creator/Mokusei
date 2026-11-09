@@ -161,12 +161,6 @@ public final class NativeWorkspaceServices {
         return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 
-    public func hostReference(path: JSONText) async throws -> RuntimeHostFileReference {
-        guard Array(path.string.utf16) == path.codeUnits, path.string.hasPrefix("/") else { throw PluginContractError("无效的主机文件路径") }
-        let workspace = try requireWorkspace()
-        return try await .init(hostID: workspace.client.hostDirectory().reference.hostID, path: path.string)
-    }
-
     public func download(_ reference: RuntimeHostFileReference) async throws -> RuntimeDownloadedFile {
         try await requireWorkspace().client.downloadHostFile(reference)
     }

@@ -105,16 +105,6 @@ extension RuntimeClient {
         if let wireID = resource.wireID { await releaseWireContent(wireID) }
     }
 
-    public func clearThreadContentSubscriptions() async {
-        flushReadingCache()
-        let released = Array(contentResources.values)
-        for task in idleContentExpiry.values { task.cancel() }
-        idleContent.removeAll(); idleContentCosts.removeAll(); idleContentExpiry.removeAll()
-        contentResources.removeAll()
-        for resource in released { resource.timer?.cancel(); resource.measurement?.end(.cancelled) }
-        for resource in released { if let wire = resource.wireID { await releaseWireContent(wire) } }
-    }
-
     public func retryThreadContent(_ subscriptionId: String) async throws {
         try assertOpen()
         guard contentResources[subscriptionId] != nil, idleContentCosts[subscriptionId] == nil else { throw RuntimeError("CONTENT_UNAVAILABLE", "Content surface has been released") }
