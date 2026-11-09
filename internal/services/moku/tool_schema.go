@@ -30,13 +30,15 @@ type ThreadCreationDescription struct {
 	TargetHarnessIDs        []string
 	NativeDescriptionSchema json.RawMessage
 }
+
+// CreateRequest is the normalized request after decoding the single target key.
 type CreateRequest struct {
-	Prompt       string          `json:"prompt"`
-	Cwd          string          `json:"cwd,omitempty"`
-	Worktree     *bool           `json:"worktree"`
-	WorktreeName string          `json:"worktreeName,omitempty"`
-	HarnessID    string          `json:"harnessId"`
-	Options      json.RawMessage `json:"options"`
+	Prompt       string
+	Cwd          string
+	Worktree     *bool
+	WorktreeName string
+	HarnessID    string
+	Options      json.RawMessage
 }
 
 // DescribeThreadCreation composes already-acquired schemas. Acquisition and
@@ -66,19 +68,14 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 	cwdSchema := map[string]any{"type": "string", "minLength": 1, "maxLength": ThreadCreationCwdMaxCharacters, "description": fmt.Sprintf("An existing absolute directory only when the task requires that workspace. Otherwise use worktree:false and omit this field: Mokusei creates a unique temporary directory and returns its absolute path as workspace.cwd. Do not choose /tmp, /private/tmp, or invent a scratch path as a substitute for omission. Do not use the Moku workspace %s.", cwd)}
 	worktreeSchema := map[string]any{"type": "boolean", "description": threadCreationWorktreeGuidance}
 	worktreeNameSchema := map[string]any{"type": "string", "maxLength": ThreadCreationWorktreeNameMaxCharacters, "not": map[string]any{"pattern": "\u0000"}, "description": "Optional human-readable name for the managed Git worktree directory when worktree:true. Unicode letters and digits are kept; path separators, control characters and every other character become '-'. Leading/trailing '.' and '-' are trimmed and the result is capped at 48 runes before any collision suffix. Blank is treated as absent and keeps the generated task-<id>-<random> name. Existing names get -2..-8, then a short random suffix, then the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs, so adjustments are never silent. Do not use this as a Thread title."}
-	variants := []any{}
+	targetProperties := map[string]any{}
+	selections := []any{}
 	deferred := []string{}
 	for _, target := range targets {
+		selections = append(selections, map[string]any{"required": []string{target.HarnessID}})
 		if target.DeferredNative {
 			deferred = append(deferred, target.HarnessID)
-			variants = append(variants, mokuObjectSchema(map[string]any{
-				"prompt": promptSchema, "cwd": cwdSchema, "worktree": worktreeSchema, "worktreeName": worktreeNameSchema,
-				"harnessId": map[string]any{"type": "string", "const": target.HarnessID},
-				"options":   map[string]any{"type": "object", "minProperties": 1, "description": "First call describe_native_harness for this target and supply its exact required options. Empty/default options are not accepted."},
-			}, "harnessId", "options", "worktree", "prompt"))
-			continue
-		}
-		if len(target.NativeSchema) == 0 {
+			targetProperties[target.HarnessID] = map[string]any{"type": "object", "minProperties": 1, "description": "First call describe_native_harness for this target and supply its exact required options. Empty/default options are not accepted."}
 			continue
 		}
 		schema, err := mokuBoundedObject(target.NativeSchema, target.HarnessID+" settings schema", ThreadCreationSchemaMaxBytes)
@@ -100,20 +97,23 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 		if schema["type"] != "object" {
 			return result, errors.New("Harness settings schema must describe an object")
 		}
-		variants = append(variants, mokuObjectSchema(map[string]any{
-			"prompt": promptSchema, "cwd": cwdSchema, "worktree": worktreeSchema, "worktreeName": worktreeNameSchema,
-			"harnessId": map[string]any{"type": "string", "const": target.HarnessID}, "options": schema,
-		}, "harnessId", "options", "worktree", "prompt"))
+		targetProperties[target.HarnessID] = schema
 	}
 	if len(deferred) > 0 {
 		result.NativeDescriptionSchema = mokuRaw(mokuObjectSchema(map[string]any{"harnessId": map[string]any{"type": "string", "enum": deferred}}, "harnessId"))
 	}
+	// Keep each native schema under its Harness key in properties: some hosts
+	// discard root composition keywords before presenting tools to the model.
+	// The union selects only a key, so missing Harness properties never validate
+	// options or consume the host's bounded error output.
+	targetSchema := mokuObjectSchema(targetProperties)
+	targetSchema["oneOf"] = selections
+	targetSchema["description"] = "Select exactly one Harness key and put its explicit native settings inside that key. Use only that Harness's declared fields; do not combine target keys or copy fields from another Harness."
 	properties := map[string]any{
 		"prompt": promptSchema, "cwd": cwdSchema, "worktree": worktreeSchema, "worktreeName": worktreeNameSchema,
-		"harnessId": map[string]any{"type": "string", "enum": result.TargetHarnessIDs},
-		"options":   map[string]any{"type": "object", "description": "Settings for the selected harnessId. Match its model-specific branch below; candidate values across branches are not interchangeable. Supply all fields required by that branch explicitly and use only fields that branch allows; fields copied from another harness's branch are rejected."},
+		"target": targetSchema,
 	}
-	schema := mokuObjectSchema(properties, "harnessId", "options", "worktree", "prompt")
+	schema := mokuObjectSchema(properties, "target", "worktree", "prompt")
 	// Keep the true/cwd dependency visible to schema clients as well as the parser.
 	schema["allOf"] = []any{
 		map[string]any{
@@ -125,41 +125,10 @@ func DescribeThreadCreation(targets []TargetDescription, cwd string) (ThreadCrea
 			"then": map[string]any{"properties": map[string]any{"worktreeName": map[string]any{"pattern": `^\s*$`}}},
 		},
 	}
-	// Union hints stay in the emitted properties, but the discriminator is
-	// emitted as one conditional per harness instead of a root oneOf. Host
-	// validators such as Pi's TypeBox cap collected errors and report oneOf
-	// branch failures in order; an early harness branch can exhaust that budget
-	// and hide the error from the branch harnessId actually selected.
-	schema["oneOf"] = variants
-	visible := mokuVisibleUnionProperties(schema)
-	conditions, _ := visible["allOf"].([]any)
-	for _, value := range visible["oneOf"].([]any) {
-		variant, ok := value.(map[string]any)
-		if !ok {
-			continue
-		}
-		properties, ok := variant["properties"].(map[string]any)
-		if !ok {
-			continue
-		}
-		conditions = append(conditions, mokuHarnessOptionsCondition(properties["harnessId"], properties["options"]))
-	}
-	delete(visible, "oneOf")
-	visible["allOf"] = conditions
-	result.InputSchema = mokuRaw(visible)
+	// Selection branches contain no properties to merge across Harnesses.
+	// Native model/thinking union hints remain within each named target.
+	result.InputSchema = mokuRaw(mokuVisibleUnionProperties(schema))
 	return result, nil
-}
-
-// The not-guard fails only when harnessId selects this branch. Other harnesses
-// satisfy anyOf through the guard without validating the options schema, so a
-// rejected selection reports only its own branch and expected values. The
-// options branch comes first so its errors survive an error cap even when the
-// guard's own failure is truncated.
-func mokuHarnessOptionsCondition(harnessID, options any) map[string]any {
-	return map[string]any{"anyOf": []any{
-		map[string]any{"properties": map[string]any{"options": options}},
-		map[string]any{"not": map[string]any{"properties": map[string]any{"harnessId": harnessID}, "required": []string{"harnessId"}}},
-	}}
 }
 
 // ParseCreateRequest validates the protocol boundary. The coordinator must
@@ -169,7 +138,7 @@ func ParseCreateRequest(raw json.RawMessage) (CreateRequest, error) {
 	var result CreateRequest
 	o, err := model.DecodeObject(raw)
 	invalid := errors.New("create_thread 参数无效")
-	if err != nil || !mokuAllowedKeys(o, "prompt", "cwd", "worktree", "worktreeName", "harnessId", "options") {
+	if err != nil || !mokuAllowedKeys(o, "prompt", "cwd", "worktree", "worktreeName", "target") {
 		return result, invalid
 	}
 	prompt, ok := o["prompt"].(string)
@@ -212,18 +181,23 @@ func ParseCreateRequest(raw json.RawMessage) (CreateRequest, error) {
 			return result, errors.New("create_thread worktreeName 仅用于 worktree:true；请删除 worktreeName 或改为 worktree:true")
 		}
 	}
-	harnessID, ok := o["harnessId"].(string)
-	if !ok || harnessID == "" || strings.TrimFunc(harnessID, mokuWhitespace) != harnessID || model.UTF16Length(harnessID) > 128 || strings.ContainsRune(harnessID, 0) {
-		return result, invalid
+	targets, ok := o["target"].(map[string]any)
+	if !ok || len(targets) != 1 {
+		return result, errors.New("create_thread target 必须包含且仅包含一个 Harness 及其原生参数")
 	}
-	result.HarnessID = harnessID
-	options, ok := o["options"].(map[string]any)
-	if !ok || !mokuFiniteJSON(options) {
-		return result, invalid
-	}
-	result.Options = mokuRaw(options)
-	if len(result.Options) > ThreadCreationOptionsMaxBytes {
-		return result, invalid
+	for harnessID, value := range targets {
+		if harnessID == "" || strings.TrimFunc(harnessID, mokuWhitespace) != harnessID || model.UTF16Length(harnessID) > 128 || strings.ContainsRune(harnessID, 0) {
+			return result, invalid
+		}
+		options, ok := value.(map[string]any)
+		if !ok || !mokuFiniteJSON(options) {
+			return result, invalid
+		}
+		result.HarnessID = harnessID
+		result.Options = mokuRaw(options)
+		if len(result.Options) > ThreadCreationOptionsMaxBytes {
+			return result, invalid
+		}
 	}
 	return result, nil
 }
@@ -298,7 +272,7 @@ func ToolSchemas(description ThreadCreationDescription) []plugin.ToolBinding {
 		"cursor":           map[string]any{"type": "string", "minLength": 1, "maxLength": 2048, "description": "Opaque nextCursor; preserve all query filters. Omit to refresh."},
 	}, "query")))
 	add("list_threads", "Discover a page of unarchived Agent Thread identities and task states, most recently updated first. Filter by tags and statuses (both groups must match) and follow nextCursor until null; count is this page and total is all matches. waiting-for-background means the latest execution completed but background work is still running. Pages read live state. Do not repeatedly refresh to report progress or decide whether delegated work is ready for review, validation, completion, or delivery; terminal events arrive automatically. Use get_thread_status for needed workspace and execution details, or read_thread for a specific content question.", ThreadListInputSchema())
-	add("create_thread", "Create a normal Agent Thread using native Harness settings and dispatch its first task. Only prompt, harnessId, options, cwd, worktree and worktreeName are accepted. worktreeName is only valid with worktree:true and names the managed worktree directory; Unicode letters/digits are kept, other characters become '-', it is capped at 48 runes, collisions get numeric then random suffixes, and a blank value keeps the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs. Do not send title or name: titles are generated automatically. "+threadCreationWorktreeGuidance+" Omit cwd with worktree:false for a unique temporary workspace. Returns workspace.cwd and, for a Git worktree, workspace.worktreeCwd; use worktreeCwd when present as the execution directory. Returns a hint about automatic execution terminal notifications. If only delegated work remains, end your current Moku turn; the runtime resumes coordination on a terminal event. Do not query repeatedly for progress reports or readiness for review, validation, completion, or delivery.", description.InputSchema)
+	add("create_thread", "Create a normal Agent Thread using native Harness settings and dispatch its first task. Only prompt, target, cwd, worktree and worktreeName are accepted. target contains exactly one Harness key whose value is that Harness's explicit native settings. worktreeName is only valid with worktree:true and names the managed worktree directory; Unicode letters/digits are kept, other characters become '-', it is capped at 48 runes, collisions get numeric then random suffixes, and a blank value keeps the generated name. The result reports worktreeName, worktreeNameAdjusted and notice when the effective name differs. Do not send title or name: titles are generated automatically. "+threadCreationWorktreeGuidance+" Omit cwd with worktree:false for a unique temporary workspace. Returns workspace.cwd and, for a Git worktree, workspace.worktreeCwd; use worktreeCwd when present as the execution directory. Returns a hint about automatic execution terminal notifications. If only delegated work remains, end your current Moku turn; the runtime resumes coordination on a terminal event. Do not query repeatedly for progress reports or readiness for review, validation, completion, or delivery.", description.InputSchema)
 	add("get_thread_status", "Read one committed Thread status snapshot for an explicit immediate progress request, blocked coordination, or fault diagnosis. Completion, failure, and interruption arrive automatically as terminal events. Do not repeatedly query to report progress or decide whether work is ready for review, validation, completion, or delivery; use facts already available.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema}, "threadId")))
 	add("send_to_thread", "Send a follow-up through the Thread Handle without changing its Harness or model settings. Returns the same automatic terminal notification hint as create_thread, including when a new Execution starts. If only delegated work remains, end your current Moku turn and let the terminal event resume coordination; do not repeatedly query for progress reports or readiness for review, validation, completion, or delivery.", mokuRaw(mokuObjectSchema(map[string]any{"threadId": idSchema, "prompt": promptSchema}, "threadId", "prompt")))
 	questionSchema := mokuCopyObject(textSchema)

@@ -13,11 +13,12 @@ struct NativeMokuDispatchTests {
     func runtimeSnapshotsKeepSuccessfulDispatchAndFailureReason() throws {
         let path = try #require(ProcessInfo.processInfo.environment["MOKU_STATUS_NATIVE_FIXTURE"])
         let records = try #require(JSONValue(data: Data(contentsOf: URL(fileURLWithPath: path))).arrayValue)
-        try #require(records.count == 3)
+        try #require(records.count == 4)
         let success = try #require(NativeMokuTalkMessage.latest(in: HarnessThread(json: records[0])))
         #expect(success.dispatch?.phase == .started)
         #expect(success.text == "Thread 已启动")
         #expect(success.dispatch?.threadID != nil)
+        #expect(success.dispatch?.harnessID == "mock" && success.dispatch?.model == "first-model")
         let followupThread = try HarnessThread(json: records[1])
         let followup = try #require(NativeMokuTalkMessage.latest(in: followupThread))
         #expect(followup == success) // Sending again must not leave a false failed dispatch bubble.
@@ -27,6 +28,10 @@ struct NativeMokuDispatchTests {
         #expect(failure.dispatch?.phase == .failed)
         #expect(failure.text == "派发失败")
         #expect(failure.dispatch?.error?.contains("worktree") == true)
+        let bounded = try #require(NativeMokuTalkMessage.latest(in: HarnessThread(json: records[3])))
+        #expect(bounded.dispatch?.phase == .failed && bounded.dispatch?.harnessID == "mock")
+        #expect(bounded.dispatch?.model == String(repeating: "界", count: 256))
+        #expect(bounded.dispatch?.provider == "fixture-provider" && bounded.dispatch?.thinking == "high")
     }
 
     private let prompt = "  原始输入\n不生成标题 👩🏽‍💻  "
@@ -34,8 +39,8 @@ struct NativeMokuDispatchTests {
         "model": .text("gpt-6.1-sol"), "thinking": .object(["mode": .text("effort"), "effort": .text("xhigh")])
     ]), completed: Bool = false, result: JSONValue? = nil,
        error: Bool = false, execution: JSONText = "execution") -> JSONValue {
-        let arguments: [JSONText: JSONValue] = ["harnessId": .text("codex"), "prompt": .text(prompt),
-            "options": options, "worktree": .bool(false)]
+        let arguments: [JSONText: JSONValue] = ["target": .object(["codex": options]), "prompt": .text(prompt),
+            "worktree": .bool(false)]
         var item: [JSONText: JSONValue] = ["type": .text("tool-operation"), "id": .string(id),
             "executionId": .string(execution), "name": .text("create_thread"), "arguments": .object(arguments)]
         if completed { item["completedAt"] = .number(2) }
@@ -87,6 +92,12 @@ struct NativeMokuDispatchTests {
         }
         let unknown = NativeMokuTalkMessage.latest(in: try thread([operation(options: .object([:]))]))?.dispatch
         #expect(unknown?.model == nil && unknown?.thinking == nil && unknown?.configuration == "")
+        for target in [JSONValue.null, .object([:]), .object(["pi": .object([:]), "codex": .object([:])]),
+                       .object(["pi": .text("invalid")]), .object([" ": .object([:])])] {
+            var invalid = operation().objectValue!, arguments = invalid["arguments"]!.objectValue!
+            arguments["target"] = target; invalid["arguments"] = .object(arguments)
+            #expect(NativeMokuTalkMessage.latest(in: try thread([.object(invalid)])) == nil)
+        }
     }
 
     @Test func resultUpdatesVisibleOrDeferredCallWithoutResurrectingDismissedCall() throws {

@@ -72,9 +72,26 @@ func (e helperStartupEvidence) retain(stage string) error {
 	}
 	defer root.Close()
 	records := []map[string]any{}
-	for _, name := range []string{"daemon", "failed-shutdown-go", "failed-shutdown-swift"} {
+	profiles, readErr := fs.ReadDir(root.FS(), ".")
+	if readErr != nil {
+		records = append(records, map[string]any{"path": ".", "directoryReadError": readErr.Error()})
+	}
+	for _, entry := range profiles {
+		if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+			continue
+		}
+		name := entry.Name()
+		profileRoot, err := openStartupDirectory(root, name)
+		if err != nil {
+			records = append(records, map[string]any{"path": name, "error": err.Error()})
+			continue
+		}
 		relative := filepath.Join(name, "runtime")
-		runtime, err := root.OpenRoot(relative)
+		runtime, err := openStartupDirectory(profileRoot, "runtime")
+		_ = profileRoot.Close()
+		if errors.Is(err, os.ErrNotExist) {
+			continue // Other replay inputs under the temporary root are not profiles.
+		}
 		if err != nil {
 			records = append(records, map[string]any{"path": relative, "error": err.Error()})
 			continue
@@ -112,6 +129,30 @@ func (e helperStartupEvidence) retain(stage string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(destination, "manifest.json"), append(data, '\n'), 0600)
+}
+
+// Open each immediate directory separately so a profile or runtime symlink is
+// rejected before its files are inspected. Root confines path replacements;
+// the opened and still-named directory must retain the observed identity.
+func openStartupDirectory(parent *os.Root, name string) (*os.Root, error) {
+	info, err := parent.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, errors.New("not a directory; no link or special file followed")
+	}
+	directory, err := parent.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	opened, statErr := directory.Stat(".")
+	current, nameErr := parent.Lstat(name)
+	if statErr != nil || nameErr != nil || !current.IsDir() || !os.SameFile(info, opened) || !os.SameFile(info, current) {
+		_ = directory.Close()
+		return nil, errors.New("directory changed identity or type before reading")
+	}
+	return directory, nil
 }
 
 func retainStartupFile(root *os.Root, name, relative, destination string) map[string]any {

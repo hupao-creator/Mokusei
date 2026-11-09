@@ -38,6 +38,10 @@ func serveFixture() {
 		return
 	}
 	mode := os.Getenv("MOKUSEI_PI_VERIFICATION_SCENARIO")
+	if strings.HasPrefix(mode, "settings-source-") {
+		serveSettingsSourceFixture(mode)
+		return
+	}
 	if mode == "settings-sharing" {
 		check(slices.Contains(os.Args, "--offline"), "settings discovery must disable native startup refresh")
 	}
@@ -342,6 +346,77 @@ func serveFixture() {
 		check(os.WriteFile(os.Getenv("MOKUSEI_PI_VERIFICATION_CLOSE"), []byte("disposed"), 0600) == nil, "finish native cleanup")
 	}
 	if mode == "stubborn-close" {
+		for {
+			time.Sleep(time.Hour)
+		}
+	}
+}
+
+// These peers change real discovery inputs while retaining the old native
+// snapshot, so a successful read must come from a new, fully drained process.
+func serveSettingsSourceFixture(mode string) {
+	check(slices.Contains(os.Args, "--offline"), "settings source discovery must be offline")
+	root := os.Getenv("MOKUSEI_PI_VERIFICATION_SOURCE")
+	starts, err := filepath.Glob(filepath.Join(root, "start-*.json"))
+	check(err == nil, "count discovery source processes")
+	attempt := len(starts) + 1
+	if attempt > 1 {
+		previous, err := os.ReadFile(filepath.Join(root, fmt.Sprintf("exited-%d", attempt-1)))
+		check(err == nil, "replacement discovery started before native disposal")
+		pid, err := strconv.Atoi(string(previous))
+		check(err == nil && syscall.Kill(pid, 0) == syscall.ESRCH, "replacement discovery started before the old child was reaped")
+	}
+	defer func() {
+		check(os.WriteFile(filepath.Join(root, fmt.Sprintf("exited-%d", attempt)), []byte(strconv.Itoa(os.Getpid())), 0600) == nil, "record discovery source disposal")
+	}()
+	configuration := filepath.Join(os.Getenv("PI_CODING_AGENT_DIR"), "models.json")
+	if strings.HasPrefix(mode, "settings-source-dependency") {
+		configuration = filepath.Join(os.Getenv("PI_CODING_AGENT_DIR"), "catalog.json")
+	}
+	raw, err := os.ReadFile(configuration)
+	check(err == nil, "read discovery model input")
+	var source struct{ ID string }
+	check(json.Unmarshal(raw, &source) == nil && source.ID != "", "decode discovery model input")
+	auth := filepath.Join(os.Getenv("PI_CODING_AGENT_DIR"), "auth.json")
+	_, authErr := os.Stat(auth)
+	authExisted := authErr == nil
+	check(authErr == nil || os.IsNotExist(authErr), "inspect fixture auth state")
+	if !authExisted && !strings.HasPrefix(mode, "settings-source-dependency") {
+		check(os.WriteFile(auth, []byte(`{}`), 0600) == nil, "native discovery initializes its own auth store")
+	}
+	record, _ := json.Marshal(map[string]any{"pid": os.Getpid(), "model": source.ID, "authExisted": authExisted})
+	check(os.WriteFile(filepath.Join(root, fmt.Sprintf("start-%d.json", attempt)), record, 0600) == nil, "record discovery source process")
+	_, stableErr := os.Stat(filepath.Join(root, "stable"))
+	if (mode == "settings-source-model" || mode == "settings-source-dependency") && attempt == 1 || mode == "settings-source-churn" && os.IsNotExist(stableErr) {
+		next, _ := json.Marshal(map[string]string{"id": fmt.Sprintf("fresh-model-%d", attempt)})
+		check(os.WriteFile(configuration, next, 0600) == nil, "change discovery source after taking its native snapshot")
+	}
+	nativeModel := map[string]any{"id": source.ID, "provider": "provider", "api": "openai-completions", "reasoning": false, "input": []string{"text"}}
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		var frame map[string]any
+		check(json.Unmarshal(scanner.Bytes(), &frame) == nil, "decode source discovery request")
+		if mode == "settings-source-error" {
+			emitFixture(map[string]any{"type": "response", "id": frame["id"], "success": false, "error": "fixture discovery failure"})
+			continue
+		}
+		var data any
+		switch frame["type"] {
+		case "get_state":
+			data = map[string]any{"model": nativeModel, "thinkingLevel": "off"}
+		case "get_available_models":
+			data = map[string]any{"models": []any{nativeModel}}
+		case "get_available_thinking_levels":
+			data = map[string]any{"levels": []string{"off"}}
+		default:
+			panic("unexpected discovery source command")
+		}
+		emitFixture(map[string]any{"type": "response", "id": frame["id"], "success": true, "data": data})
+	}
+	if mode == "settings-source-blocked" {
+		check(os.WriteFile(filepath.Join(root, "draining"), nil, 0600) == nil, "signal discovery cleanup barrier")
+		// Cancellation/Close must drain this first owner, including normal signal
+		// escalation, without starting the retry after auth initialization.
 		for {
 			time.Sleep(time.Hour)
 		}

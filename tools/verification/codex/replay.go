@@ -62,7 +62,9 @@ func runSynthetic(ctx context.Context, root string) error {
 		return e
 	}
 	environment["MOKUSEI_CODEX_REPLAY_LAUNCH_CAPTURE"] = filepath.Join(root, "voice-launch.jsonl")
+	environment["MOKUSEI_CODEX_REPLAY_USAGE"] = "1"
 	store := &memoryStore{}
+	ledger := &generationUsageLedger{samples: make(chan json.RawMessage, 8)}
 	adapter := codex.New(host(root, environment))
 	defer adapter.Close()
 	if e = verifyPromptSteering(ctx, adapter, binary); e != nil {
@@ -70,7 +72,7 @@ func runSynthetic(ctx context.Context, root string) error {
 	}
 	settings := object{"executablePath": binary, "model": "gpt-6-luna", "thinking": object{"mode": "effort", "effort": "low"}, "serviceTier": "default", "permissionMode": "ask-for-approval", "approvalPolicy": "on-request", "approvalsReviewer": "user", "sandbox": "workspace-write"}
 	record := model.SessionRecord{ID: "fixture-host-thread", CreatedAt: time.Now().UnixMilli(), Cwd: filepath.Join(root, "work"), Settings: encoded(settings)}
-	handle, e := adapter.Open(ctx, plugin.OpenContext{ThreadID: record.ID, RequireExplicitSettings: true, ReadThread: func() model.SessionRecord { return record }, SessionState: store})
+	handle, e := adapter.Open(ctx, plugin.OpenContext{ThreadID: record.ID, RequireExplicitSettings: true, ReadThread: func() model.SessionRecord { return record }, SessionState: store, TelemetryLedger: ledger})
 	if e != nil {
 		return e
 	}
@@ -89,6 +91,49 @@ func runSynthetic(ctx context.Context, root string) error {
 	if e = check(execution.Summary != nil && *execution.Summary == "Hello fixture" && admissions.Load() == 1, "streamed final or admission callback mismatched"); e != nil {
 		return e
 	}
+	rendered, e := adapter.SessionState().ProjectRenderer(store.Read(), model.RendererScope{Kind: "execution", Key: "turn:fixture-execution"})
+	if e != nil {
+		return e
+	}
+	turns := list(decoded(rendered)["turns"])
+	if len(turns) != 1 {
+		return fmt.Errorf("usage replay lost its completed execution projection")
+	}
+	turn, _ := turns[0].(map[string]any)
+	usage, _ := turn["reasoningTokensByGeneration"].(map[string]any)
+	if len(usage) != 2 || usage["fixture-response-1"] != float64(3) || usage["fixture-response-2"] != float64(5) {
+		return fmt.Errorf("native usage identities or duplicate suppression changed the renderer: %s", rendered)
+	}
+	seenSamples, seenReasoning := map[string]bool{}, map[float64]bool{}
+	usageCtx, cancelUsage := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelUsage()
+	for range 2 {
+		select {
+		case raw := <-ledger.samples:
+			sample := decoded(raw)
+			id := text(sample["sampleId"])
+			reasoning, ok := sample["reasoningTokens"].(float64)
+			if len(id) != 64 || seenSamples[id] || !ok || seenReasoning[reasoning] || sample["type"] != "execution-usage" || sample["model"] != "gpt-6-luna" || sample["usageKind"] != "generation" {
+				return fmt.Errorf("native telemetry lost usage identity or attribution: %s", raw)
+			}
+			expected := map[float64]object{
+				3: {"inputTokens": float64(40), "cachedReadTokens": float64(10), "cacheWriteTokens": float64(3), "outputTokens": float64(8), "uncachedInputTokens": float64(27)},
+				5: {"inputTokens": float64(60), "cachedReadTokens": float64(20), "cacheWriteTokens": float64(5), "outputTokens": float64(12), "uncachedInputTokens": float64(35)},
+			}[reasoning]
+			if expected == nil || string(encoded(sample["attributionKeys"])) != `["model:gpt-6-luna"]` {
+				return fmt.Errorf("native telemetry accepted duplicate/unknown usage or changed model attribution: %s", raw)
+			}
+			for key, value := range expected {
+				if sample[key] != value {
+					return fmt.Errorf("native telemetry changed %s: %s", key, raw)
+				}
+			}
+			seenSamples[id], seenReasoning[reasoning] = true, true
+		case <-usageCtx.Done():
+			return fmt.Errorf("native telemetry omitted generation usage: %w", usageCtx.Err())
+		}
+	}
+	fmt.Println("PASS native raw-response usage: renderer retains generation identities and duplicate suppression; asynchronous telemetry preserves distinct sample identities and token categories")
 	fmt.Printf("PASS synthetic explicit thinking and service tier / stream-before-ACK / approval / final projection (%d durable commits)\n", store.Count())
 	answer, e := handle.Read(ctx, "fixture source")
 	if e != nil {
@@ -247,4 +292,19 @@ func runSynthetic(ctx context.Context, root string) error {
 	}
 	fmt.Println("PASS synthetic authenticated MCP tool injection")
 	return nil
+}
+
+type generationUsageLedger struct{ samples chan json.RawMessage }
+
+func (l *generationUsageLedger) Read(context.Context) (json.RawMessage, error) {
+	return json.RawMessage(`{}`), nil
+}
+
+func (l *generationUsageLedger) Record(ctx context.Context, raw json.RawMessage) error {
+	select {
+	case l.samples <- append(json.RawMessage{}, raw...):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

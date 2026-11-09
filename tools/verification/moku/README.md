@@ -225,9 +225,14 @@ and error order under reversed completion, and cancellation/Stop joining every
 native cleanup. Workspace-purpose checks use all four real Harness adapters and
 reject any environment/executable/account discovery attempt.
 
-The creation-contract replay checks explicit `worktree` selection across native and
-deferred native branches against both JSON Schema and
-the runtime parser. Missing, null and non-boolean values fail; false remains
+The creation-contract replay checks one named Harness under `target`, per-Harness
+field visibility, exact native choices and rejection of cross-Harness fields,
+empty/multiple/unknown selections and the removed `harnessId`/`options` envelope.
+Both target orders run through the production schema and Claude wire schema;
+the parser independently checks the envelope and preserves native settings for
+admission. The replay also checks explicit `worktree` selection across native and
+deferred targets against both JSON Schema and the runtime parser. Missing, null
+and non-boolean values fail; false remains
 valid without cwd; true requires cwd. The runtime replay creates a committed Git
 fixture, uses the returned `workspace.worktreeCwd`, verifies edit isolation and
 rejects a non-Git cwd for true.

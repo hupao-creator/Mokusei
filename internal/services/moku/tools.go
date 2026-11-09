@@ -212,7 +212,7 @@ func (c *Coordinator) executeTool(ctx context.Context, owner, name string, raw j
 		if err != nil {
 			return nil, err
 		}
-		return encode(map[string]any{"harnessId": id, "options": schema, "creation": "Call create_thread with this harnessId and explicit options matching every required field. " + threadCreationWorktreeGuidance})
+		return encode(map[string]any{"target": map[string]any{id: schema}, "creation": "Call create_thread with exactly this target key and explicit native settings matching its schema. " + threadCreationWorktreeGuidance})
 	case "interrupt_thread":
 		var request struct {
 			ThreadIDs []string `json:"threadIds"`

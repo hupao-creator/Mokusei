@@ -275,7 +275,7 @@ struct NativeMokuLandingTests {
     private func dispatch(_ id: String = "create", completed: Bool = false, ok: Bool = false, thread: String = "child") -> JSONValue {
         var value: [JSONText: JSONValue] = ["type": .text("tool-operation"), "id": .text(id),
             "executionId": .text("moku-run"), "name": .text("create_thread"),
-            "arguments": .object(["harnessId": .text("codex"), "prompt": .text("A first task"), "worktree": .bool(false)])]
+            "arguments": .object(["target": .object(["codex": .object([:])]), "prompt": .text("A first task"), "worktree": .bool(false)])]
         if completed {
             value["completedAt"] = .integer(2)
             value["isError"] = .bool(!ok)

@@ -248,11 +248,21 @@ trace_exporter = "none"
 		}
 	}
 	toolSchema := findNativeToolSchema(requests[len(requests)-1]["tools"], "create_thread")
-	options := record(record(toolSchema["properties"])["options"])
+	properties := record(toolSchema["properties"])
+	target := record(properties["target"])
+	selectors := list(target["oneOf"])
+	if properties["harnessId"] != nil || properties["options"] != nil || target["type"] != "object" || target["additionalProperties"] != false || len(selectors) != 1 {
+		return fmt.Errorf("native model-facing Moku declaration lost its target boundary: %s", encoded(target))
+	}
+	selector := record(selectors[0])
+	if selector["type"] != "object" || len(record(selector["properties"])) != 0 || len(list(selector["required"])) != 1 || !containsText(selector["required"], "codex") {
+		return fmt.Errorf("native model-facing target selector no longer selects a Codex object: %s", encoded(selector))
+	}
+	options := record(record(target["properties"])["codex"])
 	if record(record(options["properties"])["serviceTier"])["type"] != "string" || !containsText(options["required"], "serviceTier") {
 		return fmt.Errorf("native model-facing Moku declaration hid the required service tier: %s", encoded(options))
 	}
-	fmt.Println("PASS real native standard tier overrides Fast defaults / model-facing Moku serviceTier is required")
+	fmt.Println("PASS real native standard tier overrides Fast defaults / model-facing target.codex requires serviceTier and retains its object selector")
 	fmt.Printf("PASS real native network audit (%d scripted Provider requests, loopback-only OS sandbox)\n", len(requests))
 
 	return verifyRealHTTPRecovery(ctx, root, wrapper, adapter, provider)

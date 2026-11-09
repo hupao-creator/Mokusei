@@ -11,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +23,7 @@ import (
 	"github.com/hupao-creator/Mokusei/internal/core/model"
 	"github.com/hupao-creator/Mokusei/internal/core/plugin"
 	"github.com/hupao-creator/Mokusei/internal/plugins/harness/pi"
+	"github.com/hupao-creator/Mokusei/internal/services/moku"
 	"github.com/hupao-creator/Mokusei/internal/services/threadvoice"
 	"github.com/hupao-creator/Mokusei/tools/verification/discussioncheck"
 )
@@ -149,6 +152,20 @@ func runNative(ctx context.Context) error {
 	if err = writeArtifact("native-presentation.json", presentation); err != nil {
 		return err
 	}
+	piSchema, err := adapter.Settings().Describe(ctx, plugin.SettingsRequest{Settings: adapter.DefaultSettings(), Cwd: filepath.Join(root, "work")})
+	if err != nil {
+		return fmt.Errorf("native Pi creation schema: %w", err)
+	}
+	// Only Pi is installed in this replay. The other target supplies synthetic
+	// OpenCode-only fields so the real Pi serializer must preserve their owner.
+	opencodeSchema := json.RawMessage(`{"type":"object","description":"Synthetic OpenCode inventory: opencode-fixture-model; no OpenCode process is used.","additionalProperties":false,"required":["provider","model","thinking","permissionMode"],"properties":{"provider":{"const":"opencode"},"model":{"type":"string","enum":["opencode-fixture-model"]},"thinking":{"type":"object","additionalProperties":false,"required":["mode"],"properties":{"mode":{"const":"fixed"}}},"agent":{"type":"string","enum":["build"]},"permissionMode":{"type":"string","enum":["auto"]}}}`)
+	creation, err := moku.DescribeThreadCreation([]moku.TargetDescription{{HarnessID: "opencode", NativeSchema: opencodeSchema}, {HarnessID: "pi", NativeSchema: piSchema}}, filepath.Join(root, "work"))
+	if err != nil {
+		return err
+	}
+	provider.mu.Lock()
+	provider.creationSchema = creation.InputSchema
+	provider.mu.Unlock()
 	var toolCalls atomic.Int64
 	injection := &plugin.Injection{Instructions: []string{"MOKUSEI_NATIVE_HOST_INSTRUCTION. Invoke multiply for the fixture request, then state the result."}, Tools: &plugin.ToolInjection{Mode: "exclusive", Bindings: []plugin.ToolBinding{{Name: "multiply", Description: "Multiply two integers in the Go host.", InputSchema: json.RawMessage(`{"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"integer"}},"required":["a","b"],"additionalProperties":false}`), Execute: func(ctx context.Context, call plugin.ToolCall) (json.RawMessage, error) {
 		if call.CallID != "native-multiply-1" {
@@ -167,6 +184,9 @@ func runNative(ctx context.Context) error {
 		toolCalls.Add(1)
 		return json.Marshal(map[string]int{"product": arguments.A * arguments.B})
 	}}}}}
+	injection.Tools.Bindings = append(injection.Tools.Bindings, plugin.ToolBinding{Name: "create_thread", Description: "Inspect the Moku creation contract; this fixture must never execute it.", InputSchema: creation.InputSchema, Execute: func(context.Context, plugin.ToolCall) (json.RawMessage, error) {
+		return nil, errors.New("the declaration-only creation fixture must not execute")
+	}})
 	bridgeStore := &nativeMemoryStore{}
 	bridgeRecord := model.SessionRecord{ID: "native-host-bridge", HarnessID: "pi", Cwd: filepath.Join(root, "work"), Settings: settings}
 	bridge, err := adapter.Open(ctx, plugin.OpenContext{ThreadID: bridgeRecord.ID, ReadThread: func() model.SessionRecord { return bridgeRecord }, SessionState: bridgeStore, RequireExplicitSettings: true, Injection: injection})
@@ -187,6 +207,16 @@ func runNative(ctx context.Context) error {
 		return err
 	}
 	fmt.Println("PASS real Pi Host extension: native loader, exclusive registration, instructions, FD3 call/result, Go tool execution")
+	provider.mu.Lock()
+	creationFailure, creationRequests := provider.failure, provider.creationRequests
+	provider.mu.Unlock()
+	if creationFailure != "" {
+		return errors.New(creationFailure)
+	}
+	if creationRequests != 2 {
+		return fmt.Errorf("native model-facing Moku declaration was not captured before and after the host tool call: %d", creationRequests)
+	}
+	fmt.Println("PASS real Pi model-facing Moku declaration: target-owned fields, exact native inventories and single-target selectors survive; creation tool is not executed")
 	ordinaryStore := &nativeMemoryStore{}
 	ordinaryRecord := model.SessionRecord{ID: "native-ordinary", HarnessID: "pi", Cwd: filepath.Join(root, "work"), Settings: settings}
 	open := plugin.OpenContext{ThreadID: ordinaryRecord.ID, ReadThread: func() model.SessionRecord { return ordinaryRecord }, SessionState: ordinaryStore, RequireExplicitSettings: true}
@@ -429,7 +459,7 @@ func runNative(ctx context.Context) error {
 	if failure != "" {
 		return errors.New(failure)
 	}
-	report, _ := json.MarshalIndent(map[string]any{"version": version, "network": "OS sandbox: loopback-only; non-loopback proxy requests rejected", "userConfiguration": "isolated HOME/PI_CODING_AGENT_DIR; real HOME writes denied", "hostToolCalls": toolCalls.Load(), "requests": evidence, "blockedExternalAttempts": blocked, "checks": []string{"provider/model/thinking exact selection", "actual Host .mjs loader and FD3", "actual read-guard .mjs loader and blocked native write", "native clone", "cancel/recovery", "isolated JSON completion"}}, "", "  ")
+	report, _ := json.MarshalIndent(map[string]any{"version": version, "network": "OS sandbox: loopback-only; non-loopback proxy requests rejected", "userConfiguration": "isolated HOME/PI_CODING_AGENT_DIR; real HOME writes denied", "hostToolCalls": toolCalls.Load(), "requests": evidence, "blockedExternalAttempts": blocked, "checks": []string{"provider/model/thinking exact selection", "actual Host .mjs loader and FD3", "model-facing Moku target schema and inventories (declaration only)", "actual read-guard .mjs loader and blocked native write", "native clone", "cancel/recovery", "isolated JSON completion"}}, "", "  ")
 	if err = writeArtifact("native-evidence.json", report); err != nil {
 		return err
 	}
@@ -550,18 +580,86 @@ func nativeWait(ctx context.Context, store *nativeMemoryStore, id, status string
 }
 
 type nativeRequestEvidence struct {
-	Marker     string   `json:"marker"`
-	Model      string   `json:"model"`
-	Tools      []string `json:"tools"`
-	ToolResult bool     `json:"toolResult"`
+	Marker         string          `json:"marker"`
+	Model          string          `json:"model"`
+	Tools          []string        `json:"tools"`
+	ToolResult     bool            `json:"toolResult"`
+	CreationSchema json.RawMessage `json:"creationSchema,omitempty"`
 }
 type nativeScriptProvider struct {
-	mu           sync.Mutex
-	root, origin string
-	requests     []nativeRequestEvidence
-	blocked      []string
-	failure      string
-	holding      chan struct{}
+	mu               sync.Mutex
+	root, origin     string
+	requests         []nativeRequestEvidence
+	blocked          []string
+	failure          string
+	holding          chan struct{}
+	creationSchema   json.RawMessage
+	creationRequests int
+}
+
+func verifyNativeCreationSchema(raw, expected json.RawMessage) error {
+	var actual, wanted map[string]any
+	if err := json.Unmarshal(raw, &actual); err != nil {
+		return fmt.Errorf("native model request omitted the Moku creation schema: %w", err)
+	}
+	if err := json.Unmarshal(expected, &wanted); err != nil {
+		return err
+	}
+	object := func(value any) map[string]any {
+		result, _ := value.(map[string]any)
+		return result
+	}
+	properties := object(actual["properties"])
+	if _, present := properties["harnessId"]; present {
+		return errors.New("native model-facing creation schema retained the removed harnessId field")
+	}
+	if _, present := properties["options"]; present {
+		return errors.New("native model-facing creation schema retained shared options")
+	}
+	required, _ := actual["required"].([]any)
+	for _, key := range []string{"target", "worktree", "prompt"} {
+		if !slices.Contains(required, any(key)) {
+			return fmt.Errorf("native model-facing creation schema lost required %s", key)
+		}
+	}
+	target := object(properties["target"])
+	if !reflect.DeepEqual(target, object(object(wanted["properties"])["target"])) {
+		return errors.New("native model-facing creation target changed fields, selectors or native inventory descriptions")
+	}
+	if target["type"] != "object" || target["additionalProperties"] != false {
+		return errors.New("native model-facing creation target lost its closed object boundary")
+	}
+	targets := object(target["properties"])
+	if len(targets) != 2 {
+		return errors.New("native model-facing creation schema lost a configured target")
+	}
+	for id, keys := range map[string][]string{
+		"pi":       {"provider", "model", "thinking"},
+		"opencode": {"provider", "model", "thinking", "agent", "permissionMode"},
+	} {
+		native := object(targets[id])
+		fields := object(native["properties"])
+		if len(fields) != len(keys) {
+			return fmt.Errorf("native model-facing %s fields are missing or mixed with another target", id)
+		}
+		for _, key := range keys {
+			if _, present := fields[key]; !present {
+				return fmt.Errorf("native model-facing %s schema omitted %s", id, key)
+			}
+		}
+	}
+	selectors, _ := target["oneOf"].([]any)
+	if len(selectors) != 2 {
+		return errors.New("native model-facing creation target lost its single-selection rule")
+	}
+	for i, id := range []string{"opencode", "pi"} {
+		selector := object(selectors[i])
+		selection, _ := selector["required"].([]any)
+		if len(selector) != 1 || len(selection) != 1 || selection[0] != id {
+			return errors.New("native model-facing target selectors changed configured order or repeated native fields")
+		}
+	}
+	return nil
 }
 
 func (p *nativeScriptProvider) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -582,7 +680,8 @@ func (p *nativeScriptProvider) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		} `json:"messages"`
 		Tools []struct {
 			Function struct {
-				Name string `json:"name"`
+				Name       string          `json:"name"`
+				Parameters json.RawMessage `json:"parameters"`
 			} `json:"function"`
 		} `json:"tools"`
 	}
@@ -621,16 +720,26 @@ func (p *nativeScriptProvider) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	names := []string{}
+	var creationSchema json.RawMessage
 	for _, tool := range request.Tools {
 		names = append(names, tool.Function.Name)
+		if tool.Function.Name == "create_thread" {
+			creationSchema = tool.Function.Parameters
+		}
 	}
 	p.mu.Lock()
-	p.requests = append(p.requests, nativeRequestEvidence{Marker: marker, Model: request.Model, Tools: names, ToolResult: toolResult})
+	p.requests = append(p.requests, nativeRequestEvidence{Marker: marker, Model: request.Model, Tools: names, ToolResult: toolResult, CreationSchema: creationSchema})
 	if request.Model != "mock-model" || !request.Stream {
 		p.failure = "Pi changed configured model or failed to request streaming"
 	}
-	if marker == "HOST_TOOL_PROOF" && (len(names) != 1 || names[0] != "multiply" || !strings.Contains(all, "MOKUSEI_NATIVE_HOST_INSTRUCTION")) {
-		p.failure = "native Host extension did not enforce exclusive tool set/instructions"
+	if marker == "HOST_TOOL_PROOF" {
+		if len(names) != 2 || !slices.Contains(names, "multiply") || !slices.Contains(names, "create_thread") || !strings.Contains(all, "MOKUSEI_NATIVE_HOST_INSTRUCTION") {
+			p.failure = "native Host extension did not enforce exclusive tool set/instructions"
+		} else if err := verifyNativeCreationSchema(creationSchema, p.creationSchema); err != nil {
+			p.failure = err.Error()
+		} else {
+			p.creationRequests++
+		}
 	}
 	p.mu.Unlock()
 	w.Header().Set("Content-Type", "text/event-stream")

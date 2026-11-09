@@ -26,6 +26,13 @@ type RPCError struct {
 
 func (e *RPCError) Error() string { return fmt.Sprintf("Codex app-server (%d): %s", e.Code, e.Message) }
 
+// A retired transport cannot acknowledge another RPC. Keep that causal fact
+// distinct from a native RPC rejection while preserving the original failure.
+type appServerClosedError struct{ cause error }
+
+func (e *appServerClosedError) Error() string { return e.cause.Error() }
+func (e *appServerClosedError) Unwrap() error { return e.cause }
+
 type rpcReply struct {
 	result Map
 	err    error
@@ -409,20 +416,22 @@ func (s *AppServer) writeContext(ctx context.Context, v Map) error {
 	}
 	if e != nil {
 		s.fail(e)
+		e = &appServerClosedError{cause: e}
 	}
 	return e
 }
 func (s *AppServer) fail(e error) {
 	s.closeOnce.Do(func() {
+		failure := &appServerClosedError{cause: e}
 		s.mu.Lock()
 		s.closed = true
-		s.terminalErr = e
+		s.terminalErr = failure
 		pending := s.pending
 		s.pending = map[string]chan rpcReply{}
 		callback := s.onExit
 		s.mu.Unlock()
 		for _, ch := range pending {
-			ch <- rpcReply{err: e}
+			ch <- rpcReply{err: failure}
 		}
 		close(s.done)
 		if callback != nil {

@@ -145,6 +145,16 @@ turn through its interrupt acknowledgement, allowing normal realtime shutdown
 to finish. Failed interrupt acknowledgement remains a visible cleanup failure;
 generic, joined and possibly projected errors keep the ordinary fault path.
 
+When that fault has retired the app-server, stopping media joins the native
+process and tool bridge instead of requiring an RPC acknowledgement from the
+closed channel. A typed transport failure identifies this case without treating
+native RPC rejections or cancellation failures as successful cleanup. Process or
+bridge drain failures remain errors. Prewarming checks the native owner's and
+transport's existing retirement state and must itself win retirement of a live
+owner before launching its replacement; joining a concurrent fault's cleanup
+grants no replacement authority. This cleanup does not recover input, and the
+original voice error event is retained.
+
 Verification: [Codex runner](../../../../tools/verification/codex/README.md), `./scripts/go.sh test -race ./internal/plugins/harness/codex`, and the runtime/Moku replays. Protocol fixtures establish adapter behavior, not live account entitlement or audible playback.
 
 ## Initial response cards
@@ -221,6 +231,8 @@ native last-call meaning for existing consumers; neither its snapshots nor the
 session-wide token total is summed. Turns admitted without the map have no
 certified execution total and do not acquire a misleading suffix-only total
 when resumed. Unfinished calls contribute only after reporting usage.
+Asynchronous telemetry receives an owned event snapshot before the notification
+receiver adds projection metadata, so ledger reads cannot race those writes.
 
 Compact renderer directories retain up to 600 characters of `answer` for each
 execution, including historical executions, so Report can display a bounded

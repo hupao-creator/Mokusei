@@ -481,12 +481,12 @@ func replayOrchestratorBasics() {
 	w.mu.Lock()
 	createsBefore := w.creates
 	w.mu.Unlock()
-	_, missingErr := w.call("create_thread", `{"prompt":"missing isolation choice","harnessId":"mock","options":{"model":"mock-model"}}`)
+	_, missingErr := w.call("create_thread", `{"prompt":"missing isolation choice","target":{"mock":{"model":"mock-model"}}}`)
 	mokuReplayCheck(missingErr != nil && strings.Contains(missingErr.Error(), "worktree"), "injected tool omitted missing-worktree error")
 	w.mu.Lock()
 	mokuReplayCheck(w.creates == createsBefore, "missing worktree reached runtime creation")
 	w.mu.Unlock()
-	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","harnessId":"mock","options":{"model":"mock-model"}}`)
+	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","target":{"mock":{"model":"mock-model"}}}`)
 	mokuReplayMust(e)
 	var created struct {
 		ThreadID string `json:"threadId"`
@@ -581,7 +581,7 @@ func replayOrchestratorBasics() {
 	mokuReplayCheck(latestTalk == "Latest confirmation.", "talk audit lost latest successful bubble text")
 	mokuReplayCheck(!w.mokuRecord().Observation.LatestExecution.Terminal(), "talk ended the execution")
 	fmt.Println("PASS Moku Overview talk policy, exact bubble text, replacement, Unicode code point bounds and active execution")
-	_, e = w.call("create_thread", `{"worktree":false,"prompt":"bad missing model","harnessId":"mock","options":{}}`)
+	_, e = w.call("create_thread", `{"worktree":false,"prompt":"bad missing model","target":{"mock":{}}}`)
 	mokuReplayCheck(e != nil, "missing required native option admitted")
 	r := w.mokuRecord()
 	toolCount := 0
@@ -637,7 +637,7 @@ func replayOrchestratorBasics() {
 	mokuReplayMust(c.Submit(mokuReplayContext(), orchestratorInput("fresh target catalog")))
 	_, e = old.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: json.RawMessage(`{"text":"retired target generation"}`)})
 	mokuReplayCheck(e != nil, "retired target catalog binding survived")
-	_, e = w.call("create_thread", `{"worktree":false,"prompt":"new target catalog","harnessId":"mock","options":{"model":"next-model"}}`)
+	_, e = w.call("create_thread", `{"worktree":false,"prompt":"new target catalog","target":{"mock":{"model":"next-model"}}}`)
 	mokuReplayMust(e)
 	stopOrchestrator(c)
 	mokuReplayCheck(c.Submit(mokuReplayContext(), orchestratorInput("after stop")) != nil, "submission after stop")
@@ -792,7 +792,7 @@ func replayOrchestratorToolCancellation() {
 	w := newOrchestratorWorld()
 	c := startOrchestrator(w)
 	mokuReplayMust(c.Submit(mokuReplayContext(), orchestratorInput("tool cancellation")))
-	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","harnessId":"mock","options":{"model":"mock-model"}}`)
+	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","target":{"mock":{"model":"mock-model"}}}`)
 	mokuReplayMust(e)
 	var created struct {
 		ThreadID string `json:"threadId"`
@@ -865,7 +865,7 @@ func replayOrchestratorStaleScope() {
 	mokuReplayMust(c.Start(mokuReplayContext(), plugin.RuntimeStartContext{Reason: "manual"}))
 	mokuReplayMust(c.Submit(mokuReplayContext(), orchestratorInput("scope race")))
 	owner := w.mokuRecord().ID
-	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","harnessId":"mock","options":{"model":"mock-model"}}`)
+	raw, e := w.call("create_thread", `{"worktree":false,"prompt":"delegate","target":{"mock":{"model":"mock-model"}}}`)
 	mokuReplayMust(e)
 	var created struct {
 		ThreadID string `json:"threadId"`
@@ -1073,11 +1073,11 @@ func replayOrchestratorDeferredTarget() {
 	mokuReplayMust(<-completed)
 	schema := w.binding("create_thread").InputSchema
 	mokuReplayCheck(strings.Contains(string(schema), "opencode") && strings.Contains(string(schema), "Native response inventory"), "initial native model inventory not advertised")
-	_, err = w.call("create_thread", `{"worktree":false,"prompt":"invalid defaults","harnessId":"opencode","options":{}}`)
+	_, err = w.call("create_thread", `{"worktree":false,"prompt":"invalid defaults","target":{"opencode":{}}}`)
 	mokuReplayCheck(err != nil, "native target accepted empty options")
-	_, err = w.call("create_thread", `{"worktree":false,"prompt":"reject invalid model","harnessId":"opencode","options":{"model":"unadvertised"}}`)
+	_, err = w.call("create_thread", `{"worktree":false,"prompt":"reject invalid model","target":{"opencode":{"model":"unadvertised"}}}`)
 	mokuReplayCheck(err != nil, "deferred target bypassed native schema")
-	_, err = w.call("create_thread", `{"worktree":false,"prompt":"native task","harnessId":"opencode","options":{"model":"mock-model"}}`)
+	_, err = w.call("create_thread", `{"worktree":false,"prompt":"native task","target":{"opencode":{"model":"mock-model"}}}`)
 	mokuReplayMust(err)
 	fmt.Println("PASS eager native target: first Moku admission waits for the complete catalog; empty and invalid options rejected")
 }
@@ -1193,9 +1193,11 @@ func replayOrchestratorParallelTargets() {
 		raw := w.binding("create_thread").InputSchema
 		var schema map[string]any
 		mokuReplayMust(json.Unmarshal(raw, &schema))
-		options := schema["properties"].(map[string]any)["harnessId"].(map[string]any)["enum"].([]any)
+		selectors := schema["properties"].(map[string]any)["target"].(map[string]any)["oneOf"].([]any)
+		mokuReplayCheck(len(selectors) == len(ids), "target discovery changed the configured target set")
 		for i, id := range ids {
-			mokuReplayCheck(options[i] == id, "target completion order changed configured order")
+			required := selectors[i].(map[string]any)["required"].([]any)
+			mokuReplayCheck(len(required) == 1 && required[0] == id, "target completion order changed configured order")
 		}
 		if previous != "" {
 			mokuReplayCheck(string(raw) == previous, "completion order changed Moku tool schema")

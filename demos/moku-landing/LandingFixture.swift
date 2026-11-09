@@ -101,7 +101,7 @@ import MokuseiPluginAPI
     }
     private func operation(completed: Bool, success: Bool) -> JSONValue {
         var value: [JSONText: JSONValue] = ["name": .text("create_thread"),
-            "arguments": .object(["harnessId": .string(dispatchHarness.descriptor.id), "prompt": .text(prompt)])]
+            "arguments": .object(["target": .object([dispatchHarness.descriptor.id: .object([:])]), "prompt": .text(prompt)])]
         if completed {
             value["completedAt"] = .integer(1)
             value["isError"] = .bool(!success)

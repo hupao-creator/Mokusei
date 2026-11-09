@@ -23,66 +23,32 @@ func runCreationContractReplay() error {
 	mokuReplayMust(err)
 	var definition map[string]any
 	mokuReplayMust(json.Unmarshal(description.InputSchema, &definition))
-	// Common fields live on the root object; only harness-specific options are
-	// selected through the per-harness conditionals.
-	schemas := []any{definition}
-	guarded := map[string]bool{}
-	for _, raw := range definition["allOf"].([]any) {
-		branch := raw.(map[string]any)
-		options, _ := branch["anyOf"].([]any)
-		if len(options) != 2 {
-			continue
-		}
-		guard, _ := options[1].(map[string]any)["not"].(map[string]any)
-		guardProperties, _ := guard["properties"].(map[string]any)
-		harness, _ := guardProperties["harnessId"].(map[string]any)
-		if value, ok := harness["const"].(string); ok {
-			guarded[value] = true
-		}
-	}
+	properties := definition["properties"].(map[string]any)
+	targetSchema, ok := properties["target"].(map[string]any)
+	mokuReplayCheck(ok, "creation schema omitted target selection")
+	targetProperties, ok := targetSchema["properties"].(map[string]any)
+	mokuReplayCheck(ok, "creation schema omitted harness-specific target properties")
 	for _, target := range targets {
-		mokuReplayCheck(guarded[target.HarnessID], "creation schema omitted harness options conditional for "+target.HarnessID)
+		_, present := targetProperties[target.HarnessID]
+		mokuReplayCheck(present, "creation schema omitted target settings for "+target.HarnessID)
 	}
-	for _, raw := range schemas {
-		schema := raw.(map[string]any)
-		required := schema["required"].([]any)
-		found := false
-		for _, key := range required {
-			found = found || key == "worktree"
-		}
-		mokuReplayCheck(found, "creation schema branch omitted required worktree")
-		mokuReplayCheck(required[len(required)-1] == "prompt", "creation schema branch should generate prompt last")
-		properties, ok := schema["properties"].(map[string]any)
-		mokuReplayCheck(ok, "creation schema branch omitted properties")
-		prompt, ok := properties["prompt"].(map[string]any)
-		mokuReplayCheck(ok, "creation schema branch omitted prompt")
-		_, patterned := prompt["pattern"]
-		mokuReplayCheck(!patterned, "free-text prompt schema must not carry pattern: constrained decoders stop at its first match and truncate the value")
-		mokuReplayCheck(prompt["minLength"] == float64(1) && prompt["maxLength"] == float64(moku.ThreadCreationPromptMaxCharacters), "prompt schema lost its length bounds")
-		name, ok := properties["worktreeName"].(map[string]any)
-		mokuReplayCheck(ok, "creation schema branch omitted worktreeName")
-		mokuReplayCheck(name["type"] == "string" && name["maxLength"] == float64(moku.ThreadCreationWorktreeNameMaxCharacters), "creation schema branch worktreeName lost its rune bound")
+	required := definition["required"].([]any)
+	worktreeRequired, targetRequired := false, false
+	for _, key := range required {
+		worktreeRequired = worktreeRequired || key == "worktree"
+		targetRequired = targetRequired || key == "target"
 	}
-	compiler := jsonschema.NewCompiler()
-	compiler.DefaultDraft(jsonschema.Draft7)
-	compiler.UseRegexpEngine(func(pattern string) (jsonschema.Regexp, error) {
-		r, err := regexp2.Compile(pattern, regexp2.ECMAScript)
-		if err != nil {
-			return nil, err
-		}
-		r.MatchTimeout = time.Second
-		return creationReplayRegexp{r}, nil
-	})
-	mokuReplayMust(compiler.AddResource("urn:creation", definition))
-	compiled, err := compiler.Compile("urn:creation")
-	mokuReplayMust(err)
-	rewritten, err := claude.ToolSchema(description.InputSchema)
-	mokuReplayMust(err)
-	var claudeDefinition any
-	mokuReplayMust(json.Unmarshal(rewritten, &claudeDefinition))
-	mokuReplayMust(compiler.AddResource("urn:creation-claude", claudeDefinition))
-	claudeCompiled, err := compiler.Compile("urn:creation-claude")
-	mokuReplayMust(err)
+	mokuReplayCheck(worktreeRequired && targetRequired, "creation schema omitted required target or worktree")
+	mokuReplayCheck(required[len(required)-1] == "prompt", "creation schema should generate prompt last")
+	prompt, ok := properties["prompt"].(map[string]any)
+	mokuReplayCheck(ok, "creation schema omitted prompt")
+	_, patterned := prompt["pattern"]
+	mokuReplayCheck(!patterned, "free-text prompt schema must not carry pattern: constrained decoders stop at its first match and truncate the value")
+	mokuReplayCheck(prompt["minLength"] == float64(1) && prompt["maxLength"] == float64(moku.ThreadCreationPromptMaxCharacters), "prompt schema lost its length bounds")
+	name, ok := properties["worktreeName"].(map[string]any)
+	mokuReplayCheck(ok, "creation schema omitted worktreeName")
+	mokuReplayCheck(name["type"] == "string" && name["maxLength"] == float64(moku.ThreadCreationWorktreeNameMaxCharacters), "creation schema worktreeName lost its rune bound")
+	compiled, claudeCompiled := compileCreationReplaySchemas(description.InputSchema)
 	cases := targets
 	for _, target := range cases {
 		for _, choice := range []struct {
@@ -95,7 +61,7 @@ func runCreationContractReplay() error {
 			{"true", true, "/project", true}, {"true-no-cwd", true, "", false}, {"null", nil, "", false},
 			{"string", "false", "", false}, {"number", 0, "", false},
 		} {
-			request := map[string]any{"prompt": "fixture", "harnessId": target.HarnessID, "options": map[string]any{"model": "model"}}
+			request := map[string]any{"prompt": "fixture", "target": map[string]any{target.HarnessID: map[string]any{"model": "model"}}}
 			if choice.name != "missing" {
 				request["worktree"] = choice.value
 			}
@@ -108,6 +74,7 @@ func runCreationContractReplay() error {
 			mokuReplayCheck((compiled.Validate(request) == nil) == choice.valid, target.HarnessID+" "+choice.name+" schema disagrees")
 			if choice.valid {
 				mokuReplayCheck(parsed.Worktree != nil && *parsed.Worktree == choice.value, "parser lost explicit boolean")
+				mokuReplayCheck(parsed.HarnessID == target.HarnessID && string(parsed.Options) == `{"model":"model"}`, "parser lost selected harness or native settings")
 			}
 			if choice.name == "missing" {
 				mokuReplayCheck(strings.Contains(parseErr.Error(), "worktree") && strings.Contains(parseErr.Error(), "缺少"), "parser missing-parameter error unclear")
@@ -119,7 +86,7 @@ func runCreationContractReplay() error {
 	// requires worktree:true. Length counts Unicode runes.
 	namedTarget := targets[0]
 	namedRequest := func(worktree any, name any) map[string]any {
-		return map[string]any{"prompt": "fixture", "harnessId": namedTarget.HarnessID, "options": map[string]any{"model": "model"}, "worktree": worktree, "cwd": "/project", "worktreeName": name}
+		return map[string]any{"prompt": "fixture", "target": map[string]any{namedTarget.HarnessID: map[string]any{"model": "model"}}, "worktree": worktree, "cwd": "/project", "worktreeName": name}
 	}
 	for name, request := range map[string]map[string]any{
 		"custom":      namedRequest(true, "fix auth"),
@@ -148,7 +115,7 @@ func runCreationContractReplay() error {
 		"unicode-false": namedRequest(false, "修复登录"),
 		"oversized":     namedRequest(true, strings.Repeat("a", moku.ThreadCreationWorktreeNameMaxCharacters+1)),
 		"65-runes":      namedRequest(true, strings.Repeat("汉", moku.ThreadCreationWorktreeNameMaxCharacters+1)),
-		"without-bool":  {"prompt": "fixture", "harnessId": namedTarget.HarnessID, "options": map[string]any{"model": "model"}, "cwd": "/project", "worktreeName": "fix-auth"},
+		"without-bool":  {"prompt": "fixture", "target": map[string]any{namedTarget.HarnessID: map[string]any{"model": "model"}}, "cwd": "/project", "worktreeName": "fix-auth"},
 	} {
 		mokuReplayCheck(compiled.Validate(request) != nil, "creation schema accepted invalid worktreeName "+name)
 		mokuReplayCheck(claudeCompiled.Validate(request) != nil, "Claude wire schema accepted invalid worktreeName "+name)
@@ -164,7 +131,7 @@ func runCreationContractReplay() error {
 	// the parser keeps rejecting blank input and length overflow.
 	target := targets[0]
 	makeRequest := func(prompt any) map[string]any {
-		return map[string]any{"prompt": prompt, "harnessId": target.HarnessID, "options": map[string]any{"model": "model"}, "worktree": false}
+		return map[string]any{"prompt": prompt, "target": map[string]any{target.HarnessID: map[string]any{"model": "model"}}, "worktree": false}
 	}
 	for _, prompt := range []any{"", "   ", "\t\r\n\ufeff", strings.Repeat("x", moku.ThreadCreationPromptMaxCharacters+1)} {
 		_, parseErr := moku.ParseCreateRequest(mokuReplayRaw(makeRequest(prompt)))
@@ -200,8 +167,190 @@ func runCreationContractReplay() error {
 			mokuReplayCheck(strings.Contains(binding.Description, "worktree:true by default"), "tool worktree default missing")
 		}
 	}
-	fmt.Println("PASS create_thread free-text prompt has no pattern, keeps length bounds, rejects blank/oversized input and preserves a long prompt; worktreeName is optional, rune-bounded, Unicode-preserving, accepts blank as absent, requires worktree:true for a non-blank value and is advertised by native/deferred and Claude schemas; required worktree still validated across native/deferred schemas, Claude wire schema and parser")
+	runCreationTargetContractReplay()
+	fmt.Println("PASS create_thread free-text prompt has no pattern, keeps length bounds, rejects blank/oversized input and preserves a long prompt; worktreeName is optional, rune-bounded, Unicode-preserving, accepts blank as absent, requires worktree:true for a non-blank value and is advertised by native/deferred and Claude schemas; required worktree and selected target survive native/deferred schemas, Claude wire schema and parser")
 	return nil
+}
+
+func runCreationTargetContractReplay() {
+	pi := moku.TargetDescription{HarnessID: "pi", NativeSchema: json.RawMessage(`{
+		"type": "object",
+		"oneOf": [{
+			"type": "object", "additionalProperties": false,
+			"required": ["provider", "model", "thinking"],
+			"properties": {
+				"provider": {"const": "deepseek"},
+				"model": {"type": "string", "enum": ["deepseek-flash"]},
+				"thinking": {
+					"type": "object", "additionalProperties": false, "required": ["mode", "effort"],
+					"properties": {"mode": {"const": "effort"}, "effort": {"enum": ["high"]}}
+				}
+			}
+		}, {
+			"type": "object", "additionalProperties": false,
+			"required": ["provider", "model", "thinking"],
+			"properties": {
+				"provider": {"const": "openai"},
+				"model": {"type": "string", "enum": ["pi-other-model"]},
+				"thinking": {
+					"type": "object", "additionalProperties": false, "required": ["mode"],
+					"properties": {"mode": {"const": "off"}}
+				}
+			}
+		}]
+	}`)}
+	opencode := moku.TargetDescription{HarnessID: "opencode", NativeSchema: json.RawMessage(`{
+		"type": "object", "additionalProperties": false,
+		"required": ["provider", "model", "thinking", "permissionMode"],
+		"properties": {
+			"agent": {"type": "string", "enum": ["build"]},
+			"permissionMode": {"type": "string", "enum": ["auto"]},
+			"provider": {"const": "opencode"},
+			"model": {"type": "string", "enum": ["opencode-model"]},
+			"thinking": {
+				"type": "object", "additionalProperties": false, "required": ["mode"],
+				"properties": {"mode": {"const": "fixed"}}
+			}
+		}
+	}`)}
+	piOptions := func(extra map[string]any) map[string]any {
+		options := map[string]any{
+			"provider": "deepseek", "model": "deepseek-flash",
+			"thinking": map[string]any{"mode": "effort", "effort": "high"},
+		}
+		for key, value := range extra {
+			options[key] = value
+		}
+		return options
+	}
+	opencodeOptions := map[string]any{
+		"provider": "opencode", "model": "opencode-model", "agent": "build", "permissionMode": "auto",
+		"thinking": map[string]any{"mode": "fixed"},
+	}
+	request := func(target any) map[string]any {
+		return map[string]any{"prompt": "fixture", "worktree": false, "target": target}
+	}
+	extraRoot := request(map[string]any{"pi": piOptions(nil)})
+	extraRoot["agent"] = "build"
+	oldFields := request(map[string]any{"pi": piOptions(nil)})
+	oldFields["harnessId"], oldFields["options"] = "pi", piOptions(nil)
+	// The parser owns the envelope and preserves native settings without interpreting them.
+	// Advertised-target membership and native fields belong to schema/admission.
+	cases := []struct {
+		name        string
+		request     map[string]any
+		schemaValid bool
+		parserValid bool
+	}{
+		{"pi", request(map[string]any{"pi": piOptions(nil)}), true, true},
+		{"pi-other-native-branch", request(map[string]any{"pi": map[string]any{"provider": "openai", "model": "pi-other-model", "thinking": map[string]any{"mode": "off"}}}), true, true},
+		{"pi-mismatched-native-choice", request(map[string]any{"pi": piOptions(map[string]any{"thinking": map[string]any{"mode": "off"}})}), false, true},
+		{"opencode", request(map[string]any{"opencode": opencodeOptions}), true, true},
+		{"pi-agent", request(map[string]any{"pi": piOptions(map[string]any{"agent": "build"})}), false, true},
+		{"pi-permission", request(map[string]any{"pi": piOptions(map[string]any{"permissionMode": "auto"})}), false, true},
+		{"pi-copied-opencode-fields", request(map[string]any{"pi": piOptions(map[string]any{"agent": "build", "permissionMode": "auto"})}), false, true},
+		{"pi-opencode-settings", request(map[string]any{"pi": opencodeOptions}), false, true},
+		{"opencode-pi-settings", request(map[string]any{"opencode": piOptions(nil)}), false, true},
+		{"pi-empty-settings", request(map[string]any{"pi": map[string]any{}}), false, true},
+		{"empty-target", request(map[string]any{}), false, false},
+		{"multiple-targets", request(map[string]any{"pi": piOptions(nil), "opencode": opencodeOptions}), false, false},
+		{"unknown-target", request(map[string]any{"unknown": piOptions(nil)}), false, true},
+		{"null-target", request(nil), false, false},
+		{"array-target", request([]any{}), false, false},
+		{"string-target", request("pi"), false, false},
+		{"null-native-settings", request(map[string]any{"pi": nil}), false, false},
+		{"array-native-settings", request(map[string]any{"pi": []any{}}), false, false},
+		{"padded-harness-key", request(map[string]any{" pi ": piOptions(nil)}), false, false},
+		{"missing-target", map[string]any{"prompt": "fixture", "worktree": false}, false, false},
+		{"removed-envelope", map[string]any{"prompt": "fixture", "worktree": false, "harnessId": "pi", "options": piOptions(nil)}, false, false},
+		{"mixed-envelopes", oldFields, false, false},
+		{"extra-root-field", extraRoot, false, false},
+	}
+	for _, targets := range [][]moku.TargetDescription{{opencode, pi}, {pi, opencode}} {
+		description, err := moku.DescribeThreadCreation(targets, "/moku")
+		mokuReplayMust(err)
+		var definition map[string]any
+		mokuReplayMust(json.Unmarshal(description.InputSchema, &definition))
+		properties := definition["properties"].(map[string]any)
+		_, oldHarness := properties["harnessId"]
+		_, oldOptions := properties["options"]
+		_, rootUnion := definition["oneOf"]
+		mokuReplayCheck(!oldHarness && !oldOptions && !rootUnion, "creation schema retained a shared harness/options envelope or root union")
+		targetSchema, ok := properties["target"].(map[string]any)
+		mokuReplayCheck(ok, "creation schema omitted target properties")
+		targetProperties, ok := targetSchema["properties"].(map[string]any)
+		mokuReplayCheck(ok && len(targetProperties) == len(targets), "creation schema did not expose one property per target")
+		for id, expectedFields := range map[string][]string{
+			"pi":       {"provider", "model", "thinking"},
+			"opencode": {"provider", "model", "thinking", "agent", "permissionMode"},
+		} {
+			native := targetProperties[id].(map[string]any)
+			fields, ok := native["properties"].(map[string]any)
+			mokuReplayCheck(ok && len(fields) == len(expectedFields), id+" advertised fields were missing or mixed with another harness")
+			for _, key := range expectedFields {
+				_, present := fields[key]
+				mokuReplayCheck(present, id+" did not directly advertise "+key+" to schema clients")
+			}
+		}
+		selectors, ok := targetSchema["oneOf"].([]any)
+		mokuReplayCheck(ok && len(selectors) == len(targets), "target schema omitted its single-selection rule")
+		for i, raw := range selectors {
+			selector := raw.(map[string]any)
+			required, ok := selector["required"].([]any)
+			_, fields := selector["properties"]
+			mokuReplayCheck(ok && len(required) == 1 && required[0] == targets[i].HarnessID && !fields, "target selector must preserve configured order without repeating native fields")
+		}
+		compiled, claudeCompiled := compileCreationReplaySchemas(description.InputSchema)
+		order := targets[0].HarnessID + "/" + targets[1].HarnessID
+		for _, choice := range cases {
+			for _, wire := range []struct {
+				name   string
+				schema *jsonschema.Schema
+			}{{"native", compiled}, {"Claude", claudeCompiled}} {
+				validationErr := wire.schema.Validate(choice.request)
+				mokuReplayCheck((validationErr == nil) == choice.schemaValid, order+" "+wire.name+" "+choice.name+" schema disagrees")
+				if choice.name == "pi-copied-opencode-fields" {
+					message := validationErr.Error()
+					mokuReplayCheck(strings.Contains(message, "agent") && strings.Contains(message, "permissionMode"), wire.name+" omitted the selected Pi field errors")
+					mokuReplayCheck(!strings.Contains(message, "opencode"), wire.name+" attributed an unselected harness's errors to Pi")
+				}
+			}
+			parsed, parseErr := moku.ParseCreateRequest(mokuReplayRaw(choice.request))
+			mokuReplayCheck((parseErr == nil) == choice.parserValid, fmt.Sprintf("%s %s parser: %v", order, choice.name, parseErr))
+			if choice.parserValid {
+				for id, options := range choice.request["target"].(map[string]any) {
+					mokuReplayCheck(parsed.HarnessID == id && string(parsed.Options) == string(mokuReplayRaw(options)), choice.name+" parser changed selected harness or native settings")
+				}
+			}
+		}
+	}
+	fmt.Println("PASS create_thread target properties keep Pi/OpenCode fields separate, reject copied settings and removed envelopes, enforce one advertised target, preserve native settings through the parser, and report only selected-harness errors in either order through native/Claude schemas")
+}
+
+func compileCreationReplaySchemas(raw json.RawMessage) (*jsonschema.Schema, *jsonschema.Schema) {
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+	compiler.UseRegexpEngine(func(pattern string) (jsonschema.Regexp, error) {
+		r, err := regexp2.Compile(pattern, regexp2.ECMAScript)
+		if err != nil {
+			return nil, err
+		}
+		r.MatchTimeout = time.Second
+		return creationReplayRegexp{r}, nil
+	})
+	var definition any
+	mokuReplayMust(json.Unmarshal(raw, &definition))
+	mokuReplayMust(compiler.AddResource("urn:creation", definition))
+	compiled, err := compiler.Compile("urn:creation")
+	mokuReplayMust(err)
+	rewritten, err := claude.ToolSchema(raw)
+	mokuReplayMust(err)
+	var claudeDefinition any
+	mokuReplayMust(json.Unmarshal(rewritten, &claudeDefinition))
+	mokuReplayMust(compiler.AddResource("urn:creation-claude", claudeDefinition))
+	claudeCompiled, err := compiler.Compile("urn:creation-claude")
+	mokuReplayMust(err)
+	return compiled, claudeCompiled
 }
 
 type creationReplayRegexp struct{ *regexp2.Regexp }

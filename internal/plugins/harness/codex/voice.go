@@ -467,8 +467,23 @@ func (v *VoiceSession) Stop(ctx context.Context) error {
 				if e == nil {
 					select {
 					case <-v.remoteStop:
+					case <-v.native.server.done:
+						v.native.server.mu.Lock()
+						e = v.native.server.terminalErr
+						v.native.server.mu.Unlock()
 					case <-timeout.Done():
 						e = errors.New("旧语音会话关闭未确认；必须建立新连接才能重启")
+					}
+				}
+				var closed *appServerClosedError
+				if errors.As(e, &closed) {
+					// The channel closes before its process and bridge drain. Join
+					// the owner before replacing the impossible stop acknowledgement.
+					e = v.native.Close()
+					if e == nil {
+						v.mu.Lock()
+						v.remoteClosed = true
+						v.mu.Unlock()
 					}
 				}
 				if e != nil {
@@ -811,7 +826,7 @@ func (h *Handle) PrepareNativeVoice(ctx context.Context, entries []plugin.Contex
 		warm := h.voiceRetired && !h.closed && v.stopErr == nil && v.remoteClosed && !v.configurationRetired
 		v.mu.Unlock()
 		h.mu.Unlock()
-		if warm {
+		if warm && !v.native.retiring() {
 			go h.prewarmNativeVoice()
 		}
 		return nil
@@ -1051,6 +1066,9 @@ func (h *Handle) prewarmNativeVoice() {
 	h.mu.Unlock()
 	defer cancel()
 	defer func() { h.mu.Lock(); h.voiceWarmCancel = nil; h.mu.Unlock() }()
+	if previous.retiring() {
+		return
+	}
 	o, err := h.options(ctx)
 	if err != nil {
 		return
@@ -1059,7 +1077,11 @@ func (h *Handle) prewarmNativeVoice() {
 	if err != nil {
 		return
 	}
-	if err = previous.Close(); err != nil {
+	if previous.retiring() {
+		return
+	}
+	retiredLive, err := previous.close()
+	if err != nil || !retiredLive {
 		return
 	}
 	h.mu.Lock()

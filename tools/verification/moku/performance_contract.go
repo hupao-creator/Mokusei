@@ -147,7 +147,7 @@ func runCompiledToolContractReplay() error {
 	mokuReplayMust(dynamic.Submit(mokuReplayContext(), orchestratorInput("initialize dynamic target schema")))
 	create := dynamicWorld.binding("create_thread")
 	invoke := func(modelID string) error {
-		_, err := create.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "prompt": "delegate", "harnessId": "opencode", "options": map[string]string{"model": modelID}})})
+		_, err := create.Execute(mokuReplayContext(), plugin.ToolCall{Arguments: mokuReplayRaw(map[string]any{"worktree": false, "prompt": "delegate", "target": map[string]any{"opencode": map[string]string{"model": modelID}}})})
 		return err
 	}
 	mokuReplayMust(invoke("mock-model"))

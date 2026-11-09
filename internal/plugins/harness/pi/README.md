@@ -232,8 +232,15 @@ assistant excerpt without acquiring full conversation content. Native
 Prompt, reasoning and tool-payload admission is unchanged; no latest-execution
 fallback is used for historical references.
 
-Discovery rejects results when tracked native configuration files change during
-the probe, so an in-flight read cannot publish a known-obsolete snapshot.
+Discovery discards results when tracked native configuration files change during
+the probe, then makes at most one fresh attempt after the old process drains.
+This permits Pi's cold startup to initialize its empty auth store without
+publishing a snapshot under the old identity. The retry reacquires the complete
+source identity; persistent changes still fail. Cancellation, shared deadlines,
+RPC failures and cleanup errors do not authorize another attempt. Only an
+observation stable across its own read is cached. A routing cache miss or refresh
+always acquires a fresh native observation, because an ordinary observation's
+root-file identity cannot certify the routing cache's transitive dependencies.
 
 Moku requires the full nonempty native model inventory before task admission.
 Unknown thinking capabilities remain named in that inventory but cannot authorize

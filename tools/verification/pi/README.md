@@ -10,6 +10,16 @@ production adapter, checking model/thinking choices and the absence of leftover
 retains the durations. The native configuration is disposable; user account
 files are not read or changed.
 
+The default settings replay also starts real child-process peers that create a
+missing auth store or change the model source while returning their old snapshot.
+Ordinary and routing reads must discard that snapshot, reap the old child and
+make at most one fresh attempt. It checks stable-only caching, persistent-change
+rejection after two attempts, and no successor after RPC failure, cancellation or
+adapter Close. Routing also rereads transitive changes, both during discovery and
+after an ordinary root-file observation is cached. `settings-source-retry.json`
+retains the observed process counts. Installed-native Chat cases keep their cold
+auth directories to exercise Pi's actual initialization without prewarming it.
+
 `./scripts/go.sh run -race ./tools/verification/pi -swift-usage -timeout 10m`
 additionally feeds 100 Go-produced durable/overview/thread/execution/turn fixtures
 through the real Swift Pi plugin and checks the Overview card and execution-usage
@@ -46,6 +56,14 @@ late shutdown events rewriting the old terminal execution. This runs without
 `-artifacts` retains `runtime-lifecycle-state.json`.
 
 The real Pi 1.0.0 scenario exercises the native loader, host extension, read guard, Go tool callback, persistence, independent clone, cancellation and recovery. It uses isolated native configuration and a localhost-only sandbox. It does not contact a paid model, use account login or prove future Pi compatibility.
+
+The host-tool scenario also injects the production Moku creation schema using
+the installed Pi catalog plus a synthetic OpenCode target. The actual model
+requests before and after the host tool call must retain `target.pi` and
+`target.opencode`, their separate fields, exact inventory descriptions and
+single-target selectors. Captured declarations are retained in
+`native-evidence.json`; the scripted provider never calls `create_thread`, so
+this verifies the model-facing declaration rather than task creation.
 
 The installed-native run also checks a loopback Responses model: explicit thinking
 selection must reach the actual HTTP request as `reasoning.effort=high`, with the

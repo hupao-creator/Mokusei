@@ -43,6 +43,11 @@ The synthetic replay checks:
   can execute text, admit a new native voice execution, fail its connection,
   release voice, complete new text and prepare voice again.
 - Notifications arriving before the `turn/start` response, streaming text, approvals, public interaction IDs and final durable projection.
+- Native `rawResponse/completed` usage crosses the actual JSONL notification path
+  into the renderer and an asynchronous telemetry ledger. Two response IDs retain
+  distinct samples and exact token categories; a repeated ID with changed counts
+  must not overwrite the first result. The replay includes the ledger port so the
+  race detector covers telemetry reading an event while projection metadata is added.
 - Moku-composed Codex creation requires an explicit model-supported service tier:
   omission, null, boolean, inherit, and unknown tiers are rejected even when
   configured defaults contain a tier.
@@ -66,6 +71,11 @@ The synthetic replay checks:
 - Native voice configuration rejection before Core/tool admission, exact
   handoff recovery only after process and bridge cleanup, generic/uncertain
   rejection without automatic recovery, and concurrent configuration closure.
+  Generic/joined rejection holds the real voice error callback until explicit
+  owner cleanup joins the retired peer; a faster asynchronous watcher cannot hide
+  a stale `realtime/stop` call against the closed server. The callback is released
+  on every exit, and exact-pending recovery and cancellation-error assertions stay
+  independent of this ordering.
   Use `-voice-configuration-only` for these external-process protocol fixtures.
 - Voice relay, direct owner and private discussion startup with a newer CLI.
   The focused `-voice-only` replay also accepts future, unversioned and empty
@@ -124,8 +134,9 @@ The installed-CLI replay uses an isolated native Fast default and explicitly
 requests standard service. Native thread replies and all six local Provider
 requests must retain standard service, including fork and resume. Its injected
 tools include the real Moku-composed Codex creation schema; the captured
-model-facing declaration must expose `options.serviceTier` as required. The
-scripted Provider never calls that creation tool.
+model-facing declaration must expose `target.codex.serviceTier` as required and
+retain the target selector as an object with required `codex`. The scripted
+Provider never calls that creation tool.
 
 `-voice-only` additionally checks launch-catalog reuse and account/configuration
 invalidation, idle fresh-process prewarming, repeated direct calls, consuming a
