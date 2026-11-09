@@ -33,6 +33,29 @@ func TestStartupEvidenceRetainsBoundedOwnedFiles(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(runtime, "owner.json")); err != nil {
 		t.Fatal(err)
 	}
+	outsideProfile := t.TempDir()
+	outsideRuntime := filepath.Join(outsideProfile, "runtime")
+	if err := os.Mkdir(outsideRuntime, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outsideRuntime, "process.log"), []byte("external profile"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideProfile, filepath.Join(root, "external-profile")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "linked-runtime"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideRuntime, filepath.Join(root, "linked-runtime", "runtime")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "unrelated-directory"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "unrelated-directory", "notes.txt"), []byte("not a profile"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	e := helperStartupEvidence{root: root, directory: t.TempDir()}
 	if err := e.retain("concurrent-launch"); err != nil {
 		t.Fatal(err)
@@ -47,6 +70,11 @@ func TestStartupEvidenceRetainsBoundedOwnedFiles(t *testing.T) {
 			t.Fatalf("unowned link or unlisted file was exported: %s, %v", name, err)
 		}
 	}
+	for _, name := range []string{"external-profile", "linked-runtime", "unrelated-directory"} {
+		if _, err := os.Stat(filepath.Join(output, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("linked or unrelated directory was exported: %s, %v", name, err)
+		}
+	}
 	data, err = os.ReadFile(filepath.Join(output, "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +85,7 @@ func TestStartupEvidenceRetainsBoundedOwnedFiles(t *testing.T) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	var bounded, rejected, missing bool
+	var bounded, rejected, missing, rejectedProfile, rejectedRuntime bool
 	digest := sha256.Sum256(log[:2*1024*1024])
 	for _, file := range manifest.Files {
 		switch file["path"] {
@@ -67,22 +95,34 @@ func TestStartupEvidenceRetainsBoundedOwnedFiles(t *testing.T) {
 			rejected = file["error"] != nil
 		case "daemon/runtime/startup-error.json":
 			missing = file["error"] != nil
+		case "external-profile":
+			rejectedProfile = file["error"] != nil
+		case "linked-runtime/runtime":
+			rejectedRuntime = file["error"] != nil
 		}
 	}
-	if !bounded || !rejected || !missing {
-		t.Fatal("manifest hid truncation, rejected link or missing startup diagnostic")
+	if !bounded || !rejected || !missing || !rejectedProfile || !rejectedRuntime {
+		t.Fatal("manifest hid truncation, rejected file/directory link or missing startup diagnostic")
 	}
 }
 
 func TestStartupEvidencePrecedesRemovalAndPreservesPanic(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "owned")
-	runtime := filepath.Join(root, "daemon", "runtime")
-	if err := os.MkdirAll(runtime, 0700); err != nil {
-		t.Fatal(err)
+	profiles := []string{"daemon", "stale-unauthorized-false", "future-profile-without-a-name-registration"}
+	files := map[string][]byte{
+		"process.log":        []byte("fixture child could not acquire its guard\n"),
+		"startup-error.json": []byte(`{"message":"fixture initialization failed"}`),
 	}
-	message := []byte("fixture child could not acquire its guard\n")
-	if err := os.WriteFile(filepath.Join(runtime, "process.log"), message, 0600); err != nil {
-		t.Fatal(err)
+	for _, name := range profiles {
+		runtime := filepath.Join(root, name, "runtime")
+		if err := os.MkdirAll(runtime, 0700); err != nil {
+			t.Fatal(err)
+		}
+		for file, content := range files {
+			if err := os.WriteFile(filepath.Join(runtime, file), content, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	e := helperStartupEvidence{root: root, directory: t.TempDir()}
 	failure := errors.New("original concurrent launch failure")
@@ -101,9 +141,13 @@ func TestStartupEvidencePrecedesRemovalAndPreservesPanic(t *testing.T) {
 	if _, err := os.Stat(root); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("fixture cleanup did not execute: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(e.directory, "panic", "daemon", "runtime", "process.log"))
-	if err != nil || !bytes.Equal(data, message) {
-		t.Fatalf("failure log disappeared before capture: %v", err)
+	for _, name := range profiles {
+		for file, content := range files {
+			data, err := os.ReadFile(filepath.Join(e.directory, "panic", name, "runtime", file))
+			if err != nil || !bytes.Equal(data, content) {
+				t.Errorf("%s/%s disappeared before capture: %v", name, file, err)
+			}
+		}
 	}
 }
 

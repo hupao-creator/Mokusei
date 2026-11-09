@@ -88,9 +88,12 @@ drain scenario. No user runtime or external Harness is used for these fixtures.
 CI passes `--artifacts <directory>` after `--swift-shutdown` to the runtime-helper
 replay. A concurrent-launch error is captured immediately; a parent panic also
 captures a separate snapshot before deleting its owned temporary profiles, then
-rethrows the original panic. Only named runtime logs and private startup/owner/
-connection/launch metadata from those fixture profiles are copied. Symbolic links and
-special files are rejected, logs are capped at 2 MiB, JSON at 64 KiB, and each
+rethrows the original panic. Capture discovers the actual immediate child profiles
+with a `runtime` directory, including stale-discovery and future fixtures without
+a separate profile-name list. Only named runtime logs and private startup/owner/
+connection/launch metadata from those fixture profiles are copied. Profile and runtime
+directory links, file links and special files are rejected; unrelated inputs are not
+copied. Logs are capped at 2 MiB, JSON at 64 KiB, and each
 profile exports at most 64 launch files. The manifest records missing/read errors,
 truncation, copied-byte hashes and observed PID liveness. These snapshots are not
 atomic ownership observations and do not turn an unavailable historical log into
