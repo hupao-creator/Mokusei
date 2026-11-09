@@ -221,6 +221,8 @@ native last-call meaning for existing consumers; neither its snapshots nor the
 session-wide token total is summed. Turns admitted without the map have no
 certified execution total and do not acquire a misleading suffix-only total
 when resumed. Unfinished calls contribute only after reporting usage.
+Asynchronous telemetry receives an owned event snapshot before the notification
+receiver adds projection metadata, so ledger reads cannot race those writes.
 
 Compact renderer directories retain up to 600 characters of `answer` for each
 execution, including historical executions, so Report can display a bounded

@@ -242,7 +242,23 @@ type observationFlight struct {
 	catalog  bool
 }
 
-func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool, routing ...bool) (observation, error) {
+var errObservationSourceChanged = errors.New("Pi native configuration changed during discovery")
+
+func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool, routing ...bool) (value observation, err error) {
+	// Pi may create its empty auth store during a cold read. Discard that
+	// observation, then acquire one fresh identity and snapshot after disposal.
+	// Persistent changes, cancellation and cleanup failures must still surface.
+	for range 2 {
+		value, err = s.observeOnce(ctx, settings, cwd, catalog, refresh, routing...)
+		if !errors.Is(err, errObservationSourceChanged) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return value, err
+		}
+		refresh = true
+	}
+	return value, err
+}
+
+func (s *settingsAPI) observeOnce(ctx context.Context, settings ThreadSettings, cwd string, catalog, refresh bool, routing ...bool) (observation, error) {
 	if err := ctx.Err(); err != nil {
 		return observation{}, err
 	}
@@ -270,7 +286,9 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 	sourceIdentity := cwd + "\x00" + executable + "\x00" + identity
 	if isRouting {
 		value, readErr := s.routingCatalogs.GetStale(ctx, sourceIdentity, 5*time.Minute, 30*time.Second, func(probeCtx context.Context) (observation, error) {
-			value, err := s.observe(probeCtx, settings, cwd, true, false)
+			// This cache owns the full dependency identity. A cold/refresh load
+			// cannot certify an observation cached under only root-file metadata.
+			value, err := s.observeOnce(probeCtx, settings, cwd, true, true)
 			if err != nil {
 				return value, err
 			}
@@ -294,7 +312,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 				return value, err
 			}
 			if current != identity || currentExecutable != executable {
-				return value, errors.New("Pi routing source changed during discovery")
+				return value, errObservationSourceChanged
 			}
 			value.Identity = sourceIdentity
 			return value, nil
@@ -367,12 +385,13 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 							current, sourceErr = discovery.ObservedIdentity(shared, currentEnv, currentExecutable, cwd, ".pi", identityPaths...)
 						}
 						if sourceErr == nil && current != identity {
-							sourceErr = errors.New("Pi native configuration changed during discovery")
+							sourceErr = errObservationSourceChanged
 						}
 					}
 				}
 				probeErr = sourceErr
 			}
+			probeErr = errors.Join(probeErr, shared.Err())
 			value.Identity = sourceIdentity
 			s.mu.Lock()
 			flight.value = value
@@ -414,7 +433,7 @@ func (s *settingsAPI) observe(ctx context.Context, settings ThreadSettings, cwd 
 		// upgrades on the next flight; it never accepts a state-only result as
 		// a catalog, and never overlaps a second native owner with this one.
 		if catalog && !flight.value.Catalog && flight.err == nil && flight.value.DiscoveryError == "" {
-			return s.observe(ctx, settings, cwd, true, false, routing...)
+			return s.observeOnce(ctx, settings, cwd, true, false, routing...)
 		}
 		return flight.value, flight.err
 	}

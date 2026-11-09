@@ -43,6 +43,11 @@ The synthetic replay checks:
   can execute text, admit a new native voice execution, fail its connection,
   release voice, complete new text and prepare voice again.
 - Notifications arriving before the `turn/start` response, streaming text, approvals, public interaction IDs and final durable projection.
+- Native `rawResponse/completed` usage crosses the actual JSONL notification path
+  into the renderer and an asynchronous telemetry ledger. Two response IDs retain
+  distinct samples and exact token categories; a repeated ID with changed counts
+  must not overwrite the first result. The replay includes the ledger port so the
+  race detector covers telemetry reading an event while projection metadata is added.
 - Moku-composed Codex creation requires an explicit model-supported service tier:
   omission, null, boolean, inherit, and unknown tiers are rejected even when
   configured defaults contain a tier.

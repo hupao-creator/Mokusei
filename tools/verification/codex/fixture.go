@@ -48,6 +48,23 @@ func (p *peer) completed(answer string) error {
 	if e := p.event("item/completed", object{"threadId": p.session, "turnId": p.turn, "item": item}); e != nil {
 		return e
 	}
+	if os.Getenv("MOKUSEI_CODEX_REPLAY_USAGE") == "1" && answer == "Hello fixture" {
+		for _, sample := range []struct {
+			id                                      string
+			input, cached, write, output, reasoning int
+		}{
+			{"fixture-response-1", 40, 10, 3, 8, 3},
+			{"fixture-response-1", 400, 100, 30, 80, 99},
+			{"fixture-response-2", 60, 20, 5, 12, 5},
+		} {
+			if err := p.event("rawResponse/completed", object{"threadId": p.session, "responseId": sample.id, "usage": object{
+				"inputTokens": sample.input, "cachedInputTokens": sample.cached, "cacheWriteInputTokens": sample.write,
+				"outputTokens": sample.output, "reasoningOutputTokens": sample.reasoning,
+			}}); err != nil {
+				return err
+			}
+		}
+	}
 	return p.event("turn/completed", object{"threadId": p.session, "turn": object{"id": p.turn, "status": "completed", "items": []any{item}}})
 }
 func fixtureMain() error {

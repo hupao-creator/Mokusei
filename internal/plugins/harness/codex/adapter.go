@@ -662,7 +662,8 @@ func (h *Handle) receiveFrom(source *NativeSession, event Map) {
 		return
 	}
 	if kind == "generation-usage" {
-		go h.recordUsage(event)
+		// The receiver adds projection metadata below; telemetry owns a snapshot.
+		go h.recordUsage(clone(event))
 	}
 	// Native reasoning chunks each repeat this status. The first one must
 	// publish immediately; later copies must not flush the 50 ms delta batch.
